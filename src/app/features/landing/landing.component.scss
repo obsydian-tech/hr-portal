@@ -101,30 +101,32 @@
     }
   }
 
-  &__btn {
-    font-weight: 700 !important;
-    letter-spacing: 0.05em !important;
-    text-transform: uppercase !important;
-    font-size: 0.875rem !important;
-    padding: 0.875rem 2rem !important;
-    border-radius: 0.375rem !important;
-    transition: all 0.3s ease !important;
+  // Use ::ng-deep to pierce PrimeNG button encapsulation
+  &__cta {
+    ::ng-deep .hero__btn {
+      font-weight: 700 !important;
+      letter-spacing: 0.05em !important;
+      text-transform: uppercase !important;
+      font-size: 0.875rem !important;
+      padding: 0.875rem 2rem !important;
+      border-radius: 0.375rem !important;
+      transition: all 0.3s ease !important;
+    }
 
-    &--ghost {
-      background: transparent !important;
+    ::ng-deep .hero__btn--ghost {
+      background: rgba(255, 255, 255, 0.9) !important;
       border: 2px solid #ffffff !important;
-      color: #ffffff !important;
+      color: var(--naleko-primary) !important;
 
       &:hover {
         background: #ffffff !important;
-        color: var(--naleko-primary) !important;
       }
     }
 
-    &--filled {
+    ::ng-deep .hero__btn--filled {
       background: rgba(74, 63, 138, 0.3) !important;
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      backdrop-filter: blur(12px) !important;
+      border: 2px solid rgba(255, 255, 255, 0.2) !important;
       color: #ffffff !important;
 
       &:hover {
@@ -329,18 +331,16 @@
   position: relative;
 
   &__number {
+    display: block;
     font-size: 5rem;
     font-weight: 900;
-    color: rgba(255, 255, 255, 0.05);
-    position: absolute;
-    top: -1rem;
-    left: -0.25rem;
+    color: rgba(255, 255, 255, 0.08);
     line-height: 1;
-    pointer-events: none;
+    margin-bottom: 1.5rem;
   }
 
   &__content {
-    padding-top: 2rem;
+    padding-top: 1.5rem;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
   }
 
