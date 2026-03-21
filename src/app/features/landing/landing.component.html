@@ -1,0 +1,218 @@
+<!-- ============================================================
+     SECTION 1: HERO (Full viewport height)
+     ============================================================ -->
+<header class="hero">
+  <!-- Background Image + Overlay -->
+  <div class="hero__bg">
+    <img
+      src="images/hero-office.png"
+      alt="Modern corporate office interior with glass walls and dark tones"
+      class="hero__bg-img"
+    />
+    <div class="hero__bg-overlay"></div>
+  </div>
+
+  <!-- Navbar: Solid white, overlays hero -->
+  <nav class="navbar">
+    <div class="navbar__inner">
+      <a class="navbar__logo" routerLink="/">HR Portal</a>
+      <div class="navbar__links">
+        <a href="#features" class="navbar__link">Features</a>
+        <a href="#how-it-works" class="navbar__link">Solutions</a>
+        <a href="#footer" class="navbar__link">Pricing</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Content -->
+  <div class="hero__content">
+    <span class="hero__label">NALEKO DIGITAL SOLUTIONS</span>
+
+    <h1 class="hero__heading">
+      HR Portal<br />
+      <span class="hero__heading--accent">Verifying people, building trust.</span>
+    </h1>
+
+    <p class="hero__subtitle">
+      Your Workforce Compliance Verification Platform. Streamline employee
+      onboarding through automation, cutting-edge OCR &amp; AI-powered document
+      processing, and seamless integrations.
+    </p>
+
+    <div class="hero__cta flex gap-3">
+      <a routerLink="/hr/STAFF-001">
+        <p-button
+          label="HR Staff"
+          [outlined]="true"
+          severity="secondary"
+          styleClass="hero__btn hero__btn--ghost"
+        />
+      </a>
+      <a routerLink="/employees/EMP-001">
+        <p-button
+          label="Employee"
+          severity="secondary"
+          styleClass="hero__btn hero__btn--filled"
+        />
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================
+     SECTION 2: FEATURES / VALUE PROPS
+     ============================================================ -->
+<section id="features" class="features">
+  <div class="features__inner">
+    <div class="features__header">
+      <h2 class="features__title">
+        Streamlined Onboarding,<br />
+        <span class="features__title--accent">Powered by AI</span>
+      </h2>
+    </div>
+
+    <div class="grid">
+      <!-- Card 1 -->
+      <div class="col-12 md:col-4">
+        <div class="feature-card">
+          <div class="feature-card__icon feature-card__icon--primary">
+            <i class="pi pi-id-card"></i>
+          </div>
+          <h3 class="feature-card__title">AI Document Verification</h3>
+          <p class="feature-card__desc">
+            AI-powered OCR extracts document details instantly, eliminating
+            manual emailing and data entry. Your HR team then reviews and
+            initiates automated verification of employee credentials through our
+            trusted partner integrations.
+          </p>
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="col-12 md:col-4">
+        <div class="feature-card">
+          <div class="feature-card__icon feature-card__icon--secondary">
+            <i class="pi pi-check-circle"></i>
+          </div>
+          <h3 class="feature-card__title">Real-Time Progress Tracking</h3>
+          <p class="feature-card__desc">
+            Track every stage of your onboarding journey with live status
+            updates and estimated completion times.
+          </p>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="col-12 md:col-4">
+        <div class="feature-card">
+          <div class="feature-card__icon feature-card__icon--tertiary">
+            <i class="pi pi-shield"></i>
+          </div>
+          <h3 class="feature-card__title">POPIA Compliant &amp; Secure</h3>
+          <p class="feature-card__desc">
+            Your personal data is encrypted and processed within South Africa.
+            Full compliance with the Protection of Personal Information Act.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 3: HOW IT WORKS
+     ============================================================ -->
+<section id="how-it-works" class="how-it-works">
+  <!-- Abstract background detail -->
+  <div class="how-it-works__bg-detail">
+    <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 400 C 150 400 200 100 400 0 L 400 400 Z" fill="currentColor" />
+    </svg>
+  </div>
+
+  <div class="how-it-works__inner">
+    <div class="how-it-works__header">
+      <h2 class="how-it-works__title">How It Works</h2>
+      <div class="how-it-works__divider"></div>
+    </div>
+
+    <div class="grid">
+      <!-- Step 1 -->
+      <div class="col-12 md:col-3">
+        <div class="step">
+          <span class="step__number">01</span>
+          <div class="step__content">
+            <h4 class="step__title">HR Creates Your Profile</h4>
+            <p class="step__desc">
+              Your HR team registers you, and the system auto-generates a
+              welcome email with your login credentials.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="col-12 md:col-3">
+        <div class="step">
+          <span class="step__number">02</span>
+          <div class="step__content">
+            <h4 class="step__title">Upload Your Documents</h4>
+            <p class="step__desc">
+              Log in and upload your SA ID, bank confirmation letter, and
+              qualifications through our secure portal.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="col-12 md:col-3">
+        <div class="step">
+          <span class="step__number">03</span>
+          <div class="step__content">
+            <h4 class="step__title">AI Extracts Your Details</h4>
+            <p class="step__desc">
+              Our AI-powered OCR engine extracts and processes your document
+              details in seconds — removing the need for manual data entry and
+              email exchanges.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="col-12 md:col-3">
+        <div class="step">
+          <span class="step__number">04</span>
+          <div class="step__content">
+            <h4 class="step__title">You're Onboarded!</h4>
+            <p class="step__desc">
+              Your HR team reviews the extracted details and initiates automated
+              verification through our trusted partners. Once confirmed, your
+              onboarding progresses automatically — watch your pre-onboarding
+              videos and get ready for day one.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECTION 4: FOOTER
+     ============================================================ -->
+<footer id="footer" class="site-footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__left">
+      <span class="site-footer__brand">Naleko Digital Solutions</span>
+      <p class="site-footer__copy">&copy; 2026 Naleko Digital Solutions. All rights reserved.</p>
+    </div>
+    <div class="site-footer__links">
+      <a href="#" class="site-footer__link">Privacy Policy</a>
+      <a href="#" class="site-footer__link">Terms of Service</a>
+      <a href="#" class="site-footer__link">Help Center</a>
+      <a href="#" class="site-footer__link">Contact Us</a>
+    </div>
+  </div>
+</footer>

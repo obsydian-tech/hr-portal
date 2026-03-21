@@ -1,0 +1,69 @@
+/* === PrimeNG Theme, PrimeFlex & PrimeIcons === */
+@use 'primeflex/primeflex.scss';
+@use 'primeicons/primeicons.css';
+
+/* === Naleko Brand Tokens (from Stitch Design Theme) === */
+:root {
+  /* Primary palette */
+  --naleko-primary: #1a1a2e;
+  --naleko-secondary: #4a3f8a;
+  --naleko-tertiary: #2d8f9e;
+
+  /* Surface hierarchy */
+  --naleko-surface: #f8f9fa;
+  --naleko-surface-container: #edeeef;
+  --naleko-surface-container-low: #f3f4f5;
+  --naleko-surface-container-lowest: #ffffff;
+  --naleko-surface-container-high: #e7e8e9;
+  --naleko-surface-container-highest: #e1e3e4;
+
+  /* On-colors */
+  --naleko-on-surface: #191c1d;
+  --naleko-on-surface-variant: #47464c;
+  --naleko-on-primary: #ffffff;
+
+  /* Accent & utility */
+  --naleko-secondary-container: #b7acff;
+  --naleko-tertiary-fixed-dim: #7ad4e4;
+  --naleko-outline: #78767d;
+  --naleko-outline-variant: #c8c5cd;
+  --naleko-error: #ba1a1a;
+
+  /* Typography */
+  --naleko-font-family: 'Inter', sans-serif;
+}
+
+/* === Global Reset & Base === */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--naleko-font-family);
+  color: var(--naleko-on-surface);
+  background-color: var(--naleko-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* === Inter Font Import === */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
