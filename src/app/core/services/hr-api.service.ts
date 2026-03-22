@@ -269,11 +269,12 @@ export class HrApiService {
     const newEmployee: Employee = {
       employee_id: `EMP-${String(this.nextId++).padStart(7, '0')}`,
       first_name: data.first_name,
-      middle_name: '',
+      middle_name: data.middle_name || '',
       last_name: data.last_name,
       email: data.email,
       phone: data.phone,
       department: data.department,
+      job_title: data.job_title,
       stage: 'INVITED',
       offer_accept_date: data.offer_accept_date,
       planned_start_date: data.planned_start_date,

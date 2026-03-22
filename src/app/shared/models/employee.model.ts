@@ -16,6 +16,7 @@ export interface Employee {
   email: string;
   phone: string;
   department: string;
+  job_title?: string;
   stage: OnboardingStage;
   offer_accept_date: string;
   planned_start_date: string;
@@ -106,6 +107,7 @@ export interface EmployeeDocument {
   ocr_status: OcrStatus;
   ocr_completed_at?: string;
   uploaded_at?: string;
+  uploaded_by?: string;
   verification_reasoning?: string;
   ocr_result?: EmployeeDocumentOcrResult;
   verification: VerificationDetail | null;
@@ -152,10 +154,25 @@ export interface EmployeeListResponse {
 /** Payload for creating a new employee */
 export interface CreateEmployeeRequest {
   first_name: string;
+  middle_name?: string;
   last_name: string;
   email: string;
   phone: string;
   department: string;
+  job_title?: string;
   offer_accept_date: string;
   planned_start_date: string;
+}
+
+/** Document slot used in the registration wizard */
+export interface WizardDocumentSlot {
+  type: DocumentType;
+  label: string;
+  description: string;
+  icon: string;
+  file: File | null;
+  fileName: string;
+  uploading: boolean;
+  uploaded: boolean;
+  ocrResult: OcrResult | null;
 }

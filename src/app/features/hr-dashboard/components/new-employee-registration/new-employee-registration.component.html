@@ -1,0 +1,468 @@
+<div class="registration">
+  <!-- Back link -->
+  <p-button
+    label="Back to Dashboard"
+    icon="pi pi-arrow-left"
+    severity="secondary"
+    [text]="true"
+    (onClick)="goBack()"
+    class="mb-3 inline-block"
+  />
+
+  @if (submitted()) {
+    <!-- ═══ Success State ═══ -->
+    <div class="success-card">
+      <div class="success-card__icon">
+        <i class="pi pi-check-circle"></i>
+      </div>
+      <h2 class="success-card__title">Employee Registered Successfully</h2>
+      <p class="success-card__sub">
+        <strong>{{ firstName }} {{ lastName }}</strong> has been added to the system with ID
+        <span class="font-mono">{{ createdEmployeeId() }}</span>.
+        They will receive an onboarding invitation at <strong>{{ email }}</strong>.
+      </p>
+      <div class="success-card__info">
+        <div class="flex align-items-center gap-2">
+          <i class="pi pi-file-check" style="color: #27ae60"></i>
+          <span>{{ uploadedCount() }} of 4 documents uploaded during registration</span>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-4 justify-content-center flex-wrap">
+        <p-button
+          label="View Employee"
+          icon="pi pi-user"
+          (onClick)="viewEmployee()"
+        />
+        <p-button
+          label="Register Another"
+          icon="pi pi-plus"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="registerAnother()"
+        />
+        <p-button
+          label="Back to Dashboard"
+          icon="pi pi-home"
+          severity="secondary"
+          [text]="true"
+          (onClick)="goBack()"
+        />
+      </div>
+    </div>
+  } @else {
+    <!-- ═══ Page Header ═══ -->
+    <div class="registration__header mb-4">
+      <div class="flex align-items-center gap-3 mb-2">
+        <div class="registration__header-icon">
+          <i class="pi pi-user-plus"></i>
+        </div>
+        <div>
+          <h2 class="m-0 registration__title">Register New Employee</h2>
+          <p class="m-0 registration__sub">Complete all steps to add a new hire to the system</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Steps Indicator ═══ -->
+    <div class="mb-4">
+      <p-steps
+        [model]="steps"
+        [activeIndex]="activeStep()"
+        [readonly]="false"
+        (activeIndexChange)="goToStep($event)"
+        styleClass="registration-steps"
+      />
+    </div>
+
+    <!-- ═══ Step Panels ═══ -->
+    @switch (activeStep()) {
+      <!-- ─── Step 1: Personal Details ─── -->
+      @case (0) {
+        <p-card styleClass="step-card">
+          <ng-template #header>
+            <div class="step-card__header">
+              <i class="pi pi-user mr-2"></i>
+              Personal Details
+              <span class="step-card__badge">Step 1 of 4</span>
+            </div>
+          </ng-template>
+
+          <div class="grid">
+            <div class="col-12 md:col-4 mb-3">
+              <label for="firstName" class="field-label">First Name *</label>
+              <input
+                pInputText
+                id="firstName"
+                [(ngModel)]="firstName"
+                placeholder="e.g. Sarah"
+                class="w-full"
+              />
+            </div>
+            <div class="col-12 md:col-4 mb-3">
+              <label for="middleName" class="field-label">Middle Name</label>
+              <input
+                pInputText
+                id="middleName"
+                [(ngModel)]="middleName"
+                placeholder="Optional"
+                class="w-full"
+              />
+            </div>
+            <div class="col-12 md:col-4 mb-3">
+              <label for="lastName" class="field-label">Last Name *</label>
+              <input
+                pInputText
+                id="lastName"
+                [(ngModel)]="lastName"
+                placeholder="e.g. Nkosi"
+                class="w-full"
+              />
+            </div>
+
+            <div class="col-12 mb-3">
+              <label for="email" class="field-label">Email Address *</label>
+              <div class="flex gap-2">
+                <input
+                  pInputText
+                  id="email"
+                  [(ngModel)]="email"
+                  placeholder="e.g. sarah.nkosi@company.co.za"
+                  class="flex-1"
+                  type="email"
+                />
+                <p-button
+                  icon="pi pi-search"
+                  [outlined]="true"
+                  severity="secondary"
+                  (onClick)="searchByEmail()"
+                  [loading]="searchingEmail()"
+                  pTooltip="Check if email already exists"
+                />
+              </div>
+              @if (emailExists()) {
+                <small class="field-error mt-1 block">
+                  <i class="pi pi-exclamation-triangle mr-1"></i>
+                  This email is already registered in the system.
+                </small>
+              }
+            </div>
+
+            <div class="col-12 md:col-6 mb-3">
+              <label for="phone" class="field-label">Phone Number *</label>
+              <input
+                pInputText
+                id="phone"
+                [(ngModel)]="phone"
+                placeholder="e.g. 081 234 5678"
+                class="w-full"
+              />
+            </div>
+          </div>
+        </p-card>
+      }
+
+      <!-- ─── Step 2: Employment Details ─── -->
+      @case (1) {
+        <p-card styleClass="step-card">
+          <ng-template #header>
+            <div class="step-card__header">
+              <i class="pi pi-briefcase mr-2"></i>
+              Employment Details
+              <span class="step-card__badge">Step 2 of 4</span>
+            </div>
+          </ng-template>
+
+          <div class="grid">
+            <div class="col-12 md:col-6 mb-3">
+              <label for="department" class="field-label">Department *</label>
+              <p-select
+                id="department"
+                [(ngModel)]="department"
+                [options]="departments"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select department"
+                styleClass="w-full"
+              />
+            </div>
+
+            <div class="col-12 md:col-6 mb-3">
+              <label for="jobTitle" class="field-label">Job Title</label>
+              <input
+                pInputText
+                id="jobTitle"
+                [(ngModel)]="jobTitle"
+                placeholder="e.g. Software Engineer"
+                class="w-full"
+              />
+            </div>
+
+            <p-divider class="col-12" />
+
+            <div class="col-12 md:col-6 mb-3">
+              <label for="offerDate" class="field-label">Offer Accept Date *</label>
+              <p-datepicker
+                id="offerDate"
+                [(ngModel)]="offerAcceptDate"
+                [showIcon]="true"
+                dateFormat="yy-mm-dd"
+                placeholder="Select date"
+                styleClass="w-full"
+              />
+            </div>
+
+            <div class="col-12 md:col-6 mb-3">
+              <label for="startDate" class="field-label">Planned Start Date *</label>
+              <p-datepicker
+                id="startDate"
+                [(ngModel)]="plannedStartDate"
+                [showIcon]="true"
+                dateFormat="yy-mm-dd"
+                placeholder="Select date"
+                styleClass="w-full"
+              />
+            </div>
+          </div>
+        </p-card>
+      }
+
+      <!-- ─── Step 3: Document Upload ─── -->
+      @case (2) {
+        <p-card styleClass="step-card">
+          <ng-template #header>
+            <div class="step-card__header">
+              <i class="pi pi-upload mr-2"></i>
+              Document Upload
+              <span class="step-card__badge">Step 3 of 4</span>
+            </div>
+          </ng-template>
+
+          <p-message
+            severity="info"
+            text="Documents can be uploaded now or later by the employee. Uploading now will trigger OCR verification automatically."
+            class="mb-4 block"
+          />
+
+          <div class="doc-slots">
+            @for (slot of documentSlots(); track slot.type; let i = $index) {
+              <div class="doc-slot" [class.doc-slot--uploaded]="slot.uploaded">
+                <div class="doc-slot__icon">
+                  <i [class]="slot.icon"></i>
+                </div>
+                <div class="doc-slot__info">
+                  <div class="doc-slot__label">{{ slot.label }}</div>
+                  <div class="doc-slot__desc">{{ slot.description }}</div>
+
+                  @if (slot.uploading) {
+                    <div class="doc-slot__progress mt-2">
+                      <p-progressBar [mode]="'indeterminate'" [style]="{ height: '4px' }" />
+                      <span class="doc-slot__status text-color-secondary">Processing OCR...</span>
+                    </div>
+                  } @else if (slot.uploaded && slot.ocrResult) {
+                    <div class="doc-slot__result mt-2">
+                      <p-tag
+                        [value]="slot.ocrResult.success ? 'OCR Passed' : 'Needs Review'"
+                        [severity]="slot.ocrResult.success ? 'success' : 'warn'"
+                        [icon]="slot.ocrResult.success ? 'pi pi-check' : 'pi pi-exclamation-triangle'"
+                      />
+                      <span class="doc-slot__filename ml-2">{{ slot.fileName }}</span>
+                    </div>
+                  } @else if (slot.uploaded) {
+                    <div class="doc-slot__result mt-2">
+                      <p-tag value="Uploaded" severity="info" icon="pi pi-check" />
+                      <span class="doc-slot__filename ml-2">{{ slot.fileName }}</span>
+                    </div>
+                  }
+                </div>
+                <div class="doc-slot__action">
+                  @if (slot.uploaded) {
+                    <p-button
+                      icon="pi pi-times"
+                      severity="danger"
+                      [text]="true"
+                      [rounded]="true"
+                      size="small"
+                      pTooltip="Remove file"
+                      (onClick)="removeFile(i)"
+                    />
+                  } @else if (!slot.uploading) {
+                    <label [for]="'file-' + i" class="upload-btn">
+                      <i class="pi pi-upload mr-1"></i> Upload
+                    </label>
+                    <input
+                      [id]="'file-' + i"
+                      type="file"
+                      class="hidden-input"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      (change)="onFileSelect($event, i)"
+                    />
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="doc-summary mt-3">
+            <span class="doc-summary__text">
+              <i class="pi pi-check-circle mr-1" style="color: #27ae60"></i>
+              {{ uploadedCount() }} of 4 documents uploaded
+            </span>
+          </div>
+        </p-card>
+      }
+
+      <!-- ─── Step 4: Review & Submit ─── -->
+      @case (3) {
+        <div class="review-grid">
+          <!-- Personal Details Summary -->
+          <p-card styleClass="review-card">
+            <ng-template #header>
+              <div class="review-card__header">
+                <i class="pi pi-user mr-2"></i>Personal Details
+                <p-button
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [text]="true"
+                  [rounded]="true"
+                  size="small"
+                  pTooltip="Edit"
+                  (onClick)="goToStep(0)"
+                  class="ml-auto"
+                />
+              </div>
+            </ng-template>
+            <div class="review-fields">
+              <div class="review-field">
+                <span class="review-field__label">Full Name</span>
+                <span class="review-field__value">
+                  {{ firstName }} {{ middleName ? middleName + ' ' : '' }}{{ lastName }}
+                </span>
+              </div>
+              <div class="review-field">
+                <span class="review-field__label">Email</span>
+                <span class="review-field__value">{{ email }}</span>
+              </div>
+              <div class="review-field">
+                <span class="review-field__label">Phone</span>
+                <span class="review-field__value">{{ phone }}</span>
+              </div>
+            </div>
+          </p-card>
+
+          <!-- Employment Details Summary -->
+          <p-card styleClass="review-card">
+            <ng-template #header>
+              <div class="review-card__header">
+                <i class="pi pi-briefcase mr-2"></i>Employment Details
+                <p-button
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [text]="true"
+                  [rounded]="true"
+                  size="small"
+                  pTooltip="Edit"
+                  (onClick)="goToStep(1)"
+                  class="ml-auto"
+                />
+              </div>
+            </ng-template>
+            <div class="review-fields">
+              <div class="review-field">
+                <span class="review-field__label">Department</span>
+                <span class="review-field__value">{{ department }}</span>
+              </div>
+              @if (jobTitle) {
+                <div class="review-field">
+                  <span class="review-field__label">Job Title</span>
+                  <span class="review-field__value">{{ jobTitle }}</span>
+                </div>
+              }
+              <div class="review-field">
+                <span class="review-field__label">Offer Accepted</span>
+                <span class="review-field__value">{{ offerAcceptDate | date:'mediumDate' }}</span>
+              </div>
+              <div class="review-field">
+                <span class="review-field__label">Planned Start</span>
+                <span class="review-field__value">{{ plannedStartDate | date:'mediumDate' }}</span>
+              </div>
+            </div>
+          </p-card>
+
+          <!-- Documents Summary -->
+          <p-card styleClass="review-card review-card--full">
+            <ng-template #header>
+              <div class="review-card__header">
+                <i class="pi pi-folder mr-2"></i>Documents
+                <span class="review-card__count ml-2">{{ uploadedCount() }} / 4</span>
+                <p-button
+                  icon="pi pi-pencil"
+                  severity="secondary"
+                  [text]="true"
+                  [rounded]="true"
+                  size="small"
+                  pTooltip="Edit"
+                  (onClick)="goToStep(2)"
+                  class="ml-auto"
+                />
+              </div>
+            </ng-template>
+            <div class="review-docs">
+              @for (slot of documentSlots(); track slot.type) {
+                <div class="review-doc" [class.review-doc--uploaded]="slot.uploaded">
+                  <i
+                    [class]="slot.uploaded ? 'pi pi-check-circle' : 'pi pi-circle'"
+                    [style.color]="slot.uploaded ? '#27ae60' : '#adb5bd'"
+                  ></i>
+                  <span class="review-doc__label">{{ slot.label }}</span>
+                  @if (slot.uploaded) {
+                    <span class="review-doc__file">{{ slot.fileName }}</span>
+                    @if (slot.ocrResult) {
+                      <p-tag
+                        [value]="slot.ocrResult.success ? 'Verified' : 'Review'"
+                        [severity]="slot.ocrResult.success ? 'success' : 'warn'"
+                        class="ml-auto"
+                      />
+                    }
+                  } @else {
+                    <span class="review-doc__skipped">Not yet uploaded</span>
+                  }
+                </div>
+              }
+            </div>
+          </p-card>
+        </div>
+      }
+    }
+
+    <!-- ═══ Navigation Buttons ═══ -->
+    <div class="step-nav mt-4">
+      @if (activeStep() > 0) {
+        <p-button
+          label="Previous"
+          icon="pi pi-arrow-left"
+          severity="secondary"
+          [outlined]="true"
+          (onClick)="prevStep()"
+        />
+      }
+      <div class="step-nav__spacer"></div>
+      @if (activeStep() < 3) {
+        <p-button
+          label="Continue"
+          icon="pi pi-arrow-right"
+          iconPos="right"
+          [disabled]="!canProceed"
+          (onClick)="nextStep()"
+        />
+      } @else {
+        <p-button
+          label="Register Employee"
+          icon="pi pi-check"
+          [disabled]="!canProceed"
+          [loading]="submitting()"
+          (onClick)="submit()"
+        />
+      }
+    </div>
+  }
+</div>

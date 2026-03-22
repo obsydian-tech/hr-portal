@@ -4,7 +4,7 @@
   actionLabel="New Hire"
   actionIcon="pi-plus"
   [(isOpen)]="sidebarOpen"
-  (actionClicked)="openNewHireDialog()"
+  (actionClicked)="openNewHireRegistration()"
 />
 <app-topbar
   title="HR Portal"
@@ -21,8 +21,3 @@
   </div>
   <app-footer />
 </main>
-
-<app-new-hire-dialog
-  [(visible)]="showNewHireDialog"
-  (employeeCreated)="onEmployeeCreated()"
-/>

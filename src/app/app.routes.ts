@@ -21,6 +21,13 @@ export const routes: Routes = [
           ).then((m) => m.HrDashboardHomeComponent),
       },
       {
+        path: 'new-employee',
+        loadComponent: () =>
+          import(
+            './features/hr-dashboard/components/new-employee-registration/new-employee-registration.component'
+          ).then((m) => m.NewEmployeeRegistrationComponent),
+      },
+      {
         path: 'employees/:employeeId',
         loadComponent: () =>
           import(
