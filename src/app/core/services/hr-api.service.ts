@@ -202,6 +202,44 @@ export class HrApiService {
     }).pipe(delay(800));
   }
 
+  getVerificationById(verificationId: string): Observable<VerificationDetail | null> {
+    // Look up from the verification list
+    const ver = this.mockVerifications.find((v) => v.verification_id === verificationId);
+    if (!ver) {
+      return of(null).pipe(delay(300));
+    }
+
+    // Build a detailed mock response with OCR fields + document file URL
+    const detail: VerificationDetail = {
+      ...ver,
+      reasoning: this.getReasoningForVerification(ver),
+      id_number: ver.employee_name === 'Unknown' ? 'NOT_FOUND' : '950101****08*',
+      name: ver.employee_name === 'Unknown' ? 'NOT_FOUND' : ver.employee_name.split(' ')[0],
+      surname: ver.employee_name === 'Unknown' ? 'NOT_FOUND' : ver.employee_name.split(' ').slice(1).join(' '),
+      date_of_birth: ver.employee_name === 'Unknown' ? 'NOT_FOUND' : '1995-01-01',
+      gender: ver.employee_name === 'Unknown' ? 'NOT_FOUND' : 'Female',
+      citizenship: ver.employee_name === 'Unknown' ? 'NOT_FOUND' : 'South African',
+      document_file_url: ver.document_id
+        ? `https://storage.example.com/documents/${ver.document_id}.pdf`
+        : undefined,
+    };
+
+    return of(detail).pipe(delay(600));
+  }
+
+  private getReasoningForVerification(ver: Verification): string {
+    if (ver.verification_id === 'ver_1774091968566') {
+      return 'This is a body corporate levy statement, not a South African ID document. No 13-digit SA ID number present. Only names provided are \'IT Mushanguri & RR Nduna\' associated with Unit 59, which appear to be unit owners rather than document holders.';
+    }
+    if (ver.verification_id === 'ver_1774088048209') {
+      return 'Document appears to be a rental agreement instead of a National ID. No government-issued identification markers detected. Manual review required.';
+    }
+    if (ver.employee_name === 'Unknown') {
+      return 'Unable to associate this document with a registered employee. The uploaded document could not be classified. Manual review is required to determine the document type and verify its contents.';
+    }
+    return 'Document analysis complete. Review the extracted fields below for accuracy.';
+  }
+
   getEmployeeDocuments(employeeId: string): Observable<EmployeeDocumentResponse> {
     const emp = this.mockEmployees.find((e) => e.employee_id === employeeId);
 

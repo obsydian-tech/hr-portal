@@ -1,0 +1,210 @@
+<div class="verification-detail">
+  @if (loading()) {
+    <p-skeleton width="10rem" height="2rem" class="mb-3" />
+    <p-skeleton width="100%" height="6rem" class="mb-3" />
+    <p-skeleton width="100%" height="12rem" class="mb-3" />
+  } @else if (v) {
+    <!-- Back link -->
+    <p-button
+      label="Back to Verifications"
+      icon="pi pi-arrow-left"
+      severity="secondary"
+      [text]="true"
+      (onClick)="goBack()"
+      class="mb-3 inline-block"
+    />
+
+    <!-- Header Card -->
+    <div class="header-card mb-4">
+      <div class="flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+          <div class="flex align-items-center gap-2 mb-2">
+            <i class="pi pi-shield text-2xl" style="color: #4a3f8a"></i>
+            <h2 class="m-0 header-title">Verification Detail</h2>
+          </div>
+          <div class="font-mono text-sm text-color-secondary mb-2">
+            Ref: {{ v.verification_id }}
+          </div>
+          <div class="flex gap-3 flex-wrap text-sm">
+            @if (v.employee_id) {
+              <span>
+                <i class="pi pi-user mr-1"></i>
+                <a class="employee-link" (click)="navigateToEmployee()">
+                  {{ v.employee_name }}
+                </a>
+              </span>
+            } @else {
+              <span class="text-color-secondary">
+                <i class="pi pi-user mr-1"></i> {{ v.employee_name }}
+              </span>
+            }
+            @if (v.document_type) {
+              <span><i class="pi pi-file mr-1"></i> {{ documentTypeLabel }}</span>
+            }
+            <span><i class="pi pi-calendar mr-1"></i> {{ v.created_at | date:'medium' }}</span>
+          </div>
+        </div>
+        <div class="flex align-items-center gap-3">
+          <p-tag [value]="v.decision" [severity]="decisionSeverity" styleClass="text-lg px-3 py-1" />
+          <span class="confidence-badge">{{ v.confidence }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual Review Decision Banner -->
+    @if (reviewDecision() === 'approved') {
+      <p-message severity="success" text="Document has been approved. Verification marked as PASSED." class="mb-4 block" />
+    }
+    @if (reviewDecision() === 'rejected') {
+      <p-message severity="error" text="Document has been rejected. Employee will be notified to re-upload." class="mb-4 block" />
+    }
+
+    <div class="grid">
+      <!-- Left Column: OCR Analysis -->
+      <div class="col-12 lg:col-7">
+        <!-- Reasoning (color-coded by decision) -->
+        <p-card class="mb-4">
+          <ng-template #title>
+            <span><i class="pi pi-brain mr-2"></i>OCR Analysis</span>
+          </ng-template>
+          <div [class]="reasoningBoxClass">
+            <div [class]="reasoningLabelClass + ' mb-1'">
+              @if (v.decision === 'PASSED') {
+                <i class="pi pi-check-circle mr-1"></i>
+              } @else if (v.decision === 'FAILED') {
+                <i class="pi pi-times-circle mr-1"></i>
+              } @else {
+                <i class="pi pi-info-circle mr-1"></i>
+              }
+              OCR Analysis
+            </div>
+            <p class="reasoning-text m-0">{{ v.reasoning }}</p>
+          </div>
+        </p-card>
+
+        <!-- Extracted Fields -->
+        @if (hasExtractedFields) {
+          <p-card class="mb-4">
+            <ng-template #title>
+              <span><i class="pi pi-list mr-2"></i>Extracted Data</span>
+            </ng-template>
+            <div class="grid">
+              @for (field of extractedFields | keyvalue; track field.key) {
+                <div class="col-6 mb-3">
+                  <div class="field-label">{{ field.key }}</div>
+                  <div class="field-value">{{ field.value }}</div>
+                </div>
+              }
+            </div>
+          </p-card>
+        }
+
+        <!-- Actions -->
+        <p-card>
+          <ng-template #title>
+            <span><i class="pi pi-cog mr-2"></i>Actions</span>
+          </ng-template>
+          <div class="flex gap-2 flex-wrap">
+            <!-- Approve / Reject: only for MANUAL_REVIEW that hasn't been reviewed yet -->
+            @if (v.decision === 'MANUAL_REVIEW' && !reviewDecision()) {
+              <p-button
+                label="Approve Document"
+                icon="pi pi-check"
+                severity="success"
+                [outlined]="true"
+                (onClick)="approveManualReview()"
+              />
+              <p-button
+                label="Reject Document"
+                icon="pi pi-times"
+                severity="danger"
+                [outlined]="true"
+                (onClick)="rejectManualReview()"
+              />
+            }
+            <!-- Request External Verification: only when PASSED or after approval -->
+            @if (canVerifyExternally) {
+              <p-button
+                label="Request External Verification"
+                icon="pi pi-shield"
+                severity="warn"
+                [outlined]="true"
+                (onClick)="triggerExternalVerification()"
+              />
+            }
+            @if (v.employee_id) {
+              <p-button
+                label="View Employee"
+                icon="pi pi-user"
+                severity="info"
+                [outlined]="true"
+                (onClick)="navigateToEmployee()"
+              />
+            }
+          </div>
+        </p-card>
+      </div>
+
+      <!-- Right Column: Document Preview -->
+      <div class="col-12 lg:col-5">
+        <p-card class="document-preview-card">
+          <ng-template #title>
+            <span><i class="pi pi-eye mr-2"></i>Uploaded Document</span>
+          </ng-template>
+          @if (v.document_file_url) {
+            <div class="document-preview">
+              <div class="document-placeholder">
+                <i class="pi pi-file-pdf text-6xl mb-3" style="color: #e74c3c"></i>
+                <p class="font-semibold mb-1">{{ v.document_id }}</p>
+                <p class="text-sm text-color-secondary mb-3">{{ documentTypeLabel }}</p>
+                <p-button
+                  label="Open Document"
+                  icon="pi pi-external-link"
+                  severity="info"
+                  [outlined]="true"
+                  size="small"
+                />
+              </div>
+            </div>
+          } @else {
+            <div class="document-preview">
+              <div class="document-placeholder">
+                <i class="pi pi-inbox text-5xl mb-3" style="color: #adb5bd"></i>
+                <p class="text-color-secondary">No document file linked to this verification.</p>
+              </div>
+            </div>
+          }
+
+          @if (v.document_id) {
+            <p-divider />
+            <div class="text-sm">
+              <div class="flex justify-content-between mb-1">
+                <span class="text-color-secondary">Document ID</span>
+                <span class="font-mono">{{ v.document_id }}</span>
+              </div>
+              @if (v.document_type) {
+                <div class="flex justify-content-between mb-1">
+                  <span class="text-color-secondary">Type</span>
+                  <span>{{ documentTypeLabel }}</span>
+                </div>
+              }
+              <div class="flex justify-content-between">
+                <span class="text-color-secondary">Verified</span>
+                <span>{{ v.created_at | date:'medium' }}</span>
+              </div>
+            </div>
+          }
+        </p-card>
+      </div>
+    </div>
+
+    <p-confirmDialog />
+  } @else {
+    <!-- Not found -->
+    <div class="text-center p-6">
+      <i class="pi pi-exclamation-triangle text-4xl mb-2 block" style="color: #e2a03f"></i>
+      <p class="text-color-secondary">Verification not found.</p>
+      <p-button label="Back to Verifications" icon="pi pi-arrow-left" (onClick)="goBack()" />
+    </div>
+  }
+</div>

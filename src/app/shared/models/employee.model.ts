@@ -94,6 +94,8 @@ export interface VerificationDetail extends Verification {
   date_of_birth: string;
   gender: string;
   citizenship: string;
+  /** URL to the uploaded document file (for preview) */
+  document_file_url?: string;
 }
 
 /** A document belonging to an employee (from GET /employees/:id/documents) */

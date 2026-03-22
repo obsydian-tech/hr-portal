@@ -27,7 +27,7 @@ export class EmployeeDashboardComponent {
 
   /** Sidebar nav items — only "My Onboarding" is active */
   readonly navItems: NavItem[] = [
-    { label: 'Dashboard', icon: 'pi-home', route: '', disabled: true },
+    { label: 'Home', icon: 'pi-home', route: '/', disabled: false },
     { label: 'My Onboarding', icon: 'pi-file', route: '/employees/EMP-0000015', disabled: false },
     { label: 'Documents', icon: 'pi-folder', route: '', disabled: true },
     { label: 'Training Videos', icon: 'pi-video', route: '', disabled: true },

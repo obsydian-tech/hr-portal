@@ -1,0 +1,130 @@
+.verifications-list {
+  padding: 1.5rem;
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.page-sub {
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+
+// Quick stat badges
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: #f0f0f5;
+  border: 1px solid #e9ecef;
+
+  &__value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+
+  &__label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  &--warn {
+    background: #fff8e1;
+    border-color: #ffe0b2;
+
+    .stat-badge__value {
+      color: #e2a03f;
+    }
+  }
+
+  &--success {
+    background: #e8f5e9;
+    border-color: #c8e6c9;
+
+    .stat-badge__value {
+      color: #27ae60;
+    }
+  }
+
+  &--danger {
+    background: #fbe9e7;
+    border-color: #ffccbc;
+
+    .stat-badge__value {
+      color: #e74c3c;
+    }
+  }
+}
+
+// Clickable links in table
+.verification-link,
+.employee-link {
+  color: #4a3f8a;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: #7ad4e4;
+    text-decoration: underline;
+  }
+}
+
+.font-mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.text-sm {
+  font-size: 0.85rem;
+}
+
+:host ::ng-deep {
+  .p-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(26, 26, 46, 0.06);
+    border: 1px solid #e9ecef;
+  }
+
+  .p-card .p-card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+
+  .decision-filter {
+    width: 14rem;
+    font-size: 0.875rem;
+  }
+
+  .p-datatable .p-datatable-thead > tr > th {
+    background: #f8f9fa;
+    color: #1a1a2e;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 2px solid #e9ecef;
+  }
+
+  .p-datatable .p-datatable-tbody > tr > td {
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .p-datatable .p-datatable-tbody > tr:hover {
+    background: rgba(122, 212, 228, 0.06);
+  }
+
+  .p-paginator {
+    border: none;
+    padding: 0.75rem 0;
+  }
+}
