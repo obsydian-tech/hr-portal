@@ -11,6 +11,198 @@
   color: var(--naleko-tertiary-fixed-dim);
 }
 
+// ─── Guidance Banner ──────────────────────────────
+
+.guidance-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: linear-gradient(135deg, rgba(122, 212, 228, 0.08) 0%, rgba(74, 63, 138, 0.06) 100%);
+  border: 1px solid rgba(122, 212, 228, 0.2);
+  border-left: 4px solid #7ad4e4;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+
+  &__icon {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: rgba(122, 212, 228, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4a3f8a;
+    font-size: 1.1rem;
+    margin-top: 0.1rem;
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 0.25rem;
+  }
+
+  &__description {
+    font-size: 0.85rem;
+    color: #495057;
+    line-height: 1.45;
+    margin-bottom: 0.35rem !important;
+  }
+
+  &__action {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #4a3f8a;
+    line-height: 1.4;
+
+    i {
+      font-size: 0.7rem;
+    }
+  }
+}
+
+// ─── Step-by-step Guide ──────────────────────────
+
+.step-guide {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  margin-top: 1rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(26, 26, 46, 0.04);
+
+  &__header {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6c757d;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid #f0f0f2;
+    background: #fafafa;
+  }
+
+  &__list {
+    padding: 0.25rem 0;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.75rem 1.25rem;
+    transition: background 0.15s ease;
+    border-left: 3px solid transparent;
+
+    &--completed {
+      border-left-color: #27ae60;
+      background: rgba(39, 174, 96, 0.03);
+    }
+
+    &--active {
+      border-left-color: #7ad4e4;
+      background: rgba(122, 212, 228, 0.06);
+    }
+
+    &--upcoming {
+      opacity: 0.55;
+    }
+
+    & + & {
+      border-top: 1px solid #f5f5f7;
+    }
+  }
+
+  &__marker {
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+
+    .step-guide__item--completed & {
+      background: #27ae60;
+      color: #fff;
+    }
+
+    .step-guide__item--active & {
+      background: #7ad4e4;
+      color: #1a1a2e;
+    }
+
+    .step-guide__item--upcoming & {
+      background: #e9ecef;
+      color: #6c757d;
+    }
+  }
+
+  &__detail {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__step-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1a1a2e;
+
+    .step-guide__item--completed & {
+      color: #27ae60;
+    }
+
+    .step-guide__item--active & {
+      color: #1a1a2e;
+    }
+
+    .step-guide__item--upcoming & {
+      color: #6c757d;
+    }
+  }
+
+  &__step-desc {
+    font-size: 0.75rem;
+    color: #6c757d;
+    line-height: 1.4;
+    margin-top: 0.1rem;
+  }
+
+  &__badge {
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+
+    &--done {
+      background: rgba(39, 174, 96, 0.1);
+      color: #27ae60;
+    }
+
+    &--current {
+      background: rgba(122, 212, 228, 0.15);
+      color: #4a3f8a;
+    }
+
+    &--pending {
+      background: #f0f0f2;
+      color: #adb5bd;
+    }
+  }
+}
+
 ::ng-deep {
   .stepper-card {
     border-radius: 0.75rem !important;
