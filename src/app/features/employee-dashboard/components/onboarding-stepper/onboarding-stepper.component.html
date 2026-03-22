@@ -20,4 +20,49 @@
     [readonly]="true"
     styleClass="stepper-steps"
   />
+
+  <!-- Stage Guidance Banner -->
+  <div class="guidance-banner mt-4">
+    <div class="guidance-banner__icon">
+      <i [class]="guidance().icon"></i>
+    </div>
+    <div class="guidance-banner__content">
+      <div class="guidance-banner__title">{{ guidance().title }}</div>
+      <p class="guidance-banner__description m-0">{{ guidance().description }}</p>
+      <p class="guidance-banner__action m-0">
+        <i class="pi pi-arrow-right mr-1"></i>{{ guidance().action }}
+      </p>
+    </div>
+  </div>
 </p-card>
+
+<!-- Step-by-step guide -->
+<div class="step-guide">
+  <div class="step-guide__header">
+    <i class="pi pi-map mr-2"></i> Your Onboarding Journey
+  </div>
+  <div class="step-guide__list">
+    @for (step of stepItems; track step.label; let i = $index) {
+      <div class="step-guide__item" [class.step-guide__item--completed]="stepStatus(i) === 'completed'" [class.step-guide__item--active]="stepStatus(i) === 'active'" [class.step-guide__item--upcoming]="stepStatus(i) === 'upcoming'">
+        <div class="step-guide__marker">
+          @if (stepStatus(i) === 'completed') {
+            <i class="pi pi-check"></i>
+          } @else {
+            <span>{{ i + 1 }}</span>
+          }
+        </div>
+        <div class="step-guide__detail">
+          <div class="step-guide__step-title">{{ stepGuidance(i).title }}</div>
+          <div class="step-guide__step-desc">{{ stepGuidance(i).description }}</div>
+        </div>
+        @if (stepStatus(i) === 'completed') {
+          <span class="step-guide__badge step-guide__badge--done">Done</span>
+        } @else if (stepStatus(i) === 'active') {
+          <span class="step-guide__badge step-guide__badge--current">Current</span>
+        } @else {
+          <span class="step-guide__badge step-guide__badge--pending">Upcoming</span>
+        }
+      </div>
+    }
+  </div>
+</div>
