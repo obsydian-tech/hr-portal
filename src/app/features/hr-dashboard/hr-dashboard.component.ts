@@ -26,7 +26,7 @@ export class HrDashboardComponent {
   readonly showNewHireDialog = signal(false);
 
   readonly navItems: NavItem[] = [
-    { label: 'Dashboard', icon: 'pi-home', route: '', disabled: false },
+    { label: 'Home', icon: 'pi-home', route: '/', disabled: false },
     { label: 'Employees', icon: 'pi-users', route: '', disabled: true },
     { label: 'Documents', icon: 'pi-folder', route: '', disabled: true },
     { label: 'Document Verifications', icon: 'pi-verified', route: 'verifications', disabled: false },
