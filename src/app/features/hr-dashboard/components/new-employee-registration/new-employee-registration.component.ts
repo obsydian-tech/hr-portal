@@ -13,7 +13,6 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { DatePickerModule } from 'primeng/datepicker';
-import { StepsModule } from 'primeng/steps';
 import { CardModule } from 'primeng/card';
 import { DividerModule } from 'primeng/divider';
 import { MessageModule } from 'primeng/message';
@@ -29,8 +28,6 @@ import {
   DocumentType,
   WizardDocumentSlot,
 } from '../../../../shared/models/employee.model';
-import { MenuItem } from 'primeng/api';
-
 @Component({
   selector: 'app-new-employee-registration',
   standalone: true,
@@ -41,7 +38,6 @@ import { MenuItem } from 'primeng/api';
     InputTextModule,
     SelectModule,
     DatePickerModule,
-    StepsModule,
     CardModule,
     DividerModule,
     MessageModule,
@@ -62,12 +58,25 @@ export class NewEmployeeRegistrationComponent {
 
   // ─── Wizard Steps ────────────────────────────────────────
 
-  readonly steps: MenuItem[] = [
-    { label: 'Personal Details' },
-    { label: 'Employment' },
-    { label: 'Documents' },
-    { label: 'Review & Submit' },
+  readonly steps = [
+    { label: 'Personal Information', icon: 'pi pi-user' },
+    { label: 'Employment Details', icon: 'pi pi-briefcase' },
+    { label: 'Documents', icon: 'pi pi-file' },
+    { label: 'Confirmation', icon: 'pi pi-check-circle' },
   ];
+
+  stepState(index: number): 'completed' | 'active' | 'upcoming' {
+    const current = this.activeStep();
+    if (index < current) return 'completed';
+    if (index === current) return 'active';
+    return 'upcoming';
+  }
+
+  connectorState(index: number): 'completed' | 'active' | 'upcoming' {
+    const current = this.activeStep();
+    if (index < current) return 'completed';
+    return 'upcoming';
+  }
 
   readonly activeStep = signal(0);
 

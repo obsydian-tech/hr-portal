@@ -3,7 +3,7 @@
     <div>
       <span class="stepper-card__label block mb-1">Onboarding Progress</span>
       <h2 class="text-xl font-bold m-0" style="color: var(--naleko-on-surface)">
-        Stage {{ currentIndex() + 1 }} of {{ stepItems.length }}: {{ currentLabel() }}
+        Stage {{ currentIndex() + 1 }} of {{ steps.length }}: {{ currentLabel() }}
       </h2>
     </div>
     <p-tag
@@ -14,12 +14,24 @@
     />
   </div>
 
-  <p-steps
-    [model]="stepItems"
-    [activeIndex]="currentIndex()"
-    [readonly]="true"
-    styleClass="stepper-steps"
-  />
+  <!-- Custom numbered stepper -->
+  <div class="onboard-stepper">
+    @for (step of steps; track step.label; let i = $index; let last = $last) {
+      <div class="onboard-stepper__step" [class]="'onboard-stepper__step--' + stepStatus(i)">
+        <div class="onboard-stepper__circle">
+          @if (stepStatus(i) === 'completed') {
+            <i class="pi pi-check"></i>
+          } @else {
+            <span>{{ i + 1 }}</span>
+          }
+        </div>
+        <span class="onboard-stepper__label">{{ step.label }}</span>
+      </div>
+      @if (!last) {
+        <div class="onboard-stepper__connector" [class]="'onboard-stepper__connector--' + connectorStatus(i)"></div>
+      }
+    }
+  </div>
 
   <!-- Stage Guidance Banner -->
   <div class="guidance-banner mt-4">
@@ -42,7 +54,7 @@
     <i class="pi pi-map mr-2"></i> Your Onboarding Journey
   </div>
   <div class="step-guide__list">
-    @for (step of stepItems; track step.label; let i = $index) {
+    @for (step of steps; track step.label; let i = $index) {
       <div class="step-guide__item" [class.step-guide__item--completed]="stepStatus(i) === 'completed'" [class.step-guide__item--active]="stepStatus(i) === 'active'" [class.step-guide__item--upcoming]="stepStatus(i) === 'upcoming'">
         <div class="step-guide__marker">
           @if (stepStatus(i) === 'completed') {

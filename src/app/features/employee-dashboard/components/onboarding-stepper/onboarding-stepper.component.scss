@@ -216,35 +216,107 @@
     font-weight: 700 !important;
     font-size: 0.75rem !important;
   }
+}
 
-  .stepper-steps {
-    .p-steps-item {
-      &::before {
-        border-top-style: dashed;
-        border-color: var(--naleko-outline-variant);
-      }
-    }
+// ─── Custom Numbered Stepper ──────────────────────
 
-    // Completed steps
-    .p-steps-item:has(+ .p-steps-item .p-disabled),
-    .p-steps-item:first-child {
-      // Let PrimeNG handle default styling
-    }
+.onboard-stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1rem 0;
+  gap: 0;
+}
 
-    .p-menuitem-link {
-      flex-direction: column !important;
-      gap: 0.5rem;
-    }
+.onboard-stepper__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  min-width: 0;
+}
 
-    .p-steps-number {
-      font-weight: 800;
-      font-size: 0.75rem;
-    }
+.onboard-stepper__circle {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
 
-    .p-steps-title {
-      font-size: 0.6875rem;
-      font-weight: 600;
-    }
+// ── Active: blue filled ──
+.onboard-stepper__step--active {
+  .onboard-stepper__circle {
+    background: #4a3f8a;
+    color: #ffffff;
+    border: 2.5px solid #4a3f8a;
+    box-shadow: 0 2px 10px rgba(74, 63, 138, 0.22);
+  }
+
+  .onboard-stepper__label {
+    color: #4a3f8a;
+    font-weight: 700;
+  }
+}
+
+// ── Completed: green border + check ──
+.onboard-stepper__step--completed {
+  .onboard-stepper__circle {
+    background: #ffffff;
+    color: #27ae60;
+    border: 2.5px solid #27ae60;
+  }
+
+  .onboard-stepper__label {
+    color: #27ae60;
+    font-weight: 600;
+  }
+}
+
+// ── Upcoming: grey border + number ──
+.onboard-stepper__step--upcoming {
+  .onboard-stepper__circle {
+    background: #ffffff;
+    color: #a0a4ab;
+    border: 2px solid #d1d5db;
+  }
+
+  .onboard-stepper__label {
+    color: #9ca3af;
+    font-weight: 500;
+  }
+}
+
+.onboard-stepper__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+  text-align: center;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
+
+// ── Connector line ──
+.onboard-stepper__connector {
+  flex: 1;
+  height: 2px;
+  min-width: 1rem;
+  max-width: 6rem;
+  margin-top: 1.35rem; // vertically center with circle
+  border-radius: 2px;
+  transition: background 0.3s ease;
+
+  &--completed {
+    background: #4a3f8a;
+  }
+
+  &--upcoming {
+    background: #d1d5db;
   }
 }
 
@@ -269,6 +341,25 @@
     }
   }
 
+  .onboard-stepper {
+    padding: 0.75rem 0;
+  }
+
+  .onboard-stepper__circle {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 0.75rem;
+  }
+
+  .onboard-stepper__label {
+    font-size: 0.58rem;
+  }
+
+  .onboard-stepper__connector {
+    min-width: 0.5rem;
+    margin-top: 1.1rem;
+  }
+
   .step-guide {
     &__item {
       padding: 0.6rem 1rem;
@@ -287,12 +378,6 @@
 
     &__step-desc {
       font-size: 0.7rem;
-    }
-  }
-
-  ::ng-deep .stepper-steps {
-    .p-steps-title {
-      display: none;
     }
   }
 }
