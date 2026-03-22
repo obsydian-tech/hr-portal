@@ -1,9 +1,8 @@
-import { Component, ChangeDetectionStrategy, input, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, ChangeDetectionStrategy, input, signal, inject } from '@angular/core';
+import { Router, RouterOutlet, ActivatedRoute } from '@angular/router';
 import { SidebarComponent, NavItem } from '../../shared/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
 import { FooterComponent } from '../../shared/components/footer/footer.component';
-import { NewHireDialogComponent } from './components/new-hire-dialog/new-hire-dialog.component';
 
 
 @Component({
@@ -14,16 +13,17 @@ import { NewHireDialogComponent } from './components/new-hire-dialog/new-hire-di
     SidebarComponent,
     TopbarComponent,
     FooterComponent,
-    NewHireDialogComponent,
   ],
   templateUrl: './hr-dashboard.component.html',
   styleUrl: './hr-dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HrDashboardComponent {
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
   readonly staffId = input<string>('');
 
-  readonly showNewHireDialog = signal(false);
   readonly sidebarOpen = signal(false);
 
   readonly navItems: NavItem[] = [
@@ -38,11 +38,7 @@ export class HrDashboardComponent {
     this.sidebarOpen.update(v => !v);
   }
 
-  openNewHireDialog(): void {
-    this.showNewHireDialog.set(true);
-  }
-
-  onEmployeeCreated(): void {
-    // Dialog closes itself; could refresh data here
+  openNewHireRegistration(): void {
+    this.router.navigate(['new-employee'], { relativeTo: this.route });
   }
 }

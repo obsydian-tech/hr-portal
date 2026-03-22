@@ -1,0 +1,465 @@
+.registration {
+  padding: 1.5rem;
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+// ─── Page Header ──────────────────────────────────
+
+.registration__header-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1a1a2e, #4a3f8a);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.registration__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.registration__sub {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+// ─── Steps Override ───────────────────────────────
+
+:host ::ng-deep {
+  .registration-steps {
+    .p-steps-item {
+      &::before {
+        border-top-style: dashed;
+        border-color: #dee2e6;
+      }
+    }
+
+    .p-menuitem-link {
+      flex-direction: column !important;
+      gap: 0.4rem;
+    }
+
+    .p-steps-number {
+      font-weight: 800;
+      font-size: 0.8rem;
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+
+    .p-steps-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+  }
+}
+
+// ─── Step Card ────────────────────────────────────
+
+:host ::ng-deep {
+  .step-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(26, 26, 46, 0.06);
+    border: 1px solid #e9ecef;
+    overflow: hidden;
+
+    .p-card-header {
+      padding: 0;
+    }
+
+    .p-card-body {
+      padding: 1.5rem;
+    }
+  }
+}
+
+.step-card__header {
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.step-card__badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6c757d;
+  background: #e9ecef;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+// ─── Form Fields ──────────────────────────────────
+
+.field-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #495057;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.4rem;
+}
+
+.field-error {
+  color: #e74c3c;
+  font-size: 0.8rem;
+}
+
+// ─── Document Upload Slots ────────────────────────
+
+.doc-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.doc-slot {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    border-color: #dee2e6;
+  }
+
+  &--uploaded {
+    border-color: rgba(39, 174, 96, 0.3);
+    background: rgba(39, 174, 96, 0.02);
+  }
+}
+
+.doc-slot__icon {
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 10px;
+  background: rgba(74, 63, 138, 0.08);
+  color: #4a3f8a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+
+  .doc-slot--uploaded & {
+    background: rgba(39, 174, 96, 0.1);
+    color: #27ae60;
+  }
+}
+
+.doc-slot__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-slot__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.doc-slot__desc {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.doc-slot__status {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.doc-slot__filename {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.doc-slot__action {
+  flex-shrink: 0;
+}
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  background: #4a3f8a;
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: #3a3070;
+  }
+}
+
+.hidden-input {
+  display: none;
+}
+
+.doc-summary {
+  text-align: right;
+}
+
+.doc-summary__text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+// ─── Review Cards ─────────────────────────────────
+
+.review-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+:host ::ng-deep {
+  .review-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(26, 26, 46, 0.06);
+    border: 1px solid #e9ecef;
+    overflow: hidden;
+
+    .p-card-header {
+      padding: 0;
+    }
+
+    .p-card-body {
+      padding: 1.25rem;
+    }
+  }
+
+  .review-card--full {
+    grid-column: 1 / -1;
+  }
+}
+
+.review-card__header {
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.review-card__count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4a3f8a;
+  background: rgba(74, 63, 138, 0.08);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.review-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.review-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.review-field__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+}
+
+.review-field__value {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1a1a2e;
+}
+
+// ─── Review Documents List ────────────────────────
+
+.review-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.review-doc {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f0f5;
+  font-size: 0.9rem;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.review-doc__label {
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.review-doc__file {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.review-doc__skipped {
+  font-size: 0.8rem;
+  color: #adb5bd;
+  font-style: italic;
+}
+
+// ─── Step Navigation ──────────────────────────────
+
+.step-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f0f0f5;
+}
+
+.step-nav__spacer {
+  flex: 1;
+}
+
+// ─── Success Card ─────────────────────────────────
+
+.success-card {
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  box-shadow: 0 2px 12px rgba(26, 26, 46, 0.06);
+  max-width: 36rem;
+  margin: 2rem auto;
+}
+
+.success-card__icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: rgba(39, 174, 96, 0.1);
+  color: #27ae60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin: 0 auto 1.25rem;
+}
+
+.success-card__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 0.75rem;
+}
+
+.success-card__sub {
+  font-size: 0.95rem;
+  color: #495057;
+  line-height: 1.6;
+  margin: 0 0 1rem;
+}
+
+.success-card__info {
+  font-size: 0.85rem;
+  color: #495057;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: inline-flex;
+}
+
+.font-mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+// ─── Mobile Responsive ───────────────────────────
+
+@media (max-width: 768px) {
+  .registration {
+    padding: 1rem 0.75rem;
+  }
+
+  .registration__title {
+    font-size: 1.2rem;
+  }
+
+  .step-card__header {
+    padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+  }
+
+  :host ::ng-deep {
+    .step-card .p-card-body,
+    .review-card .p-card-body {
+      padding: 1rem;
+    }
+
+    .registration-steps .p-steps-title {
+      display: none;
+    }
+  }
+
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-slot {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .doc-slot__action {
+    width: 100%;
+    text-align: right;
+  }
+
+  .step-nav {
+    flex-wrap: wrap;
+  }
+
+  .success-card {
+    padding: 2rem 1.25rem;
+  }
+
+  .success-card__title {
+    font-size: 1.25rem;
+  }
+}
