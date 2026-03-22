@@ -1,0 +1,122 @@
+<div class="verifications-list">
+  <!-- Back link -->
+  <p-button
+    label="Back to Dashboard"
+    icon="pi pi-arrow-left"
+    severity="secondary"
+    [text]="true"
+    (onClick)="goBack()"
+    class="mb-3 inline-block"
+  />
+
+  <!-- Page header -->
+  <div class="page-header flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="page-title m-0 mb-1">Document Verifications</h2>
+      <p class="page-sub m-0">Review OCR results and verification decisions</p>
+    </div>
+  </div>
+
+  <!-- Quick stat badges -->
+  <div class="flex gap-3 mb-4 flex-wrap">
+    <div class="stat-badge">
+      <span class="stat-badge__value">{{ totalCount() }}</span>
+      <span class="stat-badge__label">Total</span>
+    </div>
+    <div class="stat-badge stat-badge--warn">
+      <span class="stat-badge__value">{{ manualReviewCount() }}</span>
+      <span class="stat-badge__label">Manual Review</span>
+    </div>
+    <div class="stat-badge stat-badge--success">
+      <span class="stat-badge__value">{{ passedCount() }}</span>
+      <span class="stat-badge__label">Passed</span>
+    </div>
+    <div class="stat-badge stat-badge--danger">
+      <span class="stat-badge__value">{{ failedCount() }}</span>
+      <span class="stat-badge__label">Failed</span>
+    </div>
+  </div>
+
+  <!-- Table Card -->
+  <p-card>
+    <ng-template #title>
+      <div class="flex justify-content-between align-items-center">
+        <span>All Verifications</span>
+        <p-select
+          [options]="decisionOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="decisionFilter()"
+          (ngModelChange)="onDecisionChange($event)"
+          placeholder="Filter by decision"
+          styleClass="decision-filter"
+        />
+      </div>
+    </ng-template>
+
+    @if (loading()) {
+      <p-skeleton height="2rem" class="mb-2" />
+      <p-skeleton height="2rem" class="mb-2" />
+      <p-skeleton height="2rem" class="mb-2" />
+      <p-skeleton height="2rem" />
+    } @else {
+      <p-table
+        [value]="filteredVerifications()"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 20]"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} verifications"
+        styleClass="p-datatable-sm p-datatable-striped"
+      >
+        <ng-template #header>
+          <tr>
+            <th>Reference Number</th>
+            <th>Employee</th>
+            <th>Document Type</th>
+            <th>Decision</th>
+            <th>Confidence</th>
+            <th>Date</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-v>
+          <tr>
+            <td>
+              <a
+                class="verification-link font-mono text-sm"
+                (click)="navigateToVerification(v.verification_id)"
+              >
+                {{ v.verification_id }}
+              </a>
+            </td>
+            <td>
+              @if (v.employee_id) {
+                <a
+                  class="employee-link font-semibold"
+                  (click)="navigateToEmployee(v.employee_id)"
+                >
+                  {{ v.employee_name }}
+                </a>
+              } @else {
+                <span class="text-color-secondary">{{ v.employee_name }}</span>
+              }
+            </td>
+            <td>{{ v.document_type || '—' }}</td>
+            <td>
+              <p-tag [value]="v.decision" [severity]="decisionSeverity(v.decision)" />
+            </td>
+            <td>{{ v.confidence }}%</td>
+            <td>{{ v.created_at | date:'mediumDate' }}</td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="6" class="text-center p-4 text-color-secondary">
+              No verifications match the selected filter.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    }
+  </p-card>
+</div>

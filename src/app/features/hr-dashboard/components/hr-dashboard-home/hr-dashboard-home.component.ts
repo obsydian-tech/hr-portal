@@ -11,7 +11,6 @@ import { DatePipe } from '@angular/common';
 import { HrApiService } from '../../../../core/services/hr-api.service';
 import {
   Employee,
-  Verification,
   OnboardingStage,
 } from '../../../../shared/models/employee.model';
 import { StatCardComponent } from '../stat-card/stat-card.component';
@@ -45,7 +44,6 @@ export class HrDashboardHomeComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
 
   readonly employees = signal<Employee[]>([]);
-  readonly verifications = signal<Verification[]>([]);
   readonly loading = signal(true);
 
   readonly searchEmail = signal('');
@@ -74,10 +72,6 @@ export class HrDashboardHomeComponent implements OnInit {
     this.hrApi.getEmployees(staffId).subscribe((res) => {
       this.employees.set(res.items);
       this.loading.set(false);
-    });
-
-    this.hrApi.getVerifications(staffId).subscribe((res) => {
-      this.verifications.set(res.items);
     });
   }
 

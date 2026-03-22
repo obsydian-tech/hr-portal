@@ -69,11 +69,16 @@
             </div>
           </div>
         </div>
-        <p-progressBar
-          [value]="completionPercent"
-          [showValue]="true"
-          class="mt-2"
-        />
+        <div class="progress-section mt-3">
+          <div class="flex justify-content-between align-items-center mb-2">
+            <span class="progress-label">Completion</span>
+            <span class="progress-percent">{{ completionPercent }}%</span>
+          </div>
+          <p-progressBar
+            [value]="completionPercent"
+            [showValue]="false"
+          />
+        </div>
       </div>
     }
 

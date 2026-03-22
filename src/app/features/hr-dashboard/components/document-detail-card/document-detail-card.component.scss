@@ -20,19 +20,48 @@
   color: #1a1a2e;
 }
 
+// ─── OCR Analysis Box (color-coded) ──────────────
+
 .reasoning-box {
-  background: #fff8e1;
-  border-left: 3px solid #e2a03f;
   border-radius: 6px;
   padding: 0.75rem 1rem;
+  border-left: 3px solid #adb5bd;
+  background: #f8f9fa;
+
+  &--warn {
+    background: #fff8e1;
+    border-left-color: #e2a03f;
+  }
+
+  &--success {
+    background: #e8f5e9;
+    border-left-color: #27ae60;
+  }
+
+  &--danger {
+    background: #fbe9e7;
+    border-left-color: #e74c3c;
+  }
 }
 
 .reasoning-label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #e2a03f;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  color: #6c757d;
+
+  &--warn {
+    color: #e2a03f;
+  }
+
+  &--success {
+    color: #27ae60;
+  }
+
+  &--danger {
+    color: #e74c3c;
+  }
 }
 
 .reasoning-text {

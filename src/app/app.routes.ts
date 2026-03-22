@@ -27,6 +27,20 @@ export const routes: Routes = [
             './features/hr-dashboard/components/employee-detail/employee-detail.component'
           ).then((m) => m.EmployeeDetailComponent),
       },
+      {
+        path: 'verifications',
+        loadComponent: () =>
+          import(
+            './features/hr-dashboard/components/verifications-list/verifications-list.component'
+          ).then((m) => m.VerificationsListComponent),
+      },
+      {
+        path: 'verifications/:verificationId',
+        loadComponent: () =>
+          import(
+            './features/hr-dashboard/components/verification-detail/verification-detail.component'
+          ).then((m) => m.VerificationDetailComponent),
+      },
     ],
   },
   {

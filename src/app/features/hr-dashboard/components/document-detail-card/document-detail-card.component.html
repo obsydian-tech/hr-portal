@@ -23,11 +23,18 @@
     }
   </div>
 
-  <!-- Verification Reasoning -->
+  <!-- OCR Analysis (color-coded by status) -->
   @if (reasoning) {
-    <div class="reasoning-box mb-3">
-      <div class="reasoning-label mb-1">
-        <i class="pi pi-info-circle mr-1"></i> OCR Analysis
+    <div [class]="reasoningBoxClass + ' mb-3'">
+      <div [class]="reasoningLabelClass + ' mb-1'">
+        @if (doc().ocr_status === 'PASSED') {
+          <i class="pi pi-check-circle mr-1"></i>
+        } @else if (doc().ocr_status === 'FAILED') {
+          <i class="pi pi-times-circle mr-1"></i>
+        } @else {
+          <i class="pi pi-info-circle mr-1"></i>
+        }
+        OCR Analysis
       </div>
       <p class="reasoning-text m-0">{{ reasoning }}</p>
     </div>
@@ -51,17 +58,54 @@
     </div>
   }
 
+  <!-- Review Decision Banners -->
+  @if (reviewDecision() === 'approved') {
+    <p-divider />
+    @if (isManualReviewOnly) {
+      <p-message severity="success" text="Document approved. This document requires manual HR review. No external verification available." />
+    } @else {
+      <p-message severity="success" text="Document approved. You may now proceed with external verification." />
+    }
+  }
+  @if (reviewDecision() === 'rejected') {
+    <p-divider />
+    <p-message severity="error" text="Document rejected. The employee will be notified to re-upload the correct document." />
+  }
+
   <!-- Actions -->
   <p-divider />
   <div class="flex align-items-center gap-2 flex-wrap">
+    <!-- Review button: shown for MANUAL_REVIEW or PENDING with file (matric/tertiary) -->
+    @if (showReviewButton) {
+      <p-button
+        label="Approve"
+        icon="pi pi-check"
+        severity="success"
+        [outlined]="true"
+        size="small"
+        (onClick)="approveDocument()"
+      />
+      <p-button
+        label="Reject"
+        icon="pi pi-times"
+        severity="danger"
+        [outlined]="true"
+        size="small"
+        (onClick)="rejectDocument()"
+      />
+    }
+
+    <!-- Request External Verification: only for National ID / Bank Confirmation, disabled until approved -->
     @if (canVerifyExternally && !verificationTriggered()) {
       <p-button
-        label="Verify Details"
+        label="Request External Verification"
         icon="pi pi-shield"
         severity="warn"
         [outlined]="true"
+        [disabled]="!canClickVerifyDetails"
         [loading]="verifying()"
         (onClick)="triggerVerification()"
+        [pTooltip]="canClickVerifyDetails ? '' : 'Review the document first before requesting verification'"
       />
     }
 
@@ -69,14 +113,8 @@
       <p-message severity="success" text="Verification request sent successfully." />
     }
 
-    @if (isManualReviewOnly) {
-      <p-message
-        severity="info"
-        text="This document requires manual HR review. No external verification available."
-      />
-    }
-
-    @if (!canVerifyExternally && !isManualReviewOnly && doc().ocr_status === 'PENDING') {
+    <!-- Pending with no file -->
+    @if (doc().ocr_status === 'PENDING' && !isPendingWithFile) {
       <p-message severity="info" text="Awaiting document upload from employee." />
     }
   </div>

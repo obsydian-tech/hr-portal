@@ -15,6 +15,7 @@ import { DividerModule } from 'primeng/divider';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
 import { MessageModule } from 'primeng/message';
+import { TooltipModule } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-document-detail-card',
@@ -28,6 +29,7 @@ import { MessageModule } from 'primeng/message';
     DividerModule,
     ConfirmDialogModule,
     MessageModule,
+    TooltipModule,
   ],
   providers: [ConfirmationService],
   templateUrl: './document-detail-card.component.html',
@@ -43,6 +45,9 @@ export class DocumentDetailCardComponent {
   readonly verifying = signal(false);
   readonly verificationTriggered = signal(false);
 
+  /** HR manual review decision: null = not reviewed, 'approved' | 'rejected' */
+  readonly reviewDecision = signal<'approved' | 'rejected' | null>(null);
+
   get ocrSeverity(): 'success' | 'warn' | 'danger' | 'info' | 'secondary' {
     switch (this.doc().ocr_status) {
       case 'PASSED': return 'success';
@@ -50,6 +55,26 @@ export class DocumentDetailCardComponent {
       case 'FAILED': return 'danger';
       case 'PENDING': return 'info';
       default: return 'secondary';
+    }
+  }
+
+  /** CSS class for the reasoning box based on OCR status */
+  get reasoningBoxClass(): string {
+    switch (this.doc().ocr_status) {
+      case 'PASSED': return 'reasoning-box reasoning-box--success';
+      case 'MANUAL_REVIEW': return 'reasoning-box reasoning-box--warn';
+      case 'FAILED': return 'reasoning-box reasoning-box--danger';
+      default: return 'reasoning-box';
+    }
+  }
+
+  /** CSS class for the reasoning label */
+  get reasoningLabelClass(): string {
+    switch (this.doc().ocr_status) {
+      case 'PASSED': return 'reasoning-label reasoning-label--success';
+      case 'MANUAL_REVIEW': return 'reasoning-label reasoning-label--warn';
+      case 'FAILED': return 'reasoning-label reasoning-label--danger';
+      default: return 'reasoning-label';
     }
   }
 
@@ -61,6 +86,23 @@ export class DocumentDetailCardComponent {
   get isManualReviewOnly(): boolean {
     const type = this.doc().document_type;
     return type === 'MATRIC_CERTIFICATE' || type === 'TERTIARY_QUALIFICATION';
+  }
+
+  /** Whether this is a pending doc that has been uploaded (has a file) — needs manual review */
+  get isPendingWithFile(): boolean {
+    return this.doc().ocr_status === 'PENDING' && !!this.doc().file_name;
+  }
+
+  /** Whether to show the Review button (MANUAL_REVIEW from OCR, or PENDING with file for matric/tertiary) */
+  get showReviewButton(): boolean {
+    if (this.reviewDecision()) return false;
+    return this.doc().ocr_status === 'MANUAL_REVIEW' || (this.isPendingWithFile && this.isManualReviewOnly);
+  }
+
+  /** Verify Details is only clickable after review is approved */
+  get canClickVerifyDetails(): boolean {
+    if (this.doc().ocr_status === 'PASSED') return true;
+    return this.reviewDecision() === 'approved';
   }
 
   get documentLabel(): string {
@@ -89,12 +131,34 @@ export class DocumentDetailCardComponent {
     return fields;
   }
 
+  approveDocument(): void {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to approve this ${this.documentLabel}? This will mark it as PASSED.`,
+      header: 'Approve Document',
+      icon: 'pi pi-check-circle',
+      acceptLabel: 'Approve',
+      rejectLabel: 'Cancel',
+      accept: () => this.reviewDecision.set('approved'),
+    });
+  }
+
+  rejectDocument(): void {
+    this.confirmationService.confirm({
+      message: `Are you sure you want to reject this ${this.documentLabel}? The employee will need to re-upload.`,
+      header: 'Reject Document',
+      icon: 'pi pi-times-circle',
+      acceptLabel: 'Reject',
+      rejectLabel: 'Cancel',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.reviewDecision.set('rejected'),
+    });
+  }
+
   triggerVerification(): void {
     const d = this.doc();
-    const partner = d.document_type === 'NATIONAL_ID' ? 'VerifyNow' : 'AVS';
 
     this.confirmationService.confirm({
-      message: `This will send a verification request to ${partner} for the ${this.documentLabel}. Proceed?`,
+      message: 'This will send a verification request to an external partner. Proceed?',
       header: 'Confirm External Verification',
       icon: 'pi pi-shield',
       acceptLabel: 'Verify',

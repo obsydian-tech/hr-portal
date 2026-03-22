@@ -1,0 +1,145 @@
+.verification-detail {
+  padding: 1.5rem;
+}
+
+.header-card {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(26, 26, 46, 0.05);
+}
+
+.header-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.confidence-badge {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #4a3f8a;
+  background: rgba(74, 63, 138, 0.08);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+}
+
+.employee-link {
+  color: #4a3f8a;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: #7ad4e4;
+    text-decoration: underline;
+  }
+}
+
+.reasoning-box {
+  background: #f8f9fa;
+  border-left: 3px solid #4a3f8a;
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+
+  &--warn {
+    background: #fff8e1;
+    border-left-color: #e2a03f;
+  }
+
+  &--success {
+    background: #e8f5e9;
+    border-left-color: #27ae60;
+  }
+
+  &--danger {
+    background: #fbe9e7;
+    border-left-color: #e74c3c;
+  }
+}
+
+.reasoning-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6c757d;
+
+  &--warn {
+    color: #e2a03f;
+  }
+
+  &--success {
+    color: #27ae60;
+  }
+
+  &--danger {
+    color: #e74c3c;
+  }
+}
+
+.reasoning-text {
+  font-size: 0.95rem;
+  color: #495057;
+  line-height: 1.6;
+}
+
+.field-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.15rem;
+}
+
+.field-value {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a1a2e;
+}
+
+.document-preview {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.document-placeholder {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 12px;
+  width: 100%;
+}
+
+.font-mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.text-sm {
+  font-size: 0.85rem;
+}
+
+:host ::ng-deep {
+  .p-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(26, 26, 46, 0.06);
+    border: 1px solid #e9ecef;
+  }
+
+  .p-card .p-card-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+
+  .document-preview-card {
+    position: sticky;
+    top: 5rem;
+  }
+}
