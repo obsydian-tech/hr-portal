@@ -1,5 +1,10 @@
-<app-sidebar [navItems]="navItems" [activeRoute]="'/employees/' + employeeId()" />
-<app-topbar title="Employee Onboarding Portal" [employeeName]="employee().first_name + ' ' + employee().last_name" />
+<app-sidebar [navItems]="navItems" [activeRoute]="'/employees/' + employeeId()" [(isOpen)]="sidebarOpen" />
+<app-topbar
+  title="Employee Portal"
+  [employeeName]="employee().first_name + ' ' + employee().last_name"
+  [showNotifications]="true"
+  (menuToggle)="toggleSidebar()"
+/>
 
 <main class="dashboard">
   <div class="dashboard__content">

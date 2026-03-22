@@ -143,3 +143,24 @@
     top: 5rem;
   }
 }
+
+// ─── Mobile Responsive ─────────────────────────
+@media (max-width: 768px) {
+  .verification-detail {
+    padding: 1rem 0.75rem;
+  }
+
+  .header-card {
+    padding: 1rem;
+  }
+
+  .header-title {
+    font-size: 1.2rem;
+  }
+
+  :host ::ng-deep {
+    .document-preview-card {
+      position: static;
+    }
+  }
+}

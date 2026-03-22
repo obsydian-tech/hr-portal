@@ -25,6 +25,8 @@ import { Employee, OnboardingStage } from '../../shared/models/employee.model';
 export class EmployeeDashboardComponent {
   readonly employeeId = input<string>('');
 
+  readonly sidebarOpen = signal(false);
+
   /** Sidebar nav items — only "My Onboarding" is active */
   readonly navItems: NavItem[] = [
     { label: 'Home', icon: 'pi-home', route: '/', disabled: false },
@@ -33,6 +35,10 @@ export class EmployeeDashboardComponent {
     { label: 'Training Videos', icon: 'pi-video', route: '', disabled: true },
     { label: 'Support', icon: 'pi-question-circle', route: '', disabled: true },
   ];
+
+  toggleSidebar(): void {
+    this.sidebarOpen.update(v => !v);
+  }
 
   /** Mock employee data — in production, fetched from API using employeeId input */
   readonly employee = signal<Employee>({

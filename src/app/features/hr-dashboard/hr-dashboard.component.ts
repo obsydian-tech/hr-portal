@@ -24,6 +24,7 @@ export class HrDashboardComponent {
   readonly staffId = input<string>('');
 
   readonly showNewHireDialog = signal(false);
+  readonly sidebarOpen = signal(false);
 
   readonly navItems: NavItem[] = [
     { label: 'Home', icon: 'pi-home', route: '/', disabled: false },
@@ -32,6 +33,10 @@ export class HrDashboardComponent {
     { label: 'Document Verifications', icon: 'pi-verified', route: 'verifications', disabled: false },
     { label: 'Settings', icon: 'pi-cog', route: '', disabled: true },
   ];
+
+  toggleSidebar(): void {
+    this.sidebarOpen.update(v => !v);
+  }
 
   openNewHireDialog(): void {
     this.showNewHireDialog.set(true);

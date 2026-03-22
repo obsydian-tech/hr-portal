@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, model } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AvatarModule } from 'primeng/avatar';
 import { DividerModule } from 'primeng/divider';
@@ -24,8 +24,26 @@ export class SidebarComponent {
   readonly navItems = input<NavItem[]>([]);
   readonly activeRoute = input<string>('');
 
+  /** Whether the sidebar overlay is open (mobile) */
+  readonly isOpen = model(false);
+
   /** Optional action button (e.g. "New Hire") shown above logout */
   readonly actionLabel = input<string>('');
   readonly actionIcon = input<string>('pi-plus');
   readonly actionClicked = output<void>();
+
+  /** Close sidebar (mobile overlay) */
+  closeSidebar(): void {
+    this.isOpen.set(false);
+  }
+
+  /** Handle nav click — close sidebar on mobile */
+  onNavClick(): void {
+    this.closeSidebar();
+  }
+
+  onActionClick(): void {
+    this.actionClicked.emit();
+    this.closeSidebar();
+  }
 }
