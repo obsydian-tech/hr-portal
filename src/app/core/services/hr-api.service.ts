@@ -326,6 +326,8 @@ export class HrApiService {
           file_name: 'sarah_id.pdf',
           ocr_status: 'MANUAL_REVIEW',
           ocr_completed_at: '2026-03-21T11:19:28.566Z',
+          uploaded_at: '2026-03-21T11:18:00.000Z',
+          uploaded_by: 'Sarah Nkosi (Employee)',
           verification: {
             verification_id: 'ver_1774091968566',
             employee_id: 'EMP-0000011',
@@ -352,6 +354,8 @@ export class HrApiService {
           file_name: 'sarah_bank_letter.pdf',
           ocr_status: 'PASSED',
           ocr_completed_at: '2026-03-21T11:25:00.000Z',
+          uploaded_at: '2026-03-21T11:24:00.000Z',
+          uploaded_by: 'Thabo Molefe (HR)',
           verification: {
             verification_id: 'ver_1774092000002',
             employee_id: 'EMP-0000011',
@@ -400,6 +404,8 @@ export class HrApiService {
           file_name: 'lerato_sa_id.pdf',
           ocr_status: 'PASSED',
           ocr_completed_at: '2026-03-05T10:00:00.000Z',
+          uploaded_at: '2026-03-05T09:55:00.000Z',
+          uploaded_by: 'Lerato Dlamini (Employee)',
           verification: {
             verification_id: 'ver_lerato_id',
             employee_id: 'EMP-0000013',
@@ -425,6 +431,8 @@ export class HrApiService {
           file_name: 'lerato_bank_confirm.pdf',
           ocr_status: 'PASSED',
           ocr_completed_at: '2026-03-05T10:05:00.000Z',
+          uploaded_at: '2026-03-05T10:03:00.000Z',
+          uploaded_by: 'Lerato Dlamini (Employee)',
           verification: {
             verification_id: 'ver_lerato_bank',
             employee_id: 'EMP-0000013',

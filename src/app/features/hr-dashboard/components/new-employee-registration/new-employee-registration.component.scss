@@ -30,34 +30,107 @@
   color: #6c757d;
 }
 
-// ─── Steps Override ───────────────────────────────
+// ─── Custom Wizard Stepper ────────────────────────
 
-:host ::ng-deep {
-  .registration-steps {
-    .p-steps-item {
-      &::before {
-        border-top-style: dashed;
-        border-color: #dee2e6;
-      }
-    }
+.wizard-stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  gap: 0;
+}
 
-    .p-menuitem-link {
-      flex-direction: column !important;
-      gap: 0.4rem;
-    }
+.wizard-stepper__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  min-width: 0;
+  flex-shrink: 0;
+}
 
-    .p-steps-number {
-      font-weight: 800;
-      font-size: 0.8rem;
-      width: 2.25rem;
-      height: 2.25rem;
-    }
+.wizard-stepper__circle {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
 
-    .p-steps-title {
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
+// ── Active step: filled portal blue ──
+.wizard-stepper__step--active {
+  .wizard-stepper__circle {
+    background: #4a3f8a;
+    color: #ffffff;
+    border: 2.5px solid #4a3f8a;
+    box-shadow: 0 2px 12px rgba(74, 63, 138, 0.25);
+  }
+
+  .wizard-stepper__label {
+    color: #4a3f8a;
+    font-weight: 700;
+  }
+}
+
+// ── Completed step: green border, green check ──
+.wizard-stepper__step--completed {
+  .wizard-stepper__circle {
+    background: #ffffff;
+    color: #27ae60;
+    border: 2.5px solid #27ae60;
+  }
+
+  .wizard-stepper__label {
+    color: #27ae60;
+    font-weight: 600;
+  }
+}
+
+// ── Upcoming step: grey border, grey icon ──
+.wizard-stepper__step--upcoming {
+  cursor: default;
+
+  .wizard-stepper__circle {
+    background: #ffffff;
+    color: #a0a4ab;
+    border: 2px solid #d1d5db;
+  }
+
+  .wizard-stepper__label {
+    color: #9ca3af;
+    font-weight: 500;
+  }
+}
+
+.wizard-stepper__label {
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+  text-align: center;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
+
+// ── Connector line ──
+.wizard-stepper__connector {
+  flex: 1;
+  height: 2.5px;
+  min-width: 2rem;
+  max-width: 8rem;
+  margin-top: 1.45rem; // vertically center with circle
+  border-radius: 2px;
+  transition: background 0.3s ease;
+
+  &--completed {
+    background: #4a3f8a;
+  }
+
+  &--upcoming {
+    background: #d1d5db;
   }
 }
 
@@ -356,6 +429,38 @@
   flex: 1;
 }
 
+:host ::ng-deep {
+  .next-btn {
+    background: #4a3f8a !important;
+    border-color: #4a3f8a !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+
+    &:hover {
+      background: #3a3070 !important;
+      border-color: #3a3070 !important;
+    }
+
+    &:disabled {
+      background: #c4c0db !important;
+      border-color: #c4c0db !important;
+      opacity: 0.7;
+    }
+  }
+
+  .prev-btn {
+    border-radius: 8px !important;
+    color: #4a3f8a !important;
+    border-color: #d1d5db !important;
+    font-weight: 600 !important;
+
+    &:hover {
+      background: rgba(74, 63, 138, 0.05) !important;
+      border-color: #4a3f8a !important;
+    }
+  }
+}
+
 // ─── Success Card ─────────────────────────────────
 
 .success-card {
@@ -420,6 +525,26 @@
     font-size: 1.2rem;
   }
 
+  .wizard-stepper {
+    padding: 1rem 0.25rem;
+    gap: 0;
+  }
+
+  .wizard-stepper__circle {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1rem;
+  }
+
+  .wizard-stepper__label {
+    font-size: 0.65rem;
+  }
+
+  .wizard-stepper__connector {
+    min-width: 1rem;
+    margin-top: 1.2rem;
+  }
+
   .step-card__header {
     padding: 0.85rem 1rem;
     font-size: 0.95rem;
@@ -429,10 +554,6 @@
     .step-card .p-card-body,
     .review-card .p-card-body {
       padding: 1rem;
-    }
-
-    .registration-steps .p-steps-title {
-      display: none;
     }
   }
 

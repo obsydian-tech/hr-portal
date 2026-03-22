@@ -58,20 +58,29 @@
         </div>
         <div>
           <h2 class="m-0 registration__title">Register New Employee</h2>
-          <p class="m-0 registration__sub">Complete all steps to add a new hire to the system</p>
+          <p class="m-0 registration__sub">Complete all steps to register a new employee in the onboarding system.</p>
         </div>
       </div>
     </div>
 
-    <!-- ═══ Steps Indicator ═══ -->
-    <div class="mb-4">
-      <p-steps
-        [model]="steps"
-        [activeIndex]="activeStep()"
-        [readonly]="false"
-        (activeIndexChange)="goToStep($event)"
-        styleClass="registration-steps"
-      />
+    <!-- ═══ Custom Steps Indicator ═══ -->
+    <div class="wizard-stepper mb-4">
+      @for (step of steps; track step.label; let i = $index; let last = $last) {
+        <div class="wizard-stepper__step" [class]="'wizard-stepper__step--' + stepState(i)"
+             (click)="goToStep(i)">
+          <div class="wizard-stepper__circle">
+            @if (stepState(i) === 'completed') {
+              <i class="pi pi-check"></i>
+            } @else {
+              <i [class]="step.icon"></i>
+            }
+          </div>
+          <span class="wizard-stepper__label">{{ step.label }}</span>
+        </div>
+        @if (!last) {
+          <div class="wizard-stepper__connector" [class]="'wizard-stepper__connector--' + connectorState(i)"></div>
+        }
+      }
     </div>
 
     <!-- ═══ Step Panels ═══ -->
@@ -439,20 +448,22 @@
       @if (activeStep() > 0) {
         <p-button
           label="Previous"
-          icon="pi pi-arrow-left"
+          icon="pi pi-chevron-left"
           severity="secondary"
           [outlined]="true"
           (onClick)="prevStep()"
+          styleClass="prev-btn"
         />
       }
       <div class="step-nav__spacer"></div>
       @if (activeStep() < 3) {
         <p-button
-          label="Continue"
-          icon="pi pi-arrow-right"
+          label="Next"
+          icon="pi pi-chevron-right"
           iconPos="right"
           [disabled]="!canProceed"
           (onClick)="nextStep()"
+          styleClass="next-btn"
         />
       } @else {
         <p-button

@@ -1,14 +1,12 @@
 import { Component, ChangeDetectionStrategy, input, computed } from '@angular/core';
 import { OnboardingStage } from '../../../../shared/models/employee.model';
-import { StepsModule } from 'primeng/steps';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
-import { MenuItem } from 'primeng/api';
 
 @Component({
   selector: 'app-onboarding-stepper',
   standalone: true,
-  imports: [StepsModule, CardModule, TagModule],
+  imports: [CardModule, TagModule],
   templateUrl: './onboarding-stepper.component.html',
   styleUrl: './onboarding-stepper.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,13 +23,13 @@ export class OnboardingStepperComponent {
     'ONBOARDED',
   ];
 
-  readonly stepItems: MenuItem[] = [
-    { label: 'Profile Created', icon: 'pi pi-check' },
-    { label: 'Documents', icon: 'pi pi-file' },
-    { label: 'Verification', icon: 'pi pi-clock' },
-    { label: 'Verified', icon: 'pi pi-verified' },
-    { label: 'Training', icon: 'pi pi-video' },
-    { label: 'Onboarded', icon: 'pi pi-flag' },
+  readonly steps = [
+    { label: 'Profile Created' },
+    { label: 'Documents' },
+    { label: 'Verification' },
+    { label: 'Verified' },
+    { label: 'Training' },
+    { label: 'Onboarded' },
   ];
 
   private readonly stageGuidanceMap: Record<OnboardingStage, { icon: string; title: string; description: string; action: string }> = {
@@ -78,12 +76,12 @@ export class OnboardingStepperComponent {
   });
 
   readonly progressPercent = computed(() => {
-    return Math.round((this.currentIndex() / (this.stepItems.length - 1)) * 100);
+    return Math.round((this.currentIndex() / (this.steps.length - 1)) * 100);
   });
 
   readonly currentLabel = computed(() => {
     const idx = this.currentIndex();
-    return idx >= 0 && idx < this.stepItems.length ? this.stepItems[idx].label ?? '' : '';
+    return idx >= 0 && idx < this.steps.length ? this.steps[idx].label ?? '' : '';
   });
 
   readonly guidance = computed(() => {
@@ -95,6 +93,13 @@ export class OnboardingStepperComponent {
     const current = this.currentIndex();
     if (stepIndex < current) return 'completed';
     if (stepIndex === current) return 'active';
+    return 'upcoming';
+  }
+
+  /** Connector status between steps */
+  connectorStatus(index: number): 'completed' | 'upcoming' {
+    const current = this.currentIndex();
+    if (index < current) return 'completed';
     return 'upcoming';
   }
 
