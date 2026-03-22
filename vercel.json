@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npx ng build",
+  "outputDirectory": "dist/hr-portal/browser",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
