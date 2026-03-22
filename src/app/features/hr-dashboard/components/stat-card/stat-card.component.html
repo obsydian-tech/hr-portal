@@ -1,0 +1,11 @@
+<p-card styleClass="stat-card">
+  <div class="flex align-items-center gap-3">
+    <div class="stat-card__icon" [style.background]="color() + '1a'" [style.color]="color()">
+      <i class="pi {{ icon() }}"></i>
+    </div>
+    <div>
+      <span class="stat-card__label">{{ label() }}</span>
+      <p class="stat-card__value">{{ value() }}</p>
+    </div>
+  </div>
+</p-card>

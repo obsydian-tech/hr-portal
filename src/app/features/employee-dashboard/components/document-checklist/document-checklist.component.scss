@@ -1,0 +1,33 @@
+:host {
+  display: block;
+}
+
+::ng-deep {
+  .checklist-card {
+    border-radius: 0.75rem !important;
+    box-shadow: 0 1px 3px rgba(26, 26, 46, 0.04) !important;
+    border: 1px solid rgba(200, 197, 205, 0.15) !important;
+    overflow: hidden !important;
+
+    .p-card-body {
+      padding: 0 !important;
+    }
+
+    .p-card-footer {
+      padding: 0 !important;
+    }
+  }
+
+  .count-tag {
+    font-size: 0.6875rem !important;
+    font-weight: 700 !important;
+  }
+
+  .row-divider {
+    margin: 0 !important;
+
+    &::before {
+      border-color: rgba(200, 197, 205, 0.1) !important;
+    }
+  }
+}

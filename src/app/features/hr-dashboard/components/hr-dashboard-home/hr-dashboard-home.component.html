@@ -1,0 +1,179 @@
+<div class="dashboard-home">
+  <!-- Welcome Section -->
+  <div class="welcome-section flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="welcome-title m-0 mb-1">Welcome back</h2>
+      <p class="welcome-sub m-0">Manage your team's onboarding progress</p>
+    </div>
+    <p-button
+      label="Download Report"
+      icon="pi pi-download"
+      severity="secondary"
+      [outlined]="true"
+      [disabled]="true"
+    />
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="grid mb-4">
+    <div class="col-12 md:col-6 lg:col-3">
+      <app-stat-card
+        label="Total Employees"
+        [value]="totalEmployees()"
+        icon="pi pi-users"
+        color="#4a3f8a"
+      />
+    </div>
+    <div class="col-12 md:col-6 lg:col-3">
+      <app-stat-card
+        label="Pending Documents"
+        [value]="pendingDocuments()"
+        icon="pi pi-file"
+        color="#e2a03f"
+      />
+    </div>
+    <div class="col-12 md:col-6 lg:col-3">
+      <app-stat-card
+        label="Verification Pending"
+        [value]="verificationPending()"
+        icon="pi pi-clock"
+        color="#e74c3c"
+      />
+    </div>
+    <div class="col-12 md:col-6 lg:col-3">
+      <app-stat-card
+        label="Onboarded"
+        [value]="onboarded()"
+        icon="pi pi-check-circle"
+        color="#27ae60"
+      />
+    </div>
+  </div>
+
+  <!-- Employees Table -->
+  <p-card class="mb-4">
+    <ng-template #title>
+      <div class="flex justify-content-between align-items-center">
+        <span>Employees</span>
+        <span class="p-input-icon-left">
+          <i class="pi pi-search"></i>
+          <input
+            pInputText
+            type="text"
+            placeholder="Search by email..."
+            class="employee-search"
+            (input)="onSearchInput($event)"
+          />
+        </span>
+      </div>
+    </ng-template>
+
+    @if (loading()) {
+      <p-skeleton height="2rem" class="mb-2" />
+      <p-skeleton height="2rem" class="mb-2" />
+      <p-skeleton height="2rem" class="mb-2" />
+      <p-skeleton height="2rem" />
+    } @else {
+      <p-table
+        [value]="filteredEmployees()"
+        [paginator]="true"
+        [rows]="5"
+        [rowsPerPageOptions]="[5, 10, 20]"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} employees"
+        styleClass="p-datatable-sm p-datatable-striped"
+      >
+        <ng-template #header>
+          <tr>
+            <th>Employee Name</th>
+            <th>Email</th>
+            <th>Department</th>
+            <th>Stage</th>
+            <th>Start Date</th>
+            <th style="width: 6rem">Actions</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-emp>
+          <tr>
+            <td class="font-semibold">{{ emp.first_name }} {{ emp.last_name }}</td>
+            <td>{{ emp.email }}</td>
+            <td>{{ emp.department }}</td>
+            <td>
+              <p-tag [value]="stageLabel(emp.stage)" [severity]="stageSeverity(emp.stage)" />
+            </td>
+            <td>{{ emp.planned_start_date | date:'mediumDate' }}</td>
+            <td>
+              <p-button
+                icon="pi pi-eye"
+                [rounded]="true"
+                [text]="true"
+                severity="info"
+                (onClick)="navigateToEmployee(emp.employee_id)"
+              />
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="6" class="text-center p-4 text-color-secondary">
+              No employees found.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    }
+  </p-card>
+
+  <!-- Verifications Table -->
+  <p-card>
+    <ng-template #title>
+      <span>Document Verifications</span>
+    </ng-template>
+
+    @if (loading()) {
+      <p-skeleton height="2rem" class="mb-2" />
+      <p-skeleton height="2rem" class="mb-2" />
+      <p-skeleton height="2rem" />
+    } @else {
+      <p-table
+        [value]="verifications()"
+        [paginator]="true"
+        [rows]="5"
+        [rowsPerPageOptions]="[5, 10]"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} verifications"
+        styleClass="p-datatable-sm p-datatable-striped"
+      >
+        <ng-template #header>
+          <tr>
+            <th>Verification ID</th>
+            <th>Employee</th>
+            <th>Document Type</th>
+            <th>Decision</th>
+            <th>Confidence</th>
+            <th>Date</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-v>
+          <tr>
+            <td class="font-mono text-sm">{{ v.verification_id }}</td>
+            <td class="font-semibold">{{ v.employee_name }}</td>
+            <td>{{ v.document_type }}</td>
+            <td>
+              <p-tag [value]="v.decision" [severity]="decisionSeverity(v.decision)" />
+            </td>
+            <td>{{ v.confidence }}%</td>
+            <td>{{ v.created_at | date:'mediumDate' }}</td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="6" class="text-center p-4 text-color-secondary">
+              No verifications yet.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    }
+  </p-card>
+</div>

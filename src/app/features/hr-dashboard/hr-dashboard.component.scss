@@ -1,0 +1,16 @@
+.dashboard {
+  margin-left: 250px;
+  padding-top: 4rem;
+  min-height: 100vh;
+  background: var(--naleko-surface);
+  display: flex;
+  flex-direction: column;
+
+  &__content {
+    flex: 1;
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 2.5rem 2.5rem 3rem;
+    width: 100%;
+  }
+}

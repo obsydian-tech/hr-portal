@@ -1,0 +1,25 @@
+<app-sidebar
+  [navItems]="navItems"
+  [activeRoute]="'/hr/' + staffId()"
+  actionLabel="New Hire"
+  actionIcon="pi-plus"
+  (actionClicked)="openNewHireDialog()"
+/>
+<app-topbar
+  title="HR Pulse | Naleko Digital Solutions"
+  employeeName="HR Staff"
+  [showSearch]="true"
+  [showNotifications]="true"
+/>
+
+<main class="dashboard">
+  <div class="dashboard__content">
+    <router-outlet />
+  </div>
+  <app-footer />
+</main>
+
+<app-new-hire-dialog
+  [(visible)]="showNewHireDialog"
+  (employeeCreated)="onEmployeeCreated()"
+/>

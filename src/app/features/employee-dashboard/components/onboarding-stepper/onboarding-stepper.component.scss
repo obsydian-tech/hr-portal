@@ -1,0 +1,57 @@
+:host {
+  display: block;
+  margin-bottom: 2rem;
+}
+
+.stepper-card__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--naleko-tertiary-fixed-dim);
+}
+
+::ng-deep {
+  .stepper-card {
+    border-radius: 0.75rem !important;
+    box-shadow: 0 1px 3px rgba(26, 26, 46, 0.04) !important;
+    border: 1px solid rgba(200, 197, 205, 0.15) !important;
+  }
+
+  .stepper-card__tag {
+    background: rgba(122, 212, 228, 0.1) !important;
+    color: var(--naleko-tertiary-fixed-dim) !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+  }
+
+  .stepper-steps {
+    .p-steps-item {
+      &::before {
+        border-top-style: dashed;
+        border-color: var(--naleko-outline-variant);
+      }
+    }
+
+    // Completed steps
+    .p-steps-item:has(+ .p-steps-item .p-disabled),
+    .p-steps-item:first-child {
+      // Let PrimeNG handle default styling
+    }
+
+    .p-menuitem-link {
+      flex-direction: column !important;
+      gap: 0.5rem;
+    }
+
+    .p-steps-number {
+      font-weight: 800;
+      font-size: 0.75rem;
+    }
+
+    .p-steps-title {
+      font-size: 0.6875rem;
+      font-weight: 600;
+    }
+  }
+}

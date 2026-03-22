@@ -1,0 +1,41 @@
+<p-toolbar styleClass="topbar">
+  <ng-template #start>
+    <span class="text-lg font-bold" style="color: var(--naleko-primary)">{{ title() }}</span>
+  </ng-template>
+  <ng-template #center>
+    @if (showSearch()) {
+      <span class="topbar-search">
+        <i class="pi pi-search topbar-search__icon"></i>
+        <input
+          pInputText
+          type="text"
+          placeholder="Search employees, documents..."
+          class="topbar-search__input"
+          disabled
+        />
+      </span>
+    }
+  </ng-template>
+  <ng-template #end>
+    <div class="flex align-items-center gap-3">
+      @if (showNotifications()) {
+        <p-button
+          icon="pi pi-bell"
+          [text]="true"
+          [rounded]="true"
+          severity="secondary"
+          pBadge
+          badgeClass="topbar-notif-badge"
+          disabled
+        />
+      }
+      <span class="text-sm font-medium" style="color: var(--naleko-on-surface)">{{ employeeName() }}</span>
+      <p-avatar
+        icon="pi pi-user"
+        shape="circle"
+        [style]="{ 'background-color': 'var(--naleko-surface-container-high)', color: 'var(--naleko-on-surface-variant)' }"
+      />
+      <p-button label="Logout" severity="secondary" [text]="true" size="small" />
+    </div>
+  </ng-template>
+</p-toolbar>

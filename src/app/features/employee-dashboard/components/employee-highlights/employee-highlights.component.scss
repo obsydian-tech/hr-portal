@@ -1,0 +1,50 @@
+:host {
+  display: block;
+}
+
+.highlights-accent {
+  width: 3px;
+  height: 1.5rem;
+  background: var(--naleko-tertiary-fixed-dim);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.field-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--naleko-on-surface-variant);
+}
+
+.field-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+}
+
+::ng-deep {
+  .highlights-card {
+    border-radius: 0.75rem !important;
+    box-shadow: 0 1px 3px rgba(26, 26, 46, 0.04) !important;
+    border: 1px solid rgba(200, 197, 205, 0.15) !important;
+  }
+
+  .highlights-avatar {
+    background: var(--naleko-surface-container-high) !important;
+    color: var(--naleko-on-surface-variant) !important;
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+    font-size: 1.5rem !important;
+  }
+
+  .empid-tag {
+    background: rgba(122, 212, 228, 0.1) !important;
+    color: var(--naleko-tertiary-fixed-dim) !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    font-family: 'Courier New', monospace !important;
+    letter-spacing: 0.05em !important;
+  }
+}

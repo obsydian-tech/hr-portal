@@ -1,0 +1,76 @@
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 250px;
+  background: linear-gradient(180deg, #1a1a2e 0%, #2a2a42 100%);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  overflow-y: auto;
+  font-family: var(--naleko-font-family);
+
+  &__title {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.125rem;
+    letter-spacing: -0.02em;
+  }
+
+  &__link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.3);
+    transition: all 0.2s ease;
+    cursor: default;
+    border-left: 3px solid transparent;
+
+    &--active {
+      color: var(--naleko-tertiary-fixed-dim) !important;
+      background: rgba(255, 255, 255, 0.08);
+      border-left-color: var(--naleko-tertiary-fixed-dim);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    &--disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &--logout {
+      color: rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+
+      &:hover {
+        color: rgba(255, 255, 255, 0.7);
+      }
+    }
+
+    &:not(&--disabled):not(&--active):hover {
+      color: rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.04);
+    }
+  }
+}
+
+::ng-deep .sidebar__action-btn {
+  background: linear-gradient(135deg, #1a1a2e, #4a3f8a) !important;
+  border: none !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 1rem !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 12px rgba(74, 63, 138, 0.25) !important;
+  transition: all 0.2s ease !important;
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(74, 63, 138, 0.35) !important;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
