@@ -8,16 +8,71 @@
 
 <main class="dashboard">
   <div class="dashboard__content">
+    <!-- Welcome Tile -->
+    <div class="welcome-tile mb-4">
+      <div class="welcome-tile__icon">
+        <i class="pi pi-sparkles"></i>
+      </div>
+      <div class="welcome-tile__body">
+        <h2 class="welcome-tile__title m-0">Welcome, {{ employee().first_name }}!</h2>
+        <p class="welcome-tile__sub m-0 mt-1">
+          We're excited to have you join the team. Complete the steps below to finish your onboarding.
+          Your planned start date is <strong>{{ employee().planned_start_date }}</strong>.
+        </p>
+      </div>
+    </div>
+
     <!-- Onboarding Stepper -->
     <app-onboarding-stepper [currentStage]="currentStage()" />
 
     <!-- Two-column grid: Highlights + Document Checklist -->
     <div class="grid">
       <div class="col-12 lg:col-4">
-        <app-employee-highlights [employee]="employee()" hrPartner="Sandra Nkosi" />
+        <app-employee-highlights [employee]="employee()" hrPartner="Thabo Molefe" />
       </div>
       <div class="col-12 lg:col-8">
-        <app-document-checklist (allComplete)="onAllDocumentsComplete($event)" />
+        <!-- Consent Gate -->
+        @if (!consentAccepted()) {
+          <p-card styleClass="consent-card">
+            <div class="consent">
+              <div class="consent__header">
+                <i class="pi pi-shield" style="color: #4a3f8a; font-size: 1.25rem"></i>
+                <h3 class="m-0 consent__title">Declaration & Consent</h3>
+              </div>
+              <div class="consent__body">
+                <p class="consent__text">
+                  Before uploading your documents, please read and accept the following:
+                </p>
+                <ul class="consent__list">
+                  <li>I confirm that all documents I upload are authentic and belong to me.</li>
+                  <li>I consent to Naleko Digital Solutions processing my personal information in accordance with the Protection of Personal Information Act (POPIA).</li>
+                  <li>I understand that my documents will be verified using automated OCR and may be reviewed by authorised HR personnel.</li>
+                  <li>I acknowledge that submitting fraudulent documents may result in disciplinary action or withdrawal of my employment offer.</li>
+                </ul>
+                <div class="consent__check">
+                  <p-checkbox
+                    [(ngModel)]="consentChecked"
+                    [binary]="true"
+                    inputId="consent"
+                  />
+                  <label for="consent" class="consent__check-label">
+                    I have read and agree to the above declaration
+                  </label>
+                </div>
+              </div>
+              <div class="consent__action mt-3">
+                <p-button
+                  label="Accept & Continue"
+                  icon="pi pi-check"
+                  [disabled]="!consentChecked"
+                  (onClick)="acceptConsent()"
+                />
+              </div>
+            </div>
+          </p-card>
+        } @else {
+          <app-document-checklist (allComplete)="onAllDocumentsComplete($event)" />
+        }
       </div>
     </div>
   </div>

@@ -16,9 +16,15 @@
       {{ doc().file_name }}
     </div>
     @if (doc().uploaded_at) {
-      <div class="text-sm text-color-secondary">
+      <div class="text-sm text-color-secondary mb-1">
         <i class="pi pi-calendar mr-1"></i>
         Uploaded {{ doc().uploaded_at | date:'medium' }}
+      </div>
+    }
+    @if (doc().uploaded_by) {
+      <div class="text-sm text-color-secondary">
+        <i class="pi pi-user mr-1"></i>
+        Uploaded by <strong>{{ doc().uploaded_by }}</strong>
       </div>
     }
   </div>
