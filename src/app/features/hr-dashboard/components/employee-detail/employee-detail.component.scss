@@ -108,3 +108,30 @@
     }
   }
 }
+
+// ─── Mobile Responsive ─────────────────────────
+@media (max-width: 768px) {
+  .employee-detail {
+    padding: 1rem 0.75rem;
+  }
+
+  .employee-name {
+    font-size: 1.2rem;
+  }
+
+  .employee-header {
+    padding: 1rem;
+  }
+
+  .summary-strip {
+    padding: 1rem;
+  }
+
+  .summary-value {
+    font-size: 1.35rem;
+  }
+
+  .summary-label {
+    font-size: 0.7rem;
+  }
+}

@@ -3,13 +3,16 @@
   [activeRoute]="'/hr/' + staffId()"
   actionLabel="New Hire"
   actionIcon="pi-plus"
+  [(isOpen)]="sidebarOpen"
   (actionClicked)="openNewHireDialog()"
 />
 <app-topbar
-  title="HR Pulse | Naleko Digital Solutions"
-  employeeName="HR Staff"
+  title="HR Portal"
+  employeeName="Thabo Molefe"
+  employeeRole="HR Manager"
   [showSearch]="true"
   [showNotifications]="true"
+  (menuToggle)="toggleSidebar()"
 />
 
 <main class="dashboard">

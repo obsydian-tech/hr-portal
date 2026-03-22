@@ -2,6 +2,32 @@
   display: block;
 }
 
+// ─── Hamburger (mobile only) ─────────────────────
+
+.topbar__hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--naleko-primary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(26, 26, 46, 0.06);
+  }
+}
+
+.topbar__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--naleko-primary);
+}
+
+// ─── Search ──────────────────────────────────────
+
 .topbar-search {
   position: relative;
   display: flex;
@@ -32,6 +58,66 @@
   }
 }
 
+// ─── Bell ────────────────────────────────────────
+
+.topbar__bell {
+  position: relative;
+  background: none;
+  border: none;
+  color: #495057;
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 50%;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(26, 26, 46, 0.06);
+  }
+}
+
+.topbar__bell-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #27ae60;
+  border: 2px solid #fff;
+}
+
+// ─── Profile ─────────────────────────────────────
+
+.topbar__profile {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0.75rem 0.3rem 0.3rem;
+  border: 1px solid #e9ecef;
+  border-radius: 999px;
+  cursor: default;
+}
+
+.topbar__profile-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.topbar__profile-name {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.topbar__profile-role {
+  font-size: 0.7rem;
+  color: #6c757d;
+}
+
+// ─── PrimeNG toolbar override ────────────────────
+
 ::ng-deep {
   .topbar {
     position: fixed !important;
@@ -45,13 +131,35 @@
     border-radius: 0 !important;
     z-index: 40;
     padding: 0 2rem !important;
+    transition: width 0.3s ease;
+  }
+}
+
+// ─── Mobile (<=768px) ────────────────────────────
+
+@media (max-width: 768px) {
+  .topbar__hamburger {
+    display: flex;
   }
 
-  .topbar-notif-badge {
-    background: var(--naleko-error) !important;
-    min-width: 0.5rem !important;
-    height: 0.5rem !important;
-    padding: 0 !important;
-    font-size: 0 !important;
+  .topbar-search {
+    display: none;
+  }
+
+  .topbar__profile-info {
+    display: none;
+  }
+
+  ::ng-deep .topbar {
+    width: 100% !important;
+    padding: 0 1rem !important;
+  }
+}
+
+// ─── Tablet (769px – 1024px) ─────────────────────
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .topbar-search__input {
+    width: 14rem;
   }
 }

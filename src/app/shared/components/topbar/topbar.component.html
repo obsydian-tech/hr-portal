@@ -1,6 +1,12 @@
 <p-toolbar styleClass="topbar">
   <ng-template #start>
-    <span class="text-lg font-bold" style="color: var(--naleko-primary)">{{ title() }}</span>
+    <div class="flex align-items-center gap-2">
+      <!-- Hamburger menu (mobile only) -->
+      <button class="topbar__hamburger" (click)="menuToggle.emit()">
+        <i class="pi pi-bars"></i>
+      </button>
+      <span class="topbar__title">{{ title() }}</span>
+    </div>
   </ng-template>
   <ng-template #center>
     @if (showSearch()) {
@@ -19,23 +25,26 @@
   <ng-template #end>
     <div class="flex align-items-center gap-3">
       @if (showNotifications()) {
-        <p-button
-          icon="pi pi-bell"
-          [text]="true"
-          [rounded]="true"
-          severity="secondary"
-          pBadge
-          badgeClass="topbar-notif-badge"
-          disabled
-        />
+        <button class="topbar__bell">
+          <i class="pi pi-bell"></i>
+          <span class="topbar__bell-dot"></span>
+        </button>
       }
-      <span class="text-sm font-medium" style="color: var(--naleko-on-surface)">{{ employeeName() }}</span>
-      <p-avatar
-        icon="pi pi-user"
-        shape="circle"
-        [style]="{ 'background-color': 'var(--naleko-surface-container-high)', color: 'var(--naleko-on-surface-variant)' }"
-      />
-      <p-button label="Logout" severity="secondary" [text]="true" size="small" />
+      <!-- Staff profile -->
+      <div class="topbar__profile">
+        <p-avatar
+          [label]="initials"
+          shape="circle"
+          size="normal"
+          [style]="{ 'background-color': '#4a3f8a', color: '#ffffff', 'font-weight': '700', 'font-size': '0.8rem' }"
+        />
+        <div class="topbar__profile-info">
+          <span class="topbar__profile-name">{{ employeeName() }}</span>
+          @if (employeeRole()) {
+            <span class="topbar__profile-role">{{ employeeRole() }}</span>
+          }
+        </div>
+      </div>
     </div>
   </ng-template>
 </p-toolbar>

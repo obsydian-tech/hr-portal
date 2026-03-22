@@ -1,4 +1,9 @@
-<aside class="sidebar">
+<!-- Backdrop (mobile only) -->
+@if (isOpen()) {
+  <div class="sidebar-backdrop" (click)="closeSidebar()"></div>
+}
+
+<aside class="sidebar" [class.sidebar--open]="isOpen()">
   <!-- Logo -->
   <div class="p-3 mb-4">
     <div class="flex align-items-center gap-3 px-3 py-2">
@@ -9,6 +14,10 @@
         size="large"
       />
       <span class="sidebar__title">HR Portal</span>
+      <!-- Close button (mobile only) -->
+      <button class="sidebar__close" (click)="closeSidebar()">
+        <i class="pi pi-times"></i>
+      </button>
     </div>
   </div>
 
@@ -29,6 +38,7 @@
           class="sidebar__link flex align-items-center gap-3 px-3 py-3 border-round no-underline"
           [class.sidebar__link--active]="item.route === activeRoute()"
           [routerLink]="item.route"
+          (click)="onNavClick()"
         >
           <i class="pi {{ item.icon }}"></i>
           <span>{{ item.label }}</span>
@@ -45,12 +55,12 @@
           [label]="actionLabel()"
           [icon]="'pi ' + actionIcon()"
           styleClass="w-full sidebar__action-btn"
-          (onClick)="actionClicked.emit()"
+          (onClick)="onActionClick()"
         />
       </div>
     }
     <p-divider [style]="{ 'border-color': 'rgba(255,255,255,0.08)' }" />
-    <a href="#" class="sidebar__link sidebar__link--logout flex align-items-center gap-3 px-3 py-3 border-round no-underline">
+    <a href="#" class="sidebar__link sidebar__link--logout flex align-items-center gap-3 px-3 py-3 border-round no-underline" (click)="onNavClick()">
       <i class="pi pi-sign-out"></i>
       <span>Logout</span>
     </a>
