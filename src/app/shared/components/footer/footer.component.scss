@@ -1,0 +1,10 @@
+.footer-link {
+  font-size: 0.875rem;
+  color: var(--naleko-on-surface-variant);
+  transition: color 0.2s ease;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--naleko-tertiary);
+  }
+}

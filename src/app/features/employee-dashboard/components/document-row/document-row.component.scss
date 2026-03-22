@@ -1,0 +1,68 @@
+:host {
+  display: block;
+}
+
+.doc-row {
+  transition: background 0.2s ease;
+  border-radius: 0.5rem;
+
+  &:hover {
+    background: rgba(243, 244, 245, 0.4);
+  }
+
+  &--processing {
+    background: rgba(243, 244, 245, 0.3);
+  }
+
+  &__icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+    background: var(--naleko-surface-container-high);
+    color: var(--naleko-on-surface-variant);
+    transition: all 0.3s ease;
+
+    &--accepted {
+      background: rgba(122, 212, 228, 0.15);
+      color: #0d9488;
+    }
+
+    &--rejected {
+      background: rgba(186, 26, 26, 0.08);
+      color: var(--naleko-error);
+    }
+
+    &--submitted {
+      background: rgba(74, 63, 138, 0.1);
+      color: var(--naleko-secondary);
+    }
+  }
+}
+
+::ng-deep {
+  .doc-status-tag {
+    font-size: 0.625rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.02em !important;
+    padding: 0.125rem 0.5rem !important;
+  }
+
+  .upload-btn {
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  .reupload-btn {
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+}

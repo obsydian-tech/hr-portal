@@ -1,0 +1,141 @@
+<p-dialog
+  header="Create New Hire"
+  [(visible)]="visible"
+  [modal]="true"
+  [closable]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '32rem' }"
+  (onHide)="onHide()"
+>
+  @if (successMessage()) {
+    <p-message severity="success" [text]="successMessage()" class="mb-3 block" />
+  }
+
+  <div class="grid">
+    <!-- First Name -->
+    <div class="col-12 md:col-6 mb-3">
+      <label for="firstName" class="block mb-1 font-semibold text-sm">First Name *</label>
+      <input
+        pInputText
+        id="firstName"
+        [(ngModel)]="firstName"
+        placeholder="e.g. Sarah"
+        class="w-full"
+      />
+    </div>
+
+    <!-- Last Name -->
+    <div class="col-12 md:col-6 mb-3">
+      <label for="lastName" class="block mb-1 font-semibold text-sm">Last Name *</label>
+      <input
+        pInputText
+        id="lastName"
+        [(ngModel)]="lastName"
+        placeholder="e.g. Nkosi"
+        class="w-full"
+      />
+    </div>
+
+    <!-- Email with Search -->
+    <div class="col-12 mb-3">
+      <label for="email" class="block mb-1 font-semibold text-sm">Email *</label>
+      <div class="flex gap-2">
+        <input
+          pInputText
+          id="email"
+          [(ngModel)]="email"
+          placeholder="e.g. sarah.nkosi@company.co.za"
+          class="flex-1"
+          type="email"
+        />
+        <p-button
+          icon="pi pi-search"
+          [outlined]="true"
+          severity="secondary"
+          (onClick)="searchByEmail()"
+          [loading]="searchingEmail()"
+          pTooltip="Check if email exists"
+        />
+      </div>
+      @if (emailExists()) {
+        <small class="text-red-500 mt-1 block">
+          <i class="pi pi-exclamation-triangle mr-1"></i>
+          This email is already registered.
+        </small>
+      }
+    </div>
+
+    <!-- Phone -->
+    <div class="col-12 md:col-6 mb-3">
+      <label for="phone" class="block mb-1 font-semibold text-sm">Phone *</label>
+      <input
+        pInputText
+        id="phone"
+        [(ngModel)]="phone"
+        placeholder="e.g. 0812345678"
+        class="w-full"
+      />
+    </div>
+
+    <!-- Department -->
+    <div class="col-12 md:col-6 mb-3">
+      <label for="department" class="block mb-1 font-semibold text-sm">Department *</label>
+      <p-select
+        id="department"
+        [(ngModel)]="department"
+        [options]="departments"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Select department"
+        styleClass="w-full"
+      />
+    </div>
+
+    <p-divider class="col-12" />
+
+    <!-- Offer Accept Date -->
+    <div class="col-12 md:col-6 mb-3">
+      <label for="offerDate" class="block mb-1 font-semibold text-sm">Offer Accept Date *</label>
+      <p-datepicker
+        id="offerDate"
+        [(ngModel)]="offerAcceptDate"
+        [showIcon]="true"
+        dateFormat="yy-mm-dd"
+        placeholder="Select date"
+        styleClass="w-full"
+      />
+    </div>
+
+    <!-- Planned Start Date -->
+    <div class="col-12 md:col-6 mb-3">
+      <label for="startDate" class="block mb-1 font-semibold text-sm">Planned Start Date *</label>
+      <p-datepicker
+        id="startDate"
+        [(ngModel)]="plannedStartDate"
+        [showIcon]="true"
+        dateFormat="yy-mm-dd"
+        placeholder="Select date"
+        styleClass="w-full"
+      />
+    </div>
+  </div>
+
+  <ng-template #footer>
+    <div class="flex justify-content-end gap-2">
+      <p-button
+        label="Cancel"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="visible.set(false)"
+      />
+      <p-button
+        label="Create Employee"
+        icon="pi pi-user-plus"
+        [disabled]="!isFormValid || emailExists()"
+        [loading]="submitting()"
+        (onClick)="submit()"
+      />
+    </div>
+  </ng-template>
+</p-dialog>

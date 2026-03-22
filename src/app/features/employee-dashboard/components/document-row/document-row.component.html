@@ -1,0 +1,96 @@
+<!-- Hidden file input -->
+<input
+  #fileInput
+  type="file"
+  accept=".pdf,.jpg,.jpeg,.png"
+  (change)="onFileSelected($event)"
+  hidden
+/>
+
+<div
+  class="doc-row flex align-items-start gap-3 px-4 py-3"
+  [class.doc-row--processing]="currentStatus() === 'UPLOADING' || currentStatus() === 'PROCESSING'"
+  (dragover)="onDragOver($event)"
+  (drop)="onDrop($event)"
+>
+  <!-- Icon -->
+  <div class="doc-row__icon"
+    [class.doc-row__icon--accepted]="currentStatus() === 'ACCEPTED'"
+    [class.doc-row__icon--rejected]="currentStatus() === 'REJECTED'"
+    [class.doc-row__icon--submitted]="currentStatus() === 'SUBMITTED'"
+  >
+    @if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
+      <i class="pi pi-check-circle"></i>
+    } @else if (currentStatus() === 'REJECTED') {
+      <i class="pi pi-times-circle"></i>
+    } @else {
+      <i class="pi {{ doc().icon }}"></i>
+    }
+  </div>
+
+  <!-- Content -->
+  <div class="flex-1 min-w-0">
+    <div class="flex align-items-center gap-2 mb-1">
+      <h4 class="m-0 font-bold" style="font-size: 0.9375rem; color: var(--naleko-on-surface)">{{ doc().label }}</h4>
+      <p-tag
+        [value]="statusLabel"
+        [severity]="statusSeverity"
+        [icon]="statusIcon"
+        [rounded]="true"
+        styleClass="doc-status-tag"
+      />
+    </div>
+
+    @if (currentStatus() === 'UPLOADING' || currentStatus() === 'PROCESSING') {
+      <p class="m-0 flex align-items-center gap-2" style="font-size: 0.8125rem; color: var(--naleko-secondary)">
+        <p-progressSpinner
+          [style]="{ width: '1rem', height: '1rem' }"
+          strokeWidth="4"
+          animationDuration=".8s"
+        />
+        @if (currentStatus() === 'UPLOADING') {
+          Uploading {{ fileName() }}...
+        } @else {
+          Verifying document...
+        }
+      </p>
+    } @else if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
+      <p class="m-0" style="font-size: 0.8125rem; color: #0d9488">{{ statusMessage() }}</p>
+    } @else if (currentStatus() === 'REJECTED') {
+      <p class="m-0" style="font-size: 0.8125rem; color: var(--naleko-error)">{{ statusMessage() }}</p>
+    } @else {
+      <p class="m-0" style="font-size: 0.8125rem; color: var(--naleko-on-surface-variant)">{{ doc().description }}</p>
+    }
+  </div>
+
+  <!-- Action -->
+  <div class="flex-shrink-0 flex align-items-center">
+    @if (currentStatus() === 'PENDING') {
+      <p-button
+        icon="pi pi-cloud-upload"
+        label="Upload"
+        [outlined]="true"
+        severity="info"
+        size="small"
+        styleClass="upload-btn"
+        (onClick)="triggerUpload()"
+      />
+    } @else if (currentStatus() === 'REJECTED') {
+      <p-button
+        icon="pi pi-refresh"
+        label="Re-upload"
+        severity="contrast"
+        size="small"
+        styleClass="reupload-btn"
+        (onClick)="reUpload()"
+      />
+    } @else if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
+      <p-button
+        label="View"
+        [text]="true"
+        severity="secondary"
+        size="small"
+      />
+    }
+  </div>
+</div>

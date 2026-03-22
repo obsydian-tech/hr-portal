@@ -1,0 +1,67 @@
+.dashboard-home {
+  padding: 1.5rem;
+}
+
+.welcome-section {
+  .welcome-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+
+  .welcome-sub {
+    color: #6c757d;
+    font-size: 0.95rem;
+  }
+}
+
+.employee-search {
+  width: 16rem;
+  font-size: 0.875rem;
+}
+
+:host ::ng-deep {
+  .p-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(26, 26, 46, 0.06);
+    border: 1px solid #e9ecef;
+  }
+
+  .p-card .p-card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+
+  .p-datatable .p-datatable-thead > tr > th {
+    background: #f8f9fa;
+    color: #1a1a2e;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 2px solid #e9ecef;
+  }
+
+  .p-datatable .p-datatable-tbody > tr > td {
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .p-datatable .p-datatable-tbody > tr:hover {
+    background: rgba(122, 212, 228, 0.06);
+  }
+
+  .p-paginator {
+    border: none;
+    padding: 0.75rem 0;
+  }
+}
+
+.font-mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.text-sm {
+  font-size: 0.85rem;
+}

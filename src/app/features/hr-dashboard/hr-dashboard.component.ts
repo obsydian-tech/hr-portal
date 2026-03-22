@@ -1,19 +1,43 @@
-import { Component, ChangeDetectionStrategy, input } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, signal } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { SidebarComponent, NavItem } from '../../shared/components/sidebar/sidebar.component';
+import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
+import { FooterComponent } from '../../shared/components/footer/footer.component';
+import { NewHireDialogComponent } from './components/new-hire-dialog/new-hire-dialog.component';
+
 
 @Component({
   selector: 'app-hr-dashboard',
   standalone: true,
-  template: `
-    <div class="flex align-items-center justify-content-center" style="min-height: 100vh; background: var(--naleko-surface);">
-      <div class="text-center">
-        <h1 style="font-size: 2rem; font-weight: 800; color: var(--naleko-primary);">HR Staff Dashboard</h1>
-        <p style="color: var(--naleko-on-surface-variant); margin-top: 0.5rem;">Staff ID: {{ staffId() }}</p>
-        <p style="color: var(--naleko-on-surface-variant); margin-top: 1rem; opacity: 0.6;">Coming soon — this screen will be built from the Stitch design.</p>
-      </div>
-    </div>
-  `,
+  imports: [
+    RouterOutlet,
+    SidebarComponent,
+    TopbarComponent,
+    FooterComponent,
+    NewHireDialogComponent,
+  ],
+  templateUrl: './hr-dashboard.component.html',
+  styleUrl: './hr-dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HrDashboardComponent {
   readonly staffId = input<string>('');
+
+  readonly showNewHireDialog = signal(false);
+
+  readonly navItems: NavItem[] = [
+    { label: 'Dashboard', icon: 'pi-home', route: '', disabled: false },
+    { label: 'Employees', icon: 'pi-users', route: '', disabled: true },
+    { label: 'Documents', icon: 'pi-folder', route: '', disabled: true },
+    { label: 'Verification', icon: 'pi-verified', route: '', disabled: true },
+    { label: 'Settings', icon: 'pi-cog', route: '', disabled: true },
+  ];
+
+  openNewHireDialog(): void {
+    this.showNewHireDialog.set(true);
+  }
+
+  onEmployeeCreated(): void {
+    // Dialog closes itself; could refresh data here
+  }
 }

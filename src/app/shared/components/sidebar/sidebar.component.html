@@ -1,0 +1,58 @@
+<aside class="sidebar">
+  <!-- Logo -->
+  <div class="p-3 mb-4">
+    <div class="flex align-items-center gap-3 px-3 py-2">
+      <p-avatar
+        icon="pi pi-th-large"
+        [style]="{ 'background-color': 'var(--naleko-tertiary-fixed-dim)', color: 'var(--naleko-primary)' }"
+        shape="square"
+        size="large"
+      />
+      <span class="sidebar__title">HR Portal</span>
+    </div>
+  </div>
+
+  <!-- Nav Items -->
+  <nav class="flex flex-column gap-1 px-3">
+    @for (item of navItems(); track item.label) {
+      @if (item.disabled) {
+        <span
+          class="sidebar__link sidebar__link--disabled flex align-items-center gap-3 px-3 py-3 border-round"
+          [pTooltip]="'Coming soon'"
+          tooltipPosition="right"
+        >
+          <i class="pi {{ item.icon }}"></i>
+          <span>{{ item.label }}</span>
+        </span>
+      } @else {
+        <a
+          class="sidebar__link flex align-items-center gap-3 px-3 py-3 border-round no-underline"
+          [class.sidebar__link--active]="item.route === activeRoute()"
+          [routerLink]="item.route"
+        >
+          <i class="pi {{ item.icon }}"></i>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    }
+  </nav>
+
+  <!-- Action Button + Logout at bottom -->
+  <div class="mt-auto px-3 pb-4">
+    @if (actionLabel()) {
+      <div class="px-2 mb-3">
+        <p-button
+          [label]="actionLabel()"
+          [icon]="'pi ' + actionIcon()"
+          styleClass="w-full sidebar__action-btn"
+          (onClick)="actionClicked.emit()"
+        />
+      </div>
+    }
+    <p-divider [style]="{ 'border-color': 'rgba(255,255,255,0.08)' }" />
+    <a href="#" class="sidebar__link sidebar__link--logout flex align-items-center gap-3 px-3 py-3 border-round no-underline">
+      <i class="pi pi-sign-out"></i>
+      <span>Logout</span>
+    </a>
+  </div>
+</aside>

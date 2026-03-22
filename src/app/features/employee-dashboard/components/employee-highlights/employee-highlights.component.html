@@ -1,0 +1,52 @@
+<p-card styleClass="highlights-card">
+  <ng-template #header>
+    <div class="flex align-items-center gap-3 px-4 pt-4">
+      <span class="highlights-accent"></span>
+      <h3 class="text-base font-bold m-0" style="color: var(--naleko-on-surface)">Employee Details</h3>
+    </div>
+  </ng-template>
+
+  <div class="flex align-items-center gap-3 mb-4">
+    <p-avatar
+      icon="pi pi-user"
+      size="xlarge"
+      styleClass="highlights-avatar"
+      [style]="{ 'border-radius': '0.75rem' }"
+    />
+    <div>
+      <p class="text-xl font-bold m-0" style="color: var(--naleko-on-surface); line-height: 1.2">
+        {{ employee().first_name }} {{ employee().last_name }}
+      </p>
+      <p class="text-xs font-semibold mt-1 m-0" style="color: var(--naleko-on-surface-variant); letter-spacing: 0.05em">
+        {{ employee().employee_id }}
+      </p>
+    </div>
+  </div>
+
+  <p-divider />
+
+  <div class="flex flex-column gap-4 mt-4">
+    <div class="flex flex-column gap-1">
+      <span class="field-label">Department</span>
+      <span class="field-value">{{ employee().department }}</span>
+    </div>
+    <div class="flex flex-column gap-1">
+      <span class="field-label">Start Date</span>
+      <span class="field-value">{{ employee().planned_start_date | date: 'd MMMM yyyy' }}</span>
+    </div>
+    <div class="flex flex-column gap-1">
+      <span class="field-label">HR Partner</span>
+      <span class="field-value">{{ hrPartner() }}</span>
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <p-tag
+      [value]="employee().employee_id"
+      icon="pi pi-id-card"
+      [rounded]="true"
+      severity="info"
+      styleClass="empid-tag"
+    />
+  </div>
+</p-card>

@@ -1,0 +1,89 @@
+.employee-detail {
+  padding: 1.5rem;
+}
+
+.avatar-circle {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a1a2e, #4a3f8a);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.employee-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.employee-header {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(26, 26, 46, 0.05);
+}
+
+.summary-strip {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(26, 26, 46, 0.05);
+}
+
+.summary-item {
+  text-align: center;
+}
+
+.summary-value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.summary-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 0.15rem;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.text-green-500 {
+  color: #27ae60 !important;
+}
+
+.text-orange-500 {
+  color: #e2a03f !important;
+}
+
+.text-red-500 {
+  color: #e74c3c !important;
+}
+
+:host ::ng-deep {
+  .p-progressbar {
+    height: 0.5rem;
+    border-radius: 4px;
+
+    .p-progressbar-value {
+      background: linear-gradient(90deg, #4a3f8a, #7ad4e4);
+    }
+  }
+}

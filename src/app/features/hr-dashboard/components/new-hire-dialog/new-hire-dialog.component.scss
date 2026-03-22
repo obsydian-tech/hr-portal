@@ -1,0 +1,46 @@
+:host ::ng-deep {
+  .p-dialog {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .p-dialog .p-dialog-header {
+    background: #1a1a2e;
+    color: #ffffff;
+    padding: 1.25rem 1.5rem;
+
+    .p-dialog-title {
+      font-weight: 600;
+    }
+
+    .p-dialog-header-icon {
+      color: rgba(255, 255, 255, 0.7);
+
+      &:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
+
+  .p-dialog .p-dialog-content {
+    padding: 1.5rem;
+  }
+
+  .p-dialog .p-dialog-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e9ecef;
+  }
+}
+
+label {
+  color: #495057;
+}
+
+.text-red-500 {
+  color: #e74c3c;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}

@@ -1,0 +1,105 @@
+<div class="employee-detail">
+  @if (loading()) {
+    <p-skeleton width="8rem" height="2rem" class="mb-3" />
+    <p-skeleton width="100%" height="4rem" class="mb-3" />
+    <p-skeleton width="100%" height="8rem" class="mb-3" />
+    <p-skeleton width="100%" height="8rem" />
+  } @else if (employee) {
+    <!-- Back Button -->
+    <p-button
+      label="Back to Dashboard"
+      icon="pi pi-arrow-left"
+      severity="secondary"
+      [text]="true"
+      (onClick)="goBack()"
+      class="mb-3 inline-block"
+    />
+
+    <!-- Employee Header -->
+    <div class="employee-header mb-4">
+      <div class="flex align-items-center gap-3 mb-2">
+        <div class="avatar-circle">
+          {{ employee.first_name[0] }}{{ employee.last_name[0] }}
+        </div>
+        <div>
+          <h2 class="m-0 employee-name">{{ employee.first_name }} {{ employee.last_name }}</h2>
+          <span class="text-color-secondary">{{ employee.email }}</span>
+        </div>
+        <p-tag
+          [value]="employee.stage.replace('_', ' ')"
+          [severity]="stageSeverity(employee.stage)"
+          class="ml-auto"
+        />
+      </div>
+      <div class="flex gap-4 text-sm text-color-secondary mt-2">
+        <span><i class="pi pi-building mr-1"></i> {{ employee.department }}</span>
+        <span><i class="pi pi-id-card mr-1"></i> {{ employee.employee_id }}</span>
+        @if (employee.planned_start_date) {
+          <span><i class="pi pi-calendar mr-1"></i> Start: {{ employee.planned_start_date | date:'mediumDate' }}</span>
+        }
+      </div>
+    </div>
+
+    <!-- Document Summary Strip -->
+    @if (summary) {
+      <div class="summary-strip mb-4">
+        <div class="grid">
+          <div class="col-12 md:col-3">
+            <div class="summary-item">
+              <span class="summary-value">{{ summary.total }}</span>
+              <span class="summary-label">Total Documents</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="summary-item">
+              <span class="summary-value text-green-500">{{ summary.verified }}</span>
+              <span class="summary-label">Verified</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="summary-item">
+              <span class="summary-value text-orange-500">{{ summary.pending }}</span>
+              <span class="summary-label">Pending</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="summary-item">
+              <span class="summary-value text-red-500">{{ summary.issues }}</span>
+              <span class="summary-label">Issues</span>
+            </div>
+          </div>
+        </div>
+        <p-progressBar
+          [value]="completionPercent"
+          [showValue]="true"
+          class="mt-2"
+        />
+      </div>
+    }
+
+    <!-- Document Cards -->
+    <h3 class="section-title mb-3">
+      <i class="pi pi-folder-open mr-2"></i>
+      Documents ({{ documents.length }})
+    </h3>
+
+    <div class="grid">
+      @for (doc of documents; track doc.document_id) {
+        <div class="col-12 lg:col-6 mb-3">
+          <app-document-detail-card [doc]="doc" />
+        </div>
+      } @empty {
+        <div class="col-12 text-center p-4 text-color-secondary">
+          <i class="pi pi-inbox text-4xl mb-2 block"></i>
+          <p>No documents uploaded yet.</p>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="text-center p-6">
+      <i class="pi pi-exclamation-triangle text-4xl mb-2 block" style="color: #e2a03f"></i>
+      <p class="text-color-secondary">Employee not found.</p>
+      <p-button label="Go Back" icon="pi pi-arrow-left" (onClick)="goBack()" />
+    </div>
+  }
+</div>

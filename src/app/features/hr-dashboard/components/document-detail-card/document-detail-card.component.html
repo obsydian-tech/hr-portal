@@ -1,0 +1,85 @@
+<p-card class="doc-card">
+  <ng-template #header>
+    <div class="doc-header flex justify-content-between align-items-center px-3 pt-3">
+      <div class="flex align-items-center gap-2">
+        <i class="pi pi-file text-xl" style="color: #4a3f8a"></i>
+        <span class="doc-type font-semibold">{{ documentLabel }}</span>
+      </div>
+      <p-tag [value]="doc().ocr_status" [severity]="ocrSeverity" />
+    </div>
+  </ng-template>
+
+  <!-- File info -->
+  <div class="mb-3">
+    <div class="text-sm text-color-secondary mb-1">
+      <i class="pi pi-paperclip mr-1"></i>
+      {{ doc().file_name }}
+    </div>
+    @if (doc().uploaded_at) {
+      <div class="text-sm text-color-secondary">
+        <i class="pi pi-calendar mr-1"></i>
+        Uploaded {{ doc().uploaded_at | date:'medium' }}
+      </div>
+    }
+  </div>
+
+  <!-- Verification Reasoning -->
+  @if (reasoning) {
+    <div class="reasoning-box mb-3">
+      <div class="reasoning-label mb-1">
+        <i class="pi pi-info-circle mr-1"></i> OCR Analysis
+      </div>
+      <p class="reasoning-text m-0">{{ reasoning }}</p>
+    </div>
+  }
+
+  <!-- Extracted Fields -->
+  @if (hasOcrResults) {
+    <p-divider />
+    <div class="extracted-fields">
+      <div class="text-sm font-semibold mb-2" style="color: #1a1a2e">
+        <i class="pi pi-list mr-1"></i> Extracted Data
+      </div>
+      <div class="grid">
+        @for (field of extractedFields | keyvalue; track field.key) {
+          <div class="col-6 mb-2">
+            <div class="field-label">{{ field.key }}</div>
+            <div class="field-value">{{ field.value }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Actions -->
+  <p-divider />
+  <div class="flex align-items-center gap-2 flex-wrap">
+    @if (canVerifyExternally && !verificationTriggered()) {
+      <p-button
+        label="Verify Details"
+        icon="pi pi-shield"
+        severity="warn"
+        [outlined]="true"
+        [loading]="verifying()"
+        (onClick)="triggerVerification()"
+      />
+    }
+
+    @if (verificationTriggered()) {
+      <p-message severity="success" text="Verification request sent successfully." />
+    }
+
+    @if (isManualReviewOnly) {
+      <p-message
+        severity="info"
+        text="This document requires manual HR review. No external verification available."
+      />
+    }
+
+    @if (!canVerifyExternally && !isManualReviewOnly && doc().ocr_status === 'PENDING') {
+      <p-message severity="info" text="Awaiting document upload from employee." />
+    }
+  </div>
+</p-card>
+
+<p-confirmDialog />

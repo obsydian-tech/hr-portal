@@ -1,0 +1,22 @@
+<app-sidebar [navItems]="navItems" [activeRoute]="'/employees/' + employeeId()" />
+<app-topbar title="Employee Onboarding Portal" [employeeName]="employee().first_name + ' ' + employee().last_name" />
+
+<main class="dashboard">
+  <div class="dashboard__content">
+    <!-- Onboarding Stepper -->
+    <app-onboarding-stepper [currentStage]="currentStage()" />
+
+    <!-- Two-column grid: Highlights + Document Checklist -->
+    <div class="grid">
+      <div class="col-12 lg:col-4">
+        <app-employee-highlights [employee]="employee()" hrPartner="Sandra Nkosi" />
+      </div>
+      <div class="col-12 lg:col-8">
+        <app-document-checklist (allComplete)="onAllDocumentsComplete($event)" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <app-footer />
+</main>
