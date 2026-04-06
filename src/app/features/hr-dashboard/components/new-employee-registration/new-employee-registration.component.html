@@ -248,7 +248,7 @@
 
           <p-message
             severity="info"
-            text="Documents can be uploaded now or later by the employee. Uploading now will trigger OCR verification automatically."
+            text="Select documents now — they will be uploaded automatically when you submit the registration. OCR verification will trigger after upload."
             class="mb-4 block"
           />
 
@@ -262,23 +262,19 @@
                   <div class="doc-slot__label">{{ slot.label }}</div>
                   <div class="doc-slot__desc">{{ slot.description }}</div>
 
-                  @if (slot.uploading) {
-                    <div class="doc-slot__progress mt-2">
-                      <p-progressBar [mode]="'indeterminate'" [style]="{ height: '4px' }" />
-                      <span class="doc-slot__status text-color-secondary">Processing OCR...</span>
-                    </div>
-                  } @else if (slot.uploaded && slot.ocrResult) {
+                  @if (slot.ocrResult && !slot.ocrResult.success && !slot.file) {
+                    <!-- Validation error (no file stored) -->
                     <div class="doc-slot__result mt-2">
                       <p-tag
-                        [value]="slot.ocrResult.success ? 'OCR Passed' : 'Needs Review'"
-                        [severity]="slot.ocrResult.success ? 'success' : 'warn'"
-                        [icon]="slot.ocrResult.success ? 'pi pi-check' : 'pi pi-exclamation-triangle'"
+                        [value]="slot.ocrResult.message"
+                        severity="danger"
+                        icon="pi pi-exclamation-triangle"
                       />
-                      <span class="doc-slot__filename ml-2">{{ slot.fileName }}</span>
                     </div>
-                  } @else if (slot.uploaded) {
+                  } @else if (slot.file && slot.uploaded) {
+                    <!-- File staged, ready for upload on submit -->
                     <div class="doc-slot__result mt-2">
-                      <p-tag value="Uploaded" severity="info" icon="pi pi-check" />
+                      <p-tag value="Ready to upload" severity="info" icon="pi pi-file" />
                       <span class="doc-slot__filename ml-2">{{ slot.fileName }}</span>
                     </div>
                   }
@@ -314,7 +310,7 @@
           <div class="doc-summary mt-3">
             <span class="doc-summary__text">
               <i class="pi pi-check-circle mr-1" style="color: #27ae60"></i>
-              {{ uploadedCount() }} of 4 documents uploaded
+              {{ uploadedCount() }} of 4 documents selected
             </span>
           </div>
         </p-card>
@@ -425,13 +421,7 @@
                   <span class="review-doc__label">{{ slot.label }}</span>
                   @if (slot.uploaded) {
                     <span class="review-doc__file">{{ slot.fileName }}</span>
-                    @if (slot.ocrResult) {
-                      <p-tag
-                        [value]="slot.ocrResult.success ? 'Verified' : 'Review'"
-                        [severity]="slot.ocrResult.success ? 'success' : 'warn'"
-                        class="ml-auto"
-                      />
-                    }
+                    <p-tag value="Ready" severity="info" class="ml-auto" />
                   } @else {
                     <span class="review-doc__skipped">Not yet uploaded</span>
                   }
@@ -466,13 +456,24 @@
           styleClass="next-btn"
         />
       } @else {
-        <p-button
-          label="Register Employee"
-          icon="pi pi-check"
-          [disabled]="!canProceed"
-          [loading]="submitting()"
-          (onClick)="submit()"
-        />
+        <div class="flex flex-column align-items-end gap-2">
+          @if (submitError()) {
+            <p-message severity="error" [text]="submitError()!" class="w-full mb-2" />
+          }
+          @if (submitProgress()) {
+            <div class="flex align-items-center gap-2 mb-1">
+              <i class="pi pi-spin pi-spinner" style="color: var(--primary-color)"></i>
+              <span class="text-sm" style="color: var(--text-color-secondary)">{{ submitProgress() }}</span>
+            </div>
+          }
+          <p-button
+            label="Register Employee"
+            icon="pi pi-check"
+            [disabled]="!canProceed"
+            [loading]="submitting()"
+            (onClick)="submit()"
+          />
+        </div>
       }
     </div>
   }

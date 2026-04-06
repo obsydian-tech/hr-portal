@@ -70,8 +70,7 @@ export class VerificationsListComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    const staffId = this.route.parent?.snapshot.params['staffId'] ?? 'AS00001';
-    this.hrApi.getVerifications(staffId).subscribe((res) => {
+    this.hrApi.getVerifications().subscribe((res) => {
       this.verifications.set(res.items);
       this.loading.set(false);
     });
@@ -95,8 +94,9 @@ export class VerificationsListComponent implements OnInit {
     this.router.navigate(['../employees', employeeId], { relativeTo: this.route });
   }
 
-  navigateToVerification(verificationId: string): void {
-    this.router.navigate(['..', 'verifications', verificationId], { relativeTo: this.route });
+  navigateToVerification(documentId: string | undefined): void {
+    if (!documentId) return;
+    this.router.navigate(['..', 'verifications', documentId], { relativeTo: this.route });
   }
 
   goBack(): void {
