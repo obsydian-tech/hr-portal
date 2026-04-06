@@ -82,12 +82,16 @@
         <ng-template #body let-v>
           <tr>
             <td>
-              <a
-                class="verification-link font-mono text-sm"
-                (click)="navigateToVerification(v.verification_id)"
-              >
-                {{ v.verification_id }}
-              </a>
+              @if (v.document_id) {
+                <a
+                  class="verification-link font-mono text-sm"
+                  (click)="navigateToVerification(v.document_id)"
+                >
+                  {{ v.verification_id }}
+                </a>
+              } @else {
+                <span class="font-mono text-sm text-color-secondary">{{ v.verification_id }}</span>
+              }
             </td>
             <td>
               @if (v.employee_id) {

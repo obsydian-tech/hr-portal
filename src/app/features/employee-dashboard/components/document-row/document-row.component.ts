@@ -8,11 +8,12 @@ import {
   viewChild,
   ElementRef,
 } from '@angular/core';
-import { DocumentRow, DocumentStatus, OcrResult } from '../../../../shared/models/employee.model';
-import { DocumentUploadService } from '../../../../core/services/document-upload.service';
+import { DocumentRow, DocumentStatus } from '../../../../shared/models/employee.model';
+import { DocumentUploadService, DocumentUploadResponse } from '../../../../core/services/document-upload.service';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-document-row',
@@ -26,6 +27,7 @@ export class DocumentRowComponent {
   private readonly uploadService = inject(DocumentUploadService);
 
   readonly doc = input.required<DocumentRow>();
+  readonly employeeId = input.required<string>();
   readonly statusChanged = output<{ type: string; status: DocumentStatus; message?: string }>();
 
   /** Hidden file input ref */
@@ -85,7 +87,7 @@ export class DocumentRowComponent {
     switch (this.currentStatus()) {
       case 'ACCEPTED': return 'ACCEPTED';
       case 'REJECTED': return 'REJECTED';
-      case 'SUBMITTED': return 'SUBMITTED';
+      case 'SUBMITTED': return 'VERIFICATION PENDING';
       case 'UPLOADING': return 'UPLOADING...';
       case 'PROCESSING': return 'OCR PROCESSING...';
       default: return 'PENDING';
@@ -109,10 +111,10 @@ export class DocumentRowComponent {
       return;
     }
 
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
+    // Validate file size (5MB max — base64 adds ~33% overhead, API Gateway limit is 10MB)
+    if (file.size > 5 * 1024 * 1024) {
       this.currentStatus.set('REJECTED');
-      this.statusMessage.set('File exceeds 10MB maximum size. Please compress and retry.');
+      this.statusMessage.set('File exceeds 5MB maximum size. Please compress and retry.');
       return;
     }
 
@@ -121,31 +123,18 @@ export class DocumentRowComponent {
 
     const doc = this.doc();
 
-    if (!doc.requiresOcr) {
-      // Storage-only — simulate upload then mark as submitted
-      this.currentStatus.set('UPLOADING');
-      this.uploadService.upload(file, doc.type).subscribe((result) => {
+    this.uploadService.upload(file, doc.type, this.employeeId()).subscribe({
+      next: (response: DocumentUploadResponse) => {
         this.currentStatus.set('SUBMITTED');
-        this.statusMessage.set(result.message);
-        this.statusChanged.emit({ type: doc.type, status: 'SUBMITTED', message: result.message });
-      });
-    } else {
-      // OCR documents — show processing state
-      setTimeout(() => {
-        this.currentStatus.set('PROCESSING');
-      }, 800);
-
-      this.uploadService.upload(file, doc.type).subscribe((result: OcrResult) => {
-        if (result.success) {
-          this.currentStatus.set('ACCEPTED');
-          this.statusMessage.set(result.message + (result.extractedSummary ? ` — ${result.extractedSummary}` : ''));
-          this.statusChanged.emit({ type: doc.type, status: 'ACCEPTED', message: result.message });
-        } else {
-          this.currentStatus.set('REJECTED');
-          this.statusMessage.set(result.message);
-          this.statusChanged.emit({ type: doc.type, status: 'REJECTED', message: result.message });
-        }
-      });
-    }
+        this.statusMessage.set('Uploaded — verification pending');
+        this.statusChanged.emit({ type: doc.type, status: 'SUBMITTED', message: response.message });
+      },
+      error: (err: HttpErrorResponse) => {
+        this.currentStatus.set('REJECTED');
+        const message = err.error?.message || err.message || 'Upload failed. Please try again.';
+        this.statusMessage.set(message);
+        this.statusChanged.emit({ type: doc.type, status: 'REJECTED', message });
+      },
+    });
   }
 }

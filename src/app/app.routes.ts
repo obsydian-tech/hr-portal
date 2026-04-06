@@ -42,7 +42,7 @@ export const routes: Routes = [
           ).then((m) => m.VerificationsListComponent),
       },
       {
-        path: 'verifications/:verificationId',
+        path: 'verifications/:documentId',
         loadComponent: () =>
           import(
             './features/hr-dashboard/components/verification-detail/verification-detail.component'

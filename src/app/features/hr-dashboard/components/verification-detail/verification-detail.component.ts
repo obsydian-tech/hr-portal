@@ -44,7 +44,7 @@ export class VerificationDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly confirmationService = inject(ConfirmationService);
 
-  readonly verificationId = input<string>('');
+  readonly documentId = input<string>('');
   readonly loading = signal(true);
   readonly verification = signal<VerificationDetail | null>(null);
 
@@ -52,9 +52,9 @@ export class VerificationDetailComponent implements OnInit {
   readonly reviewDecision = signal<'approved' | 'rejected' | null>(null);
 
   ngOnInit(): void {
-    const id = this.verificationId() || this.route.snapshot.params['verificationId'];
+    const id = this.documentId() || this.route.snapshot.params['documentId'];
     if (id) {
-      this.hrApi.getVerificationById(id).subscribe((res) => {
+      this.hrApi.getVerificationByDocumentId(id).subscribe((res) => {
         this.verification.set(res);
         this.loading.set(false);
       });

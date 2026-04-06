@@ -17,13 +17,20 @@
   </ng-template>
 
   <div class="checklist-rows">
-    @for (doc of documents(); track doc.type; let last = $last) {
-      <app-document-row
-        [doc]="doc"
-        (statusChanged)="onStatusChanged($event)"
-      />
-      @if (!last) {
-        <p-divider styleClass="row-divider" />
+    @if (loading()) {
+      <div class="flex justify-content-center py-4">
+        <p-progressSpinner styleClass="w-2rem h-2rem" strokeWidth="4" />
+      </div>
+    } @else {
+      @for (doc of documents(); track doc.type; let last = $last) {
+        <app-document-row
+          [doc]="doc"
+          [employeeId]="employeeId()"
+          (statusChanged)="onStatusChanged($event)"
+        />
+        @if (!last) {
+          <p-divider styleClass="row-divider" />
+        }
       }
     }
   </div>

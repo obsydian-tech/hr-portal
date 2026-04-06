@@ -1,76 +1,68 @@
-import { Injectable } from '@angular/core';
-import { Observable, of, delay, map } from 'rxjs';
-import { OcrResult, DocumentType } from '../../shared/models/employee.model';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, switchMap } from 'rxjs';
+import { DocumentType } from '../../shared/models/employee.model';
+import { environment } from '../../../environments/environment';
+
+/** Response shape from POST /employees/{employee_id}/documents/upload */
+export interface DocumentUploadResponse {
+  message: string;
+  document_id: string;
+  employee_id: string;
+  s3_key: string;
+  ocr_status: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class DocumentUploadService {
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = environment.documentUploadApiUrl;
+
   /**
-   * Upload a document file. For documents requiring OCR (NATIONAL_ID, BANK_CONFIRMATION),
-   * this calls the OCR extraction API. For other documents (MATRIC_CERTIFICATE,
-   * TERTIARY_QUALIFICATION), it only uploads to storage.
-   *
-   * Returns an Observable that emits the OCR result after a simulated delay.
-   * In production, this would POST to the real API endpoint.
+   * Upload a document to the backend.
+   * Converts the File to base64, then POSTs to the API Gateway endpoint.
+   * The backend stores in S3 and writes to DynamoDB with ocr_status: PENDING.
+   * S3 event notification triggers OCR asynchronously.
    */
-  upload(file: File, documentType: DocumentType): Observable<OcrResult> {
-    const requiresOcr =
-      documentType === 'NATIONAL_ID' || documentType === 'BANK_CONFIRMATION';
+  upload(file: File, documentType: DocumentType, employeeId: string): Observable<DocumentUploadResponse> {
+    return this.fileToBase64(file).pipe(
+      switchMap((base64Content) => {
+        const body = {
+          documentType,
+          fileName: file.name,
+          fileContent: base64Content,
+          contentType: file.type || 'application/pdf',
+        };
 
-    if (!requiresOcr) {
-      // Storage-only upload — no OCR, always succeeds
-      return of<OcrResult>({
-        success: true,
-        documentTypeDetected: documentType,
-        message: 'Document uploaded successfully. Pending HR manual verification.',
-      }).pipe(delay(1500));
-    }
-
-    // Simulate OCR API call with a realistic 3-second delay
-    return of(file).pipe(
-      delay(3000),
-      map(() => this.simulateOcrResult(file, documentType))
+        return this.http.post<DocumentUploadResponse>(
+          `${this.apiUrl}/employees/${employeeId}/documents/upload`,
+          body
+        );
+      })
     );
   }
 
-  private simulateOcrResult(file: File, documentType: DocumentType): OcrResult {
-    // For the prototype, simulate different outcomes based on file name patterns
-    const name = file.name.toLowerCase();
+  /**
+   * Read a File object and return the raw base64 string (no data URI prefix).
+   */
+  private fileToBase64(file: File): Observable<string> {
+    return new Observable<string>((observer) => {
+      const reader = new FileReader();
 
-    // Simulate "wrong document" if file name contains "wrong"
-    if (name.includes('wrong')) {
-      const expectedLabel =
-        documentType === 'NATIONAL_ID' ? 'National ID' : 'Bank Account Confirmation Letter';
-      return {
-        success: false,
-        documentTypeDetected: 'UNKNOWN',
-        message: `This doesn't appear to be a ${expectedLabel}. Please upload the correct document.`,
+      reader.onload = () => {
+        // result is "data:application/pdf;base64,JVBERi0x..."
+        // Strip everything up to and including the comma
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.split(',')[1];
+        observer.next(base64);
+        observer.complete();
       };
-    }
 
-    // Simulate "poor quality" if file name contains "blur" or "bad"
-    if (name.includes('blur') || name.includes('bad')) {
-      return {
-        success: false,
-        documentTypeDetected: documentType,
-        message: 'The document is unreadable. Please upload a clearer scan or photo.',
+      reader.onerror = () => {
+        observer.error(new Error('Failed to read file'));
       };
-    }
 
-    // Success case
-    if (documentType === 'NATIONAL_ID') {
-      return {
-        success: true,
-        documentTypeDetected: 'NATIONAL_ID',
-        message: 'National ID detected',
-        extractedSummary: 'ID Number: ****1234',
-      };
-    }
-
-    return {
-      success: true,
-      documentTypeDetected: 'BANK_CONFIRMATION',
-      message: 'Bank confirmation detected',
-      extractedSummary: 'Account: ****5678 — FNB',
-    };
+      reader.readAsDataURL(file);
+    });
   }
 }

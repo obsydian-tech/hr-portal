@@ -8,6 +8,8 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { forkJoin, of } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
 
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -165,6 +167,22 @@ export class NewEmployeeRegistrationComponent {
   readonly submitting = signal(false);
   readonly submitted = signal(false);
   readonly createdEmployeeId = signal('');
+  readonly submitError = signal<string | null>(null);
+  readonly submitProgress = signal('');
+
+  /** Staff ID from parent route param :staffId */
+  private staffId = '';
+
+  constructor() {
+    // Read staffId from parent route
+    const parentParams = this.route.parent?.snapshot.params;
+    this.staffId = parentParams?.['staffId'] ?? '';
+  }
+
+  // ─── File Validation Constants ───────────────────────────
+
+  private readonly ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+  private readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
   // ─── Validation ──────────────────────────────────────────
 
@@ -235,32 +253,54 @@ export class NewEmployeeRegistrationComponent {
     });
   }
 
-  // ─── Document Upload ─────────────────────────────────────
+  // ─── Document Staging (files stored locally, uploaded after employee creation) ──
 
   onFileSelect(event: Event, slotIndex: number): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
 
+    // Validate file type
+    if (!this.ALLOWED_TYPES.includes(file.type)) {
+      const slots = [...this.documentSlots()];
+      const slot = { ...slots[slotIndex] };
+      slot.ocrResult = {
+        success: false,
+        message: 'Invalid file type. Only PDF, JPG, and PNG files are accepted.',
+        documentTypeDetected: slot.type,
+      };
+      slots[slotIndex] = slot;
+      this.documentSlots.set(slots);
+      input.value = '';
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > this.MAX_FILE_SIZE) {
+      const slots = [...this.documentSlots()];
+      const slot = { ...slots[slotIndex] };
+      slot.ocrResult = {
+        success: false,
+        message: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 5MB.`,
+        documentTypeDetected: slot.type,
+      };
+      slots[slotIndex] = slot;
+      this.documentSlots.set(slots);
+      input.value = '';
+      return;
+    }
+
+    // Stage the file locally — no API call yet
     const slots = [...this.documentSlots()];
     const slot = { ...slots[slotIndex] };
     slot.file = file;
     slot.fileName = file.name;
-    slot.uploading = true;
+    slot.uploading = false;
+    slot.uploaded = true; // visually marked as "staged"
     slot.ocrResult = null;
     slots[slotIndex] = slot;
     this.documentSlots.set(slots);
-
-    // Simulate OCR processing
-    this.uploadService.upload(file, slot.type).subscribe((result) => {
-      const updatedSlots = [...this.documentSlots()];
-      const updatedSlot = { ...updatedSlots[slotIndex] };
-      updatedSlot.uploading = false;
-      updatedSlot.uploaded = true;
-      updatedSlot.ocrResult = result;
-      updatedSlots[slotIndex] = updatedSlot;
-      this.documentSlots.set(updatedSlots);
-    });
+    input.value = '';
   }
 
   removeFile(slotIndex: number): void {
@@ -275,11 +315,13 @@ export class NewEmployeeRegistrationComponent {
     this.documentSlots.set(slots);
   }
 
-  // ─── Submit ──────────────────────────────────────────────
+  // ─── Submit: Create Employee → Upload Staged Documents ──
 
   submit(): void {
     if (!this.isStep1Valid || !this.isStep2Valid) return;
     this.submitting.set(true);
+    this.submitError.set(null);
+    this.submitProgress.set('Creating employee record...');
 
     const payload: CreateEmployeeRequest = {
       first_name: this.firstName.trim(),
@@ -293,11 +335,75 @@ export class NewEmployeeRegistrationComponent {
       planned_start_date: this.plannedStartDate!.toISOString().split('T')[0],
     };
 
-    this.hrApi.createEmployee('AS00001', payload).subscribe((employee) => {
-      this.submitting.set(false);
-      this.submitted.set(true);
-      this.createdEmployeeId.set(employee.employee_id);
-    });
+    this.hrApi
+      .createEmployee(this.staffId, payload)
+      .pipe(
+        switchMap((employee) => {
+          const employeeId = employee.employee_id;
+          this.createdEmployeeId.set(employeeId);
+
+          // Collect staged files that need uploading
+          const stagedSlots = this.documentSlots().filter((s) => s.file);
+          if (stagedSlots.length === 0) {
+            // No documents to upload — done
+            return of([]);
+          }
+
+          this.submitProgress.set(
+            `Employee created (${employeeId}). Uploading ${stagedSlots.length} document${stagedSlots.length > 1 ? 's' : ''}...`
+          );
+
+          // Upload all staged documents in parallel with the real employee ID
+          const uploads$ = stagedSlots.map((slot) =>
+            this.uploadService.upload(slot.file!, slot.type, employeeId).pipe(
+              catchError((err) => {
+                console.error(`Upload failed for ${slot.type}:`, err);
+                // Don't fail the whole submission — mark as failed but continue
+                return of({ message: 'Upload failed', document_id: '', employee_id: employeeId, s3_key: '', ocr_status: 'FAILED' });
+              })
+            )
+          );
+
+          return forkJoin(uploads$);
+        })
+      )
+      .subscribe({
+        next: (uploadResults) => {
+          // Update slot states with upload results
+          const stagedSlots = this.documentSlots().filter((s) => s.file);
+          if (stagedSlots.length > 0) {
+            const allSlots = [...this.documentSlots()];
+            let resultIdx = 0;
+            for (let i = 0; i < allSlots.length; i++) {
+              if (allSlots[i].file) {
+                const result = uploadResults[resultIdx++];
+                const slot = { ...allSlots[i] };
+                slot.uploading = false;
+                slot.uploaded = true;
+                slot.ocrResult = {
+                  success: result.ocr_status !== 'FAILED',
+                  message: result.message,
+                  documentTypeDetected: slot.type,
+                };
+                allSlots[i] = slot;
+              }
+            }
+            this.documentSlots.set(allSlots);
+          }
+
+          this.submitting.set(false);
+          this.submitProgress.set('');
+          this.submitted.set(true);
+        },
+        error: (err) => {
+          console.error('Employee registration failed:', err);
+          this.submitting.set(false);
+          this.submitProgress.set('');
+          this.submitError.set(
+            err.error?.message || 'Failed to create employee. Please try again.'
+          );
+        },
+      });
   }
 
   // ─── Navigation ──────────────────────────────────────────
@@ -327,6 +433,8 @@ export class NewEmployeeRegistrationComponent {
     this.emailExists.set(false);
     this.submitted.set(false);
     this.createdEmployeeId.set('');
+    this.submitError.set(null);
+    this.submitProgress.set('');
     this.activeStep.set(0);
 
     this.documentSlots.set([
