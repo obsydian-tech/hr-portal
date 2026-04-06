@@ -7,8 +7,9 @@ import {
   inject,
   viewChild,
   ElementRef,
+  OnDestroy,
 } from '@angular/core';
-import { DocumentRow, DocumentStatus } from '../../../../shared/models/employee.model';
+import { DocumentRow, DocumentStatus, DocumentType } from '../../../../shared/models/employee.model';
 import { DocumentUploadService, DocumentUploadResponse } from '../../../../core/services/document-upload.service';
 import { HrApiService } from '../../../../core/services/hr-api.service';
 import { ButtonModule } from 'primeng/button';
@@ -24,9 +25,10 @@ import { HttpErrorResponse } from '@angular/common/http';
   styleUrl: './document-row.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DocumentRowComponent {
+export class DocumentRowComponent implements OnDestroy {
   private readonly uploadService = inject(DocumentUploadService);
   private readonly hrApi = inject(HrApiService);
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly doc = input.required<DocumentRow>();
   readonly employeeId = input.required<string>();
@@ -53,6 +55,8 @@ export class DocumentRowComponent {
     const file = input.files?.[0];
     if (!file) return;
     this.handleUpload(file);
+    // Reset value so re-selecting the same file fires change again
+    input.value = '';
   }
 
   onDragOver(event: DragEvent): void {
@@ -72,6 +76,11 @@ export class DocumentRowComponent {
     this.currentStatus.set('PENDING');
     this.statusMessage.set('');
     this.fileName.set('');
+    // Reset file input so the same file can be re-selected
+    const el = this.fileInput()?.nativeElement;
+    if (el) el.value = '';
+    // Immediately open the file picker
+    setTimeout(() => this.triggerUpload());
   }
 
   viewDocument(): void {
@@ -139,9 +148,17 @@ export class DocumentRowComponent {
 
     this.uploadService.upload(file, doc.type, this.employeeId()).subscribe({
       next: (response: DocumentUploadResponse) => {
-        this.currentStatus.set('SUBMITTED');
-        this.statusMessage.set('Uploaded — verification pending');
-        this.statusChanged.emit({ type: doc.type, status: 'SUBMITTED', message: response.message });
+        // Show PROCESSING while OCR runs
+        if (doc.requiresOcr) {
+          this.currentStatus.set('PROCESSING');
+          this.statusMessage.set('Document uploaded — running OCR verification...');
+          // Poll for OCR result after a delay
+          this.pollOcrResult(this.employeeId(), doc.type);
+        } else {
+          this.currentStatus.set('SUBMITTED');
+          this.statusMessage.set('Uploaded — awaiting HR review');
+          this.statusChanged.emit({ type: doc.type, status: 'SUBMITTED', message: response.message });
+        }
       },
       error: (err: HttpErrorResponse) => {
         this.currentStatus.set('REJECTED');
@@ -150,5 +167,69 @@ export class DocumentRowComponent {
         this.statusChanged.emit({ type: doc.type, status: 'REJECTED', message });
       },
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+  }
+
+  /** Poll backend for OCR result after upload — retries up to 5 times at 3s intervals */
+  private pollOcrResult(employeeId: string, docType: DocumentType, attempt = 1): void {
+    const maxAttempts = 5;
+    const delayMs = 3000;
+
+    this.pollTimer = setTimeout(() => {
+      this.hrApi.getEmployeeDocuments(employeeId).subscribe({
+        next: (res) => {
+          const match = res.documents.find((d) => d.document_type === docType);
+          if (!match) return;
+
+          const ocrStatus = match.ocr_status;
+          if (ocrStatus === 'PENDING' || ocrStatus === 'PROCESSING') {
+            // Still processing — retry if we have attempts left
+            if (attempt < maxAttempts) {
+              this.pollOcrResult(employeeId, docType, attempt + 1);
+            } else {
+              // Give up polling — show SUBMITTED so user knows upload worked
+              this.currentStatus.set('SUBMITTED');
+              this.statusMessage.set('Uploaded — OCR verification in progress');
+              this.statusChanged.emit({ type: docType, status: 'SUBMITTED' });
+            }
+            return;
+          }
+
+          // OCR finished — map to frontend status
+          let finalStatus: DocumentStatus;
+          let message: string;
+          switch (ocrStatus) {
+            case 'PASSED':
+              finalStatus = 'ACCEPTED';
+              message = match.verification?.reasoning || 'Document verified successfully';
+              break;
+            case 'MANUAL_REVIEW':
+              finalStatus = 'IN_REVIEW';
+              message = 'Sent to HR for manual review';
+              break;
+            case 'FAILED':
+              finalStatus = 'REJECTED';
+              message = match.verification?.reasoning || 'Verification failed — please re-upload';
+              break;
+            default:
+              finalStatus = 'SUBMITTED';
+              message = 'Upload complete';
+          }
+
+          this.currentStatus.set(finalStatus);
+          this.statusMessage.set(message);
+          this.statusChanged.emit({ type: docType, status: finalStatus, message });
+        },
+        error: () => {
+          // Network error — show submitted, don't block user
+          this.currentStatus.set('SUBMITTED');
+          this.statusMessage.set('Uploaded — verification pending');
+          this.statusChanged.emit({ type: docType, status: 'SUBMITTED' });
+        },
+      });
+    }, delayMs);
   }
 }
