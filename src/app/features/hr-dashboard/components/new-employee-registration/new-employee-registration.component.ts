@@ -30,6 +30,7 @@ import {
   DocumentType,
   WizardDocumentSlot,
 } from '../../../../shared/models/employee.model';
+import { getHrStaffById, HrStaffMember } from '../../../../shared/constants/hr-staff';
 @Component({
   selector: 'app-new-employee-registration',
   standalone: true,
@@ -173,10 +174,17 @@ export class NewEmployeeRegistrationComponent {
   /** Staff ID from parent route param :staffId */
   private staffId = '';
 
+  /** Resolved HR staff member from the registry */
+  readonly currentHrStaff = signal<HrStaffMember | null>(null);
+
   constructor() {
     // Read staffId from parent route
     const parentParams = this.route.parent?.snapshot.params;
     this.staffId = parentParams?.['staffId'] ?? '';
+    const staff = getHrStaffById(this.staffId);
+    if (staff) {
+      this.currentHrStaff.set(staff);
+    }
   }
 
   // ─── File Validation Constants ───────────────────────────
@@ -323,6 +331,7 @@ export class NewEmployeeRegistrationComponent {
     this.submitError.set(null);
     this.submitProgress.set('Creating employee record...');
 
+    const hrStaff = this.currentHrStaff();
     const payload: CreateEmployeeRequest = {
       first_name: this.firstName.trim(),
       middle_name: this.middleName.trim() || undefined,
@@ -333,6 +342,9 @@ export class NewEmployeeRegistrationComponent {
       job_title: this.jobTitle.trim() || undefined,
       offer_accept_date: this.offerAcceptDate!.toISOString().split('T')[0],
       planned_start_date: this.plannedStartDate!.toISOString().split('T')[0],
+      hr_staff_id: hrStaff?.staffId ?? this.staffId,
+      hr_staff_name: hrStaff?.fullName ?? '',
+      hr_staff_email: hrStaff?.email ?? '',
     };
 
     this.hrApi

@@ -36,6 +36,16 @@
               Your planned start date is <strong>{{ employee().planned_start_date }}</strong>.
             }
           </p>
+          @if (employee().hr_staff_name) {
+            <div class="welcome-tile__hr-partner mt-2">
+              <i class="pi pi-user" style="color: #4a3f8a; font-size: 0.85rem"></i>
+              <span class="text-sm">
+                Your HR Partner: <strong>{{ employee().hr_staff_name }}</strong>
+                &mdash;
+                <a [href]="'mailto:' + employee().hr_staff_email" style="color: #4a3f8a">{{ employee().hr_staff_email }}</a>
+              </span>
+            </div>
+          }
         </div>
       </div>
 
@@ -45,7 +55,11 @@
       <!-- Two-column grid: Highlights + Document Checklist -->
       <div class="grid">
         <div class="col-12 lg:col-4">
-          <app-employee-highlights [employee]="employee()" />
+          <app-employee-highlights
+            [employee]="employee()"
+            [hrPartner]="employee().hr_staff_name"
+            [hrPartnerEmail]="employee().hr_staff_email"
+          />
         </div>
         <div class="col-12 lg:col-8">
           <!-- Consent Gate -->

@@ -429,6 +429,31 @@
               }
             </div>
           </p-card>
+
+          <!-- HR Partner Summary -->
+          @if (currentHrStaff()) {
+            <p-card styleClass="review-card review-card--full">
+              <ng-template #header>
+                <div class="review-card__header">
+                  <i class="pi pi-users mr-2"></i>Assigned HR Partner
+                </div>
+              </ng-template>
+              <div class="review-fields">
+                <div class="review-field">
+                  <span class="review-field__label">Staff ID</span>
+                  <span class="review-field__value">{{ currentHrStaff()!.staffId }}</span>
+                </div>
+                <div class="review-field">
+                  <span class="review-field__label">Name</span>
+                  <span class="review-field__value">{{ currentHrStaff()!.fullName }}</span>
+                </div>
+                <div class="review-field">
+                  <span class="review-field__label">Email</span>
+                  <span class="review-field__value">{{ currentHrStaff()!.email }}</span>
+                </div>
+              </div>
+            </p-card>
+          }
         </div>
       }
     }

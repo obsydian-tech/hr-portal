@@ -36,7 +36,10 @@
     </div>
     <div class="flex flex-column gap-1">
       <span class="field-label">HR Partner</span>
-      <span class="field-value">{{ hrPartner() }}</span>
+      <span class="field-value">{{ hrPartner() || '—' }}</span>
+      @if (hrPartnerEmail()) {
+        <a class="field-value text-sm" [href]="'mailto:' + hrPartnerEmail()" style="color: #4a3f8a">{{ hrPartnerEmail() }}</a>
+      }
     </div>
   </div>
 

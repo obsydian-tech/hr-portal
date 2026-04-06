@@ -8,8 +8,8 @@
 />
 <app-topbar
   title="HR Portal"
-  employeeName="Thabo Molefe"
-  employeeRole="HR Manager"
+  [employeeName]="staffName()"
+  [employeeRole]="staffRole()"
   [showSearch]="true"
   [showNotifications]="true"
   (menuToggle)="toggleSidebar()"

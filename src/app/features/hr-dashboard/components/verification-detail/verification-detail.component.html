@@ -112,6 +112,7 @@
                 icon="pi pi-check"
                 severity="success"
                 [outlined]="true"
+                [loading]="reviewLoading()"
                 (onClick)="approveManualReview()"
               />
               <p-button
@@ -119,8 +120,12 @@
                 icon="pi pi-times"
                 severity="danger"
                 [outlined]="true"
+                [loading]="reviewLoading()"
                 (onClick)="rejectManualReview()"
               />
+            }
+            @if (reviewError()) {
+              <p-message severity="error" [text]="reviewError()!" class="block" />
             }
             <!-- Request External Verification: only when PASSED or after approval -->
             @if (canVerifyExternally) {
@@ -163,6 +168,8 @@
                   severity="info"
                   [outlined]="true"
                   size="small"
+                  [loading]="previewLoading()"
+                  (onClick)="openDocument()"
                 />
               </div>
             </div>

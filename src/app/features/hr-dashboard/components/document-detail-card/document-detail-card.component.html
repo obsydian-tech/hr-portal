@@ -11,9 +11,19 @@
 
   <!-- File info -->
   <div class="mb-3">
-    <div class="text-sm text-color-secondary mb-1">
-      <i class="pi pi-paperclip mr-1"></i>
-      {{ doc().file_name }}
+    <div class="text-sm text-color-secondary mb-1 flex align-items-center gap-2">
+      <span><i class="pi pi-paperclip mr-1"></i>{{ doc().file_name }}</span>
+      @if (doc().file_name) {
+        <p-button
+          label="View"
+          icon="pi pi-external-link"
+          [text]="true"
+          severity="info"
+          size="small"
+          [loading]="previewLoading()"
+          (onClick)="viewDocument()"
+        />
+      }
     </div>
     @if (doc().uploaded_at) {
       <div class="text-sm text-color-secondary mb-1">
@@ -89,6 +99,7 @@
         severity="success"
         [outlined]="true"
         size="small"
+        [loading]="reviewLoading()"
         (onClick)="approveDocument()"
       />
       <p-button
@@ -97,8 +108,12 @@
         severity="danger"
         [outlined]="true"
         size="small"
+        [loading]="reviewLoading()"
         (onClick)="rejectDocument()"
       />
+    }
+    @if (reviewError()) {
+      <p-message severity="error" [text]="reviewError()!" />
     }
 
     <!-- Request External Verification: only for National ID / Bank Confirmation, disabled until approved -->

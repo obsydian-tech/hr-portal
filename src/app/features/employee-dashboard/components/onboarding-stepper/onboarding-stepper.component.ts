@@ -72,11 +72,15 @@ export class OnboardingStepperComponent {
   };
 
   readonly currentIndex = computed(() => {
-    return this.stageOrder.indexOf(this.currentStage());
+    const idx = this.stageOrder.indexOf(this.currentStage());
+    return idx >= 0 ? idx : 0; // Fallback to first step if stage is unrecognised
   });
 
   readonly progressPercent = computed(() => {
-    return Math.round((this.currentIndex() / (this.steps.length - 1)) * 100);
+    const idx = this.currentIndex();
+    const total = this.steps.length - 1;
+    if (total <= 0) return 0;
+    return Math.round((idx / total) * 100);
   });
 
   readonly currentLabel = computed(() => {

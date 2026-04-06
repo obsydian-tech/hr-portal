@@ -13,6 +13,7 @@ import {
   DocumentType,
 } from '../../shared/models/employee.model';
 import { environment } from '../../../environments/environment';
+import { isHrManager } from '../../shared/constants/hr-staff';
 
 /** Raw shape from GET /documents/verification/{document_id} */
 interface RawDocumentVerificationResponse {
@@ -51,7 +52,13 @@ interface RawEmployeeDocVerificationsResponse {
     first_name: string;
     last_name: string;
     email: string;
+    phone?: string;
     stage: string;
+    department?: string;
+    planned_start_date?: string;
+    hr_staff_id?: string;
+    hr_staff_name?: string;
+    hr_staff_email?: string;
   };
   documents: Array<{
     document_id: string;
@@ -90,16 +97,27 @@ export class HrApiService {
   // ─── Real API Methods ─────────────────────────────────────
 
   getEmployees(staffId: string): Observable<EmployeeListResponse> {
-    const headers = new HttpHeaders({ 'x-staff-id': staffId });
+    let headers = new HttpHeaders({ 'x-staff-id': staffId });
+    if (isHrManager(staffId)) {
+      headers = headers.set('x-role', 'manager');
+    }
     return this.http.get<EmployeeListResponse>(
       `${this.empApiUrl}/get/employees`,
       { headers }
     );
   }
 
-  getVerifications(): Observable<VerificationListResponse> {
+  getVerifications(staffId?: string): Observable<VerificationListResponse> {
+    let headers = new HttpHeaders();
+    if (staffId) {
+      headers = headers.set('x-staff-id', staffId);
+      if (isHrManager(staffId)) {
+        headers = headers.set('x-role', 'manager');
+      }
+    }
     return this.http.get<VerificationListResponse>(
-      `${this.docApiUrl}/document-verifications`
+      `${this.docApiUrl}/document-verifications`,
+      { headers }
     );
   }
 
@@ -121,6 +139,29 @@ export class HrApiService {
       .pipe(
         map((raw) => this.mapToEmployeeDocumentResponse(raw))
       );
+  }
+
+  /** Get a pre-signed S3 URL to preview/download a document */
+  getDocumentPreviewUrl(documentId: string): Observable<{ url: string; file_name: string; content_type: string }> {
+    return this.http.get<{ url: string; file_name: string; content_type: string }>(
+      `${this.docApiUrl}/documents/${documentId}/preview`
+    );
+  }
+
+  /** Submit an HR review decision (approve/reject) for a document in MANUAL_REVIEW */
+  reviewDocument(documentId: string, decision: 'PASSED' | 'FAILED', notes?: string): Observable<{
+    message: string;
+    document_id: string;
+    employee_id: string;
+    decision: string;
+    can_reupload: boolean;
+    all_documents_passed: boolean;
+    employee_stage_updated: boolean;
+  }> {
+    return this.http.patch<any>(
+      `${this.docApiUrl}/documents/${documentId}/review`,
+      { decision, notes: notes ?? '' }
+    );
   }
 
   // ─── Still-Mocked Methods (no real endpoints yet) ─────────
@@ -222,9 +263,13 @@ export class HrApiService {
         first_name: raw.employee.first_name,
         last_name: raw.employee.last_name,
         email: raw.employee.email,
+        phone: raw.employee.phone ?? '',
         stage: (raw.employee.stage ?? 'INVITED') as Employee['stage'],
-        department: (raw.employee as any).department ?? '',
-        planned_start_date: (raw.employee as any).planned_start_date ?? '',
+        department: raw.employee.department ?? '',
+        planned_start_date: raw.employee.planned_start_date ?? '',
+        hr_staff_id: raw.employee.hr_staff_id ?? '',
+        hr_staff_name: raw.employee.hr_staff_name ?? '',
+        hr_staff_email: raw.employee.hr_staff_email ?? '',
       },
       documents,
       summary: {

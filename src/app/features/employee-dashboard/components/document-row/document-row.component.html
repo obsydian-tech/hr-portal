@@ -18,11 +18,14 @@
     [class.doc-row__icon--accepted]="currentStatus() === 'ACCEPTED'"
     [class.doc-row__icon--rejected]="currentStatus() === 'REJECTED'"
     [class.doc-row__icon--submitted]="currentStatus() === 'SUBMITTED'"
+    [class.doc-row__icon--in-review]="currentStatus() === 'IN_REVIEW'"
   >
     @if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
       <i class="pi pi-check-circle"></i>
     } @else if (currentStatus() === 'REJECTED') {
       <i class="pi pi-times-circle"></i>
+    } @else if (currentStatus() === 'IN_REVIEW') {
+      <i class="pi pi-clock"></i>
     } @else {
       <i class="pi {{ doc().icon }}"></i>
     }
@@ -56,6 +59,8 @@
       </p>
     } @else if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
       <p class="m-0" style="font-size: 0.8125rem; color: #0d9488">{{ statusMessage() }}</p>
+    } @else if (currentStatus() === 'IN_REVIEW') {
+      <p class="m-0" style="font-size: 0.8125rem; color: #d97706">Your document is being reviewed by HR. You'll be notified of the outcome.</p>
     } @else if (currentStatus() === 'REJECTED') {
       <p class="m-0" style="font-size: 0.8125rem; color: var(--naleko-error)">{{ statusMessage() }}</p>
     } @else {
@@ -87,10 +92,14 @@
     } @else if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
       <p-button
         label="View"
+        icon="pi pi-external-link"
         [text]="true"
         severity="secondary"
         size="small"
+        (onClick)="viewDocument()"
       />
+    } @else if (currentStatus() === 'IN_REVIEW') {
+      <p-tag value="Under Review" severity="warn" [rounded]="true" icon="pi pi-clock" />
     }
   </div>
 </div>

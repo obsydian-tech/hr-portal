@@ -53,18 +53,31 @@
   <!-- Employees Table -->
   <p-card class="mb-4">
     <ng-template #title>
-      <div class="flex justify-content-between align-items-center">
+      <div class="flex justify-content-between align-items-center flex-wrap gap-2">
         <span>Employees</span>
-        <span class="p-input-icon-left">
-          <i class="pi pi-search"></i>
-          <input
-            pInputText
-            type="text"
-            placeholder="Search by email..."
-            class="employee-search"
-            (input)="onSearchInput($event)"
-          />
-        </span>
+        <div class="flex align-items-center gap-2">
+          @if (isManager()) {
+            <p-select
+              [(ngModel)]="partnerFilter"
+              [options]="partnerOptions()"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Filter by HR Partner"
+              styleClass="partner-filter"
+              [style]="{ minWidth: '14rem' }"
+            />
+          }
+          <span class="p-input-icon-left">
+            <i class="pi pi-search"></i>
+            <input
+              pInputText
+              type="text"
+              placeholder="Search by email..."
+              class="employee-search"
+              (input)="onSearchInput($event)"
+            />
+          </span>
+        </div>
       </div>
     </ng-template>
 
@@ -88,6 +101,9 @@
             <th>Employee Name</th>
             <th>Email</th>
             <th>Department</th>
+            @if (isManager()) {
+              <th>HR Partner</th>
+            }
             <th>Stage</th>
             <th>Start Date</th>
             <th style="width: 6rem">Actions</th>
@@ -98,6 +114,9 @@
             <td class="font-semibold">{{ emp.first_name }} {{ emp.last_name }}</td>
             <td>{{ emp.email }}</td>
             <td>{{ emp.department }}</td>
+            @if (isManager()) {
+              <td>{{ emp.hr_staff_name || '—' }}</td>
+            }
             <td>
               <p-tag [value]="stageLabel(emp.stage)" [severity]="stageSeverity(emp.stage)" />
             </td>
@@ -115,7 +134,7 @@
         </ng-template>
         <ng-template #emptymessage>
           <tr>
-            <td colspan="6" class="text-center p-4 text-color-secondary">
+            <td [attr.colspan]="isManager() ? 7 : 6" class="text-center p-4 text-color-secondary">
               No employees found.
             </td>
           </tr>
