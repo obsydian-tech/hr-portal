@@ -20,7 +20,7 @@ const DOC_META: Record<string, { label: string; description: string; icon: strin
 function mapOcrStatus(ocr: string): DocumentStatus {
   switch (ocr) {
     case 'PASSED': return 'ACCEPTED';
-    case 'MANUAL_REVIEW':
+    case 'MANUAL_REVIEW': return 'IN_REVIEW';
     case 'FAILED': return 'REJECTED';
     case 'PROCESSING': return 'PROCESSING';
     case 'PENDING':
@@ -65,7 +65,7 @@ export class DocumentChecklistComponent {
     this.hrApi.getEmployeeDocuments(employeeId).subscribe({
       next: (res) => {
         // Group by document_type — take the latest document per type
-        const byType = new Map<string, { status: DocumentStatus; message?: string; fileName?: string }>();
+        const byType = new Map<string, { status: DocumentStatus; message?: string; fileName?: string; documentId?: string }>();
         for (const doc of res.documents) {
           const mapped = mapOcrStatus(doc.ocr_status);
           const existing = byType.get(doc.document_type);
@@ -75,6 +75,7 @@ export class DocumentChecklistComponent {
               status: mapped,
               message: doc.verification?.reasoning,
               fileName: doc.file_name,
+              documentId: doc.document_id,
             });
           }
         }
@@ -93,6 +94,7 @@ export class DocumentChecklistComponent {
             status: backend?.status ?? 'PENDING',
             ocrMessage: backend?.message,
             fileName: backend?.fileName,
+            documentId: backend?.documentId,
           };
         });
 

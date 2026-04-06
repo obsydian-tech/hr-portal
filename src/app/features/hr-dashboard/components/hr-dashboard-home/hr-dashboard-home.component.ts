@@ -14,12 +14,15 @@ import {
   OnboardingStage,
 } from '../../../../shared/models/employee.model';
 import { StatCardComponent } from '../stat-card/stat-card.component';
+import { isHrManager, getHrPartners, HrStaffMember } from '../../../../shared/constants/hr-staff';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { SkeletonModule } from 'primeng/skeleton';
 import { InputTextModule } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-hr-dashboard-home',
@@ -33,6 +36,8 @@ import { InputTextModule } from 'primeng/inputtext';
     CardModule,
     SkeletonModule,
     InputTextModule,
+    SelectModule,
+    FormsModule,
   ],
   templateUrl: './hr-dashboard-home.component.html',
   styleUrl: './hr-dashboard-home.component.scss',
@@ -46,12 +51,32 @@ export class HrDashboardHomeComponent implements OnInit {
   readonly employees = signal<Employee[]>([]);
   readonly loading = signal(true);
 
+  /** Whether the current user is an HR Manager (sees all employees) */
+  readonly isManager = signal(false);
+
+  /** HR Partner filter (manager only) */
+  readonly partnerFilter = signal<string>('');
+  readonly partnerOptions = computed(() => {
+    const partners = getHrPartners();
+    return [
+      { label: 'All HR Partners', value: '' },
+      ...partners.map((p) => ({ label: p.fullName, value: p.staffId })),
+    ];
+  });
+
   readonly searchEmail = signal('');
 
   readonly filteredEmployees = computed(() => {
+    let list = this.employees();
     const term = this.searchEmail().toLowerCase().trim();
-    if (!term) return this.employees();
-    return this.employees().filter((e) => e.email.toLowerCase().includes(term));
+    if (term) {
+      list = list.filter((e) => e.email.toLowerCase().includes(term));
+    }
+    const partnerFilterVal = this.partnerFilter();
+    if (partnerFilterVal) {
+      list = list.filter((e) => e.hr_staff_id === partnerFilterVal);
+    }
+    return list;
   });
 
   // Stat computations
@@ -68,6 +93,7 @@ export class HrDashboardHomeComponent implements OnInit {
 
   ngOnInit(): void {
     const staffId = this.route.parent?.snapshot.params['staffId'] ?? 'AS00001';
+    this.isManager.set(isHrManager(staffId));
 
     this.hrApi.getEmployees(staffId).subscribe((res) => {
       this.employees.set(res.items);

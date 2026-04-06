@@ -44,6 +44,9 @@ export class DocumentDetailCardComponent {
 
   readonly verifying = signal(false);
   readonly verificationTriggered = signal(false);
+  readonly previewLoading = signal(false);
+  readonly reviewLoading = signal(false);
+  readonly reviewError = signal<string | null>(null);
 
   /** HR manual review decision: null = not reviewed, 'approved' | 'rejected' */
   readonly reviewDecision = signal<'approved' | 'rejected' | null>(null);
@@ -138,7 +141,7 @@ export class DocumentDetailCardComponent {
       icon: 'pi pi-check-circle',
       acceptLabel: 'Approve',
       rejectLabel: 'Cancel',
-      accept: () => this.reviewDecision.set('approved'),
+      accept: () => this.submitReviewDecision('PASSED'),
     });
   }
 
@@ -150,7 +153,37 @@ export class DocumentDetailCardComponent {
       acceptLabel: 'Reject',
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.reviewDecision.set('rejected'),
+      accept: () => this.submitReviewDecision('FAILED'),
+    });
+  }
+
+  private submitReviewDecision(decision: 'PASSED' | 'FAILED'): void {
+    const docId = this.doc().document_id;
+    if (!docId) return;
+    this.reviewLoading.set(true);
+    this.reviewError.set(null);
+    this.hrApi.reviewDocument(docId, decision).subscribe({
+      next: () => {
+        this.reviewDecision.set(decision === 'PASSED' ? 'approved' : 'rejected');
+        this.reviewLoading.set(false);
+      },
+      error: (err) => {
+        this.reviewError.set(err.error?.error || 'Failed to submit review. Please try again.');
+        this.reviewLoading.set(false);
+      },
+    });
+  }
+
+  viewDocument(): void {
+    const docId = this.doc().document_id;
+    if (!docId) return;
+    this.previewLoading.set(true);
+    this.hrApi.getDocumentPreviewUrl(docId).subscribe({
+      next: (res) => {
+        window.open(res.url, '_blank');
+        this.previewLoading.set(false);
+      },
+      error: () => this.previewLoading.set(false),
     });
   }
 

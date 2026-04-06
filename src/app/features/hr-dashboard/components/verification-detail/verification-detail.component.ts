@@ -50,6 +50,9 @@ export class VerificationDetailComponent implements OnInit {
 
   // Manual review state
   readonly reviewDecision = signal<'approved' | 'rejected' | null>(null);
+  readonly previewLoading = signal(false);
+  readonly reviewLoading = signal(false);
+  readonly reviewError = signal<string | null>(null);
 
   ngOnInit(): void {
     const id = this.documentId() || this.route.snapshot.params['documentId'];
@@ -131,6 +134,19 @@ export class VerificationDetailComponent implements OnInit {
     return this.v?.document_type?.replace(/_/g, ' ') ?? 'Unknown';
   }
 
+  openDocument(): void {
+    const docId = this.v?.document_id;
+    if (!docId) return;
+    this.previewLoading.set(true);
+    this.hrApi.getDocumentPreviewUrl(docId).subscribe({
+      next: (res) => {
+        window.open(res.url, '_blank');
+        this.previewLoading.set(false);
+      },
+      error: () => this.previewLoading.set(false),
+    });
+  }
+
   goBack(): void {
     this.router.navigate(['../../verifications'], { relativeTo: this.route });
   }
@@ -148,7 +164,7 @@ export class VerificationDetailComponent implements OnInit {
       icon: 'pi pi-check-circle',
       acceptLabel: 'Approve',
       rejectLabel: 'Cancel',
-      accept: () => this.reviewDecision.set('approved'),
+      accept: () => this.submitReviewDecision('PASSED'),
     });
   }
 
@@ -160,7 +176,32 @@ export class VerificationDetailComponent implements OnInit {
       acceptLabel: 'Reject',
       rejectLabel: 'Cancel',
       acceptButtonStyleClass: 'p-button-danger',
-      accept: () => this.reviewDecision.set('rejected'),
+      accept: () => this.submitReviewDecision('FAILED'),
+    });
+  }
+
+  private submitReviewDecision(decision: 'PASSED' | 'FAILED'): void {
+    const docId = this.v?.document_id;
+    if (!docId) return;
+    this.reviewLoading.set(true);
+    this.reviewError.set(null);
+    this.hrApi.reviewDocument(docId, decision).subscribe({
+      next: (res) => {
+        this.reviewDecision.set(decision === 'PASSED' ? 'approved' : 'rejected');
+        // Update the local verification object to reflect the new state
+        const current = this.verification();
+        if (current) {
+          this.verification.set({
+            ...current,
+            decision: decision as any,
+          });
+        }
+        this.reviewLoading.set(false);
+      },
+      error: (err) => {
+        this.reviewError.set(err.error?.error || 'Failed to submit review. Please try again.');
+        this.reviewLoading.set(false);
+      },
     });
   }
 

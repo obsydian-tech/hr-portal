@@ -16,5 +16,6 @@ import { DividerModule } from 'primeng/divider';
 })
 export class EmployeeHighlightsComponent {
   readonly employee = input.required<Employee>();
-  readonly hrPartner = input<string>('Sandra Nkosi');
+  readonly hrPartner = input<string>('');
+  readonly hrPartnerEmail = input<string>('');
 }

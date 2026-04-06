@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { DocumentRow, DocumentStatus } from '../../../../shared/models/employee.model';
 import { DocumentUploadService, DocumentUploadResponse } from '../../../../core/services/document-upload.service';
+import { HrApiService } from '../../../../core/services/hr-api.service';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -25,6 +26,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 })
 export class DocumentRowComponent {
   private readonly uploadService = inject(DocumentUploadService);
+  private readonly hrApi = inject(HrApiService);
 
   readonly doc = input.required<DocumentRow>();
   readonly employeeId = input.required<string>();
@@ -72,11 +74,21 @@ export class DocumentRowComponent {
     this.fileName.set('');
   }
 
+  viewDocument(): void {
+    const docId = this.doc().documentId;
+    if (!docId) return;
+    this.hrApi.getDocumentPreviewUrl(docId).subscribe({
+      next: (res) => window.open(res.url, '_blank'),
+      error: () => this.statusMessage.set('Could not load document preview.'),
+    });
+  }
+
   get statusSeverity(): 'success' | 'danger' | 'warn' | 'info' | 'secondary' | 'contrast' | undefined {
     switch (this.currentStatus()) {
       case 'ACCEPTED': return 'success';
       case 'REJECTED': return 'danger';
       case 'SUBMITTED': return 'info';
+      case 'IN_REVIEW': return 'warn';
       case 'UPLOADING':
       case 'PROCESSING': return 'warn';
       default: return 'secondary';
@@ -88,6 +100,7 @@ export class DocumentRowComponent {
       case 'ACCEPTED': return 'ACCEPTED';
       case 'REJECTED': return 'REJECTED';
       case 'SUBMITTED': return 'VERIFICATION PENDING';
+      case 'IN_REVIEW': return 'UNDER HR REVIEW';
       case 'UPLOADING': return 'UPLOADING...';
       case 'PROCESSING': return 'OCR PROCESSING...';
       default: return 'PENDING';
@@ -98,6 +111,7 @@ export class DocumentRowComponent {
     switch (this.currentStatus()) {
       case 'ACCEPTED': return 'pi pi-verified';
       case 'REJECTED': return 'pi pi-times-circle';
+      case 'IN_REVIEW': return 'pi pi-clock';
       default: return undefined;
     }
   }

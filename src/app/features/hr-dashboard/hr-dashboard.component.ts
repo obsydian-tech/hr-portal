@@ -1,8 +1,9 @@
-import { Component, ChangeDetectionStrategy, input, signal, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, signal, computed, inject } from '@angular/core';
 import { Router, RouterOutlet, ActivatedRoute } from '@angular/router';
 import { SidebarComponent, NavItem } from '../../shared/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
 import { FooterComponent } from '../../shared/components/footer/footer.component';
+import { getHrStaffById } from '../../shared/constants/hr-staff';
 
 
 @Component({
@@ -23,6 +24,14 @@ export class HrDashboardComponent {
   private readonly route = inject(ActivatedRoute);
 
   readonly staffId = input<string>('');
+
+  /** Resolved HR staff member from registry */
+  readonly currentStaff = computed(() => getHrStaffById(this.staffId()));
+  readonly staffName = computed(() => this.currentStaff()?.fullName ?? 'HR Staff');
+  readonly staffRole = computed(() => {
+    const role = this.currentStaff()?.role;
+    return role === 'HR_MANAGER' ? 'HR Manager' : 'HR Partner';
+  });
 
   readonly sidebarOpen = signal(false);
 

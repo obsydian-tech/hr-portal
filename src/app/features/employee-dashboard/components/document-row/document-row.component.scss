@@ -41,6 +41,11 @@
       background: rgba(74, 63, 138, 0.1);
       color: var(--naleko-secondary);
     }
+
+    &--in-review {
+      background: rgba(217, 119, 6, 0.1);
+      color: #d97706;
+    }
   }
 }
 

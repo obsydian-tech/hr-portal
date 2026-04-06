@@ -22,6 +22,10 @@ export interface Employee {
   planned_start_date: string;
   created_at: string;
   created_by: string;
+  /** HR Partner/Staff responsible for onboarding */
+  hr_staff_id: string;
+  hr_staff_name: string;
+  hr_staff_email: string;
 }
 
 /** Document types accepted for upload */
@@ -38,7 +42,8 @@ export type DocumentStatus =
   | 'PROCESSING'
   | 'ACCEPTED'
   | 'REJECTED'
-  | 'SUBMITTED';
+  | 'SUBMITTED'
+  | 'IN_REVIEW';
 
 /** A single document row in the checklist */
 export interface DocumentRow {
@@ -51,6 +56,8 @@ export interface DocumentRow {
   fileName?: string;
   file?: File;
   requiresOcr: boolean;
+  /** The backend document_id — used for preview URLs */
+  documentId?: string;
 }
 
 /** OCR API response */
@@ -129,7 +136,7 @@ export interface EmployeeDocumentOcrResult {
 
 /** Employee documents response */
 export interface EmployeeDocumentResponse {
-  employee: Pick<Employee, 'employee_id' | 'first_name' | 'last_name' | 'email' | 'stage' | 'department' | 'planned_start_date'>;
+  employee: Pick<Employee, 'employee_id' | 'first_name' | 'last_name' | 'email' | 'stage' | 'department' | 'planned_start_date' | 'phone' | 'hr_staff_id' | 'hr_staff_name' | 'hr_staff_email'>;
   documents: EmployeeDocument[];
   summary: {
     total: number;
@@ -162,6 +169,10 @@ export interface CreateEmployeeRequest {
   job_title?: string;
   offer_accept_date: string;
   planned_start_date: string;
+  /** HR Staff responsible for onboarding this employee */
+  hr_staff_id: string;
+  hr_staff_name: string;
+  hr_staff_email: string;
 }
 
 /** Document slot used in the registration wizard */
