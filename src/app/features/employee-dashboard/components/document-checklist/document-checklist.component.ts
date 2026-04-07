@@ -79,15 +79,28 @@ export class DocumentChecklistComponent {
               friendlyMessage = 'Your document has been sent for manual review by the HR team';
             }
 
-            // Extract structured fields from verification data
-            const ef: ExtractedFields | undefined = doc.verification ? {
-              id_number: doc.verification.id_number,
-              name: doc.verification.name,
-              surname: doc.verification.surname,
-              date_of_birth: doc.verification.date_of_birth,
-              gender: doc.verification.gender,
-              citizenship: doc.verification.citizenship,
-            } : undefined;
+            // Extract structured fields from verification data — varies by document type
+            let ef: ExtractedFields | undefined;
+            if (doc.verification) {
+              if (doc.document_type === 'NATIONAL_ID') {
+                ef = {
+                  id_number: doc.verification.id_number,
+                  name: doc.verification.name,
+                  surname: doc.verification.surname,
+                  date_of_birth: doc.verification.date_of_birth,
+                  gender: doc.verification.gender,
+                  citizenship: doc.verification.citizenship,
+                };
+              } else if (doc.document_type === 'BANK_CONFIRMATION') {
+                ef = {
+                  bank_name: doc.verification.bank_name,
+                  account_holder: doc.verification.account_holder,
+                  account_number: doc.verification.account_number,
+                  branch_code: doc.verification.branch_code,
+                  account_type: doc.verification.account_type,
+                };
+              }
+            }
 
             byType.set(doc.document_type, {
               status: mapped,

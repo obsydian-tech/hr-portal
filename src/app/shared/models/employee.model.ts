@@ -57,6 +57,7 @@ export interface ExtractedFields {
   account_number?: string;
   account_holder?: string;
   branch_code?: string;
+  account_type?: string;
 }
 
 /** A single document row in the checklist */
@@ -118,6 +119,12 @@ export interface VerificationDetail extends Verification {
   date_of_birth: string;
   gender: string;
   citizenship: string;
+  /** Bank confirmation fields */
+  bank_name?: string;
+  account_holder?: string;
+  account_number?: string;
+  branch_code?: string;
+  account_type?: string;
   /** URL to the uploaded document file (for preview) */
   document_file_url?: string;
 }
