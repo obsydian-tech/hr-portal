@@ -58,11 +58,70 @@
         }
       </p>
     } @else if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
-      <p class="m-0" style="font-size: 0.8125rem; color: #0d9488">{{ statusMessage() }}</p>
+      @if (extractedFields(); as fields) {
+        <div class="extracted-section">
+          <p class="extracted-section__title">
+            <i class="pi pi-verified" style="font-size: 0.75rem"></i>
+            Verified — the following was extracted from your document
+          </p>
+          <div class="extracted-section__grid">
+            @if (fields.id_number && fields.id_number !== 'NOT_FOUND') {
+              <div class="extracted-section__item">
+                <span class="extracted-section__label">ID Number</span>
+                <span class="extracted-section__value">{{ fields.id_number }}</span>
+              </div>
+            }
+            @if (fields.date_of_birth && fields.date_of_birth !== 'NOT_FOUND') {
+              <div class="extracted-section__item">
+                <span class="extracted-section__label">Date of Birth</span>
+                <span class="extracted-section__value">{{ fields.date_of_birth }}</span>
+              </div>
+            }
+            @if (fields.gender && fields.gender !== 'NOT_FOUND') {
+              <div class="extracted-section__item">
+                <span class="extracted-section__label">Gender</span>
+                <span class="extracted-section__value">{{ fields.gender }}</span>
+              </div>
+            }
+            @if (fields.citizenship && fields.citizenship !== 'NOT_FOUND') {
+              <div class="extracted-section__item">
+                <span class="extracted-section__label">Citizenship</span>
+                <span class="extracted-section__value">{{ fields.citizenship }}</span>
+              </div>
+            }
+            @if (fields.bank_name && fields.bank_name !== 'NOT_FOUND') {
+              <div class="extracted-section__item">
+                <span class="extracted-section__label">Bank</span>
+                <span class="extracted-section__value">{{ fields.bank_name }}</span>
+              </div>
+            }
+            @if (fields.account_holder && fields.account_holder !== 'NOT_FOUND') {
+              <div class="extracted-section__item">
+                <span class="extracted-section__label">Account Holder</span>
+                <span class="extracted-section__value">{{ fields.account_holder }}</span>
+              </div>
+            }
+            @if (fields.account_number && fields.account_number !== 'NOT_FOUND') {
+              <div class="extracted-section__item">
+                <span class="extracted-section__label">Account No.</span>
+                <span class="extracted-section__value">{{ fields.account_number }}</span>
+              </div>
+            }
+            @if (fields.branch_code && fields.branch_code !== 'NOT_FOUND') {
+              <div class="extracted-section__item">
+                <span class="extracted-section__label">Branch Code</span>
+                <span class="extracted-section__value">{{ fields.branch_code }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <p class="m-0" style="font-size: 0.8125rem; color: #0d9488">{{ statusMessage() }}</p>
+      }
     } @else if (currentStatus() === 'IN_REVIEW') {
-      <p class="m-0" style="font-size: 0.8125rem; color: #d97706">Your document is being reviewed by HR. You'll be notified of the outcome.</p>
+      <p class="m-0" style="font-size: 0.8125rem; color: #d97706">Your document has been sent for manual review by the HR team. You'll be notified of the outcome.</p>
     } @else if (currentStatus() === 'REJECTED') {
-      <p class="m-0" style="font-size: 0.8125rem; color: var(--naleko-error)">{{ statusMessage() }}</p>
+      <p class="m-0" style="font-size: 0.8125rem; color: var(--naleko-error)">Your document has been sent for manual review by the HR team. You may re-upload if needed.</p>
     } @else {
       <p class="m-0" style="font-size: 0.8125rem; color: var(--naleko-on-surface-variant)">{{ doc().description }}</p>
     }

@@ -9,7 +9,7 @@ import {
   ElementRef,
   OnDestroy,
 } from '@angular/core';
-import { DocumentRow, DocumentStatus, DocumentType } from '../../../../shared/models/employee.model';
+import { DocumentRow, DocumentStatus, DocumentType, ExtractedFields } from '../../../../shared/models/employee.model';
 import { DocumentUploadService, DocumentUploadResponse } from '../../../../core/services/document-upload.service';
 import { HrApiService } from '../../../../core/services/hr-api.service';
 import { ButtonModule } from 'primeng/button';
@@ -41,9 +41,15 @@ export class DocumentRowComponent implements OnDestroy {
   readonly currentStatus = signal<DocumentStatus>('PENDING');
   readonly statusMessage = signal<string>('');
   readonly fileName = signal<string>('');
+  readonly extractedFields = signal<ExtractedFields | undefined>(undefined);
 
   ngOnInit(): void {
     this.currentStatus.set(this.doc().status);
+    this.extractedFields.set(this.doc().extractedFields);
+    // Set initial friendly message from ocrMessage if present
+    if (this.doc().ocrMessage) {
+      this.statusMessage.set(this.doc().ocrMessage!);
+    }
   }
 
   triggerUpload(): void {
@@ -198,21 +204,34 @@ export class DocumentRowComponent implements OnDestroy {
             return;
           }
 
-          // OCR finished — map to frontend status
+          // OCR finished — map to frontend status with employee-friendly messages
           let finalStatus: DocumentStatus;
           let message: string;
+          let ef: ExtractedFields | undefined;
+
+          if (match.verification) {
+            ef = {
+              id_number: match.verification.id_number,
+              name: match.verification.name,
+              surname: match.verification.surname,
+              date_of_birth: match.verification.date_of_birth,
+              gender: match.verification.gender,
+              citizenship: match.verification.citizenship,
+            };
+          }
+
           switch (ocrStatus) {
             case 'PASSED':
               finalStatus = 'ACCEPTED';
-              message = match.verification?.reasoning || 'Document verified successfully';
+              message = 'Document verified successfully';
               break;
             case 'MANUAL_REVIEW':
               finalStatus = 'IN_REVIEW';
-              message = 'Sent to HR for manual review';
+              message = 'Your document has been sent for manual review by the HR team';
               break;
             case 'FAILED':
               finalStatus = 'REJECTED';
-              message = match.verification?.reasoning || 'Verification failed — please re-upload';
+              message = 'Your document has been sent for manual review by the HR team';
               break;
             default:
               finalStatus = 'SUBMITTED';
@@ -221,6 +240,7 @@ export class DocumentRowComponent implements OnDestroy {
 
           this.currentStatus.set(finalStatus);
           this.statusMessage.set(message);
+          this.extractedFields.set(ef);
           this.statusChanged.emit({ type: docType, status: finalStatus, message });
         },
         error: () => {
