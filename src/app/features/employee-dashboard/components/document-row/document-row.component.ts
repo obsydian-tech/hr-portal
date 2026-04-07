@@ -210,14 +210,24 @@ export class DocumentRowComponent implements OnDestroy {
           let ef: ExtractedFields | undefined;
 
           if (match.verification) {
-            ef = {
-              id_number: match.verification.id_number,
-              name: match.verification.name,
-              surname: match.verification.surname,
-              date_of_birth: match.verification.date_of_birth,
-              gender: match.verification.gender,
-              citizenship: match.verification.citizenship,
-            };
+            if (docType === 'NATIONAL_ID') {
+              ef = {
+                id_number: match.verification.id_number,
+                name: match.verification.name,
+                surname: match.verification.surname,
+                date_of_birth: match.verification.date_of_birth,
+                gender: match.verification.gender,
+                citizenship: match.verification.citizenship,
+              };
+            } else if (docType === 'BANK_CONFIRMATION') {
+              ef = {
+                bank_name: match.verification.bank_name,
+                account_holder: match.verification.account_holder,
+                account_number: match.verification.account_number,
+                branch_code: match.verification.branch_code,
+                account_type: match.verification.account_type,
+              };
+            }
           }
 
           switch (ocrStatus) {

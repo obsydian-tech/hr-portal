@@ -113,6 +113,12 @@
                 <span class="extracted-section__value">{{ fields.branch_code }}</span>
               </div>
             }
+            @if (fields.account_type && fields.account_type !== 'NOT_FOUND') {
+              <div class="extracted-section__item">
+                <span class="extracted-section__label">Account Type</span>
+                <span class="extracted-section__value">{{ fields.account_type }}</span>
+              </div>
+            }
           </div>
         </div>
       } @else {
