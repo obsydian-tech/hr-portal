@@ -45,6 +45,20 @@ export type DocumentStatus =
   | 'SUBMITTED'
   | 'IN_REVIEW';
 
+/** Extracted fields from OCR verification — shown to employee as confirmation */
+export interface ExtractedFields {
+  id_number?: string;
+  name?: string;
+  surname?: string;
+  date_of_birth?: string;
+  gender?: string;
+  citizenship?: string;
+  bank_name?: string;
+  account_number?: string;
+  account_holder?: string;
+  branch_code?: string;
+}
+
 /** A single document row in the checklist */
 export interface DocumentRow {
   type: DocumentType;
@@ -58,6 +72,8 @@ export interface DocumentRow {
   requiresOcr: boolean;
   /** The backend document_id — used for preview URLs */
   documentId?: string;
+  /** Structured OCR-extracted data for employee-friendly display */
+  extractedFields?: ExtractedFields;
 }
 
 /** OCR API response */

@@ -1,5 +1,5 @@
 import { Component, ChangeDetectionStrategy, signal, computed, output, input, inject, effect } from '@angular/core';
-import { DocumentRow, DocumentStatus, DocumentType } from '../../../../shared/models/employee.model';
+import { DocumentRow, DocumentStatus, DocumentType, ExtractedFields } from '../../../../shared/models/employee.model';
 import { DocumentRowComponent } from '../document-row/document-row.component';
 import { HrApiService } from '../../../../core/services/hr-api.service';
 import { CardModule } from 'primeng/card';
@@ -65,17 +65,36 @@ export class DocumentChecklistComponent {
     this.hrApi.getEmployeeDocuments(employeeId).subscribe({
       next: (res) => {
         // Group by document_type — take the latest document per type
-        const byType = new Map<string, { status: DocumentStatus; message?: string; fileName?: string; documentId?: string }>();
+        const byType = new Map<string, { status: DocumentStatus; message?: string; fileName?: string; documentId?: string; extractedFields?: ExtractedFields }>();
         for (const doc of res.documents) {
           const mapped = mapOcrStatus(doc.ocr_status);
           const existing = byType.get(doc.document_type);
           // Keep the most relevant status: any non-PENDING wins, otherwise latest
           if (!existing || mapped !== 'PENDING') {
+            // Build employee-friendly message instead of raw reasoning
+            let friendlyMessage: string | undefined;
+            if (mapped === 'ACCEPTED') {
+              friendlyMessage = 'Document verified successfully';
+            } else if (mapped === 'IN_REVIEW' || mapped === 'REJECTED') {
+              friendlyMessage = 'Your document has been sent for manual review by the HR team';
+            }
+
+            // Extract structured fields from verification data
+            const ef: ExtractedFields | undefined = doc.verification ? {
+              id_number: doc.verification.id_number,
+              name: doc.verification.name,
+              surname: doc.verification.surname,
+              date_of_birth: doc.verification.date_of_birth,
+              gender: doc.verification.gender,
+              citizenship: doc.verification.citizenship,
+            } : undefined;
+
             byType.set(doc.document_type, {
               status: mapped,
-              message: doc.verification?.reasoning,
+              message: friendlyMessage,
               fileName: doc.file_name,
               documentId: doc.document_id,
+              extractedFields: ef,
             });
           }
         }
@@ -95,6 +114,7 @@ export class DocumentChecklistComponent {
             ocrMessage: backend?.message,
             fileName: backend?.fileName,
             documentId: backend?.documentId,
+            extractedFields: backend?.extractedFields,
           };
         });
 
