@@ -2,10 +2,6 @@ import { Component, ChangeDetectionStrategy, signal, computed, output, input, in
 import { DocumentRow, DocumentStatus, DocumentType, ExtractedFields } from '../../../../shared/models/employee.model';
 import { DocumentRowComponent } from '../document-row/document-row.component';
 import { HrApiService } from '../../../../core/services/hr-api.service';
-import { CardModule } from 'primeng/card';
-import { TagModule } from 'primeng/tag';
-import { DividerModule } from 'primeng/divider';
-import { MessageModule } from 'primeng/message';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 /** Map of document type → display metadata */
@@ -31,7 +27,7 @@ function mapOcrStatus(ocr: string): DocumentStatus {
 @Component({
   selector: 'app-document-checklist',
   standalone: true,
-  imports: [DocumentRowComponent, CardModule, TagModule, DividerModule, MessageModule, ProgressSpinnerModule],
+  imports: [DocumentRowComponent, ProgressSpinnerModule],
   templateUrl: './document-checklist.component.html',
   styleUrl: './document-checklist.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

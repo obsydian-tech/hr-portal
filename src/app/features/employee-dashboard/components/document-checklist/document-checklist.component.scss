@@ -2,32 +2,80 @@
   display: block;
 }
 
-::ng-deep {
-  .checklist-card {
-    border-radius: 0.75rem !important;
-    box-shadow: 0 1px 3px rgba(26, 26, 46, 0.04) !important;
-    border: 1px solid rgba(200, 197, 205, 0.15) !important;
-    overflow: hidden !important;
+// ─── Section Header ──────────────────────────────
+.checklist-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  gap: 1rem;
 
-    .p-card-body {
-      padding: 0 !important;
-    }
-
-    .p-card-footer {
-      padding: 0 !important;
-    }
+  &__left {
+    flex: 1;
   }
 
-  .count-tag {
-    font-size: 0.6875rem !important;
-    font-weight: 700 !important;
+  &__title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #191c1d;
+    margin: 0 0 0.25rem;
   }
 
-  .row-divider {
-    margin: 0 !important;
+  &__sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: #6c757d;
+    margin: 0;
+    line-height: 1.5;
+  }
 
-    &::before {
-      border-color: rgba(200, 197, 205, 0.1) !important;
+  &__counter {
+    flex-shrink: 0;
+    background: #16124d;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 0.3rem 0.75rem;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+}
+
+// ─── Document Cards Container ────────────────────
+.checklist-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+// ─── Verification Note ──────────────────────────
+.checklist-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  background: #f3f4f5;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+
+  .pi-info-circle {
+    font-size: 0.9rem;
+    color: #16124d;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+  }
+
+  p {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin: 0;
+    line-height: 1.5;
+
+    strong {
+      color: #16124d;
     }
   }
 }

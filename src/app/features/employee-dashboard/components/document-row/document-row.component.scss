@@ -2,120 +2,271 @@
   display: block;
 }
 
-.doc-row {
-  transition: background 0.2s ease;
-  border-radius: 0.5rem;
+// ─── Document Card ───────────────────────────────
+.doc-card {
+  background: #fff;
+  border-radius: 0.75rem;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 1.25rem 1.5rem;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 
   &:hover {
-    background: rgba(243, 244, 245, 0.4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
   }
 
   &--processing {
-    background: rgba(243, 244, 245, 0.3);
+    border-color: #16124d;
+    box-shadow: 0 0 0 1px rgba(22, 18, 77, 0.1);
+  }
+
+  &--accepted {
+    border-color: #c8e6c9;
+  }
+
+  &--review {
+    border-color: #fff3cd;
+  }
+
+  &--rejected {
+    border-color: #f8d7da;
+  }
+
+  // ── Card Header ────────────────────────────────
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   &__icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.5rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 1rem;
-    background: var(--naleko-surface-container-high);
-    color: var(--naleko-on-surface-variant);
+    font-size: 0.9rem;
+    background: #f3f4f5;
+    color: #6c757d;
     transition: all 0.3s ease;
 
     &--accepted {
-      background: rgba(122, 212, 228, 0.15);
-      color: #0d9488;
+      background: #e8f5e9;
+      color: #2e7d32;
     }
 
     &--rejected {
-      background: rgba(186, 26, 26, 0.08);
-      color: var(--naleko-error);
+      background: #fce4ec;
+      color: #c62828;
     }
 
-    &--submitted {
-      background: rgba(74, 63, 138, 0.1);
-      color: var(--naleko-secondary);
+    &--review {
+      background: #fff8e1;
+      color: #f57f17;
     }
 
-    &--in-review {
-      background: rgba(217, 119, 6, 0.1);
-      color: #d97706;
+    &--processing {
+      background: rgba(22, 18, 77, 0.08);
+      color: #16124d;
+    }
+  }
+
+  &__title-group {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  &__title {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #191c1d;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  &__action {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  // ── Upload Dropzone ────────────────────────────
+  &__dropzone {
+    margin-top: 1rem;
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #fafbfc;
+
+    &:hover {
+      border-color: #16124d;
+      background: rgba(22, 18, 77, 0.02);
+    }
+
+    .pi-cloud-upload {
+      font-size: 1.75rem;
+      color: #adb5bd;
+    }
+  }
+
+  &__dropzone-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin: 0;
+    text-align: center;
+  }
+
+  &__dropzone-link {
+    color: #16124d;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  &__dropzone-hint {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    color: #adb5bd;
+  }
+
+  // ── Processing State ───────────────────────────
+  &__processing {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: #16124d;
+    font-weight: 500;
+  }
+
+  // ── Extracted Fields ───────────────────────────
+  &__extracted {
+    margin-top: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+  }
+
+  &__extracted-title {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin: 0 0 0.65rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #2e7d32;
+
+    .pi-verified {
+      font-size: 0.75rem;
+    }
+  }
+
+  &__extracted-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: 0.5rem 1.25rem;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  &__field-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #868e96;
+  }
+
+  &__field-value {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #191c1d;
+  }
+
+  // ── Status Messages ────────────────────────────
+  &__success-msg {
+    margin: 0.75rem 0 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: #2e7d32;
+  }
+
+  &__review-msg {
+    margin: 0.75rem 0 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: #f57f17;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .pi-clock {
+      font-size: 0.85rem;
+    }
+  }
+
+  &__rejected-msg {
+    margin: 0.75rem 0 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: #c62828;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .pi-info-circle {
+      font-size: 0.85rem;
     }
   }
 }
 
+// ── PrimeNG Overrides ────────────────────────────
 ::ng-deep {
-  .doc-status-tag {
+  .doc-card__tag {
     font-size: 0.625rem !important;
     font-weight: 800 !important;
     letter-spacing: 0.02em !important;
     padding: 0.125rem 0.5rem !important;
   }
-
-  .upload-btn {
-    font-size: 0.75rem !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-  }
-
-  .reupload-btn {
-    font-size: 0.75rem !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-  }
 }
 
-/* ── Extracted fields section (verified documents) ── */
-.extracted-section {
-  margin-top: 0.25rem;
+// ── Responsive ───────────────────────────────────
+@media (max-width: 768px) {
+  .doc-card {
+    padding: 1rem;
 
-  &__title {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    margin: 0 0 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #0d9488;
-    letter-spacing: 0.01em;
-  }
+    &__header {
+      flex-wrap: wrap;
+    }
 
-  &__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
-    gap: 0.375rem 1rem;
-    padding: 0.5rem 0.75rem;
-    background: rgba(122, 212, 228, 0.06);
-    border-left: 2px solid rgba(13, 148, 136, 0.3);
-    border-radius: 0 0.375rem 0.375rem 0;
-  }
+    &__extracted-grid {
+      grid-template-columns: 1fr 1fr;
+    }
 
-  &__item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.0625rem;
-  }
-
-  &__label {
-    font-size: 0.625rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--naleko-on-surface-variant);
-    opacity: 0.7;
-  }
-
-  &__value {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--naleko-on-surface);
-    letter-spacing: 0.01em;
+    &__dropzone {
+      padding: 1.25rem 0.75rem;
+    }
   }
 }
