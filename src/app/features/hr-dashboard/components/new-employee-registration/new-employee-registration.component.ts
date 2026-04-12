@@ -94,6 +94,47 @@ export class NewEmployeeRegistrationComponent {
   readonly searchingEmail = signal(false);
   readonly emailExists = signal(false);
 
+  // Validation states
+  readonly firstNameInvalid = signal(false);
+  readonly lastNameInvalid = signal(false);
+  readonly emailInvalid = signal(false);
+  readonly phoneInvalid = signal(false);
+
+  // Validation methods
+  validateName(value: string): boolean {
+    // Only letters, spaces, hyphens, and apostrophes allowed
+    const namePattern = /^[a-zA-Z\s'-]+$/;
+    return value.trim() === '' || namePattern.test(value);
+  }
+
+  validateEmail(value: string): boolean {
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return value.trim() === '' || emailPattern.test(value);
+  }
+
+  validatePhone(value: string): boolean {
+    // Only digits and spaces allowed
+    const phonePattern = /^[0-9\s]+$/;
+    return value.trim() === '' || phonePattern.test(value);
+  }
+
+  onFirstNameChange(): void {
+    this.firstNameInvalid.set(!this.validateName(this.firstName));
+  }
+
+  onLastNameChange(): void {
+    this.lastNameInvalid.set(!this.validateName(this.lastName));
+  }
+
+  onEmailChange(): void {
+    this.emailInvalid.set(!this.validateEmail(this.email));
+    this.emailExists.set(false); // Reset email exists check
+  }
+
+  onPhoneChange(): void {
+    this.phoneInvalid.set(!this.validatePhone(this.phone));
+  }
+
   // ─── Step 2: Employment Details ──────────────────────────
 
   department = '';
@@ -200,7 +241,11 @@ export class NewEmployeeRegistrationComponent {
       this.lastName.trim().length > 0 &&
       this.email.trim().length > 0 &&
       this.phone.trim().length > 0 &&
-      !this.emailExists()
+      !this.emailExists() &&
+      !this.firstNameInvalid() &&
+      !this.lastNameInvalid() &&
+      !this.emailInvalid() &&
+      !this.phoneInvalid()
     );
   }
 
