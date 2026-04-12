@@ -15,12 +15,26 @@
   }
 }
 
-.employee-search {
-  width: 16rem;
-  font-size: 0.875rem;
-}
-
 :host ::ng-deep {
+  .p-input-icon-left {
+    width: 16rem;
+    position: relative;
+    display: inline-block;
+    
+    i {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6c757d;
+    }
+    
+    input {
+      width: 100%;
+      padding-left: 2.5rem;
+    }
+  }
+
   .p-card {
     border-radius: 12px;
     box-shadow: 0 2px 12px rgba(26, 26, 46, 0.06);
@@ -82,11 +96,11 @@
     }
   }
 
-  .employee-search {
-    width: 100%;
-  }
-
   :host ::ng-deep {
+    .p-input-icon-left {
+      width: 100%;
+    }
+
     .p-datatable {
       overflow-x: auto;
     }
