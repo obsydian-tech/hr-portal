@@ -117,6 +117,14 @@
   width: 100%;
 }
 
+.doc-id-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400px;
+  display: inline-block;
+}
+
 .font-mono {
   font-family: 'SF Mono', 'Fira Code', monospace;
 }

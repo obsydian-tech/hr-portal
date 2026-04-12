@@ -88,3 +88,12 @@
 .text-sm {
   font-size: 0.85rem;
 }
+
+.file-name-display {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+  display: inline-block;
+  vertical-align: middle;
+}
