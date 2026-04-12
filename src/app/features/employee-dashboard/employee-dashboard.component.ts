@@ -1,13 +1,11 @@
 import { Component, ChangeDetectionStrategy, input, signal, computed, inject, effect } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { SidebarComponent, NavItem } from '../../shared/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
 import { FooterComponent } from '../../shared/components/footer/footer.component';
-import { OnboardingStepperComponent } from './components/onboarding-stepper/onboarding-stepper.component';
-import { EmployeeHighlightsComponent } from './components/employee-highlights/employee-highlights.component';
 import { DocumentChecklistComponent } from './components/document-checklist/document-checklist.component';
 import { Employee, OnboardingStage, EmployeeDocument, DocumentType } from '../../shared/models/employee.model';
 import { HrApiService } from '../../core/services/hr-api.service';
-import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -93,10 +91,8 @@ function statusPriority(status: string): number {
     SidebarComponent,
     TopbarComponent,
     FooterComponent,
-    OnboardingStepperComponent,
-    EmployeeHighlightsComponent,
     DocumentChecklistComponent,
-    CardModule,
+    DatePipe,
     ButtonModule,
     CheckboxModule,
     FormsModule,
@@ -150,6 +146,9 @@ export class EmployeeDashboardComponent {
   readonly consentAccepted = signal(false);
   consentChecked = false;
 
+  /** Whether all 4 documents have been uploaded & passed */
+  readonly allDocsComplete = signal(false);
+
   constructor() {
     // React to route param changes — fetch employee data whenever employeeId changes
     effect(() => {
@@ -167,10 +166,10 @@ export class EmployeeDashboardComponent {
     this.consentAccepted.set(true);
   }
 
-  onAllDocumentsComplete(_complete: boolean): void {
-    // Stage is computed from document data in loadEmployeeData —
-    // this handler is kept for the output binding but we re-fetch to get fresh state
-    if (_complete && this.employeeId()) {
+  onAllDocumentsComplete(complete: boolean): void {
+    this.allDocsComplete.set(complete);
+    // Re-fetch to get fresh stage from backend
+    if (complete && this.employeeId()) {
       this.loadEmployeeData(this.employeeId());
     }
   }

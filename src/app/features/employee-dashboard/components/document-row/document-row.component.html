@@ -8,163 +8,183 @@
 />
 
 <div
-  class="doc-row flex align-items-start gap-3 px-4 py-3"
-  [class.doc-row--processing]="currentStatus() === 'UPLOADING' || currentStatus() === 'PROCESSING'"
-  (dragover)="onDragOver($event)"
-  (drop)="onDrop($event)"
+  class="doc-card"
+  [class.doc-card--processing]="currentStatus() === 'UPLOADING' || currentStatus() === 'PROCESSING'"
+  [class.doc-card--accepted]="currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED'"
+  [class.doc-card--review]="currentStatus() === 'IN_REVIEW'"
+  [class.doc-card--rejected]="currentStatus() === 'REJECTED'"
 >
-  <!-- Icon -->
-  <div class="doc-row__icon"
-    [class.doc-row__icon--accepted]="currentStatus() === 'ACCEPTED'"
-    [class.doc-row__icon--rejected]="currentStatus() === 'REJECTED'"
-    [class.doc-row__icon--submitted]="currentStatus() === 'SUBMITTED'"
-    [class.doc-row__icon--in-review]="currentStatus() === 'IN_REVIEW'"
-  >
-    @if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
-      <i class="pi pi-check-circle"></i>
-    } @else if (currentStatus() === 'REJECTED') {
-      <i class="pi pi-times-circle"></i>
-    } @else if (currentStatus() === 'IN_REVIEW') {
-      <i class="pi pi-clock"></i>
-    } @else {
-      <i class="pi {{ doc().icon }}"></i>
-    }
-  </div>
+  <!-- Card Header: icon + title + tag + action -->
+  <div class="doc-card__header">
+    <div class="doc-card__icon"
+      [class.doc-card__icon--accepted]="currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED'"
+      [class.doc-card__icon--rejected]="currentStatus() === 'REJECTED'"
+      [class.doc-card__icon--review]="currentStatus() === 'IN_REVIEW'"
+      [class.doc-card__icon--processing]="currentStatus() === 'UPLOADING' || currentStatus() === 'PROCESSING'"
+    >
+      @if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
+        <i class="pi pi-check"></i>
+      } @else if (currentStatus() === 'REJECTED') {
+        <i class="pi pi-times"></i>
+      } @else if (currentStatus() === 'IN_REVIEW') {
+        <i class="pi pi-clock"></i>
+      } @else {
+        <i class="pi {{ doc().icon }}"></i>
+      }
+    </div>
 
-  <!-- Content -->
-  <div class="flex-1 min-w-0">
-    <div class="flex align-items-center gap-2 mb-1">
-      <h4 class="m-0 font-bold" style="font-size: 0.9375rem; color: var(--naleko-on-surface)">{{ doc().label }}</h4>
+    <div class="doc-card__title-group">
+      <h4 class="doc-card__title">{{ doc().label }}</h4>
       <p-tag
         [value]="statusLabel"
         [severity]="statusSeverity"
-        [icon]="statusIcon"
         [rounded]="true"
-        styleClass="doc-status-tag"
+        styleClass="doc-card__tag"
       />
     </div>
 
-    @if (currentStatus() === 'UPLOADING' || currentStatus() === 'PROCESSING') {
-      <p class="m-0 flex align-items-center gap-2" style="font-size: 0.8125rem; color: var(--naleko-secondary)">
-        <p-progressSpinner
-          [style]="{ width: '1rem', height: '1rem' }"
-          strokeWidth="4"
-          animationDuration=".8s"
+    <div class="doc-card__action">
+      @if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
+        <p-button
+          label="View"
+          icon="pi pi-external-link"
+          [text]="true"
+          severity="secondary"
+          size="small"
+          (onClick)="viewDocument()"
         />
+      } @else if (currentStatus() === 'REJECTED') {
+        <p-button
+          icon="pi pi-refresh"
+          label="Re-upload"
+          [outlined]="true"
+          severity="warn"
+          size="small"
+          (onClick)="reUpload()"
+        />
+      }
+    </div>
+  </div>
+
+  <!-- Upload / Processing / Result Zone -->
+  @if (currentStatus() === 'UPLOADING' || currentStatus() === 'PROCESSING') {
+    <!-- Processing State -->
+    <div class="doc-card__processing">
+      <p-progressSpinner
+        [style]="{ width: '1.25rem', height: '1.25rem' }"
+        strokeWidth="4"
+        animationDuration=".8s"
+      />
+      <span>
         @if (currentStatus() === 'UPLOADING') {
           Uploading {{ fileName() }}...
         } @else {
-          Verifying document...
+          Verifying document with AI OCR...
         }
-      </p>
-    } @else if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
-      @if (extractedFields(); as fields) {
-        <div class="extracted-section">
-          <p class="extracted-section__title">
-            <i class="pi pi-verified" style="font-size: 0.75rem"></i>
-            Verified — the following was extracted from your document
-          </p>
-          <div class="extracted-section__grid">
-            @if (fields.id_number && fields.id_number !== 'NOT_FOUND') {
-              <div class="extracted-section__item">
-                <span class="extracted-section__label">ID Number</span>
-                <span class="extracted-section__value">{{ fields.id_number }}</span>
-              </div>
-            }
-            @if (fields.date_of_birth && fields.date_of_birth !== 'NOT_FOUND') {
-              <div class="extracted-section__item">
-                <span class="extracted-section__label">Date of Birth</span>
-                <span class="extracted-section__value">{{ fields.date_of_birth }}</span>
-              </div>
-            }
-            @if (fields.gender && fields.gender !== 'NOT_FOUND') {
-              <div class="extracted-section__item">
-                <span class="extracted-section__label">Gender</span>
-                <span class="extracted-section__value">{{ fields.gender }}</span>
-              </div>
-            }
-            @if (fields.citizenship && fields.citizenship !== 'NOT_FOUND') {
-              <div class="extracted-section__item">
-                <span class="extracted-section__label">Citizenship</span>
-                <span class="extracted-section__value">{{ fields.citizenship }}</span>
-              </div>
-            }
-            @if (fields.bank_name && fields.bank_name !== 'NOT_FOUND') {
-              <div class="extracted-section__item">
-                <span class="extracted-section__label">Bank</span>
-                <span class="extracted-section__value">{{ fields.bank_name }}</span>
-              </div>
-            }
-            @if (fields.account_holder && fields.account_holder !== 'NOT_FOUND') {
-              <div class="extracted-section__item">
-                <span class="extracted-section__label">Account Holder</span>
-                <span class="extracted-section__value">{{ fields.account_holder }}</span>
-              </div>
-            }
-            @if (fields.account_number && fields.account_number !== 'NOT_FOUND') {
-              <div class="extracted-section__item">
-                <span class="extracted-section__label">Account No.</span>
-                <span class="extracted-section__value">{{ fields.account_number }}</span>
-              </div>
-            }
-            @if (fields.branch_code && fields.branch_code !== 'NOT_FOUND') {
-              <div class="extracted-section__item">
-                <span class="extracted-section__label">Branch Code</span>
-                <span class="extracted-section__value">{{ fields.branch_code }}</span>
-              </div>
-            }
-            @if (fields.account_type && fields.account_type !== 'NOT_FOUND') {
-              <div class="extracted-section__item">
-                <span class="extracted-section__label">Account Type</span>
-                <span class="extracted-section__value">{{ fields.account_type }}</span>
-              </div>
-            }
-          </div>
+      </span>
+    </div>
+  } @else if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
+    <!-- Verified — Show extracted fields -->
+    @if (extractedFields(); as fields) {
+      <div class="doc-card__extracted">
+        <p class="doc-card__extracted-title">
+          <i class="pi pi-verified"></i>
+          Verified — extracted from your document
+        </p>
+        <div class="doc-card__extracted-grid">
+          @if (fields.id_number && fields.id_number !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">ID Number</span>
+              <span class="doc-card__field-value">{{ fields.id_number }}</span>
+            </div>
+          }
+          @if (fields.date_of_birth && fields.date_of_birth !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Date of Birth</span>
+              <span class="doc-card__field-value">{{ fields.date_of_birth }}</span>
+            </div>
+          }
+          @if (fields.gender && fields.gender !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Gender</span>
+              <span class="doc-card__field-value">{{ fields.gender }}</span>
+            </div>
+          }
+          @if (fields.citizenship && fields.citizenship !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Citizenship</span>
+              <span class="doc-card__field-value">{{ fields.citizenship }}</span>
+            </div>
+          }
+          @if (fields.bank_name && fields.bank_name !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Bank</span>
+              <span class="doc-card__field-value">{{ fields.bank_name }}</span>
+            </div>
+          }
+          @if (fields.account_holder && fields.account_holder !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Account Holder</span>
+              <span class="doc-card__field-value">{{ fields.account_holder }}</span>
+            </div>
+          }
+          @if (fields.account_number && fields.account_number !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Account No.</span>
+              <span class="doc-card__field-value">{{ fields.account_number }}</span>
+            </div>
+          }
+          @if (fields.branch_code && fields.branch_code !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Branch Code</span>
+              <span class="doc-card__field-value">{{ fields.branch_code }}</span>
+            </div>
+          }
+          @if (fields.account_type && fields.account_type !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Account Type</span>
+              <span class="doc-card__field-value">{{ fields.account_type }}</span>
+            </div>
+          }
+          @if (fields.name && fields.name !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Name</span>
+              <span class="doc-card__field-value">{{ fields.name }}</span>
+            </div>
+          }
+          @if (fields.surname && fields.surname !== 'NOT_FOUND') {
+            <div class="doc-card__field">
+              <span class="doc-card__field-label">Surname</span>
+              <span class="doc-card__field-value">{{ fields.surname }}</span>
+            </div>
+          }
         </div>
-      } @else {
-        <p class="m-0" style="font-size: 0.8125rem; color: #0d9488">{{ statusMessage() }}</p>
-      }
-    } @else if (currentStatus() === 'IN_REVIEW') {
-      <p class="m-0" style="font-size: 0.8125rem; color: #d97706">Your document has been sent for manual review by the HR team. You'll be notified of the outcome.</p>
-    } @else if (currentStatus() === 'REJECTED') {
-      <p class="m-0" style="font-size: 0.8125rem; color: var(--naleko-error)">Your document has been sent for manual review by the HR team. You may re-upload if needed.</p>
+      </div>
     } @else {
-      <p class="m-0" style="font-size: 0.8125rem; color: var(--naleko-on-surface-variant)">{{ doc().description }}</p>
+      <p class="doc-card__success-msg">{{ statusMessage() }}</p>
     }
-  </div>
-
-  <!-- Action -->
-  <div class="flex-shrink-0 flex align-items-center">
-    @if (currentStatus() === 'PENDING') {
-      <p-button
-        icon="pi pi-cloud-upload"
-        label="Upload"
-        [outlined]="true"
-        severity="info"
-        size="small"
-        styleClass="upload-btn"
-        (onClick)="triggerUpload()"
-      />
-    } @else if (currentStatus() === 'REJECTED') {
-      <p-button
-        icon="pi pi-refresh"
-        label="Re-upload"
-        severity="contrast"
-        size="small"
-        styleClass="reupload-btn"
-        (onClick)="reUpload()"
-      />
-    } @else if (currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED') {
-      <p-button
-        label="View"
-        icon="pi pi-external-link"
-        [text]="true"
-        severity="secondary"
-        size="small"
-        (onClick)="viewDocument()"
-      />
-    } @else if (currentStatus() === 'IN_REVIEW') {
-      <p-tag value="Under Review" severity="warn" [rounded]="true" icon="pi pi-clock" />
-    }
-  </div>
+  } @else if (currentStatus() === 'IN_REVIEW') {
+    <p class="doc-card__review-msg">
+      <i class="pi pi-clock"></i>
+      Your document has been sent for manual review by the HR team. You'll be notified of the outcome.
+    </p>
+  } @else if (currentStatus() === 'REJECTED') {
+    <p class="doc-card__rejected-msg">
+      <i class="pi pi-info-circle"></i>
+      Your document needs attention. Please re-upload or contact HR for assistance.
+    </p>
+  } @else {
+    <!-- PENDING — Upload Dropzone -->
+    <div class="doc-card__dropzone"
+      (click)="triggerUpload()"
+      (dragover)="onDragOver($event)"
+      (drop)="onDrop($event)"
+    >
+      <i class="pi pi-cloud-upload"></i>
+      <p class="doc-card__dropzone-text">
+        Drag & drop your file here or <span class="doc-card__dropzone-link">Browse Files</span>
+      </p>
+      <span class="doc-card__dropzone-hint">PDF, JPG, or PNG — max 5 MB</span>
+    </div>
+  }
 </div>

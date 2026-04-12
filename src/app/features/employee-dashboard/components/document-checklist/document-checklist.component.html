@@ -1,48 +1,35 @@
-<p-card styleClass="checklist-card">
-  <ng-template #header>
-    <div class="flex justify-content-between align-items-start px-4 pt-4 pb-3">
-      <div>
-        <h3 class="text-base font-bold m-0" style="color: var(--naleko-on-surface)">Required Documents</h3>
-        <p class="mt-1 m-0" style="font-size: 0.8125rem; color: var(--naleko-on-surface-variant)">
-          Upload and verify your credential documentation
-        </p>
-      </div>
-      <p-tag
-        [value]="completedCount() + ' of ' + documents().length + ' complete'"
-        [rounded]="true"
-        severity="secondary"
-        styleClass="count-tag"
-      />
-    </div>
-  </ng-template>
-
-  <div class="checklist-rows">
-    @if (loading()) {
-      <div class="flex justify-content-center py-4">
-        <p-progressSpinner styleClass="w-2rem h-2rem" strokeWidth="4" />
-      </div>
-    } @else {
-      @for (doc of documents(); track doc.type; let last = $last) {
-        <app-document-row
-          [doc]="doc"
-          [employeeId]="employeeId()"
-          (statusChanged)="onStatusChanged($event)"
-        />
-        @if (!last) {
-          <p-divider styleClass="row-divider" />
-        }
-      }
-    }
+<!-- Section Header -->
+<div class="checklist-header">
+  <div class="checklist-header__left">
+    <h3 class="checklist-header__title">Upload Your Documents</h3>
+    <p class="checklist-header__sub">Upload each document below. AI OCR will verify your ID and bank confirmation instantly.</p>
   </div>
+  <span class="checklist-header__counter">{{ completedCount() }} of {{ documents().length }} complete</span>
+</div>
 
-  <ng-template #footer>
-    <div class="flex align-items-start gap-3 px-4 py-3" style="background: var(--naleko-surface-container-low)">
-      <i class="pi pi-sparkles" style="color: var(--naleko-secondary); font-size: 1rem; margin-top: 0.125rem; flex-shrink: 0"></i>
-      <p class="m-0" style="font-size: 0.6875rem; color: var(--naleko-on-surface-variant); line-height: 1.5">
-        <strong style="color: var(--naleko-secondary)">Verification Note:</strong>
-        ID and Bank Confirmation use AI OCR for instant validation.
-        Certificates are manually verified by the HR team. Average manual processing time is 24–48 hours.
-      </p>
+<!-- Document Cards -->
+<div class="checklist-cards">
+  @if (loading()) {
+    <div class="flex justify-content-center py-4">
+      <p-progressSpinner styleClass="w-2rem h-2rem" strokeWidth="4" />
     </div>
-  </ng-template>
-</p-card>
+  } @else {
+    @for (doc of documents(); track doc.type) {
+      <app-document-row
+        [doc]="doc"
+        [employeeId]="employeeId()"
+        (statusChanged)="onStatusChanged($event)"
+      />
+    }
+  }
+</div>
+
+<!-- Verification Note -->
+<div class="checklist-note">
+  <i class="pi pi-info-circle"></i>
+  <p>
+    <strong>Verification Note:</strong>
+    ID and Bank Confirmation use AI OCR for instant validation.
+    Certificates are manually verified by the HR team (24–48 hours).
+  </p>
+</div>
