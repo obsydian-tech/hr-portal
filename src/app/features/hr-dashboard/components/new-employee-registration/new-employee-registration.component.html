@@ -103,9 +103,18 @@
                 pInputText
                 id="firstName"
                 [(ngModel)]="firstName"
+                (ngModelChange)="onFirstNameChange()"
                 placeholder="e.g. Sarah"
                 class="w-full"
+                [class.ng-invalid]="firstNameInvalid()"
+                [class.ng-dirty]="firstName.length > 0"
               />
+              @if (firstNameInvalid() && firstName.length > 0) {
+                <small class="field-error mt-1 block">
+                  <i class="pi pi-exclamation-triangle mr-1"></i>
+                  Only letters, spaces, hyphens, and apostrophes are allowed
+                </small>
+              }
             </div>
             <div class="col-12 md:col-4 mb-3">
               <label for="middleName" class="field-label">Middle Name</label>
@@ -123,9 +132,18 @@
                 pInputText
                 id="lastName"
                 [(ngModel)]="lastName"
+                (ngModelChange)="onLastNameChange()"
                 placeholder="e.g. Nkosi"
                 class="w-full"
+                [class.ng-invalid]="lastNameInvalid()"
+                [class.ng-dirty]="lastName.length > 0"
               />
+              @if (lastNameInvalid() && lastName.length > 0) {
+                <small class="field-error mt-1 block">
+                  <i class="pi pi-exclamation-triangle mr-1"></i>
+                  Only letters, spaces, hyphens, and apostrophes are allowed
+                </small>
+              }
             </div>
 
             <div class="col-12 mb-3">
@@ -135,9 +153,12 @@
                   pInputText
                   id="email"
                   [(ngModel)]="email"
+                  (ngModelChange)="onEmailChange()"
                   placeholder="e.g. sarah.nkosi@company.co.za"
                   class="flex-1"
                   type="email"
+                  [class.ng-invalid]="emailInvalid()"
+                  [class.ng-dirty]="email.length > 0"
                 />
                 <p-button
                   icon="pi pi-search"
@@ -145,9 +166,16 @@
                   severity="secondary"
                   (onClick)="searchByEmail()"
                   [loading]="searchingEmail()"
+                  [disabled]="emailInvalid()"
                   pTooltip="Check if email already exists"
                 />
               </div>
+              @if (emailInvalid() && email.length > 0) {
+                <small class="field-error mt-1 block">
+                  <i class="pi pi-exclamation-triangle mr-1"></i>
+                  Please enter a valid email address (e.g. name&#64;company.co.za)
+                </small>
+              }
               @if (emailExists()) {
                 <small class="field-error mt-1 block">
                   <i class="pi pi-exclamation-triangle mr-1"></i>
@@ -162,9 +190,18 @@
                 pInputText
                 id="phone"
                 [(ngModel)]="phone"
+                (ngModelChange)="onPhoneChange()"
                 placeholder="e.g. 081 234 5678"
                 class="w-full"
+                [class.ng-invalid]="phoneInvalid()"
+                [class.ng-dirty]="phone.length > 0"
               />
+              @if (phoneInvalid() && phone.length > 0) {
+                <small class="field-error mt-1 block">
+                  <i class="pi pi-exclamation-triangle mr-1"></i>
+                  Only numbers and spaces are allowed
+                </small>
+              }
             </div>
           </div>
         </p-card>
