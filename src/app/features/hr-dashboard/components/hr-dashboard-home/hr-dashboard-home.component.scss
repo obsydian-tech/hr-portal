@@ -16,8 +16,11 @@
 }
 
 .employee-search {
+  width: 100%;
+}
+
+.p-input-icon-left {
   width: 16rem;
-  font-size: 0.875rem;
 }
 
 :host ::ng-deep {
@@ -83,6 +86,10 @@
   }
 
   .employee-search {
+    width: 100%;
+  }
+
+  .p-input-icon-left {
     width: 100%;
   }
 
