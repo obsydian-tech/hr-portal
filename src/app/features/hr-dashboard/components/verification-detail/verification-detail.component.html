@@ -160,7 +160,7 @@
             <div class="document-preview">
               <div class="document-placeholder">
                 <i class="pi pi-file-pdf text-6xl mb-3" style="color: #e74c3c"></i>
-                <p class="font-semibold mb-1">{{ v.document_id }}</p>
+                <p class="font-semibold mb-1 doc-id-truncate">{{ v.document_id }}</p>
                 <p class="text-sm text-color-secondary mb-3">{{ documentTypeLabel }}</p>
                 <p-button
                   label="Open Document"
@@ -187,7 +187,7 @@
             <div class="text-sm">
               <div class="flex justify-content-between mb-1">
                 <span class="text-color-secondary">Document ID</span>
-                <span class="font-mono">{{ v.document_id }}</span>
+                <span class="font-mono doc-id-truncate">{{ v.document_id }}</span>
               </div>
               @if (v.document_type) {
                 <div class="flex justify-content-between mb-1">
