@@ -7,6 +7,7 @@ import { DocumentChecklistComponent } from './components/document-checklist/docu
 import { Employee, OnboardingStage, EmployeeDocument, DocumentType } from '../../shared/models/employee.model';
 import { HrApiService } from '../../core/services/hr-api.service';
 import { EmployeeNotificationService } from '../../core/services/employee-notification.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -106,6 +107,7 @@ function statusPriority(status: string): number {
 })
 export class EmployeeDashboardComponent {
   private readonly hrApi = inject(HrApiService);
+  private readonly authService = inject(AuthService);
   readonly notificationService = inject(EmployeeNotificationService);
 
   /** Bound from route param :employeeId via withComponentInputBinding() */
@@ -166,6 +168,10 @@ export class EmployeeDashboardComponent {
 
   toggleSidebar(): void {
     this.sidebarOpen.update((v) => !v);
+  }
+
+  onLogout(): void {
+    this.authService.logout();
   }
 
   /**

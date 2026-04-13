@@ -43,13 +43,13 @@
 
         <form (ngSubmit)="onLogin()" class="login-form">
           <div class="login-form__field">
-            <label for="username">Email or Staff ID</label>
+            <label for="username">Email, Staff ID, or Employee ID</label>
             <input
               id="username"
               pInputText
               [(ngModel)]="username"
               name="username"
-              placeholder="e.g. Thabo.Molefe@gcu.co.za or AS00001"
+              placeholder="e.g. AS00001 or EMP-0000001"
               class="w-full"
               autocomplete="username"
             />
@@ -81,7 +81,7 @@
 
         <p class="login-form__hint">
           <i class="pi pi-info-circle"></i>
-          HR Staff can sign in using their AS number (e.g. AS00001)
+          Sign in with your AS number (HR Staff) or EMP number (Employees)
         </p>
       }
 

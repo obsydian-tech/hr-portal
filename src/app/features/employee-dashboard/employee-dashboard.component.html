@@ -1,4 +1,4 @@
-<app-sidebar [navItems]="navItems()" [activeRoute]="'/employees/' + employeeId()" [(isOpen)]="sidebarOpen" />
+<app-sidebar [navItems]="navItems()" [activeRoute]="'/employees/' + employeeId()" [(isOpen)]="sidebarOpen" (logoutClicked)="onLogout()" />
 <app-topbar
   title="Employee Portal"
   [employeeName]="employee().first_name ? (employee().first_name + ' ' + employee().last_name) : 'Loading...'"
