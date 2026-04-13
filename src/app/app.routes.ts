@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { hrGuard, employeeGuard, loginPageGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -7,7 +8,14 @@ export const routes: Routes = [
       import('./features/landing/landing.component').then((m) => m.LandingComponent),
   },
   {
+    path: 'login',
+    canActivate: [loginPageGuard],
+    loadComponent: () =>
+      import('./features/login/login.component').then((m) => m.LoginComponent),
+  },
+  {
     path: 'hr/:staffId',
+    canActivate: [hrGuard],
     loadComponent: () =>
       import('./features/hr-dashboard/hr-dashboard.component').then(
         (m) => m.HrDashboardComponent
@@ -59,6 +67,7 @@ export const routes: Routes = [
   },
   {
     path: 'employees/:employeeId',
+    canActivate: [employeeGuard],
     loadComponent: () =>
       import('./features/employee-dashboard/employee-dashboard.component').then(
         (m) => m.EmployeeDashboardComponent

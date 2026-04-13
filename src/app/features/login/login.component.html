@@ -1,0 +1,155 @@
+<div class="login-page">
+  <!-- ── Left: Brand Panel ── -->
+  <div class="login-brand">
+    <div class="login-brand__content">
+      <div class="login-brand__logo">
+        <i class="pi pi-th-large"></i>
+        <span>HR Portal</span>
+      </div>
+
+      <h1 class="login-brand__heading">
+        Verifying people,<br />
+        <span class="login-brand__accent">building trust.</span>
+      </h1>
+
+      <p class="login-brand__tagline">
+        Streamline employee onboarding through automation, AI-powered document
+        processing, and seamless integrations.
+      </p>
+
+      <div class="login-brand__footer">
+        <span>Naleko Digital Solutions</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right: Form Panel ── -->
+  <div class="login-form-panel">
+    <div class="login-form-container">
+
+      <!-- ═══ Sign-In Form ═══ -->
+      @if (!showNewPasswordForm()) {
+        <div class="login-form__header">
+          <h2 class="login-form__title">Welcome back</h2>
+          <p class="login-form__subtitle">Sign in to your account</p>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="login-form__error">
+            <i class="pi pi-exclamation-circle"></i>
+            <span>{{ errorMessage() }}</span>
+          </div>
+        }
+
+        <form (ngSubmit)="onLogin()" class="login-form">
+          <div class="login-form__field">
+            <label for="username">Email or Staff ID</label>
+            <input
+              id="username"
+              pInputText
+              [(ngModel)]="username"
+              name="username"
+              placeholder="e.g. Thabo.Molefe@gcu.co.za or AS00001"
+              class="w-full"
+              autocomplete="username"
+            />
+          </div>
+
+          <div class="login-form__field">
+            <label for="password">Password</label>
+            <p-password
+              id="password"
+              [(ngModel)]="password"
+              name="password"
+              [feedback]="false"
+              [toggleMask]="true"
+              placeholder="Enter your password"
+              styleClass="w-full"
+              inputStyleClass="w-full"
+              autocomplete="current-password"
+            />
+          </div>
+
+          <p-button
+            type="submit"
+            label="Sign In"
+            icon="pi pi-sign-in"
+            [loading]="loading()"
+            styleClass="w-full login-form__submit"
+          />
+        </form>
+
+        <p class="login-form__hint">
+          <i class="pi pi-info-circle"></i>
+          HR Staff can sign in using their AS number (e.g. AS00001)
+        </p>
+      }
+
+      <!-- ═══ Set New Password Form (first login) ═══ -->
+      @if (showNewPasswordForm()) {
+        <div class="login-form__header">
+          <h2 class="login-form__title">Set New Password</h2>
+          <p class="login-form__subtitle">
+            This is your first login. Please choose a new password.
+          </p>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="login-form__error">
+            <i class="pi pi-exclamation-circle"></i>
+            <span>{{ errorMessage() }}</span>
+          </div>
+        }
+
+        <form (ngSubmit)="onSetNewPassword()" class="login-form">
+          <div class="login-form__field">
+            <label for="newPassword">New Password</label>
+            <p-password
+              id="newPassword"
+              [(ngModel)]="newPassword"
+              name="newPassword"
+              [toggleMask]="true"
+              placeholder="Minimum 12 characters"
+              styleClass="w-full"
+              inputStyleClass="w-full"
+              autocomplete="new-password"
+            />
+          </div>
+
+          <div class="login-form__field">
+            <label for="confirmPassword">Confirm Password</label>
+            <p-password
+              id="confirmPassword"
+              [(ngModel)]="confirmNewPassword"
+              name="confirmNewPassword"
+              [feedback]="false"
+              [toggleMask]="true"
+              placeholder="Repeat your password"
+              styleClass="w-full"
+              inputStyleClass="w-full"
+              autocomplete="new-password"
+            />
+          </div>
+
+          <div class="login-form__password-rules">
+            <span>Password must contain:</span>
+            <ul>
+              <li>At least 12 characters</li>
+              <li>Uppercase and lowercase letters</li>
+              <li>At least one number</li>
+              <li>At least one special character</li>
+            </ul>
+          </div>
+
+          <p-button
+            type="submit"
+            label="Set Password & Continue"
+            icon="pi pi-check"
+            [loading]="loading()"
+            styleClass="w-full login-form__submit"
+          />
+        </form>
+      }
+    </div>
+  </div>
+</div>
