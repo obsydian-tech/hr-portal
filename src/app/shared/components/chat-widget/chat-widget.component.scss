@@ -1,0 +1,465 @@
+// ─── Chat Widget — Naleko Light Theme ─────────────────────
+// Brand tokens: primary #1a1a2e, secondary #4a3f8a, tertiary #2d8f9e, accent #7ad4e4
+
+$primary: #1a1a2e;
+$secondary: #4a3f8a;
+$tertiary: #2d8f9e;
+$accent: #7ad4e4;
+$bg-light: #f8f9fa;
+$bg-white: #ffffff;
+$text-dark: #191c1d;
+$text-muted: #6c757d;
+$border: #e9ecef;
+$success: #2e7d32;
+
+// ─── Floating Bubble ─────────────────────────────
+.chat-bubble {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 1000;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+  color: #fff;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba($primary, 0.35);
+  transition: all 0.25s ease;
+
+  &:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 24px rgba($primary, 0.45);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &--open {
+    background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  &__badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: $accent;
+    border: 2px solid #fff;
+  }
+}
+
+// ─── Chat Panel ──────────────────────────────────
+.chat-panel {
+  position: fixed;
+  bottom: 6rem;
+  right: 1.5rem;
+  z-index: 999;
+  width: 380px;
+  height: 520px;
+  background: $bg-white;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+
+  // ─── Header ───────────────────────────────
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+    color: #fff;
+    flex-shrink: 0;
+
+    &--hr {
+      background: linear-gradient(135deg, $tertiary 0%, #256f7e 100%);
+    }
+  }
+
+  &__header-info {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  &__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+
+    &--hr {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  &__title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  &__subtitle {
+    font-size: 0.7rem;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  &__status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: $accent;
+    display: inline-block;
+
+    &--hr {
+      background: #81c784;
+    }
+  }
+
+  &__clear {
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: background 0.2s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  }
+
+  // ─── Messages ─────────────────────────────
+  &__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background: $bg-light;
+
+    // Thin scrollbar
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: #ced4da;
+      border-radius: 4px;
+    }
+  }
+
+  // ─── Suggested Chips ──────────────────────
+  &__chips {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.55rem 0.85rem;
+    overflow-x: auto;
+    flex-shrink: 0;
+    background: $bg-white;
+    border-top: 1px solid $border;
+
+    &::-webkit-scrollbar {
+      height: 0;
+    }
+  }
+
+  // ─── Input Area ───────────────────────────
+  &__input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 0.85rem;
+    border-top: 1px solid $border;
+    background: $bg-white;
+    flex-shrink: 0;
+  }
+
+  &__input-field {
+    flex: 1;
+    border: 1px solid $border;
+    border-radius: 20px;
+    padding: 0.55rem 1rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    color: $text-dark;
+    background: $bg-light;
+    outline: none;
+    transition: border-color 0.2s;
+
+    &::placeholder {
+      color: #adb5bd;
+    }
+
+    &:focus {
+      border-color: $secondary;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+    }
+  }
+
+  &__send {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+    color: #fff;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+
+    &:hover:not(:disabled) {
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba($secondary, 0.4);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// ─── Chat Message Bubbles ────────────────────────
+.chat-msg {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  animation: fadeInMsg 0.25s ease;
+
+  &--user {
+    flex-direction: row-reverse;
+
+    .chat-msg__bubble {
+      background: linear-gradient(135deg, $secondary 0%, #574d99 100%);
+      color: #fff;
+      border-radius: 16px 16px 4px 16px;
+    }
+
+    .chat-msg__time {
+      text-align: right;
+    }
+  }
+
+  &--ai .chat-msg__bubble {
+    background: $bg-white;
+    color: $text-dark;
+    border: 1px solid $border;
+    border-radius: 16px 16px 16px 4px;
+  }
+
+  &--hr .chat-msg__bubble {
+    background: #e8f5e9;
+    color: $text-dark;
+    border: 1px solid #c8e6c9;
+    border-radius: 16px 16px 16px 4px;
+  }
+
+  &--system {
+    justify-content: center;
+
+    .chat-msg__avatar {
+      display: none;
+    }
+
+    .chat-msg__bubble {
+      background: transparent;
+      color: $text-muted;
+      font-size: 0.75rem;
+      text-align: center;
+      border: none;
+      padding: 0.35rem 0.65rem;
+    }
+
+    .chat-msg__time {
+      display: none;
+    }
+  }
+
+  &__avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+
+    &--hr {
+      background: linear-gradient(135deg, $tertiary 0%, #256f7e 100%);
+    }
+  }
+
+  &__content {
+    max-width: 75%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  &__bubble {
+    padding: 0.6rem 0.85rem;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    word-wrap: break-word;
+
+    // Markdown rendered elements
+    :global(strong) {
+      font-weight: 700;
+    }
+
+    :global(em) {
+      font-style: italic;
+    }
+
+    :global(code) {
+      background: rgba(0, 0, 0, 0.06);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.78rem;
+    }
+
+    :global(.chat-list-item) {
+      display: block;
+      padding-left: 0.25rem;
+    }
+
+    &--typing {
+      display: flex;
+      gap: 0.3rem;
+      padding: 0.75rem 1rem;
+      align-items: center;
+    }
+  }
+
+  &__time {
+    font-size: 0.65rem;
+    color: $text-muted;
+    padding: 0 0.25rem;
+  }
+}
+
+// ─── Suggested Chip ──────────────────────────────
+.chat-chip {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 100px;
+  border: 1px solid #dde0e3;
+  background: $bg-white;
+  color: $secondary;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba($secondary, 0.08);
+    border-color: $secondary;
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+// ─── Typing Indicator Dots ───────────────────────
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #adb5bd;
+  animation: typingBounce 1.2s ease-in-out infinite;
+
+  &:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  &:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInMsg {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ─── Responsive ──────────────────────────────────
+@media (max-width: 480px) {
+  .chat-panel {
+    width: calc(100vw - 1.5rem);
+    right: 0.75rem;
+    bottom: 5rem;
+    height: 70vh;
+    max-height: 520px;
+  }
+
+  .chat-bubble {
+    width: 52px;
+    height: 52px;
+    bottom: 1rem;
+    right: 1rem;
+    font-size: 1.2rem;
+  }
+}

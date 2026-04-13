@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { SidebarComponent, NavItem } from '../../shared/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
 import { FooterComponent } from '../../shared/components/footer/footer.component';
+import { ChatWidgetComponent } from '../../shared/components/chat-widget/chat-widget.component';
 import { DocumentChecklistComponent } from './components/document-checklist/document-checklist.component';
 import { Employee, OnboardingStage, EmployeeDocument, DocumentType } from '../../shared/models/employee.model';
 import { HrApiService } from '../../core/services/hr-api.service';
@@ -94,6 +95,7 @@ function statusPriority(status: string): number {
     SidebarComponent,
     TopbarComponent,
     FooterComponent,
+    ChatWidgetComponent,
     DocumentChecklistComponent,
     DatePipe,
     ButtonModule,
@@ -145,7 +147,7 @@ export class EmployeeDashboardComponent {
     { label: 'My Onboarding', icon: 'pi-file', route: '/employees/' + this.employeeId(), disabled: false },
     { label: 'Documents', icon: 'pi-folder', route: '', disabled: true },
     { label: 'Training Videos', icon: 'pi-video', route: '', disabled: true },
-    { label: 'Support', icon: 'pi-question-circle', route: '', disabled: true },
+    { label: 'Support', icon: 'pi-question-circle', route: '/employees/' + this.employeeId(), disabled: false },
   ]);
 
   /** Consent gate */

@@ -1,0 +1,125 @@
+<!-- ═══ Floating Chat Bubble ═══ -->
+<button
+  class="chat-bubble"
+  [class.chat-bubble--open]="isOpen()"
+  (click)="toggleWidget()"
+  aria-label="Toggle support chat"
+>
+  @if (isOpen()) {
+    <i class="pi pi-times"></i>
+  } @else {
+    <i class="pi pi-comments"></i>
+    @if (chatService.messageCount() > 0) {
+      <span class="chat-bubble__badge"></span>
+    }
+  }
+</button>
+
+<!-- ═══ Chat Panel ═══ -->
+@if (isOpen()) {
+  <div class="chat-panel" @slideUp>
+    <!-- Header -->
+    <div class="chat-panel__header" [class.chat-panel__header--hr]="chatService.mode() === 'hr'">
+      <div class="chat-panel__header-info">
+        <div class="chat-panel__avatar" [class.chat-panel__avatar--hr]="chatService.mode() === 'hr'">
+          @if (chatService.mode() === 'hr') {
+            <i class="pi pi-user"></i>
+          } @else {
+            <i class="pi pi-sparkles"></i>
+          }
+        </div>
+        <div>
+          <h3 class="chat-panel__title">{{ chatService.headerTitle() }}</h3>
+          <span class="chat-panel__subtitle">
+            <span class="chat-panel__status-dot" [class.chat-panel__status-dot--hr]="chatService.mode() === 'hr'"></span>
+            {{ chatService.headerSubtitle() }}
+          </span>
+        </div>
+      </div>
+      <button class="chat-panel__clear" (click)="clearChat()" title="Clear chat">
+        <i class="pi pi-refresh"></i>
+      </button>
+    </div>
+
+    <!-- Messages Area -->
+    <div class="chat-panel__messages">
+      @for (msg of chatService.messages(); track trackByMessage($index, msg)) {
+        <div
+          class="chat-msg"
+          [class.chat-msg--user]="msg.sender === 'user'"
+          [class.chat-msg--ai]="msg.sender === 'ai'"
+          [class.chat-msg--hr]="msg.sender === 'hr'"
+          [class.chat-msg--system]="msg.sender === 'system'"
+        >
+          @if (msg.sender !== 'user') {
+            <div class="chat-msg__avatar" [class.chat-msg__avatar--hr]="msg.sender === 'hr'">
+              @if (msg.sender === 'hr') {
+                <i class="pi pi-user"></i>
+              } @else if (msg.sender === 'system') {
+                <i class="pi pi-info-circle"></i>
+              } @else {
+                <i class="pi pi-sparkles"></i>
+              }
+            </div>
+          }
+          <div class="chat-msg__content">
+            <div class="chat-msg__bubble" [innerHTML]="msg.text | chatMarkdown"></div>
+            <span class="chat-msg__time">{{ msg.timestamp | date: 'HH:mm' }}</span>
+          </div>
+        </div>
+      }
+
+      <!-- Typing Indicator -->
+      @if (chatService.isTyping()) {
+        <div class="chat-msg chat-msg--ai">
+          <div class="chat-msg__avatar">
+            @if (chatService.mode() === 'hr') {
+              <i class="pi pi-user"></i>
+            } @else {
+              <i class="pi pi-sparkles"></i>
+            }
+          </div>
+          <div class="chat-msg__content">
+            <div class="chat-msg__bubble chat-msg__bubble--typing">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Scroll anchor -->
+      <div #messagesEnd></div>
+    </div>
+
+    <!-- Suggested Chips -->
+    <div class="chat-panel__chips">
+      @for (chip of chatService.suggestedChips(); track chip.value) {
+        <button class="chat-chip" (click)="onChipClick(chip.value)">
+          {{ chip.label }}
+        </button>
+      }
+    </div>
+
+    <!-- Input Area -->
+    <div class="chat-panel__input">
+      <input
+        type="text"
+        class="chat-panel__input-field"
+        placeholder="Type your question..."
+        [(ngModel)]="inputText"
+        (keydown)="onKeyDown($event)"
+        [disabled]="chatService.isTyping()"
+      />
+      <button
+        class="chat-panel__send"
+        (click)="sendMessage()"
+        [disabled]="!inputText.trim() || chatService.isTyping()"
+        aria-label="Send message"
+      >
+        <i class="pi pi-send"></i>
+      </button>
+    </div>
+  </div>
+}

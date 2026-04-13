@@ -127,3 +127,11 @@
   <!-- Footer -->
   <app-footer />
 </main>
+
+<!-- ═══ Chat Support Widget (floating) ═══ -->
+<app-chat-widget
+  [employeeId]="employeeId()"
+  [employeeName]="employee().first_name"
+  [hrPartnerName]="employee().hr_staff_name"
+  [startDate]="employee().planned_start_date"
+/>
