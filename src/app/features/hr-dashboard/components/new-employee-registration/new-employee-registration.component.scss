@@ -584,3 +584,67 @@
     font-size: 1.25rem;
   }
 }
+
+// ─── Credentials Card (Success State) ────────────
+
+.credentials-card {
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(26, 26, 46, 0.06);
+}
+
+.credentials-card__header {
+  background: linear-gradient(135deg, #1a1a2e, #4a3f8a);
+  color: #ffffff;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+}
+
+.credentials-card__body {
+  background: #f8f9fa;
+  padding: 1rem 1.25rem;
+}
+
+.credentials-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #e9ecef;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.credentials-card__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #78767d;
+}
+
+.credentials-card__value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.credentials-card__password {
+  background: #fff3cd;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}

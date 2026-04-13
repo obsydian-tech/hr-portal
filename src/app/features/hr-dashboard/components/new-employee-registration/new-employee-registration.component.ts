@@ -209,6 +209,8 @@ export class NewEmployeeRegistrationComponent {
   readonly submitting = signal(false);
   readonly submitted = signal(false);
   readonly createdEmployeeId = signal('');
+  readonly createdTempPassword = signal<string | null>(null);
+  readonly welcomeEmailSent = signal(false);
   readonly submitError = signal<string | null>(null);
   readonly submitProgress = signal('');
 
@@ -395,9 +397,11 @@ export class NewEmployeeRegistrationComponent {
     this.hrApi
       .createEmployee(this.staffId, payload)
       .pipe(
-        switchMap((employee) => {
-          const employeeId = employee.employee_id;
+        switchMap((res) => {
+          const employeeId = res.employee.employee_id;
           this.createdEmployeeId.set(employeeId);
+          this.createdTempPassword.set(res.cognito?.tempPassword ?? null);
+          this.welcomeEmailSent.set(res.email?.sent ?? false);
 
           // Collect staged files that need uploading
           const stagedSlots = this.documentSlots().filter((s) => s.file);
@@ -490,6 +494,8 @@ export class NewEmployeeRegistrationComponent {
     this.emailExists.set(false);
     this.submitted.set(false);
     this.createdEmployeeId.set('');
+    this.createdTempPassword.set(null);
+    this.welcomeEmailSent.set(false);
     this.submitError.set(null);
     this.submitProgress.set('');
     this.activeStep.set(0);

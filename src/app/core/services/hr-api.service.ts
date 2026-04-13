@@ -10,6 +10,7 @@ import {
   VerificationListResponse,
   VerificationDetail,
   CreateEmployeeRequest,
+  CreateEmployeeResponse,
   DocumentType,
 } from '../../shared/models/employee.model';
 import { environment } from '../../../environments/environment';
@@ -166,8 +167,8 @@ export class HrApiService {
 
   // ─── Still-Mocked Methods (no real endpoints yet) ─────────
 
-  createEmployee(staffId: string, data: CreateEmployeeRequest): Observable<Employee> {
-    return this.http.post<Employee>(
+  createEmployee(staffId: string, data: CreateEmployeeRequest): Observable<CreateEmployeeResponse> {
+    return this.http.post<CreateEmployeeResponse>(
       `${this.empApiUrl}/employee/create`,
       data,
       { headers: new HttpHeaders({ 'x-staff-id': staffId }) }

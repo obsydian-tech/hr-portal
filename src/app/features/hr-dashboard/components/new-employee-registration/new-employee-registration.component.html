@@ -19,13 +19,48 @@
       <p class="success-card__sub">
         <strong>{{ firstName }} {{ lastName }}</strong> has been added to the system with ID
         <span class="font-mono">{{ createdEmployeeId() }}</span>.
-        They will receive an onboarding invitation at <strong>{{ email }}</strong>.
       </p>
+
+      <!-- Login Credentials Card -->
+      @if (createdTempPassword()) {
+        <div class="credentials-card mt-3 mb-3">
+          <div class="credentials-card__header">
+            <i class="pi pi-lock mr-2"></i>
+            Login Credentials
+          </div>
+          <div class="credentials-card__body">
+            <div class="credentials-card__row">
+              <span class="credentials-card__label">Employee ID</span>
+              <span class="credentials-card__value font-mono">{{ createdEmployeeId() }}</span>
+            </div>
+            <div class="credentials-card__row">
+              <span class="credentials-card__label">Email</span>
+              <span class="credentials-card__value">{{ email }}</span>
+            </div>
+            <div class="credentials-card__row">
+              <span class="credentials-card__label">Password</span>
+              <span class="credentials-card__value font-mono credentials-card__password">{{ createdTempPassword() }}</span>
+            </div>
+          </div>
+        </div>
+      }
+
       <div class="success-card__info">
         <div class="flex align-items-center gap-2">
           <i class="pi pi-file-check" style="color: #27ae60"></i>
           <span>{{ uploadedCount() }} of 4 documents uploaded during registration</span>
         </div>
+        @if (welcomeEmailSent()) {
+          <div class="flex align-items-center gap-2 mt-2">
+            <i class="pi pi-envelope" style="color: #27ae60"></i>
+            <span>Welcome email sent to <strong>{{ email }}</strong> with login credentials</span>
+          </div>
+        } @else {
+          <div class="flex align-items-center gap-2 mt-2">
+            <i class="pi pi-info-circle" style="color: #f59e0b"></i>
+            <span>Welcome email not sent — please share credentials with the employee manually</span>
+          </div>
+        }
       </div>
       <div class="flex gap-2 mt-4 justify-content-center flex-wrap">
         <p-button

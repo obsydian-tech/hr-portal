@@ -198,6 +198,19 @@ export interface CreateEmployeeRequest {
   hr_staff_email: string;
 }
 
+/** Response from the create-employee endpoint */
+export interface CreateEmployeeResponse {
+  message: string;
+  employee: Employee;
+  cognito: {
+    userCreated: boolean;
+    tempPassword: string | null;
+  };
+  email: {
+    sent: boolean;
+  };
+}
+
 /** Document slot used in the registration wizard */
 export interface WizardDocumentSlot {
   type: DocumentType;
