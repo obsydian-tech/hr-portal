@@ -83,6 +83,7 @@ $success: #2e7d32;
     background: linear-gradient(135deg, $primary 0%, $secondary 100%);
     color: #fff;
     flex-shrink: 0;
+    transition: background 0.5s ease;
 
     &--hr {
       background: linear-gradient(135deg, $tertiary 0%, #256f7e 100%);
@@ -133,6 +134,7 @@ $success: #2e7d32;
     border-radius: 50%;
     background: $accent;
     display: inline-block;
+    animation: statusPulse 2s ease-in-out infinite;
 
     &--hr {
       background: #81c784;
@@ -438,6 +440,35 @@ $success: #2e7d32;
   from {
     opacity: 0;
     transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+// ─── Connecting Dots (system messages with "...") ─────
+.chat-msg--system .chat-msg__bubble {
+  :global(strong) {
+    font-weight: 700;
+    color: $text-dark;
+  }
+}
+
+// ─── Chip Transition ─────────────────────────────
+.chat-chip {
+  animation: chipFadeIn 0.2s ease;
+}
+
+@keyframes chipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
