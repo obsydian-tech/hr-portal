@@ -32,14 +32,14 @@ export class TopbarComponent {
   readonly showSearch = input(false);
   readonly showNotifications = input(false);
   readonly notificationCount = input<number>(0);
-  readonly recentNotifications = input<Verification[]>([]);
+  readonly recentNotifications = input<any[]>([]);
   readonly notificationsRoute = input<string>('');
 
   /** Emits when the mobile hamburger menu button is clicked */
   readonly menuToggle = output<void>();
   
   /** Emits when a notification is clicked in the dropdown */
-  readonly notificationClick = output<Verification>();
+  readonly notificationClick = output<any>();
   
   /** Emits when "View All" is clicked in the dropdown */
   readonly viewAllNotifications = output<void>();

@@ -2,9 +2,13 @@ import { Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Verification } from '../../../shared/models/employee.model';
 
+type NotificationItem = Verification | any;
+
 /**
  * Dropdown component to display recent notifications (up to 5).
- * Shows employee name, document type icon, and time since creation.
+ * Supports both HR context (Verification objects) and employee context (EmployeeNotification objects).
+ * Shows employee name, document type icon, and time since creation for HR.
+ * Shows status text and action text for employees.
  */
 @Component({
   selector: 'app-notification-dropdown',
@@ -16,8 +20,8 @@ import { Verification } from '../../../shared/models/employee.model';
 export class NotificationDropdownComponent {
   // ─── Inputs ──────────────────────────────────────────────
   
-  /** List of notifications to display (max 5) */
-  readonly notifications = input.required<Verification[]>();
+  /** List of notifications to display (max 5) - can be Verification[] or EmployeeNotification[] */
+  readonly notifications = input.required<NotificationItem[]>();
   
   /** URL path to navigate to "View All" page */
   readonly viewAllRoute = input<string>('');
@@ -25,14 +29,49 @@ export class NotificationDropdownComponent {
   // ─── Outputs ─────────────────────────────────────────────
   
   /** Emitted when a notification item is clicked */
-  readonly notificationClick = output<Verification>();
+  readonly notificationClick = output<NotificationItem>();
   
   /** Emitted when "View All" link is clicked */
   readonly viewAllClick = output<void>();
   
   // ─── Methods ─────────────────────────────────────────────
   
-  onNotificationClick(notification: Verification): void {
+  /**
+   * Check if notification is employee context (has statusText)
+   */
+  isEmployeeNotification(notification: NotificationItem): boolean {
+    return 'statusText' in notification;
+  }
+  
+  /**
+   * Get icon class based on notification status (for employee context)
+   */
+  getStatusIcon(status: string): string {
+    switch (status) {
+      case 'FAILED':
+        return 'pi pi-times-circle';
+      case 'PASSED':
+        return 'pi pi-check-circle';
+      default:
+        return 'pi pi-info-circle';
+    }
+  }
+  
+  /**
+   * Get icon color class based on notification status (for employee context)
+   */
+  getStatusIconColor(status: string): string {
+    switch (status) {
+      case 'FAILED':
+        return 'notification-item__icon--danger';
+      case 'PASSED':
+        return 'notification-item__icon--success';
+      default:
+        return '';
+    }
+  }
+  
+  onNotificationClick(notification: NotificationItem): void {
     this.notificationClick.emit(notification);
   }
   
@@ -97,5 +136,18 @@ export class NotificationDropdownComponent {
     
     const diffWeeks = Math.floor(diffDays / 7);
     return `${diffWeeks}w ago`;
+  }
+  
+  /**
+   * Get tracking ID for *ngFor - works for both HR and employee notifications
+   */
+  getTrackingId(notification: NotificationItem): string {
+    if ('verification_id' in notification) {
+      return notification.verification_id;
+    }
+    if ('document_id' in notification) {
+      return notification.document_id;
+    }
+    return Math.random().toString();
   }
 }

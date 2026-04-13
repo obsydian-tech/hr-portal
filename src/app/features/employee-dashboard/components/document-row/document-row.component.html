@@ -13,7 +13,19 @@
   [class.doc-card--accepted]="currentStatus() === 'ACCEPTED' || currentStatus() === 'SUBMITTED'"
   [class.doc-card--review]="currentStatus() === 'IN_REVIEW'"
   [class.doc-card--rejected]="currentStatus() === 'REJECTED'"
+  [class.doc-card--highlighted]="isHighlighted()"
 >
+  <!-- Notification Badge (corner badge for REJECTED or ACCEPTED statuses) -->
+  @if (currentStatus() === 'REJECTED') {
+    <div class="doc-card__notification-badge doc-card__notification-badge--rejected">
+      <i class="pi pi-exclamation-circle"></i>
+    </div>
+  } @else if (currentStatus() === 'ACCEPTED') {
+    <div class="doc-card__notification-badge doc-card__notification-badge--accepted">
+      <i class="pi pi-check-circle"></i>
+    </div>
+  }
+
   <!-- Card Header: icon + title + tag + action -->
   <div class="doc-card__header">
     <div class="doc-card__icon"

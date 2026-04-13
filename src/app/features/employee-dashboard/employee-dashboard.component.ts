@@ -6,6 +6,7 @@ import { FooterComponent } from '../../shared/components/footer/footer.component
 import { DocumentChecklistComponent } from './components/document-checklist/document-checklist.component';
 import { Employee, OnboardingStage, EmployeeDocument, DocumentType } from '../../shared/models/employee.model';
 import { HrApiService } from '../../core/services/hr-api.service';
+import { EmployeeNotificationService } from '../../core/services/employee-notification.service';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -87,6 +88,7 @@ function statusPriority(status: string): number {
 @Component({
   selector: 'app-employee-dashboard',
   standalone: true,
+  providers: [EmployeeNotificationService],
   imports: [
     SidebarComponent,
     TopbarComponent,
@@ -104,6 +106,7 @@ function statusPriority(status: string): number {
 })
 export class EmployeeDashboardComponent {
   private readonly hrApi = inject(HrApiService);
+  readonly notificationService = inject(EmployeeNotificationService);
 
   /** Bound from route param :employeeId via withComponentInputBinding() */
   readonly employeeId = input<string>('');
@@ -111,6 +114,7 @@ export class EmployeeDashboardComponent {
   readonly sidebarOpen = signal(false);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly highlightedDocumentId = signal<string | null>(null);
 
   /** Employee data — populated from API */
   readonly employee = signal<Employee>({
@@ -155,11 +159,29 @@ export class EmployeeDashboardComponent {
       const id = this.employeeId();
       if (!id) return;
       this.loadEmployeeData(id);
+      // Initialize notification service with employee ID
+      this.notificationService.initialize(id);
     });
   }
 
   toggleSidebar(): void {
     this.sidebarOpen.update((v) => !v);
+  }
+
+  /**
+   * Handle notification click from topbar dropdown
+   * Scrolls to the relevant document in the checklist
+   */
+  onNotificationClick(notification: any): void {
+    if (notification?.document_id) {
+      // Set highlighted document ID to trigger scroll and highlight effect
+      this.highlightedDocumentId.set(notification.document_id);
+      
+      // Clear highlight after 3 seconds
+      setTimeout(() => {
+        this.highlightedDocumentId.set(null);
+      }, 3000);
+    }
   }
 
   acceptConsent(): void {
