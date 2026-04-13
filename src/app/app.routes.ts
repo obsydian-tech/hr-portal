@@ -63,6 +63,13 @@ export const routes: Routes = [
             './features/hr-dashboard/components/notifications/notifications.component'
           ).then((m) => m.NotificationsComponent),
       },
+      {
+        path: 'support-inbox',
+        loadComponent: () =>
+          import(
+            './features/hr-dashboard/components/support-inbox/support-inbox.component'
+          ).then((m) => m.SupportInboxComponent),
+      },
     ],
   },
   {

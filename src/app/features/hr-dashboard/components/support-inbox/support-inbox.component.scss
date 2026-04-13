@@ -1,0 +1,653 @@
+// ─── Naleko Brand ──────────────────────────────
+$primary: #1a1a2e;
+$secondary: #4a3f8a;
+$tertiary: #2d8f9e;
+$accent: #7ad4e4;
+$surface: #f4f5f7;
+$text-primary: #23293a;
+$text-secondary: #6b7280;
+$border-color: #e5e7eb;
+$white: #ffffff;
+
+// ─── Layout ───────────────────────────────────────
+.support-inbox {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  height: calc(100vh - 10rem);
+  border: 1px solid $border-color;
+  border-radius: 12px;
+  overflow: hidden;
+  background: $white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+// ─── LEFT PANEL ───────────────────────────────────
+.inbox-list {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid $border-color;
+  background: $white;
+
+  &__header {
+    padding: 1.25rem;
+    border-bottom: 1px solid $border-color;
+  }
+
+  &__title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: $primary;
+    margin: 0 0 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    i {
+      color: $secondary;
+      font-size: 1.1rem;
+    }
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e74c3c;
+    color: $white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 9999px;
+    padding: 0 0.35rem;
+  }
+
+  &__search {
+    margin-bottom: 0.75rem;
+
+    input {
+      font-size: 0.85rem;
+      border-radius: 8px;
+    }
+  }
+
+  &__filters {
+    display: flex;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+  }
+
+  &__body {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    color: $text-secondary;
+
+    i {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.4;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.875rem;
+    }
+  }
+}
+
+// ─── Filter Chips ─────────────────────────────────
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid $border-color;
+  border-radius: 9999px;
+  background: $white;
+  color: $text-secondary;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: $secondary;
+    color: $secondary;
+  }
+
+  &--active {
+    background: $secondary;
+    color: $white;
+    border-color: $secondary;
+
+    .filter-chip__count {
+      background: rgba(255, 255, 255, 0.25);
+      color: $white;
+    }
+  }
+
+  &__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: $surface;
+    color: $text-secondary;
+    border-radius: 9999px;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 0.25rem;
+  }
+}
+
+// ─── Conversation Skeleton ────────────────────────
+.convo-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid $border-color;
+
+  &__text {
+    flex: 1;
+  }
+}
+
+// ─── Conversation Item ────────────────────────────
+.convo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: none;
+  border-bottom: 1px solid $border-color;
+  background: $white;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: #f8f9fb;
+  }
+
+  &--selected {
+    background: #eef0f8;
+
+    &:hover {
+      background: #eef0f8;
+    }
+  }
+
+  &--unread {
+    .convo-item__name {
+      font-weight: 700;
+    }
+    .convo-item__preview {
+      color: $text-primary;
+      font-weight: 500;
+    }
+  }
+
+  &__avatar {
+    position: relative;
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $secondary, $tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__initials {
+    color: $white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  &__unread-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #e74c3c;
+    border: 2px solid $white;
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.15rem;
+  }
+
+  &__name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: $text-primary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__time {
+    font-size: 0.7rem;
+    color: $text-secondary;
+    white-space: nowrap;
+    margin-left: 0.5rem;
+  }
+
+  &__preview {
+    font-size: 0.78rem;
+    color: $text-secondary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.35rem;
+    line-height: 1.3;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__dept {
+    font-size: 0.68rem;
+    color: $text-secondary;
+  }
+
+  &__priority {
+    font-size: 0.75rem;
+
+    &--high {
+      color: #e74c3c;
+    }
+  }
+}
+
+// ─── RIGHT PANEL — Chat Detail ────────────────────
+.chat-detail {
+  display: flex;
+  flex-direction: column;
+  background: #fafbfc;
+
+  &--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  // ── Header ──
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    background: $white;
+    border-bottom: 1px solid $border-color;
+  }
+
+  &__back {
+    display: none;
+    background: none;
+    border: none;
+    padding: 0.4rem;
+    cursor: pointer;
+    color: $secondary;
+    font-size: 1.1rem;
+  }
+
+  &__avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $secondary, $tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    span {
+      color: $white;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+  }
+
+  &__info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: $text-primary;
+    margin: 0;
+  }
+
+  &__sub {
+    font-size: 0.73rem;
+    color: $text-secondary;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  // ── Messages ──
+  &__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  // ── Input ──
+  &__input {
+    border-top: 1px solid $border-color;
+    background: $white;
+  }
+
+  &__compose {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+  }
+
+  &__text-input {
+    flex: 1;
+    border: 1px solid $border-color;
+    border-radius: 24px;
+    padding: 0.625rem 1rem;
+    font-size: 0.85rem;
+    color: $text-primary;
+    outline: none;
+    transition: border-color 0.2s ease;
+
+    &::placeholder {
+      color: #adb5c0;
+    }
+
+    &:focus {
+      border-color: $secondary;
+      box-shadow: 0 0 0 2px rgba($secondary, 0.12);
+    }
+  }
+
+  &__send {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $secondary, $tertiary);
+    color: $white;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.15s ease;
+    flex-shrink: 0;
+
+    &:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: scale(1.05);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    i {
+      font-size: 0.9rem;
+    }
+  }
+
+  &__resolved-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem;
+    color: $text-secondary;
+    font-size: 0.85rem;
+
+    i {
+      color: #27ae60;
+      font-size: 1rem;
+    }
+  }
+
+  // ── Empty Placeholder ──
+  &__placeholder {
+    text-align: center;
+    padding: 2rem;
+    color: $text-secondary;
+
+    h3 {
+      margin: 0.75rem 0 0.35rem;
+      font-size: 1.1rem;
+      color: $text-primary;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.85rem;
+      max-width: 280px;
+      margin-inline: auto;
+      line-height: 1.5;
+    }
+  }
+
+  &__placeholder-icon {
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 50%;
+    background: $surface;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-inline: auto;
+
+    i {
+      font-size: 2rem;
+      color: $secondary;
+      opacity: 0.5;
+    }
+  }
+}
+
+// ─── Chat Messages (Inbox view) ───────────────────
+.chat-msg {
+  max-width: 75%;
+  animation: fadeInMsg 0.2s ease;
+
+  &--user {
+    align-self: flex-end;
+
+    .chat-msg__bubble {
+      background: linear-gradient(135deg, $secondary, #574d99);
+      color: $white;
+      border-radius: 14px 14px 4px 14px;
+    }
+
+    .chat-msg__header {
+      justify-content: flex-end;
+    }
+  }
+
+  &--ai {
+    align-self: flex-start;
+
+    .chat-msg__bubble {
+      background: $white;
+      color: $text-primary;
+      border: 1px solid $border-color;
+      border-radius: 14px 14px 14px 4px;
+    }
+  }
+
+  &--hr {
+    align-self: flex-start;
+
+    .chat-msg__bubble {
+      background: linear-gradient(135deg, #e8f8f5, #d1f0ea);
+      color: $text-primary;
+      border: 1px solid #b2e0d6;
+      border-radius: 14px 14px 14px 4px;
+    }
+  }
+
+  &--system {
+    align-self: center;
+    max-width: 85%;
+
+    .chat-msg__bubble {
+      background: transparent;
+      color: $text-secondary;
+      font-size: 0.75rem;
+      text-align: center;
+      padding: 0.25rem 0;
+    }
+
+    .chat-msg__time {
+      text-align: center;
+    }
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.15rem;
+    padding: 0 0.25rem;
+  }
+
+  &__sender {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: $text-secondary;
+  }
+
+  &__time {
+    font-size: 0.65rem;
+    color: #adb5c0;
+  }
+
+  &__bubble {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.835rem;
+    line-height: 1.5;
+    word-wrap: break-word;
+
+    :deep(strong) {
+      font-weight: 700;
+    }
+
+    :deep(br) {
+      display: block;
+      margin: 0.15rem 0;
+    }
+  }
+}
+
+.resolved-reopen {
+  background: none;
+  border: none;
+  color: $secondary;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+
+  &:hover {
+    color: $tertiary;
+  }
+}
+
+@keyframes fadeInMsg {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ─── Responsive ───────────────────────────────────
+@media (max-width: 768px) {
+  .support-inbox {
+    grid-template-columns: 1fr;
+    height: calc(100vh - 7rem);
+  }
+
+  .inbox-list {
+    display: flex;
+  }
+
+  .chat-detail {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    background: #fafbfc;
+  }
+
+  .support-inbox--detail-open {
+    .inbox-list {
+      display: none;
+    }
+
+    .chat-detail {
+      display: flex;
+    }
+  }
+
+  .chat-detail__back {
+    display: flex;
+  }
+
+  .chat-msg {
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .support-inbox {
+    grid-template-columns: 320px 1fr;
+  }
+}

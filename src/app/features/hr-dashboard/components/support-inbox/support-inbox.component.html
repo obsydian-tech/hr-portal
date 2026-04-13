@@ -1,0 +1,219 @@
+<div class="support-inbox" [class.support-inbox--detail-open]="mobileDetailOpen()">
+  <!-- ═══ LEFT PANEL — Conversation List ═══ -->
+  <aside class="inbox-list">
+    <div class="inbox-list__header">
+      <h2 class="inbox-list__title">
+        <i class="pi pi-comments"></i>
+        Support Inbox
+        @if (chatService.totalUnread() > 0) {
+          <span class="inbox-list__badge">{{ chatService.totalUnread() }}</span>
+        }
+      </h2>
+      <div class="inbox-list__search">
+        <span class="p-input-icon-left w-full">
+          <i class="pi pi-search"></i>
+          <input
+            pInputText
+            type="text"
+            placeholder="Search employees..."
+            class="w-full"
+            (input)="onSearchInput($event)"
+          />
+        </span>
+      </div>
+      <div class="inbox-list__filters">
+        <button
+          class="filter-chip"
+          [class.filter-chip--active]="chatService.filter() === 'all'"
+          (click)="chatService.setFilter('all')"
+        >
+          All
+          <span class="filter-chip__count">{{ chatService.totalCount() }}</span>
+        </button>
+        <button
+          class="filter-chip"
+          [class.filter-chip--active]="chatService.filter() === 'active'"
+          (click)="chatService.setFilter('active')"
+        >
+          Active
+          <span class="filter-chip__count">{{ chatService.activeCount() }}</span>
+        </button>
+        <button
+          class="filter-chip"
+          [class.filter-chip--active]="chatService.filter() === 'waiting'"
+          (click)="chatService.setFilter('waiting')"
+        >
+          Waiting
+          <span class="filter-chip__count">{{ chatService.waitingCount() }}</span>
+        </button>
+        <button
+          class="filter-chip"
+          [class.filter-chip--active]="chatService.filter() === 'resolved'"
+          (click)="chatService.setFilter('resolved')"
+        >
+          Resolved
+          <span class="filter-chip__count">{{ chatService.resolvedCount() }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="inbox-list__body">
+      @if (chatService.loading()) {
+        @for (i of [1, 2, 3, 4]; track i) {
+          <div class="convo-skeleton">
+            <p-skeleton shape="circle" size="2.5rem" />
+            <div class="convo-skeleton__text">
+              <p-skeleton width="60%" height="0.875rem" />
+              <p-skeleton width="90%" height="0.75rem" styleClass="mt-1" />
+            </div>
+          </div>
+        }
+      } @else if (chatService.filteredConversations().length === 0) {
+        <div class="inbox-list__empty">
+          <i class="pi pi-inbox"></i>
+          <p>No conversations found</p>
+        </div>
+      } @else {
+        @for (convo of chatService.filteredConversations(); track trackByConvo($index, convo)) {
+          <button
+            class="convo-item"
+            [class.convo-item--selected]="chatService.selectedId() === convo.employeeId"
+            [class.convo-item--unread]="convo.unreadCount > 0"
+            (click)="selectConversation(convo)"
+          >
+            <div class="convo-item__avatar">
+              <span class="convo-item__initials">{{ getInitials(convo.employeeName) }}</span>
+              @if (convo.unreadCount > 0) {
+                <span class="convo-item__unread-dot"></span>
+              }
+            </div>
+            <div class="convo-item__content">
+              <div class="convo-item__top">
+                <span class="convo-item__name">{{ convo.employeeName }}</span>
+                <span class="convo-item__time">{{ formatTimestamp(convo.lastActivity) }}</span>
+              </div>
+              <div class="convo-item__preview">{{ getLastMessage(convo) }}</div>
+              <div class="convo-item__meta">
+                <p-tag
+                  [value]="getStatusLabel(convo.status)"
+                  [severity]="getStatusSeverity(convo.status)"
+                  [style]="{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }"
+                />
+                <span class="convo-item__dept">{{ convo.department }}</span>
+                @if (convo.priority === 'high') {
+                  <i class="pi pi-exclamation-triangle convo-item__priority convo-item__priority--high"
+                     pTooltip="High priority"></i>
+                }
+              </div>
+            </div>
+          </button>
+        }
+      }
+    </div>
+  </aside>
+
+  <!-- ═══ RIGHT PANEL — Chat Detail ═══ -->
+  <section class="chat-detail" [class.chat-detail--empty]="!chatService.selectedConversation()">
+    @if (chatService.selectedConversation(); as convo) {
+      <!-- Detail Header -->
+      <div class="chat-detail__header">
+        <button class="chat-detail__back" (click)="backToList()">
+          <i class="pi pi-arrow-left"></i>
+        </button>
+        <div class="chat-detail__avatar">
+          <span>{{ getInitials(convo.employeeName) }}</span>
+        </div>
+        <div class="chat-detail__info">
+          <h3 class="chat-detail__name">{{ convo.employeeName }}</h3>
+          <span class="chat-detail__sub">
+            {{ convo.employeeId }} · {{ convo.department }} · {{ convo.stage }}
+          </span>
+        </div>
+        <div class="chat-detail__actions">
+          <p-tag
+            [value]="getStatusLabel(convo.status)"
+            [severity]="getStatusSeverity(convo.status)"
+          />
+          @if (convo.status !== 'resolved') {
+            <p-button
+              icon="pi pi-check"
+              label="Resolve"
+              severity="success"
+              [text]="true"
+              size="small"
+              (click)="resolveConversation()"
+            />
+          } @else {
+            <p-button
+              icon="pi pi-replay"
+              label="Re-open"
+              severity="warn"
+              [text]="true"
+              size="small"
+              (click)="reopenConversation()"
+            />
+          }
+        </div>
+      </div>
+
+      <!-- Messages Area -->
+      <div class="chat-detail__messages">
+        @for (msg of convo.messages; track trackByMessage($index, msg)) {
+          @if (msg.sender === 'system') {
+            <div class="chat-msg chat-msg--system">
+              <div class="chat-msg__bubble" [innerHTML]="msg.text | chatMarkdown"></div>
+              <span class="chat-msg__time">{{ msg.timestamp | date: 'shortTime' }}</span>
+            </div>
+          } @else {
+            <div
+              class="chat-msg"
+              [class.chat-msg--user]="msg.sender === 'user'"
+              [class.chat-msg--ai]="msg.sender === 'ai'"
+              [class.chat-msg--hr]="msg.sender === 'hr'"
+            >
+              <div class="chat-msg__header">
+                <span class="chat-msg__sender">{{ getSenderLabel(msg.sender) }}</span>
+                <span class="chat-msg__time">{{ msg.timestamp | date: 'shortTime' }}</span>
+              </div>
+              <div class="chat-msg__bubble" [innerHTML]="msg.text | chatMarkdown"></div>
+            </div>
+          }
+        }
+        <div #messagesEnd></div>
+      </div>
+
+      <!-- Reply Input -->
+      <div class="chat-detail__input">
+        @if (convo.status === 'resolved') {
+          <div class="chat-detail__resolved-banner">
+            <i class="pi pi-check-circle"></i>
+            <span>This conversation is resolved.</span>
+            <button class="resolved-reopen" (click)="reopenConversation()">Re-open to reply</button>
+          </div>
+        } @else {
+          <div class="chat-detail__compose">
+            <input
+              type="text"
+              class="chat-detail__text-input"
+              placeholder="Type your reply..."
+              [(ngModel)]="replyText"
+              (keydown)="onKeyDown($event)"
+            />
+            <button class="chat-detail__send" [disabled]="!replyText.trim()" (click)="sendReply()">
+              <i class="pi pi-send"></i>
+            </button>
+          </div>
+        }
+      </div>
+    } @else {
+      <!-- Empty State -->
+      <div class="chat-detail__placeholder">
+        <div class="chat-detail__placeholder-icon">
+          <i class="pi pi-comments"></i>
+        </div>
+        <h3>Select a conversation</h3>
+        <p>Choose an employee chat from the list to view the conversation and respond.</p>
+      </div>
+    }
+  </section>
+</div>
