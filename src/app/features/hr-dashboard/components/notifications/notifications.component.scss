@@ -1,0 +1,192 @@
+.notifications {
+  padding: 1.5rem;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  display: flex;
+  align-items: center;
+
+  i {
+    color: #f57f17;
+  }
+}
+
+.page-sub {
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+
+// ─── Stat Badge ──────────────────────────────────────────
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: #f0f0f5;
+  border: 1px solid #e9ecef;
+
+  &__value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+
+  &__label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  &--warn {
+    background: #fff8e1;
+    border-color: #ffe0b2;
+
+    .stat-badge__value {
+      color: #e2a03f;
+    }
+  }
+}
+
+// ─── Empty State ─────────────────────────────────────────
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+
+  i {
+    font-size: 4rem;
+    color: #27ae60;
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin: 0 0 0.5rem 0;
+  }
+
+  p {
+    color: #6c757d;
+    font-size: 1rem;
+    margin: 0;
+  }
+}
+
+// ─── Error State ─────────────────────────────────────────
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+
+  i {
+    font-size: 3rem;
+    color: #e74c3c;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    color: #6c757d;
+    font-size: 1rem;
+    margin: 0 0 1.5rem 0;
+  }
+}
+
+// ─── Table Links ─────────────────────────────────────────
+.employee-link {
+  color: #4a3f8a;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: #7ad4e4;
+    text-decoration: underline;
+  }
+}
+
+.document-type-label {
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+// ─── PrimeNG Overrides ───────────────────────────────────
+:host ::ng-deep {
+  .p-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(26, 26, 46, 0.06);
+    border: 1px solid #e9ecef;
+  }
+
+  .p-card .p-card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+
+  .p-datatable .p-datatable-thead > tr > th {
+    background: #f8f9fa;
+    color: #1a1a2e;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 2px solid #e9ecef;
+  }
+
+  .p-datatable .p-datatable-tbody > tr > td {
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .p-datatable .p-datatable-tbody > tr:hover {
+    background: rgba(122, 212, 228, 0.06);
+  }
+
+  .p-paginator {
+    border: none;
+    padding: 0.75rem 0;
+  }
+}
+
+// ─── Mobile Responsive ───────────────────────────────────
+@media (max-width: 768px) {
+  .notifications {
+    padding: 1rem 0.75rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 1rem;
+  }
+
+  .page-title {
+    font-size: 1.35rem;
+  }
+
+  :host ::ng-deep {
+    .p-datatable {
+      font-size: 0.85rem;
+
+      .p-datatable-tbody > tr > td {
+        padding: 0.5rem 0.75rem;
+      }
+    }
+  }
+}

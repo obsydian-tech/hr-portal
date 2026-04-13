@@ -4,6 +4,8 @@ import { SidebarComponent, NavItem } from '../../shared/components/sidebar/sideb
 import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
 import { FooterComponent } from '../../shared/components/footer/footer.component';
 import { getHrStaffById } from '../../shared/constants/hr-staff';
+import { NotificationService } from '../../core/services/notification.service';
+import { Verification } from '../../shared/models/employee.model';
 
 
 @Component({
@@ -15,6 +17,7 @@ import { getHrStaffById } from '../../shared/constants/hr-staff';
     TopbarComponent,
     FooterComponent,
   ],
+  providers: [NotificationService], // Provide at dashboard level for all child routes
   templateUrl: './hr-dashboard.component.html',
   styleUrl: './hr-dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,6 +25,7 @@ import { getHrStaffById } from '../../shared/constants/hr-staff';
 export class HrDashboardComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  readonly notificationService = inject(NotificationService);
 
   readonly staffId = input<string>('');
 
@@ -32,6 +36,13 @@ export class HrDashboardComponent {
     const role = this.currentStaff()?.role;
     return role === 'HR_MANAGER' ? 'HR Manager' : 'HR Partner';
   });
+  
+  /** Notification data from service */
+  readonly notificationCount = this.notificationService.notificationCount;
+  readonly recentNotifications = this.notificationService.recentNotifications;
+  
+  /** Notifications route for "View All" link */
+  readonly notificationsRoute = computed(() => `/hr/${this.staffId()}/notifications`);
 
   readonly sidebarOpen = signal(false);
 
@@ -40,6 +51,7 @@ export class HrDashboardComponent {
     { label: 'Employees', icon: 'pi-users', route: '', disabled: true },
     { label: 'Documents', icon: 'pi-folder', route: '', disabled: true },
     { label: 'Document Verifications', icon: 'pi-verified', route: 'verifications', disabled: false },
+    { label: 'Notifications', icon: 'pi-bell', route: 'notifications', disabled: false },
     { label: 'Settings', icon: 'pi-cog', route: '', disabled: true },
   ];
 
@@ -49,5 +61,23 @@ export class HrDashboardComponent {
 
   openNewHireRegistration(): void {
     this.router.navigate(['new-employee'], { relativeTo: this.route });
+  }
+  
+  /**
+   * Handle notification click from topbar dropdown
+   * Navigate to verification detail page
+   */
+  onNotificationClick(notification: Verification): void {
+    if (notification.document_id) {
+      this.router.navigate(['verifications', notification.document_id], { relativeTo: this.route });
+    }
+  }
+  
+  /**
+   * Handle "View All" click from topbar dropdown
+   * Navigate to notifications page
+   */
+  onViewAllNotifications(): void {
+    this.router.navigate(['notifications'], { relativeTo: this.route });
   }
 }
