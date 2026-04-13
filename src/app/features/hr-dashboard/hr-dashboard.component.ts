@@ -5,6 +5,7 @@ import { TopbarComponent } from '../../shared/components/topbar/topbar.component
 import { FooterComponent } from '../../shared/components/footer/footer.component';
 import { getHrStaffById } from '../../shared/constants/hr-staff';
 import { NotificationService } from '../../core/services/notification.service';
+import { AuthService } from '../../core/services/auth.service';
 import { Verification } from '../../shared/models/employee.model';
 
 
@@ -25,6 +26,7 @@ import { Verification } from '../../shared/models/employee.model';
 export class HrDashboardComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly authService = inject(AuthService);
   readonly notificationService = inject(NotificationService);
 
   readonly staffId = input<string>('');
@@ -79,5 +81,12 @@ export class HrDashboardComponent {
    */
   onViewAllNotifications(): void {
     this.router.navigate(['notifications'], { relativeTo: this.route });
+  }
+
+  /**
+   * Handle logout from sidebar
+   */
+  onLogout(): void {
+    this.authService.logout();
   }
 }

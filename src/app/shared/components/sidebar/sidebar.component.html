@@ -60,7 +60,7 @@
       </div>
     }
     <p-divider [style]="{ 'border-color': 'rgba(255,255,255,0.08)' }" />
-    <a href="#" class="sidebar__link sidebar__link--logout flex align-items-center gap-3 px-3 py-3 border-round no-underline" (click)="onNavClick()">
+    <a class="sidebar__link sidebar__link--logout flex align-items-center gap-3 px-3 py-3 border-round no-underline" (click)="logoutClicked.emit(); closeSidebar()">
       <i class="pi pi-sign-out"></i>
       <span>Logout</span>
     </a>

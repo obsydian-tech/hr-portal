@@ -32,6 +32,9 @@ export class SidebarComponent {
   readonly actionIcon = input<string>('pi-plus');
   readonly actionClicked = output<void>();
 
+  /** Emits when the logout link is clicked */
+  readonly logoutClicked = output<void>();
+
   /** Close sidebar (mobile overlay) */
   closeSidebar(): void {
     this.isOpen.set(false);

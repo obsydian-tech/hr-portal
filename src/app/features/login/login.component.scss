@@ -1,0 +1,340 @@
+/* ============================================================
+   LOGIN PAGE — Split layout: brand panel + form panel
+   ============================================================ */
+
+.login-page {
+  display: flex;
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+// ─── Left: Brand Panel ───────────────────────────────────
+
+.login-brand {
+  flex: 0 0 42%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #2a1a4e 60%, #4a3f8a 100%);
+  position: relative;
+  overflow: hidden;
+
+  // Subtle pattern overlay
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+        circle at 20% 80%,
+        rgba(122, 212, 228, 0.08) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        circle at 80% 20%,
+        rgba(74, 63, 138, 0.15) 0%,
+        transparent 50%
+      );
+    pointer-events: none;
+  }
+
+  &__content {
+    position: relative;
+    z-index: 1;
+    padding: 4rem 3.5rem;
+    max-width: 480px;
+  }
+
+  &__logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 3rem;
+    color: #ffffff;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+
+    i {
+      font-size: 1.5rem;
+      color: var(--naleko-tertiary-fixed-dim, #7ad4e4);
+    }
+  }
+
+  &__heading {
+    font-size: 2.75rem;
+    font-weight: 900;
+    line-height: 1.15;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+  }
+
+  &__accent {
+    color: var(--naleko-tertiary-fixed-dim, #7ad4e4);
+    font-weight: 700;
+  }
+
+  &__tagline {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.7;
+    max-width: 340px;
+  }
+
+  &__footer {
+    margin-top: 4rem;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+}
+
+// ─── Right: Form Panel ───────────────────────────────────
+
+.login-form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  background: var(--naleko-surface, #f8f9fa);
+}
+
+.login-form-container {
+  width: 100%;
+  max-width: 420px;
+}
+
+// ─── Form Header ─────────────────────────────────────────
+
+.login-form__header {
+  margin-bottom: 2rem;
+}
+
+.login-form__title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--naleko-on-surface, #191c1d);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.35rem;
+}
+
+.login-form__subtitle {
+  font-size: 0.95rem;
+  color: var(--naleko-on-surface-variant, #47464c);
+}
+
+// ─── Error Message ───────────────────────────────────────
+
+.login-form__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.5rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+
+  i {
+    margin-top: 0.1rem;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+}
+
+// ─── Form Fields ─────────────────────────────────────────
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.login-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--naleko-on-surface-variant, #47464c);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  input[pInputText] {
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--naleko-outline-variant, #c8c5cd);
+    background: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:focus {
+      border-color: var(--naleko-secondary, #4a3f8a);
+      box-shadow: 0 0 0 3px rgba(74, 63, 138, 0.1);
+      outline: none;
+    }
+
+    &::placeholder {
+      color: var(--naleko-outline, #78767d);
+      font-weight: 400;
+    }
+  }
+}
+
+// PrimeNG password override
+::ng-deep .login-form__field {
+  .p-password {
+    width: 100%;
+  }
+
+  .p-password input {
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--naleko-outline-variant, #c8c5cd);
+    background: #ffffff;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:focus {
+      border-color: var(--naleko-secondary, #4a3f8a);
+      box-shadow: 0 0 0 3px rgba(74, 63, 138, 0.1);
+      outline: none;
+    }
+
+    &::placeholder {
+      color: var(--naleko-outline, #78767d);
+      font-weight: 400;
+    }
+  }
+}
+
+// ─── Submit Button ───────────────────────────────────────
+
+::ng-deep .login-form__submit {
+  margin-top: 0.5rem;
+  background: linear-gradient(135deg, #1a1a2e, #4a3f8a) !important;
+  border: none !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  padding: 0.8rem 1.5rem !important;
+  border-radius: 0.5rem !important;
+  letter-spacing: 0.02em !important;
+  transition: all 0.2s ease !important;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(74, 63, 138, 0.3) !important;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+}
+
+// ─── Hint Text ───────────────────────────────────────────
+
+.login-form__hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  color: var(--naleko-outline, #78767d);
+
+  i {
+    font-size: 0.85rem;
+    color: var(--naleko-tertiary, #2d8f9e);
+  }
+}
+
+// ─── Password Rules (new password form) ──────────────────
+
+.login-form__password-rules {
+  background: var(--naleko-surface-container-low, #f3f4f5);
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.8rem;
+  color: var(--naleko-on-surface-variant, #47464c);
+
+  span {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+
+    li {
+      padding-left: 1.25rem;
+      position: relative;
+
+      &::before {
+        content: '•';
+        position: absolute;
+        left: 0.25rem;
+        color: var(--naleko-tertiary, #2d8f9e);
+        font-weight: 700;
+      }
+    }
+  }
+}
+
+// ─── Responsive ──────────────────────────────────────────
+
+@media (max-width: 900px) {
+  .login-page {
+    flex-direction: column;
+  }
+
+  .login-brand {
+    flex: none;
+    padding: 3rem 2rem;
+    min-height: auto;
+
+    &__content {
+      padding: 1.5rem;
+    }
+
+    &__heading {
+      font-size: 2rem;
+    }
+
+    &__tagline {
+      display: none;
+    }
+
+    &__footer {
+      margin-top: 1.5rem;
+    }
+  }
+
+  .login-form-panel {
+    padding: 2rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-brand {
+    padding: 2rem 1.5rem;
+
+    &__heading {
+      font-size: 1.6rem;
+    }
+  }
+}
