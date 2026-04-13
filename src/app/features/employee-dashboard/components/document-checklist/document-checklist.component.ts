@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, computed, output, input, inject, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, output, input, inject, effect, ViewChildren, QueryList, ElementRef } from '@angular/core';
 import { DocumentRow, DocumentStatus, DocumentType, ExtractedFields } from '../../../../shared/models/employee.model';
 import { DocumentRowComponent } from '../document-row/document-row.component';
 import { HrApiService } from '../../../../core/services/hr-api.service';
@@ -36,8 +36,11 @@ export class DocumentChecklistComponent {
   private readonly hrApi = inject(HrApiService);
 
   readonly employeeId = input.required<string>();
+  readonly highlightedDocumentId = input<string | null>(null);
   readonly allComplete = output<boolean>();
   readonly loading = signal(true);
+
+  @ViewChildren(DocumentRowComponent, { read: ElementRef }) documentRows!: QueryList<ElementRef>;
 
   readonly documents = signal<DocumentRow[]>([]);
 
@@ -53,6 +56,13 @@ export class DocumentChecklistComponent {
       const id = this.employeeId();
       if (!id) return;
       this.fetchDocuments(id);
+    });
+
+    // React to highlightedDocumentId changes — scroll to document when highlighted
+    effect(() => {
+      const docId = this.highlightedDocumentId();
+      if (!docId) return;
+      this.scrollToDocument(docId);
     });
   }
 
@@ -164,5 +174,25 @@ export class DocumentChecklistComponent {
     if (allDone) {
       this.allComplete.emit(true);
     }
+  }
+
+  /**
+   * Scroll to the document card that matches the given document ID
+   */
+  private scrollToDocument(documentId: string): void {
+    // Find the document that matches this ID
+    const docIndex = this.documents().findIndex(d => d.documentId === documentId);
+    if (docIndex === -1) return;
+
+    // Wait for next tick to ensure ViewChildren is populated
+    setTimeout(() => {
+      const docElements = this.documentRows.toArray();
+      if (docElements[docIndex]) {
+        docElements[docIndex].nativeElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    }, 100);
   }
 }

@@ -18,6 +18,7 @@
       <app-document-row
         [doc]="doc"
         [employeeId]="employeeId()"
+        [isHighlighted]="doc.documentId === highlightedDocumentId()"
         (statusChanged)="onStatusChanged($event)"
       />
     }

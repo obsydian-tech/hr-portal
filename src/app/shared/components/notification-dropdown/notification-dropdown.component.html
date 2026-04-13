@@ -11,37 +11,50 @@
     </div>
   } @else {
     <div class="notification-dropdown__list">
-      @for (notification of notifications(); track notification.verification_id) {
+      @for (notification of notifications(); track getTrackingId(notification)) {
         <div 
           class="notification-item"
           (click)="onNotificationClick(notification)"
           role="button"
           tabindex="0"
         >
-          <div class="notification-item__icon">
-            <i [class]="getDocumentIcon(notification.document_type)"></i>
+          <div class="notification-item__icon" [ngClass]="isEmployeeNotification(notification) ? getStatusIconColor(notification.status) : ''">
+            <i [class]="isEmployeeNotification(notification) ? getStatusIcon(notification.status) : getDocumentIcon(notification.document_type)"></i>
           </div>
           <div class="notification-item__content">
-            <div class="notification-item__name">{{ notification.employee_name }}</div>
-            <div class="notification-item__details">
-              <span class="notification-item__type">{{ getDocumentTypeLabel(notification.document_type) }}</span>
-              <span class="notification-item__dot">•</span>
-              <span class="notification-item__time">{{ getTimeAgo(notification.created_at) }}</span>
-            </div>
+            @if (isEmployeeNotification(notification)) {
+              <!-- Employee context: show status text and action text -->
+              <div class="notification-item__name">{{ notification.statusText }}</div>
+              <div class="notification-item__details">
+                <span class="notification-item__type">{{ notification.actionText }}</span>
+                <span class="notification-item__dot">•</span>
+                <span class="notification-item__time">{{ getTimeAgo(notification.created_at) }}</span>
+              </div>
+            } @else {
+              <!-- HR context: show employee name and document type -->
+              <div class="notification-item__name">{{ notification.employee_name }}</div>
+              <div class="notification-item__details">
+                <span class="notification-item__type">{{ getDocumentTypeLabel(notification.document_type) }}</span>
+                <span class="notification-item__dot">•</span>
+                <span class="notification-item__time">{{ getTimeAgo(notification.created_at) }}</span>
+              </div>
+            }
           </div>
         </div>
       }
     </div>
     
-    <div class="notification-dropdown__footer">
-      <a 
-        href="#" 
-        class="notification-dropdown__view-all"
-        (click)="onViewAllClick($event)"
-      >
-        View All Notifications
-        <i class="pi pi-arrow-right ml-1"></i>
-      </a>
-    </div>
+    @if (viewAllRoute()) {
+      <div class="notification-dropdown__footer">
+        <a 
+          href="#" 
+          class="notification-dropdown__view-all"
+          (click)="onViewAllClick($event)"
+        >
+          View All Notifications
+          <i class="pi pi-arrow-right ml-1"></i>
+        </a>
+      </div>
+    }
   }
 </div>

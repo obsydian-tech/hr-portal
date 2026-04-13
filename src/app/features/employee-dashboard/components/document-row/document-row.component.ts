@@ -32,6 +32,7 @@ export class DocumentRowComponent implements OnDestroy {
 
   readonly doc = input.required<DocumentRow>();
   readonly employeeId = input.required<string>();
+  readonly isHighlighted = input<boolean>(false);
   readonly statusChanged = output<{ type: string; status: DocumentStatus; message?: string }>();
 
   /** Hidden file input ref */

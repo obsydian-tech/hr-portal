@@ -3,6 +3,10 @@
   title="Employee Portal"
   [employeeName]="employee().first_name ? (employee().first_name + ' ' + employee().last_name) : 'Loading...'"
   [showNotifications]="true"
+  [notificationCount]="notificationService.totalNotificationCount()"
+  [recentNotifications]="notificationService.recentNotifications()"
+  [notificationsRoute]="''"
+  (notificationClick)="onNotificationClick($event)"
   (menuToggle)="toggleSidebar()"
 />
 
@@ -110,7 +114,11 @@
           </div>
         } @else {
           <!-- ═══ STEP 2: Documents ═══ -->
-          <app-document-checklist [employeeId]="employeeId()" (allComplete)="onAllDocumentsComplete($event)" />
+          <app-document-checklist 
+            [employeeId]="employeeId()" 
+            [highlightedDocumentId]="highlightedDocumentId()"
+            (allComplete)="onAllDocumentsComplete($event)" 
+          />
         }
       </div>
     }
