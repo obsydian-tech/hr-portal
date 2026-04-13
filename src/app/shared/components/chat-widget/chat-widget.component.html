@@ -71,8 +71,8 @@
 
       <!-- Typing Indicator -->
       @if (chatService.isTyping()) {
-        <div class="chat-msg chat-msg--ai">
-          <div class="chat-msg__avatar">
+        <div class="chat-msg" [class.chat-msg--ai]="chatService.mode() === 'ai'" [class.chat-msg--hr]="chatService.mode() === 'hr'">
+          <div class="chat-msg__avatar" [class.chat-msg__avatar--hr]="chatService.mode() === 'hr'">
             @if (chatService.mode() === 'hr') {
               <i class="pi pi-user"></i>
             } @else {
@@ -107,7 +107,7 @@
       <input
         type="text"
         class="chat-panel__input-field"
-        placeholder="Type your question..."
+        [placeholder]="chatService.mode() === 'hr' ? 'Message HR partner...' : 'Type your question...'"
         [(ngModel)]="inputText"
         (keydown)="onKeyDown($event)"
         [disabled]="chatService.isTyping()"
