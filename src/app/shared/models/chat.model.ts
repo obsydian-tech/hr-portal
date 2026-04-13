@@ -31,3 +31,37 @@ export interface ChatState {
   /** Timestamp of last activity — used for localStorage cleanup */
   lastActivity: number;
 }
+
+// ─── HR Support Inbox Models ──────────────────────────────
+
+/** Priority level of a support conversation */
+export type ConversationPriority = 'low' | 'medium' | 'high';
+
+/** Status of an HR conversation */
+export type ConversationStatus = 'active' | 'waiting' | 'resolved';
+
+/** A chat conversation as seen from the HR Support Inbox */
+export interface ChatConversation {
+  /** Employee ID this chat belongs to */
+  employeeId: string;
+  /** Employee display name */
+  employeeName: string;
+  /** Employee email */
+  employeeEmail: string;
+  /** Employee department */
+  department: string;
+  /** Onboarding stage */
+  stage: string;
+  /** Full message thread */
+  messages: ChatMessage[];
+  /** Whether the employee has escalated to HR */
+  escalated: boolean;
+  /** Timestamp of the last message */
+  lastActivity: number;
+  /** Current conversation status */
+  status: ConversationStatus;
+  /** Auto-detected priority */
+  priority: ConversationPriority;
+  /** Number of unread messages from employee */
+  unreadCount: number;
+}

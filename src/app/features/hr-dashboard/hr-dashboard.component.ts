@@ -54,6 +54,7 @@ export class HrDashboardComponent {
     { label: 'Documents', icon: 'pi-folder', route: '', disabled: true },
     { label: 'Document Verifications', icon: 'pi-verified', route: 'verifications', disabled: false },
     { label: 'Notifications', icon: 'pi-bell', route: 'notifications', disabled: false },
+    { label: 'Support Inbox', icon: 'pi-comments', route: 'support-inbox', disabled: false },
     { label: 'Settings', icon: 'pi-cog', route: '', disabled: true },
   ];
 
