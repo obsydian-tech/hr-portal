@@ -12,7 +12,12 @@
   [employeeRole]="staffRole()"
   [showSearch]="true"
   [showNotifications]="true"
+  [notificationCount]="notificationCount()"
+  [recentNotifications]="recentNotifications()"
+  [notificationsRoute]="notificationsRoute()"
   (menuToggle)="toggleSidebar()"
+  (notificationClick)="onNotificationClick($event)"
+  (viewAllNotifications)="onViewAllNotifications()"
 />
 
 <main class="dashboard">

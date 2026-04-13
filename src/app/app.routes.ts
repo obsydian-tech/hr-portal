@@ -48,6 +48,13 @@ export const routes: Routes = [
             './features/hr-dashboard/components/verification-detail/verification-detail.component'
           ).then((m) => m.VerificationDetailComponent),
       },
+      {
+        path: 'notifications',
+        loadComponent: () =>
+          import(
+            './features/hr-dashboard/components/notifications/notifications.component'
+          ).then((m) => m.NotificationsComponent),
+      },
     ],
   },
   {

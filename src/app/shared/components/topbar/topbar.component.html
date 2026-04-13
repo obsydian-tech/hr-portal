@@ -25,10 +25,24 @@
   <ng-template #end>
     <div class="flex align-items-center gap-3">
       @if (showNotifications()) {
-        <button class="topbar__bell">
+        <button 
+          class="topbar__bell" 
+          (click)="onBellClick($event)"
+          #bellButton
+        >
           <i class="pi pi-bell"></i>
-          <span class="topbar__bell-dot"></span>
+          @if (notificationCount() > 0) {
+            <span class="topbar__bell-badge">{{ notificationCount() }}</span>
+          }
         </button>
+        <p-overlayPanel #notificationPanel [showCloseIcon]="false" [style]="{'padding': '0'}">
+          <app-notification-dropdown
+            [notifications]="recentNotifications()"
+            [viewAllRoute]="notificationsRoute()"
+            (notificationClick)="onNotificationItemClick($event)"
+            (viewAllClick)="onViewAllClick()"
+          />
+        </p-overlayPanel>
       }
       <!-- Staff profile -->
       <div class="topbar__profile">

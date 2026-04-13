@@ -76,15 +76,23 @@
   }
 }
 
-.topbar__bell-dot {
+.topbar__bell-badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #27ae60;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
   border: 2px solid #fff;
+  line-height: 1;
 }
 
 // ─── Profile ─────────────────────────────────────
