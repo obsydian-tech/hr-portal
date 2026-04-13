@@ -18,6 +18,8 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { TooltipModule } from 'primeng/tooltip';
 import { BadgeModule } from 'primeng/badge';
 import { HrChatService } from '../../../../core/services/hr-chat.service';
+import { HrChatBackend } from '../../../../core/backends/chat-backend.interface';
+import { LocalHrChatBackend } from '../../../../core/backends/local-hr-chat.backend';
 import { ChatMarkdownPipe } from '../../../../shared/pipes/chat-markdown.pipe';
 import {
   ChatConversation,
@@ -39,7 +41,10 @@ import {
     BadgeModule,
     ChatMarkdownPipe,
   ],
-  providers: [HrChatService],
+  providers: [
+    { provide: HrChatBackend, useClass: LocalHrChatBackend },
+    HrChatService,
+  ],
   templateUrl: './support-inbox.component.html',
   styleUrl: './support-inbox.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

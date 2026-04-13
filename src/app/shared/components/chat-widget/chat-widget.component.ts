@@ -13,6 +13,8 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { OnboardingChatService } from '../../../core/services/onboarding-chat.service';
+import { EmployeeChatBackend } from '../../../core/backends/chat-backend.interface';
+import { LocalChatBackend } from '../../../core/backends/local-chat.backend';
 import { ChatMessage } from '../../models/chat.model';
 import { ChatMarkdownPipe } from '../../pipes/chat-markdown.pipe';
 
@@ -20,7 +22,10 @@ import { ChatMarkdownPipe } from '../../pipes/chat-markdown.pipe';
   selector: 'app-chat-widget',
   standalone: true,
   imports: [FormsModule, DatePipe, ChatMarkdownPipe],
-  providers: [OnboardingChatService],
+  providers: [
+    { provide: EmployeeChatBackend, useClass: LocalChatBackend },
+    OnboardingChatService,
+  ],
   templateUrl: './chat-widget.component.html',
   styleUrl: './chat-widget.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
