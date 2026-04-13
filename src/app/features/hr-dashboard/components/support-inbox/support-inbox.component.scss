@@ -9,16 +9,29 @@ $text-secondary: #6b7280;
 $border-color: #e5e7eb;
 $white: #ffffff;
 
+// ─── Host ─────────────────────────────────────────
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
 // ─── Layout ───────────────────────────────────────
 .support-inbox {
   display: grid;
-  grid-template-columns: 380px 1fr;
-  height: calc(100vh - 10rem);
+  grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+  height: calc(100vh - 6.5rem);
   border: 1px solid $border-color;
   border-radius: 12px;
   overflow: hidden;
   background: $white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  max-width: 100%;
 }
 
 // ─── LEFT PANEL ───────────────────────────────────
@@ -27,6 +40,8 @@ $white: #ffffff;
   flex-direction: column;
   border-right: 1px solid $border-color;
   background: $white;
+  min-width: 0;
+  overflow: hidden;
 
   &__header {
     padding: 1.25rem;
@@ -291,6 +306,8 @@ $white: #ffffff;
   display: flex;
   flex-direction: column;
   background: #fafbfc;
+  min-width: 0;
+  overflow: hidden;
 
   &--empty {
     display: flex;
@@ -363,10 +380,12 @@ $white: #ffffff;
   &__messages {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-height: 0;
   }
 
   // ── Input ──
@@ -567,6 +586,9 @@ $white: #ffffff;
     font-size: 0.835rem;
     line-height: 1.5;
     word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    min-width: 0;
 
     :deep(strong) {
       font-weight: 700;
@@ -648,6 +670,6 @@ $white: #ffffff;
 
 @media (max-width: 1024px) and (min-width: 769px) {
   .support-inbox {
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
   }
 }
