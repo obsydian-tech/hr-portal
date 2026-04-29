@@ -1,0 +1,125 @@
+# ---------------------------------------------------------------------------
+# CI — Naleko HR Portal
+# Runs on every PR and every push to main.
+#
+# Jobs:
+#   1. frontend  — install → lint → build (prod) → unit tests
+#   2. openapi   — validate api/openapi.yaml with swagger-parser
+#   3. terraform — fmt check + validate on infra/
+#
+# Nothing is deployed; this workflow is gate-only.
+# All AWS credentials are scoped read-only and injected via repository secrets.
+# ---------------------------------------------------------------------------
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch to save minutes
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  TF_VERSION: "1.15.0"
+
+# ---------------------------------------------------------------------------
+# Job 1 — Angular frontend
+# ---------------------------------------------------------------------------
+jobs:
+  frontend:
+    name: Frontend — build & test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: hr-portal
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: hr-portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # TypeScript strict check + AOT compilation — catches template errors too
+      - name: Build (production)
+        run: npm run build -- --configuration production
+
+      # Headless Chrome unit tests
+      - name: Unit tests
+        run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadless
+
+  # ---------------------------------------------------------------------------
+  # Job 2 — OpenAPI spec lint
+  # ---------------------------------------------------------------------------
+  openapi:
+    name: OpenAPI — validate spec
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # @apidevtools/swagger-parser validates $refs, required fields, type correctness
+      - name: Validate api/openapi.yaml
+        run: |
+          npx --yes @apidevtools/swagger-parser validate api/openapi.yaml
+          echo "✅ OpenAPI spec is valid"
+
+  # ---------------------------------------------------------------------------
+  # Job 3 — Terraform
+  # ---------------------------------------------------------------------------
+  terraform:
+    name: Terraform — fmt & validate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infra
+
+    # Only needs read access to S3 state; never applies
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.CI_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: af-south-1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform ${{ env.TF_VERSION }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # Fails if any .tf file is not properly formatted
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+
+      # Downloads providers + validates config without hitting AWS
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend=false \
+            -input=false
+
+      - name: Terraform validate
+        run: terraform validate

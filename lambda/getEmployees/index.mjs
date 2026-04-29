@@ -1,0 +1,130 @@
+import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
+
+const dynamodb = new DynamoDBClient();
+
+export const handler = async (event) => {
+  console.log('Event:', JSON.stringify(event, null, 2));
+
+  try {
+    // 1. Get staff member ID from headers
+    const headers = event.headers || {};
+    const staffMemberId = headers['x-staff-id'] || headers['X-Staff-Id'];
+    const role = headers['x-role'] || headers['X-Role'] || '';
+    const isManager = role.toLowerCase() === 'manager';
+
+    if (!staffMemberId) {
+      return {
+        statusCode: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,x-staff-id',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+        },
+        body: JSON.stringify({ 
+          error: 'Missing staff member ID',
+          message: 'x-staff-id header is required'
+        })
+      };
+    }
+
+    // 2. Get query parameters (optional filters)
+    const queryParams = event.queryStringParameters || {};
+    const stage = queryParams.stage;
+    const department = queryParams.department;
+    const limit = parseInt(queryParams.limit || '100');
+
+    console.log('Query params:', { staffMemberId, stage, department, limit });
+
+    // 3. Scan employees table
+    const scanParams = {
+      TableName: 'employees',
+      Limit: limit
+    };
+
+    const result = await dynamodb.send(new ScanCommand(scanParams));
+    let items = result.Items.map(item => unmarshall(item));
+
+    console.log(`Total employees in DB: ${items.length}`);
+
+    // 4. Filter by staff member (only show employees they created) — unless manager
+    if (!isManager) {
+      items = items.filter(item => item.created_by === staffMemberId);
+    }
+    
+    console.log(`Employees ${isManager ? '(manager sees all)' : `created by ${staffMemberId}`}: ${items.length}`);
+
+    // 5. Apply additional filters if provided
+    if (stage) {
+      items = items.filter(item => item.stage === stage);
+    }
+
+    if (department) {
+      items = items.filter(item => item.department === department);
+    }
+
+    // 6. Sort by created_at (newest first)
+    items.sort((a, b) => {
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+      return dateB - dateA;
+    });
+
+    // 7. Format response (return ALL fields from employee table)
+    const formattedItems = items.map(item => ({
+      employee_id: item.employee_id,
+      first_name: item.first_name,
+      middle_name: item.middle_name || '',
+      last_name: item.last_name,
+      email: item.email,
+      phone: item.phone,
+      department: item.department,
+      job_title: item.job_title || '',
+      stage: item.stage,
+      offer_accept_date: item.offer_accept_date || '',
+      planned_start_date: item.planned_start_date || '',
+      created_at: item.created_at,
+      created_by: item.created_by,
+      hr_staff_id: item.hr_staff_id || item.created_by || '',
+      hr_staff_name: item.hr_staff_name || '',
+      hr_staff_email: item.hr_staff_email || '',
+    }));
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,x-staff-id',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+      },
+      body: JSON.stringify({
+        items: formattedItems,
+        count: formattedItems.length,
+        staff_id: staffMemberId,
+        filters_applied: {
+          created_by: staffMemberId,
+          stage: stage || 'none',
+          department: department || 'none'
+        }
+      })
+    };
+
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,x-staff-id',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+      },
+      body: JSON.stringify({ 
+        error: error.message,
+        details: 'Failed to retrieve employees'
+      })
+    };
+  }
+};

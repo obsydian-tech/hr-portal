@@ -1,0 +1,146 @@
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
+
+const s3 = new S3Client({ region: "af-south-1" });
+const dynamodb = new DynamoDBClient({ region: "af-south-1" });
+
+const BUCKET_NAME = "document-ocr-verification-uploads";
+const DOCUMENTS_TABLE = "documents";
+const EMPLOYEES_TABLE = "employees";
+
+export const handler = async (event) => {
+  console.log("Upload request:", JSON.stringify(event));
+
+  try {
+    // 1. Parse request
+    const body = JSON.parse(event.body);
+    const employeeId = event.pathParameters?.employee_id;
+    const { documentType, fileName, fileContent } = body;
+
+    // 2. Validate required fields
+    if (!employeeId || !documentType || !fileName || !fileContent) {
+      return errorResponse(400, "Missing required fields: employee_id, documentType, fileName, fileContent");
+    }
+
+    // 3. Validate employee exists (optional but recommended)
+    const employeeExists = await checkEmployeeExists(employeeId);
+    if (!employeeExists) {
+      return errorResponse(404, `Employee ${employeeId} not found`);
+    }
+
+    // 4. Generate document ID and timestamp
+    const documentId = `doc_${Date.now()}`;
+    const timestamp = new Date().toISOString();
+
+    // 5. Create S3 key - UPDATED to include uploads/ folder
+    const s3Key = `uploads/${employeeId}/${documentType}/${documentId}_${fileName}`;
+
+    // 6. Upload to S3
+    // const fileBuffer = Buffer.from(fileContent, 'base64');
+    // await s3.send(new PutObjectCommand({
+    //   Bucket: BUCKET_NAME,
+    //   Key: s3Key,
+    //   Body: fileBuffer,
+    //   ContentType: body.contentType || 'application/pdf',
+    // }));
+
+    // console.log(`✅ Uploaded to S3: ${s3Key}`);
+
+    // 6. Upload to S3
+    try {
+      console.log(`📤 Starting S3 upload...`);
+      console.log(`   Bucket: ${BUCKET_NAME}`);
+      console.log(`   Key: ${s3Key}`);
+      console.log(`   Content Type: ${body.contentType || 'application/pdf'}`);
+      
+      const fileBuffer = Buffer.from(fileContent, 'base64');
+      console.log(`   File buffer size: ${fileBuffer.length} bytes`);
+      
+      const uploadCommand = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: s3Key,
+        Body: fileBuffer,
+        ContentType: body.contentType || 'application/pdf',
+      });
+      
+      const uploadResult = await s3.send(uploadCommand);
+      console.log(`✅ S3 Upload Response:`, JSON.stringify(uploadResult, null, 2));
+      console.log(`✅ Uploaded to S3: ${s3Key}`);
+      
+    } catch (s3Error) {
+      console.error(`❌ S3 Upload Failed!`);
+      console.error(`   Error name: ${s3Error.name}`);
+      console.error(`   Error message: ${s3Error.message}`);
+      console.error(`   Full error:`, JSON.stringify(s3Error, null, 2));
+      throw new Error(`S3 upload failed: ${s3Error.message}`);
+    }
+
+    // 7. Write to documents table
+    await dynamodb.send(new PutItemCommand({
+      TableName: DOCUMENTS_TABLE,
+      Item: {
+        employee_id: { S: employeeId },
+        document_id: { S: documentId },
+        document_type: { S: documentType },
+        s3_key: { S: s3Key },
+        file_name: { S: fileName },
+        upload_timestamp: { S: timestamp },
+        ocr_status: { S: "PENDING" },
+        verification_id: { NULL: true },
+      }
+    }));
+
+    console.log(`✅ Saved to documents table: ${documentId}`);
+
+    // 8. Return success
+    return {
+      statusCode: 200,
+      headers: corsHeaders(),
+      body: JSON.stringify({
+        message: "Document uploaded successfully",
+        document_id: documentId,
+        employee_id: employeeId,
+        s3_key: s3Key,
+        ocr_status: "PENDING",
+      })
+    };
+
+  } catch (error) {
+    console.error("❌ Error:", error);
+    return errorResponse(500, error.message);
+  }
+};
+
+// Helper: Check if employee exists
+async function checkEmployeeExists(employeeId) {
+  try {
+    const result = await dynamodb.send(new GetItemCommand({
+      TableName: EMPLOYEES_TABLE,
+      Key: { employee_id: { S: employeeId } }
+    }));
+    console.log(`Employee lookup result for ${employeeId}:`, result);
+    return !!result.Item;
+  } catch (error) {
+    console.error("Error checking employee:", error);
+    return false;
+  }
+}
+
+// Helper: Error response
+function errorResponse(statusCode, message) {
+  return {
+    statusCode,
+    headers: corsHeaders(),
+    body: JSON.stringify({ error: message })
+  };
+}
+
+// Helper: CORS headers
+function corsHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}

@@ -1,0 +1,9 @@
+{
+  "name": "create-employee-lambda",
+  "version": "1.0.0",
+  "description": "Lambda: create employee + Cognito user + Postmark welcome email",
+  "type": "module",
+  "dependencies": {
+    "postmark": "^4.0.5"
+  }
+}
