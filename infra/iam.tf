@@ -22,6 +22,7 @@ resource "aws_iam_role" "lambda_execution" {
     "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess",
     "arn:aws:iam::aws:policy/AmazonS3FullAccess",
     "arn:aws:iam::aws:policy/AmazonTextractFullAccess",
+    "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess",
     "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess",
   ]
 

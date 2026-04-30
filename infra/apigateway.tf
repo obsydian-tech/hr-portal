@@ -31,3 +31,41 @@ resource "aws_apigatewayv2_api" "document_upload_api" {
     max_age           = 3600
   }
 }
+
+# ---------------------------------------------------------------------------
+# API Gateway $default stages — NH-33 X-Ray tracing
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_stage" "employees_api_default" {
+  api_id      = aws_apigatewayv2_api.employees_api.id
+  name        = "$default"
+  auto_deploy = true
+
+  xray_tracing_enabled = true
+
+  default_route_settings {
+    throttling_burst_limit = 100
+    throttling_rate_limit  = 50
+  }
+
+  lifecycle {
+    ignore_changes = [deployment_id]
+  }
+}
+
+resource "aws_apigatewayv2_stage" "document_upload_api_default" {
+  api_id      = aws_apigatewayv2_api.document_upload_api.id
+  name        = "$default"
+  auto_deploy = true
+
+  xray_tracing_enabled = true
+
+  default_route_settings {
+    throttling_burst_limit = 100
+    throttling_rate_limit  = 50
+  }
+
+  lifecycle {
+    ignore_changes = [deployment_id]
+  }
+}

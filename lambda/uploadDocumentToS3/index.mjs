@@ -1,18 +1,21 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const s3 = new S3Client({ region: "af-south-1" });
 const dynamodb = new DynamoDBClient({ region: "af-south-1" });
 
 const logger = new Logger({ serviceName: 'uploadDocumentToS3' });
+const tracer = new Tracer({ serviceName: 'uploadDocumentToS3' });
 
 const BUCKET_NAME = "document-ocr-verification-uploads";
 const DOCUMENTS_TABLE = "documents";
 const EMPLOYEES_TABLE = "employees";
 
-export const handler = async (event) => {
+const handlerFn = async (event) => {
   logger.info('Handler invoked', { employeeId: event.pathParameters?.employee_id, httpMethod: event.httpMethod });
+  tracer.putAnnotation('operation', 'uploadDocumentToS3');
 
   try {
     // 1. Parse request
@@ -104,6 +107,8 @@ export const handler = async (event) => {
     return errorResponse(500, error.message);
   }
 };
+
+export const handler = tracer.captureLambdaHandler(handlerFn);
 
 // Helper: Check if employee exists
 async function checkEmployeeExists(employeeId) {

@@ -11,6 +11,7 @@
   "description": "",
   "dependencies": {
     "@aws-lambda-powertools/logger": "^2.18.0",
+    "@aws-lambda-powertools/tracer": "^2.18.0",
     "@aws-sdk/client-dynamodb": "^3.1024.0"
   }
 }

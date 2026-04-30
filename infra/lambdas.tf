@@ -27,10 +27,10 @@ resource "aws_lambda_function" "create_employee" {
   }
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/createEmployee"
   }
 
@@ -50,10 +50,10 @@ resource "aws_lambda_function" "get_employees" {
   architectures = ["x86_64"]
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/getEmployees"
   }
 
@@ -73,10 +73,10 @@ resource "aws_lambda_function" "upload_document_to_s3" {
   architectures = ["x86_64"]
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/uploadDocumentToS3"
   }
 
@@ -96,10 +96,10 @@ resource "aws_lambda_function" "process_document_ocr" {
   architectures = ["x86_64"]
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/processDocumentOCR"
   }
 
@@ -119,10 +119,10 @@ resource "aws_lambda_function" "get_document_verifications" {
   architectures = ["x86_64"]
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/getDocumentVerifications"
   }
 
@@ -142,10 +142,10 @@ resource "aws_lambda_function" "get_single_document_verification" {
   architectures = ["x86_64"]
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/getSingleDocumentVerification"
   }
 
@@ -165,10 +165,10 @@ resource "aws_lambda_function" "get_employee_document_verifications" {
   architectures = ["x86_64"]
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/getEmployeeDocumentVerifications"
   }
 
@@ -188,10 +188,10 @@ resource "aws_lambda_function" "review_document_verification" {
   architectures = ["x86_64"]
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/reviewDocumentVerification"
   }
 
@@ -211,10 +211,10 @@ resource "aws_lambda_function" "lookup_employee_email" {
   architectures = ["x86_64"]
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/lookupEmployeeEmail"
   }
 
@@ -234,10 +234,10 @@ resource "aws_lambda_function" "get_document_presigned_url" {
   architectures = ["x86_64"]
 
   ephemeral_storage { size = 512 }
-  tracing_config { mode = "PassThrough" }
+  tracing_config { mode = "Active" }
 
   logging_config {
-    log_format = "Text"
+    log_format = "JSON"
     log_group  = "/aws/lambda/getDocumentPresignedUrl"
   }
 
