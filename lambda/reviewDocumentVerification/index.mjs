@@ -1,8 +1,10 @@
-import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
+import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamo = new DynamoDBClient({ region: 'af-south-1' });
+const cloudwatch = new CloudWatchClient({ region: 'af-south-1' });
 
 const logger = new Logger({ serviceName: 'reviewDocumentVerification' });
 const tracer = new Tracer({ serviceName: 'reviewDocumentVerification' });
@@ -116,6 +118,33 @@ const handlerFn = async (event) => {
         }));
         stageUpdated = true;
         logger.info('Employee stage updated to VERIFIED', { employeeId });
+
+        // Publish TimeToComplete custom metric (NH-34)
+        try {
+          // Fetch employee record to get created_at timestamp
+          const empRecord = await dynamo.send(new GetItemCommand({
+            TableName: EMPLOYEES_TABLE,
+            Key: { employee_id: { S: employeeId } },
+            ProjectionExpression: 'created_at',
+          }));
+          const createdAt = empRecord.Item?.created_at?.S;
+          if (createdAt) {
+            const durationMinutes = (Date.now() - new Date(createdAt).getTime()) / 60000;
+            await cloudwatch.send(new PutMetricDataCommand({
+              Namespace: 'Naleko/Onboarding',
+              MetricData: [{
+                MetricName: 'TimeToComplete',
+                Value: durationMinutes,
+                Unit: 'None',
+                Dimensions: [{ Name: 'Environment', Value: process.env.ENVIRONMENT || 'prod' }],
+              }],
+            }));
+            logger.info('Published TimeToComplete metric', { employeeId, durationMinutes });
+          }
+        } catch (metricErr) {
+          // Non-fatal — metric failure must not block the review response
+          logger.warn('Failed to publish TimeToComplete metric', { employeeId, error: metricErr });
+        }
       } catch (stageErr) {
         logger.error('Failed to update employee stage', { employeeId, error: stageErr });
         // Non-fatal — the document review itself succeeded

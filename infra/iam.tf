@@ -28,3 +28,24 @@ resource "aws_iam_role" "lambda_execution" {
 
   max_session_duration = 3600
 }
+
+# Allow Lambdas to publish custom metrics to CloudWatch (NH-34)
+resource "aws_iam_role_policy" "lambda_cloudwatch_metrics" {
+  name = "naleko-lambda-cloudwatch-metrics"
+  role = aws_iam_role.lambda_execution.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "AllowPutMetricData"
+      Effect   = "Allow"
+      Action   = ["cloudwatch:PutMetricData"]
+      Resource = "*"
+      Condition = {
+        StringEquals = {
+          "cloudwatch:namespace" = "Naleko/Onboarding"
+        }
+      }
+    }]
+  })
+}
