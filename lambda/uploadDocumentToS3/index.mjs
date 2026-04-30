@@ -1,15 +1,18 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { Logger } from '@aws-lambda-powertools/logger';
 
 const s3 = new S3Client({ region: "af-south-1" });
 const dynamodb = new DynamoDBClient({ region: "af-south-1" });
+
+const logger = new Logger({ serviceName: 'uploadDocumentToS3' });
 
 const BUCKET_NAME = "document-ocr-verification-uploads";
 const DOCUMENTS_TABLE = "documents";
 const EMPLOYEES_TABLE = "employees";
 
 export const handler = async (event) => {
-  console.log("Upload request:", JSON.stringify(event));
+  logger.info('Handler invoked', { employeeId: event.pathParameters?.employee_id, httpMethod: event.httpMethod });
 
   try {
     // 1. Parse request
@@ -48,13 +51,8 @@ export const handler = async (event) => {
 
     // 6. Upload to S3
     try {
-      console.log(`📤 Starting S3 upload...`);
-      console.log(`   Bucket: ${BUCKET_NAME}`);
-      console.log(`   Key: ${s3Key}`);
-      console.log(`   Content Type: ${body.contentType || 'application/pdf'}`);
-      
       const fileBuffer = Buffer.from(fileContent, 'base64');
-      console.log(`   File buffer size: ${fileBuffer.length} bytes`);
+      logger.info('Starting S3 upload', { bucket: BUCKET_NAME, key: s3Key, contentType: body.contentType || 'application/pdf', fileSize: fileBuffer.length });
       
       const uploadCommand = new PutObjectCommand({
         Bucket: BUCKET_NAME,
@@ -64,14 +62,10 @@ export const handler = async (event) => {
       });
       
       const uploadResult = await s3.send(uploadCommand);
-      console.log(`✅ S3 Upload Response:`, JSON.stringify(uploadResult, null, 2));
-      console.log(`✅ Uploaded to S3: ${s3Key}`);
+      logger.info('S3 upload successful', { key: s3Key });
       
     } catch (s3Error) {
-      console.error(`❌ S3 Upload Failed!`);
-      console.error(`   Error name: ${s3Error.name}`);
-      console.error(`   Error message: ${s3Error.message}`);
-      console.error(`   Full error:`, JSON.stringify(s3Error, null, 2));
+      logger.error('S3 upload failed', { errorName: s3Error.name, errorMessage: s3Error.message });
       throw new Error(`S3 upload failed: ${s3Error.message}`);
     }
 
@@ -90,7 +84,7 @@ export const handler = async (event) => {
       }
     }));
 
-    console.log(`✅ Saved to documents table: ${documentId}`);
+    logger.info('Saved to documents table', { documentId });
 
     // 8. Return success
     return {
@@ -106,7 +100,7 @@ export const handler = async (event) => {
     };
 
   } catch (error) {
-    console.error("❌ Error:", error);
+    logger.error('Handler error', { error });
     return errorResponse(500, error.message);
   }
 };
@@ -118,10 +112,10 @@ async function checkEmployeeExists(employeeId) {
       TableName: EMPLOYEES_TABLE,
       Key: { employee_id: { S: employeeId } }
     }));
-    console.log(`Employee lookup result for ${employeeId}:`, result);
+    logger.debug('Employee lookup', { employeeId, found: !!result.Item });
     return !!result.Item;
   } catch (error) {
-    console.error("Error checking employee:", error);
+    logger.error('Error checking employee', { error });
     return false;
   }
 }

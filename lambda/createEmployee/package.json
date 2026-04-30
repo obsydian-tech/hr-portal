@@ -4,6 +4,7 @@
   "description": "Lambda: create employee + Cognito user + Postmark welcome email",
   "type": "module",
   "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0",
     "postmark": "^4.0.5"
   }
 }

@@ -2,11 +2,14 @@ import { TextractClient, AnalyzeDocumentCommand } from "@aws-sdk/client-textract
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { Logger } from '@aws-lambda-powertools/logger';
 
 const textract = new TextractClient({ region: "eu-west-1" });
 const s3 = new S3Client();
 const bedrock = new BedrockRuntimeClient({ region: "af-south-1" });
 const dynamodb = new DynamoDBClient();
+
+const logger = new Logger({ serviceName: 'processDocumentOCR' });
 
 // ─── Prompt builders per document type ────────────────────────
 
@@ -154,7 +157,7 @@ export const handler = async (event) => {
   const bucket = event.Records[0].s3.bucket.name;
   const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
 
-  console.log(`Processing: ${key} from ${bucket}`);
+  logger.info('Processing document', { key, bucket });
 
   try {
     // 1. Extract metadata from S3 key
@@ -165,14 +168,14 @@ export const handler = async (event) => {
     const fileName = keyParts[3];
     const documentId = fileName.split('_')[1]; // Extract doc_1774086521598
 
-    console.log(`📋 Metadata: Employee=${employeeId}, DocType=${documentType}, DocId=doc_${documentId}`);
+    logger.info('Document metadata', { employeeId, documentType, documentId });
 
     // 2. Download file from S3
     const s3Response = await s3.send(
       new GetObjectCommand({ Bucket: bucket, Key: key })
     );
     const fileBytes = await s3Response.Body.transformToByteArray();
-    console.log(`Downloaded file: ${fileBytes.length} bytes`);
+    logger.info('File downloaded', { bytes: fileBytes.length });
 
     // 3. Extract text with Textract
     const textractResponse = await textract.send(
@@ -187,11 +190,11 @@ export const handler = async (event) => {
       .map((block) => block.Text);
 
     const extractedText = extractedLines.join("\n");
-    console.log("Extracted text:", extractedText);
+    // NOTE: extracted text is not logged to avoid PII (may contain names, ID numbers, account details)
 
     // 4. Send to Claude for validation — prompt varies by document type
     const prompt = getPromptForDocType(documentType, extractedText);
-    console.log(`🤖 Using ${documentType} prompt for Claude validation`);
+    logger.info('Running Claude validation', { documentType });
 
     const claudeResponse = await bedrock.send(
       new InvokeModelCommand({
@@ -214,7 +217,8 @@ export const handler = async (event) => {
     claudeText = claudeText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const validationResult = JSON.parse(claudeText);
 
-    console.log("Validation result:", JSON.stringify(validationResult, null, 2));
+    // NOTE: full validation result not logged to avoid PII (may contain idNumber, name, accountHolder, etc.)
+    logger.info('Validation complete', { confidence: validationResult.confidence, decision: validationResult.decision });
 
     // 6. Save to document-verification table — fields vary by document type
     const verificationId = `ver_${Date.now()}`;
@@ -231,7 +235,7 @@ export const handler = async (event) => {
       })
     );
 
-    console.log(`✅ Saved to document-verification: ${verificationId}`);
+    logger.info('Saved verification record', { verificationId });
 
     // 7. Update documents table with OCR status
     const ocrStatus = validationResult.confidence >= 90 ? "PASSED" : "MANUAL_REVIEW";
@@ -252,7 +256,7 @@ export const handler = async (event) => {
       })
     );
 
-    console.log(`✅ Updated documents table: doc_${documentId} → ${ocrStatus}`);
+    logger.info('Updated document status', { documentId, ocrStatus });
 
     // 8. Return the result
     return {
@@ -267,7 +271,7 @@ export const handler = async (event) => {
       },
     };
   } catch (error) {
-    console.error("❌ Error processing document:", error);
+    logger.error('Error processing document', { error });
     
     // Try to mark document as FAILED if we can extract the document_id
     try {
@@ -291,9 +295,9 @@ export const handler = async (event) => {
         })
       );
       
-      console.log(`⚠️ Marked document as FAILED: doc_${documentId}`);
+      logger.warn('Marked document as FAILED', { documentId });
     } catch (updateError) {
-      console.error("Failed to update document status:", updateError);
+      logger.error('Failed to update document status', { error: updateError });
     }
     
     throw error;

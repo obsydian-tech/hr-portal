@@ -7,9 +7,12 @@ import {
   AdminSetUserPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import postmark from "postmark";
+import { Logger } from '@aws-lambda-powertools/logger';
 
 const dynamodb = new DynamoDBClient();
 const cognito = new CognitoIdentityProviderClient({ region: "af-south-1" });
+
+const logger = new Logger({ serviceName: 'createEmployee' });
 
 const USER_POOL_ID = "af-south-1_2LdAGFnw2";
 const LOGIN_URL = "https://hr-portal-beryl-three.vercel.app/login";
@@ -24,7 +27,7 @@ function getMailClient() {
 }
 
 export const handler = async (event) => {
-  console.log('Event:', JSON.stringify(event, null, 2));
+  logger.info('Handler invoked', { path: event.path, httpMethod: event.httpMethod });
 
   try {
     // 1. Get staff member ID from headers
@@ -98,7 +101,7 @@ export const handler = async (event) => {
       })
     );
 
-    console.log(`Employee created: ${employeeId} by staff: ${staffMemberId}`);
+    logger.info('Employee created', { employeeId, staffMemberId });
 
     // 6. Create Cognito user for the new employee
     let cognitoUserCreated = false;
@@ -146,10 +149,10 @@ export const handler = async (event) => {
       );
 
       cognitoUserCreated = true;
-      console.log(`Cognito user created for ${employeeId}: ${body.email}`);
+      logger.info('Cognito user created', { employeeId });
     } catch (cognitoError) {
       // Log but don't fail the entire request — employee is already in DynamoDB
-      console.error(`Failed to create Cognito user for ${employeeId}:`, cognitoError);
+      logger.error('Failed to create Cognito user', { employeeId, error: cognitoError });
     }
 
     // 7. Send branded welcome email via Postmark
@@ -183,12 +186,12 @@ export const handler = async (event) => {
           });
 
           emailSent = true;
-          console.log(`Welcome email sent to ${body.email}`);
+          logger.info('Welcome email sent', { employeeId });
         } else {
-          console.warn("Postmark not configured — POSTMARK_API_TOKEN env var missing. Skipping email.");
+          logger.warn('Postmark not configured — POSTMARK_API_TOKEN env var missing. Skipping email.');
         }
       } catch (emailError) {
-        console.error(`Failed to send welcome email to ${body.email}:`, emailError);
+        logger.error('Failed to send welcome email', { employeeId, error: emailError });
       }
     }
 
@@ -219,7 +222,7 @@ export const handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Handler error', { error });
     return {
       statusCode: 500,
       headers: {
@@ -482,7 +485,7 @@ async function generateEmployeeId() {
     return `EMP-${String(nextId).padStart(7, '0')}`;
 
   } catch (error) {
-    console.error('Error generating employee ID:', error);
+    logger.error('Error generating employee ID', { error });
     // Fallback to timestamp-based ID if scan fails
     return `EMP-${Date.now()}`;
   }

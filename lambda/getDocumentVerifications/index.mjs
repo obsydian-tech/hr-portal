@@ -1,10 +1,13 @@
 import { DynamoDBClient, ScanCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { Logger } from '@aws-lambda-powertools/logger';
 
 const dynamodb = new DynamoDBClient();
 
+const logger = new Logger({ serviceName: 'getDocumentVerifications' });
+
 export const handler = async (event) => {
-  console.log('Event:', JSON.stringify(event, null, 2));
+  logger.info('Handler invoked', { path: event.path, httpMethod: event.requestContext?.http?.method });
 
   try {
     const queryParams = event.queryStringParameters || {};
@@ -19,7 +22,7 @@ export const handler = async (event) => {
     const role = headers['x-role'] || headers['X-Role'] || '';
     const isManager = role.toLowerCase() === 'manager';
 
-    console.log('Query params:', { status, decision, employeeId, limit, staffMemberId, isManager });
+    logger.info('Query params', { status, decision, employeeId, limit, isManager });
 
     // For prototype: simple scan (not optimized for production)
     const scanParams = {
@@ -74,7 +77,7 @@ export const handler = async (event) => {
         }
         return { ...item, employee_hr_staff_id: '' };
       } catch (err) {
-        console.error('Failed to get employee:', err);
+        logger.error('Failed to get employee', { error: err });
         return { ...item, employee_hr_staff_id: '' };
       }
     }));
@@ -85,7 +88,7 @@ export const handler = async (event) => {
       filteredItems = enrichedItems.filter(
         item => item.employee_hr_staff_id === staffMemberId
       );
-      console.log(`Filtered verifications for staff ${staffMemberId}: ${filteredItems.length} of ${enrichedItems.length}`);
+      logger.info('Filtered verifications', { staffMemberId, filtered: filteredItems.length, total: enrichedItems.length });
     }
 
     return {
@@ -112,7 +115,7 @@ export const handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Handler error', { error });
     return {
       statusCode: 500,
       headers: {

@@ -1,6 +1,9 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
+import { Logger } from '@aws-lambda-powertools/logger';
 
 const dynamo = new DynamoDBClient({ region: 'af-south-1' });
+
+const logger = new Logger({ serviceName: 'reviewDocumentVerification' });
 
 const DOCUMENTS_TABLE = 'documents';
 const VERIFICATION_TABLE = 'document-verification';
@@ -14,7 +17,7 @@ const CORS_HEADERS = {
 };
 
 export const handler = async (event) => {
-  console.log('Event:', JSON.stringify(event));
+  logger.info('Handler invoked', { documentId: event.pathParameters?.document_id });
 
   const documentId = event.pathParameters?.document_id;
   if (!documentId) {
@@ -65,7 +68,7 @@ export const handler = async (event) => {
       },
     };
     await dynamo.send(new UpdateItemCommand(updateDocParams));
-    console.log(`Updated documents table: ${documentId} → ${decision}`);
+    logger.info('Updated document', { documentId, decision });
 
     // 3. Update the document-verification table if a verification record exists
     if (verificationId) {
@@ -80,7 +83,7 @@ export const handler = async (event) => {
         },
       };
       await dynamo.send(new UpdateItemCommand(updateVerParams));
-      console.log(`Updated verification table: ${verificationId} → ${decision}`);
+      logger.info('Updated verification', { verificationId, decision });
     }
 
     // 4. Check if ALL documents for this employee are now PASSED
@@ -109,9 +112,9 @@ export const handler = async (event) => {
           },
         }));
         stageUpdated = true;
-        console.log(`All docs PASSED — employee ${employeeId} stage → VERIFIED`);
+        logger.info('Employee stage updated to VERIFIED', { employeeId });
       } catch (stageErr) {
-        console.error('Failed to update employee stage:', stageErr);
+        logger.error('Failed to update employee stage', { employeeId, error: stageErr });
         // Non-fatal — the document review itself succeeded
       }
     }
@@ -127,7 +130,7 @@ export const handler = async (event) => {
     });
 
   } catch (err) {
-    console.error('Error:', err);
+    logger.error('Handler error', { error: err });
     return respond(500, { error: 'Internal server error', details: err.message });
   }
 };
