@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0",
     "@aws-sdk/client-dynamodb": "^3.1024.0",
     "@aws-sdk/client-s3": "^3.1024.0",
     "@aws-sdk/s3-request-presigner": "^3.1024.0"

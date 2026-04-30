@@ -1,10 +1,13 @@
 import { DynamoDBClient, QueryCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { Logger } from '@aws-lambda-powertools/logger';
 
 const dynamodb = new DynamoDBClient();
 
+const logger = new Logger({ serviceName: 'getEmployeeDocumentVerifications' });
+
 export const handler = async (event) => {
-  console.log('Event:', JSON.stringify(event, null, 2));
+  logger.info('Handler invoked', { path: event.path, employeeId: event.pathParameters?.employee_id });
 
   try {
     const employeeId = event.pathParameters?.employee_id;
@@ -87,7 +90,7 @@ export const handler = async (event) => {
           can_reupload: ['MANUAL_REVIEW', 'FAILED', 'PENDING'].includes(doc.ocr_status)
         };
       } catch (err) {
-        console.error('Failed to get verification:', err);
+        logger.error('Failed to get verification', { error: err });
         return { ...doc, verification: null, can_reupload: true };
       }
     }));
@@ -135,7 +138,7 @@ export const handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Handler error', { error });
     return {
       statusCode: 500,
       headers: {

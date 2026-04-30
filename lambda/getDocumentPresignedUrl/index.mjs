@@ -1,9 +1,12 @@
 import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Logger } from '@aws-lambda-powertools/logger';
 
 const dynamodb = new DynamoDBClient({ region: "af-south-1" });
 const s3 = new S3Client({ region: "af-south-1" });
+
+const logger = new Logger({ serviceName: 'getDocumentPresignedUrl' });
 
 const BUCKET = "document-ocr-verification-uploads";
 const DOCUMENTS_TABLE = "documents";
@@ -73,7 +76,7 @@ export const handler = async (event) => {
       }),
     };
   } catch (error) {
-    console.error("Error generating pre-signed URL:", error);
+    logger.error('Error generating pre-signed URL', { error });
     return {
       statusCode: 500,
       headers,

@@ -1,10 +1,13 @@
 import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { Logger } from '@aws-lambda-powertools/logger';
 
 const dynamodb = new DynamoDBClient();
 
+const logger = new Logger({ serviceName: 'getEmployees' });
+
 export const handler = async (event) => {
-  console.log('Event:', JSON.stringify(event, null, 2));
+  logger.info('Handler invoked', { path: event.path, httpMethod: event.httpMethod });
 
   try {
     // 1. Get staff member ID from headers
@@ -35,7 +38,7 @@ export const handler = async (event) => {
     const department = queryParams.department;
     const limit = parseInt(queryParams.limit || '100');
 
-    console.log('Query params:', { staffMemberId, stage, department, limit });
+    logger.info('Query params', { staffMemberId, stage, department, limit });
 
     // 3. Scan employees table
     const scanParams = {
@@ -46,14 +49,14 @@ export const handler = async (event) => {
     const result = await dynamodb.send(new ScanCommand(scanParams));
     let items = result.Items.map(item => unmarshall(item));
 
-    console.log(`Total employees in DB: ${items.length}`);
+    logger.info('Total employees in DB', { count: items.length });
 
     // 4. Filter by staff member (only show employees they created) — unless manager
     if (!isManager) {
       items = items.filter(item => item.created_by === staffMemberId);
     }
     
-    console.log(`Employees ${isManager ? '(manager sees all)' : `created by ${staffMemberId}`}: ${items.length}`);
+    logger.info('Employees filtered', { isManager, count: items.length });
 
     // 5. Apply additional filters if provided
     if (stage) {
@@ -112,7 +115,7 @@ export const handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Handler error', { error });
     return {
       statusCode: 500,
       headers: {

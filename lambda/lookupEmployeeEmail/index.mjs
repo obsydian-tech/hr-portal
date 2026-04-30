@@ -1,6 +1,9 @@
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { Logger } from '@aws-lambda-powertools/logger';
 
 const dynamodb = new DynamoDBClient();
+
+const logger = new Logger({ serviceName: 'lookupEmployeeEmail' });
 
 /**
  * lookupEmployeeEmail
@@ -15,7 +18,7 @@ const dynamodb = new DynamoDBClient();
  * It only exposes the email — no other PII.
  */
 export const handler = async (event) => {
-  console.log("Event:", JSON.stringify(event, null, 2));
+  logger.info('Handler invoked', { path: event.path, employeeId: event.queryStringParameters?.employeeId });
 
   const headers = {
     "Content-Type": "application/json",
@@ -93,7 +96,7 @@ export const handler = async (event) => {
       body: JSON.stringify({ email }),
     };
   } catch (error) {
-    console.error("Error:", error);
+    logger.error('Handler error', { error });
     return {
       statusCode: 500,
       headers,
