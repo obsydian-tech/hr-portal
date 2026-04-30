@@ -1,9 +1,11 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamo = new DynamoDBClient({ region: 'af-south-1' });
 
 const logger = new Logger({ serviceName: 'reviewDocumentVerification' });
+const tracer = new Tracer({ serviceName: 'reviewDocumentVerification' });
 
 const DOCUMENTS_TABLE = 'documents';
 const VERIFICATION_TABLE = 'document-verification';
@@ -16,8 +18,9 @@ const CORS_HEADERS = {
   'Content-Type': 'application/json',
 };
 
-export const handler = async (event) => {
+const handlerFn = async (event) => {
   logger.info('Handler invoked', { documentId: event.pathParameters?.document_id });
+  tracer.putAnnotation('operation', 'reviewDocumentVerification');
 
   const documentId = event.pathParameters?.document_id;
   if (!documentId) {
@@ -134,6 +137,8 @@ export const handler = async (event) => {
     return respond(500, { error: 'Internal server error', details: err.message });
   }
 };
+
+export const handler = tracer.captureLambdaHandler(handlerFn);
 
 function respond(statusCode, body) {
   return {

@@ -57,6 +57,18 @@ import {
   to = aws_apigatewayv2_api.document_upload_api
 }
 
+# ── API Gateway $default stages — NH-33 ──────────────────────────────────────
+
+import {
+  id = "ndksa9ec0k/$default"
+  to = aws_apigatewayv2_stage.employees_api_default
+}
+
+import {
+  id = "b2wt303fc8/$default"
+  to = aws_apigatewayv2_stage.document_upload_api_default
+}
+
 # ── Lambda functions ──────────────────────────────────────────────────────────
 
 import {

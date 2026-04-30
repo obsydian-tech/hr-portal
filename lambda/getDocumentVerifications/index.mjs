@@ -1,13 +1,16 @@
 import { DynamoDBClient, ScanCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamodb = new DynamoDBClient();
 
 const logger = new Logger({ serviceName: 'getDocumentVerifications' });
+const tracer = new Tracer({ serviceName: 'getDocumentVerifications' });
 
-export const handler = async (event) => {
+const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, httpMethod: event.requestContext?.http?.method });
+  tracer.putAnnotation('operation', 'getDocumentVerifications');
 
   try {
     const queryParams = event.queryStringParameters || {};
@@ -128,3 +131,5 @@ export const handler = async (event) => {
     };
   }
 };
+
+export const handler = tracer.captureLambdaHandler(handlerFn);

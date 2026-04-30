@@ -1,13 +1,16 @@
 import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamodb = new DynamoDBClient();
 
 const logger = new Logger({ serviceName: 'getEmployees' });
+const tracer = new Tracer({ serviceName: 'getEmployees' });
 
-export const handler = async (event) => {
+const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, httpMethod: event.httpMethod });
+  tracer.putAnnotation('operation', 'getEmployees');
 
   try {
     // 1. Get staff member ID from headers
@@ -131,3 +134,5 @@ export const handler = async (event) => {
     };
   }
 };
+
+export const handler = tracer.captureLambdaHandler(handlerFn);

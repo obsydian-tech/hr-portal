@@ -8,11 +8,13 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 import postmark from "postmark";
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamodb = new DynamoDBClient();
 const cognito = new CognitoIdentityProviderClient({ region: "af-south-1" });
 
 const logger = new Logger({ serviceName: 'createEmployee' });
+const tracer = new Tracer({ serviceName: 'createEmployee' });
 
 const USER_POOL_ID = "af-south-1_2LdAGFnw2";
 const LOGIN_URL = "https://hr-portal-beryl-three.vercel.app/login";
@@ -26,8 +28,9 @@ function getMailClient() {
   return mailClient;
 }
 
-export const handler = async (event) => {
+const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, httpMethod: event.httpMethod });
+  tracer.putAnnotation('operation', 'createEmployee');
 
   try {
     // 1. Get staff member ID from headers
@@ -102,6 +105,7 @@ export const handler = async (event) => {
     );
 
     logger.info('Employee created', { employeeId, staffMemberId });
+    tracer.putAnnotation('employeeId', employeeId);
 
     // 6. Create Cognito user for the new employee
     let cognitoUserCreated = false;
@@ -236,6 +240,8 @@ export const handler = async (event) => {
     };
   }
 };
+
+export const handler = tracer.captureLambdaHandler(handlerFn);
 
 /**
  * Build branded HTML welcome email

@@ -1,9 +1,11 @@
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamodb = new DynamoDBClient();
 
 const logger = new Logger({ serviceName: 'lookupEmployeeEmail' });
+const tracer = new Tracer({ serviceName: 'lookupEmployeeEmail' });
 
 /**
  * lookupEmployeeEmail
@@ -17,8 +19,9 @@ const logger = new Logger({ serviceName: 'lookupEmployeeEmail' });
  * This endpoint is PUBLIC (no auth required) since it's needed before login.
  * It only exposes the email — no other PII.
  */
-export const handler = async (event) => {
+const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, employeeId: event.queryStringParameters?.employeeId });
+  tracer.putAnnotation('operation', 'lookupEmployeeEmail');
 
   const headers = {
     "Content-Type": "application/json",
@@ -107,3 +110,5 @@ export const handler = async (event) => {
     };
   }
 };
+
+export const handler = tracer.captureLambdaHandler(handlerFn);

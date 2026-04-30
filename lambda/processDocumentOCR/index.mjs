@@ -3,6 +3,7 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
+import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const textract = new TextractClient({ region: "eu-west-1" });
 const s3 = new S3Client();
@@ -10,6 +11,7 @@ const bedrock = new BedrockRuntimeClient({ region: "af-south-1" });
 const dynamodb = new DynamoDBClient();
 
 const logger = new Logger({ serviceName: 'processDocumentOCR' });
+const tracer = new Tracer({ serviceName: 'processDocumentOCR' });
 
 // ─── Prompt builders per document type ────────────────────────
 
@@ -153,11 +155,12 @@ function buildVerificationItem({ verificationId, employeeId, documentId, documen
 
 // ─── Main handler ─────────────────────────────────────────────
 
-export const handler = async (event) => {
+const handlerFn = async (event) => {
   const bucket = event.Records[0].s3.bucket.name;
   const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
 
   logger.info('Processing document', { key, bucket });
+  tracer.putAnnotation('operation', 'processDocumentOCR');
 
   try {
     // 1. Extract metadata from S3 key
@@ -169,6 +172,8 @@ export const handler = async (event) => {
     const documentId = fileName.split('_')[1]; // Extract doc_1774086521598
 
     logger.info('Document metadata', { employeeId, documentType, documentId });
+    tracer.putAnnotation('employeeId', employeeId);
+    tracer.putAnnotation('documentType', documentType);
 
     // 2. Download file from S3
     const s3Response = await s3.send(
@@ -303,3 +308,5 @@ export const handler = async (event) => {
     throw error;
   }
 };
+
+export const handler = tracer.captureLambdaHandler(handlerFn);
