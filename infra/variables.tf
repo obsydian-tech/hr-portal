@@ -31,3 +31,9 @@ variable "project" {
   type        = string
   default     = "naleko"
 }
+
+variable "ops_email" {
+  description = "Email address subscribed to the naleko-ops-alerts SNS topic for CloudWatch alarm notifications."
+  type        = string
+  default     = "ops@naleko.co.za"
+}
