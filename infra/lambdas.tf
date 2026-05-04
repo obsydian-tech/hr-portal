@@ -395,3 +395,34 @@ resource "aws_lambda_function" "trigger_external_verification" {
     ignore_changes = [filename, source_code_hash, runtime]
   }
 }
+
+# ─── NH-13-swagger: serveDocs (GET /docs + GET /openapi.yaml) ────────────────
+resource "aws_lambda_function" "serve_docs" {
+  function_name = "serveDocs"
+  role          = aws_iam_role.serve_docs.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      # Injected so Swagger UI HTML knows the full URL of /openapi.yaml
+      API_ENDPOINT = aws_apigatewayv2_api.employees_api.api_endpoint
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/serveDocs"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, runtime]
+  }
+}
