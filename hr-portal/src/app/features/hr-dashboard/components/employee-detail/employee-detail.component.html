@@ -44,6 +44,34 @@
           <span><i class="pi pi-user mr-1"></i> HR Partner: {{ employee.hr_staff_name }}</span>
         }
       </div>
+
+      <!-- NH-41: Risk Band + Assess Risk action -->
+      <div class="flex align-items-center gap-3 mt-3 flex-wrap">
+        @if (employee.riskBand) {
+          <span
+            class="risk-badge"
+            [class.risk-low]="employee.riskBand === 'LOW'"
+            [class.risk-medium]="employee.riskBand === 'MEDIUM'"
+            [class.risk-high]="employee.riskBand === 'HIGH'"
+            [title]="employee.riskReason ?? ''"
+          >
+            {{ employee.riskBand === 'LOW' ? '🟢' : employee.riskBand === 'MEDIUM' ? '🟡' : employee.riskBand === 'HIGH' ? '🔴' : '⚪' }}
+            <strong>{{ employee.riskBand }}</strong> Risk
+            @if (employee.riskAssessedAt) {
+              <span class="text-xs text-color-secondary ml-1">(assessed {{ employee.riskAssessedAt | date:'shortDate' }})</span>
+            }
+          </span>
+        }
+        <p-button
+          label="Assess Risk"
+          icon="pi pi-bolt"
+          severity="warn"
+          [loading]="riskLoading()"
+          [outlined]="true"
+          size="small"
+          (onClick)="assessRisk()"
+        />
+      </div>
     </div>
 
     <!-- Document Summary Strip -->

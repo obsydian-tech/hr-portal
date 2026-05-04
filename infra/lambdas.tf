@@ -489,3 +489,36 @@ resource "aws_lambda_function" "audit_log_consumer" {
     ignore_changes = [filename, source_code_hash, runtime]
   }
 }
+
+# ─── NH-41: classifyOnboardingRisk (Bedrock risk classifier) ─────────────────
+resource "aws_lambda_function" "classify_onboarding_risk" {
+  function_name = "classifyOnboardingRisk"
+  role          = aws_iam_role.classify_onboarding_risk.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 256
+  timeout       = 30 # Bedrock inference can take up to ~10s; 30s gives headroom
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      VERIFICATIONS_TABLE = aws_dynamodb_table.document_verification.name
+      EMPLOYEES_TABLE     = aws_dynamodb_table.employees.name
+      BEDROCK_MODEL_ID    = "anthropic.claude-3-haiku-20240307-v1:0"
+      KMS_KEY_ARN         = module.kms_pii.key_arn
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/classifyOnboardingRisk"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, runtime]
+  }
+}
