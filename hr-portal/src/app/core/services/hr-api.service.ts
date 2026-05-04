@@ -208,9 +208,7 @@ export class HrApiService {
       date_of_birth: ver?.extracted_data?.date_of_birth ?? 'N/A',
       gender: ver?.extracted_data?.gender ?? 'N/A',
       citizenship: ver?.extracted_data?.citizenship ?? 'N/A',
-      document_file_url: doc.s3_key
-        ? `https://document-ocr-verification-uploads.s3.af-south-1.amazonaws.com/${doc.s3_key}`
-        : undefined,
+      document_file_url: doc.s3_key || undefined,
     };
   }
 

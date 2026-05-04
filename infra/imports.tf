@@ -45,6 +45,11 @@ import {
   to = aws_s3_bucket.document_uploads
 }
 
+import {
+  id = "document-ocr-verification-uploads"
+  to = aws_s3_bucket_public_access_block.document_uploads
+}
+
 # ── API Gateway HTTP APIs ─────────────────────────────────────────────────────
 
 import {
