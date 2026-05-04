@@ -3,6 +3,7 @@
 # NH-10: SSE with KMS CMK alias/naleko-onboarding-pii on all tables
 # NH-11: PII envelope encryption — id_number_encrypted + id_number_last4
 #        columns written by createEmployee and processDocumentOCR Lambdas
+# NH-13: external-verification-requests table added
 # ---------------------------------------------------------------------------
 
 resource "aws_dynamodb_table" "employees" {
@@ -76,6 +77,33 @@ resource "aws_dynamodb_table" "document_verification" {
 
   server_side_encryption {
     enabled           = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  point_in_time_recovery {
+    enabled = false
+  }
+
+  ttl {
+    enabled        = false
+    attribute_name = ""
+  }
+}
+
+# NH-13: audit table for external verification requests
+resource "aws_dynamodb_table" "external_verification_requests" {
+  name         = "external-verification-requests"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "request_id"
+  table_class  = "STANDARD"
+
+  attribute {
+    name = "request_id"
+    type = "S"
+  }
+
+  server_side_encryption {
+    enabled     = true
     kms_key_arn = module.kms_pii.key_arn
   }
 

@@ -655,3 +655,108 @@ resource "aws_iam_role_policy" "generate_document_upload_url" {
     ]
   })
 }
+
+# ─── NH-13: getEmployeeByEmail ──────────────────────────────────────────────
+resource "aws_iam_role" "get_employee_by_email" {
+  name        = "naleko-getEmployeeByEmail-role"
+  description = "Execution role for getEmployeeByEmail Lambda (NH-13)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_employee_by_email" {
+  name = "naleko-getEmployeeByEmail-policy"
+  role = aws_iam_role.get_employee_by_email.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getEmployeeByEmail:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "DynamoDBScan"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Scan"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
+
+# ─── NH-13: triggerExternalVerification ─────────────────────────────────────
+resource "aws_iam_role" "trigger_external_verification" {
+  name        = "naleko-triggerExternalVerification-role"
+  description = "Execution role for triggerExternalVerification Lambda (NH-13)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "trigger_external_verification" {
+  name = "naleko-triggerExternalVerification-policy"
+  role = aws_iam_role.trigger_external_verification.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/triggerExternalVerification:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "DynamoDB"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Scan", "dynamodb:PutItem"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/external-verification-requests",
+        ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
