@@ -1,4 +1,5 @@
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, PutItemCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
 import {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
@@ -7,7 +8,7 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
-import { randomBytes, randomUUID } from "crypto";
+import { randomBytes } from "crypto";
 import postmark from "postmark";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
@@ -93,8 +94,8 @@ const handlerFn = async (event) => {
       };
     }
 
-    // 3. Generate UUID v4 employee ID (NH-28: replaces sequential EMP-NNNNNNN scan anti-pattern)
-    const employeeId = randomUUID();
+    // 3. Generate unique employee ID
+    const employeeId = await generateEmployeeId();
 
     // 4a. Envelope-encrypt SA ID number (NH-11)
     // id_number is optional at employee creation — may be submitted later via document upload.
@@ -505,6 +506,40 @@ If you have questions, contact your HR representative.
 `;
 }
 
-// NH-28: generateEmployeeId() removed — replaced with randomUUID() inline.
-// UUID v4 eliminates the O(n) full-table Scan that was needed to derive the
-// next sequential EMP-NNNNNNN integer.
+/**
+ * Generate next sequential employee ID
+ * Format: EMP-0000001, EMP-0000002, etc.
+ */
+async function generateEmployeeId() {
+  try {
+    // Get all existing employee IDs
+    const result = await dynamodb.send(
+      new ScanCommand({
+        TableName: 'employees',
+        ProjectionExpression: 'employee_id'
+      })
+    );
+
+    if (!result.Items || result.Items.length === 0) {
+      return 'EMP-0000001'; // First employee
+    }
+
+    // Extract numeric parts and find max
+    const ids = result.Items.map(item => {
+      const employeeId = unmarshall(item).employee_id;
+      const numericPart = parseInt(employeeId.replace('EMP-', ''));
+      return numericPart;
+    });
+
+    const maxId = Math.max(...ids);
+    const nextId = maxId + 1;
+
+    // Pad with zeros (7 digits total)
+    return `EMP-${String(nextId).padStart(7, '0')}`;
+
+  } catch (error) {
+    logger.error('Error generating employee ID', { error });
+    // Fallback to timestamp-based ID if scan fails
+    return `EMP-${Date.now()}`;
+  }
+}

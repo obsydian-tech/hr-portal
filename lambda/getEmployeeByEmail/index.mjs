@@ -1,4 +1,4 @@
-import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -31,11 +31,10 @@ const handlerFn = async (event) => {
 
     const normalised = email.trim().toLowerCase();
 
-    // NH-28: use Query on email-index GSI instead of a full-table Scan
-    const result = await dynamodb.send(new QueryCommand({
+    const result = await dynamodb.send(new ScanCommand({
       TableName: EMPLOYEES_TABLE,
-      IndexName: "email-index",
-      KeyConditionExpression: "email = :email",
+      FilterExpression: "#em = :email",
+      ExpressionAttributeNames:  { "#em": "email" },
       ExpressionAttributeValues: { ":email": { S: normalised } },
       ProjectionExpression: "employee_id",
       Limit: 1,

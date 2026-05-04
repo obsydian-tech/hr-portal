@@ -49,15 +49,13 @@ const handlerFn = async (event) => {
       };
     }
 
-    // NH-28: accept both UUID v4 (new) and legacy EMP-NNNNNNN (old) formats
-    const UUID_RE    = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const LEGACY_RE  = /^EMP-\d{7}$/i;
-    if (!UUID_RE.test(employeeId) && !LEGACY_RE.test(employeeId)) {
+    // Validate format: must be EMP-NNNNNNN
+    if (!/^EMP-\d{7}$/i.test(employeeId)) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
-          error: "Invalid employee ID format. Expected a UUID (new) or EMP-0000001 (legacy)",
+          error: "Invalid employee ID format. Expected: EMP-0000001",
         }),
       };
     }

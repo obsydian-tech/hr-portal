@@ -81,7 +81,7 @@ export class AuthService {
       try {
         const resp = await firstValueFrom(
           this.http.get<{ email: string }>(
-            `${environment.employeesApiUrl}/v1/employees/lookup`,
+            `${environment.employeesApiUrl}/employee/lookup`,
             { params: { employeeId: trimmed.toUpperCase() } }
           )
         );

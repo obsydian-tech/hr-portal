@@ -4,7 +4,7 @@ import { Observable, switchMap, map } from 'rxjs';
 import { DocumentType } from '../../shared/models/employee.model';
 import { environment } from '../../../environments/environment';
 
-/** Response from POST /v1/employees/{employee_id}/documents/upload-url (NH-12, NH-29) */
+/** Response from POST /employees/{employee_id}/documents/upload-url (NH-12) */
 export interface UploadUrlResponse {
   url: string;
   document_id: string;
@@ -33,7 +33,7 @@ export class DocumentUploadService {
    * Upload a document to S3 via presigned PUT URL (NH-12).
    *
    * Flow:
-   *   1. POST /v1/employees/{id}/documents/upload-url  → { url, document_id, s3_key }
+   *   1. POST /employees/{id}/documents/upload-url  → { url, document_id, s3_key }
    *   2. PUT <presigned url> with raw file bytes       → 200 from S3
    *   3. Return normalised DocumentUploadResponse so callers are unaffected.
    *
@@ -56,7 +56,7 @@ export class DocumentUploadService {
 
   /**
    * Request a presigned PUT URL from the backend.
-   * POST /v1/employees/{employee_id}/documents/upload-url
+   * POST /employees/{employee_id}/documents/upload-url
    */
   private getUploadUrl(
     file: File,
@@ -64,7 +64,7 @@ export class DocumentUploadService {
     employeeId: string,
   ): Observable<UploadUrlResponse> {
     return this.http.post<UploadUrlResponse>(
-      `${this.apiUrl}/v1/employees/${employeeId}/documents/upload-url`,
+      `${this.apiUrl}/employees/${employeeId}/documents/upload-url`,
       {
         documentType,
         fileName: file.name,

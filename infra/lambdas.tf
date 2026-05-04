@@ -426,34 +426,3 @@ resource "aws_lambda_function" "serve_docs" {
     ignore_changes = [filename, source_code_hash, runtime]
   }
 }
-
-# ─── NH-27: auditLogConsumer (EventBridge -> DynamoDB audit log) ─────────────
-resource "aws_lambda_function" "audit_log_consumer" {
-  function_name = "auditLogConsumer"
-  role          = aws_iam_role.audit_log_consumer.arn
-  handler       = "index.handler"
-  runtime       = "nodejs22.x"
-  filename      = local.placeholder_zip
-  memory_size   = 128
-  timeout       = 15
-  architectures = ["x86_64"]
-
-  environment {
-    variables = {
-      AUDIT_TABLE_NAME = aws_dynamodb_table.onboarding_events.name
-      EVENT_BUS_NAME   = aws_cloudwatch_event_bus.naleko_onboarding.name
-    }
-  }
-
-  ephemeral_storage { size = 512 }
-  tracing_config { mode = "Active" }
-
-  logging_config {
-    log_format = "JSON"
-    log_group  = "/aws/lambda/auditLogConsumer"
-  }
-
-  lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
-  }
-}
