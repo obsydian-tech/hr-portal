@@ -57,6 +57,19 @@ import {
   to = aws_apigatewayv2_api.document_upload_api
 }
 
+# ── API Gateway JWT Authorizers — NH-5 ───────────────────────────────────────
+# Format: <api-id>/<authorizer-id>
+
+import {
+  id = "ndksa9ec0k/5bxpy1"
+  to = aws_apigatewayv2_authorizer.employees_api_cognito
+}
+
+import {
+  id = "b2wt303fc8/l54jaw"
+  to = aws_apigatewayv2_authorizer.document_upload_api_cognito
+}
+
 # ── API Gateway $default stages — NH-33 ──────────────────────────────────────
 
 import {
