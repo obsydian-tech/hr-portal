@@ -817,3 +817,59 @@ resource "aws_iam_role_policy" "serve_docs" {
     ]
   })
 }
+
+# ─── NH-27: auditLogConsumer ──────────────────────────────────────────────────
+resource "aws_iam_role" "audit_log_consumer" {
+  name        = "naleko-auditLogConsumer-role"
+  description = "Execution role for auditLogConsumer Lambda — append-only to onboarding-events"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "audit_log_consumer" {
+  name = "naleko-auditLogConsumer-policy"
+  role = aws_iam_role.audit_log_consumer.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/auditLogConsumer:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # INTENTIONALLY PutItem ONLY — no UpdateItem, no DeleteItem
+        # This enforces immutability at the IAM layer for POPIA compliance
+        Sid    = "AuditTableAppendOnly"
+        Effect = "Allow"
+        Action = ["dynamodb:PutItem"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/onboarding-events",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/onboarding-events/index/*",
+        ]
+      },
+      {
+        Sid      = "KMSAudit"
+        Effect   = "Allow"
+        Action   = ["kms:GenerateDataKey", "kms:Decrypt", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
