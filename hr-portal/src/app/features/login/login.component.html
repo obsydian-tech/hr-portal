@@ -46,6 +46,7 @@
             <label for="username">Email, Staff ID, or Employee ID</label>
             <input
               id="username"
+              data-testid="email"
               pInputText
               [(ngModel)]="username"
               name="username"
@@ -57,6 +58,7 @@
 
           <div class="login-form__field">
             <label for="password">Password</label>
+            <div data-testid="password-field">
             <p-password
               id="password"
               [(ngModel)]="password"
@@ -68,6 +70,7 @@
               inputStyleClass="w-full"
               autocomplete="current-password"
             />
+            </div>
           </div>
 
           <p-button
@@ -76,6 +79,7 @@
             icon="pi pi-sign-in"
             [loading]="loading()"
             styleClass="w-full login-form__submit"
+            data-testid="login-btn"
           />
         </form>
 
