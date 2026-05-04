@@ -391,6 +391,30 @@ resource "aws_lambda_permission" "get_document_presigned_url" {
   source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
 }
 
+# NH-40: GET /v1/verifications/{id}/summary  (Bedrock AI summariser)
+resource "aws_apigatewayv2_integration" "summarise_verification" {
+  api_id                 = aws_apigatewayv2_api.document_upload_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.summarise_verification.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "summarise_verification" {
+  api_id             = aws_apigatewayv2_api.document_upload_api.id
+  route_key          = "GET /v1/verifications/{id}/summary"
+  target             = "integrations/${aws_apigatewayv2_integration.summarise_verification.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.document_upload_api_cognito.id
+}
+
+resource "aws_lambda_permission" "summarise_verification" {
+  statement_id  = "AllowDocAPIInvokeSummariseVerification"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.summarise_verification.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
+}
+
 # PATCH /v1/verifications/{id}/review
 resource "aws_apigatewayv2_integration" "review_document_verification" {
   api_id                 = aws_apigatewayv2_api.document_upload_api.id

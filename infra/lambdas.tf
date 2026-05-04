@@ -427,6 +427,38 @@ resource "aws_lambda_function" "serve_docs" {
   }
 }
 
+# ─── NH-40: summariseVerification (Bedrock Claude 3 Haiku — GET /v1/verifications/{id}/summary) ──
+resource "aws_lambda_function" "summarise_verification" {
+  function_name = "summariseVerification"
+  role          = aws_iam_role.summarise_verification.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 256
+  timeout       = 30 # Bedrock inference can take up to ~10s; 30s gives headroom
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      VERIFICATIONS_TABLE = aws_dynamodb_table.document_verification.name
+      BEDROCK_MODEL_ID    = "anthropic.claude-3-haiku-20240307-v1:0"
+      KMS_KEY_ARN         = module.kms_pii.key_arn
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/summariseVerification"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, runtime]
+  }
+}
+
 # ─── NH-27: auditLogConsumer (EventBridge -> DynamoDB audit log) ─────────────
 resource "aws_lambda_function" "audit_log_consumer" {
   function_name = "auditLogConsumer"
