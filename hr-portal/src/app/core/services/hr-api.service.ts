@@ -98,20 +98,20 @@ export class HrApiService {
 
   getEmployees(): Observable<EmployeeListResponse> {
     return this.http.get<EmployeeListResponse>(
-      `${this.empApiUrl}/get/employees`
+      `${this.empApiUrl}/v1/employees`
     );
   }
 
   getVerifications(): Observable<VerificationListResponse> {
     return this.http.get<VerificationListResponse>(
-      `${this.docApiUrl}/document-verifications`
+      `${this.docApiUrl}/v1/verifications`
     );
   }
 
   getVerificationByDocumentId(documentId: string): Observable<VerificationDetail | null> {
     return this.http
       .get<RawDocumentVerificationResponse>(
-        `${this.docApiUrl}/documents/verification/${documentId}`
+        `${this.docApiUrl}/v1/verifications/${documentId}`
       )
       .pipe(
         map((raw) => this.mapToVerificationDetail(raw))
@@ -121,7 +121,7 @@ export class HrApiService {
   getEmployeeDocuments(employeeId: string): Observable<EmployeeDocumentResponse> {
     return this.http
       .get<RawEmployeeDocVerificationsResponse>(
-        `${this.docApiUrl}/${employeeId}/document/verifications`
+        `${this.docApiUrl}/v1/employees/${employeeId}/verifications`
       )
       .pipe(
         map((raw) => this.mapToEmployeeDocumentResponse(raw))
@@ -131,7 +131,7 @@ export class HrApiService {
   /** Get a pre-signed S3 URL to preview/download a document */
   getDocumentPreviewUrl(documentId: string): Observable<{ url: string; file_name: string; content_type: string }> {
     return this.http.get<{ url: string; file_name: string; content_type: string }>(
-      `${this.docApiUrl}/documents/${documentId}/preview`
+      `${this.docApiUrl}/v1/documents/${documentId}/url`
     );
   }
 
@@ -146,7 +146,7 @@ export class HrApiService {
     employee_stage_updated: boolean;
   }> {
     return this.http.patch<any>(
-      `${this.docApiUrl}/documents/${documentId}/review`,
+      `${this.docApiUrl}/v1/verifications/${documentId}/review`,
       { decision, notes: notes ?? '' }
     );
   }
@@ -155,7 +155,7 @@ export class HrApiService {
 
   createEmployee(data: CreateEmployeeRequest): Observable<CreateEmployeeResponse> {
     return this.http.post<CreateEmployeeResponse>(
-      `${this.empApiUrl}/employee/create`,
+      `${this.empApiUrl}/v1/employees`,
       data
     );
   }
@@ -167,7 +167,7 @@ export class HrApiService {
   searchEmployeeByEmail(email: string): Observable<boolean> {
     return this.http
       .get<{ exists: boolean; employee_id?: string }>(
-        `${this.empApiUrl}/employees/by-email`,
+        `${this.empApiUrl}/v1/employees/by-email`,
         { params: { email } }
       )
       .pipe(map((res) => res.exists));
@@ -182,7 +182,7 @@ export class HrApiService {
     documentType: DocumentType
   ): Observable<{ success: boolean; message: string }> {
     return this.http.post<{ success: boolean; message: string }>(
-      `${this.docApiUrl}/verifications/${documentId}/external`,
+      `${this.docApiUrl}/v1/verifications/${documentId}/external`,
       { documentType }
     );
   }
