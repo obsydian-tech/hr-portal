@@ -126,15 +126,15 @@ resource "aws_cloudwatch_dashboard" "hr_operations" {
         width  = 12
         height = 6
         properties = {
-          title  = "Onboarding Funnel (7d) — Created vs Reviewed"
-          view   = "timeSeries"
-          region = var.region
+          title   = "Onboarding Funnel (7d) — Created vs Reviewed"
+          view    = "timeSeries"
+          region  = var.region
           stacked = false
           metrics = [
             ["AWS/Lambda", "Invocations", "FunctionName", "createEmployee",
-              { "stat" : "Sum", "period" : 86400, "label" : "Employees Created" }],
+            { "stat" : "Sum", "period" : 86400, "label" : "Employees Created" }],
             ["AWS/Lambda", "Invocations", "FunctionName", "reviewDocumentVerification",
-              { "stat" : "Sum", "period" : 86400, "label" : "Reviews Completed" }]
+            { "stat" : "Sum", "period" : 86400, "label" : "Reviews Completed" }]
           ]
           period = 86400
           start  = "-P7D"
@@ -155,10 +155,10 @@ resource "aws_cloudwatch_dashboard" "hr_operations" {
           metrics = [
             ["Naleko/Onboarding", "TimeToComplete",
               "Environment", var.environment,
-              { "stat" : "Average", "period" : 3600, "label" : "Avg (1h)" }],
+            { "stat" : "Average", "period" : 3600, "label" : "Avg (1h)" }],
             ["Naleko/Onboarding", "TimeToComplete",
               "Environment", var.environment,
-              { "stat" : "p90", "period" : 3600, "label" : "p90 (1h)" }]
+            { "stat" : "p90", "period" : 3600, "label" : "p90 (1h)" }]
           ]
           period = 3600
         }
@@ -176,7 +176,7 @@ resource "aws_cloudwatch_dashboard" "hr_operations" {
           region = var.region
           metrics = [
             ["AWS/Lambda", "Errors", "FunctionName", "createEmployee",
-              { "stat" : "Sum", "period" : 300, "label" : "Errors (5m)" }]
+            { "stat" : "Sum", "period" : 300, "label" : "Errors (5m)" }]
           ]
           period = 300
           annotations = {
@@ -254,14 +254,14 @@ resource "aws_cloudwatch_dashboard" "system_health" {
         width  = 12
         height = 6
         properties = {
-          title   = "API GW 5xx Errors"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "API GW 5xx Errors"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["AWS/ApiGateway", "5XXError", "ApiId", var.employees_api_id,
-              { "stat" : "Sum", "period" : 300, "label" : "employees API 5xx" }],
+            { "stat" : "Sum", "period" : 300, "label" : "employees API 5xx" }],
             ["AWS/ApiGateway", "5XXError", "ApiId", var.document_api_id,
-              { "stat" : "Sum", "period" : 300, "label" : "document API 5xx" }]
+            { "stat" : "Sum", "period" : 300, "label" : "document API 5xx" }]
           ]
           period = 300
         }
@@ -273,14 +273,14 @@ resource "aws_cloudwatch_dashboard" "system_health" {
         width  = 12
         height = 6
         properties = {
-          title   = "API GW 4xx Errors"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "API GW 4xx Errors"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["AWS/ApiGateway", "4XXError", "ApiId", var.employees_api_id,
-              { "stat" : "Sum", "period" : 300, "label" : "employees API 4xx" }],
+            { "stat" : "Sum", "period" : 300, "label" : "employees API 4xx" }],
             ["AWS/ApiGateway", "4XXError", "ApiId", var.document_api_id,
-              { "stat" : "Sum", "period" : 300, "label" : "document API 4xx" }]
+            { "stat" : "Sum", "period" : 300, "label" : "document API 4xx" }]
           ]
           period = 300
         }
@@ -311,13 +311,13 @@ resource "aws_cloudwatch_dashboard" "system_health" {
         width  = 12
         height = 6
         properties = {
-          title   = "S3 5xx Errors (document-ocr-verification-uploads)"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "S3 5xx Errors (document-ocr-verification-uploads)"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["AWS/S3", "5xxErrors", "BucketName", var.s3_bucket,
               "FilterId", "EntireBucket",
-              { "stat" : "Sum", "period" : 300, "label" : "S3 5xx" }]
+            { "stat" : "Sum", "period" : 300, "label" : "S3 5xx" }]
           ]
           period = 300
         }
@@ -330,12 +330,12 @@ resource "aws_cloudwatch_dashboard" "system_health" {
         width  = 24
         height = 5
         properties = {
-          title   = "Lambda Concurrent Executions (account-level)"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "Lambda Concurrent Executions (account-level)"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["AWS/Lambda", "ConcurrentExecutions",
-              { "stat" : "Maximum", "period" : 60, "label" : "Max concurrency (1m)" }]
+            { "stat" : "Maximum", "period" : 60, "label" : "Max concurrency (1m)" }]
           ]
           period = 60
         }
@@ -360,12 +360,12 @@ resource "aws_cloudwatch_dashboard" "security" {
         width  = 12
         height = 6
         properties = {
-          title   = "Auth Errors (4xx) — employees API"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "Auth Errors (4xx) — employees API"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["AWS/ApiGateway", "4XXError", "ApiId", var.employees_api_id,
-              { "stat" : "Sum", "period" : 300, "label" : "4xx (5m)" }]
+            { "stat" : "Sum", "period" : 300, "label" : "4xx (5m)" }]
           ]
           period = 300
           annotations = {
@@ -380,12 +380,12 @@ resource "aws_cloudwatch_dashboard" "security" {
         width  = 12
         height = 6
         properties = {
-          title   = "Auth Errors (4xx) — document API"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "Auth Errors (4xx) — document API"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["AWS/ApiGateway", "4XXError", "ApiId", var.document_api_id,
-              { "stat" : "Sum", "period" : 300, "label" : "4xx (5m)" }]
+            { "stat" : "Sum", "period" : 300, "label" : "4xx (5m)" }]
           ]
           period = 300
           annotations = {
@@ -401,12 +401,12 @@ resource "aws_cloudwatch_dashboard" "security" {
         width  = 12
         height = 6
         properties = {
-          title   = "Presigned URL Generations (document access audit)"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "Presigned URL Generations (document access audit)"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["AWS/Lambda", "Invocations", "FunctionName", "getDocumentPresignedUrl",
-              { "stat" : "Sum", "period" : 3600, "label" : "URL generations (1h)" }]
+            { "stat" : "Sum", "period" : 3600, "label" : "URL generations (1h)" }]
           ]
           period = 3600
         }
@@ -419,14 +419,14 @@ resource "aws_cloudwatch_dashboard" "security" {
         width  = 12
         height = 6
         properties = {
-          title   = "HR Review Activity (reviewDocumentVerification)"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "HR Review Activity (reviewDocumentVerification)"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["AWS/Lambda", "Invocations", "FunctionName", "reviewDocumentVerification",
-              { "stat" : "Sum", "period" : 3600, "label" : "Reviews (1h)" }],
+            { "stat" : "Sum", "period" : 3600, "label" : "Reviews (1h)" }],
             ["AWS/Lambda", "Errors", "FunctionName", "reviewDocumentVerification",
-              { "stat" : "Sum", "period" : 3600, "label" : "Review Errors (1h)" }]
+            { "stat" : "Sum", "period" : 3600, "label" : "Review Errors (1h)" }]
           ]
           period = 3600
         }
@@ -461,13 +461,13 @@ resource "aws_cloudwatch_dashboard" "security" {
         width  = 12
         height = 6
         properties = {
-          title   = "ID Number Decryption Events (Naleko/Security)"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "ID Number Decryption Events (Naleko/Security)"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["Naleko/Security", "IdNumberDecrypted",
               "Environment", var.environment,
-              { "stat" : "Sum", "period" : 3600, "label" : "Decryptions (1h)" }]
+            { "stat" : "Sum", "period" : 3600, "label" : "Decryptions (1h)" }]
           ]
           period = 3600
           annotations = {
@@ -483,14 +483,14 @@ resource "aws_cloudwatch_dashboard" "security" {
         width  = 12
         height = 6
         properties = {
-          title   = "OCR Processing (Textract/Bedrock calls)"
-          view    = "timeSeries"
-          region  = var.region
+          title  = "OCR Processing (Textract/Bedrock calls)"
+          view   = "timeSeries"
+          region = var.region
           metrics = [
             ["AWS/Lambda", "Invocations", "FunctionName", "processDocumentOCR",
-              { "stat" : "Sum", "period" : 3600, "label" : "OCR Jobs (1h)" }],
+            { "stat" : "Sum", "period" : 3600, "label" : "OCR Jobs (1h)" }],
             ["AWS/Lambda", "Errors", "FunctionName", "processDocumentOCR",
-              { "stat" : "Sum", "period" : 3600, "label" : "OCR Errors (1h)" }]
+            { "stat" : "Sum", "period" : 3600, "label" : "OCR Errors (1h)" }]
           ]
           period = 3600
         }

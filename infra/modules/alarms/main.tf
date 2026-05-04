@@ -254,7 +254,7 @@ resource "aws_cloudwatch_metric_alarm" "audit_events_stopped" {
   evaluation_periods  = 1
   threshold           = 1
   # IMPORTANT: treat missing data as breaching during business hours so silence is visible
-  treat_missing_data  = "breaching"
+  treat_missing_data = "breaching"
 
   alarm_actions = [aws_sns_topic.naleko_ops.arn]
   ok_actions    = [aws_sns_topic.naleko_ops.arn]

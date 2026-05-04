@@ -125,7 +125,7 @@ resource "aws_s3_bucket_policy" "config_logs" {
         Resource = "${aws_s3_bucket.config_logs.arn}/AWSLogs/${var.account_id}/Config/*"
         Condition = {
           StringEquals = {
-            "s3:x-amz-acl"    = "bucket-owner-full-control"
+            "s3:x-amz-acl"      = "bucket-owner-full-control"
             "AWS:SourceAccount" = var.account_id
           }
         }
@@ -268,9 +268,9 @@ resource "aws_lambda_function" "config_region_check" {
 
   environment {
     variables = {
-      ALLOWED_REGION         = "af-south-1"
+      ALLOWED_REGION = "af-south-1"
       # Documented deviation: Textract is called cross-region in eu-west-1 (NH-30)
-      EXEMPT_RESOURCE_TYPES  = "AWS::Textract::*"
+      EXEMPT_RESOURCE_TYPES = "AWS::Textract::*"
     }
   }
 
@@ -286,10 +286,10 @@ resource "aws_lambda_function" "config_region_check" {
 
 # Allow Config service to invoke the Lambda
 resource "aws_lambda_permission" "config_invoke_region_check" {
-  statement_id  = "AllowAWSConfigInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.config_region_check.function_name
-  principal     = "config.amazonaws.com"
+  statement_id   = "AllowAWSConfigInvoke"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.config_region_check.function_name
+  principal      = "config.amazonaws.com"
   source_account = var.account_id
 }
 
@@ -298,7 +298,7 @@ resource "aws_config_config_rule" "region_enforcement" {
   description = "Custom rule: flags any resource created outside af-south-1 as NON_COMPLIANT. Exception: Textract cross-region calls (NH-30 documented deviation)."
 
   source {
-    owner = "CUSTOM_LAMBDA"
+    owner             = "CUSTOM_LAMBDA"
     source_identifier = aws_lambda_function.config_region_check.arn
 
     source_detail {
