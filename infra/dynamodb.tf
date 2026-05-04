@@ -1,6 +1,8 @@
 # ---------------------------------------------------------------------------
 # DynamoDB Tables
 # NH-10: SSE with KMS CMK alias/naleko-onboarding-pii on all tables
+# NH-11: PII envelope encryption — id_number_encrypted + id_number_last4
+#        columns written by createEmployee and processDocumentOCR Lambdas
 # ---------------------------------------------------------------------------
 
 resource "aws_dynamodb_table" "employees" {

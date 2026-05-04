@@ -74,7 +74,7 @@ const handlerFn = async (event) => {
       return dateB - dateA;
     });
 
-    // 7. Format response (return ALL fields from employee table)
+    // 7. Format response — id_number_encrypted is NEVER returned; expose last 4 only (NH-11)
     const formattedItems = items.map(item => ({
       employee_id: item.employee_id,
       first_name: item.first_name,
@@ -92,6 +92,7 @@ const handlerFn = async (event) => {
       hr_staff_id: item.hr_staff_id || item.created_by || '',
       hr_staff_name: item.hr_staff_name || '',
       hr_staff_email: item.hr_staff_email || '',
+      id_number_last4: item.id_number_last4 || '',
     }));
 
     return {

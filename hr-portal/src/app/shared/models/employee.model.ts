@@ -26,6 +26,12 @@ export interface Employee {
   hr_staff_id: string;
   hr_staff_name: string;
   hr_staff_email: string;
+  /**
+   * Last 4 digits of the SA ID number (NH-11).
+   * The full ID is stored KMS-encrypted in DynamoDB and never returned by the API.
+   * Used for masked display: e.g. "••••••••• 1234".
+   */
+  id_number_last4?: string;
 }
 
 /** Document types accepted for upload */
@@ -192,6 +198,11 @@ export interface CreateEmployeeRequest {
   job_title?: string;
   offer_accept_date: string;
   planned_start_date: string;
+  /**
+   * SA ID number (NH-11). Optional at employee creation — may be submitted
+   * later via document upload. Encrypted with KMS CMK before DynamoDB write.
+   */
+  id_number?: string;
   /** HR Staff responsible for onboarding this employee */
   hr_staff_id: string;
   hr_staff_name: string;
