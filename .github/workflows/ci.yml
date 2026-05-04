@@ -123,3 +123,63 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate
+
+  # ---------------------------------------------------------------------------
+  # Job 4 — Playwright E2E tests
+  # Runs only when the repository variable E2E_ENABLED is set to 'true'.
+  # Requires secrets: E2E_HR_EMAIL, E2E_HR_PASSWORD, E2E_EMP_EMAIL, E2E_EMP_PASSWORD.
+  # Set E2E_BASE_URL to point to a staging environment, or leave unset to spin
+  # up a local dev server (ng serve) against which the tests run.
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: E2E — Playwright journeys
+    runs-on: ubuntu-latest
+    if: vars.E2E_ENABLED == 'true'
+    needs: [frontend]
+
+    defaults:
+      run:
+        working-directory: hr-portal
+
+    env:
+      E2E_BASE_URL: ${{ vars.E2E_BASE_URL || '' }}
+      E2E_HR_EMAIL: ${{ secrets.E2E_HR_EMAIL }}
+      E2E_HR_PASSWORD: ${{ secrets.E2E_HR_PASSWORD }}
+      E2E_EMP_EMAIL: ${{ secrets.E2E_EMP_EMAIL }}
+      E2E_EMP_PASSWORD: ${{ secrets.E2E_EMP_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: hr-portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # If E2E_BASE_URL is not set, spin up local dev server on port 4200
+      - name: Start dev server (local mode)
+        if: ${{ !vars.E2E_BASE_URL }}
+        run: |
+          npx ng serve --host 0.0.0.0 --port 4200 &
+          echo "Waiting for dev server to be ready..."
+          npx wait-on http://localhost:4200 --timeout 120000
+
+      - name: Run Playwright E2E tests
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: hr-portal/e2e/reports/
+          retention-days: 14

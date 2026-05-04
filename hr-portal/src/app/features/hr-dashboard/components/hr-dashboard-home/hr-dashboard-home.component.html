@@ -95,6 +95,7 @@
         [showCurrentPageReport]="true"
         currentPageReportTemplate="Showing {first} to {last} of {totalRecords} employees"
         styleClass="p-datatable-sm p-datatable-striped"
+        data-testid="employee-list"
       >
         <ng-template #header>
           <tr>
@@ -110,7 +111,7 @@
           </tr>
         </ng-template>
         <ng-template #body let-emp>
-          <tr>
+          <tr [attr.data-testid]="'employee-row-' + emp.employee_id">
             <td class="font-semibold">{{ emp.first_name }} {{ emp.last_name }}</td>
             <td>{{ emp.email }}</td>
             <td>{{ emp.department }}</td>
