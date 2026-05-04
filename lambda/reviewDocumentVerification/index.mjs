@@ -1,13 +1,31 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
+import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamo = new DynamoDBClient({ region: 'af-south-1' });
 const cloudwatch = new CloudWatchClient({ region: 'af-south-1' });
+const eb = new EventBridgeClient({ region: 'af-south-1' });
 
 const logger = new Logger({ serviceName: 'reviewDocumentVerification' });
 const tracer = new Tracer({ serviceName: 'reviewDocumentVerification' });
+
+async function publishEvent(detailType, detail) {
+  if (!process.env.EVENT_BUS_NAME) return;
+  try {
+    await eb.send(new PutEventsCommand({
+      Entries: [{
+        EventBusName: process.env.EVENT_BUS_NAME,
+        Source: 'naleko.onboarding',
+        DetailType: detailType,
+        Detail: JSON.stringify(detail),
+      }],
+    }));
+  } catch (err) {
+    logger.warn('EventBridge publish failed', { detailType, error: err.message });
+  }
+}
 
 const DOCUMENTS_TABLE = 'documents';
 const VERIFICATION_TABLE = 'document-verification';
@@ -75,6 +93,14 @@ const handlerFn = async (event) => {
     await dynamo.send(new UpdateItemCommand(updateDocParams));
     logger.info('Updated document', { documentId, decision });
 
+    // 2b. Publish document.reviewed event (NH-14)
+    await publishEvent('document.reviewed', {
+      document_id: documentId,
+      employee_id: employeeId,
+      decision,
+      notes: notes || '',
+    });
+
     // 3. Update the document-verification table if a verification record exists
     if (verificationId) {
       const updateVerParams = {
@@ -118,6 +144,14 @@ const handlerFn = async (event) => {
         }));
         stageUpdated = true;
         logger.info('Employee stage updated to VERIFIED', { employeeId });
+
+        // Publish stage change and onboarding completed events (NH-14)
+        await publishEvent('employee.stage_changed', {
+          employee_id: employeeId,
+          from_stage: 'DOCUMENTS_SUBMITTED',
+          to_stage: 'VERIFIED',
+        });
+        await publishEvent('onboarding.completed', { employee_id: employeeId });
 
         // Publish TimeToComplete custom metric (NH-34)
         try {

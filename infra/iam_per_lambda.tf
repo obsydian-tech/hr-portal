@@ -61,6 +61,12 @@ resource "aws_iam_role_policy" "create_employee" {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
       }
     ]
   })
@@ -245,6 +251,12 @@ resource "aws_iam_role_policy" "process_document_ocr" {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
       }
     ]
   })
@@ -479,6 +491,12 @@ resource "aws_iam_role_policy" "review_document_verification" {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
       }
     ]
   })

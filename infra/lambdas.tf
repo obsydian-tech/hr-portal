@@ -26,6 +26,7 @@ resource "aws_lambda_function" "create_employee" {
       POSTMARK_API_TOKEN    = "623fee86-c7a5-4d08-b3f6-e9193bd2a316"
       POSTMARK_SENDER_EMAIL = "joworesources@gmail.com"
       KMS_KEY_ARN           = module.kms_pii.key_arn
+      EVENT_BUS_NAME        = aws_cloudwatch_event_bus.naleko_onboarding.name
     }
   }
 
@@ -112,7 +113,8 @@ resource "aws_lambda_function" "process_document_ocr" {
 
   environment {
     variables = {
-      KMS_KEY_ARN = module.kms_pii.key_arn
+      KMS_KEY_ARN    = module.kms_pii.key_arn
+      EVENT_BUS_NAME = aws_cloudwatch_event_bus.naleko_onboarding.name
     }
   }
 
@@ -228,7 +230,8 @@ resource "aws_lambda_function" "review_document_verification" {
 
   environment {
     variables = {
-      KMS_KEY_ARN = module.kms_pii.key_arn
+      KMS_KEY_ARN    = module.kms_pii.key_arn
+      EVENT_BUS_NAME = aws_cloudwatch_event_bus.naleko_onboarding.name
     }
   }
 
