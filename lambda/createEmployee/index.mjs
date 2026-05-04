@@ -33,23 +33,11 @@ const handlerFn = async (event) => {
   tracer.putAnnotation('operation', 'createEmployee');
 
   try {
-    // 1. Get staff member ID from headers
-    const headers = event.headers || {};
-    const staffMemberId = headers['x-staff-id'] || headers['X-Staff-Id'];
+    // 1. Get staff member ID from JWT claims (set by Cognito authorizer)
+    const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
+    const staffMemberId = claims['custom:staff_id'] || claims['sub'] || 'unknown';
 
-    if (!staffMemberId) {
-      return {
-        statusCode: 401,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({ 
-          error: 'Missing staff member ID',
-          message: 'x-staff-id header is required'
-        })
-      };
-    }
+    logger.info('JWT claims resolved', { staffMemberId });
 
     // 2. Parse request body
     const body = JSON.parse(event.body);

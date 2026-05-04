@@ -65,10 +65,7 @@ export class NotificationService implements OnDestroy {
     this.loading.set(true);
     this.error.set(null);
     
-    // Get staff ID from localStorage (set during HR login/navigation)
-    const staffId = this.getStaffIdFromUrl();
-    
-    this.hrApi.getVerifications(staffId).subscribe({
+    this.hrApi.getVerifications().subscribe({
       next: (response) => {
         this.allVerifications.set(response.items);
         this.loading.set(false);

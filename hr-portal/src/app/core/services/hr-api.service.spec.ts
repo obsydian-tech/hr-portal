@@ -100,17 +100,17 @@ describe('HrApiService', () => {
 
   // ── getEmployees ──────────────────────────────────────────────────────────
 
-  it('getEmployees: should GET correct URL with x-staff-id header', () => {
-    service.getEmployees('AS00001').subscribe();
+  it('getEmployees: should GET correct URL without x-staff-id header', () => {
+    service.getEmployees().subscribe();
 
     const req = httpMock.expectOne(r => r.url.endsWith('/get/employees'));
     expect(req.request.method).toBe('GET');
-    expect(req.request.headers.get('x-staff-id')).toBe('AS00001');
+    expect(req.request.headers.has('x-staff-id')).toBeFalse();
     req.flush(RAW_EMPLOYEES);
   });
 
-  it('getEmployees: should NOT add x-role header for non-manager staff', () => {
-    service.getEmployees('AS00001').subscribe();
+  it('getEmployees: should NOT send x-role header', () => {
+    service.getEmployees().subscribe();
 
     const req = httpMock.expectOne(r => r.url.endsWith('/get/employees'));
     expect(req.request.headers.has('x-role')).toBeFalse();
@@ -118,15 +118,14 @@ describe('HrApiService', () => {
   });
 
   it('getEmployees: should not add x-role for standard staff', () => {
-    service.getEmployees('AS00001').subscribe();
+    service.getEmployees().subscribe();
     const req = httpMock.expectOne(r => r.url.endsWith('/get/employees'));
-    // Simply verify the request was made correctly (manager header depends on registry)
     expect(req.request.method).toBe('GET');
     req.flush([]);
   });
 
   it('getEmployees: should return the array emitted by the server', (done) => {
-    service.getEmployees('AS00001').subscribe((resp) => {
+    service.getEmployees().subscribe((resp) => {
       const employees = (resp as any).items ?? resp;
       expect(employees).toBeTruthy();
       done();
@@ -146,19 +145,19 @@ describe('HrApiService', () => {
     req.flush([]);
   });
 
-  it('getVerifications: should include x-staff-id header when staffId is provided', () => {
-    service.getVerifications('AS00002').subscribe();
-
-    const req = httpMock.expectOne(r => r.url.includes('/document-verifications'));
-    expect(req.request.headers.get('x-staff-id')).toBe('AS00002');
-    req.flush([]);
-  });
-
-  it('getVerifications: should work without staffId', () => {
+  it('getVerifications: should NOT send x-staff-id header', () => {
     service.getVerifications().subscribe();
 
     const req = httpMock.expectOne(r => r.url.includes('/document-verifications'));
     expect(req.request.headers.has('x-staff-id')).toBeFalse();
+    req.flush([]);
+  });
+
+  it('getVerifications: should NOT send x-role header', () => {
+    service.getVerifications().subscribe();
+
+    const req = httpMock.expectOne(r => r.url.includes('/document-verifications'));
+    expect(req.request.headers.has('x-role')).toBeFalse();
     req.flush([]);
   });
 
@@ -286,17 +285,17 @@ describe('HrApiService', () => {
     hr_staff_email: 'thabo@naleko.co.za',
   };
 
-  it('createEmployee: should POST to /employee/create with x-staff-id header', () => {
-    service.createEmployee('AS00001', VALID_CREATE_PAYLOAD).subscribe();
+  it('createEmployee: should POST to /employee/create without x-staff-id header', () => {
+    service.createEmployee(VALID_CREATE_PAYLOAD).subscribe();
 
     const req = httpMock.expectOne(r => r.url.includes('/employee/create'));
     expect(req.request.method).toBe('POST');
-    expect(req.request.headers.get('x-staff-id')).toBe('AS00001');
+    expect(req.request.headers.has('x-staff-id')).toBeFalse();
     req.flush({ employeeId: 'EMP-0000020' });
   });
 
   it('createEmployee: should send the employee data as the request body', () => {
-    service.createEmployee('AS00001', VALID_CREATE_PAYLOAD).subscribe();
+    service.createEmployee(VALID_CREATE_PAYLOAD).subscribe();
 
     const req = httpMock.expectOne(r => r.url.includes('/employee/create'));
     expect(req.request.body.first_name).toBe('Jane');

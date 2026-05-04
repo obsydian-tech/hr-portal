@@ -395,7 +395,7 @@ export class NewEmployeeRegistrationComponent {
     };
 
     this.hrApi
-      .createEmployee(this.staffId, payload)
+      .createEmployee(payload)
       .pipe(
         switchMap((res) => {
           const employeeId = res.employee.employee_id;
