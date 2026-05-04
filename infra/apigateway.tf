@@ -9,7 +9,7 @@ resource "aws_apigatewayv2_api" "employees_api" {
 
   cors_configuration {
     allow_credentials = false
-    allow_headers     = ["authorization", "content-type", "x-role", "x-staff-id"]
+    allow_headers     = ["authorization", "content-type"]
     allow_methods     = ["GET", "OPTIONS", "POST"]
     allow_origins     = ["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"]
     expose_headers    = []
@@ -24,11 +24,46 @@ resource "aws_apigatewayv2_api" "document_upload_api" {
 
   cors_configuration {
     allow_credentials = false
-    allow_headers     = ["authorization", "content-type", "x-role", "x-staff-id"]
+    allow_headers     = ["authorization", "content-type"]
     allow_methods     = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
     allow_origins     = ["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"]
     expose_headers    = ["*"]
     max_age           = 3600
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Cognito JWT Authorizers — NH-5
+# Both APIs share the same Cognito User Pool and app client audience.
+# Identity source: Authorization: Bearer <cognito-jwt>
+# ---------------------------------------------------------------------------
+
+locals {
+  cognito_issuer   = "https://cognito-idp.af-south-1.amazonaws.com/af-south-1_2LdAGFnw2"
+  cognito_audience = ["1pk5rd58glsohfplnlr63tg0qb"]
+}
+
+resource "aws_apigatewayv2_authorizer" "employees_api_cognito" {
+  api_id           = aws_apigatewayv2_api.employees_api.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-jwt"
+
+  jwt_configuration {
+    audience = local.cognito_audience
+    issuer   = local.cognito_issuer
+  }
+}
+
+resource "aws_apigatewayv2_authorizer" "document_upload_api_cognito" {
+  api_id           = aws_apigatewayv2_api.document_upload_api.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-jwt"
+
+  jwt_configuration {
+    audience = local.cognito_audience
+    issuer   = local.cognito_issuer
   }
 }
 

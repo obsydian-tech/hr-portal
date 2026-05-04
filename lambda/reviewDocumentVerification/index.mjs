@@ -16,7 +16,7 @@ const EMPLOYEES_TABLE = 'employees';
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'PATCH, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-staff-id',
+  'Access-Control-Allow-Headers': 'Content-Type,Authorization',
   'Content-Type': 'application/json',
 };
 

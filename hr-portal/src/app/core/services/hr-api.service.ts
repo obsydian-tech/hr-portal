@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable, of, delay, map } from 'rxjs';
 import {
   Employee,
@@ -14,7 +14,6 @@ import {
   DocumentType,
 } from '../../shared/models/employee.model';
 import { environment } from '../../../environments/environment';
-import { isHrManager } from '../../shared/constants/hr-staff';
 
 /** Raw shape from GET /documents/verification/{document_id} */
 interface RawDocumentVerificationResponse {
@@ -97,28 +96,15 @@ export class HrApiService {
 
   // ─── Real API Methods ─────────────────────────────────────
 
-  getEmployees(staffId: string): Observable<EmployeeListResponse> {
-    let headers = new HttpHeaders({ 'x-staff-id': staffId });
-    if (isHrManager(staffId)) {
-      headers = headers.set('x-role', 'manager');
-    }
+  getEmployees(): Observable<EmployeeListResponse> {
     return this.http.get<EmployeeListResponse>(
-      `${this.empApiUrl}/get/employees`,
-      { headers }
+      `${this.empApiUrl}/get/employees`
     );
   }
 
-  getVerifications(staffId?: string): Observable<VerificationListResponse> {
-    let headers = new HttpHeaders();
-    if (staffId) {
-      headers = headers.set('x-staff-id', staffId);
-      if (isHrManager(staffId)) {
-        headers = headers.set('x-role', 'manager');
-      }
-    }
+  getVerifications(): Observable<VerificationListResponse> {
     return this.http.get<VerificationListResponse>(
-      `${this.docApiUrl}/document-verifications`,
-      { headers }
+      `${this.docApiUrl}/document-verifications`
     );
   }
 
@@ -167,11 +153,10 @@ export class HrApiService {
 
   // ─── Still-Mocked Methods (no real endpoints yet) ─────────
 
-  createEmployee(staffId: string, data: CreateEmployeeRequest): Observable<CreateEmployeeResponse> {
+  createEmployee(data: CreateEmployeeRequest): Observable<CreateEmployeeResponse> {
     return this.http.post<CreateEmployeeResponse>(
       `${this.empApiUrl}/employee/create`,
-      data,
-      { headers: new HttpHeaders({ 'x-staff-id': staffId }) }
+      data
     );
   }
 
@@ -223,9 +208,7 @@ export class HrApiService {
       date_of_birth: ver?.extracted_data?.date_of_birth ?? 'N/A',
       gender: ver?.extracted_data?.gender ?? 'N/A',
       citizenship: ver?.extracted_data?.citizenship ?? 'N/A',
-      document_file_url: doc.s3_key
-        ? `https://document-ocr-verification-uploads.s3.af-south-1.amazonaws.com/${doc.s3_key}`
-        : undefined,
+      document_file_url: doc.s3_key || undefined,
     };
   }
 
