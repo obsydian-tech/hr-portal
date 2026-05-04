@@ -32,3 +32,13 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "document_uploads"
     bucket_key_enabled = true # reduces KMS API calls/cost
   }
 }
+
+# NH-39: S3 versioning — enables object version recovery (RPO: 30 days)
+# Deleted or overwritten documents can be restored from a previous version.
+resource "aws_s3_bucket_versioning" "document_uploads" {
+  bucket = aws_s3_bucket.document_uploads.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
