@@ -827,6 +827,65 @@ resource "aws_iam_role_policy" "serve_docs" {
   })
 }
 
+# ─── NH-40: summariseVerification ───────────────────────────────────────────
+resource "aws_iam_role" "summarise_verification" {
+  name        = "naleko-summariseVerification-role"
+  description = "Execution role for summariseVerification Lambda — Bedrock + DynamoDB read-only"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "summarise_verification" {
+  name = "naleko-summariseVerification-policy"
+  role = aws_iam_role.summarise_verification.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/summariseVerification:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # NH-40: read-only — GetItem on document-verification table only
+        Sid    = "DynamoDBRead"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification"
+      },
+      {
+        Sid      = "KMSDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        # NH-40: least-privilege — InvokeModel only on Claude 3 Haiku
+        Sid    = "BedrockInvokeModel"
+        Effect = "Allow"
+        Action = ["bedrock:InvokeModel"]
+        Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
+      }
+    ]
+  })
+}
+
 # ─── NH-27: auditLogConsumer ──────────────────────────────────────────────────
 resource "aws_iam_role" "audit_log_consumer" {
   name        = "naleko-auditLogConsumer-role"
