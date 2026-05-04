@@ -438,3 +438,27 @@ resource "aws_lambda_permission" "review_document_verification" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
 }
+
+# NH-41: POST /v1/employees/{id}/assess-risk  (Bedrock risk classifier)
+resource "aws_apigatewayv2_integration" "classify_onboarding_risk" {
+  api_id                 = aws_apigatewayv2_api.document_upload_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.classify_onboarding_risk.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "classify_onboarding_risk" {
+  api_id             = aws_apigatewayv2_api.document_upload_api.id
+  route_key          = "POST /v1/employees/{id}/assess-risk"
+  target             = "integrations/${aws_apigatewayv2_integration.classify_onboarding_risk.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.document_upload_api_cognito.id
+}
+
+resource "aws_lambda_permission" "classify_onboarding_risk" {
+  statement_id  = "AllowDocAPIInvokeClassifyOnboardingRisk"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.classify_onboarding_risk.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
+}

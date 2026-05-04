@@ -45,6 +45,8 @@ export class EmployeeDetailComponent implements OnInit {
 
   readonly loading = signal(true);
   readonly data = signal<EmployeeDocumentResponse | null>(null);
+  /** NH-41: true while the Bedrock risk-classification request is in-flight */
+  readonly riskLoading = signal(false);
 
   get employee() {
     return this.data()?.employee ?? null;
@@ -88,5 +90,34 @@ export class EmployeeDetailComponent implements OnInit {
 
   goBack(): void {
     this.router.navigate(['../../'], { relativeTo: this.route });
+  }
+
+  /** NH-41: Trigger Bedrock risk classification and update the displayed risk band. */
+  assessRisk(): void {
+    const id = this.employee?.employee_id;
+    if (!id || this.riskLoading()) return;
+
+    this.riskLoading.set(true);
+    this.hrApi.assessRisk(id).subscribe({
+      next: (result) => {
+        const current = this.data();
+        if (current) {
+          this.data.set({
+            ...current,
+            employee: {
+              ...current.employee,
+              riskBand: result.risk,
+              riskReason: result.reason,
+              riskAssessedAt: new Date().toISOString(),
+            },
+          });
+        }
+        this.riskLoading.set(false);
+      },
+      error: (err) => {
+        console.error('Risk assessment failed', err);
+        this.riskLoading.set(false);
+      },
+    });
   }
 }

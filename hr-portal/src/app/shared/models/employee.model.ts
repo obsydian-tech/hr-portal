@@ -32,6 +32,12 @@ export interface Employee {
    * Used for masked display: e.g. "••••••••• 1234".
    */
   id_number_last4?: string;
+  /** NH-41: risk classification produced by Bedrock */
+  riskBand?: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN';
+  /** NH-41: one-sentence reason returned by the AI classifier */
+  riskReason?: string;
+  /** NH-41: ISO timestamp of when the risk was last assessed */
+  riskAssessedAt?: string;
 }
 
 /** Document types accepted for upload */
@@ -165,7 +171,7 @@ export interface EmployeeDocumentOcrResult {
 
 /** Employee documents response */
 export interface EmployeeDocumentResponse {
-  employee: Pick<Employee, 'employee_id' | 'first_name' | 'last_name' | 'email' | 'stage' | 'department' | 'planned_start_date' | 'phone' | 'hr_staff_id' | 'hr_staff_name' | 'hr_staff_email'>;
+  employee: Pick<Employee, 'employee_id' | 'first_name' | 'last_name' | 'email' | 'stage' | 'department' | 'planned_start_date' | 'phone' | 'hr_staff_id' | 'hr_staff_name' | 'hr_staff_email' | 'riskBand' | 'riskReason' | 'riskAssessedAt'>;
   documents: EmployeeDocument[];
   summary: {
     total: number;
