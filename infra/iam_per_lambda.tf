@@ -778,3 +778,42 @@ resource "aws_iam_role_policy" "trigger_external_verification" {
     ]
   })
 }
+
+# ─── NH-13-swagger: serveDocs ────────────────────────────────────────────────────────────────────────
+resource "aws_iam_role" "serve_docs" {
+  name        = "naleko-serveDocs-role"
+  description = "Execution role for serveDocs Lambda - serves GET /docs + GET /openapi.yaml"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "serve_docs" {
+  name = "naleko-serveDocs-policy"
+  role = aws_iam_role.serve_docs.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/serveDocs:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      }
+    ]
+  })
+}
