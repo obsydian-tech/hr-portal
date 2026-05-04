@@ -4,6 +4,7 @@
 # NH-11: PII envelope encryption — id_number_encrypted + id_number_last4
 #        columns written by createEmployee and processDocumentOCR Lambdas
 # NH-13: external-verification-requests table added
+# NH-28: GSIs on employees (email, stage, created_by) + PITR on employees/docs
 # ---------------------------------------------------------------------------
 
 resource "aws_dynamodb_table" "employees" {
@@ -17,18 +18,62 @@ resource "aws_dynamodb_table" "employees" {
     type = "S"
   }
 
+  # NH-28: GSI attributes
+  attribute {
+    name = "email"
+    type = "S"
+  }
+
+  attribute {
+    name = "stage"
+    type = "S"
+  }
+
+  attribute {
+    name = "created_by"
+    type = "S"
+  }
+
+  # NH-28: email-index — used by getEmployeeByEmail to Query instead of Scan
+  global_secondary_index {
+    name            = "email-index"
+    hash_key        = "email"
+    projection_type = "ALL"
+  }
+
+  # NH-28: stage-index — used for onboarding-stage dashboards / filtered lists
+  global_secondary_index {
+    name            = "stage-index"
+    hash_key        = "stage"
+    projection_type = "ALL"
+  }
+
+  # NH-28: created_by-index — HR staff can scope getEmployees to their own
+  #        employees without a full-table Scan
+  global_secondary_index {
+    name            = "created_by-index"
+    hash_key        = "created_by"
+    projection_type = "ALL"
+  }
+
   server_side_encryption {
-    enabled           = true
+    enabled     = true
     kms_key_arn = module.kms_pii.key_arn
   }
 
+  # NH-28: PITR enabled — employees is the most critical operational table
   point_in_time_recovery {
-    enabled = false
+    enabled = true
   }
 
   ttl {
     enabled        = false
     attribute_name = ""
+  }
+
+  tags = {
+    DataClassification = "PII"
+    RetentionYears     = "7"
   }
 }
 
@@ -50,17 +95,23 @@ resource "aws_dynamodb_table" "documents" {
   }
 
   server_side_encryption {
-    enabled           = true
+    enabled     = true
     kms_key_arn = module.kms_pii.key_arn
   }
 
+  # NH-28: PITR enabled — documents table contains PII and must be recoverable
   point_in_time_recovery {
-    enabled = false
+    enabled = true
   }
 
   ttl {
     enabled        = false
     attribute_name = ""
+  }
+
+  tags = {
+    DataClassification = "PII"
+    RetentionYears     = "7"
   }
 }
 

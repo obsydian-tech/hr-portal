@@ -43,7 +43,8 @@ resource "aws_iam_role_policy" "create_employee" {
       {
         Sid      = "DynamoDB"
         Effect   = "Allow"
-        Action   = ["dynamodb:PutItem", "dynamodb:Scan", "dynamodb:Query"]
+        # NH-28: PutItem only — Scan removed (UUID v4 replaces sequential scan)
+        Action   = ["dynamodb:PutItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
       },
       {
@@ -111,8 +112,12 @@ resource "aws_iam_role_policy" "get_employees" {
       {
         Sid      = "DynamoDB"
         Effect   = "Allow"
-        Action   = ["dynamodb:Scan"]
-        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+        # NH-28: Scan (managers) + Query (non-managers via created_by-index GSI)
+        Action   = ["dynamodb:Scan", "dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/created_by-index",
+        ]
       },
       {
         Sid      = "KMSPIIKey"
@@ -710,10 +715,14 @@ resource "aws_iam_role_policy" "get_employee_by_email" {
         Resource = "*"
       },
       {
-        Sid      = "DynamoDBScan"
+        # NH-28: Scan replaced with Query on email-index GSI
+        Sid      = "DynamoDBQuery"
         Effect   = "Allow"
-        Action   = ["dynamodb:Scan"]
-        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+        Action   = ["dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index",
+        ]
       },
       {
         Sid      = "KMSPIIKey"
