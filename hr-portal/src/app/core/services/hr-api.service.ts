@@ -161,7 +161,6 @@ export class HrApiService {
       {}
     );
   }
-  }
 
   // ─── Still-Mocked Methods (no real endpoints yet) ─────────
 
