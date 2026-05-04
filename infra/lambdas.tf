@@ -5,13 +5,14 @@
 # ---------------------------------------------------------------------------
 
 locals {
+  # Retained for the AWS Config region-enforcement Lambda in config.tf
   lambda_role_arn = "arn:aws:iam::937137806477:role/doc-verification-lambda-role"
   placeholder_zip = "${path.root}/../placeholder.zip"
 }
 
 resource "aws_lambda_function" "create_employee" {
   function_name = "createEmployee"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.create_employee.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
@@ -41,7 +42,7 @@ resource "aws_lambda_function" "create_employee" {
 
 resource "aws_lambda_function" "get_employees" {
   function_name = "getEmployees"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.get_employees.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
@@ -64,7 +65,7 @@ resource "aws_lambda_function" "get_employees" {
 
 resource "aws_lambda_function" "upload_document_to_s3" {
   function_name = "uploadDocumentToS3"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.upload_document_to_s3.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
@@ -87,7 +88,7 @@ resource "aws_lambda_function" "upload_document_to_s3" {
 
 resource "aws_lambda_function" "process_document_ocr" {
   function_name = "processDocumentOCR"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.process_document_ocr.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
@@ -110,7 +111,7 @@ resource "aws_lambda_function" "process_document_ocr" {
 
 resource "aws_lambda_function" "get_document_verifications" {
   function_name = "getDocumentVerifications"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.get_document_verifications.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
@@ -133,7 +134,7 @@ resource "aws_lambda_function" "get_document_verifications" {
 
 resource "aws_lambda_function" "get_single_document_verification" {
   function_name = "getSingleDocumentVerification"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.get_single_document_verification.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
@@ -156,7 +157,7 @@ resource "aws_lambda_function" "get_single_document_verification" {
 
 resource "aws_lambda_function" "get_employee_document_verifications" {
   function_name = "getEmployeeDocumentVerifications"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.get_employee_document_verifications.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
@@ -179,7 +180,7 @@ resource "aws_lambda_function" "get_employee_document_verifications" {
 
 resource "aws_lambda_function" "review_document_verification" {
   function_name = "reviewDocumentVerification"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.review_document_verification.arn
   handler       = "index.handler"
   runtime       = "nodejs20.x"
   filename      = local.placeholder_zip
@@ -202,7 +203,7 @@ resource "aws_lambda_function" "review_document_verification" {
 
 resource "aws_lambda_function" "lookup_employee_email" {
   function_name = "lookupEmployeeEmail"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.lookup_employee_email.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
@@ -225,7 +226,7 @@ resource "aws_lambda_function" "lookup_employee_email" {
 
 resource "aws_lambda_function" "get_document_presigned_url" {
   function_name = "getDocumentPresignedUrl"
-  role          = local.lambda_role_arn
+  role          = aws_iam_role.get_document_presigned_url.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
