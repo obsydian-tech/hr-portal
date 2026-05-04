@@ -201,7 +201,7 @@ const handlerFn = async (event) => {
   }
 };
 
-export const handler = tracer.captureLambdaHandler(handlerFn);
+export const handler = handlerFn;
 
 function respond(statusCode, body) {
   return {

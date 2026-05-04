@@ -287,7 +287,7 @@ const handlerFn = async (event) => {
   }
 };
 
-export const handler = tracer.captureLambdaHandler(handlerFn);
+export const handler = handlerFn;
 
 /**
  * Build branded HTML welcome email
