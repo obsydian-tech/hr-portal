@@ -103,7 +103,7 @@ describe('HrApiService', () => {
   it('getEmployees: should GET correct URL without x-staff-id header', () => {
     service.getEmployees().subscribe();
 
-    const req = httpMock.expectOne(r => r.url.endsWith('/get/employees'));
+    const req = httpMock.expectOne(r => r.url.endsWith('/v1/employees'));
     expect(req.request.method).toBe('GET');
     expect(req.request.headers.has('x-staff-id')).toBeFalse();
     req.flush(RAW_EMPLOYEES);
@@ -112,14 +112,14 @@ describe('HrApiService', () => {
   it('getEmployees: should NOT send x-role header', () => {
     service.getEmployees().subscribe();
 
-    const req = httpMock.expectOne(r => r.url.endsWith('/get/employees'));
+    const req = httpMock.expectOne(r => r.url.endsWith('/v1/employees'));
     expect(req.request.headers.has('x-role')).toBeFalse();
     req.flush([]);
   });
 
   it('getEmployees: should not add x-role for standard staff', () => {
     service.getEmployees().subscribe();
-    const req = httpMock.expectOne(r => r.url.endsWith('/get/employees'));
+    const req = httpMock.expectOne(r => r.url.endsWith('/v1/employees'));
     expect(req.request.method).toBe('GET');
     req.flush([]);
   });
@@ -131,16 +131,16 @@ describe('HrApiService', () => {
       done();
     });
 
-    const req = httpMock.expectOne(r => r.url.endsWith('/get/employees'));
+    const req = httpMock.expectOne(r => r.url.endsWith('/v1/employees'));
     req.flush(RAW_EMPLOYEES);
   });
 
   // ── getVerifications ──────────────────────────────────────────────────────
 
-  it('getVerifications: should GET /document-verifications', () => {
+  it('getVerifications: should GET /v1/verifications', () => {
     service.getVerifications().subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/document-verifications'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications'));
     expect(req.request.method).toBe('GET');
     req.flush([]);
   });
@@ -148,7 +148,7 @@ describe('HrApiService', () => {
   it('getVerifications: should NOT send x-staff-id header', () => {
     service.getVerifications().subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/document-verifications'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications'));
     expect(req.request.headers.has('x-staff-id')).toBeFalse();
     req.flush([]);
   });
@@ -156,7 +156,7 @@ describe('HrApiService', () => {
   it('getVerifications: should NOT send x-role header', () => {
     service.getVerifications().subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/document-verifications'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications'));
     expect(req.request.headers.has('x-role')).toBeFalse();
     req.flush([]);
   });
@@ -166,7 +166,7 @@ describe('HrApiService', () => {
   it('getVerificationByDocumentId: should GET the correct URL', () => {
     service.getVerificationByDocumentId('DOC-001').subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/documents/verification/DOC-001'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications/DOC-001'));
     expect(req.request.method).toBe('GET');
     req.flush(RAW_VERIFICATION);
   });
@@ -182,7 +182,7 @@ describe('HrApiService', () => {
       done();
     });
 
-    const req = httpMock.expectOne(r => r.url.includes('/documents/verification/DOC-001'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications/DOC-001'));
     req.flush(RAW_VERIFICATION);
   });
 
@@ -192,16 +192,16 @@ describe('HrApiService', () => {
       done();
     });
 
-    const req = httpMock.expectOne(r => r.url.includes('/documents/verification/DOC-001'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications/DOC-001'));
     req.flush(RAW_VERIFICATION);
   });
 
   // ── getEmployeeDocuments ──────────────────────────────────────────────────
 
-  it('getEmployeeDocuments: should GET /{employeeId}/document/verifications', () => {
+  it('getEmployeeDocuments: should GET /v1/employees/{employeeId}/verifications', () => {
     service.getEmployeeDocuments('EMP-0000001').subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/EMP-0000001/document/verifications'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/employees/EMP-0000001/verifications'));
     expect(req.request.method).toBe('GET');
     req.flush(RAW_EMPLOYEE_DOCS);
   });
@@ -213,7 +213,7 @@ describe('HrApiService', () => {
       done();
     });
 
-    const req = httpMock.expectOne(r => r.url.includes('/EMP-0000001/document/verifications'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/employees/EMP-0000001/verifications'));
     req.flush(RAW_EMPLOYEE_DOCS);
   });
 
@@ -224,7 +224,7 @@ describe('HrApiService', () => {
       done();
     });
 
-    const req = httpMock.expectOne(r => r.url.includes('/EMP-0000001/document/verifications'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/employees/EMP-0000001/verifications'));
     req.flush(RAW_EMPLOYEE_DOCS);
   });
 
@@ -233,7 +233,7 @@ describe('HrApiService', () => {
   it('getDocumentPreviewUrl: should GET correct preview URL', () => {
     service.getDocumentPreviewUrl('DOC-042').subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/documents/DOC-042/preview'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/documents/DOC-042/url'));
     expect(req.request.method).toBe('GET');
     req.flush({ url: 'https://s3.example.com/presigned' });
   });
@@ -244,7 +244,7 @@ describe('HrApiService', () => {
       done();
     });
 
-    const req = httpMock.expectOne(r => r.url.includes('/documents/DOC-042/preview'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/documents/DOC-042/url'));
     req.flush({ url: 'https://s3.example.com/presigned' });
   });
 
@@ -253,7 +253,7 @@ describe('HrApiService', () => {
   it('reviewDocument: should PATCH the correct URL', () => {
     service.reviewDocument('DOC-001', 'PASSED', 'Looks good').subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/documents/DOC-001/review'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications/DOC-001/review'));
     expect(req.request.method).toBe('PATCH');
     req.flush({ success: true });
   });
@@ -261,7 +261,7 @@ describe('HrApiService', () => {
   it('reviewDocument: should send decision and notes in the request body', () => {
     service.reviewDocument('DOC-001', 'FAILED', 'Blurry scan').subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/documents/DOC-001/review'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications/DOC-001/review'));
     expect(req.request.body.decision).toBe('FAILED');
     expect(req.request.body.notes).toBe('Blurry scan');
     req.flush({ success: true });
@@ -270,7 +270,7 @@ describe('HrApiService', () => {
   it('reviewDocument: should send body without notes when notes is not provided', () => {
     service.reviewDocument('DOC-001', 'PASSED').subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/documents/DOC-001/review'));
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications/DOC-001/review'));
     expect(req.request.body.notes).toBe('');
     req.flush({ success: true });
   });
@@ -285,10 +285,10 @@ describe('HrApiService', () => {
     hr_staff_email: 'thabo@naleko.co.za',
   };
 
-  it('createEmployee: should POST to /employee/create without x-staff-id header', () => {
+  it('createEmployee: should POST to /v1/employees without x-staff-id header', () => {
     service.createEmployee(VALID_CREATE_PAYLOAD).subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/employee/create'));
+    const req = httpMock.expectOne(r => r.url.endsWith('/v1/employees') && r.method === 'POST');
     expect(req.request.method).toBe('POST');
     expect(req.request.headers.has('x-staff-id')).toBeFalse();
     req.flush({ employeeId: 'EMP-0000020' });
@@ -297,30 +297,48 @@ describe('HrApiService', () => {
   it('createEmployee: should send the employee data as the request body', () => {
     service.createEmployee(VALID_CREATE_PAYLOAD).subscribe();
 
-    const req = httpMock.expectOne(r => r.url.includes('/employee/create'));
+    const req = httpMock.expectOne(r => r.url.endsWith('/v1/employees') && r.method === 'POST');
     expect(req.request.body.first_name).toBe('Jane');
     expect(req.request.body.email).toBe('jane@naleko.co.za');
     req.flush({ employeeId: 'EMP-0000020' });
   });
 
-  // ── searchEmployeeByEmail (mock) ──────────────────────────────────────────
+  // ── searchEmployeeByEmail ─────────────────────────────────────────────────
 
-  it('searchEmployeeByEmail: should return false (mock implementation)', (done) => {
+  it('searchEmployeeByEmail: should GET /v1/employees/by-email with email param', () => {
+    service.searchEmployeeByEmail('new@example.com').subscribe();
+
+    const req = httpMock.expectOne(r => r.url.includes('/v1/employees/by-email'));
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('email')).toBe('new@example.com');
+    req.flush({ exists: false });
+  });
+
+  it('searchEmployeeByEmail: should return false when server says exists=false', (done) => {
     service.searchEmployeeByEmail('new@example.com').subscribe((result) => {
       expect(result).toBeFalse();
       done();
     });
-    // No HTTP request expected
-    httpMock.expectNone(() => true);
+    const req = httpMock.expectOne(r => r.url.includes('/v1/employees/by-email'));
+    req.flush({ exists: false });
   });
 
-  // ── triggerExternalVerification (mock) ────────────────────────────────────
+  // ── triggerExternalVerification ───────────────────────────────────────────
 
-  it('triggerExternalVerification: should return a mock success response', (done) => {
+  it('triggerExternalVerification: should POST to /v1/verifications/{id}/external', () => {
+    service.triggerExternalVerification('DOC-001', 'NATIONAL_ID').subscribe();
+
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications/DOC-001/external'));
+    expect(req.request.method).toBe('POST');
+    req.flush({ success: true, message: 'Submitted' });
+  });
+
+  it('triggerExternalVerification: should return a success response', (done) => {
     service.triggerExternalVerification('DOC-001', 'NATIONAL_ID').subscribe((res: any) => {
       expect(res.success).toBeDefined();
       done();
     });
-    httpMock.expectNone(() => true);
+    const req = httpMock.expectOne(r => r.url.includes('/v1/verifications/DOC-001/external'));
+    req.flush({ success: true, message: 'Submitted' });
   });
 });
