@@ -39,7 +39,7 @@ resource "aws_lambda_function" "create_employee" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -50,7 +50,7 @@ resource "aws_lambda_function" "get_employees" {
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 128
-  timeout       = 15
+  timeout       = 30
   architectures = ["x86_64"]
 
   environment {
@@ -68,7 +68,7 @@ resource "aws_lambda_function" "get_employees" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -97,7 +97,7 @@ resource "aws_lambda_function" "upload_document_to_s3" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -127,7 +127,7 @@ resource "aws_lambda_function" "process_document_ocr" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -156,7 +156,7 @@ resource "aws_lambda_function" "get_document_verifications" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -167,7 +167,7 @@ resource "aws_lambda_function" "get_single_document_verification" {
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 128
-  timeout       = 15
+  timeout       = 30
   architectures = ["x86_64"]
 
   environment {
@@ -185,7 +185,7 @@ resource "aws_lambda_function" "get_single_document_verification" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -214,7 +214,7 @@ resource "aws_lambda_function" "get_employee_document_verifications" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -222,7 +222,7 @@ resource "aws_lambda_function" "review_document_verification" {
   function_name = "reviewDocumentVerification"
   role          = aws_iam_role.review_document_verification.arn
   handler       = "index.handler"
-  runtime       = "nodejs20.x"
+  runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 256
   timeout       = 15
@@ -244,7 +244,7 @@ resource "aws_lambda_function" "review_document_verification" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -255,7 +255,7 @@ resource "aws_lambda_function" "lookup_employee_email" {
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 128
-  timeout       = 15
+  timeout       = 30
   architectures = ["x86_64"]
 
   environment {
@@ -273,7 +273,7 @@ resource "aws_lambda_function" "lookup_employee_email" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -302,7 +302,7 @@ resource "aws_lambda_function" "get_document_presigned_url" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -332,7 +332,7 @@ resource "aws_lambda_function" "generate_document_upload_url" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -362,7 +362,7 @@ resource "aws_lambda_function" "get_employee_by_email" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -392,7 +392,7 @@ resource "aws_lambda_function" "trigger_external_verification" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -423,7 +423,7 @@ resource "aws_lambda_function" "serve_docs" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -455,7 +455,7 @@ resource "aws_lambda_function" "summarise_verification" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -467,7 +467,7 @@ resource "aws_lambda_function" "audit_log_consumer" {
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 128
-  timeout       = 15
+  timeout       = 30
   architectures = ["x86_64"]
 
   environment {
@@ -486,7 +486,7 @@ resource "aws_lambda_function" "audit_log_consumer" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
 
@@ -519,6 +519,6 @@ resource "aws_lambda_function" "classify_onboarding_risk" {
   }
 
   lifecycle {
-    ignore_changes = [filename, source_code_hash, runtime]
+    ignore_changes = [filename, source_code_hash]
   }
 }
