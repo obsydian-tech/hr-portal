@@ -886,6 +886,75 @@ resource "aws_iam_role_policy" "summarise_verification" {
   })
 }
 
+# ─── NH-41: classifyOnboardingRisk ───────────────────────────────────────────
+resource "aws_iam_role" "classify_onboarding_risk" {
+  name        = "naleko-classifyOnboardingRisk-role"
+  description = "Execution role for classifyOnboardingRisk Lambda — Bedrock risk classifier"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "classify_onboarding_risk" {
+  name = "naleko-classifyOnboardingRisk-policy"
+  role = aws_iam_role.classify_onboarding_risk.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/classifyOnboardingRisk:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # NH-41: Query verifications via employeeId-index GSI (no PII read)
+        Sid    = "DynamoDBQueryVerifications"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification/index/employeeId-index",
+        ]
+      },
+      {
+        # NH-41: Persist riskBand, riskReason, riskAssessedAt to employees table
+        Sid      = "DynamoDBUpdateEmployee"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "KMSDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        # NH-41: least-privilege — InvokeModel only on Claude 3 Haiku
+        Sid      = "BedrockInvokeModel"
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
+        Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
+      }
+    ]
+  })
+}
+
 # ─── NH-27: auditLogConsumer ──────────────────────────────────────────────────
 resource "aws_iam_role" "audit_log_consumer" {
   name        = "naleko-auditLogConsumer-role"

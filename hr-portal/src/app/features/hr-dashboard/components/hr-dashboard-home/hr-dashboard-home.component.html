@@ -106,6 +106,7 @@
               <th>HR Partner</th>
             }
             <th>Stage</th>
+            <th>Risk</th>
             <th>Start Date</th>
             <th style="width: 6rem">Actions</th>
           </tr>
@@ -121,6 +122,22 @@
             <td>
               <p-tag [value]="stageLabel(emp.stage)" [severity]="stageSeverity(emp.stage)" />
             </td>
+            <td>
+              @if (emp.riskBand) {
+                <span
+                  class="risk-badge"
+                  [class.risk-low]="emp.riskBand === 'LOW'"
+                  [class.risk-medium]="emp.riskBand === 'MEDIUM'"
+                  [class.risk-high]="emp.riskBand === 'HIGH'"
+                  [title]="emp.riskReason ?? ''"
+                >
+                  {{ emp.riskBand === 'LOW' ? '🟢' : emp.riskBand === 'MEDIUM' ? '🟡' : emp.riskBand === 'HIGH' ? '🔴' : '⚪' }}
+                  {{ emp.riskBand }}
+                </span>
+              } @else {
+                <span class="text-color-secondary text-sm">—</span>
+              }
+            </td>
             <td>{{ emp.planned_start_date | date:'mediumDate' }}</td>
             <td>
               <p-button
@@ -135,7 +152,7 @@
         </ng-template>
         <ng-template #emptymessage>
           <tr>
-            <td [attr.colspan]="isManager() ? 7 : 6" class="text-center p-4 text-color-secondary">
+            <td [attr.colspan]="isManager() ? 8 : 7" class="text-center p-4 text-color-secondary">
               No employees found.
             </td>
           </tr>

@@ -151,6 +151,18 @@ export class HrApiService {
     );
   }
 
+  /** NH-41: Trigger Bedrock risk classification for an employee.
+   *  POST /v1/employees/{id}/assess-risk
+   *  Returns { employeeId, risk, reason }
+   */
+  assessRisk(employeeId: string): Observable<{ employeeId: string; risk: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'; reason: string }> {
+    return this.http.post<{ employeeId: string; risk: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN'; reason: string }>(
+      `${this.docApiUrl}/v1/employees/${employeeId}/assess-risk`,
+      {}
+    );
+  }
+  }
+
   // ─── Still-Mocked Methods (no real endpoints yet) ─────────
 
   createEmployee(data: CreateEmployeeRequest): Observable<CreateEmployeeResponse> {
