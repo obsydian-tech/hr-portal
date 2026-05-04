@@ -864,9 +864,9 @@ resource "aws_iam_role_policy" "summarise_verification" {
       },
       {
         # NH-40: read-only — GetItem on document-verification table only
-        Sid    = "DynamoDBRead"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem"]
+        Sid      = "DynamoDBRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification"
       },
       {
@@ -877,9 +877,9 @@ resource "aws_iam_role_policy" "summarise_verification" {
       },
       {
         # NH-40: least-privilege — InvokeModel only on Claude 3 Haiku
-        Sid    = "BedrockInvokeModel"
-        Effect = "Allow"
-        Action = ["bedrock:InvokeModel"]
+        Sid      = "BedrockInvokeModel"
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
         Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
       }
     ]
