@@ -26,7 +26,7 @@ concurrency:
 
 env:
   NODE_VERSION: "20"
-  TF_VERSION: "1.15.0"
+  TF_VERSION: "1.10.5"
 
 # ---------------------------------------------------------------------------
 # Job 1 — Angular frontend
@@ -78,10 +78,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # @apidevtools/swagger-parser validates $refs, required fields, type correctness
+      # @redocly/cli validates $refs, required fields, type correctness
       - name: Validate api/openapi.yaml
         run: |
-          npx --yes @apidevtools/swagger-parser validate api/openapi.yaml
+          npx --yes @redocly/cli lint api/openapi.yaml
           echo "✅ OpenAPI spec is valid"
 
   # ---------------------------------------------------------------------------

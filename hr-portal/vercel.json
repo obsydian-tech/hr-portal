@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build",
+  "buildCommand": "npm install --production=false && npm run build",
   "outputDirectory": "dist/hr-portal/browser",
   "devCommand": "ng serve --port $PORT",
-  "installCommand": "npm install --include=dev",
+  "installCommand": "echo 'install handled in buildCommand'",
   "framework": null,
   "rewrites": [
     {
