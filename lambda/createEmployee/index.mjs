@@ -7,6 +7,7 @@ import {
   AdminSetUserPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
+import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
 import { randomBytes } from "crypto";
 import postmark from "postmark";
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -15,6 +16,23 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 const dynamodb = new DynamoDBClient();
 const cognito = new CognitoIdentityProviderClient({ region: "af-south-1" });
 const kms = new KMSClient();
+const eb = new EventBridgeClient();
+
+async function publishEvent(detailType, detail) {
+  if (!process.env.EVENT_BUS_NAME) return;
+  try {
+    await eb.send(new PutEventsCommand({
+      Entries: [{
+        EventBusName: process.env.EVENT_BUS_NAME,
+        Source: 'naleko.onboarding',
+        DetailType: detailType,
+        Detail: JSON.stringify(detail),
+      }],
+    }));
+  } catch (err) {
+    logger.warn('EventBridge publish failed', { detailType, error: err.message });
+  }
+}
 
 const logger = new Logger({ serviceName: 'createEmployee' });
 const tracer = new Tracer({ serviceName: 'createEmployee' });
@@ -123,6 +141,15 @@ const handlerFn = async (event) => {
 
     logger.info('Employee created', { employeeId, staffMemberId });
     tracer.putAnnotation('employeeId', employeeId);
+
+    // 5b. Publish employee.invited event (NH-14)
+    await publishEvent('employee.invited', {
+      employee_id: employeeId,
+      email: body.email,
+      department: body.department,
+      stage: 'INVITED',
+      created_by: staffMemberId,
+    });
 
     // 6. Create Cognito user for the new employee
     let cognitoUserCreated = false;

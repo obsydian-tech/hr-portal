@@ -3,6 +3,7 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
 import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
+import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -11,9 +12,26 @@ const s3 = new S3Client();
 const bedrock = new BedrockRuntimeClient({ region: "af-south-1" });
 const dynamodb = new DynamoDBClient();
 const kms = new KMSClient();
+const eb = new EventBridgeClient();
 
 const logger = new Logger({ serviceName: 'processDocumentOCR' });
 const tracer = new Tracer({ serviceName: 'processDocumentOCR' });
+
+async function publishEvent(detailType, detail) {
+  if (!process.env.EVENT_BUS_NAME) return;
+  try {
+    await eb.send(new PutEventsCommand({
+      Entries: [{
+        EventBusName: process.env.EVENT_BUS_NAME,
+        Source: 'naleko.onboarding',
+        DetailType: detailType,
+        Detail: JSON.stringify(detail),
+      }],
+    }));
+  } catch (err) {
+    logger.warn('EventBridge publish failed', { detailType, error: err.message });
+  }
+}
 
 // ─── Prompt builders per document type ────────────────────────
 
@@ -200,6 +218,9 @@ const handlerFn = async (event) => {
     tracer.putAnnotation('employeeId', employeeId);
     tracer.putAnnotation('documentType', documentType);
 
+    // 1b. Publish document.uploaded event (NH-14)
+    await publishEvent('document.uploaded', { employee_id: employeeId, document_id: documentId, document_type: documentType });
+
     // 2. Download file from S3
     const s3Response = await s3.send(
       new GetObjectCommand({ Bucket: bucket, Key: key })
@@ -287,6 +308,22 @@ const handlerFn = async (event) => {
     );
 
     logger.info('Updated document status', { documentId, ocrStatus });
+
+    // 7b. Publish ocr.completed + verification outcome events (NH-14)
+    await publishEvent('ocr.completed', {
+      employee_id: employeeId,
+      document_id: documentId,
+      document_type: documentType,
+      confidence: validationResult.confidence,
+      decision: validationResult.decision,
+    });
+    const verDetailType = ocrStatus === 'PASSED' ? 'verification.passed' : 'verification.manual_review';
+    await publishEvent(verDetailType, {
+      employee_id: employeeId,
+      document_id: documentId,
+      verification_id: verificationId,
+      decision: ocrStatus,
+    });
 
     // 8. Return the result
     return {
