@@ -6,6 +6,7 @@ import {
   AdminAddUserToGroupCommand,
   AdminSetUserPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
+import { randomBytes } from "crypto";
 import postmark from "postmark";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
@@ -99,9 +100,10 @@ const handlerFn = async (event) => {
     let cognitoUserCreated = false;
     let tempPassword = null;
     try {
-      // Generate a temporary password: Naleko + last 4 of employee ID + !Emp
-      const empNum = employeeId.replace('EMP-', '');
-      tempPassword = `Naleko${empNum}!Emp`;
+    // Generate a cryptographically random temporary password.
+      // Format: Np1!<16 random base64url chars> — guaranteed to satisfy Cognito
+      // default policy (upper, lower, digit, symbol, min 8 chars).
+      tempPassword = `Np1!${randomBytes(12).toString('base64url')}`;
 
       // Create the Cognito user with employee attributes
       await cognito.send(
