@@ -183,7 +183,7 @@ describe('AuthService', () => {
 
   it('login with EMP- ID that returns 404 returns ERROR', async () => {
     const p = svc.login('EMP-9999999', 'pass');
-    httpMock.expectOne((r) => r.url.includes('/employee/lookup'))
+    httpMock.expectOne((r) => r.url.includes('/v1/employees/lookup'))
       .flush({}, { status: 404, statusText: 'Not Found' });
     const result = await p;
     expect(result.status).toBe('ERROR');
