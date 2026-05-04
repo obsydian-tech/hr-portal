@@ -1,10 +1,21 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, switchMap } from 'rxjs';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable, switchMap, map } from 'rxjs';
 import { DocumentType } from '../../shared/models/employee.model';
 import { environment } from '../../../environments/environment';
 
-/** Response shape from POST /employees/{employee_id}/documents/upload */
+/** Response from POST /employees/{employee_id}/documents/upload-url (NH-12) */
+export interface UploadUrlResponse {
+  url: string;
+  document_id: string;
+  s3_key: string;
+  expires_in: number;
+}
+
+/**
+ * Normalised response returned by DocumentUploadService.upload().
+ * Shape matches the old base64 endpoint so callers need no changes.
+ */
 export interface DocumentUploadResponse {
   message: string;
   document_id: string;
@@ -19,50 +30,57 @@ export class DocumentUploadService {
   private readonly apiUrl = environment.documentUploadApiUrl;
 
   /**
-   * Upload a document to the backend.
-   * Converts the File to base64, then POSTs to the API Gateway endpoint.
-   * The backend stores in S3 and writes to DynamoDB with ocr_status: PENDING.
-   * S3 event notification triggers OCR asynchronously.
+   * Upload a document to S3 via presigned PUT URL (NH-12).
+   *
+   * Flow:
+   *   1. POST /employees/{id}/documents/upload-url  → { url, document_id, s3_key }
+   *   2. PUT <presigned url> with raw file bytes       → 200 from S3
+   *   3. Return normalised DocumentUploadResponse so callers are unaffected.
+   *
+   * The DynamoDB record is written as PENDING in step 1 so OCR can trigger
+   * from the S3 event notification once the PUT lands.
    */
   upload(file: File, documentType: DocumentType, employeeId: string): Observable<DocumentUploadResponse> {
-    return this.fileToBase64(file).pipe(
-      switchMap((base64Content) => {
-        const body = {
-          documentType,
-          fileName: file.name,
-          fileContent: base64Content,
-          contentType: file.type || 'application/pdf',
-        };
-
-        return this.http.post<DocumentUploadResponse>(
-          `${this.apiUrl}/employees/${employeeId}/documents/upload`,
-          body
-        );
-      })
+    return this.getUploadUrl(file, documentType, employeeId).pipe(
+      switchMap((urlResponse) => this.putToS3(file, urlResponse).pipe(
+        map(() => ({
+          message: 'Document uploaded successfully',
+          document_id: urlResponse.document_id,
+          employee_id: employeeId,
+          s3_key: urlResponse.s3_key,
+          ocr_status: 'PENDING',
+        } satisfies DocumentUploadResponse))
+      ))
     );
   }
 
   /**
-   * Read a File object and return the raw base64 string (no data URI prefix).
+   * Request a presigned PUT URL from the backend.
+   * POST /employees/{employee_id}/documents/upload-url
    */
-  private fileToBase64(file: File): Observable<string> {
-    return new Observable<string>((observer) => {
-      const reader = new FileReader();
+  private getUploadUrl(
+    file: File,
+    documentType: DocumentType,
+    employeeId: string,
+  ): Observable<UploadUrlResponse> {
+    return this.http.post<UploadUrlResponse>(
+      `${this.apiUrl}/employees/${employeeId}/documents/upload-url`,
+      {
+        documentType,
+        fileName: file.name,
+        contentType: file.type || 'application/pdf',
+      },
+    );
+  }
 
-      reader.onload = () => {
-        // result is "data:application/pdf;base64,JVBERi0x..."
-        // Strip everything up to and including the comma
-        const dataUrl = reader.result as string;
-        const base64 = dataUrl.split(',')[1];
-        observer.next(base64);
-        observer.complete();
-      };
-
-      reader.onerror = () => {
-        observer.error(new Error('Failed to read file'));
-      };
-
-      reader.readAsDataURL(file);
+  /**
+   * PUT the raw file bytes directly to S3 using the presigned URL.
+   * No Authorization header — S3 presigned URLs are self-authenticating.
+   */
+  private putToS3(file: File, urlResponse: UploadUrlResponse): Observable<void> {
+    const headers = new HttpHeaders({
+      'Content-Type': file.type || 'application/pdf',
     });
+    return this.http.put<void>(urlResponse.url, file, { headers });
   }
 }

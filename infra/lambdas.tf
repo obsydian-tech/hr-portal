@@ -302,3 +302,33 @@ resource "aws_lambda_function" "get_document_presigned_url" {
     ignore_changes = [filename, source_code_hash, runtime]
   }
 }
+
+# ─── NH-12: generateDocumentUploadUrl ────────────────────────────────────────
+resource "aws_lambda_function" "generate_document_upload_url" {
+  function_name = "generateDocumentUploadUrl"
+  role          = aws_iam_role.generate_document_upload_url.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/generateDocumentUploadUrl"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, runtime]
+  }
+}
