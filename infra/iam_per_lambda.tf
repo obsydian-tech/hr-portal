@@ -830,7 +830,7 @@ resource "aws_iam_role_policy" "serve_docs" {
 # ─── NH-40: summariseVerification ───────────────────────────────────────────
 resource "aws_iam_role" "summarise_verification" {
   name        = "naleko-summariseVerification-role"
-  description = "Execution role for summariseVerification Lambda — Bedrock + DynamoDB read-only"
+  description = "Execution role for summariseVerification Lambda - Bedrock + DynamoDB read-only"
   path        = "/naleko/"
 
   assume_role_policy = jsonencode({
@@ -889,7 +889,7 @@ resource "aws_iam_role_policy" "summarise_verification" {
 # ─── NH-41: classifyOnboardingRisk ───────────────────────────────────────────
 resource "aws_iam_role" "classify_onboarding_risk" {
   name        = "naleko-classifyOnboardingRisk-role"
-  description = "Execution role for classifyOnboardingRisk Lambda — Bedrock risk classifier"
+  description = "Execution role for classifyOnboardingRisk Lambda - Bedrock risk classifier"
   path        = "/naleko/"
 
   assume_role_policy = jsonencode({
@@ -958,7 +958,7 @@ resource "aws_iam_role_policy" "classify_onboarding_risk" {
 # ─── NH-27: auditLogConsumer ──────────────────────────────────────────────────
 resource "aws_iam_role" "audit_log_consumer" {
   name        = "naleko-auditLogConsumer-role"
-  description = "Execution role for auditLogConsumer Lambda — append-only to onboarding-events"
+  description = "Execution role for auditLogConsumer Lambda - append-only to onboarding-events"
   path        = "/naleko/"
 
   assume_role_policy = jsonencode({
