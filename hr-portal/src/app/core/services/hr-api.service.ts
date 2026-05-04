@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, delay, map } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import {
   Employee,
   EmployeeListResponse,
@@ -160,30 +160,31 @@ export class HrApiService {
     );
   }
 
+  /** NH-13: Check whether an email address is already registered as an employee.
+   *  GET /employees/by-email?email=<email>
+   *  Returns true if found, false if not.
+   */
   searchEmployeeByEmail(email: string): Observable<boolean> {
-    // TODO: Replace with real endpoint when available
-    return of(false).pipe(delay(300));
+    return this.http
+      .get<{ exists: boolean; employee_id?: string }>(
+        `${this.empApiUrl}/employees/by-email`,
+        { params: { email } }
+      )
+      .pipe(map((res) => res.exists));
   }
 
+  /** NH-13: Submit an external verification request for a document.
+   *  POST /verifications/{id}/external
+   *  Returns { success, message } — same shape as the retired mock.
+   */
   triggerExternalVerification(
     documentId: string,
     documentType: DocumentType
   ): Observable<{ success: boolean; message: string }> {
-    // TODO: Replace with real endpoint when available
-    const isValid =
-      documentType === 'NATIONAL_ID' || documentType === 'BANK_CONFIRMATION';
-
-    if (!isValid) {
-      return of({
-        success: false,
-        message: 'External verification is only available for National ID and Bank Confirmation documents.',
-      });
-    }
-
-    return of({
-      success: true,
-      message: `Verification request submitted for ${documentType === 'NATIONAL_ID' ? 'VerifyNow (Identity)' : 'AVS (Bank Account)'}. Document ID: ${documentId}. Results typically available within 24 hours.`,
-    }).pipe(delay(2000));
+    return this.http.post<{ success: boolean; message: string }>(
+      `${this.docApiUrl}/verifications/${documentId}/external`,
+      { documentType }
+    );
   }
 
   // ─── Response Mappers ─────────────────────────────────────

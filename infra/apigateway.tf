@@ -127,3 +127,57 @@ resource "aws_lambda_permission" "generate_document_upload_url" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
 }
+
+# ---------------------------------------------------------------------------
+# NH-13: GET /employees/by-email?email=  (employees_api)
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "get_employee_by_email" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_employee_by_email.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_employee_by_email" {
+  api_id             = aws_apigatewayv2_api.employees_api.id
+  route_key          = "GET /employees/by-email"
+  target             = "integrations/${aws_apigatewayv2_integration.get_employee_by_email.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.employees_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_employee_by_email" {
+  statement_id  = "AllowEmployeesAPIInvokeByEmail"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_employee_by_email.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# NH-13: POST /verifications/{id}/external  (document_upload_api)
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "trigger_external_verification" {
+  api_id                 = aws_apigatewayv2_api.document_upload_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.trigger_external_verification.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "trigger_external_verification" {
+  api_id             = aws_apigatewayv2_api.document_upload_api.id
+  route_key          = "POST /verifications/{id}/external"
+  target             = "integrations/${aws_apigatewayv2_integration.trigger_external_verification.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.document_upload_api_cognito.id
+}
+
+resource "aws_lambda_permission" "trigger_external_verification" {
+  statement_id  = "AllowDocumentUploadAPIInvokeExternal"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.trigger_external_verification.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
+}
