@@ -11,14 +11,14 @@
 
   @if (submitted()) {
     <!-- ═══ Success State ═══ -->
-    <div class="success-card">
+    <div class="success-card" data-testid="success-card">
       <div class="success-card__icon">
         <i class="pi pi-check-circle"></i>
       </div>
       <h2 class="success-card__title">Employee Registered Successfully</h2>
       <p class="success-card__sub">
-        <strong>{{ firstName }} {{ lastName }}</strong> has been added to the system with ID
-        <span class="font-mono">{{ createdEmployeeId() }}</span>.
+        <strong data-testid="success-employee-name">{{ firstName }} {{ lastName }}</strong> has been added to the system with ID
+        <span class="font-mono" data-testid="success-employee-id">{{ createdEmployeeId() }}</span>.
       </p>
 
       <!-- Login Credentials Card -->
@@ -137,6 +137,7 @@
               <input
                 pInputText
                 id="firstName"
+                data-testid="first-name"
                 [(ngModel)]="firstName"
                 (ngModelChange)="onFirstNameChange()"
                 placeholder="e.g. Sarah"
@@ -166,6 +167,7 @@
               <input
                 pInputText
                 id="lastName"
+                data-testid="last-name"
                 [(ngModel)]="lastName"
                 (ngModelChange)="onLastNameChange()"
                 placeholder="e.g. Nkosi"
@@ -187,6 +189,7 @@
                 <input
                   pInputText
                   id="email"
+                  data-testid="email"
                   [(ngModel)]="email"
                   (ngModelChange)="onEmailChange()"
                   placeholder="e.g. sarah.nkosi@company.co.za"
@@ -224,6 +227,7 @@
               <input
                 pInputText
                 id="phone"
+                data-testid="phone"
                 [(ngModel)]="phone"
                 (ngModelChange)="onPhoneChange()"
                 placeholder="e.g. 081 234 5678"
@@ -551,6 +555,7 @@
           [disabled]="!canProceed"
           (onClick)="nextStep()"
           styleClass="next-btn"
+          data-testid="next-btn"
         />
       } @else {
         <div class="flex flex-column align-items-end gap-2">
@@ -569,6 +574,7 @@
             [disabled]="!canProceed"
             [loading]="submitting()"
             (onClick)="submit()"
+            data-testid="register-btn"
           />
         </div>
       }
