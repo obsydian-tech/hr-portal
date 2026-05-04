@@ -116,3 +116,59 @@ resource "aws_dynamodb_table" "external_verification_requests" {
     attribute_name = ""
   }
 }
+
+# ---------------------------------------------------------------------------
+# NH-27: onboarding-events — immutable audit log
+# All EventBridge events from naleko-onboarding bus land here.
+# Immutability enforced at IAM level: auditLogConsumer only has PutItem.
+# ---------------------------------------------------------------------------
+resource "aws_dynamodb_table" "onboarding_events" {
+  name         = "onboarding-events"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "eventId"
+  range_key    = "timestamp"
+  table_class  = "STANDARD"
+
+  attribute {
+    name = "eventId"
+    type = "S"
+  }
+
+  attribute {
+    name = "timestamp"
+    type = "S"
+  }
+
+  attribute {
+    name = "employeeId"
+    type = "S"
+  }
+
+  # GSI: look up all audit events for a specific employee
+  global_secondary_index {
+    name            = "employeeId-timestamp-index"
+    hash_key        = "employeeId"
+    range_key       = "timestamp"
+    projection_type = "ALL"
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  # NO TTL — audit records must be retained 7 years under POPIA
+  ttl {
+    enabled        = false
+    attribute_name = ""
+  }
+
+  tags = {
+    DataClassification = "AUDIT"
+    RetentionYears     = "7"
+  }
+}
