@@ -19,11 +19,11 @@ const handlerFn = async (event) => {
     const employeeId = queryParams.employee_id;
     const limit = parseInt(queryParams.limit || '50');
 
-    // Get staff ID and role from headers for filtering
-    const headers = event.headers || {};
-    const staffMemberId = headers['x-staff-id'] || headers['X-Staff-Id'] || '';
-    const role = headers['x-role'] || headers['X-Role'] || '';
-    const isManager = role.toLowerCase() === 'manager';
+    // Get staff ID and role from JWT claims (set by Cognito authorizer)
+    const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
+    const staffMemberId = claims['custom:staff_id'] || claims['sub'] || '';
+    const groups = (claims['cognito:groups'] ?? '').toString();
+    const isManager = groups.includes('hr_staff');
 
     logger.info('Query params', { status, decision, employeeId, limit, isManager });
 
@@ -99,7 +99,7 @@ const handlerFn = async (event) => {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,x-staff-id,x-role',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,OPTIONS'
       },
       body: JSON.stringify({
@@ -124,7 +124,7 @@ const handlerFn = async (event) => {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,x-staff-id,x-role',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,OPTIONS'
       },
       body: JSON.stringify({ error: error.message })

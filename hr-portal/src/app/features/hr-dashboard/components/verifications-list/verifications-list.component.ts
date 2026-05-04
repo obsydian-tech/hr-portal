@@ -70,8 +70,7 @@ export class VerificationsListComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    const staffId = this.route.parent?.snapshot.params['staffId'] ?? '';
-    this.hrApi.getVerifications(staffId).subscribe((res) => {
+    this.hrApi.getVerifications().subscribe((res) => {
       this.verifications.set(res.items);
       this.loading.set(false);
     });

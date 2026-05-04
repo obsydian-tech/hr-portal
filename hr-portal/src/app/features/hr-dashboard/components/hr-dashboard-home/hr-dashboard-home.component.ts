@@ -95,7 +95,7 @@ export class HrDashboardHomeComponent implements OnInit {
     const staffId = this.route.parent?.snapshot.params['staffId'] ?? 'AS00001';
     this.isManager.set(isHrManager(staffId));
 
-    this.hrApi.getEmployees(staffId).subscribe((res) => {
+    this.hrApi.getEmployees().subscribe((res) => {
       this.employees.set(res.items);
       this.loading.set(false);
     });
