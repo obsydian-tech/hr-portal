@@ -131,8 +131,9 @@ resource "aws_dynamodb_table" "document_verification" {
     kms_key_arn = module.kms_pii.key_arn
   }
 
+  # NH-39: PITR enabled — verification records contain PII and must be recoverable
   point_in_time_recovery {
-    enabled = false
+    enabled = true
   }
 
   ttl {
@@ -158,8 +159,9 @@ resource "aws_dynamodb_table" "external_verification_requests" {
     kms_key_arn = module.kms_pii.key_arn
   }
 
+  # NH-39: PITR enabled — external verification audit trail must be recoverable
   point_in_time_recovery {
-    enabled = false
+    enabled = true
   }
 
   ttl {
