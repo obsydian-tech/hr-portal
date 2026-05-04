@@ -27,3 +27,8 @@ variable "placeholder_zip" {
   description = "Path to the placeholder zip used for Lambda function source until code is deployed."
   type        = string
 }
+
+variable "config_lambda_zip" {
+  description = "Path to the configRegionCheck Lambda deployment zip (built from lambda/configRegionCheck/)."
+  type        = string
+}

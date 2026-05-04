@@ -13,4 +13,5 @@ module "config" {
   ops_sns_topic_arn = module.alarms.sns_topic_arn
   lambda_role_arn  = local.lambda_role_arn
   placeholder_zip  = local.placeholder_zip
+  config_lambda_zip = "${path.root}/../lambda_configregioncheck.zip"
 }

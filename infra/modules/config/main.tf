@@ -186,22 +186,9 @@ resource "aws_config_config_rule" "s3_encryption" {
   }
 }
 
-resource "aws_config_config_rule" "dynamodb_encryption" {
-  name        = "naleko-dynamodb-table-encrypted-at-rest"
-  description = "Checks that DynamoDB tables are encrypted at rest."
-
-  source {
-    owner             = "AWS"
-    source_identifier = "DYNAMODB_TABLE_ENCRYPTED_AT_REST"
-  }
-
-  depends_on = [aws_config_configuration_recorder_status.naleko]
-
-  tags = {
-    Environment = var.environment
-    Severity    = "high"
-  }
-}
+# NOTE: DYNAMODB_TABLE_ENCRYPTED_AT_REST is not available in af-south-1.
+# DynamoDB tables are encrypted at rest by default (AWS-managed keys since 2017).
+# KMS CMK usage is enforced by the kms_not_scheduled_deletion rule above.
 
 resource "aws_config_config_rule" "kms_not_scheduled_deletion" {
   name        = "naleko-kms-cmk-not-scheduled-for-deletion"
@@ -266,7 +253,7 @@ resource "aws_lambda_function" "config_region_check" {
   role          = var.lambda_role_arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  filename      = var.placeholder_zip
+  filename      = var.config_lambda_zip
   memory_size   = 128
   timeout       = 30
   architectures = ["x86_64"]
