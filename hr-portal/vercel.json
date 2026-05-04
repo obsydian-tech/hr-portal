@@ -3,7 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist/hr-portal/browser",
   "devCommand": "ng serve --port $PORT",
-  "installCommand": "npm install",
+  "installCommand": "npm install --include=dev",
   "framework": null,
   "rewrites": [
     {
