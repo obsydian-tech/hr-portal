@@ -50,7 +50,7 @@ resource "aws_lambda_function" "get_employees" {
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 128
-  timeout       = 3
+  timeout       = 15
   architectures = ["x86_64"]
 
   environment {
@@ -138,7 +138,7 @@ resource "aws_lambda_function" "get_document_verifications" {
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 128
-  timeout       = 3
+  timeout       = 30
   architectures = ["x86_64"]
 
   environment {
@@ -167,7 +167,7 @@ resource "aws_lambda_function" "get_single_document_verification" {
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 128
-  timeout       = 3
+  timeout       = 15
   architectures = ["x86_64"]
 
   environment {
@@ -196,7 +196,7 @@ resource "aws_lambda_function" "get_employee_document_verifications" {
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 128
-  timeout       = 3
+  timeout       = 30
   architectures = ["x86_64"]
 
   environment {
@@ -255,7 +255,7 @@ resource "aws_lambda_function" "lookup_employee_email" {
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
   memory_size   = 128
-  timeout       = 3
+  timeout       = 15
   architectures = ["x86_64"]
 
   environment {
