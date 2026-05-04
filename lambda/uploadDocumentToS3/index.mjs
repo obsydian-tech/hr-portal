@@ -115,7 +115,7 @@ const handlerFn = async (event) => {
   }
 };
 
-export const handler = tracer.captureLambdaHandler(handlerFn);
+export const handler = handlerFn;
 
 // Helper: Check if employee exists
 async function checkEmployeeExists(employeeId) {

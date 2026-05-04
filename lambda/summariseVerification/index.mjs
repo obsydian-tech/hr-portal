@@ -122,4 +122,4 @@ ${ocrSnippet}`;
   });
 };
 
-export const handler = tracer.captureAsyncFunc('Handler', handlerFn);
+export const handler = handlerFn;
