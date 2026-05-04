@@ -6,6 +6,7 @@ import {
   AdminAddUserToGroupCommand,
   AdminSetUserPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
+import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
 import { randomBytes } from "crypto";
 import postmark from "postmark";
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -13,12 +14,26 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamodb = new DynamoDBClient();
 const cognito = new CognitoIdentityProviderClient({ region: "af-south-1" });
+const kms = new KMSClient();
 
 const logger = new Logger({ serviceName: 'createEmployee' });
 const tracer = new Tracer({ serviceName: 'createEmployee' });
 
 const USER_POOL_ID = "af-south-1_2LdAGFnw2";
 const LOGIN_URL = "https://hr-portal-beryl-three.vercel.app/login";
+
+/**
+ * KMS envelope encryption — stores ciphertext as base64 string.
+ * Returns null if KMS_KEY_ARN is not set (dev/test fallback).
+ */
+async function kmsEncrypt(plaintext) {
+  if (!process.env.KMS_KEY_ARN || !plaintext) return null;
+  const result = await kms.send(new EncryptCommand({
+    KeyId: process.env.KMS_KEY_ARN,
+    Plaintext: Buffer.from(plaintext, 'utf8'),
+  }));
+  return Buffer.from(result.CiphertextBlob).toString('base64');
+}
 
 // Postmark client — initialised lazily so Lambda doesn't crash if env var is missing
 let mailClient = null;
@@ -64,6 +79,16 @@ const handlerFn = async (event) => {
     // 3. Generate unique employee ID
     const employeeId = await generateEmployeeId();
 
+    // 4a. Envelope-encrypt SA ID number (NH-11)
+    // id_number is optional at employee creation — may be submitted later via document upload.
+    // When present, we encrypt with the PII CMK and store only the ciphertext + last 4 digits.
+    let idNumberEncrypted = null;
+    let idNumberLast4 = null;
+    if (body.id_number) {
+      idNumberEncrypted = await kmsEncrypt(body.id_number);
+      idNumberLast4 = String(body.id_number).slice(-4);
+    }
+
     // 4. Prepare employee record
     const timestamp = new Date().toISOString();
     const employee = {
@@ -83,6 +108,9 @@ const handlerFn = async (event) => {
       hr_staff_id: { S: body.hr_staff_id || staffMemberId },
       hr_staff_name: { S: body.hr_staff_name || '' },
       hr_staff_email: { S: body.hr_staff_email || '' },
+      // PII fields — SA ID stored encrypted; only last 4 digits stored in clear
+      ...(idNumberEncrypted ? { id_number_encrypted: { S: idNumberEncrypted } } : {}),
+      ...(idNumberLast4     ? { id_number_last4:     { S: idNumberLast4 }     } : {}),
     };
 
     // 5. Save to DynamoDB
@@ -190,7 +218,9 @@ const handlerFn = async (event) => {
     }
 
     // 8. Return created employee (unmarshall for clean JSON)
+    // id_number_encrypted is PII ciphertext — never returned to callers.
     const createdEmployee = Object.keys(employee).reduce((acc, key) => {
+      if (key === 'id_number_encrypted') return acc; // redact ciphertext
       const value = employee[key];
       acc[key] = value.S || value.N || value.BOOL || null;
       return acc;

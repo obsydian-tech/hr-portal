@@ -1,12 +1,33 @@
 import { DynamoDBClient, QueryCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { KMSClient, DecryptCommand } from "@aws-sdk/client-kms";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamodb = new DynamoDBClient();
+const kms = new KMSClient();
 
 const logger = new Logger({ serviceName: 'getEmployeeDocumentVerifications' });
 const tracer = new Tracer({ serviceName: 'getEmployeeDocumentVerifications' });
+
+/**
+ * KMS decrypt — returns plain-text string.
+ * Handles legacy records that still store idNumber in plain (pre-NH-11).
+ * Returns null if ciphertext is missing, sentinel, or decryption fails.
+ */
+async function kmsDecrypt(ciphertext) {
+  if (!ciphertext || ciphertext === 'NOT_FOUND' || ciphertext === 'KMS_UNAVAILABLE') return null;
+  try {
+    const result = await kms.send(new DecryptCommand({
+      KeyId: process.env.KMS_KEY_ARN,
+      CiphertextBlob: Buffer.from(ciphertext, 'base64'),
+    }));
+    return Buffer.from(result.Plaintext).toString('utf8');
+  } catch (err) {
+    logger.warn('KMS decrypt failed — returning null', { error: err.message });
+    return null;
+  }
+}
 
 const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, employeeId: event.pathParameters?.employee_id });
@@ -76,6 +97,19 @@ const handlerFn = async (event) => {
           ? unmarshall(verResult.Items[0]) 
           : null;
 
+        // NH-11: decrypt id_number for HR review.
+        // New records store idNumber_encrypted (ciphertext) + idNumber_last4.
+        // Legacy records (pre-NH-11) may still have idNumber in plain.
+        let decryptedIdNumber = null;
+        if (verification) {
+          if (verification.idNumber_encrypted) {
+            decryptedIdNumber = await kmsDecrypt(verification.idNumber_encrypted);
+          } else if (verification.idNumber) {
+            // Legacy pre-NH-11 record — return as-is
+            decryptedIdNumber = verification.idNumber;
+          }
+        }
+
         return {
           ...doc,
           verification: verification ? {
@@ -83,7 +117,8 @@ const handlerFn = async (event) => {
             confidence: verification.confidence,
             decision: verification.decision,
             reasoning: verification.reasoning,
-            id_number: verification.idNumber,
+            id_number: decryptedIdNumber,
+            id_number_last4: verification.idNumber_last4 || null,
             name: verification.name,
             surname: verification.surname,
             date_of_birth: verification.dateOfBirth,
