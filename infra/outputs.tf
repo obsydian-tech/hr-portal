@@ -10,3 +10,14 @@ output "environment" {
   description = "Active deployment environment."
   value       = var.environment
 }
+
+# NH-10: KMS CMK
+output "kms_pii_key_arn" {
+  description = "ARN of the PII customer-managed KMS key (alias/naleko-onboarding-pii)."
+  value       = module.kms_pii.key_arn
+}
+
+output "kms_pii_alias_name" {
+  description = "Alias name of the PII CMK."
+  value       = module.kms_pii.alias_name
+}

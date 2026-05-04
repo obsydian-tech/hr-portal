@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------
-# Lambda Functions — NH-11 Terraform import
+# Lambda Functions
 # Code source is managed outside Terraform (direct console/CI deploys).
 # We track configuration only; filename/source_code_hash are ignored.
+# NH-10: KMS_KEY_ARN injected into every Lambda that handles PII.
 # ---------------------------------------------------------------------------
 
 locals {
@@ -24,6 +25,7 @@ resource "aws_lambda_function" "create_employee" {
     variables = {
       POSTMARK_API_TOKEN    = "623fee86-c7a5-4d08-b3f6-e9193bd2a316"
       POSTMARK_SENDER_EMAIL = "joworesources@gmail.com"
+      KMS_KEY_ARN           = module.kms_pii.key_arn
     }
   }
 
@@ -50,6 +52,12 @@ resource "aws_lambda_function" "get_employees" {
   timeout       = 3
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -72,6 +80,12 @@ resource "aws_lambda_function" "upload_document_to_s3" {
   memory_size   = 512
   timeout       = 30
   architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
 
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
@@ -96,6 +110,12 @@ resource "aws_lambda_function" "process_document_ocr" {
   timeout       = 60
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -118,6 +138,12 @@ resource "aws_lambda_function" "get_document_verifications" {
   memory_size   = 128
   timeout       = 3
   architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
 
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
@@ -142,6 +168,12 @@ resource "aws_lambda_function" "get_single_document_verification" {
   timeout       = 3
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -164,6 +196,12 @@ resource "aws_lambda_function" "get_employee_document_verifications" {
   memory_size   = 128
   timeout       = 3
   architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
 
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
@@ -188,6 +226,12 @@ resource "aws_lambda_function" "review_document_verification" {
   timeout       = 15
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -211,6 +255,12 @@ resource "aws_lambda_function" "lookup_employee_email" {
   timeout       = 3
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -233,6 +283,12 @@ resource "aws_lambda_function" "get_document_presigned_url" {
   memory_size   = 128
   timeout       = 10
   architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
 
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }

@@ -1,5 +1,6 @@
 # ---------------------------------------------------------------------------
-# DynamoDB Tables — NH-11 Terraform import
+# DynamoDB Tables
+# NH-10: SSE with KMS CMK alias/naleko-onboarding-pii on all tables
 # ---------------------------------------------------------------------------
 
 resource "aws_dynamodb_table" "employees" {
@@ -11,6 +12,11 @@ resource "aws_dynamodb_table" "employees" {
   attribute {
     name = "employee_id"
     type = "S"
+  }
+
+  server_side_encryption {
+    enabled           = true
+    kms_key_arn = module.kms_pii.key_arn
   }
 
   point_in_time_recovery {
@@ -40,6 +46,11 @@ resource "aws_dynamodb_table" "documents" {
     type = "S"
   }
 
+  server_side_encryption {
+    enabled           = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
   point_in_time_recovery {
     enabled = false
   }
@@ -59,6 +70,11 @@ resource "aws_dynamodb_table" "document_verification" {
   attribute {
     name = "verificationId"
     type = "S"
+  }
+
+  server_side_encryption {
+    enabled           = true
+    kms_key_arn = module.kms_pii.key_arn
   }
 
   point_in_time_recovery {
