@@ -55,6 +55,12 @@ resource "aws_iam_role_policy" "create_employee" {
           "cognito-idp:AdminSetUserPassword",
         ]
         Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/af-south-1_2LdAGFnw2"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -101,6 +107,12 @@ resource "aws_iam_role_policy" "get_employees" {
         Effect   = "Allow"
         Action   = ["dynamodb:Scan"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -153,6 +165,12 @@ resource "aws_iam_role_policy" "upload_document_to_s3" {
         Effect   = "Allow"
         Action   = ["dynamodb:PutItem", "dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -221,6 +239,12 @@ resource "aws_iam_role_policy" "process_document_ocr" {
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
         ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -271,6 +295,12 @@ resource "aws_iam_role_policy" "get_document_verifications" {
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
         ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -320,6 +350,12 @@ resource "aws_iam_role_policy" "get_single_document_verification" {
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
         ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -370,6 +406,12 @@ resource "aws_iam_role_policy" "get_employee_document_verifications" {
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
         ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -431,6 +473,12 @@ resource "aws_iam_role_policy" "review_document_verification" {
             "cloudwatch:namespace" = "Naleko/Onboarding"
           }
         }
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -477,6 +525,12 @@ resource "aws_iam_role_policy" "lookup_employee_email" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -529,6 +583,12 @@ resource "aws_iam_role_policy" "get_document_presigned_url" {
         Effect   = "Allow"
         Action   = ["s3:GetObject"]
         Resource = "arn:aws:s3:::document-ocr-verification-uploads/*"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
