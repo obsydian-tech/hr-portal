@@ -55,6 +55,18 @@ resource "aws_iam_role_policy" "create_employee" {
           "cognito-idp:AdminSetUserPassword",
         ]
         Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/af-south-1_2LdAGFnw2"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
       }
     ]
   })
@@ -101,6 +113,12 @@ resource "aws_iam_role_policy" "get_employees" {
         Effect   = "Allow"
         Action   = ["dynamodb:Scan"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -153,6 +171,12 @@ resource "aws_iam_role_policy" "upload_document_to_s3" {
         Effect   = "Allow"
         Action   = ["dynamodb:PutItem", "dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -221,6 +245,18 @@ resource "aws_iam_role_policy" "process_document_ocr" {
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
         ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
       }
     ]
   })
@@ -271,6 +307,12 @@ resource "aws_iam_role_policy" "get_document_verifications" {
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
         ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -320,6 +362,12 @@ resource "aws_iam_role_policy" "get_single_document_verification" {
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
         ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -370,6 +418,12 @@ resource "aws_iam_role_policy" "get_employee_document_verifications" {
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
         ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -431,6 +485,18 @@ resource "aws_iam_role_policy" "review_document_verification" {
             "cloudwatch:namespace" = "Naleko/Onboarding"
           }
         }
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
       }
     ]
   })
@@ -477,6 +543,12 @@ resource "aws_iam_role_policy" "lookup_employee_email" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
@@ -529,6 +601,218 @@ resource "aws_iam_role_policy" "get_document_presigned_url" {
         Effect   = "Allow"
         Action   = ["s3:GetObject"]
         Resource = "arn:aws:s3:::document-ocr-verification-uploads/*"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
+
+# ─── NH-12: generateDocumentUploadUrl ────────────────────────────────────────
+
+resource "aws_iam_role" "generate_document_upload_url" {
+  name        = "naleko-generateDocumentUploadUrl-role"
+  description = "Execution role for generateDocumentUploadUrl Lambda (NH-12)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "generate_document_upload_url" {
+  name = "naleko-generateDocumentUploadUrl-policy"
+  role = aws_iam_role.generate_document_upload_url.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/generateDocumentUploadUrl:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # Lambda must have s3:PutObject to sign a presigned PUT URL on behalf of callers
+        Sid      = "S3PresignedPut"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = "arn:aws:s3:::document-ocr-verification-uploads/uploads/*"
+      },
+      {
+        Sid      = "DynamoDB"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
+        ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
+
+# ─── NH-13: getEmployeeByEmail ──────────────────────────────────────────────
+resource "aws_iam_role" "get_employee_by_email" {
+  name        = "naleko-getEmployeeByEmail-role"
+  description = "Execution role for getEmployeeByEmail Lambda (NH-13)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_employee_by_email" {
+  name = "naleko-getEmployeeByEmail-policy"
+  role = aws_iam_role.get_employee_by_email.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getEmployeeByEmail:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "DynamoDBScan"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Scan"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
+
+# ─── NH-13: triggerExternalVerification ─────────────────────────────────────
+resource "aws_iam_role" "trigger_external_verification" {
+  name        = "naleko-triggerExternalVerification-role"
+  description = "Execution role for triggerExternalVerification Lambda (NH-13)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "trigger_external_verification" {
+  name = "naleko-triggerExternalVerification-policy"
+  role = aws_iam_role.trigger_external_verification.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/triggerExternalVerification:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "DynamoDB"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Scan", "dynamodb:PutItem"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/external-verification-requests",
+        ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
+
+# ─── NH-13-swagger: serveDocs ────────────────────────────────────────────────────────────────────────
+resource "aws_iam_role" "serve_docs" {
+  name        = "naleko-serveDocs-role"
+  description = "Execution role for serveDocs Lambda - serves GET /docs + GET /openapi.yaml"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "serve_docs" {
+  name = "naleko-serveDocs-policy"
+  role = aws_iam_role.serve_docs.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/serveDocs:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
       }
     ]
   })

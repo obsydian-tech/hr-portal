@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------
-# Lambda Functions — NH-11 Terraform import
+# Lambda Functions
 # Code source is managed outside Terraform (direct console/CI deploys).
 # We track configuration only; filename/source_code_hash are ignored.
+# NH-10: KMS_KEY_ARN injected into every Lambda that handles PII.
 # ---------------------------------------------------------------------------
 
 locals {
@@ -24,6 +25,8 @@ resource "aws_lambda_function" "create_employee" {
     variables = {
       POSTMARK_API_TOKEN    = "623fee86-c7a5-4d08-b3f6-e9193bd2a316"
       POSTMARK_SENDER_EMAIL = "joworesources@gmail.com"
+      KMS_KEY_ARN           = module.kms_pii.key_arn
+      EVENT_BUS_NAME        = aws_cloudwatch_event_bus.naleko_onboarding.name
     }
   }
 
@@ -50,6 +53,12 @@ resource "aws_lambda_function" "get_employees" {
   timeout       = 3
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -72,6 +81,12 @@ resource "aws_lambda_function" "upload_document_to_s3" {
   memory_size   = 512
   timeout       = 30
   architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
 
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
@@ -96,6 +111,13 @@ resource "aws_lambda_function" "process_document_ocr" {
   timeout       = 60
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN    = module.kms_pii.key_arn
+      EVENT_BUS_NAME = aws_cloudwatch_event_bus.naleko_onboarding.name
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -118,6 +140,12 @@ resource "aws_lambda_function" "get_document_verifications" {
   memory_size   = 128
   timeout       = 3
   architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
 
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
@@ -142,6 +170,12 @@ resource "aws_lambda_function" "get_single_document_verification" {
   timeout       = 3
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -164,6 +198,12 @@ resource "aws_lambda_function" "get_employee_document_verifications" {
   memory_size   = 128
   timeout       = 3
   architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
 
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
@@ -188,6 +228,13 @@ resource "aws_lambda_function" "review_document_verification" {
   timeout       = 15
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN    = module.kms_pii.key_arn
+      EVENT_BUS_NAME = aws_cloudwatch_event_bus.naleko_onboarding.name
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -210,6 +257,12 @@ resource "aws_lambda_function" "lookup_employee_email" {
   memory_size   = 128
   timeout       = 3
   architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
 
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
@@ -234,12 +287,139 @@ resource "aws_lambda_function" "get_document_presigned_url" {
   timeout       = 10
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
   logging_config {
     log_format = "JSON"
     log_group  = "/aws/lambda/getDocumentPresignedUrl"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, runtime]
+  }
+}
+
+# ─── NH-12: generateDocumentUploadUrl ───────────────────────────────────────
+resource "aws_lambda_function" "generate_document_upload_url" {
+  function_name = "generateDocumentUploadUrl"
+  role          = aws_iam_role.generate_document_upload_url.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/generateDocumentUploadUrl"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, runtime]
+  }
+}
+
+# ─── NH-13: getEmployeeByEmail ────────────────────────────────────────────────
+resource "aws_lambda_function" "get_employee_by_email" {
+  function_name = "getEmployeeByEmail"
+  role          = aws_iam_role.get_employee_by_email.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getEmployeeByEmail"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, runtime]
+  }
+}
+
+# ─── NH-13: triggerExternalVerification ──────────────────────────────────────
+resource "aws_lambda_function" "trigger_external_verification" {
+  function_name = "triggerExternalVerification"
+  role          = aws_iam_role.trigger_external_verification.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      KMS_KEY_ARN = module.kms_pii.key_arn
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/triggerExternalVerification"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, runtime]
+  }
+}
+
+# ─── NH-13-swagger: serveDocs (GET /docs + GET /openapi.yaml) ────────────────
+resource "aws_lambda_function" "serve_docs" {
+  function_name = "serveDocs"
+  role          = aws_iam_role.serve_docs.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      # Injected so Swagger UI HTML knows the full URL of /openapi.yaml
+      API_ENDPOINT = aws_apigatewayv2_api.employees_api.api_endpoint
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/serveDocs"
   }
 
   lifecycle {

@@ -92,7 +92,14 @@ const handlerFn = async (event) => {
     // 8. Return success
     return {
       statusCode: 200,
-      headers: corsHeaders(),
+      headers: {
+        ...corsHeaders(),
+        // NH-12 deprecation notice: this endpoint will be removed in the next release.
+        // Use POST /employees/{employee_id}/documents/upload-url instead.
+        "Sunset": "Sat, 01 Aug 2026 00:00:00 GMT",
+        "Deprecation": "true",
+        "Link": '</employees/{employee_id}/documents/upload-url>; rel="successor-version"',
+      },
       body: JSON.stringify({
         message: "Document uploaded successfully",
         document_id: documentId,

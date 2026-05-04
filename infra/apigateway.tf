@@ -100,3 +100,118 @@ resource "aws_apigatewayv2_stage" "document_upload_api_default" {
     ignore_changes = [deployment_id]
   }
 }
+
+# ---------------------------------------------------------------------------
+# NH-12: POST /employees/{employee_id}/documents/upload-url
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "generate_document_upload_url" {
+  api_id                 = aws_apigatewayv2_api.document_upload_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.generate_document_upload_url.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "generate_document_upload_url" {
+  api_id             = aws_apigatewayv2_api.document_upload_api.id
+  route_key          = "POST /employees/{employee_id}/documents/upload-url"
+  target             = "integrations/${aws_apigatewayv2_integration.generate_document_upload_url.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.document_upload_api_cognito.id
+}
+
+resource "aws_lambda_permission" "generate_document_upload_url" {
+  statement_id  = "AllowDocumentUploadAPIInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.generate_document_upload_url.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# NH-13: GET /employees/by-email?email=  (employees_api)
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "get_employee_by_email" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_employee_by_email.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_employee_by_email" {
+  api_id             = aws_apigatewayv2_api.employees_api.id
+  route_key          = "GET /employees/by-email"
+  target             = "integrations/${aws_apigatewayv2_integration.get_employee_by_email.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.employees_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_employee_by_email" {
+  statement_id  = "AllowEmployeesAPIInvokeByEmail"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_employee_by_email.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# NH-13: POST /verifications/{id}/external  (document_upload_api)
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "trigger_external_verification" {
+  api_id                 = aws_apigatewayv2_api.document_upload_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.trigger_external_verification.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "trigger_external_verification" {
+  api_id             = aws_apigatewayv2_api.document_upload_api.id
+  route_key          = "POST /verifications/{id}/external"
+  target             = "integrations/${aws_apigatewayv2_integration.trigger_external_verification.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.document_upload_api_cognito.id
+}
+
+resource "aws_lambda_permission" "trigger_external_verification" {
+  statement_id  = "AllowDocumentUploadAPIInvokeExternal"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.trigger_external_verification.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# NH-13: GET /docs and GET /openapi.yaml  (employees_api, NO auth)
+# Both routes are served by a single serveDocs Lambda.
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "serve_docs" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.serve_docs.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "serve_docs" {
+  api_id    = aws_apigatewayv2_api.employees_api.id
+  route_key = "GET /docs"
+  target    = "integrations/${aws_apigatewayv2_integration.serve_docs.id}"
+  # No authorizer — public endpoint
+}
+
+resource "aws_apigatewayv2_route" "serve_openapi_spec" {
+  api_id    = aws_apigatewayv2_api.employees_api.id
+  route_key = "GET /openapi.yaml"
+  target    = "integrations/${aws_apigatewayv2_integration.serve_docs.id}"
+  # No authorizer — public endpoint
+}
+
+resource "aws_lambda_permission" "serve_docs" {
+  statement_id  = "AllowEmployeesAPIInvokeServeDocs"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.serve_docs.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}

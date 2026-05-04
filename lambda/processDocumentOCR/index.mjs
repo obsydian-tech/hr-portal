@@ -2,6 +2,8 @@ import { TextractClient, AnalyzeDocumentCommand } from "@aws-sdk/client-textract
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
+import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -9,9 +11,27 @@ const textract = new TextractClient({ region: "eu-west-1" });
 const s3 = new S3Client();
 const bedrock = new BedrockRuntimeClient({ region: "af-south-1" });
 const dynamodb = new DynamoDBClient();
+const kms = new KMSClient();
+const eb = new EventBridgeClient();
 
 const logger = new Logger({ serviceName: 'processDocumentOCR' });
 const tracer = new Tracer({ serviceName: 'processDocumentOCR' });
+
+async function publishEvent(detailType, detail) {
+  if (!process.env.EVENT_BUS_NAME) return;
+  try {
+    await eb.send(new PutEventsCommand({
+      Entries: [{
+        EventBusName: process.env.EVENT_BUS_NAME,
+        Source: 'naleko.onboarding',
+        DetailType: detailType,
+        Detail: JSON.stringify(detail),
+      }],
+    }));
+  } catch (err) {
+    logger.warn('EventBridge publish failed', { detailType, error: err.message });
+  }
+}
 
 // ─── Prompt builders per document type ────────────────────────
 
@@ -120,7 +140,20 @@ function getPromptForDocType(documentType, extractedText) {
 
 // ─── DynamoDB item builder per document type ──────────────────
 
-function buildVerificationItem({ verificationId, employeeId, documentId, documentType, key, validationResult, ocrCompletedAt }) {
+/**
+ * KMS envelope encryption — returns base64 ciphertext.
+ * Falls back to null if KMS_KEY_ARN is not set (unit test / local).
+ */
+async function kmsEncrypt(plaintext) {
+  if (!process.env.KMS_KEY_ARN || !plaintext || plaintext === 'NOT_FOUND') return null;
+  const result = await kms.send(new EncryptCommand({
+    KeyId: process.env.KMS_KEY_ARN,
+    Plaintext: Buffer.from(plaintext, 'utf8'),
+  }));
+  return Buffer.from(result.CiphertextBlob).toString('base64');
+}
+
+async function buildVerificationItem({ verificationId, employeeId, documentId, documentType, key, validationResult, ocrCompletedAt }) {
   // Common fields for all document types
   const item = {
     verificationId: { S: verificationId },
@@ -136,7 +169,17 @@ function buildVerificationItem({ verificationId, employeeId, documentId, documen
   };
 
   if (documentType === "NATIONAL_ID") {
-    item.idNumber = { S: validationResult.idNumber || "NOT_FOUND" };
+    // NH-11: encrypt SA ID number; store only ciphertext + last 4 in plain
+    const rawIdNumber = validationResult.idNumber || null;
+    const encrypted = await kmsEncrypt(rawIdNumber);
+    if (encrypted) {
+      item.idNumber_encrypted = { S: encrypted };
+      item.idNumber_last4 = { S: String(rawIdNumber).slice(-4) };
+    } else {
+      // Fallback: KMS unavailable (dev/test) — store sentinel instead of plaintext
+      item.idNumber_encrypted = { S: 'KMS_UNAVAILABLE' };
+      item.idNumber_last4 = { S: rawIdNumber ? String(rawIdNumber).slice(-4) : 'XXXX' };
+    }
     item.name = { S: validationResult.name || "NOT_FOUND" };
     item.surname = { S: validationResult.surname || "NOT_FOUND" };
     item.dateOfBirth = { S: validationResult.dateOfBirth || "NOT_FOUND" };
@@ -174,6 +217,9 @@ const handlerFn = async (event) => {
     logger.info('Document metadata', { employeeId, documentType, documentId });
     tracer.putAnnotation('employeeId', employeeId);
     tracer.putAnnotation('documentType', documentType);
+
+    // 1b. Publish document.uploaded event (NH-14)
+    await publishEvent('document.uploaded', { employee_id: employeeId, document_id: documentId, document_type: documentType });
 
     // 2. Download file from S3
     const s3Response = await s3.send(
@@ -229,7 +275,7 @@ const handlerFn = async (event) => {
     const verificationId = `ver_${Date.now()}`;
     const ocrCompletedAt = new Date().toISOString();
 
-    const verificationItem = buildVerificationItem({
+    const verificationItem = await buildVerificationItem({
       verificationId, employeeId, documentId, documentType, key, validationResult, ocrCompletedAt,
     });
 
@@ -262,6 +308,22 @@ const handlerFn = async (event) => {
     );
 
     logger.info('Updated document status', { documentId, ocrStatus });
+
+    // 7b. Publish ocr.completed + verification outcome events (NH-14)
+    await publishEvent('ocr.completed', {
+      employee_id: employeeId,
+      document_id: documentId,
+      document_type: documentType,
+      confidence: validationResult.confidence,
+      decision: validationResult.decision,
+    });
+    const verDetailType = ocrStatus === 'PASSED' ? 'verification.passed' : 'verification.manual_review';
+    await publishEvent(verDetailType, {
+      employee_id: employeeId,
+      document_id: documentId,
+      verification_id: verificationId,
+      decision: ocrStatus,
+    });
 
     // 8. Return the result
     return {
