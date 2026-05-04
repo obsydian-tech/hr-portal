@@ -1,0 +1,9 @@
+{
+  "name": "process-document-ocr-lambda",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0",
+    "@aws-lambda-powertools/tracer": "^2.18.0"
+  }
+}

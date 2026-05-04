@@ -1,17 +1,40 @@
-# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# ─── Terraform ─────────────────────────────────────────────
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+.terraform.tfstate
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
 
-# Compiled output
-/dist
-/tmp
-/out-tsc
-/bazel-out
+# ─── Lambda build artefacts ────────────────────────────────
+lambda/**/node_modules/
+lambda/**/*.zip
+lambda/**/.package-lock.json
+*.zip
 
-# Node
-/node_modules
+# ─── Node / Angular ────────────────────────────────────────
+node_modules/
 npm-debug.log
 yarn-error.log
 
-# IDEs and editors
+# ─── Angular build outputs ─────────────────────────────────
+hr-portal/dist/
+hr-portal/tmp/
+hr-portal/out-tsc/
+hr-portal/bazel-out/
+hr-portal/.angular/cache/
+
+# ─── Tests / coverage ──────────────────────────────────────
+hr-portal/coverage/
+hr-portal/testem.log
+hr-portal/typings/
+
+# ─── IDE ───────────────────────────────────────────────────
 .idea/
 .project
 .classpath
@@ -19,24 +42,30 @@ yarn-error.log
 *.launch
 .settings/
 *.sublime-workspace
-
-# Visual Studio Code
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-.history/*
+.history/
 
-# Miscellaneous
-/.angular/cache
-.sass-cache/
-/connect.lock
-/coverage
-/libpeerconnection.log
-testem.log
-/typings
+# ─── Playwright / test artefacts ───────────────────────────
+.playwright-mcp/
 
-# System files
+# ─── Obsidian / workspace notes ────────────────────────────
+*.md
+!hr-portal/**/*.md
+!infra/**/*.md
+!api/**/*.md
+!lambda/**/*.md
+!scripts/**/*.md
+
+# ─── OS ────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+# ─── Secrets / env ─────────────────────────────────────────
+*.env
+*.env.local
+.env.*
+!.env.example

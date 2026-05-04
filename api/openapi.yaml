@@ -1,0 +1,861 @@
+openapi: "3.0.3"
+
+info:
+  title: Naleko HR Portal API
+  description: |
+    REST API for the Naleko employee-onboarding HR Portal.
+
+    **Two API Gateways** serve this API — both are AWS HTTP APIs (API Gateway v2)
+    deployed in `af-south-1`:
+
+    | Gateway | API ID | Purpose |
+    |---|---|---|
+    | employees | `ndksa9ec0k` | employee management + email lookup |
+    | document-upload | `b2wt303fc8` | document upload, OCR verifications, review |
+
+    **Authentication:**  
+    Most endpoints require a valid AWS Cognito JWT in the `Authorization` header
+    (`Bearer <id_token>`). The single public exception is `GET /employee/lookup`.
+
+    **Custom headers used for authorisation logic:**
+    - `x-staff-id` — Cognito `sub` or HR staff identifier; used to scope results
+    - `x-role` — `partner` (default) or `manager`; managers see all employees/verifications
+
+    **POPIA note:**  
+    All traffic is confined to `af-south-1` (South Africa). Employee PII must
+    not be sent to any other region.
+  version: "1.0.0"
+  contact:
+    name: Naleko Engineering
+
+servers:
+  - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+    description: Employees API (ndksa9ec0k)
+  - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+    description: Document Upload & Verification API (b2wt303fc8)
+
+tags:
+  - name: Employees
+    description: Create and retrieve employee records (employees API)
+  - name: Documents
+    description: Upload employee documents (document-upload API)
+  - name: Verifications
+    description: OCR verification results and HR review workflow (document-upload API)
+
+# ---------------------------------------------------------------------------
+# Reusable security scheme
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    CognitoJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Cognito User Pool ID token. Obtain via
+        `POST https://cognito-idp.af-south-1.amazonaws.com/` using the
+        `InitiateAuth` / `RespondToAuthChallenge` flows.
+
+  parameters:
+    XStaffId:
+      name: x-staff-id
+      in: header
+      required: true
+      description: Cognito sub / HR staff identifier. Used to scope list results.
+      schema:
+        type: string
+        example: "HR-00042"
+    XRole:
+      name: x-role
+      in: header
+      required: false
+      description: Caller role. `manager` sees all records; any other value shows own records only.
+      schema:
+        type: string
+        enum: [partner, manager]
+        default: partner
+
+  schemas:
+    # --- Employee -----------------------------------------------------------
+    EmployeeCreate:
+      type: object
+      required: [first_name, last_name, email, phone, department]
+      properties:
+        first_name:
+          type: string
+          example: "Sarah"
+        middle_name:
+          type: string
+          example: "Jane"
+        last_name:
+          type: string
+          example: "Dlamini"
+        email:
+          type: string
+          format: email
+          example: "sarah.dlamini@example.com"
+        phone:
+          type: string
+          example: "+27821234567"
+        department:
+          type: string
+          example: "Finance"
+        job_title:
+          type: string
+          example: "Senior Accountant"
+        offer_accept_date:
+          type: string
+          format: date
+          example: "2026-04-01"
+        planned_start_date:
+          type: string
+          format: date
+          example: "2026-05-01"
+        hr_staff_id:
+          type: string
+          example: "HR-00042"
+        hr_staff_name:
+          type: string
+          example: "Thabo Mokoena"
+        hr_staff_email:
+          type: string
+          format: email
+          example: "thabo@naleko.co.za"
+
+    Employee:
+      type: object
+      properties:
+        employee_id:
+          type: string
+          pattern: "^EMP-\\d{7}$"
+          example: "EMP-0000014"
+        first_name:
+          type: string
+        middle_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        department:
+          type: string
+        job_title:
+          type: string
+        stage:
+          type: string
+          enum: [INVITED, DOCUMENTS_SUBMITTED, MANUAL_REVIEW, VERIFIED]
+        offer_accept_date:
+          type: string
+        planned_start_date:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+        hr_staff_id:
+          type: string
+        hr_staff_name:
+          type: string
+        hr_staff_email:
+          type: string
+
+    EmployeeDetail:
+      allOf:
+        - $ref: "#/components/schemas/Employee"
+      description: Full employee record including document and verification details (returned by getEmployeeDocumentVerifications)
+
+    # --- Documents ----------------------------------------------------------
+    DocumentUploadRequest:
+      type: object
+      required: [documentType, fileName, fileContent]
+      properties:
+        documentType:
+          type: string
+          enum: [NATIONAL_ID, BANK_CONFIRMATION, QUALIFICATION]
+          example: "NATIONAL_ID"
+        fileName:
+          type: string
+          example: "sarah_id.pdf"
+        fileContent:
+          type: string
+          format: byte
+          description: Base64-encoded binary content of the file.
+        contentType:
+          type: string
+          example: "application/pdf"
+          default: "application/pdf"
+
+    Document:
+      type: object
+      properties:
+        document_id:
+          type: string
+          example: "doc_1774086521598"
+        document_type:
+          type: string
+          enum: [NATIONAL_ID, BANK_CONFIRMATION, QUALIFICATION]
+        file_name:
+          type: string
+        uploaded_at:
+          type: string
+          format: date-time
+        ocr_status:
+          type: string
+          enum: [PENDING, PASSED, MANUAL_REVIEW, FAILED]
+        ocr_completed_at:
+          type: string
+          format: date-time
+        can_reupload:
+          type: boolean
+        verification:
+          $ref: "#/components/schemas/VerificationSummary"
+
+    # --- Verifications ------------------------------------------------------
+    VerificationSummary:
+      type: object
+      nullable: true
+      properties:
+        verification_id:
+          type: string
+          example: "ver_1774086781234"
+        employee_id:
+          type: string
+          example: "EMP-0000014"
+        employee_name:
+          type: string
+          example: "Sarah Dlamini"
+        document_type:
+          type: string
+          enum: [NATIONAL_ID, BANK_CONFIRMATION, QUALIFICATION]
+        document_id:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 95
+        decision:
+          type: string
+          enum: [AUTO_APPROVE, MANUAL_REVIEW]
+        created_at:
+          type: string
+          format: date-time
+
+    VerificationDetail:
+      allOf:
+        - $ref: "#/components/schemas/VerificationSummary"
+      properties:
+        reasoning:
+          type: string
+        id_number:
+          type: string
+        name:
+          type: string
+        surname:
+          type: string
+        date_of_birth:
+          type: string
+        gender:
+          type: string
+        citizenship:
+          type: string
+        account_holder:
+          type: string
+        bank_name:
+          type: string
+        account_number:
+          type: string
+        branch_code:
+          type: string
+        account_type:
+          type: string
+
+    ReviewRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [PASSED, FAILED]
+          description: HR officer's final ruling on the document.
+        notes:
+          type: string
+          example: "ID number matches employee record."
+
+    # --- Common -------------------------------------------------------------
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        missing:
+          type: array
+          items:
+            type: string
+
+# Default security — override per-operation for public endpoints
+security:
+  - CognitoJWT: []
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+
+  # =========================================================================
+  # EMPLOYEES API  (server: ndksa9ec0k)
+  # =========================================================================
+
+  /employee/lookup:
+    get:
+      tags: [Employees]
+      operationId: lookupEmployeeEmail
+      summary: Resolve Employee ID → email address
+      description: |
+        **Public endpoint — no auth required.**
+
+        Accepts an `EMP-NNNNNNN` employee ID and returns the employee's email
+        address. Used by the login screen so an employee can look up their email
+        before completing Cognito sign-in.
+      security: []
+      parameters:
+        - name: employeeId
+          in: query
+          required: true
+          description: Employee ID in `EMP-NNNNNNN` format.
+          schema:
+            type: string
+            pattern: "^EMP-\\d{7}$"
+            example: "EMP-0000014"
+      responses:
+        "200":
+          description: Email resolved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                    format: email
+                    example: "sarah.dlamini@example.com"
+        "400":
+          description: Missing or invalid employee ID format.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Employee not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /employee/create:
+    post:
+      tags: [Employees]
+      operationId: createEmployee
+      summary: Create a new employee
+      description: |
+        Creates a new employee record in DynamoDB, provisions a Cognito user
+        for the employee (with a temporary password), and sends a branded
+        onboarding welcome email via Postmark.
+
+        The employee is always created in `INVITED` stage.  
+        The auto-generated employee ID follows the format `EMP-NNNNNNN`.
+      parameters:
+        - $ref: "#/components/parameters/XStaffId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeCreate"
+      responses:
+        "201":
+          description: Employee created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Employee created successfully"
+                  employee:
+                    $ref: "#/components/schemas/Employee"
+                  cognito:
+                    type: object
+                    properties:
+                      userCreated:
+                        type: boolean
+                      tempPassword:
+                        type: string
+                        nullable: true
+                        description: Returns the temp password only on creation. Store securely; not persisted.
+                  email:
+                    type: object
+                    properties:
+                      sent:
+                        type: boolean
+        "400":
+          description: Missing required fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing `x-staff-id` header.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /get/employees:
+    get:
+      tags: [Employees]
+      operationId: getEmployees
+      summary: List employees visible to the calling HR staff member
+      description: |
+        Returns employees filtered by `created_by = x-staff-id` unless
+        `x-role: manager`, in which case all employees are returned.
+
+        Optional query filters narrow results further.
+      parameters:
+        - $ref: "#/components/parameters/XStaffId"
+        - $ref: "#/components/parameters/XRole"
+        - name: stage
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [INVITED, DOCUMENTS_SUBMITTED, MANUAL_REVIEW, VERIFIED]
+          description: Filter by onboarding stage.
+        - name: department
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by department name (exact match).
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 500
+          description: Maximum number of records to return.
+      responses:
+        "200":
+          description: List of employees.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Employee"
+                  count:
+                    type: integer
+                  staff_id:
+                    type: string
+                  filters_applied:
+                    type: object
+                    properties:
+                      created_by:
+                        type: string
+                      stage:
+                        type: string
+                      department:
+                        type: string
+        "401":
+          description: Missing `x-staff-id` header.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # =========================================================================
+  # DOCUMENT-UPLOAD API  (server: b2wt303fc8)
+  # =========================================================================
+
+  /employees/{employee_id}/documents/upload:
+    post:
+      tags: [Documents]
+      operationId: uploadDocument
+      summary: Upload a document for an employee
+      description: |
+        Accepts a base64-encoded file, uploads it to the S3 bucket
+        `document-ocr-verification-uploads` under the key pattern:
+
+        ```
+        uploads/{employee_id}/{documentType}/{documentId}_{fileName}
+        ```
+
+        A record is written to the `documents` DynamoDB table with
+        `ocr_status: PENDING`. An S3 event notification then triggers
+        the `processDocumentOCR` Lambda asynchronously.
+      parameters:
+        - name: employee_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^EMP-\\d{7}$"
+            example: "EMP-0000014"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentUploadRequest"
+      responses:
+        "200":
+          description: Document uploaded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Document uploaded successfully"
+                  document_id:
+                    type: string
+                    example: "doc_1774086521598"
+                  employee_id:
+                    type: string
+                    example: "EMP-0000014"
+                  s3_key:
+                    type: string
+                    example: "uploads/EMP-0000014/NATIONAL_ID/doc_1774086521598_sarah_id.pdf"
+                  ocr_status:
+                    type: string
+                    enum: [PENDING]
+        "400":
+          description: Missing required fields or employee validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Employee not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: S3 upload or DynamoDB write failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /document-verifications:
+    get:
+      tags: [Verifications]
+      operationId: listDocumentVerifications
+      summary: List document verifications across all employees
+      description: |
+        Returns OCR verification records from the `document-verification` table
+        enriched with employee names.
+
+        **Scoping:** HR partners (`x-role: partner`) only see verifications for
+        employees they created (`employee_hr_staff_id === x-staff-id`).
+        Managers see all verifications.
+      parameters:
+        - $ref: "#/components/parameters/XStaffId"
+        - $ref: "#/components/parameters/XRole"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, PASSED, MANUAL_REVIEW, FAILED]
+          description: Filter by `ocr_status` in the documents table.
+        - name: decision
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [AUTO_APPROVE, MANUAL_REVIEW]
+          description: Filter by Claude's OCR decision.
+        - name: employee_id
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "EMP-0000014"
+          description: Filter by a specific employee.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: List of verification records.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VerificationSummary"
+                  count:
+                    type: integer
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /documents/verification/{document_id}:
+    get:
+      tags: [Verifications]
+      operationId: getSingleDocumentVerification
+      summary: Get the OCR verification result for a single document
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "doc_1774086521598"
+      responses:
+        "200":
+          description: Verification detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationDetail"
+        "404":
+          description: Document or verification not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /{employee_id}/document/verifications:
+    get:
+      tags: [Verifications]
+      operationId: getEmployeeDocumentVerifications
+      summary: Get all documents and verifications for a specific employee
+      description: |
+        Returns the employee record together with the full list of their
+        uploaded documents, each enriched with its verification record
+        (if available) and a `can_reupload` flag.
+
+        Also returns a summary:
+        ```json
+        { "total_documents": 3, "passed": 2, "manual_review": 1, "failed": 0 }
+        ```
+      parameters:
+        - name: employee_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^EMP-\\d{7}$"
+            example: "EMP-0000014"
+      responses:
+        "200":
+          description: Employee with documents and verifications.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  employee:
+                    $ref: "#/components/schemas/Employee"
+                  documents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Document"
+                  summary:
+                    type: object
+                    properties:
+                      total_documents:
+                        type: integer
+                      passed:
+                        type: integer
+                      manual_review:
+                        type: integer
+                      failed:
+                        type: integer
+        "400":
+          description: Missing employee_id path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Employee not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /documents/{document_id}/review:
+    patch:
+      tags: [Verifications]
+      operationId: reviewDocumentVerification
+      summary: HR officer approves or rejects a document after manual review
+      description: |
+        Updates `ocr_status` in the `documents` table to `PASSED` or `FAILED`,
+        and propagates the decision to the `document-verification` record.
+
+        Side-effect: if **all** documents for the employee are now `PASSED`,
+        the employee's `stage` is automatically set to `VERIFIED`.
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "doc_1774086521598"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRequest"
+      responses:
+        "200":
+          description: Review recorded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Document doc_1774086521598 marked as PASSED"
+                  document_id:
+                    type: string
+                  employee_id:
+                    type: string
+                  decision:
+                    type: string
+                    enum: [PASSED, FAILED]
+                  can_reupload:
+                    type: boolean
+                  all_documents_passed:
+                    type: boolean
+                  employee_stage_updated:
+                    type: boolean
+                    description: True if all docs passed and employee was moved to VERIFIED.
+        "400":
+          description: Missing `document_id` or invalid `decision` value.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Document not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /documents/{document_id}/preview:
+    get:
+      tags: [Documents]
+      operationId: getDocumentPresignedUrl
+      summary: Get a short-lived pre-signed S3 URL to preview a document
+      description: |
+        Returns a pre-signed `GET` URL that expires in **15 minutes** (900 s).
+        The URL can be opened directly in a browser to render the document
+        inline (PDF or image).
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "doc_1774086521598"
+      responses:
+        "200":
+          description: Pre-signed URL generated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  file_name:
+                    type: string
+                    example: "sarah_id.pdf"
+                  content_type:
+                    type: string
+                    example: "application/pdf"
+                  expires_in:
+                    type: integer
+                    example: 900
+                    description: Seconds until the URL expires.
+        "400":
+          description: Missing document_id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Document not found or has no S3 key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Failed to generate pre-signed URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"

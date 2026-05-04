@@ -1,0 +1,15 @@
+{
+  "name": "configregioncheck",
+  "version": "1.0.0",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "NH-36 Custom AWS Config rule — enforces af-south-1 region for POPIA compliance",
+  "dependencies": {
+    "@aws-sdk/client-config-service": "^3.1024.0"
+  }
+}

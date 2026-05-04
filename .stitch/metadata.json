@@ -1,0 +1,57 @@
+{
+  "name": "projects/17087122313423053794",
+  "projectId": "17087122313423053794",
+  "title": "Landing Page",
+  "visibility": "PRIVATE",
+  "createTime": "2026-03-21T12:27:43.344166Z",
+  "updateTime": "2026-03-21T15:15:20.368931Z",
+  "projectType": "TEXT_TO_UI_PRO",
+  "origin": "STITCH",
+  "deviceType": "DESKTOP",
+  "designTheme": {
+    "colorMode": "LIGHT",
+    "font": "INTER",
+    "bodyFont": "INTER",
+    "headlineFont": "INTER",
+    "labelFont": "INTER",
+    "roundness": "ROUND_FOUR",
+    "customColor": "#1a1a2e",
+    "overridePrimaryColor": "#1a1a2e",
+    "overrideSecondaryColor": "#4a3f8a",
+    "overrideTertiaryColor": "#2d8f9e",
+    "overrideNeutralColor": "#f8f9fa",
+    "spacingScale": 2
+  },
+  "screens": {
+    "landing-page": {
+      "id": "6fab25791ec4459aaa0c95965a88a42d",
+      "sourceScreen": "projects/17087122313423053794/screens/6fab25791ec4459aaa0c95965a88a42d",
+      "title": "Landing Page",
+      "x": 10399,
+      "y": 0,
+      "width": 2560,
+      "height": 4872
+    },
+    "hr-staff-dashboard": {
+      "id": "59209497eb2a43ed904a318ddc2abb1f",
+      "sourceScreen": "projects/17087122313423053794/screens/59209497eb2a43ed904a318ddc2abb1f",
+      "title": "HR Staff Dashboard (Skeleton)",
+      "x": 7711,
+      "y": 0,
+      "width": 2560,
+      "height": 2942
+    },
+    "employee-dashboard": {
+      "id": "bf9904030d6c49a59c8b5504d2d22f95",
+      "sourceScreen": "projects/17087122313423053794/screens/bf9904030d6c49a59c8b5504d2d22f95",
+      "title": "Employee Dashboard (Skeleton)",
+      "x": 3679,
+      "y": 0,
+      "width": 2560,
+      "height": 2640
+    }
+  },
+  "metadata": {
+    "userRole": "OWNER"
+  }
+}

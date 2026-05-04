@@ -1,0 +1,9 @@
+# Module directories are created here as each stage adds infrastructure.
+#
+# Stage 2:  modules/kms/        — KMS CMK for PII encryption   (NH-17)
+# Stage 2:  modules/eventbridge/ — onboarding event bus         (NH-25)
+# Stage 3:  modules/observability/ — dashboards, alarms, Config (NH-34/35/36)
+# Stage 3:  modules/frontend/   — S3 + CloudFront               (NH-38)
+# Stage 4:  modules/stepfunctions/ — onboarding state machine   (NH-42)
+#
+# Each module is self-contained: main.tf, variables.tf, outputs.tf
