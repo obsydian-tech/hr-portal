@@ -41,8 +41,8 @@ resource "aws_iam_role_policy" "create_employee" {
         Resource = "*"
       },
       {
-        Sid      = "DynamoDB"
-        Effect   = "Allow"
+        Sid    = "DynamoDB"
+        Effect = "Allow"
         # NH-28: PutItem only — Scan removed (UUID v4 replaces sequential scan)
         Action   = ["dynamodb:PutItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
@@ -110,10 +110,10 @@ resource "aws_iam_role_policy" "get_employees" {
         Resource = "*"
       },
       {
-        Sid      = "DynamoDB"
-        Effect   = "Allow"
+        Sid    = "DynamoDB"
+        Effect = "Allow"
         # NH-28: Scan (managers) + Query (non-managers via created_by-index GSI)
-        Action   = ["dynamodb:Scan", "dynamodb:Query"]
+        Action = ["dynamodb:Scan", "dynamodb:Query"]
         Resource = [
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/created_by-index",
@@ -661,9 +661,9 @@ resource "aws_iam_role_policy" "generate_document_upload_url" {
         Resource = "arn:aws:s3:::document-ocr-verification-uploads/uploads/*"
       },
       {
-        Sid      = "DynamoDB"
-        Effect   = "Allow"
-        Action   = ["dynamodb:PutItem", "dynamodb:GetItem"]
+        Sid    = "DynamoDB"
+        Effect = "Allow"
+        Action = ["dynamodb:PutItem", "dynamodb:GetItem"]
         Resource = [
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
@@ -716,9 +716,9 @@ resource "aws_iam_role_policy" "get_employee_by_email" {
       },
       {
         # NH-28: Scan replaced with Query on email-index GSI
-        Sid      = "DynamoDBQuery"
-        Effect   = "Allow"
-        Action   = ["dynamodb:Query"]
+        Sid    = "DynamoDBQuery"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
         Resource = [
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index",
@@ -770,9 +770,9 @@ resource "aws_iam_role_policy" "trigger_external_verification" {
         Resource = "*"
       },
       {
-        Sid      = "DynamoDB"
-        Effect   = "Allow"
-        Action   = ["dynamodb:Scan", "dynamodb:PutItem"]
+        Sid    = "DynamoDB"
+        Effect = "Allow"
+        Action = ["dynamodb:Scan", "dynamodb:PutItem"]
         Resource = [
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
           "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/external-verification-requests",

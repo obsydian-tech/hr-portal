@@ -5,43 +5,26 @@ import {
   HttpTestingController,
 } from '@angular/common/http/testing';
 
-import { DocumentUploadService } from './document-upload.service';
+import { DocumentUploadService, UploadUrlResponse } from './document-upload.service';
 import { environment } from '../../../environments/environment';
 
 // ---------------------------------------------------------------------------
-// FileReader stub
+// Helpers
 // ---------------------------------------------------------------------------
-
-/** Replaces browser FileReader for testing.
- *  Call triggerLoad / triggerError to simulate async events.
- */
-class MockFileReader {
-  result: string | null = null;
-  onload: ((event: ProgressEvent) => void) | null = null;
-  onerror: ((event: ProgressEvent) => void) | null = null;
-
-  readAsDataURL(_blob: Blob): void {
-    // Nothing — test drives the event manually
-  }
-
-  triggerLoad(dataUrl: string): void {
-    this.result = dataUrl;
-    if (this.onload) {
-      this.onload({ target: this } as unknown as ProgressEvent);
-    }
-  }
-
-  triggerError(): void {
-    if (this.onerror) {
-      this.onerror({ target: this } as unknown as ProgressEvent);
-    }
-  }
-}
 
 function makeFile(name = 'test.pdf', type = 'application/pdf', sizeBytes = 1024): File {
   const content = new Uint8Array(sizeBytes).fill(1);
   return new File([content], name, { type });
 }
+
+const PRESIGNED_URL = 'https://s3.af-south-1.amazonaws.com/bucket/key?X-Amz-Signature=abc';
+
+const UPLOAD_URL_RESPONSE: UploadUrlResponse = {
+  url: PRESIGNED_URL,
+  document_id: 'DOC-99',
+  s3_key: 'uploads/EMP-0000001/DOC-99.pdf',
+  expires_in: 300,
+};
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -50,16 +33,10 @@ function makeFile(name = 'test.pdf', type = 'application/pdf', sizeBytes = 1024)
 describe('DocumentUploadService', () => {
   let service: DocumentUploadService;
   let httpMock: HttpTestingController;
-  let mockReader: MockFileReader;
 
   const docBase = environment.documentUploadApiUrl;
 
   beforeEach(() => {
-    mockReader = new MockFileReader();
-
-    // Replace window.FileReader for the duration of each test
-    spyOn(window as any, 'FileReader').and.returnValue(mockReader);
-
     TestBed.configureTestingModule({
       providers: [
         DocumentUploadService,
@@ -82,50 +59,9 @@ describe('DocumentUploadService', () => {
     expect(service).toBeTruthy();
   });
 
-  // ── fileToBase64 ──────────────────────────────────────────────────────────
+  // ── upload: POST /upload-url then PUT to S3 ─────────────────────────────
 
-  it('fileToBase64: should resolve with the raw base64 string (no data-URI prefix)', (done) => {
-    const file = makeFile();
-
-    (service as any).fileToBase64(file).subscribe((base64: string) => {
-      expect(base64).toBe('SGVsbG8gV29ybGQ=');
-      done();
-    });
-
-    // Simulate FileReader completing with a data-URI
-    mockReader.triggerLoad('data:application/pdf;base64,SGVsbG8gV29ybGQ=');
-  });
-
-  it('fileToBase64: should strip the comma and everything before it', (done) => {
-    const file = makeFile();
-
-    (service as any).fileToBase64(file).subscribe((base64: string) => {
-      // Must not contain the data-URI preamble
-      expect(base64).not.toContain('base64,');
-      expect(base64).toBe('YWJj');
-      done();
-    });
-
-    mockReader.triggerLoad('data:text/plain;base64,YWJj');
-  });
-
-  it('fileToBase64: should emit an error when FileReader fails', (done) => {
-    const file = makeFile();
-
-    (service as any).fileToBase64(file).subscribe({
-      next: () => fail('Expected an error, not a value'),
-      error: (err: any) => {
-        expect(err).toBeDefined();
-        done();
-      },
-    });
-
-    mockReader.triggerError();
-  });
-
-  // ── upload ────────────────────────────────────────────────────────────────
-
-  it('upload: should POST to /employees/{employeeId}/documents/upload', (done) => {
+  it('upload: should POST to /v1/employees/{employeeId}/documents/upload-url', (done) => {
     const file = makeFile('id-doc.pdf', 'application/pdf');
 
     service.upload(file, 'NATIONAL_ID', 'EMP-0000001').subscribe((resp) => {
@@ -133,14 +69,11 @@ describe('DocumentUploadService', () => {
       done();
     });
 
-    // Resolve the FileReader first
-    mockReader.triggerLoad('data:application/pdf;base64,dGVzdA==');
-
-    const req = httpMock.expectOne(
-      r => r.url.includes('/employees/EMP-0000001/documents/upload')
+    const postReq = httpMock.expectOne(
+      r => r.url.includes('/v1/employees/EMP-0000001/documents/upload-url') && r.method === 'POST'
     );
-    expect(req.request.method).toBe('POST');
-    req.flush({ success: true, documentId: 'DOC-99' });
+    postReq.flush(UPLOAD_URL_RESPONSE);
+    httpMock.expectOne(r => r.url === PRESIGNED_URL && r.method === 'PUT').flush(null);
   });
 
   it('upload: should use the documentUploadApiUrl from environment', (done) => {
@@ -148,73 +81,92 @@ describe('DocumentUploadService', () => {
 
     service.upload(file, 'BANK_CONFIRMATION', 'EMP-0000002').subscribe(() => done());
 
-    mockReader.triggerLoad('data:application/pdf;base64,dGVzdA==');
-
-    const req = httpMock.expectOne(
-      r => r.url.startsWith(docBase)
-    );
-    expect(req.request.url).toContain(docBase);
-    req.flush({});
+    const postReq = httpMock.expectOne(r => r.url.startsWith(docBase) && r.method === 'POST');
+    expect(postReq.request.url).toContain(docBase);
+    postReq.flush({ ...UPLOAD_URL_RESPONSE, document_id: 'DOC-100' });
+    httpMock.expectOne(r => r.method === 'PUT').flush(null);
   });
 
-  it('upload: should send documentType in the request body', (done) => {
+  it('upload: should send documentType in the POST body', (done) => {
     const file = makeFile('payslip.pdf', 'application/pdf');
 
     service.upload(file, 'BANK_CONFIRMATION', 'EMP-0000001').subscribe(() => done());
 
-    mockReader.triggerLoad('data:application/pdf;base64,cGF5c2xpcA==');
-
-    const req = httpMock.expectOne(
-      r => r.url.includes('/employees/EMP-0000001/documents/upload')
+    const postReq = httpMock.expectOne(
+      r => r.url.includes('/v1/employees/EMP-0000001/documents/upload-url')
     );
-    expect(req.request.body.documentType).toBe('BANK_CONFIRMATION');
-    req.flush({});
+    expect(postReq.request.body.documentType).toBe('BANK_CONFIRMATION');
+    postReq.flush(UPLOAD_URL_RESPONSE);
+    httpMock.expectOne(r => r.method === 'PUT').flush(null);
   });
 
-  it('upload: should send the file name in the request body', (done) => {
+  it('upload: should send the file name in the POST body', (done) => {
     const file = makeFile('my-contract.pdf', 'application/pdf');
 
     service.upload(file, 'MATRIC_CERTIFICATE', 'EMP-0000003').subscribe(() => done());
 
-    mockReader.triggerLoad('data:application/pdf;base64,Y29udHJhY3Q=');
-
-    const req = httpMock.expectOne(
-      r => r.url.includes('/employees/EMP-0000003/documents/upload')
+    const postReq = httpMock.expectOne(
+      r => r.url.includes('/v1/employees/EMP-0000003/documents/upload-url')
     );
-    expect(req.request.body.fileName).toBe('my-contract.pdf');
-    req.flush({});
+    expect(postReq.request.body.fileName).toBe('my-contract.pdf');
+    postReq.flush(UPLOAD_URL_RESPONSE);
+    httpMock.expectOne(r => r.method === 'PUT').flush(null);
   });
 
-  it('upload: should send the raw base64 as fileContent (no data-URI prefix)', (done) => {
-    const file = makeFile('doc.pdf', 'application/pdf');
-
-    service.upload(file, 'NATIONAL_ID', 'EMP-0000001').subscribe(() => done());
-
-    mockReader.triggerLoad('data:application/pdf;base64,cmF3YmFzZTY0');
-
-    const req = httpMock.expectOne(
-      r => r.url.includes('/employees/EMP-0000001/documents/upload')
-    );
-    expect(req.request.body.fileContent).toBe('cmF3YmFzZTY0');
-    expect(req.request.body.fileContent).not.toContain('base64,');
-    req.flush({});
-  });
-
-  it('upload: should send the MIME type as contentType in the body', (done) => {
+  it('upload: should send the MIME type as contentType in the POST body', (done) => {
     const file = makeFile('photo.jpg', 'image/jpeg');
 
     service.upload(file, 'NATIONAL_ID', 'EMP-0000001').subscribe(() => done());
 
-    mockReader.triggerLoad('data:image/jpeg;base64,cGhvdG8=');
-
-    const req = httpMock.expectOne(
-      r => r.url.includes('/employees/EMP-0000001/documents/upload')
+    const postReq = httpMock.expectOne(
+      r => r.url.includes('/v1/employees/EMP-0000001/documents/upload-url')
     );
-    expect(req.request.body.contentType).toBe('image/jpeg');
-    req.flush({});
+    expect(postReq.request.body.contentType).toBe('image/jpeg');
+    postReq.flush(UPLOAD_URL_RESPONSE);
+    httpMock.expectOne(r => r.method === 'PUT').flush(null);
   });
 
-  it('upload: should propagate FileReader errors as observable errors', (done) => {
+  it('upload: should PUT the raw File to the presigned S3 URL', (done) => {
+    const file = makeFile('doc.pdf', 'application/pdf');
+
+    service.upload(file, 'NATIONAL_ID', 'EMP-0000001').subscribe(() => done());
+
+    httpMock.expectOne(r => r.method === 'POST').flush(UPLOAD_URL_RESPONSE);
+
+    const putReq = httpMock.expectOne(r => r.url === PRESIGNED_URL && r.method === 'PUT');
+    expect(putReq.request.body).toBe(file);
+    putReq.flush(null);
+  });
+
+  it('upload: should return a normalised DocumentUploadResponse', (done) => {
+    const file = makeFile();
+
+    service.upload(file, 'NATIONAL_ID', 'EMP-0000001').subscribe((resp) => {
+      expect(resp.document_id).toBe('DOC-99');
+      expect(resp.employee_id).toBe('EMP-0000001');
+      expect(resp.s3_key).toBe(UPLOAD_URL_RESPONSE.s3_key);
+      expect(resp.ocr_status).toBe('PENDING');
+      expect(resp.message).toBe('Document uploaded successfully');
+      done();
+    });
+
+    httpMock.expectOne(r => r.method === 'POST').flush(UPLOAD_URL_RESPONSE);
+    httpMock.expectOne(r => r.method === 'PUT').flush(null);
+  });
+
+  it('upload: PUT should not include an Authorization header', (done) => {
+    const file = makeFile();
+
+    service.upload(file, 'NATIONAL_ID', 'EMP-0000001').subscribe(() => done());
+
+    httpMock.expectOne(r => r.method === 'POST').flush(UPLOAD_URL_RESPONSE);
+
+    const putReq = httpMock.expectOne(r => r.method === 'PUT');
+    expect(putReq.request.headers.has('Authorization')).toBeFalse();
+    putReq.flush(null);
+  });
+
+  it('upload: should propagate POST /upload-url errors as observable errors', (done) => {
     const file = makeFile();
 
     service.upload(file, 'NATIONAL_ID', 'EMP-0000001').subscribe({
@@ -225,9 +177,9 @@ describe('DocumentUploadService', () => {
       },
     });
 
-    // Simulate a file read failure
-    mockReader.triggerError();
-    // No HTTP request should be made
-    httpMock.expectNone(() => true);
+    httpMock.expectOne(r => r.method === 'POST').flush(
+      { message: 'Internal Server Error' },
+      { status: 500, statusText: 'Server Error' }
+    );
   });
 });
