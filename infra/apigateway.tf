@@ -100,3 +100,30 @@ resource "aws_apigatewayv2_stage" "document_upload_api_default" {
     ignore_changes = [deployment_id]
   }
 }
+
+# ---------------------------------------------------------------------------
+# NH-12: POST /employees/{employee_id}/documents/upload-url
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "generate_document_upload_url" {
+  api_id                 = aws_apigatewayv2_api.document_upload_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.generate_document_upload_url.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "generate_document_upload_url" {
+  api_id             = aws_apigatewayv2_api.document_upload_api.id
+  route_key          = "POST /employees/{employee_id}/documents/upload-url"
+  target             = "integrations/${aws_apigatewayv2_integration.generate_document_upload_url.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.document_upload_api_cognito.id
+}
+
+resource "aws_lambda_permission" "generate_document_upload_url" {
+  statement_id  = "AllowDocumentUploadAPIInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.generate_document_upload_url.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
+}

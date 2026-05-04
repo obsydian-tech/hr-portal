@@ -593,3 +593,65 @@ resource "aws_iam_role_policy" "get_document_presigned_url" {
     ]
   })
 }
+
+# ─── NH-12: generateDocumentUploadUrl ────────────────────────────────────────
+
+resource "aws_iam_role" "generate_document_upload_url" {
+  name        = "naleko-generateDocumentUploadUrl-role"
+  description = "Execution role for generateDocumentUploadUrl Lambda (NH-12)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "generate_document_upload_url" {
+  name = "naleko-generateDocumentUploadUrl-policy"
+  role = aws_iam_role.generate_document_upload_url.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/generateDocumentUploadUrl:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # Lambda must have s3:PutObject to sign a presigned PUT URL on behalf of callers
+        Sid      = "S3PresignedPut"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = "arn:aws:s3:::document-ocr-verification-uploads/uploads/*"
+      },
+      {
+        Sid      = "DynamoDB"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
+        ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
