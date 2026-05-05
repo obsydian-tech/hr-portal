@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-05-05",
+  "api_base": "https://api.naleko.co.za/agent/v1",
+  "auth": {
+    "type": "apiKey",
+    "in": "header",
+    "name": "x-api-key",
+    "description": "Obtain key from Secrets Manager: naleko/agent/api-key"
+  },
+  "tools": [
+    {
+      "name": "list_employees",
+      "description": "List all onboarding employees with optional pagination. Returns employee_id, email, first_name, last_name, department, stage, risk_band for each record.",
+      "method": "GET",
+      "path": "/employees",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of results to return (default 20, max 100).",
+            "default": 20,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque pagination cursor returned in the previous response's lastEvaluatedKey field."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_employee",
+      "description": "Retrieve a single employee record by ID. Returns non-PII fields: employee_id, email, first_name, last_name, department, stage, risk_band, risk_reason, created_at, updated_at.",
+      "method": "GET",
+      "path": "/employees/{id}",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the employee (employee_id in DynamoDB).",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_verifications",
+      "description": "List document verification records with optional filtering by status (PENDING, PASSED, FAILED, MANUAL_REVIEW). Returns verification_id, employee_id, document_type, ocr_status, confidence, decision, created_at.",
+      "method": "GET",
+      "path": "/verifications",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Filter by verification status.",
+            "enum": ["PENDING", "PASSED", "FAILED", "MANUAL_REVIEW"]
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of results (default 20, max 100).",
+            "default": 20
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_verification_summary",
+      "description": "Get an AI-generated plain-English summary of a document verification. Uses Amazon Bedrock (Claude) to summarise the OCR result, confidence score, and decision. Useful for human-readable status reports.",
+      "method": "GET",
+      "path": "/verifications/{id}/summary",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the verification record (verification_id).",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "assess_employee_risk",
+      "description": "Run Bedrock risk classification on an employee's document verifications. Returns a risk_band (LOW | MEDIUM | HIGH) and a plain-English risk_reason. Triggers the classifyOnboardingRisk Lambda which calls Claude via Amazon Bedrock.",
+      "method": "POST",
+      "path": "/employees/{id}/assess-risk",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID of the employee to assess (employee_id).",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      },
+      "requestBody": {
+        "type": "object",
+        "properties": {},
+        "description": "Empty body — employee_id is provided via path parameter."
+      }
+    },
+    {
+      "name": "query_audit_log",
+      "description": "Query the immutable POPIA-compliant audit log (onboarding-events table). Supports filtering by employeeId and/or ISO 8601 date range. Returns events with eventId, timestamp, source, detailType, actor (AGENT|HUMAN), and detail payload.",
+      "method": "GET",
+      "path": "/audit-log",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "description": "Filter log entries to a specific employee. Uses the employeeId-timestamp-index GSI for efficient lookup.",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 lower bound on event timestamp (inclusive). Example: 2026-01-01T00:00:00Z"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 upper bound on event timestamp (inclusive). Example: 2026-12-31T23:59:59Z"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of records to return (default 50, max 200).",
+            "default": 50,
+            "maximum": 200
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  ]
+}

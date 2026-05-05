@@ -264,6 +264,32 @@ resource "aws_lambda_permission" "agent_query_audit_log" {
   source_arn    = "${aws_apigatewayv2_api.agent_api.execution_arn}/*/*"
 }
 
+# ─── Route 7: GET /agent/agent-tools.json ────────────────────────────────────
+# NH-45: serves the OpenAI-compatible tooling manifest.
+# Intentionally unauthenticated — agents discover tools before acquiring a key.
+
+resource "aws_apigatewayv2_integration" "serve_agent_manifest" {
+  api_id                 = aws_apigatewayv2_api.agent_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.serve_agent_manifest.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "serve_agent_manifest" {
+  api_id    = aws_apigatewayv2_api.agent_api.id
+  route_key = "GET /agent/agent-tools.json"
+  target    = "integrations/${aws_apigatewayv2_integration.serve_agent_manifest.id}"
+  # No authorization_type — public endpoint
+}
+
+resource "aws_lambda_permission" "serve_agent_manifest" {
+  statement_id  = "AllowAgentAPIInvokeServeManifest"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.serve_agent_manifest.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.agent_api.execution_arn}/*/*"
+}
+
 # ─── Output ───────────────────────────────────────────────────────────────────
 
 output "agent_api_endpoint" {
