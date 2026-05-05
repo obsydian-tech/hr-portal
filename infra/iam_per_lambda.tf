@@ -1010,3 +1010,73 @@ resource "aws_iam_role_policy" "audit_log_consumer" {
     ]
   })
 }
+
+# ─── NH-notification-emails: sendNotificationEmail ───────────────────────────
+
+resource "aws_iam_role" "send_notification_email" {
+  name        = "naleko-sendNotificationEmail-role"
+  description = "Execution role for sendNotificationEmail Lambda"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "send_notification_email" {
+  name = "naleko-sendNotificationEmail-policy"
+  role = aws_iam_role.send_notification_email.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/sendNotificationEmail:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ReadEmployees"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/*",
+        ]
+      },
+      {
+        Sid    = "ReadDocuments"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents/index/*",
+        ]
+      },
+      {
+        Sid      = "SSMPostmarkToken"
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter"]
+        Resource = "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/naleko/postmark/api_token"
+      },
+      {
+        Sid      = "KMSDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
