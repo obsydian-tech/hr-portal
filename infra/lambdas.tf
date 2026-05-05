@@ -441,7 +441,7 @@ resource "aws_lambda_function" "summarise_verification" {
   environment {
     variables = {
       VERIFICATIONS_TABLE = aws_dynamodb_table.document_verification.name
-      BEDROCK_MODEL_ID    = "anthropic.claude-3-haiku-20240307-v1:0"
+      BEDROCK_MODEL_ID    = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
       KMS_KEY_ARN         = module.kms_pii.key_arn
     }
   }
@@ -505,7 +505,7 @@ resource "aws_lambda_function" "classify_onboarding_risk" {
     variables = {
       VERIFICATIONS_TABLE = aws_dynamodb_table.document_verification.name
       EMPLOYEES_TABLE     = aws_dynamodb_table.employees.name
-      BEDROCK_MODEL_ID    = "anthropic.claude-3-haiku-20240307-v1:0"
+      BEDROCK_MODEL_ID    = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
       KMS_KEY_ARN         = module.kms_pii.key_arn
     }
   }
