@@ -467,6 +467,58 @@ resource "aws_lambda_function" "serve_agent_manifest" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+
+# ─── NH-47: nalekoMcpServer (MCP HTTP+SSE via Lambda Function URL) ────────────
+resource "aws_lambda_function" "naleko_mcp_server" {
+  function_name = "nalekoMcpServer"
+  role          = aws_iam_role.naleko_mcp_server.arn
+  handler       = "lambda-handler.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      AGENT_API_BASE   = "https://api.naleko.co.za"
+      REST_API_BASE    = "https://api.naleko.co.za"
+      NALEKO_AGENT_KEY = data.aws_secretsmanager_secret_version.agent_api_key.secret_string
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/nalekoMcpServer"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# Resolves the agent API key from Secrets Manager at plan/apply time
+data "aws_secretsmanager_secret_version" "agent_api_key" {
+  secret_id = "naleko/agent-api-key"
+}
+
+# Lambda Function URL — RESPONSE_STREAM required for MCP HTTP+SSE transport
+resource "aws_lambda_function_url" "naleko_mcp_server" {
+  function_name      = aws_lambda_function.naleko_mcp_server.function_name
+  authorization_type = "NONE"
+  invoke_mode        = "RESPONSE_STREAM"
+
+  cors {
+    allow_credentials = false
+    allow_origins     = ["*"]
+    allow_methods     = ["GET", "POST", "OPTIONS"]
+    allow_headers     = ["content-type", "x-api-key", "mcp-session-id"]
+    max_age           = 300
+  }
+}
 # ─── NH-40: summariseVerification (Bedrock Claude 3 Haiku — GET /v1/verifications/{id}/summary) ──
 resource "aws_lambda_function" "summarise_verification" {
   function_name = "summariseVerification"
