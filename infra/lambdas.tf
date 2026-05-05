@@ -531,3 +531,40 @@ resource "aws_lambda_function" "classify_onboarding_risk" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+
+# ─── NH-notification-emails: sendNotificationEmail ───────────────────────────
+# Triggered by EventBridge events: document.reviewed + onboarding.completed
+# Sends Postmark emails to employees (PASSED/FAILED/onboarding complete) and HR (MANUAL_REVIEW)
+resource "aws_lambda_function" "send_notification_email" {
+  function_name = "sendNotificationEmail"
+  role          = aws_iam_role.send_notification_email.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 30
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      POSTMARK_API_TOKEN    = data.aws_ssm_parameter.postmark_token.value
+      POSTMARK_SENDER_EMAIL = "ignecious@obsydiantechnologies.com"
+      HR_EMAIL              = "ignecious@obsydiantechnologies.com"
+      EMPLOYEES_TABLE       = aws_dynamodb_table.employees.name
+      DOCUMENTS_TABLE       = aws_dynamodb_table.documents.name
+      LOGIN_URL             = "https://hr-portal-beryl-three.vercel.app/login"
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/sendNotificationEmail"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}

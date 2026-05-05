@@ -42,3 +42,65 @@ resource "aws_lambda_permission" "audit_log_consumer_eventbridge" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.audit_log_all_events.arn
 }
+
+# ---------------------------------------------------------------------------
+# NH-notification-emails: sendNotificationEmail EventBridge rules
+# Rule 1: document.reviewed events  (PASSED / FAILED / MANUAL_REVIEW)
+# Rule 2: onboarding.completed events
+# ---------------------------------------------------------------------------
+
+resource "aws_cloudwatch_event_rule" "document_reviewed_notify" {
+  name           = "naleko-document-reviewed-notify"
+  description    = "Trigger sendNotificationEmail on document.reviewed events"
+  event_bus_name = aws_cloudwatch_event_bus.naleko_onboarding.name
+
+  event_pattern = jsonencode({
+    source      = ["naleko.onboarding"]
+    detail-type = ["document.reviewed"]
+  })
+
+  state = "ENABLED"
+}
+
+resource "aws_cloudwatch_event_target" "document_reviewed_notify" {
+  rule           = aws_cloudwatch_event_rule.document_reviewed_notify.name
+  event_bus_name = aws_cloudwatch_event_bus.naleko_onboarding.name
+  target_id      = "sendNotificationEmail-docReviewed"
+  arn            = aws_lambda_function.send_notification_email.arn
+}
+
+resource "aws_lambda_permission" "send_notification_email_document_reviewed" {
+  statement_id  = "AllowEventBridgeInvokeNotifyDocReviewed"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.send_notification_email.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.document_reviewed_notify.arn
+}
+
+resource "aws_cloudwatch_event_rule" "onboarding_completed_notify" {
+  name           = "naleko-onboarding-completed-notify"
+  description    = "Trigger sendNotificationEmail on onboarding.completed events"
+  event_bus_name = aws_cloudwatch_event_bus.naleko_onboarding.name
+
+  event_pattern = jsonencode({
+    source      = ["naleko.onboarding"]
+    detail-type = ["onboarding.completed"]
+  })
+
+  state = "ENABLED"
+}
+
+resource "aws_cloudwatch_event_target" "onboarding_completed_notify" {
+  rule           = aws_cloudwatch_event_rule.onboarding_completed_notify.name
+  event_bus_name = aws_cloudwatch_event_bus.naleko_onboarding.name
+  target_id      = "sendNotificationEmail-onboardingCompleted"
+  arn            = aws_lambda_function.send_notification_email.arn
+}
+
+resource "aws_lambda_permission" "send_notification_email_onboarding_completed" {
+  statement_id  = "AllowEventBridgeInvokeNotifyOnboardingCompleted"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.send_notification_email.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.onboarding_completed_notify.arn
+}
