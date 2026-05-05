@@ -71,9 +71,9 @@ resource "aws_iam_role_policy" "create_employee" {
       },
       {
         # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
-        Sid    = "IdempotencyTable"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Sid      = "IdempotencyTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
         Resource = aws_dynamodb_table.idempotency_keys.arn
       },
       {
@@ -199,9 +199,9 @@ resource "aws_iam_role_policy" "upload_document_to_s3" {
       },
       {
         # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
-        Sid    = "IdempotencyTable"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Sid      = "IdempotencyTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
         Resource = aws_dynamodb_table.idempotency_keys.arn
       }
     ]
@@ -541,9 +541,9 @@ resource "aws_iam_role_policy" "review_document_verification" {
       },
       {
         # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
-        Sid    = "IdempotencyTable"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Sid      = "IdempotencyTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
         Resource = aws_dynamodb_table.idempotency_keys.arn
       }
     ]

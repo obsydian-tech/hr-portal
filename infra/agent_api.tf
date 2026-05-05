@@ -32,7 +32,7 @@ resource "aws_secretsmanager_secret" "agent_api_key" {
 }
 
 resource "aws_secretsmanager_secret_version" "agent_api_key" {
-  secret_id     = aws_secretsmanager_secret.agent_api_key.id
+  secret_id = aws_secretsmanager_secret.agent_api_key.id
   # Replace this placeholder immediately after first apply — see comment above.
   secret_string = "REPLACE_WITH_STRONG_KEY_SEE_AGENT_API_TF"
 
@@ -81,8 +81,8 @@ resource "aws_apigatewayv2_stage" "agent_api_default" {
 # ─── Lambda authorizer — validates x-api-key header ──────────────────────────
 
 resource "aws_apigatewayv2_authorizer" "agent_api_key" {
-  api_id           = aws_apigatewayv2_api.agent_api.id
-  authorizer_type  = "REQUEST"
+  api_id          = aws_apigatewayv2_api.agent_api.id
+  authorizer_type = "REQUEST"
 
   # API GW passes the x-api-key header to the authorizer as the identity source.
   # If the header is absent the request is rejected before calling the Lambda.
