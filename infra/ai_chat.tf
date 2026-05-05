@@ -1,115 +1,11 @@
 # ---------------------------------------------------------------------------
-# NH-50: AI Mode — nalekoAiChat Lambda + Bedrock Guardrail + API route
+# NH-50: AI Mode - nalekoAiChat Lambda + API route
+# NH-53: tool-resolver.mjs reads agent API key from Secrets Manager
 #
-# Auth: Cognito JWT (HR staff only — not x-api-key agent auth).
-# Route: POST /agent/v1/ai-chat on the existing agent_api HTTP API.
-#
-# Guardrail scope (per NH-49 investigation — 2026-05-05):
-#   ✅ Content filters  ✅ Denied topics  ✅ Word filters  ✅ PII masking (regex)
-#   ❌ Contextual Grounding — no AF guardrail profile in af-south-1, dropped.
-#
-# PII defence: pii-sanitiser.mjs in Lambda (NH-56) is the primary PII layer.
-# Guardrail PII masking is a second layer for defence-in-depth.
+# Guardrail decision (per NH-49 + NH-50 apply 2026-05-06):
+#   CreateGuardrail returns 403 AccessDeniedException in af-south-1.
+#   pii-sanitiser.mjs (NH-56) is the PRIMARY PII layer.
 # ---------------------------------------------------------------------------
-
-# ─── Bedrock Guardrail ────────────────────────────────────────────────────────
-
-resource "aws_bedrock_guardrail" "naleko_hr" {
-  name                      = "naleko-hr-guardrail"
-  description               = "NH-50: Guards AI Mode against off-topic queries and PII leakage"
-  blocked_input_messaging   = "I can only help with HR onboarding tasks."
-  blocked_outputs_messaging = "I can only help with HR onboarding tasks."
-
-  # ── Denied topics ──────────────────────────────────────────────────────────
-  topic_policy_config {
-    topics_config {
-      name       = "salary-benchmarking"
-      type       = "DENY"
-      definition = "Requests for salary benchmarks, market pay rates, or pay band comparisons."
-      examples   = ["What is the market rate for this role?", "How does our pay compare to competitors?"]
-    }
-    topics_config {
-      name       = "employment-law-advice"
-      type       = "DENY"
-      definition = "Legal advice on labour law, CCMA procedures, dismissal processes, or employment contracts."
-      examples   = ["Can we dismiss this employee?", "What does the LRA say about this?"]
-    }
-    topics_config {
-      name       = "performance-reviews"
-      type       = "DENY"
-      definition = "Individual employee performance ratings, performance improvement plans, or disciplinary records."
-      examples   = ["What is this employee's performance rating?", "Show me PIP history."]
-    }
-  }
-
-  # ── Content filters ────────────────────────────────────────────────────────
-  content_policy_config {
-    filters_config {
-      type            = "HATE"
-      input_strength  = "MEDIUM"
-      output_strength = "MEDIUM"
-    }
-    filters_config {
-      type            = "INSULTS"
-      input_strength  = "MEDIUM"
-      output_strength = "MEDIUM"
-    }
-    filters_config {
-      type            = "MISCONDUCT"
-      input_strength  = "MEDIUM"
-      output_strength = "MEDIUM"
-    }
-    filters_config {
-      type            = "PROMPT_ATTACK"
-      input_strength  = "HIGH"
-      output_strength = "NONE"
-    }
-  }
-
-  # ── PII / Sensitive information ────────────────────────────────────────────
-  sensitive_information_policy_config {
-    # SA Identity Number — 13-digit pattern matching YYMMDD + sequence + checksum
-    regexes_config {
-      name        = "sa-id-number"
-      description = "South African ID number (13 digits)"
-      pattern     = "\\b[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[0-9]{4}[0-9]{3}\\b"
-      action      = "ANONYMIZE"
-    }
-    # SA bank account numbers (8–11 digits)
-    regexes_config {
-      name        = "bank-account-number"
-      description = "South African bank account number"
-      pattern     = "\\b[0-9]{8,11}\\b"
-      action      = "ANONYMIZE"
-    }
-    # SA phone numbers (+27 or 0 prefix, 9 digits)
-    regexes_config {
-      name        = "sa-phone-number"
-      description = "South African phone number"
-      pattern     = "\\b(\\+27|0)[0-9]{9}\\b"
-      action      = "ANONYMIZE"
-    }
-    pii_entities_config {
-      type   = "ADDRESS"
-      action = "BLOCK"
-    }
-    pii_entities_config {
-      type   = "PHONE"
-      action = "ANONYMIZE"
-    }
-    pii_entities_config {
-      type   = "EMAIL"
-      action = "ANONYMIZE"
-    }
-  }
-
-  tags = {
-    Component = "AIMode"
-    Ticket    = "NH-50"
-  }
-}
-
-# ─── IAM role for nalekoAiChat ────────────────────────────────────────────────
 
 resource "aws_iam_role" "naleko_ai_chat" {
   name        = "naleko-nalekoAiChat-role"
@@ -153,17 +49,15 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Resource = "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
       },
       {
-        # NH-49: ApplyGuardrail for pre-flight content checking
-        Sid      = "BedrockGuardrail"
+        Sid      = "AgentApiKeyRead"
         Effect   = "Allow"
-        Action   = ["bedrock:ApplyGuardrail"]
-        Resource = aws_bedrock_guardrail.naleko_hr.guardrail_arn
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:naleko/agent/api-key*"
       },
       {
-        # NH-57: Write AI chat turns and HITL actions to audit log table
-        Sid    = "AuditLogWrite"
-        Effect = "Allow"
-        Action = ["dynamodb:PutItem"]
+        Sid      = "AuditLogWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/onboarding-events"
       },
       {
@@ -190,12 +84,12 @@ resource "aws_lambda_function" "naleko_ai_chat" {
 
   environment {
     variables = {
-      GUARDRAIL_ID      = aws_bedrock_guardrail.naleko_hr.guardrail_id
-      GUARDRAIL_VERSION = "DRAFT"
-      BEDROCK_MODEL_ID  = "anthropic.claude-haiku-4-5-20251001-v1:0"
-      AWS_REGION_NAME   = var.aws_region
-      AUDIT_TABLE       = "onboarding-events"
-      RATE_LIMIT_TABLE  = "NalekoAiRateLimit"
+      BEDROCK_MODEL_ID          = "anthropic.claude-haiku-4-5-20251001-v1:0"
+      AWS_REGION_NAME           = var.aws_region
+      AUDIT_TABLE               = "onboarding-events"
+      RATE_LIMIT_TABLE          = "NalekoAiRateLimit"
+      AGENT_API_BASE_URL        = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
+      AGENT_API_KEY_SECRET_NAME = "naleko/agent/api-key"
     }
   }
 
