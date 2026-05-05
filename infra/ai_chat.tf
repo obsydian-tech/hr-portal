@@ -42,11 +42,14 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Resource = "*"
       },
       {
-        # NH-54: InvokeModel for Claude Haiku 4.5
+        # NH-54: InvokeModel for Claude Haiku 4.5 via cross-region inference profile (on-demand not supported directly)
         Sid      = "BedrockInvoke"
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+        Resource = [
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
+          "arn:aws:bedrock:${var.aws_region}:${var.aws_account_id}:inference-profile/eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+        ]
       },
       {
         Sid      = "AgentApiKeyRead"
@@ -84,7 +87,7 @@ resource "aws_lambda_function" "naleko_ai_chat" {
 
   environment {
     variables = {
-      BEDROCK_MODEL_ID          = "anthropic.claude-haiku-4-5-20251001-v1:0"
+      BEDROCK_MODEL_ID          = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
       AWS_REGION_NAME           = var.aws_region
       AUDIT_TABLE               = "onboarding-events"
       RATE_LIMIT_TABLE          = "NalekoAiRateLimit"
