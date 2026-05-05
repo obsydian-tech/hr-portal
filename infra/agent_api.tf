@@ -49,7 +49,7 @@ resource "aws_apigatewayv2_api" "agent_api" {
   route_selection_expression = "$request.method $request.path"
 
   cors_configuration {
-    allow_headers = ["x-api-key", "content-type"]
+    allow_headers = ["authorization", "x-api-key", "content-type"]
     allow_methods = ["GET", "POST", "OPTIONS"]
     allow_origins = ["*"]
     max_age       = 86400
