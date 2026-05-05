@@ -36,6 +36,9 @@ resource "aws_lambda_function" "create_employee" {
       LOGIN_URL             = "https://hr-portal-beryl-three.vercel.app/login"
       KMS_KEY_ARN           = module.kms_pii.key_arn
       EVENT_BUS_NAME        = aws_cloudwatch_event_bus.naleko_onboarding.name
+      IDEMPOTENCY_TABLE     = aws_dynamodb_table.idempotency_keys.name
+      # NH-42: ARN injected so createEmployee can start the onboarding execution
+      SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.onboarding.arn
     }
   }
 
@@ -93,7 +96,8 @@ resource "aws_lambda_function" "upload_document_to_s3" {
 
   environment {
     variables = {
-      KMS_KEY_ARN = module.kms_pii.key_arn
+      KMS_KEY_ARN       = module.kms_pii.key_arn
+      IDEMPOTENCY_TABLE = aws_dynamodb_table.idempotency_keys.name
     }
   }
 
@@ -124,6 +128,8 @@ resource "aws_lambda_function" "process_document_ocr" {
     variables = {
       KMS_KEY_ARN    = module.kms_pii.key_arn
       EVENT_BUS_NAME = aws_cloudwatch_event_bus.naleko_onboarding.name
+      # NH-42: read sfn_task_token from employee record to signal Step Functions
+      EMPLOYEES_TABLE = aws_dynamodb_table.employees.name
     }
   }
 
@@ -239,8 +245,9 @@ resource "aws_lambda_function" "review_document_verification" {
 
   environment {
     variables = {
-      KMS_KEY_ARN    = module.kms_pii.key_arn
-      EVENT_BUS_NAME = aws_cloudwatch_event_bus.naleko_onboarding.name
+      KMS_KEY_ARN       = module.kms_pii.key_arn
+      EVENT_BUS_NAME    = aws_cloudwatch_event_bus.naleko_onboarding.name
+      IDEMPOTENCY_TABLE = aws_dynamodb_table.idempotency_keys.name
     }
   }
 
@@ -435,7 +442,31 @@ resource "aws_lambda_function" "serve_docs" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+# ─── NH-45: serveAgentManifest (serves api/agent-tools.json) ─────────────────
+resource "aws_lambda_function" "serve_agent_manifest" {
+  function_name = "serveAgentManifest"
+  role          = aws_iam_role.serve_agent_manifest.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
 
+  # No env vars — reads bundled tools.json copied from api/agent-tools.json at deploy time
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/serveAgentManifest"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
 # ─── NH-40: summariseVerification (Bedrock Claude 3 Haiku — GET /v1/verifications/{id}/summary) ──
 resource "aws_lambda_function" "summarise_verification" {
   function_name = "summariseVerification"
@@ -562,6 +593,96 @@ resource "aws_lambda_function" "send_notification_email" {
   logging_config {
     log_format = "JSON"
     log_group  = "/aws/lambda/sendNotificationEmail"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+# ─── NH-43: agentAuthorizer (HTTP API key Lambda authorizer) ─────────────────
+resource "aws_lambda_function" "agent_api_authorizer" {
+  function_name = "agentAuthorizer"
+  role          = aws_iam_role.agent_api_authorizer.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      AGENT_API_KEY_SECRET_NAME = aws_secretsmanager_secret.agent_api_key.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/agentAuthorizer"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── NH-43: getEmployee (single employee lookup for agent namespace) ──────────
+resource "aws_lambda_function" "get_employee" {
+  function_name = "getEmployee"
+  role          = aws_iam_role.get_employee.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 15
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      EMPLOYEES_TABLE = aws_dynamodb_table.employees.name
+      KMS_KEY_ARN     = module.kms_pii.key_arn
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getEmployee"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── NH-43: queryAuditLog (agent read of onboarding-events table) ─────────────
+resource "aws_lambda_function" "query_audit_log" {
+  function_name = "queryAuditLog"
+  role          = aws_iam_role.query_audit_log.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 15
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      AUDIT_TABLE = aws_dynamodb_table.onboarding_events.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/queryAuditLog"
   }
 
   lifecycle {

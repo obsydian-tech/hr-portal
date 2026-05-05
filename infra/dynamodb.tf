@@ -1,11 +1,45 @@
 # ---------------------------------------------------------------------------
 # DynamoDB Tables
 # NH-10: SSE with KMS CMK alias/naleko-onboarding-pii on all tables
+# NH-44: naleko-idempotency-keys table — 24h TTL dedupe for mutation endpoints
 # NH-11: PII envelope encryption — id_number_encrypted + id_number_last4
 #        columns written by createEmployee and processDocumentOCR Lambdas
 # NH-13: external-verification-requests table added
 # NH-28: GSIs on employees (email, stage, created_by) + PITR on employees/docs
 # ---------------------------------------------------------------------------
+
+# ─── Idempotency keys table (NH-44) ──────────────────────────────────────────
+# Caches the first response for each Idempotency-Key for 24h.
+# Protects createEmployee, uploadDocumentToS3, reviewDocumentVerification
+# from duplicate execution when AI agents or retry-prone clients re-submit.
+
+resource "aws_dynamodb_table" "idempotency_keys" {
+  name         = "naleko-idempotency-keys"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "idempotencyKey"
+
+  attribute {
+    name = "idempotencyKey"
+    type = "S"
+  }
+
+  # TTL deletes records automatically after 24h — no housekeeping Lambda needed.
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  tags = {
+    Purpose            = "IdempotencyDedup"
+    DataClassification = "Internal"
+    RetentionDays      = "1"
+  }
+}
 
 resource "aws_dynamodb_table" "employees" {
   name         = "employees"

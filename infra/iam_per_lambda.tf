@@ -68,6 +68,20 @@ resource "aws_iam_role_policy" "create_employee" {
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
         Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
+        Sid      = "IdempotencyTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.idempotency_keys.arn
+      },
+      {
+        # NH-42: Start the naleko-onboarding-flow execution after employee is written to DynamoDB
+        Sid      = "StartSFNExecution"
+        Effect   = "Allow"
+        Action   = ["states:StartExecution"]
+        Resource = aws_sfn_state_machine.onboarding.arn
       }
     ]
   })
@@ -182,6 +196,13 @@ resource "aws_iam_role_policy" "upload_document_to_s3" {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
+      },
+      {
+        # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
+        Sid      = "IdempotencyTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.idempotency_keys.arn
       }
     ]
   })
@@ -262,6 +283,21 @@ resource "aws_iam_role_policy" "process_document_ocr" {
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
         Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        # NH-42: Read sfn_task_token from the employee record (written by WaitForDocumentUpload state)
+        Sid      = "ReadEmployeeTaskToken"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = aws_dynamodb_table.employees.arn
+      },
+      {
+        # NH-42: Signal Step Functions that OCR is complete.
+        # states:SendTaskSuccess cannot be scoped to a specific ARN — IAM requires "*".
+        Sid      = "SendSFNTaskSuccess"
+        Effect   = "Allow"
+        Action   = ["states:SendTaskSuccess"]
+        Resource = "*"
       }
     ]
   })
@@ -502,6 +538,13 @@ resource "aws_iam_role_policy" "review_document_verification" {
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
         Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
+        Sid      = "IdempotencyTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.idempotency_keys.arn
       }
     ]
   })
@@ -1076,6 +1119,194 @@ resource "aws_iam_role_policy" "send_notification_email" {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
+
+# ─── NH-43: agentAuthorizer ───────────────────────────────────────────────────
+
+resource "aws_iam_role" "agent_api_authorizer" {
+  name        = "naleko-agentAuthorizer-role"
+  description = "Execution role for agentAuthorizer Lambda"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "agent_api_authorizer" {
+  name = "naleko-agentAuthorizer-policy"
+  role = aws_iam_role.agent_api_authorizer.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/agentAuthorizer:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # NH-43: read API key secret to validate x-api-key header
+        Sid      = "GetAgentAPIKeySecret"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.agent_api_key.arn
+      }
+    ]
+  })
+}
+
+# ─── NH-43: getEmployee ───────────────────────────────────────────────────────
+
+resource "aws_iam_role" "get_employee" {
+  name        = "naleko-getEmployee-role"
+  description = "Execution role for getEmployee Lambda"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_employee" {
+  name = "naleko-getEmployee-policy"
+  role = aws_iam_role.get_employee.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getEmployee:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # NH-43: read employee record from employees table
+        Sid      = "GetEmployee"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = aws_dynamodb_table.employees.arn
+      },
+      {
+        # NH-43: decrypt KMS-encrypted PII fields (if needed for future enrichment)
+        Sid      = "KMSDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
+
+# ─── NH-43: queryAuditLog ────────────────────────────────────────────────────
+
+resource "aws_iam_role" "query_audit_log" {
+  name        = "naleko-queryAuditLog-role"
+  description = "Execution role for queryAuditLog Lambda"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "query_audit_log" {
+  name = "naleko-queryAuditLog-policy"
+  role = aws_iam_role.query_audit_log.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/queryAuditLog:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # NH-43: query audit log events — supports both GSI query and full scan
+        Sid    = "QueryAuditEvents"
+        Effect = "Allow"
+        Action = ["dynamodb:Query", "dynamodb:Scan"]
+        Resource = [
+          aws_dynamodb_table.onboarding_events.arn,
+          "${aws_dynamodb_table.onboarding_events.arn}/index/*",
+        ]
+      }
+    ]
+  })
+}
+
+# ─── NH-45: serveAgentManifest ────────────────────────────────────────────────
+# No AWS service calls — Lambda only reads a bundled JSON file.
+
+resource "aws_iam_role" "serve_agent_manifest" {
+  name        = "naleko-serveAgentManifest-role"
+  description = "Execution role for serveAgentManifest Lambda"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "serve_agent_manifest" {
+  name = "naleko-serveAgentManifest-policy"
+  role = aws_iam_role.serve_agent_manifest.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/serveAgentManifest:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
       }
     ]
   })

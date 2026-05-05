@@ -1,4 +1,6 @@
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
+import { withIdempotency } from '../shared/idempotency.mjs';
 import {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
@@ -16,6 +18,7 @@ const dynamodb = new DynamoDBClient();
 const cognito = new CognitoIdentityProviderClient({ region: "af-south-1" });
 const kms = new KMSClient();
 const eb = new EventBridgeClient();
+const sfn = new SFNClient({ region: 'af-south-1' });
 
 async function publishEvent(detailType, detail) {
   if (!process.env.EVENT_BUS_NAME) return;
@@ -152,6 +155,29 @@ const handlerFn = async (event) => {
       created_by: staffMemberId,
     });
 
+    // 5c. NH-42: Start Step Functions onboarding execution (best-effort).
+    // The state machine writes a task token to the employee record and waits
+    // for processDocumentOCR to call SendTaskSuccess before running risk assessment.
+    // Non-fatal: SFN failure does not block employee creation.
+    let executionArn = null;
+    if (process.env.SFN_STATE_MACHINE_ARN) {
+      try {
+        const sfnResult = await sfn.send(new StartExecutionCommand({
+          stateMachineArn: process.env.SFN_STATE_MACHINE_ARN,
+          // Name must be unique within 90 days — one execution per employee.
+          name: `onboarding-${employeeId}`,
+          input: JSON.stringify({ employeeId, email: body.email, stage: 'INVITED' }),
+        }));
+        executionArn = sfnResult.executionArn;
+        logger.info('SFN execution started', { executionArn, employeeId });
+        tracer.putAnnotation('executionArn', executionArn);
+      } catch (sfnError) {
+        // Employee is already persisted in DynamoDB. Missing execution means
+        // no orchestrated risk assessment, but the invitation flow continues.
+        logger.warn('Failed to start SFN execution', { error: sfnError.message, employeeId });
+      }
+    }
+
     // 6. Create Cognito user for the new employee
     let cognitoUserCreated = false;
     let tempPassword = null;
@@ -259,7 +285,9 @@ const handlerFn = async (event) => {
       statusCode: 201,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': '*',
+        // NH-42: execution ARN forwarded for polling; omitted when SFN not configured
+        ...(executionArn ? { 'X-Execution-Arn': executionArn } : {}),
       },
       body: JSON.stringify({
         message: 'Employee created successfully',
@@ -290,7 +318,14 @@ const handlerFn = async (event) => {
   }
 };
 
-export const handler = handlerFn;
+// NH-44: Wrap handler with idempotency protection.
+// Clients send `Idempotency-Key: <uuid-v4>` header on POST /v1/employees.
+// A repeated call with the same key within 24h returns the cached 201 response
+// without creating a duplicate employee record in DynamoDB.
+export const handler = async (event) => {
+  const key = event.headers?.['idempotency-key'];
+  return withIdempotency(key, () => handlerFn(event));
+};
 
 /**
  * Build branded HTML welcome email
