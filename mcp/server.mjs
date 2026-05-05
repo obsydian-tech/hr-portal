@@ -166,10 +166,14 @@ server.tool(
     phoneNumber: z.string().optional().describe('Mobile number (optional, for WhatsApp onboarding)'),
   },
   async ({ email, firstName, lastName, department, role, phoneNumber }) => {
-    // Step 1 — create the employee via the standard HR REST API
-    const employee = await restPost('/employees', {
-      email, firstName, lastName, department, role,
-      ...(phoneNumber ? { phoneNumber } : {}),
+    // Step 1 — create the employee via the agent API (POST /agent/v1/employees)
+    const employee = await agentPost('/employees', {
+      first_name: firstName,
+      last_name:  lastName,
+      email,
+      phone:      phoneNumber ?? '',
+      department,
+      job_title:  role,
     });
 
     // Step 2 — immediately assess risk via the agent API
