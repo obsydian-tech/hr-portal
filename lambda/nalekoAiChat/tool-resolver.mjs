@@ -205,15 +205,17 @@ export const TOOL_MAP = {
    * HITL gate (NH-53 / NH-58): NEVER calls agentPost.
    * Returns { hitl: true, draft: { ... } } — frontend must confirm before submission.
    */
+  // NH-58: draft keys mapped to snake_case to match createEmployee Lambda expectations.
+  // confirmEndpoint targets the employees API (Cognito JWT, not agent x-api-key).
   onboard_new_employee: (args, _context) => ({
     hitl:    true,
     draft:   {
-      firstName:   args.firstName,
-      lastName:    args.lastName,
+      first_name:  args.firstName,
+      last_name:   args.lastName,
       email:       args.email,
       department:  args.department,
-      role:        args.role,
-      phoneNumber: args.phoneNumber ?? null,
+      job_title:   args.role ?? '',
+      phone:       args.phoneNumber ?? '',
     },
     message: 'Please review the employee details above and confirm to proceed with onboarding.',
   }),
