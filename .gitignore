@@ -59,6 +59,7 @@ hr-portal/typings/
 !api/**/*.md
 !lambda/**/*.md
 !scripts/**/*.md
+!docs/**/*.md
 
 # ─── OS ────────────────────────────────────────────────────
 .DS_Store
