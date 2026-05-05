@@ -32,7 +32,7 @@ resource "aws_lambda_function" "create_employee" {
   environment {
     variables = {
       POSTMARK_API_TOKEN    = data.aws_ssm_parameter.postmark_token.value
-      POSTMARK_SENDER_EMAIL = "noreply@naleko.co.za"
+      POSTMARK_SENDER_EMAIL = "ignecious@obsydiantechnologies.com"
       LOGIN_URL             = "https://hr-portal-beryl-three.vercel.app/login"
       KMS_KEY_ARN           = module.kms_pii.key_arn
       EVENT_BUS_NAME        = aws_cloudwatch_event_bus.naleko_onboarding.name
