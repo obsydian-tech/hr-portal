@@ -1,15 +1,15 @@
 /**
- * NH-47: Lambda handler for the Naleko MCP Server (HTTP+SSE transport)
+ * NH-47: Lambda handler for the Naleko MCP Server (stateless JSON-RPC)
  *
- * Uses an in-process Node.js HTTP server so that StreamableHTTPServerTransport
- * receives real IncomingMessage / ServerResponse objects (it uses @hono/node-server
- * internally which requires res.writeHead — Lambda responseStream does not have it).
+ * Why stateless?
+ *   StreamableHTTPServerTransport stores sessions in-memory. Lambda concurrent
+ *   execution environments don't share memory, so `initialize` can hit instance A
+ *   while `tools/list` hits instance B → "Server not initialized" error.
  *
- * Architecture:
- *   Lambda invocation → forward event as real HTTP request to 127.0.0.1:PORT
- *   → in-process http.Server → StreamableHTTPServerTransport.handleRequest
- *   → MCP SDK (Hono node adapter) → real ServerResponse
- *   → pipe response back out through Lambda responseStream
+ *   Solution: handle each JSON-RPC method independently without any session state.
+ *   This works for all standard MCP tool calls (init, list, call, ping).
+ *
+ * Response format: text/event-stream (SSE) — expected by MCP Inspector + Claude Desktop.
  *
  * Environment variables (set in infra/lambdas.tf):
  *   NALEKO_AGENT_KEY   — resolved from Secrets Manager at deploy time
@@ -18,48 +18,96 @@
  *   NALEKO_HR_API_KEY  — if separate from agent key; defaults to NALEKO_AGENT_KEY
  */
 
-import { createServer, request as httpRequest } from 'http';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { server } from './server.mjs';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
-// Kept alive across warm Lambda invocations
-let internalHttpServer = null;
+// Stable session ID for this Lambda execution environment (reused on warm invocations).
+const SESSION_ID = crypto.randomUUID();
 
-async function getInternalServer() {
-  if (internalHttpServer) return internalHttpServer;
+// ─── JSON-RPC helpers ─────────────────────────────────────────────────────────
 
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => crypto.randomUUID(),
-  });
-  await server.connect(transport);
-
-  internalHttpServer = createServer(async (req, res) => {
-    try {
-      await transport.handleRequest(req, res);
-    } catch (err) {
-      console.error('MCP transport error:', err);
-      if (!res.headersSent) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-      }
-      res.end(JSON.stringify({ error: String(err.message) }));
-    }
-  });
-
-  await new Promise((resolve, reject) => {
-    internalHttpServer.listen(0, '127.0.0.1', (err) => {
-      if (err) reject(err); else resolve();
-    });
-  });
-
-  console.log('Internal HTTP server listening on port', internalHttpServer.address().port);
-  return internalHttpServer;
+function rpcOk(id, result) {
+  return { jsonrpc: '2.0', id, result };
 }
+
+function rpcErr(id, code, message) {
+  return { jsonrpc: '2.0', id, error: { code, message } };
+}
+
+// ─── MCP method dispatcher ────────────────────────────────────────────────────
+
+async function dispatch(msg) {
+  const { method, params, id } = msg;
+
+  switch (method) {
+    case 'initialize':
+      return rpcOk(id, {
+        protocolVersion: params?.protocolVersion ?? '2024-11-05',
+        capabilities: { tools: { listChanged: false } },
+        serverInfo: { name: 'naleko-hr-portal', version: '1.0.0' },
+      });
+
+    case 'notifications/initialized':
+      return null; // notification — no response body
+
+    case 'ping':
+      return rpcOk(id, {});
+
+    case 'tools/list': {
+      const tools = Object.entries(server._registeredTools ?? {})
+        .filter(([, t]) => t.enabled !== false)
+        .map(([name, t]) => ({
+          name,
+          description: t.description ?? '',
+          inputSchema: zodToJsonSchema(t.inputSchema, { strictUnions: true }),
+        }));
+      return rpcOk(id, { tools });
+    }
+
+    case 'tools/call': {
+      const toolName = params?.name;
+      const toolArgs = params?.arguments ?? {};
+      const tool = server._registeredTools?.[toolName];
+
+      if (!tool) {
+        return rpcErr(id, -32602, `Unknown tool: ${toolName}`);
+      }
+
+      try {
+        const result = await tool.callback(toolArgs, {
+          signal: AbortSignal.timeout(25_000),
+          sendNotification: async () => {},
+          sendRequest: async () => ({}),
+          authInfo: undefined,
+        });
+        return rpcOk(id, result);
+      } catch (err) {
+        console.error(`Tool "${toolName}" error:`, err);
+        return rpcOk(id, {
+          content: [{ type: 'text', text: `Tool error: ${err.message}` }],
+          isError: true,
+        });
+      }
+    }
+
+    default:
+      return rpcErr(id, -32601, `Method not found: ${method}`);
+  }
+}
+
+// ─── SSE writer ───────────────────────────────────────────────────────────────
+
+function writeSse(stream, data) {
+  stream.write(`event: message\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+// ─── Lambda handler ───────────────────────────────────────────────────────────
 
 export const handler = awslambda.streamifyResponse(async (event, responseStream) => {
   const method = event.requestContext?.http?.method ?? event.httpMethod ?? 'GET';
   const path   = event.requestContext?.http?.path   ?? event.path ?? '/';
 
-  // Fast-path health check — no MCP machinery needed
+  // ── /health ──────────────────────────────────────────────────────────────
   if (method === 'GET' && path === '/health') {
     const out = awslambda.HttpResponseStream.from(responseStream, {
       statusCode: 200,
@@ -70,49 +118,63 @@ export const handler = awslambda.streamifyResponse(async (event, responseStream)
     return;
   }
 
-  const srv  = await getInternalServer();
-  const port = srv.address().port;
-
-  // Decode body
-  const body = event.isBase64Encoded
-    ? Buffer.from(event.body ?? '', 'base64')
-    : Buffer.from(event.body ?? '', 'utf8');
-
-  // Normalise headers — Lambda gives them lowercased already, but be safe
-  const reqHeaders = {};
-  for (const [k, v] of Object.entries(event.headers ?? {})) {
-    reqHeaders[k.toLowerCase()] = v;
+  // ── Only POST is valid for MCP protocol ──────────────────────────────────
+  if (method !== 'POST') {
+    const out = awslambda.HttpResponseStream.from(responseStream, {
+      statusCode: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    out.write(JSON.stringify({ error: 'Method Not Allowed' }));
+    out.end();
+    return;
   }
-  reqHeaders['content-length'] = String(body.length);
 
-  const qs = event.rawQueryString ? '?' + event.rawQueryString : '';
+  // ── Parse body ───────────────────────────────────────────────────────────
+  const bodyStr = event.isBase64Encoded
+    ? Buffer.from(event.body ?? '', 'base64').toString('utf8')
+    : (event.body ?? '');
 
-  // Forward as a real HTTP request to the in-process server
-  const incomingRes = await new Promise((resolve, reject) => {
-    const req = httpRequest(
-      {
-        hostname: '127.0.0.1',
-        port,
-        path: path + qs,
-        method,
-        headers: reqHeaders,
-      },
-      resolve,
-    );
-    req.on('error', reject);
-    if (body.length > 0) req.write(body);
-    req.end();
-  });
+  let msg;
+  try {
+    msg = JSON.parse(bodyStr);
+  } catch {
+    const out = awslambda.HttpResponseStream.from(responseStream, {
+      statusCode: 400,
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+    });
+    writeSse(out, rpcErr(null, -32700, 'Parse error'));
+    out.end();
+    return;
+  }
 
-  // Stream response back through Lambda responseStream
+  // ── Dispatch ─────────────────────────────────────────────────────────────
+  let response;
+  try {
+    response = await dispatch(msg);
+  } catch (err) {
+    console.error('Dispatch error:', err);
+    response = rpcErr(msg?.id ?? null, -32603, `Internal error: ${err.message}`);
+  }
+
+  // ── Notifications (no response body) ─────────────────────────────────────
+  if (response === null) {
+    const out = awslambda.HttpResponseStream.from(responseStream, {
+      statusCode: 202,
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+    });
+    out.end();
+    return;
+  }
+
+  // ── Normal response as SSE ────────────────────────────────────────────────
   const out = awslambda.HttpResponseStream.from(responseStream, {
-    statusCode: incomingRes.statusCode ?? 200,
-    headers: incomingRes.headers,
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'mcp-session-id': SESSION_ID,
+    },
   });
-
-  await new Promise((resolve, reject) => {
-    incomingRes.on('error', reject);
-    incomingRes.on('data', (chunk) => out.write(chunk));
-    incomingRes.on('end', () => { out.end(); resolve(); });
-  });
+  writeSse(out, response);
+  out.end();
 });
