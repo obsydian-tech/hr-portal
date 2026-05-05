@@ -124,6 +124,15 @@ export const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: 'get_high_risk_report',
+    description: 'Returns ALL employees grouped by risk band (HIGH/MEDIUM/LOW/NO_DATA). Use this instead of calling assess_employee_risk per employee — avoids N+1 Bedrock calls for Template 1.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: 'onboard_new_employee',
     description: 'Draft a new employee record for HR clerk review. DOES NOT submit — returns draft for human confirmation.',
     input_schema: {
@@ -184,6 +193,13 @@ export const TOOL_MAP = {
    */
   query_audit_log: (args, context) =>
     agentGet(`/audit-log${qs({ employeeId: args.employeeId, staffId: context.staffId })}`),
+
+  /**
+   * NH-55: single call returns all employees grouped by risk band.
+   * Prevents N+1 Bedrock calls for Template 1 ("show me HIGH risk employees").
+   */
+  get_high_risk_report: (_args, _context) =>
+    agentGet('/agent/v1/employees/risk-report'),
 
   /**
    * HITL gate (NH-53 / NH-58): NEVER calls agentPost.
