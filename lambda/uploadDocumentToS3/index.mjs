@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { withIdempotency } from '../shared/idempotency.mjs';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -115,7 +116,14 @@ const handlerFn = async (event) => {
   }
 };
 
-export const handler = handlerFn;
+// NH-44: Wrap handler with idempotency protection.
+// Clients send `Idempotency-Key: <uuid-v4>` header on document upload.
+// A repeated call with the same key within 24h returns the cached response
+// without uploading a duplicate file to S3 or creating a duplicate document record.
+export const handler = async (event) => {
+  const key = event.headers?.['idempotency-key'];
+  return withIdempotency(key, () => handlerFn(event));
+};
 
 // Helper: Check if employee exists
 async function checkEmployeeExists(employeeId) {
