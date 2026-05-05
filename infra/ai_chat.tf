@@ -43,9 +43,9 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
       },
       {
         # NH-54: InvokeModel for Claude Haiku 4.5
-        Sid    = "BedrockInvoke"
-        Effect = "Allow"
-        Action = ["bedrock:InvokeModel"]
+        Sid      = "BedrockInvoke"
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
         Resource = "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
       },
       {
@@ -62,9 +62,9 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
       },
       {
         # NH-67: Rate limiting — read + increment per-staff-id token bucket
-        Sid    = "RateLimitTable"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Sid      = "RateLimitTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/NalekoAiRateLimit"
       },
     ]
