@@ -502,7 +502,7 @@ resource "aws_lambda_function" "naleko_mcp_server" {
 
 # Resolves the agent API key from Secrets Manager at plan/apply time
 data "aws_secretsmanager_secret_version" "agent_api_key" {
-  secret_id = "naleko/agent-api-key"
+  secret_id = aws_secretsmanager_secret.agent_api_key.id
 }
 
 # Lambda Function URL — RESPONSE_STREAM required for MCP HTTP+SSE transport
@@ -514,11 +514,30 @@ resource "aws_lambda_function_url" "naleko_mcp_server" {
   cors {
     allow_credentials = false
     allow_origins     = ["*"]
-    allow_methods     = ["GET", "POST", "OPTIONS"]
+    allow_methods     = ["GET", "POST"]
     allow_headers     = ["content-type", "x-api-key", "mcp-session-id"]
     max_age           = 300
   }
 }
+
+# Public-access resource-based policy for the Function URL (AuthType=NONE).
+# AWS accounts created after ~2024 require BOTH InvokeFunctionUrl AND the legacy
+# InvokeFunction action to allow anonymous callers — Block Public Access enforcement.
+resource "aws_lambda_permission" "naleko_mcp_server_url_public" {
+  statement_id           = "FunctionURLAllowPublicAccess"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.naleko_mcp_server.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
+
+resource "aws_lambda_permission" "naleko_mcp_server_invoke_public" {
+  statement_id  = "AllowPublicInvokeLegacy"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.naleko_mcp_server.function_name
+  principal     = "*"
+}
+
 # ─── NH-40: summariseVerification (Bedrock Claude 3 Haiku — GET /v1/verifications/{id}/summary) ──
 resource "aws_lambda_function" "summarise_verification" {
   function_name = "summariseVerification"

@@ -1,0 +1,9 @@
+{
+  "name": "query-audit-log",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.0.0",
+    "@aws-lambda-powertools/tracer": "^2.0.0"
+  }
+}

@@ -1,6 +1,6 @@
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
-import { withIdempotency } from '../shared/idempotency.mjs';
+import { withIdempotency } from './shared/idempotency.mjs';
 import {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
@@ -71,11 +71,14 @@ const handlerFn = async (event) => {
   tracer.putAnnotation('operation', 'createEmployee');
 
   try {
-    // 1. Get staff member ID from JWT claims (set by Cognito authorizer)
+    // 1. Get staff member ID — agent bypass or JWT claims
+    const actor = event.requestContext?.authorizer?.lambda?.actor ?? 'HUMAN';
     const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
-    const staffMemberId = claims['custom:staff_id'] || claims['sub'] || 'unknown';
+    const staffMemberId = actor === 'AGENT'
+      ? 'agent'
+      : (claims['custom:staff_id'] || claims['sub'] || 'unknown');
 
-    logger.info('JWT claims resolved', { staffMemberId });
+    logger.info('Auth resolved', { staffMemberId, actor });
 
     // 2. Parse request body
     const body = JSON.parse(event.body);
