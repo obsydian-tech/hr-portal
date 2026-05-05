@@ -5,6 +5,14 @@
 # NH-10: KMS_KEY_ARN injected into every Lambda that handles PII.
 # ---------------------------------------------------------------------------
 
+# Postmark API token — stored in SSM SecureString; never hardcoded in .tf files.
+# To rotate: aws ssm put-parameter --name /naleko/postmark/api_token --value NEW_TOKEN
+#            --type SecureString --overwrite --region af-south-1
+data "aws_ssm_parameter" "postmark_token" {
+  name            = "/naleko/postmark/api_token"
+  with_decryption = true
+}
+
 locals {
   # Retained for the AWS Config region-enforcement Lambda in config.tf
   lambda_role_arn = "arn:aws:iam::937137806477:role/doc-verification-lambda-role"
@@ -23,8 +31,9 @@ resource "aws_lambda_function" "create_employee" {
 
   environment {
     variables = {
-      POSTMARK_API_TOKEN    = "623fee86-c7a5-4d08-b3f6-e9193bd2a316"
-      POSTMARK_SENDER_EMAIL = "joworesources@gmail.com"
+      POSTMARK_API_TOKEN    = data.aws_ssm_parameter.postmark_token.value
+      POSTMARK_SENDER_EMAIL = "noreply@naleko.co.za"
+      LOGIN_URL             = "https://hr-portal-beryl-three.vercel.app/login"
       KMS_KEY_ARN           = module.kms_pii.key_arn
       EVENT_BUS_NAME        = aws_cloudwatch_event_bus.naleko_onboarding.name
     }

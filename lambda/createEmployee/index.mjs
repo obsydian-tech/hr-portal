@@ -37,7 +37,9 @@ const logger = new Logger({ serviceName: 'createEmployee' });
 const tracer = new Tracer({ serviceName: 'createEmployee' });
 
 const USER_POOL_ID = "af-south-1_2LdAGFnw2";
-const LOGIN_URL = "https://hr-portal-beryl-three.vercel.app/login";
+// NH: LOGIN_URL is injected via env var so Vercel→CloudFront migration (NH-38) requires
+// only a Terraform env var change — no Lambda code redeploy needed.
+const LOGIN_URL = process.env.LOGIN_URL || "https://hr-portal-beryl-three.vercel.app/login";
 
 /**
  * KMS envelope encryption — stores ciphertext as base64 string.
@@ -262,8 +264,8 @@ const handlerFn = async (event) => {
         message: 'Employee created successfully',
         employee: createdEmployee,
         cognito: {
+          // tempPassword intentionally omitted — delivered to employee via email only (NH-9)
           userCreated: cognitoUserCreated,
-          tempPassword: cognitoUserCreated ? tempPassword : null,
         },
         email: {
           sent: emailSent,
