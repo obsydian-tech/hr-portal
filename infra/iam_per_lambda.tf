@@ -951,8 +951,8 @@ resource "aws_iam_role_policy" "classify_onboarding_risk" {
         Action   = ["bedrock:InvokeModel"]
         Resource = [
           "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
-          "arn:aws:bedrock:*::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0",
-          "arn:aws:bedrock:af-south-1::foundation-model/global.anthropic.claude-haiku-4-5-20251001-v1:0"
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
+          "arn:aws:bedrock:af-south-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
         ]
       }
     ]
