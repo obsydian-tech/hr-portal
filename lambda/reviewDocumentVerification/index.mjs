@@ -1,4 +1,5 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
+import { withIdempotency } from '../shared/idempotency.mjs';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -202,7 +203,14 @@ const handlerFn = async (event) => {
   }
 };
 
-export const handler = handlerFn;
+// NH-44: Wrap handler with idempotency protection.
+// Clients send `Idempotency-Key: <uuid-v4>` header on PATCH /v1/verifications/{id}/review.
+// A repeated call with the same key within 24h returns the cached response
+// without re-applying a review decision or re-firing EventBridge events.
+export const handler = async (event) => {
+  const key = event.headers?.['idempotency-key'];
+  return withIdempotency(key, () => handlerFn(event));
+};
 
 function respond(statusCode, body) {
   return {

@@ -1,4 +1,5 @@
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { withIdempotency } from '../shared/idempotency.mjs';
 import {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
@@ -290,7 +291,14 @@ const handlerFn = async (event) => {
   }
 };
 
-export const handler = handlerFn;
+// NH-44: Wrap handler with idempotency protection.
+// Clients send `Idempotency-Key: <uuid-v4>` header on POST /v1/employees.
+// A repeated call with the same key within 24h returns the cached 201 response
+// without creating a duplicate employee record in DynamoDB.
+export const handler = async (event) => {
+  const key = event.headers?.['idempotency-key'];
+  return withIdempotency(key, () => handlerFn(event));
+};
 
 /**
  * Build branded HTML welcome email

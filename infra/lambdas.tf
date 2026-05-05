@@ -36,6 +36,7 @@ resource "aws_lambda_function" "create_employee" {
       LOGIN_URL             = "https://hr-portal-beryl-three.vercel.app/login"
       KMS_KEY_ARN           = module.kms_pii.key_arn
       EVENT_BUS_NAME        = aws_cloudwatch_event_bus.naleko_onboarding.name
+      IDEMPOTENCY_TABLE     = aws_dynamodb_table.idempotency_keys.name
     }
   }
 
@@ -93,7 +94,8 @@ resource "aws_lambda_function" "upload_document_to_s3" {
 
   environment {
     variables = {
-      KMS_KEY_ARN = module.kms_pii.key_arn
+      KMS_KEY_ARN       = module.kms_pii.key_arn
+      IDEMPOTENCY_TABLE = aws_dynamodb_table.idempotency_keys.name
     }
   }
 
@@ -239,8 +241,9 @@ resource "aws_lambda_function" "review_document_verification" {
 
   environment {
     variables = {
-      KMS_KEY_ARN    = module.kms_pii.key_arn
-      EVENT_BUS_NAME = aws_cloudwatch_event_bus.naleko_onboarding.name
+      KMS_KEY_ARN       = module.kms_pii.key_arn
+      EVENT_BUS_NAME    = aws_cloudwatch_event_bus.naleko_onboarding.name
+      IDEMPOTENCY_TABLE = aws_dynamodb_table.idempotency_keys.name
     }
   }
 

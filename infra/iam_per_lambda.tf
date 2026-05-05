@@ -68,6 +68,13 @@ resource "aws_iam_role_policy" "create_employee" {
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
         Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
+        Sid    = "IdempotencyTable"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.idempotency_keys.arn
       }
     ]
   })
@@ -182,6 +189,13 @@ resource "aws_iam_role_policy" "upload_document_to_s3" {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
+      },
+      {
+        # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
+        Sid    = "IdempotencyTable"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.idempotency_keys.arn
       }
     ]
   })
@@ -502,6 +516,13 @@ resource "aws_iam_role_policy" "review_document_verification" {
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
         Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
+        Sid    = "IdempotencyTable"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.idempotency_keys.arn
       }
     ]
   })
