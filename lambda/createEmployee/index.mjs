@@ -171,7 +171,8 @@ const handlerFn = async (event) => {
             { Name: "email_verified", Value: "true" },
             { Name: "given_name", Value: body.first_name },
             { Name: "family_name", Value: body.last_name },
-            { Name: "custom:employee_id", Value: employeeId },
+            // custom:employee_id omitted — Cognito schema MaxLength=20 < UUID(36).
+            // employee_id is the DynamoDB primary key; look it up via email when needed.
             { Name: "custom:role", Value: "employee" },
             { Name: "custom:staff_id", Value: "" },
           ],
