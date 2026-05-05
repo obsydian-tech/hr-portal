@@ -1,0 +1,13 @@
+{
+  "name": "naleko-ai-chat-lambda",
+  "version": "1.0.0",
+  "description": "Lambda: AI Mode — Bedrock Claude Haiku 4.5 + tool resolution for HR Portal",
+  "type": "module",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0",
+    "@aws-lambda-powertools/tracer": "^2.18.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.0.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0"
+  }
+}
