@@ -35,13 +35,17 @@ const handlerFn = async (event) => {
   tracer.putAnnotation('operation', 'getEmployees');
 
   try {
-    // 1. Resolve caller identity from JWT claims
-    const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
-    const staffMemberId = claims['custom:staff_id'] || claims['sub'] || '';
-    const groups = (claims['cognito:groups'] ?? '').toString();
-    const isManager = groups.includes('hr_staff');
+    // 1. Resolve caller identity — support both JWT (HR staff) and agent API key (actor=AGENT)
+    const lambdaActor = event.requestContext?.authorizer?.lambda?.actor ?? '';
+    const isAgent = lambdaActor === 'AGENT';
 
-    if (!staffMemberId) {
+    const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
+    const staffMemberId = isAgent ? 'agent' : (claims['custom:staff_id'] || claims['sub'] || '');
+    const groups = (claims['cognito:groups'] ?? '').toString();
+    // Agents get full manager-level access (scan all employees)
+    const isManager = isAgent || groups.includes('hr_staff');
+
+    if (!isAgent && !staffMemberId) {
       return {
         statusCode: 401,
         headers: CORS_HEADERS,
