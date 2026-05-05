@@ -69,7 +69,7 @@ export const handler = async (event) => {
       'LOW means all documents passed with high confidence.',
       'MEDIUM means some documents are in manual review or have low confidence.',
       'HIGH means documents have failed or are missing.',
-      'Respond ONLY with valid JSON: {"risk":"LOW","reason":"one sentence explanation"}',
+      'Return ONLY valid JSON with no markdown, no code blocks, no extra text: {"risk":"LOW","reason":"one sentence explanation"}',
       '',
       `Verifications: ${JSON.stringify(safeSummary)}`,
     ].join('\n');
@@ -91,10 +91,14 @@ export const handler = async (event) => {
 
     const rawText = new TextDecoder().decode(bedrockRes.body);
     const parsed = JSON.parse(rawText);
-    const content = parsed?.content?.[0]?.text ?? '';
+    let content = parsed?.content?.[0]?.text ?? '';
+    console.info({ message: 'Bedrock raw response', employeeId, content });
 
-    // Extract JSON from the model's text response
-    const jsonMatch = content.match(/\{[\s\S]*?\}/);
+    // Strip markdown code fences if model wrapped the JSON anyway
+    content = content.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+
+    // Extract the first complete JSON object from the response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const classification = JSON.parse(jsonMatch[0]);
       if (['LOW', 'MEDIUM', 'HIGH'].includes(classification.risk)) {

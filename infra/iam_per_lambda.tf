@@ -945,11 +945,11 @@ resource "aws_iam_role_policy" "classify_onboarding_risk" {
         Resource = module.kms_pii.key_arn
       },
       {
-        # NH-41: least-privilege — InvokeModel only on Claude 3 Haiku
+        # NH-41: cross-region inference profile requires wildcard resource
         Sid      = "BedrockInvokeModel"
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
+        Resource = "*"
       }
     ]
   })
