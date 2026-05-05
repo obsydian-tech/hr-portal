@@ -142,6 +142,22 @@ export class NewEmployeeRegistrationComponent {
   offerAcceptDate: Date | null = null;
   plannedStartDate: Date | null = null;
 
+  // ─── Date Picker Bounds ─────────────────────────────────
+  // offerAcceptDate: today or past — maxDate = today
+  // plannedStartDate: future only — minDate = tomorrow
+  readonly today: Date = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+
+  readonly tomorrow: Date = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+
   readonly departments = [
     { label: 'Engineering', value: 'Engineering' },
     { label: 'Finance', value: 'Finance' },
