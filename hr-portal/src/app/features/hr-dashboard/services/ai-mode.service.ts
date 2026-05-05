@@ -158,11 +158,10 @@ export class AiModeService {
     this.isLoading.set(true);
     this.pendingAction.set(null);
 
-    // confirmEndpoint is /v1/employees — on the employees API (Cognito JWT),
-    // NOT on the agent API (x-api-key). Use employeesApiUrl as the base.
+    // confirmEndpoint is /agent/v1/employees — on the agent API (x-api-key).
     this.http
       .post<{ employee: { employee_id: string } }>(
-        `${environment.employeesApiUrl}${action.confirmEndpoint}`,
+        `${this.baseUrl}${action.confirmEndpoint}`,
         action.draft,
       )
       .subscribe({
