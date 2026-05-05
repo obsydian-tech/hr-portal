@@ -1416,6 +1416,13 @@ resource "aws_iam_role_policy" "get_batch_risk_report" {
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
         Resource = "*"
+      },
+      {
+        # NH-55: decrypt KMS-encrypted DynamoDB attributes
+        Sid      = "KMSDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
       }
     ]
   })
