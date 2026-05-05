@@ -1,0 +1,123 @@
+{
+  "Comment": "Naleko HR Portal — Onboarding flow orchestration (NH-42). Triggered by createEmployee Lambda after DynamoDB write. Waits for document OCR completion, runs Bedrock risk classification, then publishes onboarding.completed or onboarding.failed to the naleko-onboarding EventBridge bus.",
+  "StartAt": "CreateEmployee",
+  "States": {
+
+    "CreateEmployee": {
+      "Type": "Pass",
+      "Comment": "Employee was created synchronously by the API Gateway → createEmployee Lambda before this execution started. This Pass state marks the conceptual start of the orchestrated flow and forwards the employeeId to WaitForDocumentUpload.",
+      "Next": "WaitForDocumentUpload"
+    },
+
+    "WaitForDocumentUpload": {
+      "Type": "Task",
+      "Comment": "Uses the DynamoDB SDK integration with waitForTaskToken. Writes the task token + execution ARN onto the employee record. processDocumentOCR Lambda reads this token after OCR completes and calls sfn:SendTaskSuccess to resume the execution.",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem.waitForTaskToken",
+      "Parameters": {
+        "TableName": "employees",
+        "Key": {
+          "employee_id": {
+            "S.$": "$.employeeId"
+          }
+        },
+        "UpdateExpression": "SET sfn_task_token = :token, sfn_execution_arn = :exec",
+        "ExpressionAttributeValues": {
+          ":token": {
+            "S.$": "$$.Task.Token"
+          },
+          ":exec": {
+            "S.$": "$$.Execution.Id"
+          }
+        }
+      },
+      "HeartbeatSeconds": 259200,
+      "ResultPath": "$.ocrResult",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.HeartbeatTimeout", "States.TaskFailed", "States.ALL"],
+          "Comment": "Document upload timed out (72h) or OCR failed — fire onboarding.failed event",
+          "ResultPath": "$.error",
+          "Next": "OnboardingFailed"
+        }
+      ],
+      "Next": "AssessRisk"
+    },
+
+    "AssessRisk": {
+      "Type": "Task",
+      "Comment": "Invokes classifyOnboardingRisk Lambda (Bedrock Claude Haiku). Reads all verification records for the employee and returns LOW / MEDIUM / HIGH riskBand.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "classifyOnboardingRisk",
+        "Payload": {
+          "employeeId.$": "$.employeeId"
+        }
+      },
+      "ResultPath": "$.riskResult",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2,
+          "Comment": "Retry transient Lambda failures twice with exponential backoff before failing the execution"
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "OnboardingFailed"
+        }
+      ],
+      "Next": "OnboardingComplete"
+    },
+
+    "OnboardingComplete": {
+      "Type": "Task",
+      "Comment": "Publishes onboarding.completed to the naleko-onboarding EventBridge bus. Consumed by sendNotificationEmail Lambda (employee 🎉 email) and auditLogConsumer.",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "EventBusName": "naleko-onboarding",
+            "Source": "naleko.onboarding",
+            "DetailType": "onboarding.completed",
+            "Detail": {
+              "employee_id.$": "$.employeeId",
+              "risk_band.$": "$.riskResult.Payload.riskBand",
+              "risk_reason.$": "$.riskResult.Payload.riskReason"
+            }
+          }
+        ]
+      },
+      "End": true
+    },
+
+    "OnboardingFailed": {
+      "Type": "Task",
+      "Comment": "Catch-all failure state. Publishes onboarding.failed to EventBridge. Downstream consumers (e.g. sendNotificationEmail) can send HR alert emails.",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "EventBusName": "naleko-onboarding",
+            "Source": "naleko.onboarding",
+            "DetailType": "onboarding.failed",
+            "Detail": {
+              "employee_id.$": "$.employeeId",
+              "error.$": "$.error"
+            }
+          }
+        ]
+      },
+      "End": true
+    }
+
+  }
+}

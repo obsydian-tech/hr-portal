@@ -1,7 +1,8 @@
 import { TextractClient, AnalyzeDocumentCommand } from "@aws-sdk/client-textract";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
-import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, PutItemCommand, UpdateItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { SFNClient, SendTaskSuccessCommand } from "@aws-sdk/client-sfn";
 import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -11,6 +12,7 @@ const textract = new TextractClient({ region: "eu-west-1" });
 const s3 = new S3Client();
 const bedrock = new BedrockRuntimeClient({ region: "af-south-1" });
 const dynamodb = new DynamoDBClient();
+const sfn = new SFNClient({ region: 'af-south-1' });
 const kms = new KMSClient();
 const eb = new EventBridgeClient();
 
@@ -324,6 +326,38 @@ const handlerFn = async (event) => {
       verification_id: verificationId,
       decision: ocrStatus,
     });
+
+    // 7c. NH-42: Signal Step Functions that OCR + verification is complete.
+    // createEmployee stored a task token on the employee record when it started
+    // the StateMachine. We read it here and send SendTaskSuccess so the
+    // WaitForDocumentUpload state can resume and proceed to AssessRisk.
+    try {
+      const empRecord = await dynamodb.send(new GetItemCommand({
+        TableName: process.env.EMPLOYEES_TABLE ?? 'employees',
+        Key: { employee_id: { S: employeeId } },
+        ProjectionExpression: 'sfn_task_token',
+      }));
+      const taskToken = empRecord.Item?.sfn_task_token?.S;
+      if (taskToken) {
+        await sfn.send(new SendTaskSuccessCommand({
+          taskToken,
+          output: JSON.stringify({
+            employeeId,
+            verificationId,
+            ocrStatus,
+            confidence: validationResult.confidence,
+            decision: validationResult.decision,
+          }),
+        }));
+        logger.info('Step Functions signaled — OCR complete', { employeeId, ocrStatus });
+      } else {
+        logger.info('No SFN task token on employee record — orchestration not active', { employeeId });
+      }
+    } catch (sfnErr) {
+      // Non-fatal: OCR result is already written to DynamoDB and events published.
+      // Log the error but return success so the S3 trigger does not retry.
+      logger.warn('Failed to signal Step Functions', { error: sfnErr.message, employeeId });
+    }
 
     // 8. Return the result
     return {

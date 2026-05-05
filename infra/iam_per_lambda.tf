@@ -75,6 +75,13 @@ resource "aws_iam_role_policy" "create_employee" {
         Effect = "Allow"
         Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
         Resource = aws_dynamodb_table.idempotency_keys.arn
+      },
+      {
+        # NH-42: Start the naleko-onboarding-flow execution after employee is written to DynamoDB
+        Sid      = "StartSFNExecution"
+        Effect   = "Allow"
+        Action   = ["states:StartExecution"]
+        Resource = aws_sfn_state_machine.onboarding.arn
       }
     ]
   })
@@ -276,6 +283,21 @@ resource "aws_iam_role_policy" "process_document_ocr" {
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
         Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        # NH-42: Read sfn_task_token from the employee record (written by WaitForDocumentUpload state)
+        Sid      = "ReadEmployeeTaskToken"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = aws_dynamodb_table.employees.arn
+      },
+      {
+        # NH-42: Signal Step Functions that OCR is complete.
+        # states:SendTaskSuccess cannot be scoped to a specific ARN — IAM requires "*".
+        Sid      = "SendSFNTaskSuccess"
+        Effect   = "Allow"
+        Action   = ["states:SendTaskSuccess"]
+        Resource = "*"
       }
     ]
   })
