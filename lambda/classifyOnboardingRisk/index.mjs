@@ -13,7 +13,7 @@ const bedrock = new BedrockRuntimeClient({ region: 'af-south-1' });
 
 const VERIFICATIONS_TABLE = process.env.VERIFICATIONS_TABLE;
 const EMPLOYEES_TABLE = process.env.EMPLOYEES_TABLE;
-const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'anthropic.claude-haiku-4-5-20251001-v1:0';
+const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
 
 /**
  * POST /v1/employees/{id}/assess-risk
