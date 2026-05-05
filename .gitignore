@@ -15,6 +15,7 @@ crash.*.log
 lambda/**/node_modules/
 lambda/**/*.zip
 lambda/**/.package-lock.json
+lambda/**/package-lock.json
 *.zip
 
 # ─── Node / Angular ────────────────────────────────────────
