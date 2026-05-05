@@ -1,0 +1,160 @@
+<p-drawer
+  [(visible)]="aiMode.panelVisible"
+  position="right"
+  [style]="{ width: '480px' }"
+  styleClass="ai-mode-drawer"
+  (onHide)="onPanelHide()">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <ng-template pTemplate="header">
+    <div class="ai-panel-header">
+      <span class="ai-glow-dot"></span>
+      <span class="ai-mode-label">AI MODE</span>
+      <p-badge value="BETA" severity="warn" styleClass="ai-beta-badge" />
+    </div>
+  </ng-template>
+
+  <!-- ── Body ───────────────────────────────────────────────────────────── -->
+
+  @if (!aiMode.activeTemplate()) {
+    <!-- Template gallery -->
+    <app-ai-template-gallery
+      (templateSelected)="onTemplateSelected($event)" />
+  }
+
+  @if (aiMode.activeTemplate(); as template) {
+    <div class="ai-conversation">
+
+      <!-- Slot form (shown before first submission) -->
+      @if (aiMode.conversationHistory().length === 0 && template.slots.length > 0) {
+        <div class="ai-slot-form">
+          <p class="ai-slot-form__title">{{ template.label }}</p>
+
+          @for (slot of template.slots; track slot.key) {
+            <div class="ai-slot-field">
+              <label [for]="slot.key">{{ slot.label }}</label>
+
+              @if (slot.type === 'text' || slot.type === 'email') {
+                <input
+                  pInputText
+                  [id]="slot.key"
+                  [type]="slot.type"
+                  [placeholder]="slot.placeholder ?? ''"
+                  [value]="getSlot(slot.key)"
+                  (input)="setSlot(slot.key, $any($event.target).value)" />
+              }
+
+              @if (slot.type === 'dropdown') {
+                <p-dropdown
+                  [inputId]="slot.key"
+                  [options]="slotOptions(slot.options)"
+                  [ngModel]="getSlot(slot.key)"
+                  (ngModelChange)="setSlot(slot.key, $event)"
+                  placeholder="Select..."
+                  [style]="{ width: '100%' }" />
+              }
+
+              @if (slot.type === 'selectbutton') {
+                <p-selectButton
+                  [options]="slotOptions(slot.options)"
+                  [ngModel]="getSlot(slot.key)"
+                  (ngModelChange)="setSlot(slot.key, $event)" />
+              }
+            </div>
+          }
+
+          <p-button
+            label="Run"
+            icon="pi pi-sparkles"
+            [disabled]="!canSubmit()"
+            (onClick)="submitTemplate()" />
+        </div>
+      }
+
+      <!-- No-slot template: run immediately on select for 0-slot templates -->
+      @if (aiMode.conversationHistory().length === 0 && template.slots.length === 0) {
+        <div class="ai-slot-form">
+          <p class="ai-slot-form__title">{{ template.label }}</p>
+          <p class="ai-slot-form__desc">{{ template.description }}</p>
+          <p-button
+            label="Run"
+            icon="pi pi-sparkles"
+            [loading]="aiMode.isLoading()"
+            (onClick)="submitTemplate()" />
+        </div>
+      }
+
+      <!-- Conversation thread -->
+      @for (turn of aiMode.conversationHistory(); track $index) {
+        <div
+          class="ai-bubble"
+          [class.ai-bubble--assistant]="turn.role === 'assistant'"
+          [class.ai-bubble--user]="turn.role === 'user'">
+          {{ turn.content }}
+        </div>
+      }
+
+      <!-- Loading spinner -->
+      @if (aiMode.isLoading()) {
+        <div class="ai-thinking">
+          <p-progressSpinner
+            [style]="{ width: '22px', height: '22px' }"
+            strokeWidth="4" />
+          <span>Thinking…</span>
+        </div>
+      }
+
+      <!-- Error banner -->
+      @if (aiMode.errorMessage(); as err) {
+        <div class="ai-error-banner">
+          <i class="pi pi-times-circle"></i>
+          <span>{{ err }}</span>
+        </div>
+      }
+
+      <!-- HITL approval gate -->
+      @if (aiMode.pendingAction(); as action) {
+        <app-ai-hitl-confirm
+          [pendingAction]="action"
+          (approved)="onHitlApprove()"
+          (cancelled)="onHitlCancel()" />
+      }
+
+      <!-- Follow-up input -->
+      @if (aiMode.canFollowUp() && !aiMode.pendingAction()) {
+        <div class="ai-followup">
+          <textarea
+            pTextarea
+            rows="2"
+            maxlength="200"
+            placeholder="Ask a follow-up question…"
+            [ngModel]="aiMode.followUpText()"
+            (ngModelChange)="aiMode.followUpText.set($event)"
+            (keydown)="onFollowUpKeydown($event)">
+          </textarea>
+          <div class="ai-followup__footer">
+            <small>{{ aiMode.followUpText().length }}/200</small>
+            <p-button
+              label="Send"
+              icon="pi pi-send"
+              size="small"
+              [disabled]="!aiMode.followUpText().trim()"
+              (onClick)="aiMode.runFollowUp()" />
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+  <ng-template pTemplate="footer">
+    @if (aiMode.activeTemplate()) {
+      <p-button
+        label="← Back to Templates"
+        [text]="true"
+        severity="secondary"
+        (onClick)="aiMode.resetToGallery()" />
+    }
+  </ng-template>
+
+</p-drawer>

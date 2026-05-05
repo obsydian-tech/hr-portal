@@ -1,0 +1,28 @@
+<div class="ai-gallery">
+  <p class="ai-gallery__hint">Select an action to get started.</p>
+
+  <div class="ai-gallery__grid">
+    @for (template of templates; track template.id) {
+      <button
+        type="button"
+        class="ai-card"
+        [class.ai-card--write]="template.isWrite"
+        (click)="select(template)"
+        [attr.aria-label]="template.label">
+
+        <span class="ai-card__icon">
+          <i [class]="'pi ' + template.icon"></i>
+        </span>
+
+        <span class="ai-card__label">{{ template.label }}</span>
+        <span class="ai-card__desc">{{ template.description }}</span>
+
+        @if (template.isWrite) {
+          <span class="ai-card__hitl-badge">
+            <i class="pi pi-user"></i> Requires approval
+          </span>
+        }
+      </button>
+    }
+  </div>
+</div>

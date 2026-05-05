@@ -21,6 +21,22 @@
   (viewAllNotifications)="onViewAllNotifications()"
 />
 
+<!-- AI Mode toggle button -->
+<div class="ai-mode-toggle-bar">
+  <button
+    type="button"
+    class="ai-mode-toggle-btn"
+    [class.ai-mode-toggle-btn--active]="aiMode.panelVisible()"
+    (click)="aiMode.openPanel()"
+    aria-label="Open AI Mode">
+    <span class="ai-mode-toggle-btn__dot"></span>
+    <span>✦ AI Mode</span>
+  </button>
+</div>
+
+<!-- AI Mode panel (p-drawer) -->
+<app-ai-mode-panel />
+
 <main class="dashboard">
   <div class="dashboard__content">
     <router-outlet />

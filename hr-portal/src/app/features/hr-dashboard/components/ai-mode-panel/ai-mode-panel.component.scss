@@ -1,0 +1,264 @@
+// NH-57: AI Mode Panel styles
+
+// ── CSS custom property — amber accent ────────────────────────────────────
+:root {
+  --naleko-ai-amber: #f59e0b;
+  --naleko-ai-amber-light: rgba(245, 158, 11, 0.07);
+}
+
+// ── Drawer overrides ──────────────────────────────────────────────────────
+:host ::ng-deep .ai-mode-drawer {
+  border-left: 3px solid var(--naleko-ai-amber);
+  background: linear-gradient(
+    160deg,
+    var(--naleko-ai-amber-light) 0%,
+    #ffffff 30%
+  );
+}
+
+// ── Header ────────────────────────────────────────────────────────────────
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ai-glow-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--naleko-ai-amber);
+  box-shadow: 0 0 6px 2px rgba(245, 158, 11, 0.5);
+  animation: ai-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ai-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.ai-mode-label {
+  color: var(--naleko-ai-amber);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+// ── Gallery ───────────────────────────────────────────────────────────────
+.ai-gallery {
+  padding: 0.25rem 0;
+
+  &__hint {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-bottom: 0.75rem;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+}
+
+.ai-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    border-color: var(--naleko-ai-amber);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+  }
+
+  &--write {
+    border-color: #fde68a;
+    background: #fffbeb;
+  }
+
+  &__icon {
+    font-size: 1.25rem;
+    color: var(--naleko-ai-amber);
+  }
+
+  &__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #111827;
+    line-height: 1.3;
+  }
+
+  &__desc {
+    font-size: 0.72rem;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  &__hitl-badge {
+    font-size: 0.68rem;
+    color: #d97706;
+    font-weight: 500;
+    margin-top: 0.25rem;
+  }
+}
+
+// ── Slot form ─────────────────────────────────────────────────────────────
+.ai-slot-form {
+  &__title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 1rem;
+  }
+
+  &__desc {
+    font-size: 0.83rem;
+    color: #6b7280;
+    margin-bottom: 1rem;
+  }
+}
+
+.ai-slot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.875rem;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  input, p-dropdown, p-selectButton {
+    width: 100%;
+  }
+}
+
+// ── Conversation thread ───────────────────────────────────────────────────
+.ai-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ai-bubble {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+
+  &--assistant {
+    background: #f3f4f6;
+    border-left: 3px solid var(--naleko-ai-amber);
+    color: #111827;
+  }
+
+  &--user {
+    background: #eff6ff;
+    color: #1e40af;
+    align-self: flex-end;
+    max-width: 90%;
+  }
+}
+
+// ── Thinking spinner ──────────────────────────────────────────────────────
+.ai-thinking {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.83rem;
+}
+
+// ── Error banner ──────────────────────────────────────────────────────────
+.ai-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border-left: 3px solid #ef4444;
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 0.83rem;
+}
+
+// ── HITL confirm ──────────────────────────────────────────────────────────
+.ai-hitl {
+  &__banner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem 1rem;
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    font-size: 0.83rem;
+    color: #92400e;
+  }
+
+  &__preview {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+
+    th {
+      text-align: left;
+      color: #6b7280;
+      padding: 0.3rem 0.5rem;
+      font-weight: 600;
+      width: 40%;
+    }
+
+    td {
+      color: #111827;
+      padding: 0.3rem 0.5rem;
+    }
+
+    tr:nth-child(even) {
+      background: #f9fafb;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}
+
+// ── Follow-up input ───────────────────────────────────────────────────────
+.ai-followup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  textarea {
+    width: 100%;
+    resize: none;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    small {
+      font-size: 0.72rem;
+      color: #9ca3af;
+    }
+  }
+}

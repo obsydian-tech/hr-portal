@@ -16,6 +16,47 @@
   }
 }
 
+// ── AI Mode toggle bar ────────────────────────────────────────────────────
+.ai-mode-toggle-bar {
+  position: fixed;
+  top: 4.25rem;
+  right: 1.25rem;
+  z-index: 900;
+}
+
+.ai-mode-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.875rem;
+  border: 1.5px solid #f59e0b;
+  border-radius: 20px;
+  background: #fff;
+  color: #d97706;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    background: #fffbeb;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+  }
+
+  &--active {
+    background: #fef3c7;
+  }
+
+  &__dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard {
     margin-left: 0;
@@ -25,3 +66,4 @@
     }
   }
 }
+
