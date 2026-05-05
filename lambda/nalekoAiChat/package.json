@@ -3,11 +3,23 @@
   "version": "1.0.0",
   "description": "Lambda: AI Mode — Bedrock Claude Haiku 4.5 + tool resolution for HR Portal",
   "type": "module",
+  "scripts": {
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --testPathPattern=tests/"
+  },
   "dependencies": {
     "@aws-lambda-powertools/logger": "^2.18.0",
     "@aws-lambda-powertools/tracer": "^2.18.0",
     "@aws-sdk/client-bedrock-runtime": "^3.0.0",
     "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
     "@aws-sdk/lib-dynamodb": "^3.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "testMatch": ["**/tests/**/*.test.mjs"]
   }
 }
