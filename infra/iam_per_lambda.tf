@@ -1311,3 +1311,49 @@ resource "aws_iam_role_policy" "serve_agent_manifest" {
     ]
   })
 }
+
+# ─── NH-47: nalekoMcpServer ───────────────────────────────────────────────────
+
+resource "aws_iam_role" "naleko_mcp_server" {
+  name        = "naleko-mcpServer-role"
+  description = "Execution role for nalekoMcpServer Lambda (MCP HTTP+SSE transport)"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "naleko_mcp_server" {
+  name = "naleko-mcpServer-policy"
+  role = aws_iam_role.naleko_mcp_server.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/nalekoMcpServer:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # Resolve the agent API key at Lambda init time
+        Sid      = "ReadAgentApiKey"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:naleko/agent-api-key*"
+      }
+    ]
+  })
+}
