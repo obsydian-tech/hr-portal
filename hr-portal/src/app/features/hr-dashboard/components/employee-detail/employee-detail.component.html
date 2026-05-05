@@ -33,7 +33,7 @@
       </div>
       <div class="flex gap-4 text-sm text-color-secondary mt-2 flex-wrap">
         <span><i class="pi pi-building mr-1"></i> {{ employee.department }}</span>
-        <span><i class="pi pi-id-card mr-1"></i> {{ employee.employee_id?.startsWith('EMP-') ? employee.employee_id : ('#' + employee.employee_id.slice(0, 8).toUpperCase()) }}</span>
+        <span><i class="pi pi-id-card mr-1"></i> {{ employee.employee_id.startsWith('EMP-') ? employee.employee_id : ('#' + employee.employee_id.slice(0, 8).toUpperCase()) }}</span>
         @if (employee.planned_start_date) {
           <span><i class="pi pi-calendar mr-1"></i> Start: {{ employee.planned_start_date | date:'mediumDate' }}</span>
         }
