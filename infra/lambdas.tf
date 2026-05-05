@@ -37,6 +37,8 @@ resource "aws_lambda_function" "create_employee" {
       KMS_KEY_ARN           = module.kms_pii.key_arn
       EVENT_BUS_NAME        = aws_cloudwatch_event_bus.naleko_onboarding.name
       IDEMPOTENCY_TABLE     = aws_dynamodb_table.idempotency_keys.name
+      # NH-42: ARN injected so createEmployee can start the onboarding execution
+      SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.onboarding.arn
     }
   }
 
@@ -124,8 +126,10 @@ resource "aws_lambda_function" "process_document_ocr" {
 
   environment {
     variables = {
-      KMS_KEY_ARN    = module.kms_pii.key_arn
-      EVENT_BUS_NAME = aws_cloudwatch_event_bus.naleko_onboarding.name
+      KMS_KEY_ARN     = module.kms_pii.key_arn
+      EVENT_BUS_NAME  = aws_cloudwatch_event_bus.naleko_onboarding.name
+      # NH-42: read sfn_task_token from employee record to signal Step Functions
+      EMPLOYEES_TABLE = aws_dynamodb_table.employees.name
     }
   }
 
