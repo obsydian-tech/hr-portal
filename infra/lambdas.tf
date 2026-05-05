@@ -442,7 +442,31 @@ resource "aws_lambda_function" "serve_docs" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+# ─── NH-45: serveAgentManifest (serves api/agent-tools.json) ─────────────────
+resource "aws_lambda_function" "serve_agent_manifest" {
+  function_name = "serveAgentManifest"
+  role          = aws_iam_role.serve_agent_manifest.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
 
+  # No env vars — reads bundled tools.json copied from api/agent-tools.json at deploy time
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/serveAgentManifest"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
 # ─── NH-40: summariseVerification (Bedrock Claude 3 Haiku — GET /v1/verifications/{id}/summary) ──
 resource "aws_lambda_function" "summarise_verification" {
   function_name = "summariseVerification"

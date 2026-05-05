@@ -76,6 +76,11 @@ export const handler = async (event) => {
         'employee_id', 'employeeId', 'employee', 'id',
       );
 
+      // NH-45: actor tagging — 'AGENT' (agent API key calls) vs 'HUMAN' (Cognito/HR portal calls).
+      // Publishing Lambdas include actor in the EventBridge detail payload; default to 'HUMAN'
+      // for legacy events that pre-date actor tagging.
+      const actor = extractString(parsedDetail, 'actor') || 'HUMAN';
+
       const item = {
         eventId:    { S: eventId },
         timestamp:  { S: timestamp },
@@ -84,6 +89,7 @@ export const handler = async (event) => {
         detail:     { S: detailRaw },
         busName:    { S: ev['event-bus-name'] ?? process.env.EVENT_BUS_NAME ?? 'naleko-onboarding' },
         region:     { S: ev.region ?? process.env.AWS_REGION ?? 'af-south-1' },
+        actor:      { S: actor },
         // Only write employeeId if we found one (avoids empty-string GSI entries)
         ...(employeeId ? { employeeId: { S: employeeId } } : {}),
       };
@@ -95,7 +101,7 @@ export const handler = async (event) => {
         ConditionExpression: 'attribute_not_exists(eventId)',
       }));
 
-      logger.info('Audit record written', { eventId, source, detailType, employeeId: employeeId || '(none)' });
+      logger.info('Audit record written', { eventId, source, detailType, actor, employeeId: employeeId || '(none)' });
       return { eventId, source, detailType };
     })
   );
