@@ -575,3 +575,93 @@ resource "aws_lambda_function" "send_notification_email" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+# ─── NH-43: agentAuthorizer (HTTP API key Lambda authorizer) ─────────────────
+resource "aws_lambda_function" "agent_api_authorizer" {
+  function_name = "agentAuthorizer"
+  role          = aws_iam_role.agent_api_authorizer.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      AGENT_API_KEY_SECRET_NAME = aws_secretsmanager_secret.agent_api_key.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/agentAuthorizer"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── NH-43: getEmployee (single employee lookup for agent namespace) ──────────
+resource "aws_lambda_function" "get_employee" {
+  function_name = "getEmployee"
+  role          = aws_iam_role.get_employee.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 15
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      EMPLOYEES_TABLE = aws_dynamodb_table.employees.name
+      KMS_KEY_ARN     = module.kms_pii.key_arn
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getEmployee"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── NH-43: queryAuditLog (agent read of onboarding-events table) ─────────────
+resource "aws_lambda_function" "query_audit_log" {
+  function_name = "queryAuditLog"
+  role          = aws_iam_role.query_audit_log.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 15
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      AUDIT_TABLE = aws_dynamodb_table.onboarding_events.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/queryAuditLog"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
