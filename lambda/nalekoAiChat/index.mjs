@@ -16,6 +16,7 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 import { Logger }  from '@aws-lambda-powertools/logger';
 import { Tracer }  from '@aws-lambda-powertools/tracer';
 import { resolveToolCall, TOOL_DEFINITIONS } from './tool-resolver.mjs';
+import { sanitisePii } from './pii-sanitiser.mjs';
 
 const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
@@ -277,12 +278,19 @@ export const handler = async (event) => {
   });
 
   // ── 5. Return AiChatResponse ──────────────────────────────────────────────
+  // NH-56: sanitise PII from Claude's final narrative before sending to frontend
+  const pii = sanitisePii(loopResult.finalText);
+  if (pii.fired) {
+    logger.warn('PII sanitiser fired', { matchedPatterns: pii.matchedPatterns, staffId });
+  }
+
   const response = {
-    message:         loopResult.finalText,
+    message:         pii.sanitised,
     toolCallsMade:   loopResult.toolCallsMade.map(t => ({ tool: t.toolName, isError: t.isError })),
     conversationId:  `${staffId}-${Date.now()}`,
     structuredData:  loopResult.structuredData,
     latencyMs,
+    guardrailAction: pii.fired ? 'MASKED' : 'NONE',
     ...(loopResult.hitl ? { hitl: true, hitlDraft: loopResult.hitlDraft } : {}),
   };
 
