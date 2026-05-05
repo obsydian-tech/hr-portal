@@ -74,7 +74,7 @@ async function dispatch(msg) {
       }
 
       try {
-        const result = await tool.callback(toolArgs, {
+        const result = await tool.handler(toolArgs, {
           signal: AbortSignal.timeout(25_000),
           sendNotification: async () => {},
           sendRequest: async () => ({}),
