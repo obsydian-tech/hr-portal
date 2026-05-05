@@ -1395,9 +1395,9 @@ resource "aws_iam_role_policy" "get_batch_risk_report" {
       },
       {
         # NH-55: Full scan of employees table (manager/agent scope)
-        Sid    = "DynamoDBReadEmployees"
-        Effect = "Allow"
-        Action = ["dynamodb:Scan"]
+        Sid      = "DynamoDBReadEmployees"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Scan"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
       },
       {
