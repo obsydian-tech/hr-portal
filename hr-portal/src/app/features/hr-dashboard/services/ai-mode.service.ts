@@ -158,6 +158,7 @@ export class AiModeService {
     this.isLoading.set(true);
     this.pendingAction.set(null);
 
+    // confirmEndpoint is /agent/v1/employees — on the agent API (x-api-key).
     this.http
       .post<{ employee: { employee_id: string } }>(
         `${this.baseUrl}${action.confirmEndpoint}`,

@@ -174,25 +174,25 @@ export const TOOL_MAP = {
    * NH-53: always scopes to created_by={staffId} so the clerk only sees their own employees.
    */
   list_employees: (args, context) =>
-    agentGet(`/employees${qs({ limit: args.limit ?? 20, created_by: context.staffId })}`),
+    agentGet(`/agent/v1/employees${qs({ limit: args.limit ?? 20, created_by: context.staffId })}`),
 
   get_employee: (args, _context) =>
-    agentGet(`/employees/${encodeURIComponent(args.id)}`),
+    agentGet(`/agent/v1/employees/${encodeURIComponent(args.id)}`),
 
   assess_employee_risk: (args, _context) =>
-    agentPost(`/employees/${encodeURIComponent(args.id)}/assess-risk`, {}),
+    agentPost(`/agent/v1/employees/${encodeURIComponent(args.id)}/assess-risk`, {}),
 
   list_verifications: (args, _context) =>
-    agentGet(`/verifications${qs({ status: args.status, limit: args.limit })}`),
+    agentGet(`/agent/v1/verifications${qs({ status: args.status, limit: args.limit })}`),
 
   get_verification_summary: (args, _context) =>
-    agentGet(`/verifications/${encodeURIComponent(args.id)}/summary`),
+    agentGet(`/agent/v1/verifications/${encodeURIComponent(args.id)}/summary`),
 
   /**
    * NH-53: always appends staffId so the audit log query is clerk-scoped.
    */
   query_audit_log: (args, context) =>
-    agentGet(`/audit-log${qs({ employeeId: args.employeeId, staffId: context.staffId })}`),
+    agentGet(`/agent/v1/audit-log${qs({ employeeId: args.employeeId, staffId: context.staffId })}`),
 
   /**
    * NH-55: single call returns all employees grouped by risk band.
@@ -205,15 +205,17 @@ export const TOOL_MAP = {
    * HITL gate (NH-53 / NH-58): NEVER calls agentPost.
    * Returns { hitl: true, draft: { ... } } — frontend must confirm before submission.
    */
+  // NH-58: draft keys mapped to snake_case to match createEmployee Lambda expectations.
+  // confirmEndpoint targets the employees API (Cognito JWT, not agent x-api-key).
   onboard_new_employee: (args, _context) => ({
     hitl:    true,
     draft:   {
-      firstName:   args.firstName,
-      lastName:    args.lastName,
+      first_name:  args.firstName,
+      last_name:   args.lastName,
       email:       args.email,
       department:  args.department,
-      role:        args.role,
-      phoneNumber: args.phoneNumber ?? null,
+      job_title:   args.role ?? '',
+      phone:       args.phoneNumber ?? '',
     },
     message: 'Please review the employee details above and confirm to proceed with onboarding.',
   }),

@@ -22,7 +22,7 @@ const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
-const MODEL_ID   = process.env.BEDROCK_MODEL_ID ?? 'anthropic.claude-haiku-4-5-20251001-v1:0';
+const MODEL_ID   = process.env.BEDROCK_MODEL_ID ?? 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
 const MAX_TOKENS = 2048;
 const MAX_TOOL_ROUNDS = 5; // guard against infinite loops
 
@@ -258,11 +258,15 @@ export const handler = async (event) => {
     slots                = {},
     screenContext        = {},
     conversationHistory  = [],   // prior turns [{ role, content }]
+    followUpText         = '',   // only present for templateId 'follow_up'
   } = body;
 
   // NH-58: message is optional for slot-driven templates — synthesise a directive
   // so Claude still receives clear intent even when the Angular client omits it.
-  const effectiveMessage = userMessage.trim() || synthesiseMessage(templateId, slots);
+  // For follow-up turns, use the free-text the HR clerk typed.
+  const effectiveMessage =
+    (templateId === 'follow_up' ? followUpText : userMessage).trim()
+    || synthesiseMessage(templateId, slots);
 
   logger.info('AI chat request', { staffId, templateId, screenContext });
 
@@ -310,13 +314,14 @@ export const handler = async (event) => {
     structuredData:  loopResult.structuredData,
     latencyMs,
     guardrailAction: pii.fired ? 'MASKED' : 'NONE',
-    // NH-58: status + pendingAction shape aligns with Angular AiChatResponse model
+    // NH-58: status + pendingAction shape aligns with Angular AiChatResponse model.
+    // confirmEndpoint targets employees API (Cognito JWT) — not the agent API.
     status: loopResult.hitl ? 'PENDING_APPROVAL' : 'COMPLETE',
     ...(loopResult.hitl ? {
       pendingAction: {
         type:            'CREATE_EMPLOYEE',
         draft:           loopResult.hitlDraft,
-        confirmEndpoint: '/agent/v1/employees',
+        confirmEndpoint: '/v1/employees',
       },
     } : {}),
   };
