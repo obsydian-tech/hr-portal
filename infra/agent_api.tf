@@ -290,6 +290,31 @@ resource "aws_lambda_permission" "serve_agent_manifest" {
   source_arn    = "${aws_apigatewayv2_api.agent_api.execution_arn}/*/*"
 }
 
+# ─── NH-55: GET /agent/v1/employees/risk-report ─────────────────────────────
+
+resource "aws_apigatewayv2_integration" "agent_batch_risk_report" {
+  api_id                 = aws_apigatewayv2_api.agent_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_batch_risk_report.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "agent_batch_risk_report" {
+  api_id             = aws_apigatewayv2_api.agent_api.id
+  route_key          = "GET /agent/v1/employees/risk-report"
+  target             = "integrations/${aws_apigatewayv2_integration.agent_batch_risk_report.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.agent_api_key.id
+}
+
+resource "aws_lambda_permission" "agent_batch_risk_report" {
+  statement_id  = "AllowAgentAPIInvokeGetBatchRiskReport"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_batch_risk_report.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.agent_api.execution_arn}/*/*"
+}
+
 # ─── Output ───────────────────────────────────────────────────────────────────
 
 output "agent_api_endpoint" {
