@@ -69,6 +69,9 @@
           [loading]="riskLoading()"
           [outlined]="true"
           size="small"
+          [disabled]="!summary || summary.total === 0"
+          [pTooltip]="!summary || summary.total === 0 ? 'No documents to assess' : ''"
+          tooltipPosition="top"
           (onClick)="assessRisk()"
         />
       </div>

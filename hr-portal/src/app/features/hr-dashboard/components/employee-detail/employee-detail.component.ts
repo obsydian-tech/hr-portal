@@ -19,6 +19,7 @@ import { TagModule } from 'primeng/tag';
 import { SkeletonModule } from 'primeng/skeleton';
 import { DividerModule } from 'primeng/divider';
 import { ProgressBarModule } from 'primeng/progressbar';
+import { TooltipModule } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-employee-detail',
@@ -31,6 +32,7 @@ import { ProgressBarModule } from 'primeng/progressbar';
     SkeletonModule,
     DividerModule,
     ProgressBarModule,
+    TooltipModule,
   ],
   templateUrl: './employee-detail.component.html',
   styleUrl: './employee-detail.component.scss',

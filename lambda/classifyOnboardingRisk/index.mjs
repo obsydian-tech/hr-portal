@@ -9,11 +9,11 @@ import {
 } from '@aws-sdk/client-bedrock-runtime';
 
 const dynamo = new DynamoDBClient({});
-const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+const bedrock = new BedrockRuntimeClient({ region: 'af-south-1' });
 
 const VERIFICATIONS_TABLE = process.env.VERIFICATIONS_TABLE;
 const EMPLOYEES_TABLE = process.env.EMPLOYEES_TABLE;
-const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'anthropic.claude-3-haiku-20240307-v1:0';
+const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
 
 /**
  * POST /v1/employees/{id}/assess-risk
