@@ -22,7 +22,7 @@ const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
-const MODEL_ID   = process.env.BEDROCK_MODEL_ID ?? 'eu.anthropic.claude-haiku-4-5-20251001-v1:0';
+const MODEL_ID   = process.env.BEDROCK_MODEL_ID ?? 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
 const MAX_TOKENS = 2048;
 const MAX_TOOL_ROUNDS = 5; // guard against infinite loops
 
