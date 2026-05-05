@@ -1357,3 +1357,66 @@ resource "aws_iam_role_policy" "naleko_mcp_server" {
     ]
   })
 }
+
+# ─── NH-55: getBatchRiskReport ────────────────────────────────────────────────
+resource "aws_iam_role" "get_batch_risk_report" {
+  name        = "naleko-getBatchRiskReport-role"
+  description = "Execution role for getBatchRiskReport Lambda - batch risk classification"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_batch_risk_report" {
+  name = "naleko-getBatchRiskReport-policy"
+  role = aws_iam_role.get_batch_risk_report.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getBatchRiskReport:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # NH-55: Full scan of employees table (manager/agent scope)
+        Sid      = "DynamoDBReadEmployees"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Scan"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        # NH-55: Query verifications per employee via GSI
+        Sid    = "DynamoDBQueryVerifications"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification/index/employeeId-index",
+        ]
+      },
+      {
+        # NH-55: invoke Bedrock for batch risk classification (max 5 concurrent)
+        Sid      = "BedrockInvokeModel"
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
+        Resource = "*"
+      }
+    ]
+  })
+}

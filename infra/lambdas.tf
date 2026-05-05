@@ -760,3 +760,36 @@ resource "aws_lambda_function" "query_audit_log" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+
+# ─── NH-55: getBatchRiskReport ────────────────────────────────────────────────
+resource "aws_lambda_function" "get_batch_risk_report" {
+  function_name = "getBatchRiskReport"
+  role          = aws_iam_role.get_batch_risk_report.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 512
+  timeout       = 60 # 34+ employees * up to 5 concurrent Bedrock calls; 60s safe ceiling
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      VERIFICATIONS_TABLE = aws_dynamodb_table.document_verification.name
+      EMPLOYEES_TABLE     = aws_dynamodb_table.employees.name
+      BEDROCK_MODEL_ID    = "anthropic.claude-haiku-4-5-20251001-v1:0"
+      AWS_REGION_NAME     = var.aws_region
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getBatchRiskReport"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
