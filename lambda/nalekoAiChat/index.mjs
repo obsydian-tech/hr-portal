@@ -40,6 +40,29 @@ Rules:
 - If a tool call fails, explain what went wrong and suggest next steps.
 - Always operate on behalf of the authenticated HR clerk. Never impersonate another user.`;
 
+// ─── Template → message synthesiser (NH-58) ─────────────────────────────────
+
+/**
+ * When Angular sends a slot-driven template without a freeform message,
+ * synthesise a directive so Claude understands the intent.
+ */
+function synthesiseMessage(templateId, slots) {
+  const slotSummary = Object.entries(slots ?? {})
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(', ');
+
+  const base = {
+    high_risk_employees:            'Show me all high-risk employees.',
+    risk_assessment:                `Run a risk assessment for employee ${slots?.employeeId ?? ''}.`,
+    document_verification_summary:  `Summarise document verifications for employee ${slots?.employeeId ?? ''}.`,
+    verifications_by_status:        `List verifications with status "${slots?.status ?? 'PENDING'}".`,
+    audit_log:                      `Show the audit log for employee ${slots?.employeeId ?? ''}.`,
+    onboard_employee:               `Onboard a new employee: ${slotSummary}.`,
+    employees_by_department:        `List employees in the ${slots?.department ?? ''} department.`,
+  };
+  return base[templateId] ?? `Execute the ${templateId} task. ${slotSummary}`.trim();
+}
+
 // ─── XML prompt builder ───────────────────────────────────────────────────────
 
 /**
@@ -237,18 +260,14 @@ export const handler = async (event) => {
     conversationHistory  = [],   // prior turns [{ role, content }]
   } = body;
 
-  if (!userMessage.trim()) {
-    return {
-      statusCode: 400,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'message is required' }),
-    };
-  }
+  // NH-58: message is optional for slot-driven templates — synthesise a directive
+  // so Claude still receives clear intent even when the Angular client omits it.
+  const effectiveMessage = userMessage.trim() || synthesiseMessage(templateId, slots);
 
   logger.info('AI chat request', { staffId, templateId, screenContext });
 
   // ── 3. Build messages array ───────────────────────────────────────────────
-  const userXml = buildUserMessage(templateId, slots, screenContext, staffId, userMessage);
+  const userXml = buildUserMessage(templateId, slots, screenContext, staffId, effectiveMessage);
 
   // Replay prior turns then append this turn
   const messages = [
@@ -291,7 +310,15 @@ export const handler = async (event) => {
     structuredData:  loopResult.structuredData,
     latencyMs,
     guardrailAction: pii.fired ? 'MASKED' : 'NONE',
-    ...(loopResult.hitl ? { hitl: true, hitlDraft: loopResult.hitlDraft } : {}),
+    // NH-58: status + pendingAction shape aligns with Angular AiChatResponse model
+    status: loopResult.hitl ? 'PENDING_APPROVAL' : 'COMPLETE',
+    ...(loopResult.hitl ? {
+      pendingAction: {
+        type:            'CREATE_EMPLOYEE',
+        draft:           loopResult.hitlDraft,
+        confirmEndpoint: '/agent/v1/employees',
+      },
+    } : {}),
   };
 
   return {

@@ -146,8 +146,10 @@ export class AiModeService {
   }
 
   /**
-   * Called when HR staff click "Approve & Create" on the HITL modal.
-   * Sends the draft payload to the confirmEndpoint from the Lambda response.
+   * NH-58: Called when HR staff click "Approve & Create" on the HITL modal.
+   * 1. POSTs draft to confirmEndpoint (/agent/v1/employees)
+   * 2. Parses employeeId from the created record
+   * 3. Automatically runs the risk_assessment template for the new employee
    */
   confirmHitlAction(): void {
     const action = this.pendingAction();
@@ -157,19 +159,50 @@ export class AiModeService {
     this.pendingAction.set(null);
 
     this.http
-      .post(`${this.baseUrl}${action.confirmEndpoint}`, action.draft)
+      .post<{ employee: { employee_id: string } }>(
+        `${this.baseUrl}${action.confirmEndpoint}`,
+        action.draft,
+      )
       .subscribe({
-        next: () => {
-          this.isLoading.set(false);
+        next: (createRes) => {
+          const employeeId = createRes?.employee?.employee_id ?? '';
+
+          // Show creation confirmation in the thread
           this.conversationHistory.update((h) => [
             ...h,
-            { role: 'assistant', content: '✅ Done — employee created successfully.' },
+            {
+              role: 'assistant',
+              content: `✅ Employee created successfully${employeeId ? ` — ID: \`${employeeId}\`` : ''}. Running risk assessment…`,
+            },
           ]);
-          this.canFollowUp.set(true);
+
+          if (!employeeId) {
+            // No ID returned — skip risk assessment
+            this.isLoading.set(false);
+            this.canFollowUp.set(true);
+            return;
+          }
+
+          // Auto-trigger risk_assessment for the newly created employee
+          const riskRequest: AiChatRequest = {
+            templateId: 'risk_assessment',
+            slots: { employeeId },
+            conversationHistory: this.conversationHistory(),
+            screenContext: this.getScreenContext(),
+          };
+
+          this._post(riskRequest).subscribe({
+            next: (riskRes) => this._handleResponse(riskRes, riskRequest.slots),
+            error: () => {
+              this.isLoading.set(false);
+              this.errorMessage.set('Employee created, but risk assessment failed. Please run it manually.');
+              this.canFollowUp.set(true);
+            },
+          });
         },
         error: () => {
           this.isLoading.set(false);
-          this.errorMessage.set('Failed to complete the action. Please try again.');
+          this.errorMessage.set('Failed to create the employee. Please try again.');
         },
       });
   }
