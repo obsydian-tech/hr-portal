@@ -293,7 +293,11 @@
                 dateFormat="yy-mm-dd"
                 placeholder="Select date"
                 styleClass="w-full"
+                [maxDate]="today"
+                appendTo="body"
+                [showButtonBar]="true"
               />
+              <small class="text-color-secondary">Today or earlier</small>
             </div>
 
             <div class="col-12 md:col-6 mb-3">
@@ -305,7 +309,11 @@
                 dateFormat="yy-mm-dd"
                 placeholder="Select date"
                 styleClass="w-full"
+                [minDate]="tomorrow"
+                appendTo="body"
+                [showButtonBar]="true"
               />
+              <small class="text-color-secondary">Must be a future date</small>
             </div>
           </div>
         </p-card>
