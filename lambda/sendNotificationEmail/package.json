@@ -1,0 +1,11 @@
+{
+  "name": "send-notification-email-lambda",
+  "version": "1.0.0",
+  "description": "Lambda: send document lifecycle and onboarding completion emails via Postmark",
+  "type": "module",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0",
+    "@aws-lambda-powertools/tracer": "^2.18.0",
+    "postmark": "^4.0.5"
+  }
+}
