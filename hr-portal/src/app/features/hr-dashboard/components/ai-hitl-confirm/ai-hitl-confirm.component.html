@@ -1,0 +1,32 @@
+<div class="ai-hitl">
+  <div class="ai-hitl__banner">
+    <i class="pi pi-exclamation-triangle"></i>
+    <strong>Human approval required</strong>
+    <span>Review the details below before confirming this action.</span>
+  </div>
+
+  <table class="ai-hitl__preview">
+    <tbody>
+      @for (entry of draftEntries(); track entry.key) {
+        <tr>
+          <th>{{ entry.key }}</th>
+          <td>{{ entry.value }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  <div class="ai-hitl__actions">
+    <p-button
+      label="Cancel"
+      severity="secondary"
+      [text]="true"
+      (onClick)="cancelled.emit()" />
+
+    <p-button
+      label="Approve & Create"
+      severity="warn"
+      icon="pi pi-check"
+      (onClick)="approved.emit()" />
+  </div>
+</div>

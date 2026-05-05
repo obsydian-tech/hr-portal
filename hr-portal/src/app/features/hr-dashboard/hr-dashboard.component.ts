@@ -7,6 +7,8 @@ import { getHrStaffById } from '../../shared/constants/hr-staff';
 import { NotificationService } from '../../core/services/notification.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Verification } from '../../shared/models/employee.model';
+import { AiModePanelComponent } from './components/ai-mode-panel/ai-mode-panel.component';
+import { AiModeService } from './services/ai-mode.service';
 
 
 @Component({
@@ -17,6 +19,7 @@ import { Verification } from '../../shared/models/employee.model';
     SidebarComponent,
     TopbarComponent,
     FooterComponent,
+    AiModePanelComponent,
   ],
   providers: [NotificationService], // Provide at dashboard level for all child routes
   templateUrl: './hr-dashboard.component.html',
@@ -28,6 +31,7 @@ export class HrDashboardComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly authService = inject(AuthService);
   readonly notificationService = inject(NotificationService);
+  readonly aiMode = inject(AiModeService);
 
   readonly staffId = input<string>('');
 
