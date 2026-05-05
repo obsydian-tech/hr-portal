@@ -30,11 +30,13 @@ async function kmsDecrypt(ciphertext) {
 }
 
 const handlerFn = async (event) => {
-  logger.info('Handler invoked', { path: event.path, employeeId: event.pathParameters?.employee_id });
+  logger.info('Handler invoked', { path: event.path, employeeId: event.pathParameters?.id || event.pathParameters?.employee_id });
   tracer.putAnnotation('operation', 'getEmployeeDocumentVerifications');
 
   try {
-    const employeeId = event.pathParameters?.employee_id;
+    // API GW route is /v1/employees/{id}/verifications — passes pathParameters.id
+    // Support both {id} (current route) and {employee_id} (legacy) to be safe
+    const employeeId = event.pathParameters?.id || event.pathParameters?.employee_id;
 
     if (!employeeId) {
       return {
