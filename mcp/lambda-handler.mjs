@@ -1,9 +1,15 @@
 /**
  * NH-47: Lambda handler for the Naleko MCP Server (HTTP+SSE transport)
  *
- * AWS Lambda Function URL (RESPONSE_STREAM invoke mode) is the recommended
- * transport for a remotely-accessible MCP server. The MCP SDK's
- * StreamableHTTPServerTransport handles the SSE session lifecycle.
+ * Uses an in-process Node.js HTTP server so that StreamableHTTPServerTransport
+ * receives real IncomingMessage / ServerResponse objects (it uses @hono/node-server
+ * internally which requires res.writeHead — Lambda responseStream does not have it).
+ *
+ * Architecture:
+ *   Lambda invocation → forward event as real HTTP request to 127.0.0.1:PORT
+ *   → in-process http.Server → StreamableHTTPServerTransport.handleRequest
+ *   → MCP SDK (Hono node adapter) → real ServerResponse
+ *   → pipe response back out through Lambda responseStream
  *
  * Environment variables (set in infra/lambdas.tf):
  *   NALEKO_AGENT_KEY   — resolved from Secrets Manager at deploy time
@@ -12,46 +18,101 @@
  *   NALEKO_HR_API_KEY  — if separate from agent key; defaults to NALEKO_AGENT_KEY
  */
 
+import { createServer, request as httpRequest } from 'http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { server } from './server.mjs';
 
-// Keep transport alive across warm invocations (Lambda execution context reuse)
-let transport;
+// Kept alive across warm Lambda invocations
+let internalHttpServer = null;
+
+async function getInternalServer() {
+  if (internalHttpServer) return internalHttpServer;
+
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => crypto.randomUUID(),
+  });
+  await server.connect(transport);
+
+  internalHttpServer = createServer(async (req, res) => {
+    try {
+      await transport.handleRequest(req, res);
+    } catch (err) {
+      console.error('MCP transport error:', err);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+      }
+      res.end(JSON.stringify({ error: String(err.message) }));
+    }
+  });
+
+  await new Promise((resolve, reject) => {
+    internalHttpServer.listen(0, '127.0.0.1', (err) => {
+      if (err) reject(err); else resolve();
+    });
+  });
+
+  console.log('Internal HTTP server listening on port', internalHttpServer.address().port);
+  return internalHttpServer;
+}
 
 export const handler = awslambda.streamifyResponse(async (event, responseStream) => {
-  // MCP requires HTTP+SSE — reject non-MCP requests early
-  const method  = event.requestContext?.http?.method ?? event.httpMethod ?? 'GET';
-  const path    = event.requestContext?.http?.path   ?? event.path ?? '/';
+  const method = event.requestContext?.http?.method ?? event.httpMethod ?? 'GET';
+  const path   = event.requestContext?.http?.path   ?? event.path ?? '/';
 
+  // Fast-path health check — no MCP machinery needed
   if (method === 'GET' && path === '/health') {
-    const meta = awslambda.HttpResponseStream.from(responseStream, {
+    const out = awslambda.HttpResponseStream.from(responseStream, {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-    meta.write(JSON.stringify({ status: 'ok', server: 'naleko-mcp', version: '1.0.0' }));
-    meta.end();
+    out.write(JSON.stringify({ status: 'ok', server: 'naleko-mcp', version: '1.0.0' }));
+    out.end();
     return;
   }
 
-  if (!transport) {
-    transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => crypto.randomUUID(),
-    });
-    await server.connect(transport);
-  }
+  const srv  = await getInternalServer();
+  const port = srv.address().port;
 
-  // Decode body — Lambda Function URL delivers it as base64 when binary
-  const bodyStr = event.isBase64Encoded
-    ? Buffer.from(event.body ?? '', 'base64').toString('utf8')
-    : (event.body ?? '');
+  // Decode body
+  const body = event.isBase64Encoded
+    ? Buffer.from(event.body ?? '', 'base64')
+    : Buffer.from(event.body ?? '', 'utf8');
 
-  const headers = {};
+  // Normalise headers — Lambda gives them lowercased already, but be safe
+  const reqHeaders = {};
   for (const [k, v] of Object.entries(event.headers ?? {})) {
-    headers[k.toLowerCase()] = v;
+    reqHeaders[k.toLowerCase()] = v;
   }
+  reqHeaders['content-length'] = String(body.length);
 
-  await transport.handleRequest(
-    { method, headers, body: bodyStr },
-    responseStream,
-  );
+  const qs = event.rawQueryString ? '?' + event.rawQueryString : '';
+
+  // Forward as a real HTTP request to the in-process server
+  const incomingRes = await new Promise((resolve, reject) => {
+    const req = httpRequest(
+      {
+        hostname: '127.0.0.1',
+        port,
+        path: path + qs,
+        method,
+        headers: reqHeaders,
+      },
+      resolve,
+    );
+    req.on('error', reject);
+    if (body.length > 0) req.write(body);
+    req.end();
+  });
+
+  // Stream response back through Lambda responseStream
+  const out = awslambda.HttpResponseStream.from(responseStream, {
+    statusCode: incomingRes.statusCode ?? 200,
+    headers: incomingRes.headers,
+  });
+
+  await new Promise((resolve, reject) => {
+    incomingRes.on('error', reject);
+    incomingRes.on('data', (chunk) => out.write(chunk));
+    incomingRes.on('end', () => { out.end(); resolve(); });
+  });
 });
