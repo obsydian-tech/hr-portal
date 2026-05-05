@@ -206,3 +206,124 @@ echo "=== Demo complete ==="
 | `404 Not Found` | Wrong employee/verification UUID | Use IDs returned by the list commands above |
 | `409 Conflict` | Duplicate idempotency key | Re-run with a fresh `$(uuidgen)` |
 | `502 Bad Gateway` | Lambda cold start timeout | Retry once; cold starts are under 2s |
+
+---
+
+## Connecting via MCP (Model Context Protocol)
+
+### What this means for the business
+
+Instead of a developer writing `curl` commands, an AI assistant (Claude, Cursor, or any MCP-compatible client) can talk directly to the Naleko HR Portal through a controlled gateway — the **Naleko MCP Server**.
+
+The AI sees exactly **7 declared tools** and nothing else:
+
+| Tool | What it does |
+|------|-------------|
+| `list_employees` | Page through all employees |
+| `get_employee` | Fetch a single employee record |
+| `list_verifications` | List document verifications by status |
+| `get_verification_summary` | Deep-dive on one verification |
+| `assess_employee_risk` | Trigger the AI risk engine for an employee |
+| `query_audit_log` | Pull the compliance audit trail |
+| `onboard_new_employee` | **Composite** — create employee + assess risk in one call |
+
+The AI cannot browse the database, call undeclared endpoints, or escalate beyond what these 7 tools permit. The same `naleko/agent-api-key` from AWS Secrets Manager is used for every call, so all actions are attributable and auditable.
+
+---
+
+### Step 1 — Get the MCP Server URL after deployment
+
+```bash
+cd infra
+terraform output mcp_server_url
+# e.g. https://abc123.lambda-url.af-south-1.on.aws/
+```
+
+---
+
+### Step 2 — Verify the server is running
+
+```bash
+curl https://<MCP_SERVER_URL>/health
+# {"status":"ok","server":"naleko-mcp","version":"1.0.0"}
+```
+
+---
+
+### Step 3 — Configure Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "naleko-hr-portal": {
+      "transport": "http",
+      "url": "https://<MCP_SERVER_URL>/mcp",
+      "headers": {
+        "x-api-key": "<NALEKO_AGENT_KEY>"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop. You will see **naleko-hr-portal** appear in the tools panel.
+
+---
+
+### Step 4 — Configure Cursor
+
+Create or edit `.cursor/mcp.json` in the repository root:
+
+```json
+{
+  "mcpServers": {
+    "naleko-hr-portal": {
+      "transport": "http",
+      "url": "https://<MCP_SERVER_URL>/mcp",
+      "headers": {
+        "x-api-key": "<NALEKO_AGENT_KEY>"
+      }
+    }
+  }
+}
+```
+
+Reload the Cursor window. The 7 tools will be available in Cursor Agent mode.
+
+---
+
+### Retrieve the API key from Secrets Manager
+
+```bash
+export NALEKO_AGENT_KEY=$(aws secretsmanager get-secret-value \
+  --secret-id naleko/agent-api-key \
+  --query SecretString --output text)
+echo $NALEKO_AGENT_KEY
+```
+
+Replace `<NALEKO_AGENT_KEY>` in the config snippets above with this value.
+
+---
+
+### Example AI prompt (Claude Desktop or Cursor)
+
+> "List the employees with a HIGH risk score added in the last 30 days, then pull the audit log for each one."
+
+The AI will automatically chain `list_employees` → `assess_employee_risk` → `query_audit_log` without any developer scripting.
+
+---
+
+### Local development (stdio transport)
+
+For local testing without a deployed Lambda:
+
+```bash
+cd mcp
+npm install
+NALEKO_AGENT_KEY=<key> REST_API_BASE=https://api.naleko.co.za AGENT_API_BASE=https://api.naleko.co.za \
+  npx @modelcontextprotocol/inspector node server.mjs
+```
+
+The MCP Inspector opens at `http://localhost:5173` — you can invoke all 7 tools interactively.
