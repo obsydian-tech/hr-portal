@@ -39,10 +39,11 @@ const CORS_HEADERS = {
 };
 
 const handlerFn = async (event) => {
-  logger.info('Handler invoked', { documentId: event.pathParameters?.document_id });
+  // API GW route is PATCH /v1/verifications/{id}/review — passes pathParameters.id
+  const documentId = event.pathParameters?.id || event.pathParameters?.document_id;
+  logger.info('Handler invoked', { documentId });
   tracer.putAnnotation('operation', 'reviewDocumentVerification');
 
-  const documentId = event.pathParameters?.document_id;
   if (!documentId) {
     return respond(400, { error: 'Missing document_id path parameter' });
   }

@@ -126,6 +126,19 @@ resource "aws_dynamodb_table" "document_verification" {
     type = "S"
   }
 
+  # NH-41: employeeId-index — used by classifyOnboardingRisk to query all
+  #        verifications for an employee without a full-table Scan
+  attribute {
+    name = "employeeId"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "employeeId-index"
+    hash_key        = "employeeId"
+    projection_type = "ALL"
+  }
+
   server_side_encryption {
     enabled     = true
     kms_key_arn = module.kms_pii.key_arn

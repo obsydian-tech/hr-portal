@@ -23,7 +23,8 @@ const handlerFn = async (event) => {
   };
 
   try {
-    const documentId = event.pathParameters?.document_id;
+    // API GW route is GET /v1/documents/{id}/url — passes pathParameters.id
+    const documentId = event.pathParameters?.id || event.pathParameters?.document_id;
     tracer.putAnnotation('operation', 'getDocumentPresignedUrl');
     if (documentId) tracer.putAnnotation('documentId', documentId);
     if (!documentId) {
