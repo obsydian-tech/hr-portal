@@ -67,3 +67,32 @@ img {
 
 /* === Inter Font Import === */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* === Manrope Font Import (Naleko headlines) === */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+/* === AI Assistant Drawer — global header override ======================= */
+/* Must live here (not ::ng-deep) so Angular encapsulation doesn't strip it */
+.ai-mode-drawer .p-drawer-header,
+.ai-mode-drawer [data-pc-section="header"] {
+  background: #16124d !important;
+  min-height: 60px !important;
+  padding: 0 1.25rem !important;
+  border-bottom: none !important;
+  align-items: center !important;
+}
+
+.ai-mode-drawer .p-drawer-close-button,
+.ai-mode-drawer [data-pc-section="closebutton"] {
+  color: rgba(255, 255, 255, 0.55) !important;
+
+  &:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  svg, .p-icon {
+    color: inherit !important;
+    fill: currentColor !important;
+  }
+}

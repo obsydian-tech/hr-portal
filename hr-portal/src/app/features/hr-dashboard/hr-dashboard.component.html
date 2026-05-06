@@ -21,20 +21,20 @@
   (viewAllNotifications)="onViewAllNotifications()"
 />
 
-<!-- AI Mode toggle button -->
+<!-- AI Assistant toggle button -->
 <div class="ai-mode-toggle-bar">
   <button
     type="button"
     class="ai-mode-toggle-btn"
     [class.ai-mode-toggle-btn--active]="aiMode.panelVisible()"
     (click)="aiMode.openPanel()"
-    aria-label="Open AI Mode">
+    aria-label="Open AI Assistant">
     <span class="ai-mode-toggle-btn__dot"></span>
-    <span>✦ AI Mode</span>
+    <span>✦ AI Assistant</span>
   </button>
 </div>
 
-<!-- AI Mode panel (p-drawer) -->
+<!-- AI Assistant panel (p-drawer) -->
 <app-ai-mode-panel />
 
 <main class="dashboard">

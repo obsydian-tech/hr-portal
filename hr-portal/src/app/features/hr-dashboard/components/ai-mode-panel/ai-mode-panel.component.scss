@@ -1,19 +1,18 @@
-// NH-57: AI Mode Panel styles
+// NH-57: AI Assistant Panel styles
 
-// ── CSS custom property — amber accent ────────────────────────────────────
+// ── CSS custom properties ─────────────────────────────────────────────────
 :root {
+  --naleko-ai-navy: #16124d;
+  --naleko-ai-navy-hover: rgba(22, 18, 77, 0.06);
   --naleko-ai-amber: #f59e0b;
-  --naleko-ai-amber-light: rgba(245, 158, 11, 0.07);
+  --naleko-ai-amber-light: rgba(245, 158, 11, 0.04);
 }
 
 // ── Drawer overrides ──────────────────────────────────────────────────────
 :host ::ng-deep .ai-mode-drawer {
-  border-left: 3px solid var(--naleko-ai-amber);
-  background: linear-gradient(
-    160deg,
-    var(--naleko-ai-amber-light) 0%,
-    #ffffff 30%
-  );
+  border-left: none;
+  box-shadow: -8px 0px 48px rgba(22, 18, 77, 0.14), -2px 0px 12px rgba(22, 18, 77, 0.06);
+  background: #ffffff;
 }
 
 // ── Header ────────────────────────────────────────────────────────────────
@@ -28,87 +27,34 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--naleko-ai-amber);
-  box-shadow: 0 0 6px 2px rgba(245, 158, 11, 0.5);
+  background: #7c3aed;
+  box-shadow: 0 0 8px rgba(124, 58, 237, 0.7);
   animation: ai-pulse 2s ease-in-out infinite;
 }
 
 @keyframes ai-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(124, 58, 237, 0.7); }
+  50% { opacity: 0.5; box-shadow: 0 0 4px rgba(124, 58, 237, 0.3); }
 }
 
 .ai-mode-label {
-  color: var(--naleko-ai-amber);
-  font-size: 0.75rem;
+  color: #ffffff;
+  font-family: 'Manrope', sans-serif;
+  font-size: 1rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.02em;
+}
+
+.ai-beta-pill {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-}
-
-// ── Gallery ───────────────────────────────────────────────────────────────
-.ai-gallery {
-  padding: 0.25rem 0;
-
-  &__hint {
-    font-size: 0.85rem;
-    color: #6b7280;
-    margin-bottom: 0.75rem;
-  }
-
-  &__grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
-}
-
-.ai-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.875rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  background: #fff;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-
-  &:hover {
-    border-color: var(--naleko-ai-amber);
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
-  }
-
-  &--write {
-    border-color: #fde68a;
-    background: #fffbeb;
-  }
-
-  &__icon {
-    font-size: 1.25rem;
-    color: var(--naleko-ai-amber);
-  }
-
-  &__label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #111827;
-    line-height: 1.3;
-  }
-
-  &__desc {
-    font-size: 0.72rem;
-    color: #6b7280;
-    line-height: 1.4;
-  }
-
-  &__hitl-badge {
-    font-size: 0.68rem;
-    color: #d97706;
-    font-weight: 500;
-    margin-top: 0.25rem;
-  }
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+  line-height: 1.4;
 }
 
 // ── Slot form ─────────────────────────────────────────────────────────────
@@ -160,13 +106,13 @@
 
   &--assistant {
     background: #f3f4f6;
-    border-left: 3px solid var(--naleko-ai-amber);
-    color: #111827;
+    border-left: 3px solid #16124d;
+    color: #1a1a2e;
   }
 
   &--user {
-    background: #eff6ff;
-    color: #1e40af;
+    background: #eae9f5;
+    color: #16124d;
     align-self: flex-end;
     max-width: 90%;
   }
