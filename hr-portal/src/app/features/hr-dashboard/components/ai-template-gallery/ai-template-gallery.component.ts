@@ -20,6 +20,7 @@ import { AiModeService } from '../../services/ai-mode.service';
   imports: [CommonModule, ButtonModule, CardModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './ai-template-gallery.component.html',
+  styleUrl: './ai-template-gallery.component.scss',
 })
 export class AiTemplateGalleryComponent {
   readonly aiMode = inject(AiModeService);
