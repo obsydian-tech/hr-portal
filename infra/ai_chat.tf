@@ -115,6 +115,7 @@ resource "aws_lambda_function" "naleko_ai_chat" {
       AWS_REGION_NAME           = var.aws_region
       AUDIT_TABLE               = "onboarding-events"
       RATE_LIMIT_TABLE          = "NalekoAiRateLimit"
+      RATE_LIMIT_RPH            = "50"   # NH-80: max requests per staff per hour
       AGENT_API_BASE_URL        = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
       AGENT_API_KEY_SECRET_NAME = "naleko/agent/api-key"
       # NH-73: HITL gate — write tool calls stored here pending approval
