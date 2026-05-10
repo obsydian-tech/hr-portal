@@ -68,6 +68,13 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/NalekoAiRateLimit"
       },
+      {
+        # NH-73: HITL gate — store pending write tool calls
+        Sid      = "PendingActionsWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.pending_actions.arn
+      },
     ]
   })
 }
@@ -96,6 +103,8 @@ resource "aws_lambda_function" "naleko_ai_chat" {
       RATE_LIMIT_TABLE          = "NalekoAiRateLimit"
       AGENT_API_BASE_URL        = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
       AGENT_API_KEY_SECRET_NAME = "naleko/agent/api-key"
+      # NH-73: HITL gate — write tool calls stored here pending approval
+      PENDING_ACTIONS_TABLE     = aws_dynamodb_table.pending_actions.name
     }
   }
 
