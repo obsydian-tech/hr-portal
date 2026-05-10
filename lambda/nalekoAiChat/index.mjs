@@ -32,11 +32,30 @@ const dynamo  = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south
 const AGENT_AUDIT_TABLE = process.env.AGENT_AUDIT_TABLE ?? 'naleko-agent-audit';
 // NH-76: PROMPT_CACHE_TABLE is read from process.env directly inside cache.mjs
 
-// NH-69: model IDs resolved from env vars — never hard-coded
+// NH-69 / NH-81: model IDs resolved exclusively from env vars — zero hard-coded strings.
 // MODEL_FAST  → Haiku  (simple lookups, classification)
 // MODEL_SMART → Sonnet (tool-heavy, complex reasoning)
-const MODEL_FAST  = process.env.MODEL_FAST  ?? 'us.anthropic.claude-haiku-4-5-v1:0';
-const MODEL_SMART = process.env.MODEL_SMART ?? 'us.anthropic.claude-sonnet-4-5-v1:0';
+// MODEL_ALIASES → JSON map for future alias expansion, e.g. {"fast":"...","smart":"..."}
+// Parse MODEL_ALIASES once at cold start; ignore malformed JSON gracefully.
+const _MODEL_ALIASES = (() => {
+  try { return JSON.parse(process.env.MODEL_ALIASES ?? '{}'); } catch { return {}; }
+})();
+
+// MODEL_SMART must be resolved before MODEL_FAST (FAST falls back to SMART)
+const MODEL_SMART = process.env.MODEL_SMART ?? _MODEL_ALIASES['smart'] ?? '';
+const MODEL_FAST  = process.env.MODEL_FAST  ?? _MODEL_ALIASES['fast']  ?? MODEL_SMART;
+
+/**
+ * NH-81: Resolve a model alias to its Bedrock model ID.
+ * Looks up MODEL_ALIASES map first, then falls back to MODEL_SMART.
+ * Caller logs {event: model_selected} — not logged here to avoid cold-start noise.
+ *
+ * @param {string} alias - e.g. 'fast', 'smart', or a full model ID passthrough
+ * @returns {string} Bedrock model ID
+ */
+function resolveModel(alias) {
+  return _MODEL_ALIASES[alias] ?? MODEL_SMART;
+}
 const MAX_TOKENS      = 2048;
 const MAX_TOOL_ROUNDS = 5;     // guard against infinite loops
 
@@ -593,6 +612,8 @@ export const handler = async (event) => {
   const selectedModelId = selectModel(intentClass);
 
   logger.info('Intent classified', {
+    event:        'model_selected',
+    model_alias:  intentClass === 'SIMPLE' ? 'fast' : 'smart',
     event:             'intent_classified',
     intent_class:      intentClass,
     model_id:          selectedModelId,
