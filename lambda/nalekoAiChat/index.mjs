@@ -20,6 +20,7 @@ import { Tracer }  from '@aws-lambda-powertools/tracer';
 import { resolveToolCall, TOOL_DEFINITIONS } from './tool-resolver.mjs';
 import { sanitisePii } from './pii-sanitiser.mjs';
 import { classifyIntent, selectModel } from './intent-classifier.mjs';
+import { buildCacheKey, getCached, setCached } from './cache.mjs';
 
 const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
@@ -28,6 +29,7 @@ const dynamo  = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south
 
 // NH-74: audit table — AI interaction records for POPIA compliance
 const AGENT_AUDIT_TABLE = process.env.AGENT_AUDIT_TABLE ?? 'naleko-agent-audit';
+// NH-76: PROMPT_CACHE_TABLE is read from process.env directly inside cache.mjs
 
 // NH-69: model IDs resolved from env vars — never hard-coded
 // MODEL_FAST  → Haiku  (simple lookups, classification)
@@ -405,7 +407,43 @@ export const handler = async (event) => {
     ...(classifyError ? { classify_error: classifyError } : {}),
   });
 
-  // ── 5. Agentic loop ───────────────────────────────────────────────────────
+  // ── 5. NH-76: Prompt cache lookup — SIMPLE intent only ─────────────────
+  // Only cache SIMPLE (no-tool) responses. Tool results are dynamic (employee
+  // data changes) and must never be served stale.
+  // cacheKey computed once — reused for lookup and store.
+  let cacheHitResponse = null;
+  const cacheKey = intentClass === 'SIMPLE'
+    ? buildCacheKey(SYSTEM_PROMPT, effectiveMessage, selectedModelId)
+    : null;
+  if (cacheKey) {
+    cacheHitResponse = await getCached(cacheKey);
+    if (cacheHitResponse) {
+      logger.info(JSON.stringify({
+        event:    'prompt_cache',
+        cache_hit: true,
+        cache_key_hash: cacheKey.slice(0, 8), // prefix only — never full hash in logs
+        model_id: selectedModelId,
+      }));
+      const pii = sanitisePii(cacheHitResponse);
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message:         pii.sanitised,
+          toolCallsMade:   [],
+          conversationId:  `${staffId}-${Date.now()}`,
+          structuredData:  {},
+          latencyMs:       Date.now() - start,
+          guardrailAction: pii.fired ? 'MASKED' : 'NONE',
+          status:          'COMPLETE',
+          cacheHit:        true,
+        }),
+      };
+    }
+    logger.info(JSON.stringify({ event: 'prompt_cache', cache_hit: false, model_id: selectedModelId }));
+  }
+
+  // ── 6. Agentic loop ───────────────────────────────────────────────────────
   const context = { staffId };
   let loopResult;
   try {
@@ -459,6 +497,12 @@ export const handler = async (event) => {
       },
     } : {}),
   };
+
+  // NH-76: store SIMPLE intent responses in prompt cache on miss (1hr TTL).
+  // Only cache if no tool calls were made — tool results may be stale.
+  if (cacheKey && !loopResult.hitl && loopResult.toolCallsMade.length === 0) {
+    void setCached(cacheKey, loopResult.finalText);
+  }
 
   // NH-74/75: fire-and-forget audit write — must not block the user response
   // CloudWatch discipline: only metrics go to CW; content stays in DynamoDB/S3

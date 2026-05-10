@@ -365,3 +365,37 @@ resource "aws_dynamodb_table" "agent_audit" {
     Ticket             = "NH-74"
   }
 }
+
+# ---------------------------------------------------------------------------
+# NH-76: naleko-prompt-cache — full-response DynamoDB TTL cache
+# Cache key = SHA-256(systemPrompt + firstUserMessage + modelId)
+# TTL = 1 hour (expiresAt). Replaces repeat Bedrock calls for identical prompts.
+# Post-client upgrade: replace DynamoDB with Momento SDK (code change only).
+# ---------------------------------------------------------------------------
+resource "aws_dynamodb_table" "prompt_cache" {
+  name         = "naleko-prompt-cache"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "cacheKey"
+
+  attribute {
+    name = "cacheKey"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  tags = {
+    Environment = "poc"
+    Purpose     = "prompt-cache"
+    RetentionDays = "0.04"  # ~1hr
+    Ticket      = "NH-76"
+  }
+}
