@@ -125,21 +125,36 @@ async function checkRateLimit(staffId) {
 // TTL = now + 30 days; DynamoDB Stream → S3 for 5-yr POPIA archive (NH-12)
 
 async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
-  userMessage, assistantMessage, toolCallsMade, latencyMs, status }) {
+  promptSummary, responseSummary, toolCallsMade, latencyMs, status,
+  inputTokens, outputTokens, cacheHit,
+  conversationId, guardrailAction, bedrockRequestId, employeesAccessed }) {
   const now = new Date();
-  const expiresAt = Math.floor(now.getTime() / 1000) + 30 * 24 * 60 * 60; // +30 days
+  const expiresAt = Math.floor(now.getTime() / 1000) + 90 * 24 * 60 * 60; // +90 days (POPIA)
+  // NH-57: truncate free-text fields to keep item well under 400KB DynamoDB limit
+  const truncate = (s, n = 200) => (typeof s === 'string' ? s.slice(0, n) : s);
   const item = {
-    pk:             `demo#${staffId}`,
-    sk:             now.toISOString(),
-    date:           now.toISOString().slice(0, 10), // YYYY-MM-DD for DateIndex GSI
+    pk:                  `demo#${staffId}`,
+    sk:                  now.toISOString(),
+    date:                now.toISOString().slice(0, 10), // YYYY-MM-DD for DateIndex GSI
+    // NH-57: required audit schema fields
+    actor_type:          'AI_AGENT',
     staffId,
     templateId,
-    intentClass:    intentClass ?? 'UNKNOWN',
+    intentClass:         intentClass ?? 'UNKNOWN',
     modelId,
-    userMessage,
-    assistantMessage,
-    toolCallsMade:  JSON.stringify(toolCallsMade),
+    conversation_id:     conversationId,
+    bedrock_request_id:  bedrockRequestId,
+    guardrail_action:    guardrailAction ?? 'NONE',
+    employees_accessed:  JSON.stringify(employeesAccessed ?? []),
+    // Content fields (truncated — full content stored in S3 archive)
+    promptSummary:       truncate(promptSummary),
+    responseSummary:     truncate(responseSummary),
+    toolCallsMade:       JSON.stringify(toolCallsMade),
+    // Performance + cost fields
     latencyMs,
+    inputTokens,
+    outputTokens,
+    cacheHit:            cacheHit ?? false,
     status,
     expiresAt,
   };
@@ -364,9 +379,12 @@ async function invokeClaude(messages, modelId) {
     body:        JSON.stringify(payload),
   });
 
-  const res  = await invokeBedrockWithRetry(cmd);
-  const text = new TextDecoder().decode(res.body);
-  return JSON.parse(text);
+  const res    = await invokeBedrockWithRetry(cmd);
+  const text   = new TextDecoder().decode(res.body);
+  const parsed = JSON.parse(text);
+  // NH-57: expose Bedrock request ID for audit trail
+  parsed._bedrockRequestId = res.$metadata?.requestId ?? null;
+  return parsed;
 }
 
 // ─── Agentic loop ─────────────────────────────────────────────────────────────
@@ -386,9 +404,12 @@ async function runAgenticLoop(messages, context, modelId) {
   let   round          = 0;
 
   // NH-75: accumulate token usage across all loop rounds
-  let totalInputTokens  = 0;
-  let totalOutputTokens = 0;
-  let cacheHit          = false;
+  let totalInputTokens    = 0;
+  let totalOutputTokens   = 0;
+  let cacheHit            = false;
+  // NH-57: audit trail fields
+  let lastBedrockRequestId = null;
+  const employeesAccessed  = new Set(); // employee IDs touched by tools
 
   while (round < MAX_TOOL_ROUNDS) {
     round++;
@@ -409,6 +430,7 @@ async function runAgenticLoop(messages, context, modelId) {
     }
 
     const response = await invokeClaude(messages, modelId);
+    lastBedrockRequestId = response._bedrockRequestId ?? lastBedrockRequestId; // NH-57
 
     // NH-75: track token usage and prompt-cache hits (metrics only — no content logged)
     const usage = response.usage ?? {};
@@ -435,7 +457,8 @@ async function runAgenticLoop(messages, context, modelId) {
       // Extract final text
       const textBlock = response.content.find(b => b.type === 'text');
       return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData,
-               totalInputTokens, totalOutputTokens, cacheHit };
+               totalInputTokens, totalOutputTokens, cacheHit,
+               lastBedrockRequestId, employeesAccessed: [...employeesAccessed] };
     }
 
     if (response.stop_reason === 'tool_use') {
@@ -445,6 +468,9 @@ async function runAgenticLoop(messages, context, modelId) {
       for (const block of toolUseBlocks) {
         const { id: toolUseId, name: toolName, input: toolArgs } = block;
         logger.info('Tool call', { toolName, toolArgs });
+        // NH-57: track employee IDs accessed for audit schema
+        const _empId = toolArgs?.id ?? toolArgs?.employee_id ?? null;
+        if (_empId) employeesAccessed.add(_empId);
 
         let result;
         let isError = false;
@@ -476,6 +502,8 @@ async function runAgenticLoop(messages, context, modelId) {
             totalInputTokens,
             totalOutputTokens,
             cacheHit,
+            lastBedrockRequestId,
+            employeesAccessed: [...employeesAccessed], // NH-57
           };
         }
 
@@ -514,7 +542,8 @@ async function runAgenticLoop(messages, context, modelId) {
     logger.warn('Unexpected stop_reason', { stop_reason: response.stop_reason });
     const textBlock = response.content?.find(b => b.type === 'text');
     return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData,
-             totalInputTokens, totalOutputTokens, cacheHit };
+             totalInputTokens, totalOutputTokens, cacheHit,
+             lastBedrockRequestId, employeesAccessed: [...employeesAccessed] };
   }
 
   // Hit max rounds
@@ -524,6 +553,8 @@ async function runAgenticLoop(messages, context, modelId) {
     totalInputTokens, totalOutputTokens, cacheHit,
     toolCallsMade,
     structuredData,
+    lastBedrockRequestId,                        // NH-57
+    employeesAccessed: [...employeesAccessed],    // NH-57
   };
 }
 
@@ -725,15 +756,20 @@ export const handler = async (event) => {
     staffId,
     templateId,
     intentClass,
-    modelId:          selectedModelId,
-    promptSummary:    effectiveMessage,   // writeAuditRecord truncates to 200 chars
-    responseSummary:  pii.sanitised,      // writeAuditRecord truncates to 200 chars
-    toolCallsMade:    response.toolCallsMade,
+    modelId:           selectedModelId,
+    promptSummary:     effectiveMessage,
+    responseSummary:   pii.sanitised,
+    toolCallsMade:     response.toolCallsMade,
     latencyMs,
-    status:           response.status,
-    inputTokens:      loopResult.totalInputTokens  ?? 0,
-    outputTokens:     loopResult.totalOutputTokens ?? 0,
-    cacheHit:         loopResult.cacheHit          ?? false,
+    status:            response.status,
+    inputTokens:       loopResult.totalInputTokens    ?? 0,
+    outputTokens:      loopResult.totalOutputTokens   ?? 0,
+    cacheHit:          loopResult.cacheHit            ?? false,
+    // NH-57: new audit schema fields
+    conversationId:    response.conversationId,
+    guardrailAction:   response.guardrailAction,
+    bedrockRequestId:  loopResult.lastBedrockRequestId,
+    employeesAccessed: loopResult.employeesAccessed   ?? [],
   });
 
   return {
