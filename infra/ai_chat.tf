@@ -103,9 +103,8 @@ resource "aws_lambda_function" "naleko_ai_chat" {
   filename      = local.placeholder_zip
   memory_size   = 512
   timeout       = 60
-  # NH-71: cap concurrent Lambda invocations to protect Bedrock quotas in af-south-1
-  # Increase when sustained load justifies it (consider SQS queue at that point)
-  reserved_concurrent_executions = 10
+  # NH-71: reserved_concurrent_executions omitted — account limit is 10 (minimum floor)
+  # Revisit once a Lambda concurrency quota increase is approved for af-south-1
 
   environment {
     variables = {

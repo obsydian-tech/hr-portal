@@ -328,3 +328,72 @@ resource "aws_cloudwatch_dashboard" "naleko_ai_poc" {
     ]
   })
 }
+
+# ---------------------------------------------------------------------------
+# Cost Anomaly Alerts — NH-84
+# SNS topic + 2 alarms: token spike (>100k/hr) + Lambda errors (>5 in 5min)
+# ---------------------------------------------------------------------------
+
+resource "aws_sns_topic" "cost_alerts" {
+  name = "naleko-cost-alerts"
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_sns_topic_subscription" "cost_alerts_email" {
+  topic_arn = aws_sns_topic.cost_alerts.arn
+  protocol  = "email"
+  endpoint  = var.alert_email
+}
+
+resource "aws_cloudwatch_metric_alarm" "naleko_token_spike" {
+  alarm_name          = "NalekoTokenSpike"
+  alarm_description   = "InputTokens sum exceeded 100k in a 1-hour window — possible runaway agent loop."
+  namespace           = "Naleko/AI"
+  metric_name         = "InputTokens"
+  statistic           = "Sum"
+  period              = 3600
+  evaluation_periods  = 1
+  threshold           = 100000
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.cost_alerts.arn]
+  ok_actions    = [aws_sns_topic.cost_alerts.arn]
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "naleko_lambda_errors" {
+  alarm_name          = "NalekoLambdaErrors"
+  alarm_description   = "nalekoAiChat Lambda errors exceeded 5 in a 5-minute window."
+  namespace           = "AWS/Lambda"
+  metric_name         = "Errors"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 5
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    FunctionName = "nalekoAiChat"
+  }
+
+  alarm_actions = [aws_sns_topic.cost_alerts.arn]
+  ok_actions    = [aws_sns_topic.cost_alerts.arn]
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
