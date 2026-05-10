@@ -36,8 +36,15 @@ const AGENT_AUDIT_TABLE = process.env.AGENT_AUDIT_TABLE ?? 'naleko-agent-audit';
 // MODEL_SMART → Sonnet (tool-heavy, complex reasoning)
 const MODEL_FAST  = process.env.MODEL_FAST  ?? 'us.anthropic.claude-haiku-4-5-v1:0';
 const MODEL_SMART = process.env.MODEL_SMART ?? 'us.anthropic.claude-sonnet-4-5-v1:0';
-const MAX_TOKENS = 2048;
-const MAX_TOOL_ROUNDS = 5; // guard against infinite loops
+const MAX_TOKENS      = 2048;
+const MAX_TOOL_ROUNDS = 5;     // guard against infinite loops
+
+// NH-78: Token budget / context guards
+// ~4 chars per token (conservative). 2000 token cap keeps tool results within
+// a single Claude context slot; 180k chars ≈ 45k tokens – safe margin below
+// Claude's 200k-token context window.
+const MAX_TOOL_RESPONSE_CHARS = 8000;    // ≈ 2 000 tokens
+const MAX_CONTEXT_CHARS       = 180_000; // ≈ 45 000 tokens
 
 // ─── NH-74: write one audit record per AI interaction ────────────────────────
 // Fire-and-forget: never let a DynamoDB failure block the user response.
@@ -73,6 +80,26 @@ async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
     // Non-fatal — log and continue
     logger.error('Audit write failed', { event: 'audit_write_error', error: err.message });
   }
+}
+
+// ─── NH-78: Tool-response truncator ─────────────────────────────────────────
+
+/**
+ * Truncate a serialised tool response to MAX_TOOL_RESPONSE_CHARS.
+ * Appends an informative [TRUNCATED] marker so Claude knows data was cut.
+ * @param {string} content - already-JSON-serialised tool result
+ * @returns {string} safe-length content
+ */
+function truncateToolResponse(content) {
+  if (content.length <= MAX_TOOL_RESPONSE_CHARS) return content;
+  const omitted = content.length - MAX_TOOL_RESPONSE_CHARS;
+  logger.warn(JSON.stringify({
+    event:    'tool_response_truncated',
+    original_chars: content.length,
+    kept_chars:     MAX_TOOL_RESPONSE_CHARS,
+    omitted_chars:  omitted,
+  }));
+  return content.slice(0, MAX_TOOL_RESPONSE_CHARS) + ` [TRUNCATED: ${omitted} chars omitted]`;
 }
 
 // ─── System prompt (cached per warm container) ────────────────────────────────
@@ -222,6 +249,22 @@ async function runAgenticLoop(messages, context, modelId) {
 
   while (round < MAX_TOOL_ROUNDS) {
     round++;
+
+    // NH-78: Context window guard — trim history before each Bedrock call.
+    // Keep first message (system context / user XML template) + last 10 messages
+    // so the conversation never blows past the 200k-token Claude context window.
+    const totalChars = messages.reduce((acc, m) => acc + JSON.stringify(m).length, 0);
+    if (totalChars > MAX_CONTEXT_CHARS && messages.length > 11) {
+      const trimmed = messages.length - 11;
+      messages.splice(1, trimmed); // keep [0] + last 10
+      logger.warn(JSON.stringify({
+        event:           'context_trimmed',
+        messages_removed: trimmed,
+        chars_before:     totalChars,
+        chars_after:      messages.reduce((a, m) => a + JSON.stringify(m).length, 0),
+      }));
+    }
+
     const response = await invokeClaude(messages, modelId);
 
     // NH-75: track token usage and prompt-cache hits (metrics only — no content logged)
@@ -231,13 +274,14 @@ async function runAgenticLoop(messages, context, modelId) {
     if ((usage.cache_read_input_tokens ?? 0) > 0) cacheHit = true;
 
     logger.info(JSON.stringify({
-      event:         'bedrock_invocation',
+      event:             'bedrock_invocation',
       round,
-      model_id:      modelId,
-      input_tokens:  usage.input_tokens  ?? 0,
-      output_tokens: usage.output_tokens ?? 0,
-      cache_hit:     (usage.cache_read_input_tokens ?? 0) > 0,
-      stop_reason:   response.stop_reason,
+      model_id:          modelId,
+      input_tokens:      usage.input_tokens              ?? 0,
+      output_tokens:     usage.output_tokens             ?? 0,
+      cache_read_tokens: usage.cache_read_input_tokens   ?? 0,
+      cache_hit:         (usage.cache_read_input_tokens  ?? 0) > 0,
+      stop_reason:       response.stop_reason,
       // Never log content, prompts, or responses here
     }));
 
@@ -307,11 +351,14 @@ async function runAgenticLoop(messages, context, modelId) {
           }));
         }
 
+        // NH-78: truncate tool response before adding to context
+        const truncatedContent = truncateToolResponse(sanitisedContent);
+
         toolResultContent.push({
           type:         'tool_result',
           tool_use_id:  toolUseId,
           ...(isError ? { is_error: true } : {}),
-          content:      sanitisedContent,
+          content:      truncatedContent,
         });
       }
 
