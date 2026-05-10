@@ -127,7 +127,8 @@ async function checkRateLimit(staffId) {
 async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
   promptSummary, responseSummary, toolCallsMade, latencyMs, status,
   inputTokens, outputTokens, cacheHit,
-  conversationId, guardrailAction, bedrockRequestId, employeesAccessed }) {
+  conversationId, guardrailAction, bedrockRequestId, employeesAccessed,
+  toolOutputsRaw }) { // NH-58
   const now = new Date();
   const expiresAt = Math.floor(now.getTime() / 1000) + 90 * 24 * 60 * 60; // +90 days (POPIA)
   // NH-57: truncate free-text fields to keep item well under 400KB DynamoDB limit
@@ -150,6 +151,8 @@ async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
     promptSummary:       truncate(promptSummary),
     responseSummary:     truncate(responseSummary),
     toolCallsMade:       JSON.stringify(toolCallsMade),
+    // NH-58: per-tool raw output for POPIA hallucination defence (truncated to 2KB per entry at capture time)
+    tool_outputs_raw:    toolOutputsRaw ? JSON.stringify(toolOutputsRaw) : '{}',
     // Performance + cost fields
     latencyMs,
     inputTokens,
@@ -410,6 +413,8 @@ async function runAgenticLoop(messages, context, modelId) {
   // NH-57: audit trail fields
   let lastBedrockRequestId = null;
   const employeesAccessed  = new Set(); // employee IDs touched by tools
+  // NH-58: per-tool output capture for POPIA hallucination defence
+  const toolOutputsRaw     = {}; // { [toolName#n]: { called_at, request, response, http_status, latency_ms } }
 
   while (round < MAX_TOOL_ROUNDS) {
     round++;
@@ -458,7 +463,8 @@ async function runAgenticLoop(messages, context, modelId) {
       const textBlock = response.content.find(b => b.type === 'text');
       return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData,
                totalInputTokens, totalOutputTokens, cacheHit,
-               lastBedrockRequestId, employeesAccessed: [...employeesAccessed] };
+               lastBedrockRequestId, employeesAccessed: [...employeesAccessed],
+               toolOutputsRaw }; // NH-58
     }
 
     if (response.stop_reason === 'tool_use') {
@@ -474,6 +480,9 @@ async function runAgenticLoop(messages, context, modelId) {
 
         let result;
         let isError = false;
+        // NH-58: capture timing + raw response for audit
+        const _toolCalledAt = new Date().toISOString();
+        const _toolStart    = Date.now();
 
         try {
           result = await resolveToolCall(toolName, toolArgs, context);
@@ -491,6 +500,20 @@ async function runAgenticLoop(messages, context, modelId) {
 
         toolCallsMade.push({ toolName, toolArgs, result, isError });
 
+        // NH-58: record tool output entry (truncate response to 2KB per POPIA/DynamoDB limit)
+        const _toolLatency    = Date.now() - _toolStart;
+        const _rawResponseStr = JSON.stringify(result ?? {});
+        const _truncated      = _rawResponseStr.length > 2048;
+        const _toolKey        = `${toolName}#${Object.keys(toolOutputsRaw).filter(k => k.startsWith(toolName)).length}`;
+        toolOutputsRaw[_toolKey] = {
+          called_at:  _toolCalledAt,
+          request:    toolArgs,
+          response:   JSON.parse(_truncated ? _rawResponseStr.slice(0, 2048) : _rawResponseStr),
+          truncated:  _truncated,
+          http_status: isError ? 500 : 200,
+          latency_ms:  _toolLatency,
+        };
+
         // HITL gate: stop early so frontend can confirm onboarding draft
         if (toolName === 'onboard_new_employee' && result.hitl) {
           return {
@@ -504,6 +527,7 @@ async function runAgenticLoop(messages, context, modelId) {
             cacheHit,
             lastBedrockRequestId,
             employeesAccessed: [...employeesAccessed], // NH-57
+            toolOutputsRaw,                            // NH-58
           };
         }
 
@@ -543,7 +567,8 @@ async function runAgenticLoop(messages, context, modelId) {
     const textBlock = response.content?.find(b => b.type === 'text');
     return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData,
              totalInputTokens, totalOutputTokens, cacheHit,
-             lastBedrockRequestId, employeesAccessed: [...employeesAccessed] };
+             lastBedrockRequestId, employeesAccessed: [...employeesAccessed],
+             toolOutputsRaw }; // NH-58
   }
 
   // Hit max rounds
@@ -555,6 +580,7 @@ async function runAgenticLoop(messages, context, modelId) {
     structuredData,
     lastBedrockRequestId,                        // NH-57
     employeesAccessed: [...employeesAccessed],    // NH-57
+    toolOutputsRaw,                              // NH-58
   };
 }
 
@@ -770,6 +796,7 @@ export const handler = async (event) => {
     guardrailAction:   response.guardrailAction,
     bedrockRequestId:  loopResult.lastBedrockRequestId,
     employeesAccessed: loopResult.employeesAccessed   ?? [],
+    toolOutputsRaw:    loopResult.toolOutputsRaw      ?? {}, // NH-58
   });
 
   return {
