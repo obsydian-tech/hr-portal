@@ -97,6 +97,32 @@ ${slotsXml ? `<slots>\n${slotsXml}\n</slots>\n` : ''}<message>${userMessage}</me
 // ─── Bedrock helpers ──────────────────────────────────────────────────────────
 
 /**
+ * NH-71: Wrap a Bedrock InvokeModelCommand with exponential backoff + jitter.
+ * Retries only on ThrottlingException (429) — all other errors are rethrown immediately.
+ *
+ * @param {InvokeModelCommand} cmd        - pre-built command
+ * @param {number}             maxRetries - default 3
+ * @returns {object} raw Bedrock SDK response
+ */
+async function invokeBedrockWithRetry(cmd, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await bedrock.send(cmd);
+    } catch (err) {
+      if (err.name === 'ThrottlingException' && attempt < maxRetries) {
+        // Exponential backoff with full jitter, capped at 10 s
+        const base  = Math.min(1000 * Math.pow(2, attempt), 10000);
+        const delay = Math.floor(Math.random() * base);
+        logger.warn(JSON.stringify({ event: 'bedrock_throttle_retry', attempt, delay_ms: delay }));
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw err; // non-throttle error or retries exhausted
+    }
+  }
+}
+
+/**
  * Call Claude via Bedrock Messages API.
  * @param {Array}  messages  - conversation so far
  * @param {string} modelId   - resolved Bedrock model ID (from NH-69 intent router)
@@ -124,7 +150,7 @@ async function invokeClaude(messages, modelId) {
     body:        JSON.stringify(payload),
   });
 
-  const res  = await bedrock.send(cmd);
+  const res  = await invokeBedrockWithRetry(cmd);
   const text = new TextDecoder().decode(res.body);
   return JSON.parse(text);
 }

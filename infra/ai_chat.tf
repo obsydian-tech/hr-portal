@@ -75,13 +75,16 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
 # ─── Lambda function ──────────────────────────────────────────────────────────
 
 resource "aws_lambda_function" "naleko_ai_chat" {
-  function_name = "nalekoAiChat"
-  role          = aws_iam_role.naleko_ai_chat.arn
-  handler       = "index.handler"
-  runtime       = "nodejs22.x"
-  filename      = local.placeholder_zip
-  memory_size   = 512
-  timeout       = 60
+  function_name                  = "nalekoAiChat"
+  role                           = aws_iam_role.naleko_ai_chat.arn
+  handler                        = "index.handler"
+  runtime                        = "nodejs22.x"
+  filename                       = local.placeholder_zip
+  memory_size                    = 512
+  timeout                        = 60
+  # NH-71: cap concurrent Lambda invocations to protect Bedrock quotas in af-south-1
+  # Increase when sustained load justifies it (consider SQS queue at that point)
+  reserved_concurrent_executions = 10
 
   environment {
     variables = {
