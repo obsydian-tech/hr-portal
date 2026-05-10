@@ -37,3 +37,9 @@ variable "ops_email" {
   type        = string
   default     = "ignecious@obsydiantechnologies.com"
 }
+
+variable "alert_email" {
+  description = "Email address subscribed to the naleko-cost-alerts SNS topic for cost anomaly notifications."
+  type        = string
+  default     = "ignecious@obsydiantechnologies.com"
+}
