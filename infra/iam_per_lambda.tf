@@ -1479,3 +1479,67 @@ resource "aws_iam_role_policy" "approve_agent_action" {
     ]
   })
 }
+
+# ─── archiveAuditLog ─────────────────────────────────────────────────────────
+# NH-77: Reads from DynamoDB Stream on naleko-agent-audit, writes gzipped JSONL to S3
+
+resource "aws_iam_role" "archive_audit_log" {
+  name        = "naleko-archiveAuditLog-role"
+  description = "Execution role for archiveAuditLog Lambda (NH-77)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "archive_audit_log" {
+  name = "naleko-archiveAuditLog-policy"
+  role = aws_iam_role.archive_audit_log.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/archiveAuditLog:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDBStream"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:DescribeStream",
+          "dynamodb:ListStreams",
+        ]
+        Resource = aws_dynamodb_table.agent_audit.stream_arn
+      },
+      {
+        Sid      = "S3PutObject"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = "${aws_s3_bucket.audit_archive.arn}/*"
+      },
+      {
+        Sid      = "SqsDlq"
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage"]
+        Resource = aws_sqs_queue.archive_audit_log_dlq.arn
+      },
+    ]
+  })
+}

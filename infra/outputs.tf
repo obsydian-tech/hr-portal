@@ -27,3 +27,14 @@ output "mcp_server_url" {
   description = "Lambda Function URL for the Naleko MCP server (HTTP+SSE transport). Use this in mcp-config.json for Claude Desktop / Cursor."
   value       = aws_lambda_function_url.naleko_mcp_server.function_url
 }
+
+# NH-77: Audit archive
+output "audit_archive_bucket" {
+  description = "S3 bucket for POPIA 5-year audit archive (gzipped JSONL, Glacier after 90 days)"
+  value       = aws_s3_bucket.audit_archive.bucket
+}
+
+output "athena_workgroup" {
+  description = "Athena workgroup for audit compliance queries (100 MB scan limit)"
+  value       = aws_athena_workgroup.audit.name
+}
