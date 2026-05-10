@@ -213,15 +213,31 @@ async function runAgenticLoop(messages, context, modelId) {
   let   structuredData = {};
   let   round          = 0;
 
+  // NH-75: accumulate token usage across all loop rounds
+  let totalInputTokens  = 0;
+  let totalOutputTokens = 0;
+  let cacheHit          = false;
+
   while (round < MAX_TOOL_ROUNDS) {
     round++;
     const response = await invokeClaude(messages, modelId);
 
-    logger.debug('Claude response', {
-      stop_reason: response.stop_reason,
-      content_types: response.content?.map(b => b.type),
-      usage: response.usage,
-    });
+    // NH-75: track token usage and prompt-cache hits (metrics only — no content logged)
+    const usage = response.usage ?? {};
+    totalInputTokens  += usage.input_tokens  ?? 0;
+    totalOutputTokens += usage.output_tokens ?? 0;
+    if ((usage.cache_read_input_tokens ?? 0) > 0) cacheHit = true;
+
+    logger.info(JSON.stringify({
+      event:         'bedrock_invocation',
+      round,
+      model_id:      modelId,
+      input_tokens:  usage.input_tokens  ?? 0,
+      output_tokens: usage.output_tokens ?? 0,
+      cache_hit:     (usage.cache_read_input_tokens ?? 0) > 0,
+      stop_reason:   response.stop_reason,
+      // Never log content, prompts, or responses here
+    }));
 
     // Append assistant turn to conversation
     messages.push({ role: 'assistant', content: response.content });
@@ -229,7 +245,8 @@ async function runAgenticLoop(messages, context, modelId) {
     if (response.stop_reason === 'end_turn') {
       // Extract final text
       const textBlock = response.content.find(b => b.type === 'text');
-      return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData };
+      return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData,
+               totalInputTokens, totalOutputTokens, cacheHit };
     }
 
     if (response.stop_reason === 'tool_use') {
@@ -267,6 +284,9 @@ async function runAgenticLoop(messages, context, modelId) {
             structuredData,
             hitl:         true,
             hitlDraft:    result.draft,
+            totalInputTokens,
+            totalOutputTokens,
+            cacheHit,
           };
         }
 
@@ -301,13 +321,15 @@ async function runAgenticLoop(messages, context, modelId) {
     // Unexpected stop reason — return what we have
     logger.warn('Unexpected stop_reason', { stop_reason: response.stop_reason });
     const textBlock = response.content?.find(b => b.type === 'text');
-    return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData };
+    return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData,
+             totalInputTokens, totalOutputTokens, cacheHit };
   }
 
   // Hit max rounds
   logger.warn('Max tool rounds reached', { rounds: round });
   return {
     finalText: 'I was unable to complete the request within the allowed number of steps. Please try again with a more specific question.',
+    totalInputTokens, totalOutputTokens, cacheHit,
     toolCallsMade,
     structuredData,
   };
@@ -399,12 +421,17 @@ export const handler = async (event) => {
 
   const latencyMs = Date.now() - start;
   logger.info('AI chat complete', {
-    event:         'ai_chat_complete',
+    event:          'ai_chat_complete',
     latencyMs,
-    toolCallsMade: loopResult.toolCallsMade.length,
-    hitl:          loopResult.hitl ?? false,
-    intent_class:  intentClass,
-    model_id:      selectedModelId,
+    toolCallsMade:  loopResult.toolCallsMade.length,
+    hitl:           loopResult.hitl ?? false,
+    intent_class:   intentClass,
+    model_id:       selectedModelId,
+    // NH-75: token usage metrics for CloudWatch dashboards / cost attribution
+    // NEVER log content, prompts, or responses here
+    input_tokens:   loopResult.totalInputTokens  ?? 0,
+    output_tokens:  loopResult.totalOutputTokens ?? 0,
+    cache_hit:      loopResult.cacheHit          ?? false,
   });
 
   // ── 5. Return AiChatResponse ──────────────────────────────────────────────
@@ -433,17 +460,21 @@ export const handler = async (event) => {
     } : {}),
   };
 
-  // NH-74: fire-and-forget audit write — must not block the user response
+  // NH-74/75: fire-and-forget audit write — must not block the user response
+  // CloudWatch discipline: only metrics go to CW; content stays in DynamoDB/S3
   void writeAuditRecord({
     staffId,
     templateId,
     intentClass,
-    modelId:         selectedModelId,
-    userMessage:     effectiveMessage,
-    assistantMessage: pii.sanitised,
-    toolCallsMade:   response.toolCallsMade,
+    modelId:          selectedModelId,
+    promptSummary:    effectiveMessage,   // writeAuditRecord truncates to 200 chars
+    responseSummary:  pii.sanitised,      // writeAuditRecord truncates to 200 chars
+    toolCallsMade:    response.toolCallsMade,
     latencyMs,
-    status:          response.status,
+    status:           response.status,
+    inputTokens:      loopResult.totalInputTokens  ?? 0,
+    outputTokens:     loopResult.totalOutputTokens ?? 0,
+    cacheHit:         loopResult.cacheHit          ?? false,
   });
 
   return {
