@@ -6,7 +6,40 @@
 #        columns written by createEmployee and processDocumentOCR Lambdas
 # NH-13: external-verification-requests table added
 # NH-28: GSIs on employees (email, stage, created_by) + PITR on employees/docs
+# NH-73: naleko-pending-actions table — HITL gate for write tools
 # ---------------------------------------------------------------------------
+
+# ─── Pending agent actions table (NH-73) ─────────────────────────────────────
+# Stores write tool calls intercepted by nalekoAiChat pending human approval.
+# Records expire automatically after 24h via TTL.
+
+resource "aws_dynamodb_table" "pending_actions" {
+  name         = "naleko-pending-actions"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "actionId"
+
+  attribute {
+    name = "actionId"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  tags = {
+    Purpose            = "HITLGate"
+    DataClassification = "Internal"
+    RetentionDays      = "1"
+    Ticket             = "NH-73"
+  }
+}
 
 # ─── Idempotency keys table (NH-44) ──────────────────────────────────────────
 # Caches the first response for each Idempotency-Key for 24h.
@@ -270,5 +303,99 @@ resource "aws_dynamodb_table" "onboarding_events" {
   tags = {
     DataClassification = "AUDIT"
     RetentionYears     = "7"
+  }
+}
+
+# ---------------------------------------------------------------------------
+# NH-74: naleko-agent-audit — AI agent interaction audit trail (POPIA)
+# Records every prompt + response from nalekoAiChat for compliance.
+# PK  = tenantId#sessionId   (composite — avoids hot partitions)
+# SK  = ISO8601 timestamp
+# GSI DateIndex — compliance date-range queries (YYYY-MM-DD hash key)
+# TTL = 30 days (hot operational window); DynamoDB Stream → S3 for 5-yr archive
+# ---------------------------------------------------------------------------
+resource "aws_dynamodb_table" "agent_audit" {
+  name         = "naleko-agent-audit"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
+
+  attribute {
+    name = "pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "sk"
+    type = "S"
+  }
+
+  attribute {
+    name = "date"
+    type = "S"
+  }
+
+  # DateIndex — compliance teams can query all interactions on a given calendar day
+  global_secondary_index {
+    name            = "DateIndex"
+    hash_key        = "date"
+    range_key       = "sk"
+    projection_type = "ALL"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  # Stream feeds NH-12 Lambda-to-S3 archiver for 5-year POPIA retention
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  tags = {
+    Environment        = "poc"
+    Purpose            = "agent-audit"
+    DataClassification = "AUDIT"
+    RetentionDays      = "30"
+    Ticket             = "NH-74"
+  }
+}
+
+# ---------------------------------------------------------------------------
+# NH-76: naleko-prompt-cache — full-response DynamoDB TTL cache
+# Cache key = SHA-256(systemPrompt + firstUserMessage + modelId)
+# TTL = 1 hour (expiresAt). Replaces repeat Bedrock calls for identical prompts.
+# Post-client upgrade: replace DynamoDB with Momento SDK (code change only).
+# ---------------------------------------------------------------------------
+resource "aws_dynamodb_table" "prompt_cache" {
+  name         = "naleko-prompt-cache"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "cacheKey"
+
+  attribute {
+    name = "cacheKey"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  tags = {
+    Environment   = "poc"
+    Purpose       = "prompt-cache"
+    RetentionDays = "0.04" # ~1hr
+    Ticket        = "NH-76"
   }
 }

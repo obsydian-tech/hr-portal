@@ -13,18 +13,67 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { marshall } from '@aws-sdk/util-dynamodb';
 import { Logger }  from '@aws-lambda-powertools/logger';
 import { Tracer }  from '@aws-lambda-powertools/tracer';
 import { resolveToolCall, TOOL_DEFINITIONS } from './tool-resolver.mjs';
 import { sanitisePii } from './pii-sanitiser.mjs';
+import { classifyIntent, selectModel } from './intent-classifier.mjs';
+import { buildCacheKey, getCached, setCached } from './cache.mjs';
 
 const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+const dynamo  = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
-const MODEL_ID   = process.env.BEDROCK_MODEL_ID ?? 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
+// NH-74: audit table — AI interaction records for POPIA compliance
+const AGENT_AUDIT_TABLE = process.env.AGENT_AUDIT_TABLE ?? 'naleko-agent-audit';
+// NH-76: PROMPT_CACHE_TABLE is read from process.env directly inside cache.mjs
+
+// NH-69: model IDs resolved from env vars — never hard-coded
+// MODEL_FAST  → Haiku  (simple lookups, classification)
+// MODEL_SMART → Sonnet (tool-heavy, complex reasoning)
+const MODEL_FAST  = process.env.MODEL_FAST  ?? 'us.anthropic.claude-haiku-4-5-v1:0';
+const MODEL_SMART = process.env.MODEL_SMART ?? 'us.anthropic.claude-sonnet-4-5-v1:0';
 const MAX_TOKENS = 2048;
 const MAX_TOOL_ROUNDS = 5; // guard against infinite loops
+
+// ─── NH-74: write one audit record per AI interaction ────────────────────────
+// Fire-and-forget: never let a DynamoDB failure block the user response.
+// PK  = "demo#" + staffId (tenantId is hard-coded "demo" for PoC)
+// SK  = ISO8601 timestamp
+// TTL = now + 30 days; DynamoDB Stream → S3 for 5-yr POPIA archive (NH-12)
+
+async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
+  userMessage, assistantMessage, toolCallsMade, latencyMs, status }) {
+  const now = new Date();
+  const expiresAt = Math.floor(now.getTime() / 1000) + 30 * 24 * 60 * 60; // +30 days
+  const item = {
+    pk:             `demo#${staffId}`,
+    sk:             now.toISOString(),
+    date:           now.toISOString().slice(0, 10), // YYYY-MM-DD for DateIndex GSI
+    staffId,
+    templateId,
+    intentClass:    intentClass ?? 'UNKNOWN',
+    modelId,
+    userMessage,
+    assistantMessage,
+    toolCallsMade:  JSON.stringify(toolCallsMade),
+    latencyMs,
+    status,
+    expiresAt,
+  };
+  try {
+    await dynamo.send(new PutItemCommand({
+      TableName: AGENT_AUDIT_TABLE,
+      Item:      marshall(item, { removeUndefinedValues: true }),
+    }));
+  } catch (err) {
+    // Non-fatal — log and continue
+    logger.error('Audit write failed', { event: 'audit_write_error', error: err.message });
+  }
+}
 
 // ─── System prompt (cached per warm container) ────────────────────────────────
 
@@ -92,11 +141,38 @@ ${slotsXml ? `<slots>\n${slotsXml}\n</slots>\n` : ''}<message>${userMessage}</me
 // ─── Bedrock helpers ──────────────────────────────────────────────────────────
 
 /**
+ * NH-71: Wrap a Bedrock InvokeModelCommand with exponential backoff + jitter.
+ * Retries only on ThrottlingException (429) — all other errors are rethrown immediately.
+ *
+ * @param {InvokeModelCommand} cmd        - pre-built command
+ * @param {number}             maxRetries - default 3
+ * @returns {object} raw Bedrock SDK response
+ */
+async function invokeBedrockWithRetry(cmd, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await bedrock.send(cmd);
+    } catch (err) {
+      if (err.name === 'ThrottlingException' && attempt < maxRetries) {
+        // Exponential backoff with full jitter, capped at 10 s
+        const base  = Math.min(1000 * Math.pow(2, attempt), 10000);
+        const delay = Math.floor(Math.random() * base);
+        logger.warn(JSON.stringify({ event: 'bedrock_throttle_retry', attempt, delay_ms: delay }));
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw err; // non-throttle error or retries exhausted
+    }
+  }
+}
+
+/**
  * Call Claude via Bedrock Messages API.
  * @param {Array}  messages  - conversation so far
+ * @param {string} modelId   - resolved Bedrock model ID (from NH-69 intent router)
  * @returns {object}  parsed response body
  */
-async function invokeClaude(messages) {
+async function invokeClaude(messages, modelId) {
   const payload = {
     anthropic_version: 'bedrock-2023-05-31',
     max_tokens:        MAX_TOKENS,
@@ -112,13 +188,13 @@ async function invokeClaude(messages) {
   };
 
   const cmd = new InvokeModelCommand({
-    modelId:     MODEL_ID,
+    modelId:     modelId,
     contentType: 'application/json',
     accept:      'application/json',
     body:        JSON.stringify(payload),
   });
 
-  const res  = await bedrock.send(cmd);
+  const res  = await invokeBedrockWithRetry(cmd);
   const text = new TextDecoder().decode(res.body);
   return JSON.parse(text);
 }
@@ -131,22 +207,39 @@ async function invokeClaude(messages) {
  *
  * @param {Array}   messages      - initial messages array (mutable)
  * @param {object}  context       - { staffId }
+ * @param {string}  modelId       - resolved Bedrock model ID (NH-69)
  * @returns {{ finalText: string, toolCallsMade: Array, structuredData: object }}
  */
-async function runAgenticLoop(messages, context) {
+async function runAgenticLoop(messages, context, modelId) {
   const toolCallsMade  = [];
   let   structuredData = {};
   let   round          = 0;
 
+  // NH-75: accumulate token usage across all loop rounds
+  let totalInputTokens  = 0;
+  let totalOutputTokens = 0;
+  let cacheHit          = false;
+
   while (round < MAX_TOOL_ROUNDS) {
     round++;
-    const response = await invokeClaude(messages);
+    const response = await invokeClaude(messages, modelId);
 
-    logger.debug('Claude response', {
-      stop_reason: response.stop_reason,
-      content_types: response.content?.map(b => b.type),
-      usage: response.usage,
-    });
+    // NH-75: track token usage and prompt-cache hits (metrics only — no content logged)
+    const usage = response.usage ?? {};
+    totalInputTokens  += usage.input_tokens  ?? 0;
+    totalOutputTokens += usage.output_tokens ?? 0;
+    if ((usage.cache_read_input_tokens ?? 0) > 0) cacheHit = true;
+
+    logger.info(JSON.stringify({
+      event:         'bedrock_invocation',
+      round,
+      model_id:      modelId,
+      input_tokens:  usage.input_tokens  ?? 0,
+      output_tokens: usage.output_tokens ?? 0,
+      cache_hit:     (usage.cache_read_input_tokens ?? 0) > 0,
+      stop_reason:   response.stop_reason,
+      // Never log content, prompts, or responses here
+    }));
 
     // Append assistant turn to conversation
     messages.push({ role: 'assistant', content: response.content });
@@ -154,7 +247,8 @@ async function runAgenticLoop(messages, context) {
     if (response.stop_reason === 'end_turn') {
       // Extract final text
       const textBlock = response.content.find(b => b.type === 'text');
-      return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData };
+      return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData,
+               totalInputTokens, totalOutputTokens, cacheHit };
     }
 
     if (response.stop_reason === 'tool_use') {
@@ -192,14 +286,32 @@ async function runAgenticLoop(messages, context) {
             structuredData,
             hitl:         true,
             hitlDraft:    result.draft,
+            totalInputTokens,
+            totalOutputTokens,
+            cacheHit,
           };
+        }
+
+        // NH-72: sanitise PII from tool response BEFORE it enters the Claude message array.
+        // This is the pre-LLM guard — raw SA IDs, phones, bank accounts from DynamoDB
+        // must never reach the Bedrock prompt. Post-LLM sanitisation still runs unchanged.
+        const rawContent = JSON.stringify(result);
+        const { sanitised: sanitisedContent, matchedPatterns } = sanitisePii(rawContent);
+        if (matchedPatterns.length > 0) {
+          logger.warn(JSON.stringify({
+            event:             'pii_sanitised_tool_response',
+            tool_name:         toolName,
+            replacements_count: matchedPatterns.length,
+            patterns_fired:    matchedPatterns,
+            // Never log rawContent — it contains PII
+          }));
         }
 
         toolResultContent.push({
           type:         'tool_result',
           tool_use_id:  toolUseId,
           ...(isError ? { is_error: true } : {}),
-          content:      JSON.stringify(result),
+          content:      sanitisedContent,
         });
       }
 
@@ -211,13 +323,15 @@ async function runAgenticLoop(messages, context) {
     // Unexpected stop reason — return what we have
     logger.warn('Unexpected stop_reason', { stop_reason: response.stop_reason });
     const textBlock = response.content?.find(b => b.type === 'text');
-    return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData };
+    return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData,
+             totalInputTokens, totalOutputTokens, cacheHit };
   }
 
   // Hit max rounds
   logger.warn('Max tool rounds reached', { rounds: round });
   return {
     finalText: 'I was unable to complete the request within the allowed number of steps. Please try again with a more specific question.',
+    totalInputTokens, totalOutputTokens, cacheHit,
     toolCallsMade,
     structuredData,
   };
@@ -279,11 +393,61 @@ export const handler = async (event) => {
     { role: 'user', content: userXml },
   ];
 
-  // ── 4. Agentic loop ───────────────────────────────────────────────────────
+  // ── 4. NH-69: Classify intent → select model ────────────────────────────
+  const { intentClass, classifierTokens, error: classifyError } =
+    await classifyIntent(effectiveMessage, templateId);
+  const selectedModelId = selectModel(intentClass);
+
+  logger.info('Intent classified', {
+    event:             'intent_classified',
+    intent_class:      intentClass,
+    model_id:          selectedModelId,
+    template_id:       templateId,
+    classifier_tokens: classifierTokens,
+    ...(classifyError ? { classify_error: classifyError } : {}),
+  });
+
+  // ── 5. NH-76: Prompt cache lookup — SIMPLE intent only ─────────────────
+  // Only cache SIMPLE (no-tool) responses. Tool results are dynamic (employee
+  // data changes) and must never be served stale.
+  // cacheKey computed once — reused for lookup and store.
+  let cacheHitResponse = null;
+  const cacheKey = intentClass === 'SIMPLE'
+    ? buildCacheKey(SYSTEM_PROMPT, effectiveMessage, selectedModelId)
+    : null;
+  if (cacheKey) {
+    cacheHitResponse = await getCached(cacheKey);
+    if (cacheHitResponse) {
+      logger.info(JSON.stringify({
+        event:    'prompt_cache',
+        cache_hit: true,
+        cache_key_hash: cacheKey.slice(0, 8), // prefix only — never full hash in logs
+        model_id: selectedModelId,
+      }));
+      const pii = sanitisePii(cacheHitResponse);
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message:         pii.sanitised,
+          toolCallsMade:   [],
+          conversationId:  `${staffId}-${Date.now()}`,
+          structuredData:  {},
+          latencyMs:       Date.now() - start,
+          guardrailAction: pii.fired ? 'MASKED' : 'NONE',
+          status:          'COMPLETE',
+          cacheHit:        true,
+        }),
+      };
+    }
+    logger.info(JSON.stringify({ event: 'prompt_cache', cache_hit: false, model_id: selectedModelId }));
+  }
+
+  // ── 6. Agentic loop ───────────────────────────────────────────────────────
   const context = { staffId };
   let loopResult;
   try {
-    loopResult = await runAgenticLoop(messages, context);
+    loopResult = await runAgenticLoop(messages, context, selectedModelId);
   } catch (err) {
     logger.error('Bedrock pipeline error', { error: err.message, stack: err.stack });
     return {
@@ -295,9 +459,17 @@ export const handler = async (event) => {
 
   const latencyMs = Date.now() - start;
   logger.info('AI chat complete', {
+    event:          'ai_chat_complete',
     latencyMs,
-    toolCallsMade: loopResult.toolCallsMade.length,
-    hitl: loopResult.hitl ?? false,
+    toolCallsMade:  loopResult.toolCallsMade.length,
+    hitl:           loopResult.hitl ?? false,
+    intent_class:   intentClass,
+    model_id:       selectedModelId,
+    // NH-75: token usage metrics for CloudWatch dashboards / cost attribution
+    // NEVER log content, prompts, or responses here
+    input_tokens:   loopResult.totalInputTokens  ?? 0,
+    output_tokens:  loopResult.totalOutputTokens ?? 0,
+    cache_hit:      loopResult.cacheHit          ?? false,
   });
 
   // ── 5. Return AiChatResponse ──────────────────────────────────────────────
@@ -325,6 +497,29 @@ export const handler = async (event) => {
       },
     } : {}),
   };
+
+  // NH-76: store SIMPLE intent responses in prompt cache on miss (1hr TTL).
+  // Only cache if no tool calls were made — tool results may be stale.
+  if (cacheKey && !loopResult.hitl && loopResult.toolCallsMade.length === 0) {
+    void setCached(cacheKey, loopResult.finalText);
+  }
+
+  // NH-74/75: fire-and-forget audit write — must not block the user response
+  // CloudWatch discipline: only metrics go to CW; content stays in DynamoDB/S3
+  void writeAuditRecord({
+    staffId,
+    templateId,
+    intentClass,
+    modelId:          selectedModelId,
+    promptSummary:    effectiveMessage,   // writeAuditRecord truncates to 200 chars
+    responseSummary:  pii.sanitised,      // writeAuditRecord truncates to 200 chars
+    toolCallsMade:    response.toolCallsMade,
+    latencyMs,
+    status:           response.status,
+    inputTokens:      loopResult.totalInputTokens  ?? 0,
+    outputTokens:     loopResult.totalOutputTokens ?? 0,
+    cacheHit:         loopResult.cacheHit          ?? false,
+  });
 
   return {
     statusCode: 200,

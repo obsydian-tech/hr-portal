@@ -68,6 +68,27 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/NalekoAiRateLimit"
       },
+      {
+        # NH-73: HITL gate — store pending write tool calls
+        Sid      = "PendingActionsWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.pending_actions.arn
+      },
+      {
+        # NH-74: write AI agent interaction records for POPIA audit trail
+        Sid      = "AgentAuditWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.agent_audit.arn
+      },
+      {
+        # NH-76: prompt response cache — read + write for cache lookup/store
+        Sid      = "PromptCacheReadWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.prompt_cache.arn
+      },
     ]
   })
 }
@@ -82,15 +103,26 @@ resource "aws_lambda_function" "naleko_ai_chat" {
   filename      = local.placeholder_zip
   memory_size   = 512
   timeout       = 60
+  # NH-71: cap concurrent Lambda invocations to protect Bedrock quotas in af-south-1
+  # Increase when sustained load justifies it (consider SQS queue at that point)
+  reserved_concurrent_executions = 10
 
   environment {
     variables = {
       BEDROCK_MODEL_ID          = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+      MODEL_FAST                = "us.anthropic.claude-haiku-4-5-v1:0"
+      MODEL_SMART               = "us.anthropic.claude-sonnet-4-5-v1:0"
       AWS_REGION_NAME           = var.aws_region
       AUDIT_TABLE               = "onboarding-events"
       RATE_LIMIT_TABLE          = "NalekoAiRateLimit"
       AGENT_API_BASE_URL        = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
       AGENT_API_KEY_SECRET_NAME = "naleko/agent/api-key"
+      # NH-73: HITL gate — write tool calls stored here pending approval
+      PENDING_ACTIONS_TABLE = aws_dynamodb_table.pending_actions.name
+      # NH-74: AI agent interaction audit trail for POPIA compliance
+      AGENT_AUDIT_TABLE = aws_dynamodb_table.agent_audit.name
+      # NH-76: prompt response cache (1hr TTL, DynamoDB)
+      PROMPT_CACHE_TABLE = aws_dynamodb_table.prompt_cache.name
     }
   }
 

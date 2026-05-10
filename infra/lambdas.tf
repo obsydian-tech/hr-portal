@@ -793,3 +793,36 @@ resource "aws_lambda_function" "get_batch_risk_report" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+
+# ─── NH-73: approveAgentAction ────────────────────────────────────────────────────────────────────────────────────────────────────────
+resource "aws_lambda_function" "approve_agent_action" {
+  function_name = "approveAgentAction"
+  role          = aws_iam_role.approve_agent_action.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 30
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      PENDING_ACTIONS_TABLE     = aws_dynamodb_table.pending_actions.name
+      AGENT_API_BASE_URL        = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
+      AGENT_API_KEY_SECRET_NAME = aws_secretsmanager_secret.agent_api_key.name
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/approveAgentAction"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = { Component = "HITLGate", Ticket = "NH-73" }
+}

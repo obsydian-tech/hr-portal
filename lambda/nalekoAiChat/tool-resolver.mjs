@@ -10,13 +10,67 @@
  */
 
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { marshall } from '@aws-sdk/util-dynamodb';
+import { randomUUID } from 'crypto';
 
 const sm = new SecretsManagerClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
-const AGENT_API_BASE = process.env.AGENT_API_BASE_URL ?? 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com';
-const SECRET_NAME    = process.env.AGENT_API_KEY_SECRET_NAME ?? 'naleko/agent/api-key';
+const db = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+const AGENT_API_BASE          = process.env.AGENT_API_BASE_URL ?? 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com';
+const SECRET_NAME             = process.env.AGENT_API_KEY_SECRET_NAME ?? 'naleko/agent/api-key';
+const PENDING_ACTIONS_TABLE   = process.env.PENDING_ACTIONS_TABLE ?? 'naleko-pending-actions';
 
 // Module-level cache — survives warm Lambda invocations
 let _cachedApiKey = null;
+
+// ─── NH-73: Write-tool HITL gate ──────────────────────────────────────────────
+
+/**
+ * Tool name prefixes that require HR manager approval before execution.
+ * Read-only tools (list_*, get_*, query_*, assess_*, onboard_*) are NOT listed
+ * and will execute immediately as before.
+ */
+const WRITE_TOOL_PREFIXES = ['approve', 'reject', 'update', 'create', 'delete', 'review', 'sendNotification'];
+
+function isWriteTool(toolName) {
+  return WRITE_TOOL_PREFIXES.some(prefix => toolName.startsWith(prefix));
+}
+
+/**
+ * Intercept a write tool call: store in DynamoDB with PENDING_APPROVAL status
+ * and return a PENDING_APPROVAL sentinel instead of executing.
+ *
+ * @param {string} toolName
+ * @param {object} toolArgs
+ * @param {{ staffId: string }} context
+ * @returns {Promise<object>} PENDING_APPROVAL response
+ */
+async function pendingApproval(toolName, toolArgs, context) {
+  const actionId  = randomUUID();
+  const now       = Math.floor(Date.now() / 1000);
+  const expiresAt = now + 24 * 60 * 60; // 24h TTL
+
+  await db.send(new PutItemCommand({
+    TableName: PENDING_ACTIONS_TABLE,
+    Item: marshall({
+      actionId,
+      toolName,
+      toolArgs,
+      staffId:   context.staffId,
+      status:    'PENDING_APPROVAL',
+      createdAt: new Date().toISOString(),
+      expiresAt,
+    }),
+  }));
+
+  console.log(JSON.stringify({ event: 'write_tool_intercepted', toolName, actionId }));
+
+  return {
+    status:   'PENDING_APPROVAL',
+    actionId,
+    message:  `Action requires HR manager approval. Reference: ${actionId}`,
+  };
+}
 
 /**
  * Fetch the agent API key from Secrets Manager (cached per warm container).
@@ -233,5 +287,12 @@ export const TOOL_MAP = {
 export async function resolveToolCall(toolName, args, context) {
   const fn = TOOL_MAP[toolName];
   if (!fn) throw new Error(`Unknown tool: "${toolName}". Valid tools: ${Object.keys(TOOL_MAP).join(', ')}`);
+
+  // NH-73: intercept write tools — store in DynamoDB and return PENDING_APPROVAL
+  // instead of executing. Read-only tools and the onboard draft tool pass through.
+  if (isWriteTool(toolName)) {
+    return pendingApproval(toolName, args, context);
+  }
+
   return fn(args, context);
 }
