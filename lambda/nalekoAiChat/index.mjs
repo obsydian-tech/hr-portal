@@ -228,11 +228,26 @@ async function runAgenticLoop(messages, context, modelId) {
           };
         }
 
+        // NH-72: sanitise PII from tool response BEFORE it enters the Claude message array.
+        // This is the pre-LLM guard — raw SA IDs, phones, bank accounts from DynamoDB
+        // must never reach the Bedrock prompt. Post-LLM sanitisation still runs unchanged.
+        const rawContent = JSON.stringify(result);
+        const { sanitised: sanitisedContent, matchedPatterns } = sanitisePii(rawContent);
+        if (matchedPatterns.length > 0) {
+          logger.warn(JSON.stringify({
+            event:             'pii_sanitised_tool_response',
+            tool_name:         toolName,
+            replacements_count: matchedPatterns.length,
+            patterns_fired:    matchedPatterns,
+            // Never log rawContent — it contains PII
+          }));
+        }
+
         toolResultContent.push({
           type:         'tool_result',
           tool_use_id:  toolUseId,
           ...(isError ? { is_error: true } : {}),
-          content:      JSON.stringify(result),
+          content:      sanitisedContent,
         });
       }
 
