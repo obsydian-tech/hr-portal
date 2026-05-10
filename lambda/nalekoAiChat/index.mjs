@@ -13,7 +13,8 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { createHash } from 'node:crypto';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { Logger }  from '@aws-lambda-powertools/logger';
 import { Tracer }  from '@aws-lambda-powertools/tracer';
@@ -49,6 +50,54 @@ const MAX_CONTEXT_CHARS       = 180_000; // ≈ 45 000 tokens
 // NH-79: Summarise history every N user turns with MODEL_FAST (Haiku only).
 // History is REPLACED (not appended) to keep context costs flat across long sessions.
 const SUMMARISE_EVERY_N_TURNS = 8;
+
+// NH-80: Per-staff-id hourly rate limit (default 50 req/h). Atomic conditional
+// UpdateItem ensures concurrent Lambdas cannot race past the cap.
+const RATE_LIMIT_RPH = parseInt(process.env.RATE_LIMIT_RPH ?? '50', 10);
+
+// ─── NH-80: hourly rate limiting ────────────────────────────────────────────
+// pk  = "rateLimit#{staffId}#{windowStart}" — one DDB item per staff per hour.
+// TTL (expiresAt) auto-expires old windows. Fails open on non-conditional errors.
+function hashStaffId(staffId) {
+  return createHash('sha256').update(staffId).digest('hex').slice(0, 16);
+}
+
+async function checkRateLimit(staffId) {
+  const now         = Date.now();
+  const windowStart = Math.floor(now / 3_600_000) * 3600; // unix seconds
+  const expiresAt   = windowStart + 3600;
+  const pk          = `rateLimit#${staffId}#${windowStart}`;
+
+  try {
+    await dynamo.send(new UpdateItemCommand({
+      TableName: process.env.RATE_LIMIT_TABLE,
+      Key: { pk: { S: pk } },
+      UpdateExpression:
+        'ADD requestCount :one SET expiresAt = if_not_exists(expiresAt, :exp)',
+      ConditionExpression:
+        'attribute_not_exists(requestCount) OR requestCount < :limit',
+      ExpressionAttributeValues: {
+        ':one':   { N: '1' },
+        ':limit': { N: String(RATE_LIMIT_RPH) },
+        ':exp':   { N: String(expiresAt) },
+      },
+    }));
+    return null; // allowed
+  } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') {
+      const retryAfter = expiresAt - Math.floor(now / 1000);
+      logger.warn('Rate limit exceeded', {
+        event:           'rate_limited',
+        session_id_hash: hashStaffId(staffId),
+        retryAfter,
+      });
+      return retryAfter;
+    }
+    // Any other error (network, IAM) — fail open so legit users aren't blocked
+    logger.error('Rate limit check failed — failing open', { err: err.message });
+    return null;
+  }
+}
 
 // ─── NH-74: write one audit record per AI interaction ────────────────────────
 // Fire-and-forget: never let a DynamoDB failure block the user response.
@@ -473,6 +522,22 @@ export const handler = async (event) => {
       statusCode: 401,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Missing staff_id claim in JWT' }),
+    };
+  }
+
+  // ── 1b. NH-80: Hourly rate limit check ─────────────────────────────────
+  const retryAfter = await checkRateLimit(staffId);
+  if (retryAfter !== null) {
+    return {
+      statusCode: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After':  String(retryAfter),
+      },
+      body: JSON.stringify({
+        error:      'Rate limit exceeded. Please try again later.',
+        retryAfter,
+      }),
     };
   }
 
