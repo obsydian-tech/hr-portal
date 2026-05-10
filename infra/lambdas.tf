@@ -481,8 +481,8 @@ resource "aws_lambda_function" "naleko_mcp_server" {
 
   environment {
     variables = {
-      AGENT_API_BASE   = "https://api.naleko.co.za"
-      REST_API_BASE    = "https://api.naleko.co.za"
+      AGENT_API_BASE   = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
+      REST_API_BASE    = "https://${aws_apigatewayv2_api.employees_api.id}.execute-api.${var.aws_region}.amazonaws.com"
       NALEKO_AGENT_KEY = data.aws_secretsmanager_secret_version.agent_api_key.secret_string
     }
   }
