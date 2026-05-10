@@ -321,3 +321,99 @@ output "agent_api_endpoint" {
   description = "Base URL for the naleko-agent-api. Append /agent/v1/<route>."
   value       = aws_apigatewayv2_api.agent_api.api_endpoint
 }
+
+# ─── NH-70: Secrets Manager 90-day API key rotation ──────────────────────────
+
+# IAM role for the rotateApiKey Lambda
+resource "aws_iam_role" "rotate_api_key" {
+  name        = "naleko-rotateApiKey-role"
+  description = "Execution role for rotateApiKey Lambda (NH-70)"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = { Component = "SecretRotation", Ticket = "NH-70" }
+}
+
+resource "aws_iam_role_policy" "rotate_api_key" {
+  name = "naleko-rotateApiKey-policy"
+  role = aws_iam_role.rotate_api_key.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      # CloudWatch Logs
+      {
+        Effect = "Allow"
+        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/rotateApiKey:*"
+      },
+      # Secrets Manager: rotation steps
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:PutSecretValue",
+          "secretsmanager:UpdateSecretVersionStage",
+          "secretsmanager:DescribeSecret",
+        ]
+        Resource = aws_secretsmanager_secret.agent_api_key.arn
+      },
+    ]
+  })
+}
+
+# Lambda function
+resource "aws_lambda_function" "rotate_api_key" {
+  function_name = "rotateApiKey"
+  role          = aws_iam_role.rotate_api_key.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 30
+
+  environment {
+    variables = {
+      AGENT_API_BASE_URL = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/rotateApiKey"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = { Component = "SecretRotation", Ticket = "NH-70" }
+}
+
+# Allow Secrets Manager to invoke the rotation Lambda
+resource "aws_lambda_permission" "rotate_api_key_secrets_manager" {
+  statement_id  = "AllowSecretsManagerInvokeRotateApiKey"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.rotate_api_key.function_name
+  principal     = "secretsmanager.amazonaws.com"
+  source_arn    = aws_secretsmanager_secret.agent_api_key.arn
+}
+
+# Enable 90-day automatic rotation on the agent API key secret
+resource "aws_secretsmanager_secret_rotation" "agent_api_key" {
+  secret_id           = aws_secretsmanager_secret.agent_api_key.id
+  rotation_lambda_arn = aws_lambda_function.rotate_api_key.arn
+
+  rotation_rules {
+    automatically_after_days = 90
+  }
+}
