@@ -4,6 +4,11 @@
  * Validates the `x-api-key` request header against a secret stored in
  * AWS Secrets Manager (naleko/agent/api-key).
  *
+ * NH-70 update: during Secrets Manager key rotation the authorizer accepts
+ * BOTH the AWSCURRENT and AWSPENDING versions, ensuring zero-downtime
+ * rotation even when warm nalekoAiChat containers still hold a cached
+ * (old) key from tool-resolver.mjs.
+ *
  * Returns:
  *   { isAuthorized: true,  context: { actor: 'AGENT' } }   — valid key
  *   { isAuthorized: false }                                 — missing/invalid
@@ -23,21 +28,44 @@ const logger = new Logger({ serviceName: 'agentAuthorizer' });
 
 // In-process key cache to minimise SM calls between Lambda warm starts.
 // API GW authorizer TTL caching (300s) provides the primary cache.
-let cachedKey = null;
+// NH-70: cache a Set of valid keys (AWSCURRENT + AWSPENDING if in rotation).
+let cachedKeys = null;
 let cacheExpiry = 0;
 const CACHE_TTL_MS = 4 * 60 * 1000; // 4 min (< API GW 5 min TTL)
 
-async function getAgentApiKey() {
+/**
+ * Returns a Set containing the AWSCURRENT key and, when rotation is in
+ * progress, the AWSPENDING key. This allows warm containers holding the
+ * old key to keep working until their cache is refreshed.
+ */
+async function getValidKeys() {
   const now = Date.now();
-  if (cachedKey && now < cacheExpiry) return cachedKey;
+  if (cachedKeys && now < cacheExpiry) return cachedKeys;
 
-  const result = await sm.send(new GetSecretValueCommand({
-    SecretId: process.env.AGENT_API_KEY_SECRET_NAME ?? 'naleko/agent/api-key',
-  }));
+  const secretId = process.env.AGENT_API_KEY_SECRET_NAME ?? 'naleko/agent/api-key';
+  const keys = new Set();
 
-  cachedKey = result.SecretString;
+  // Always fetch AWSCURRENT
+  const current = await sm.send(new GetSecretValueCommand({ SecretId: secretId }));
+  keys.add(current.SecretString);
+
+  // Also fetch AWSPENDING if rotation is in progress (non-fatal if absent)
+  try {
+    const pending = await sm.send(new GetSecretValueCommand({
+      SecretId: secretId,
+      VersionStage: 'AWSPENDING',
+    }));
+    if (pending.SecretString) keys.add(pending.SecretString);
+  } catch (e) {
+    // ResourceNotFoundException is expected when no rotation is in progress
+    if (e.name !== 'ResourceNotFoundException') {
+      logger.warn('Could not fetch AWSPENDING key', { error: e.message });
+    }
+  }
+
+  cachedKeys = keys;
   cacheExpiry = now + CACHE_TTL_MS;
-  return cachedKey;
+  return cachedKeys;
 }
 
 export const handler = async (event) => {
@@ -53,14 +81,18 @@ export const handler = async (event) => {
   }
 
   try {
-    const validKey = await getAgentApiKey();
+    const validKeys = await getValidKeys();
 
-    // Constant-time comparison to prevent timing attacks
+    // Constant-time comparison against each valid key (AWSCURRENT + AWSPENDING)
+    // to prevent timing attacks. A match against any valid key is sufficient.
     const providedBuf = Buffer.from(providedKey);
-    const validBuf = Buffer.from(validKey);
-    const keysMatch =
-      providedBuf.length === validBuf.length &&
-      providedBuf.every((byte, i) => byte === validBuf[i]);
+    const keysMatch = [...validKeys].some((validKey) => {
+      const validBuf = Buffer.from(validKey);
+      return (
+        providedBuf.length === validBuf.length &&
+        providedBuf.every((byte, i) => byte === validBuf[i])
+      );
+    });
 
     if (!keysMatch) {
       logger.warn('Invalid API key — rejecting', {
