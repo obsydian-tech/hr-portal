@@ -17,12 +17,17 @@ import { Logger }  from '@aws-lambda-powertools/logger';
 import { Tracer }  from '@aws-lambda-powertools/tracer';
 import { resolveToolCall, TOOL_DEFINITIONS } from './tool-resolver.mjs';
 import { sanitisePii } from './pii-sanitiser.mjs';
+import { classifyIntent, selectModel } from './intent-classifier.mjs';
 
 const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
-const MODEL_ID   = process.env.BEDROCK_MODEL_ID ?? 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
+// NH-69: model IDs resolved from env vars — never hard-coded
+// MODEL_FAST  → Haiku  (simple lookups, classification)
+// MODEL_SMART → Sonnet (tool-heavy, complex reasoning)
+const MODEL_FAST  = process.env.MODEL_FAST  ?? 'us.anthropic.claude-haiku-4-5-v1:0';
+const MODEL_SMART = process.env.MODEL_SMART ?? 'us.anthropic.claude-sonnet-4-5-v1:0';
 const MAX_TOKENS = 2048;
 const MAX_TOOL_ROUNDS = 5; // guard against infinite loops
 
@@ -94,9 +99,10 @@ ${slotsXml ? `<slots>\n${slotsXml}\n</slots>\n` : ''}<message>${userMessage}</me
 /**
  * Call Claude via Bedrock Messages API.
  * @param {Array}  messages  - conversation so far
+ * @param {string} modelId   - resolved Bedrock model ID (from NH-69 intent router)
  * @returns {object}  parsed response body
  */
-async function invokeClaude(messages) {
+async function invokeClaude(messages, modelId) {
   const payload = {
     anthropic_version: 'bedrock-2023-05-31',
     max_tokens:        MAX_TOKENS,
@@ -112,7 +118,7 @@ async function invokeClaude(messages) {
   };
 
   const cmd = new InvokeModelCommand({
-    modelId:     MODEL_ID,
+    modelId:     modelId,
     contentType: 'application/json',
     accept:      'application/json',
     body:        JSON.stringify(payload),
@@ -131,16 +137,17 @@ async function invokeClaude(messages) {
  *
  * @param {Array}   messages      - initial messages array (mutable)
  * @param {object}  context       - { staffId }
+ * @param {string}  modelId       - resolved Bedrock model ID (NH-69)
  * @returns {{ finalText: string, toolCallsMade: Array, structuredData: object }}
  */
-async function runAgenticLoop(messages, context) {
+async function runAgenticLoop(messages, context, modelId) {
   const toolCallsMade  = [];
   let   structuredData = {};
   let   round          = 0;
 
   while (round < MAX_TOOL_ROUNDS) {
     round++;
-    const response = await invokeClaude(messages);
+    const response = await invokeClaude(messages, modelId);
 
     logger.debug('Claude response', {
       stop_reason: response.stop_reason,
@@ -279,11 +286,25 @@ export const handler = async (event) => {
     { role: 'user', content: userXml },
   ];
 
-  // ── 4. Agentic loop ───────────────────────────────────────────────────────
+  // ── 4. NH-69: Classify intent → select model ────────────────────────────
+  const { intentClass, classifierTokens, error: classifyError } =
+    await classifyIntent(effectiveMessage, templateId);
+  const selectedModelId = selectModel(intentClass);
+
+  logger.info('Intent classified', {
+    event:             'intent_classified',
+    intent_class:      intentClass,
+    model_id:          selectedModelId,
+    template_id:       templateId,
+    classifier_tokens: classifierTokens,
+    ...(classifyError ? { classify_error: classifyError } : {}),
+  });
+
+  // ── 5. Agentic loop ───────────────────────────────────────────────────────
   const context = { staffId };
   let loopResult;
   try {
-    loopResult = await runAgenticLoop(messages, context);
+    loopResult = await runAgenticLoop(messages, context, selectedModelId);
   } catch (err) {
     logger.error('Bedrock pipeline error', { error: err.message, stack: err.stack });
     return {
@@ -295,9 +316,12 @@ export const handler = async (event) => {
 
   const latencyMs = Date.now() - start;
   logger.info('AI chat complete', {
+    event:         'ai_chat_complete',
     latencyMs,
     toolCallsMade: loopResult.toolCallsMade.length,
-    hitl: loopResult.hitl ?? false,
+    hitl:          loopResult.hitl ?? false,
+    intent_class:  intentClass,
+    model_id:      selectedModelId,
   });
 
   // ── 5. Return AiChatResponse ──────────────────────────────────────────────

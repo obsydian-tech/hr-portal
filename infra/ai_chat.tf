@@ -86,6 +86,8 @@ resource "aws_lambda_function" "naleko_ai_chat" {
   environment {
     variables = {
       BEDROCK_MODEL_ID          = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+      MODEL_FAST                = "us.anthropic.claude-haiku-4-5-v1:0"
+      MODEL_SMART               = "us.anthropic.claude-sonnet-4-5-v1:0"
       AWS_REGION_NAME           = var.aws_region
       AUDIT_TABLE               = "onboarding-events"
       RATE_LIMIT_TABLE          = "NalekoAiRateLimit"
