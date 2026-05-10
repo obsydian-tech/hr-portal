@@ -305,3 +305,63 @@ resource "aws_dynamodb_table" "onboarding_events" {
     RetentionYears     = "7"
   }
 }
+
+# ---------------------------------------------------------------------------
+# NH-74: naleko-agent-audit — AI agent interaction audit trail (POPIA)
+# Records every prompt + response from nalekoAiChat for compliance.
+# PK  = tenantId#sessionId   (composite — avoids hot partitions)
+# SK  = ISO8601 timestamp
+# GSI DateIndex — compliance date-range queries (YYYY-MM-DD hash key)
+# TTL = 30 days (hot operational window); DynamoDB Stream → S3 for 5-yr archive
+# ---------------------------------------------------------------------------
+resource "aws_dynamodb_table" "agent_audit" {
+  name         = "naleko-agent-audit"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
+
+  attribute {
+    name = "pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "sk"
+    type = "S"
+  }
+
+  attribute {
+    name = "date"
+    type = "S"
+  }
+
+  # DateIndex — compliance teams can query all interactions on a given calendar day
+  global_secondary_index {
+    name            = "DateIndex"
+    hash_key        = "date"
+    range_key       = "sk"
+    projection_type = "ALL"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  # Stream feeds NH-12 Lambda-to-S3 archiver for 5-year POPIA retention
+  stream_enabled   = true
+  stream_view_type = "NEW_AND_OLD_IMAGES"
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  tags = {
+    Environment        = "poc"
+    Purpose            = "agent-audit"
+    DataClassification = "AUDIT"
+    RetentionDays      = "30"
+    Ticket             = "NH-74"
+  }
+}

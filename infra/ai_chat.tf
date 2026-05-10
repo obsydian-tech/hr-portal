@@ -75,6 +75,13 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Action   = ["dynamodb:PutItem"]
         Resource = aws_dynamodb_table.pending_actions.arn
       },
+      {
+        # NH-74: write AI agent interaction records for POPIA audit trail
+        Sid      = "AgentAuditWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.agent_audit.arn
+      },
     ]
   })
 }
@@ -105,6 +112,8 @@ resource "aws_lambda_function" "naleko_ai_chat" {
       AGENT_API_KEY_SECRET_NAME = "naleko/agent/api-key"
       # NH-73: HITL gate — write tool calls stored here pending approval
       PENDING_ACTIONS_TABLE     = aws_dynamodb_table.pending_actions.name
+      # NH-74: AI agent interaction audit trail for POPIA compliance
+      AGENT_AUDIT_TABLE         = aws_dynamodb_table.agent_audit.name
     }
   }
 

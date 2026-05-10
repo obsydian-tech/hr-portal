@@ -13,6 +13,8 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { marshall } from '@aws-sdk/util-dynamodb';
 import { Logger }  from '@aws-lambda-powertools/logger';
 import { Tracer }  from '@aws-lambda-powertools/tracer';
 import { resolveToolCall, TOOL_DEFINITIONS } from './tool-resolver.mjs';
@@ -22,6 +24,10 @@ import { classifyIntent, selectModel } from './intent-classifier.mjs';
 const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+const dynamo  = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+
+// NH-74: audit table — AI interaction records for POPIA compliance
+const AGENT_AUDIT_TABLE = process.env.AGENT_AUDIT_TABLE ?? 'naleko-agent-audit';
 
 // NH-69: model IDs resolved from env vars — never hard-coded
 // MODEL_FAST  → Haiku  (simple lookups, classification)
@@ -30,6 +36,42 @@ const MODEL_FAST  = process.env.MODEL_FAST  ?? 'us.anthropic.claude-haiku-4-5-v1
 const MODEL_SMART = process.env.MODEL_SMART ?? 'us.anthropic.claude-sonnet-4-5-v1:0';
 const MAX_TOKENS = 2048;
 const MAX_TOOL_ROUNDS = 5; // guard against infinite loops
+
+// ─── NH-74: write one audit record per AI interaction ────────────────────────
+// Fire-and-forget: never let a DynamoDB failure block the user response.
+// PK  = "demo#" + staffId (tenantId is hard-coded "demo" for PoC)
+// SK  = ISO8601 timestamp
+// TTL = now + 30 days; DynamoDB Stream → S3 for 5-yr POPIA archive (NH-12)
+
+async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
+  userMessage, assistantMessage, toolCallsMade, latencyMs, status }) {
+  const now = new Date();
+  const expiresAt = Math.floor(now.getTime() / 1000) + 30 * 24 * 60 * 60; // +30 days
+  const item = {
+    pk:             `demo#${staffId}`,
+    sk:             now.toISOString(),
+    date:           now.toISOString().slice(0, 10), // YYYY-MM-DD for DateIndex GSI
+    staffId,
+    templateId,
+    intentClass:    intentClass ?? 'UNKNOWN',
+    modelId,
+    userMessage,
+    assistantMessage,
+    toolCallsMade:  JSON.stringify(toolCallsMade),
+    latencyMs,
+    status,
+    expiresAt,
+  };
+  try {
+    await dynamo.send(new PutItemCommand({
+      TableName: AGENT_AUDIT_TABLE,
+      Item:      marshall(item, { removeUndefinedValues: true }),
+    }));
+  } catch (err) {
+    // Non-fatal — log and continue
+    logger.error('Audit write failed', { event: 'audit_write_error', error: err.message });
+  }
+}
 
 // ─── System prompt (cached per warm container) ────────────────────────────────
 
@@ -390,6 +432,19 @@ export const handler = async (event) => {
       },
     } : {}),
   };
+
+  // NH-74: fire-and-forget audit write — must not block the user response
+  void writeAuditRecord({
+    staffId,
+    templateId,
+    intentClass,
+    modelId:         selectedModelId,
+    userMessage:     effectiveMessage,
+    assistantMessage: pii.sanitised,
+    toolCallsMade:   response.toolCallsMade,
+    latencyMs,
+    status:          response.status,
+  });
 
   return {
     statusCode: 200,
