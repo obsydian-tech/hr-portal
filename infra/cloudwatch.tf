@@ -210,3 +210,121 @@ resource "aws_cloudwatch_log_metric_filter" "naleko_history_summarised" {
 
   depends_on = [aws_cloudwatch_log_group.lambda]
 }
+
+# ─── NH-83: Naleko-AI-PoC dashboard (6 widgets) ───────────────────────────────
+# All metrics from Naleko/AI namespace (created by NH-82 metric filters).
+# period = 3600 (hourly). 2-column × 3-row layout (width 12 each, height 6).
+resource "aws_cloudwatch_dashboard" "naleko_ai_poc" {
+  dashboard_name = "Naleko-AI-PoC"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      # ── Row 1 ──────────────────────────────────────────────────────────────
+      {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title  = "Token Usage (hourly)"
+          region = var.aws_region
+          period = 3600
+          stat   = "Sum"
+          view   = "timeSeries"
+          metrics = [
+            ["Naleko/AI", "InputTokens", { label = "Input Tokens", color = "#1f77b4" }],
+            ["Naleko/AI", "OutputTokens", { label = "Output Tokens", color = "#ff7f0e" }],
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title  = "Cache Hit Rate (hourly)"
+          region = var.aws_region
+          period = 3600
+          stat   = "Sum"
+          view   = "timeSeries"
+          metrics = [
+            ["Naleko/AI", "CacheHit", { label = "Cache Hits", color = "#2ca02c" }],
+          ]
+        }
+      },
+      # ── Row 2 ──────────────────────────────────────────────────────────────
+      {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title  = "P99 Latency ms (hourly)"
+          region = var.aws_region
+          period = 3600
+          stat   = "p99"
+          view   = "timeSeries"
+          metrics = [
+            ["Naleko/AI", "LatencyMs", { label = "P99 Latency (ms)", color = "#9467bd" }],
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title  = "Rate Limited Requests (hourly)"
+          region = var.aws_region
+          period = 3600
+          stat   = "Sum"
+          view   = "timeSeries"
+          metrics = [
+            ["Naleko/AI", "RateLimited", { label = "Rate Limited", color = "#d62728" }],
+          ]
+        }
+      },
+      # ── Row 3 ──────────────────────────────────────────────────────────────
+      {
+        type   = "metric"
+        x      = 0
+        y      = 12
+        width  = 12
+        height = 6
+        properties = {
+          title  = "Context Trims (hourly)"
+          region = var.aws_region
+          period = 3600
+          stat   = "Sum"
+          view   = "timeSeries"
+          metrics = [
+            ["Naleko/AI", "ContextTrimmed", { label = "Context Trimmed", color = "#e377c2" }],
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 12
+        width  = 12
+        height = 6
+        properties = {
+          title  = "History Summarisations (hourly)"
+          region = var.aws_region
+          period = 3600
+          stat   = "Sum"
+          view   = "timeSeries"
+          metrics = [
+            ["Naleko/AI", "HistorySummarised", { label = "History Summarised", color = "#8c564b" }],
+          ]
+        }
+      },
+    ]
+  })
+}
