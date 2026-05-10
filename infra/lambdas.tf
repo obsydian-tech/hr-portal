@@ -826,3 +826,66 @@ resource "aws_lambda_function" "approve_agent_action" {
 
   tags = { Component = "HITLGate", Ticket = "NH-73" }
 }
+
+# ---------------------------------------------------------------------------
+# NH-77 — archiveAuditLog
+# Triggered by DynamoDB Streams on naleko-agent-audit (INSERT only).
+# Writes gzipped JSONL to S3 under year=/month=/day= Hive-style partitions.
+# ---------------------------------------------------------------------------
+resource "aws_lambda_function" "archive_audit_log" {
+  function_name = "archiveAuditLog"
+  role          = aws_iam_role.archive_audit_log.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 256
+  timeout       = 60
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      AUDIT_ARCHIVE_BUCKET = aws_s3_bucket.audit_archive.bucket
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/archiveAuditLog"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = { Component = "AuditArchive", Ticket = "NH-77" }
+}
+
+# DynamoDB Streams trigger — INSERT events only (filter in Lambda, not here)
+resource "aws_lambda_event_source_mapping" "archive_audit_log_stream" {
+  event_source_arn                   = aws_dynamodb_table.agent_audit.stream_arn
+  function_name                      = aws_lambda_function.archive_audit_log.arn
+  starting_position                  = "TRIM_HORIZON"
+  batch_size                         = 10
+  maximum_batching_window_in_seconds = 30
+  bisect_batch_on_function_error     = true
+
+  destination_config {
+    on_failure {
+      destination_arn = aws_sqs_queue.archive_audit_log_dlq.arn
+    }
+  }
+
+  function_response_types = ["ReportBatchItemFailures"]
+}
+
+# DLQ for failed archive batches
+resource "aws_sqs_queue" "archive_audit_log_dlq" {
+  name                      = "naleko-archive-audit-log-dlq"
+  message_retention_seconds = 1209600 # 14 days
+  kms_master_key_id         = "alias/aws/sqs"
+
+  tags = { Ticket = "NH-77" }
+}
