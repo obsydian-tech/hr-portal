@@ -82,6 +82,13 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Action   = ["dynamodb:PutItem"]
         Resource = aws_dynamodb_table.agent_audit.arn
       },
+      {
+        # NH-76: prompt response cache — read + write for cache lookup/store
+        Sid      = "PromptCacheReadWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.prompt_cache.arn
+      },
     ]
   })
 }
@@ -114,6 +121,8 @@ resource "aws_lambda_function" "naleko_ai_chat" {
       PENDING_ACTIONS_TABLE     = aws_dynamodb_table.pending_actions.name
       # NH-74: AI agent interaction audit trail for POPIA compliance
       AGENT_AUDIT_TABLE         = aws_dynamodb_table.agent_audit.name
+      # NH-76: prompt response cache (1hr TTL, DynamoDB)
+      PROMPT_CACHE_TABLE        = aws_dynamodb_table.prompt_cache.name
     }
   }
 
