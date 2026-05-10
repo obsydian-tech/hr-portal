@@ -393,9 +393,9 @@ resource "aws_dynamodb_table" "prompt_cache" {
   }
 
   tags = {
-    Environment = "poc"
-    Purpose     = "prompt-cache"
-    RetentionDays = "0.04"  # ~1hr
-    Ticket      = "NH-76"
+    Environment   = "poc"
+    Purpose       = "prompt-cache"
+    RetentionDays = "0.04" # ~1hr
+    Ticket        = "NH-76"
   }
 }

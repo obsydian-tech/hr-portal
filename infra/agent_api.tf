@@ -389,8 +389,8 @@ resource "aws_iam_role_policy" "rotate_api_key" {
     Statement = [
       # CloudWatch Logs
       {
-        Effect = "Allow"
-        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
         Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/rotateApiKey:*"
       },
       # Secrets Manager: rotation steps
