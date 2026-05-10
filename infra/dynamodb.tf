@@ -6,7 +6,40 @@
 #        columns written by createEmployee and processDocumentOCR Lambdas
 # NH-13: external-verification-requests table added
 # NH-28: GSIs on employees (email, stage, created_by) + PITR on employees/docs
+# NH-73: naleko-pending-actions table — HITL gate for write tools
 # ---------------------------------------------------------------------------
+
+# ─── Pending agent actions table (NH-73) ─────────────────────────────────────
+# Stores write tool calls intercepted by nalekoAiChat pending human approval.
+# Records expire automatically after 24h via TTL.
+
+resource "aws_dynamodb_table" "pending_actions" {
+  name         = "naleko-pending-actions"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "actionId"
+
+  attribute {
+    name = "actionId"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  tags = {
+    Purpose            = "HITLGate"
+    DataClassification = "Internal"
+    RetentionDays      = "1"
+    Ticket             = "NH-73"
+  }
+}
 
 # ─── Idempotency keys table (NH-44) ──────────────────────────────────────────
 # Caches the first response for each Idempotency-Key for 24h.

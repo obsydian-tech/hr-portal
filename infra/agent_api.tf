@@ -314,7 +314,46 @@ resource "aws_lambda_permission" "agent_batch_risk_report" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.agent_api.execution_arn}/*/*"
 }
+# ─── NH-73: HITL approval routes ───────────────────────────────────────────────
 
+resource "aws_apigatewayv2_integration" "approve_agent_action" {
+  api_id                 = aws_apigatewayv2_api.agent_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.approve_agent_action.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "agent_action_get" {
+  api_id             = aws_apigatewayv2_api.agent_api.id
+  route_key          = "GET /agent/v1/actions/{actionId}"
+  target             = "integrations/${aws_apigatewayv2_integration.approve_agent_action.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.agent_api_key.id
+}
+
+resource "aws_apigatewayv2_route" "agent_action_approve" {
+  api_id             = aws_apigatewayv2_api.agent_api.id
+  route_key          = "POST /agent/v1/actions/{actionId}/approve"
+  target             = "integrations/${aws_apigatewayv2_integration.approve_agent_action.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.agent_api_key.id
+}
+
+resource "aws_apigatewayv2_route" "agent_action_reject" {
+  api_id             = aws_apigatewayv2_api.agent_api.id
+  route_key          = "POST /agent/v1/actions/{actionId}/reject"
+  target             = "integrations/${aws_apigatewayv2_integration.approve_agent_action.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.agent_api_key.id
+}
+
+resource "aws_lambda_permission" "approve_agent_action" {
+  statement_id  = "AllowAgentAPIInvokeApproveAgentAction"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.approve_agent_action.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.agent_api.execution_arn}/*/*"
+}
 # ─── Output ───────────────────────────────────────────────────────────────────
 
 output "agent_api_endpoint" {

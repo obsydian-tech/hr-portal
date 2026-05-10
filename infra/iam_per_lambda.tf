@@ -1427,3 +1427,55 @@ resource "aws_iam_role_policy" "get_batch_risk_report" {
     ]
   })
 }
+
+# ─── NH-73: approveAgentAction ───────────────────────────────────────────────────────────────
+
+resource "aws_iam_role" "approve_agent_action" {
+  name        = "naleko-approveAgentAction-role"
+  description = "Execution role for approveAgentAction Lambda (NH-73)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "approve_agent_action" {
+  name = "naleko-approveAgentAction-policy"
+  role = aws_iam_role.approve_agent_action.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/approveAgentAction:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "PendingActionsReadWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = aws_dynamodb_table.pending_actions.arn
+      },
+      {
+        Sid      = "AgentApiKeyRead"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:naleko/agent/api-key*"
+      },
+    ]
+  })
+}
