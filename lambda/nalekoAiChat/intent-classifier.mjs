@@ -17,7 +17,8 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
 // Always classify with Haiku — cost: ~200 input tokens + ~5 output tokens per call
-const CLASSIFIER_MODEL = process.env.MODEL_FAST ?? 'us.anthropic.claude-haiku-4-5-v1:0';
+// NH-81: resolved purely from env var — no hard-coded fallback.
+const CLASSIFIER_MODEL = process.env.MODEL_FAST;
 
 const CLASSIFIER_SYSTEM = `You are an intent classifier for an HR onboarding assistant. 
 Classify the user request into exactly one category. Reply with ONLY the category name — no explanation.
@@ -93,10 +94,11 @@ export async function classifyIntent(message, templateId) {
  * @param {'SIMPLE'|'TOOL_REQUIRED'|'UNKNOWN'} intentClass
  * @returns {string} modelId
  */
+// NH-81: no hard-coded model ID strings — resolved entirely from env vars.
 export function selectModel(intentClass) {
   if (intentClass === 'SIMPLE') {
-    return process.env.MODEL_FAST ?? 'us.anthropic.claude-haiku-4-5-v1:0';
+    return process.env.MODEL_FAST;
   }
   // TOOL_REQUIRED and UNKNOWN both use the smart model
-  return process.env.MODEL_SMART ?? 'us.anthropic.claude-sonnet-4-5-v1:0';
+  return process.env.MODEL_SMART;
 }
