@@ -46,6 +46,10 @@ const MAX_TOOL_ROUNDS = 5;     // guard against infinite loops
 const MAX_TOOL_RESPONSE_CHARS = 8000;    // ≈ 2 000 tokens
 const MAX_CONTEXT_CHARS       = 180_000; // ≈ 45 000 tokens
 
+// NH-79: Summarise history every N user turns with MODEL_FAST (Haiku only).
+// History is REPLACED (not appended) to keep context costs flat across long sessions.
+const SUMMARISE_EVERY_N_TURNS = 8;
+
 // ─── NH-74: write one audit record per AI interaction ────────────────────────
 // Fire-and-forget: never let a DynamoDB failure block the user response.
 // PK  = "demo#" + staffId (tenantId is hard-coded "demo" for PoC)
@@ -163,6 +167,77 @@ function buildUserMessage(templateId, slots, screenContext, staffId, userMessage
   <template_id>${templateId ?? 'freeform'}</template_id>
 </task>
 ${slotsXml ? `<slots>\n${slotsXml}\n</slots>\n` : ''}<message>${userMessage}</message>`;
+}
+
+// ─── NH-79: History summariser ─────────────────────────────────────────────
+
+/**
+ * Summarise a conversation history into a compact 2-message replacement.
+ * Runs every SUMMARISE_EVERY_N_TURNS user turns using MODEL_FAST (Haiku).
+ * Never uses MODEL_SMART — summarisation does not need full reasoning power.
+ *
+ * On any failure the function returns the original history unchanged (non-fatal).
+ *
+ * @param {Array}  messages   - current messages array (may include prior system messages)
+ * @param {string} modelId    - IGNORED; always uses MODEL_FAST (Haiku) per spec
+ * @returns {Array} replacement 2-message array, or original messages on failure
+ */
+async function maybeSummariseHistory(messages, modelId) {
+  // Count user turns in this history
+  const userTurns = messages.filter(m => m.role === 'user').length;
+
+  // Summarise when userTurns is a multiple of SUMMARISE_EVERY_N_TURNS (and > 0)
+  if (userTurns === 0 || userTurns % SUMMARISE_EVERY_N_TURNS !== 0) {
+    return messages; // nothing to do
+  }
+
+  try {
+    const historyText = messages
+      .map(m => `${m.role.toUpperCase()}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`)
+      .join('\n\n');
+
+    const summaryPayload = {
+      anthropic_version: 'bedrock-2023-05-31',
+      max_tokens:        300,
+      messages: [{
+        role: 'user',
+        content:
+          'Summarise the following HR assistant conversation concisely. ' +
+          'Preserve: key employee IDs mentioned, actions taken, pending items, and any risk flags. ' +
+          'Output plain text only — no markdown headers.\n\n' + historyText,
+      }],
+    };
+
+    const cmd = new InvokeModelCommand({
+      modelId:     MODEL_FAST, // always Haiku — spec requirement
+      contentType: 'application/json',
+      accept:      'application/json',
+      body:        JSON.stringify(summaryPayload),
+    });
+
+    const res     = await invokeBedrockWithRetry(cmd);
+    const parsed  = JSON.parse(new TextDecoder().decode(res.body));
+    const summary = parsed.content?.find(b => b.type === 'text')?.text ?? '';
+
+    if (!summary) throw new Error('empty summary from Bedrock');
+
+    logger.info(JSON.stringify({
+      event:            'history_summarised',
+      turns_summarised: userTurns,
+      model_id:         MODEL_FAST,
+      summary_chars:    summary.length,
+    }));
+
+    // REPLACE history with a tight 2-message pair
+    return [
+      { role: 'user',      content: `[Conversation summary — ${userTurns} turns]: ${summary}` },
+      { role: 'assistant', content: 'Understood. I have the context from the prior conversation.' },
+    ];
+  } catch (err) {
+    // Non-fatal — fall back to full history silently
+    logger.warn(JSON.stringify({ event: 'history_summarise_failed', error: err.message }));
+    return messages;
+  }
 }
 
 // ─── Bedrock helpers ──────────────────────────────────────────────────────────
@@ -435,8 +510,15 @@ export const handler = async (event) => {
   const userXml = buildUserMessage(templateId, slots, screenContext, staffId, effectiveMessage);
 
   // Replay prior turns then append this turn
+  const rawHistory = [...conversationHistory];
+
+  // ── 3a. NH-79: Maybe summarise history (every 8 user turns, Haiku only) ──
+  // Pass MODEL_FAST placeholder — maybeSummariseHistory always uses MODEL_FAST regardless.
+  // Runs before we append the new user turn so the count reflects prior turns only.
+  const summarisedHistory = await maybeSummariseHistory(rawHistory, MODEL_FAST);
+
   const messages = [
-    ...conversationHistory,
+    ...summarisedHistory,
     { role: 'user', content: userXml },
   ];
 
