@@ -99,13 +99,19 @@
               <span class="summary-label">Pending</span>
             </div>
           </div>
-          <div class="col-12 md:col-3">
+          <div class="col-12 md:col-2">
+            <div class="summary-item">
+              <span class="summary-value text-purple-500">{{ summary.processing }}</span>
+              <span class="summary-label">Processing</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-2">
             <div class="summary-item">
               <span class="summary-value text-orange-500">{{ summary.manual_review }}</span>
               <span class="summary-label">Needs Review</span>
             </div>
           </div>
-          <div class="col-12 md:col-3">
+          <div class="col-12 md:col-2">
             <div class="summary-item">
               <span class="summary-value text-red-500">{{ summary.failed }}</span>
               <span class="summary-label">Failed</span>
