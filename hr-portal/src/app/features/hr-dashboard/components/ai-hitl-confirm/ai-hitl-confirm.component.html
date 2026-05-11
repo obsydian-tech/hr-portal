@@ -1,32 +1,47 @@
-<div class="ai-hitl">
-  <div class="ai-hitl__banner">
-    <i class="pi pi-exclamation-triangle"></i>
-    <strong>Human approval required</strong>
-    <span>Review the details below before confirming this action.</span>
+<div class="hitl">
+
+  <!-- Warning banner -->
+  <div class="hitl__banner">
+    <span class="hitl__banner-icon">
+      <i class="pi pi-user-plus"></i>
+    </span>
+    <div class="hitl__banner-text">
+      <strong>Human approval required</strong>
+      <span>Review the new employee details below before confirming this action.</span>
+    </div>
   </div>
 
-  <table class="ai-hitl__preview">
-    <tbody>
-      @for (entry of draftEntries(); track entry.key) {
-        <tr>
-          <th>{{ entry.key }}</th>
-          <td>{{ entry.value }}</td>
-        </tr>
-      }
-    </tbody>
-  </table>
+  <!-- Field list -->
+  <div class="hitl__fields">
+    @for (entry of draftEntries(); track entry.key) {
+      <div class="hitl__field">
+        <span class="hitl__field-icon">
+          <i [class]="entry.icon"></i>
+        </span>
+        <div class="hitl__field-body">
+          <span class="hitl__field-label">{{ entry.label }}</span>
+          <span class="hitl__field-value">{{ entry.value }}</span>
+        </div>
+      </div>
+    }
+  </div>
 
-  <div class="ai-hitl__actions">
+  <p-divider />
+
+  <!-- Actions -->
+  <div class="hitl__actions">
     <p-button
       label="Cancel"
       severity="secondary"
-      [text]="true"
+      variant="text"
+      icon="pi pi-times"
       (onClick)="cancelled.emit()" />
 
     <p-button
       label="Approve & Create"
-      severity="warn"
       icon="pi pi-check"
+      styleClass="hitl__approve-btn"
       (onClick)="approved.emit()" />
   </div>
+
 </div>

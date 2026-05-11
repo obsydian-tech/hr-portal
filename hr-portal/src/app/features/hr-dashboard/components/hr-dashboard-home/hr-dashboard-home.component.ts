@@ -5,9 +5,11 @@ import {
   signal,
   computed,
   OnInit,
+  OnDestroy,
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { DatePipe } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { HrApiService } from '../../../../core/services/hr-api.service';
 import {
   Employee,
@@ -23,6 +25,7 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { FormsModule } from '@angular/forms';
+import { AiModeService } from '../../services/ai-mode.service';
 
 @Component({
   selector: 'app-hr-dashboard-home',
@@ -43,10 +46,13 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './hr-dashboard-home.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HrDashboardHomeComponent implements OnInit {
+export class HrDashboardHomeComponent implements OnInit, OnDestroy {
   private readonly hrApi = inject(HrApiService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly aiMode = inject(AiModeService);
+
+  private readonly subs = new Subscription();
 
   readonly employees = signal<Employee[]>([]);
   readonly loading = signal(true);
@@ -95,6 +101,20 @@ export class HrDashboardHomeComponent implements OnInit {
     const staffId = this.route.parent?.snapshot.params['staffId'] ?? 'AS00001';
     this.isManager.set(isHrManager(staffId));
 
+    this.loadEmployees();
+
+    // Refresh list when AI assistant creates a new employee via HITL flow
+    this.subs.add(
+      this.aiMode.employeeCreated$.subscribe(() => this.loadEmployees())
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.subs.unsubscribe();
+  }
+
+  private loadEmployees(): void {
+    this.loading.set(true);
     this.hrApi.getEmployees().subscribe((res) => {
       this.employees.set(res.items);
       this.loading.set(false);
