@@ -64,8 +64,20 @@ export class EmployeeDetailComponent implements OnInit {
 
   get completionPercent(): number {
     const s = this.summary;
-    if (!s || s.total === 0) return 0;
-    return Math.round((s.verified / s.total) * 100);
+    if (!s) return 0;
+    // NH-102: exclude PENDING (not-yet-uploaded) slots from the denominator so
+    // the progress bar reflects only documents that have actually been uploaded.
+    const uploaded = s.verified + s.processing + s.manual_review + s.failed;
+    if (uploaded === 0) return 0;
+    return Math.round((s.verified / uploaded) * 100);
+  }
+
+  /** Tooltip text clarifying the completion calculation (NH-102) */
+  get completionLabel(): string {
+    const s = this.summary;
+    if (!s) return '';
+    const uploaded = s.verified + s.processing + s.manual_review + s.failed;
+    return `${s.verified} of ${uploaded} uploaded document${uploaded === 1 ? '' : 's'} verified`;
   }
 
   ngOnInit(): void {
