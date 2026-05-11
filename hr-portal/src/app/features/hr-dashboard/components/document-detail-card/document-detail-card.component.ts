@@ -180,7 +180,7 @@ export class DocumentDetailCardComponent {
     if (!docId) return;
     this.reviewLoading.set(true);
     this.reviewError.set(null);
-    this.hrApi.reviewDocument(docId, decision).subscribe({
+    this.hrApi.reviewDocument(docId, decision, undefined, this.doc().employee_id).subscribe({
       next: () => {
         this.reviewDecision.set(decision === 'PASSED' ? 'approved' : 'rejected');
         this.reviewLoading.set(false);

@@ -143,6 +143,8 @@ export interface VerificationDetail extends Verification {
 
 /** A document belonging to an employee (from GET /employees/:id/documents) */
 export interface EmployeeDocument {
+  /** The employee that owns this document — used by HR review to avoid a full Scan */
+  employee_id: string;
   document_id: string;
   document_type: DocumentType;
   file_name: string;
