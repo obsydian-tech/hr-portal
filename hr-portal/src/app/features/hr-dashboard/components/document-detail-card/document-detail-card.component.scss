@@ -42,6 +42,11 @@
     background: #fbe9e7;
     border-left-color: #e74c3c;
   }
+
+  &--processing {
+    background: #e3f2fd;
+    border-left-color: #2196f3;
+  }
 }
 
 .reasoning-label {
@@ -61,6 +66,10 @@
 
   &--danger {
     color: #e74c3c;
+  }
+
+  &--processing {
+    color: #2196f3;
   }
 }
 
