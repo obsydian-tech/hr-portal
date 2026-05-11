@@ -1540,6 +1540,12 @@ resource "aws_iam_role_policy" "archive_audit_log" {
         Action   = ["sqs:SendMessage"]
         Resource = aws_sqs_queue.archive_audit_log_dlq.arn
       },
+      {
+        Sid      = "KmsDecryptStream"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
     ]
   })
 }
