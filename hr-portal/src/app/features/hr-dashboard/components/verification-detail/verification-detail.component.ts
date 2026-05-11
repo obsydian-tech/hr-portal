@@ -194,7 +194,7 @@ export class VerificationDetailComponent implements OnInit {
     if (!docId) return;
     this.reviewLoading.set(true);
     this.reviewError.set(null);
-    this.hrApi.reviewDocument(docId, decision).subscribe({
+    this.hrApi.reviewDocument(docId, decision, undefined, this.v?.employee_id).subscribe({
       next: (res) => {
         this.reviewDecision.set(decision === 'PASSED' ? 'approved' : 'rejected');
         // Update the local verification object to reflect the new state

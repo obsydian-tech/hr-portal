@@ -138,7 +138,7 @@ export class HrApiService {
   }
 
   /** Submit an HR review decision (approve/reject) for a document in MANUAL_REVIEW */
-  reviewDocument(documentId: string, decision: 'PASSED' | 'FAILED', notes?: string): Observable<{
+  reviewDocument(documentId: string, decision: 'PASSED' | 'FAILED', notes?: string, employeeId?: string): Observable<{
     message: string;
     document_id: string;
     employee_id: string;
@@ -149,7 +149,7 @@ export class HrApiService {
   }> {
     return this.http.patch<any>(
       `${this.docApiUrl}/v1/verifications/${documentId}/review`,
-      { decision, notes: notes ?? '' }
+      { decision, notes: notes ?? '', ...(employeeId ? { employee_id: employeeId } : {}) }
     );
   }
 
@@ -228,6 +228,7 @@ export class HrApiService {
 
   private mapToEmployeeDocumentResponse(raw: RawEmployeeDocVerificationsResponse): EmployeeDocumentResponse {
     const documents: EmployeeDocument[] = raw.documents.map((d) => ({
+      employee_id: raw.employee.employee_id,
       document_id: d.document_id,
       document_type: d.document_type as DocumentType,
       file_name: d.file_name,

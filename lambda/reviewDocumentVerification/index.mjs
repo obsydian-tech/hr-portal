@@ -56,24 +56,42 @@ const handlerFn = async (event) => {
     return respond(400, { error: 'Invalid JSON body' });
   }
 
-  const { decision, notes } = body;
+  const { decision, notes, employee_id: bodyEmployeeId } = body;
   if (!decision || !['PASSED', 'FAILED'].includes(decision)) {
     return respond(400, { error: 'decision must be "PASSED" or "FAILED"' });
   }
 
   try {
-    // 1. Find the document record by scanning (document_id is a sort key)
-    const docScan = await dynamo.send(new ScanCommand({
-      TableName: DOCUMENTS_TABLE,
-      FilterExpression: 'document_id = :docId',
-      ExpressionAttributeValues: { ':docId': { S: documentId } },
-    }));
-
-    if (!docScan.Items || docScan.Items.length === 0) {
-      return respond(404, { error: 'Document not found' });
+    // 1. Fetch the document record.
+    // NH-101: prefer GetItem (O(1)) when the caller supplies employee_id in the
+    // request body. Fall back to a full-table Scan only when employee_id is absent
+    // (e.g., older clients) so backward-compatibility is preserved during rollout.
+    let docRecord;
+    if (bodyEmployeeId) {
+      const getResult = await dynamo.send(new GetItemCommand({
+        TableName: DOCUMENTS_TABLE,
+        Key: {
+          employee_id: { S: bodyEmployeeId },
+          document_id: { S: documentId },
+        },
+      }));
+      if (!getResult.Item) {
+        return respond(404, { error: 'Document not found' });
+      }
+      docRecord = getResult.Item;
+    } else {
+      // Fallback: full-table Scan (O(n) — avoid at scale)
+      const docScan = await dynamo.send(new ScanCommand({
+        TableName: DOCUMENTS_TABLE,
+        FilterExpression: 'document_id = :docId',
+        ExpressionAttributeValues: { ':docId': { S: documentId } },
+      }));
+      if (!docScan.Items || docScan.Items.length === 0) {
+        return respond(404, { error: 'Document not found' });
+      }
+      docRecord = docScan.Items[0];
     }
 
-    const docRecord = docScan.Items[0];
     const employeeId = docRecord.employee_id.S;
     const verificationId = docRecord.verification_id?.S;
 
