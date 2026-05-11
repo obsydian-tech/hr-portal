@@ -94,6 +94,59 @@ resource "aws_iam_role_policy" "create_employee" {
   })
 }
 
+# ─── NH-80: cognitoPostAuth ──────────────────────────────────────────────────
+
+resource "aws_iam_role" "cognito_post_auth" {
+  name        = "naleko-cognitoPostAuth-role"
+  description = "Execution role for cognitoPostAuth Lambda (NH-80)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "cognito_post_auth" {
+  name = "naleko-cognitoPostAuth-policy"
+  role = aws_iam_role.cognito_post_auth.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/cognitoPostAuth:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # NH-80: Query email-index GSI to find the employee, then bump stage INVITED→ACTIVE
+        Sid    = "EmployeesTableQuery"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
+      },
+      {
+        Sid      = "EmployeesTableUpdate"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = aws_dynamodb_table.employees.arn
+      }
+    ]
+  })
+}
+
 # ─── getEmployees ─────────────────────────────────────────────────────────────
 
 resource "aws_iam_role" "get_employees" {
@@ -292,10 +345,10 @@ resource "aws_iam_role_policy" "process_document_ocr" {
         Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
       },
       {
-        # NH-42: Read sfn_task_token from the employee record (written by WaitForDocumentUpload state)
-        Sid      = "ReadEmployeeTaskToken"
+        # NH-42: Read sfn_task_token, NH-80: UpdateItem to bump stage on first OCR
+        Sid      = "ReadUpdateEmployee"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem"]
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = aws_dynamodb_table.employees.arn
       },
       {

@@ -133,15 +133,20 @@ const handlerFn = async (event) => {
     let stageUpdated = false;
     if (allPassed) {
       // Update employee stage to VERIFIED
-      // employees table has PK = employee_id (no sort key based on scan usage)
+      // ConditionExpression guards against setting VERIFIED if stage somehow
+      // never reached DOCUMENTS_SUBMITTED (NH-80 — enforce correct sequence).
       try {
         await dynamo.send(new UpdateItemCommand({
           TableName: EMPLOYEES_TABLE,
           Key: { employee_id: { S: employeeId } },
           UpdateExpression: 'SET stage = :stage, verified_at = :now',
+          ConditionExpression: 'stage = :ds OR stage = :active OR stage = :invited',
           ExpressionAttributeValues: {
-            ':stage': { S: 'VERIFIED' },
-            ':now': { S: new Date().toISOString() },
+            ':stage':   { S: 'VERIFIED' },
+            ':now':     { S: new Date().toISOString() },
+            ':ds':      { S: 'DOCUMENTS_SUBMITTED' },
+            ':active':  { S: 'ACTIVE' },
+            ':invited': { S: 'INVITED' },
           },
         }));
         stageUpdated = true;
