@@ -5,7 +5,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/services/auth.service';
 import {
@@ -44,6 +44,9 @@ export class AiModeService {
 
   // ── Error state ───────────────────────────────────────────────────────────
   readonly errorMessage = signal<string | null>(null);
+
+  /** Emits the new employee_id every time HITL creation succeeds — dashboard listens to refresh the list. */
+  readonly employeeCreated$ = new Subject<string>();
 
   // ── Computed ──────────────────────────────────────────────────────────────
   readonly templates = computed(() => AI_TEMPLATES);
@@ -148,9 +151,11 @@ export class AiModeService {
 
   /**
    * NH-58: Called when HR staff click "Approve & Create" on the HITL modal.
-   * 1. POSTs draft to confirmEndpoint (/agent/v1/employees)
-   * 2. Parses employeeId from the created record
-   * 3. Automatically runs the risk_assessment template for the new employee
+   * POSTs draft to /v1/employees (employees API, Cognito JWT).
+   * Emits employeeCreated$ so dashboard can refresh its list.
+   * Risk assessment is intentionally NOT auto-run here — the employee has no
+   * documents yet and the classifier has nothing to assess. HR can run it
+   * manually from the employee profile once documents are submitted.
    */
   confirmHitlAction(): void {
     const action = this.pendingAction();
@@ -159,7 +164,6 @@ export class AiModeService {
     this.isLoading.set(true);
     this.pendingAction.set(null);
 
-    // confirmEndpoint is /v1/employees — on the employees API (Cognito JWT, not x-api-key).
     this.http
       .post<{ employee: { employee_id: string } }>(
         `${this.empApiUrl}${action.confirmEndpoint}`,
@@ -169,38 +173,22 @@ export class AiModeService {
         next: (createRes) => {
           const employeeId = createRes?.employee?.employee_id ?? '';
 
-          // Show creation confirmation in the thread
           this.conversationHistory.update((h) => [
             ...h,
             {
               role: 'assistant',
-              content: `✅ Employee created successfully${employeeId ? ` — ID: \`${employeeId}\`` : ''}. Running risk assessment…`,
+              content: employeeId
+                ? `✅ Employee created — ID: \`${employeeId}\`.\nA welcome email has been dispatched. The employee will now appear in your dashboard list. You can run a risk assessment once they upload their documents.`
+                : '✅ Employee created successfully. They will appear in your dashboard list shortly.',
             },
           ]);
 
-          if (!employeeId) {
-            // No ID returned — skip risk assessment
-            this.isLoading.set(false);
-            this.canFollowUp.set(true);
-            return;
+          if (employeeId) {
+            this.employeeCreated$.next(employeeId);
           }
 
-          // Auto-trigger risk_assessment for the newly created employee
-          const riskRequest: AiChatRequest = {
-            templateId: 'risk_assessment',
-            slots: { employeeId },
-            conversationHistory: this.conversationHistory(),
-            screenContext: this.getScreenContext(),
-          };
-
-          this._post(riskRequest).subscribe({
-            next: (riskRes) => this._handleResponse(riskRes, riskRequest.slots),
-            error: () => {
-              this.isLoading.set(false);
-              this.errorMessage.set('Employee created, but risk assessment failed. Please run it manually.');
-              this.canFollowUp.set(true);
-            },
-          });
+          this.isLoading.set(false);
+          this.canFollowUp.set(true);
         },
         error: () => {
           this.isLoading.set(false);

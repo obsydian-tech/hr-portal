@@ -28,7 +28,8 @@ import { AI_TEMPLATES, AiChatResponse } from '../models/ai-chat.model';
 const AGENT_URL = 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com';
 const EMPLOYEES_BASE_URL = 'https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com';
 const AI_CHAT_URL = `${AGENT_URL}/agent/v1/ai-chat`;
-const EMPLOYEES_URL = `${EMPLOYEES_BASE_URL}/agent/v1/employees`;
+// confirmEndpoint from Lambda is /v1/employees (employees API, Cognito JWT)
+const EMPLOYEES_URL = `${EMPLOYEES_BASE_URL}/v1/employees`;
 
 function makeCompleteResponse(overrides: Partial<AiChatResponse> = {}): AiChatResponse {
   return {
@@ -51,7 +52,7 @@ function makePendingResponse(): AiChatResponse {
     pendingAction: {
       type: 'CREATE_EMPLOYEE',
       draft: { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', department: 'IT', role: 'Engineer' },
-      confirmEndpoint: '/agent/v1/employees',
+      confirmEndpoint: '/v1/employees',
     },
   };
 }
@@ -169,9 +170,9 @@ describe('AiModeService', () => {
     httpMock.expectNone(AI_CHAT_URL);
   });
 
-  // ── confirmHitlAction — success + auto risk-assessment ────────────────────
+  // ── confirmHitlAction ─────────────────────────────────────────────────────
 
-  it('confirmHitlAction should POST draft then auto-run risk_assessment', () => {
+  it('confirmHitlAction should POST draft, show success message and set canFollowUp', () => {
     const pending = makePendingResponse().pendingAction!;
     service.pendingAction.set(pending);
 
@@ -179,30 +180,21 @@ describe('AiModeService', () => {
     expect(service.isLoading()).toBeTrue();
     expect(service.pendingAction()).toBeNull();
 
-    // First call: create employee
     const createReq = httpMock.expectOne(EMPLOYEES_URL);
     expect(createReq.request.method).toBe('POST');
     createReq.flush({ employee: { employee_id: 'UUID-123' } });
 
-    // Thread should show creation message
+    expect(service.isLoading()).toBeFalse();
+    expect(service.canFollowUp()).toBeTrue();
+    // No second HTTP call — risk assessment is not auto-run
+    httpMock.expectNone(AI_CHAT_URL);
+
     const creationMsg = service.conversationHistory().find(t => t.content.includes('UUID-123'));
     expect(creationMsg).toBeTruthy();
-    expect(service.isLoading()).toBeTrue(); // still loading — risk assessment in flight
-
-    // Second call: risk assessment
-    const riskReq = httpMock.expectOne(AI_CHAT_URL);
-    expect(riskReq.request.body.templateId).toBe('risk_assessment');
-    expect(riskReq.request.body.slots.employeeId).toBe('UUID-123');
-    riskReq.flush(makeCompleteResponse({ message: 'Risk band: LOW' }));
-
-    expect(service.isLoading()).toBeFalse();
-    const riskMsg = service.conversationHistory().find(t => t.content === 'Risk band: LOW');
-    expect(riskMsg).toBeTruthy();
-    expect(service.canFollowUp()).toBeTrue();
   });
 
-  it('confirmHitlAction should skip risk assessment when no employeeId returned', () => {
-    service.pendingAction.set({ type: 'CREATE_EMPLOYEE', draft: {}, confirmEndpoint: '/agent/v1/employees' });
+  it('confirmHitlAction should handle response without employeeId gracefully', () => {
+    service.pendingAction.set({ type: 'CREATE_EMPLOYEE', draft: {}, confirmEndpoint: '/v1/employees' });
 
     service.confirmHitlAction();
 
@@ -215,7 +207,7 @@ describe('AiModeService', () => {
   });
 
   it('confirmHitlAction should set errorMessage on create failure', () => {
-    service.pendingAction.set({ type: 'CREATE_EMPLOYEE', draft: {}, confirmEndpoint: '/agent/v1/employees' });
+    service.pendingAction.set({ type: 'CREATE_EMPLOYEE', draft: {}, confirmEndpoint: '/v1/employees' });
 
     service.confirmHitlAction();
 
@@ -224,22 +216,6 @@ describe('AiModeService', () => {
 
     expect(service.isLoading()).toBeFalse();
     expect(service.errorMessage()).toContain('Failed to create');
-  });
-
-  it('confirmHitlAction should set errorMessage when risk assessment fails', () => {
-    service.pendingAction.set({ type: 'CREATE_EMPLOYEE', draft: {}, confirmEndpoint: '/agent/v1/employees' });
-
-    service.confirmHitlAction();
-
-    const createReq = httpMock.expectOne(EMPLOYEES_URL);
-    createReq.flush({ employee: { employee_id: 'UUID-456' } });
-
-    const riskReq = httpMock.expectOne(AI_CHAT_URL);
-    riskReq.flush({ error: 'bedrock error' }, { status: 502, statusText: 'Bad Gateway' });
-
-    expect(service.isLoading()).toBeFalse();
-    expect(service.errorMessage()).toContain('risk assessment failed');
-    expect(service.canFollowUp()).toBeTrue();
   });
 
   it('confirmHitlAction should do nothing if no pendingAction', () => {
