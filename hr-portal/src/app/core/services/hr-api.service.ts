@@ -85,6 +85,8 @@ interface RawEmployeeDocVerificationsResponse {
     passed: number;
     manual_review: number;
     failed: number;
+    pending: number;
+    processing: number;
   };
 }
 
@@ -271,7 +273,8 @@ export class HrApiService {
       summary: {
         total: raw.summary.total_documents,
         verified: raw.summary.passed,
-        pending: raw.summary.total_documents - raw.summary.passed - raw.summary.manual_review - raw.summary.failed,
+        pending: raw.summary.pending,
+        processing: raw.summary.processing,
         manual_review: raw.summary.manual_review,
         failed: raw.summary.failed,
       },
