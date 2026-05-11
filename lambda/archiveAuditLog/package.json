@@ -1,0 +1,10 @@
+{
+  "name": "archive-audit-log",
+  "version": "1.0.0",
+  "description": "NH-77: DynamoDB Streams -> S3 archival (naleko-agent-audit)",
+  "type": "module",
+  "main": "index.mjs",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.797.0"
+  }
+}

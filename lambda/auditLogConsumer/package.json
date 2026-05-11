@@ -1,0 +1,12 @@
+{
+  "name": "audit-log-consumer",
+  "version": "1.0.0",
+  "description": "NH-27: EventBridge -> DynamoDB audit log consumer",
+  "type": "module",
+  "main": "index.mjs",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.14.0",
+    "@aws-lambda-powertools/tracer": "^2.14.0",
+    "@aws-sdk/client-dynamodb": "^3.797.0"
+  }
+}
