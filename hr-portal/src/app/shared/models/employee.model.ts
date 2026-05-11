@@ -177,7 +177,9 @@ export interface EmployeeDocumentResponse {
     total: number;
     verified: number;
     pending: number;
-    issues: number;
+    processing: number;  // docs stuck in OCR — distinct from not-yet-uploaded
+    manual_review: number; // docs needing HR action
+    failed: number;        // docs rejected — employee must re-upload
   };
 }
 

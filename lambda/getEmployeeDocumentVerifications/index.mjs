@@ -140,7 +140,9 @@ const handlerFn = async (event) => {
       total_documents: documents.length,
       passed: enrichedDocs.filter(d => d.ocr_status === 'PASSED').length,
       manual_review: enrichedDocs.filter(d => d.ocr_status === 'MANUAL_REVIEW').length,
-      failed: enrichedDocs.filter(d => d.ocr_status === 'FAILED').length
+      failed: enrichedDocs.filter(d => d.ocr_status === 'FAILED').length,
+      pending: enrichedDocs.filter(d => d.ocr_status === 'PENDING').length,
+      processing: enrichedDocs.filter(d => d.ocr_status === 'PROCESSING').length,
     };
 
     return {
