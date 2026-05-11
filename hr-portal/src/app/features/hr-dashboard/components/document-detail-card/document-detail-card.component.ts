@@ -61,6 +61,7 @@ export class DocumentDetailCardComponent {
       case 'MANUAL_REVIEW': return 'warn';
       case 'FAILED': return 'danger';
       case 'PENDING': return 'info';
+      case 'PROCESSING': return 'info';
       default: return 'secondary';
     }
   }
@@ -82,6 +83,7 @@ export class DocumentDetailCardComponent {
       case 'PASSED': return 'reasoning-box reasoning-box--success';
       case 'MANUAL_REVIEW': return 'reasoning-box reasoning-box--warn';
       case 'FAILED': return 'reasoning-box reasoning-box--danger';
+      case 'PROCESSING': return 'reasoning-box reasoning-box--processing';
       default: return 'reasoning-box';
     }
   }
@@ -92,6 +94,7 @@ export class DocumentDetailCardComponent {
       case 'PASSED': return 'reasoning-label reasoning-label--success';
       case 'MANUAL_REVIEW': return 'reasoning-label reasoning-label--warn';
       case 'FAILED': return 'reasoning-label reasoning-label--danger';
+      case 'PROCESSING': return 'reasoning-label reasoning-label--processing';
       default: return 'reasoning-label';
     }
   }
