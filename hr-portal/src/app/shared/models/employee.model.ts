@@ -1,11 +1,11 @@
-/** Stage of the onboarding journey */
+/** Stage of the onboarding journey — must stay in sync with backend DynamoDB values (NH-93). */
 export type OnboardingStage =
-  | 'INVITED'
-  | 'DOCUMENTS'
-  | 'VERIFICATION_PENDING'
-  | 'VERIFIED'
-  | 'TRAINING'
-  | 'ONBOARDED';
+  | 'INVITED'             // Profile created, no action yet
+  | 'ACTIVE'              // Employee has logged in (cognitoPostAuth trigger)
+  | 'DOCUMENTS_SUBMITTED' // At least one document has been processed (processDocumentOCR trigger)
+  | 'VERIFIED'            // All processed docs passed HR review
+  | 'TRAINING'            // HR manually advanced after verification
+  | 'ONBOARDED';          // Training complete
 
 /** Employee record returned by the API */
 export interface Employee {

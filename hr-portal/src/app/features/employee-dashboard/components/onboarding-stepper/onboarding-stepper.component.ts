@@ -12,12 +12,12 @@ import { TagModule } from 'primeng/tag';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OnboardingStepperComponent {
-  readonly currentStage = input<OnboardingStage>('DOCUMENTS');
+  readonly currentStage = input<OnboardingStage>('ACTIVE');
 
   private readonly stageOrder: OnboardingStage[] = [
     'INVITED',
-    'DOCUMENTS',
-    'VERIFICATION_PENDING',
+    'ACTIVE',
+    'DOCUMENTS_SUBMITTED',
     'VERIFIED',
     'TRAINING',
     'ONBOARDED',
@@ -25,8 +25,8 @@ export class OnboardingStepperComponent {
 
   readonly steps = [
     { label: 'Profile Created' },
-    { label: 'Documents' },
-    { label: 'Verification' },
+    { label: 'Active' },
+    { label: 'Docs Submitted' },
     { label: 'Verified' },
     { label: 'Training' },
     { label: 'Onboarded' },
@@ -39,13 +39,13 @@ export class OnboardingStepperComponent {
       description: 'Your profile has been set up by the HR team.',
       action: 'No action needed — you\'re all set for this step!',
     },
-    DOCUMENTS: {
+    ACTIVE: {
       icon: 'pi pi-upload',
       title: 'Upload Your Documents',
       description: 'We need your ID, bank confirmation, and certificates to proceed with your onboarding.',
       action: 'Upload all 4 required documents below. Once submitted, they\'ll be sent for verification.',
     },
-    VERIFICATION_PENDING: {
+    DOCUMENTS_SUBMITTED: {
       icon: 'pi pi-clock',
       title: 'Documents Under Review',
       description: 'Your documents are being reviewed by our HR team and verification partners.',
