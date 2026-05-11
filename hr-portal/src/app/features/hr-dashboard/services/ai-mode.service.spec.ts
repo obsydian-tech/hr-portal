@@ -26,8 +26,9 @@ import { AI_TEMPLATES, AiChatResponse } from '../models/ai-chat.model';
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 const AGENT_URL = 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com';
+const EMPLOYEES_BASE_URL = 'https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com';
 const AI_CHAT_URL = `${AGENT_URL}/agent/v1/ai-chat`;
-const EMPLOYEES_URL = `${AGENT_URL}/agent/v1/employees`;
+const EMPLOYEES_URL = `${EMPLOYEES_BASE_URL}/agent/v1/employees`;
 
 function makeCompleteResponse(overrides: Partial<AiChatResponse> = {}): AiChatResponse {
   return {
