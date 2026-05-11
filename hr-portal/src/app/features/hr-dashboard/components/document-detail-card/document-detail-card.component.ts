@@ -65,6 +65,17 @@ export class DocumentDetailCardComponent {
     }
   }
 
+  get ocrStatusLabel(): string {
+    const map: Record<string, string> = {
+      PASSED:        'Verified',
+      FAILED:        'Failed',
+      MANUAL_REVIEW: 'Needs Review',
+      PENDING:       'Pending',
+      PROCESSING:    'Processing',
+    };
+    return map[this.doc().ocr_status] ?? this.doc().ocr_status;
+  }
+
   /** CSS class for the reasoning box based on OCR status */
   get reasoningBoxClass(): string {
     switch (this.doc().ocr_status) {
