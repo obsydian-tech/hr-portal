@@ -89,6 +89,13 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
         Resource = aws_dynamodb_table.prompt_cache.arn
       },
+      {
+        # NH-50: KMS decrypt/encrypt for KMS-encrypted DynamoDB tables (agent_audit, prompt_cache)
+        Sid      = "KMSAuditAndCache"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
     ]
   })
 }
@@ -109,10 +116,10 @@ resource "aws_lambda_function" "naleko_ai_chat" {
   environment {
     variables = {
       BEDROCK_MODEL_ID = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
-      MODEL_FAST       = "us.anthropic.claude-haiku-4-5-v1:0"
-      MODEL_SMART      = "us.anthropic.claude-sonnet-4-5-v1:0"
+      MODEL_FAST       = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+      MODEL_SMART      = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
       # NH-81: JSON alias map — resolveModel() uses this for alias-based lookups
-      MODEL_ALIASES             = jsonencode({ fast = "us.anthropic.claude-haiku-4-5-v1:0", smart = "us.anthropic.claude-sonnet-4-5-v1:0" })
+      MODEL_ALIASES             = jsonencode({ fast = "global.anthropic.claude-haiku-4-5-20251001-v1:0", smart = "global.anthropic.claude-haiku-4-5-20251001-v1:0" })
       AWS_REGION_NAME           = var.aws_region
       AUDIT_TABLE               = "onboarding-events"
       RATE_LIMIT_TABLE          = "NalekoAiRateLimit"

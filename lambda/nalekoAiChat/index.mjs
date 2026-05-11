@@ -508,7 +508,7 @@ async function runAgenticLoop(messages, context, modelId) {
         toolOutputsRaw[_toolKey] = {
           called_at:  _toolCalledAt,
           request:    toolArgs,
-          response:   JSON.parse(_truncated ? _rawResponseStr.slice(0, 2048) : _rawResponseStr),
+          response:   _truncated ? { _truncated: true, preview: _rawResponseStr.slice(0, 2048) } : (result ?? {}),
           truncated:  _truncated,
           http_status: isError ? 500 : 200,
           latency_ms:  _toolLatency,

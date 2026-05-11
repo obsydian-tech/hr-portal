@@ -61,7 +61,6 @@ export const handler = async (event) => {
       const params = {
         TableName: AUDIT_TABLE,
         IndexName: 'employeeId-timestamp-index',
-        ExpressionAttributeNames: { '#ts': 'timestamp' },
         ExpressionAttributeValues: { ':eid': { S: employeeId } },
         ScanIndexForward: false, // newest first
         Limit: limit,
@@ -69,6 +68,7 @@ export const handler = async (event) => {
 
       if (hasDateRange) {
         params.KeyConditionExpression = 'employeeId = :eid AND #ts BETWEEN :start AND :end';
+        params.ExpressionAttributeNames = { '#ts': 'timestamp' };
         params.ExpressionAttributeValues[':start'] = { S: startDate };
         params.ExpressionAttributeValues[':end']   = { S: endDate };
       } else {
