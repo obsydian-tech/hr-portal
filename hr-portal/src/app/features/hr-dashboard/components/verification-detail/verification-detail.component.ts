@@ -77,6 +77,15 @@ export class VerificationDetailComponent implements OnInit {
     }
   }
 
+  get decisionLabel(): string {
+    const map: Record<string, string> = {
+      PASSED:        'Verified',
+      FAILED:        'Failed',
+      MANUAL_REVIEW: 'Needs Review',
+    };
+    return this.v?.decision ? (map[this.v.decision] ?? this.v.decision) : '';
+  }
+
   /** CSS class for the reasoning box based on decision */
   get reasoningBoxClass(): string {
     switch (this.v?.decision) {
