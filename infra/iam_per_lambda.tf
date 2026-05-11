@@ -48,6 +48,13 @@ resource "aws_iam_role_policy" "create_employee" {
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
       },
       {
+        Sid    = "DynamoDBEmailIndexQuery"
+        Effect = "Allow"
+        # NH-79: Query email-index GSI to detect duplicate emails before write
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
+      },
+      {
         Sid    = "Cognito"
         Effect = "Allow"
         Action = [
