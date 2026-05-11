@@ -272,7 +272,8 @@ export class HrApiService {
         total: raw.summary.total_documents,
         verified: raw.summary.passed,
         pending: raw.summary.total_documents - raw.summary.passed - raw.summary.manual_review - raw.summary.failed,
-        issues: raw.summary.manual_review + raw.summary.failed,
+        manual_review: raw.summary.manual_review,
+        failed: raw.summary.failed,
       },
     };
   }

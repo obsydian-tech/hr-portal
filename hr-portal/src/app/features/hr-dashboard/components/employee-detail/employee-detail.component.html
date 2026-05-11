@@ -81,28 +81,34 @@
     @if (summary) {
       <div class="summary-strip mb-4">
         <div class="grid">
-          <div class="col-12 md:col-3">
+          <div class="col-12 md:col-2">
             <div class="summary-item">
               <span class="summary-value">{{ summary.total }}</span>
-              <span class="summary-label">Total Documents</span>
+              <span class="summary-label">Total</span>
             </div>
           </div>
-          <div class="col-12 md:col-3">
+          <div class="col-12 md:col-2">
             <div class="summary-item">
               <span class="summary-value text-green-500">{{ summary.verified }}</span>
               <span class="summary-label">Verified</span>
             </div>
           </div>
-          <div class="col-12 md:col-3">
+          <div class="col-12 md:col-2">
             <div class="summary-item">
-              <span class="summary-value text-orange-500">{{ summary.pending }}</span>
+              <span class="summary-value text-blue-500">{{ summary.pending }}</span>
               <span class="summary-label">Pending</span>
             </div>
           </div>
           <div class="col-12 md:col-3">
             <div class="summary-item">
-              <span class="summary-value text-red-500">{{ summary.issues }}</span>
-              <span class="summary-label">Issues</span>
+              <span class="summary-value text-orange-500">{{ summary.manual_review }}</span>
+              <span class="summary-label">Needs Review</span>
+            </div>
+          </div>
+          <div class="col-12 md:col-3">
+            <div class="summary-item">
+              <span class="summary-value text-red-500">{{ summary.failed }}</span>
+              <span class="summary-label">Failed</span>
             </div>
           </div>
         </div>
