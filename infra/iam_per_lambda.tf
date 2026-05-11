@@ -132,9 +132,9 @@ resource "aws_iam_role_policy" "cognito_post_auth" {
       },
       {
         # NH-80: Query email-index GSI to find the employee, then bump stage INVITED→ACTIVE
-        Sid    = "EmployeesTableQuery"
-        Effect = "Allow"
-        Action = ["dynamodb:Query"]
+        Sid      = "EmployeesTableQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
       },
       {
