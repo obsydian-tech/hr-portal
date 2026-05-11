@@ -89,6 +89,15 @@ export class VerificationsListComponent implements OnInit {
     }
   }
 
+  decisionLabel(decision: string): string {
+    const map: Record<string, string> = {
+      PASSED:        'Verified',
+      FAILED:        'Failed',
+      MANUAL_REVIEW: 'Needs Review',
+    };
+    return map[decision] ?? decision;
+  }
+
   navigateToEmployee(employeeId: string | undefined): void {
     if (!employeeId) return;
     this.router.navigate(['../employees', employeeId], { relativeTo: this.route });

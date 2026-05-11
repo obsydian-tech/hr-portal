@@ -107,7 +107,7 @@
             </td>
             <td>{{ v.document_type || '—' }}</td>
             <td>
-              <p-tag [value]="v.decision" [severity]="decisionSeverity(v.decision)" />
+              <p-tag [value]="decisionLabel(v.decision)" [severity]="decisionSeverity(v.decision)" />
             </td>
             <td>{{ v.confidence }}%</td>
             <td>{{ v.created_at | date:'mediumDate' }}</td>
