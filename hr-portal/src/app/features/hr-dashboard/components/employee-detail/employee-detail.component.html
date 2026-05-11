@@ -140,7 +140,7 @@
     <div class="grid">
       @for (doc of documents; track doc.document_id) {
         <div class="col-12 lg:col-6 mb-3">
-          <app-document-detail-card [doc]="doc" />
+          <app-document-detail-card [doc]="doc" (reviewed)="reload()" />
         </div>
       } @empty {
         <div class="col-12 text-center p-4 text-color-secondary">

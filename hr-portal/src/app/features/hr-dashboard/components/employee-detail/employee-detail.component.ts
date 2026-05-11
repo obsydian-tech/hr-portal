@@ -78,6 +78,14 @@ export class EmployeeDetailComponent implements OnInit {
     }
   }
 
+  /** Re-fetch document data after an HR review action (approve/reject) */
+  reload(): void {
+    const id = this.employeeId() || this.route.snapshot.params['employeeId'];
+    if (id) {
+      this.hrApi.getEmployeeDocuments(id).subscribe((res) => this.data.set(res));
+    }
+  }
+
   stageSeverity(stage: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
     switch (stage) {
       case 'ONBOARDED':           return 'success';

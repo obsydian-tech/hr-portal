@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   inject,
   input,
+  output,
   signal,
 } from '@angular/core';
 import { DatePipe, KeyValuePipe } from '@angular/common';
@@ -41,6 +42,9 @@ export class DocumentDetailCardComponent {
   private readonly confirmationService = inject(ConfirmationService);
 
   readonly doc = input.required<EmployeeDocument>();
+
+  /** Emitted after a successful approve/reject so the parent can reload fresh data */
+  readonly reviewed = output<void>();
 
   readonly verifying = signal(false);
   readonly verificationTriggered = signal(false);
@@ -166,6 +170,7 @@ export class DocumentDetailCardComponent {
       next: () => {
         this.reviewDecision.set(decision === 'PASSED' ? 'approved' : 'rejected');
         this.reviewLoading.set(false);
+        this.reviewed.emit();
       },
       error: (err) => {
         this.reviewError.set(err.error?.error || 'Failed to submit review. Please try again.');
