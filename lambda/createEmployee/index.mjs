@@ -185,7 +185,7 @@ const handlerFn = async (event) => {
     let cognitoUserCreated = false;
     let tempPassword = null;
     try {
-    // Generate a cryptographically random temporary password.
+      // Generate a cryptographically random temporary password.
       // Format: Np1!<16 random base64url chars> — guaranteed to satisfy Cognito
       // default policy (upper, lower, digit, symbol, min 8 chars).
       tempPassword = `Np1!${randomBytes(12).toString('base64url')}`;
@@ -205,7 +205,7 @@ const handlerFn = async (event) => {
             { Name: "custom:role", Value: "employee" },
             { Name: "custom:staff_id", Value: "" },
           ],
-          MessageAction: "SUPPRESS", // Don't send welcome email (fictional emails)
+          MessageAction: "SUPPRESS", // Don't send welcome email (we use Postmark)
         })
       );
 
@@ -231,8 +231,40 @@ const handlerFn = async (event) => {
       cognitoUserCreated = true;
       logger.info('Cognito user created', { employeeId });
     } catch (cognitoError) {
-      // Log but don't fail the entire request — employee is already in DynamoDB
-      logger.error('Failed to create Cognito user', { employeeId, error: cognitoError });
+      if (cognitoError.name === 'UsernameExistsException') {
+        // User was created in a previous (possibly duplicate) attempt.
+        // Reset their password and resend the welcome email with fresh credentials.
+        logger.warn('Cognito user already exists — resetting password and resending welcome email', {
+          employeeId,
+          email: body.email,
+        });
+        try {
+          tempPassword = `Np1!${randomBytes(12).toString('base64url')}`;
+          await cognito.send(
+            new AdminSetUserPasswordCommand({
+              UserPoolId: USER_POOL_ID,
+              Username: body.email,
+              Password: tempPassword,
+              Permanent: true,
+            })
+          );
+          // Ensure user is still in the employee group (idempotent — no-ops if already a member)
+          await cognito.send(
+            new AdminAddUserToGroupCommand({
+              UserPoolId: USER_POOL_ID,
+              Username: body.email,
+              GroupName: "employee",
+            })
+          ).catch(() => {}); // group membership failure is non-fatal
+          cognitoUserCreated = true;
+          logger.info('Existing Cognito user password reset — welcome email will be resent', { employeeId });
+        } catch (resetError) {
+          logger.error('Failed to reset password for existing Cognito user', { employeeId, error: resetError });
+        }
+      } else {
+        // Log but don't fail the entire request — employee is already in DynamoDB
+        logger.error('Failed to create Cognito user', { employeeId, error: cognitoError });
+      }
     }
 
     // 7. Send branded welcome email via Postmark
