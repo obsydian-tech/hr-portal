@@ -1,0 +1,9 @@
+{
+  "name": "cognito-post-auth",
+  "version": "1.0.0",
+  "description": "Lambda: Cognito PostAuthentication trigger — bumps employee stage INVITED → ACTIVE (NH-80)",
+  "type": "module",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0"
+  }
+}

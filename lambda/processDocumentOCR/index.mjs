@@ -327,7 +327,30 @@ const handlerFn = async (event) => {
       decision: ocrStatus,
     });
 
-    // 7c. NH-42: Signal Step Functions that OCR + verification is complete.
+    // 7c. NH-80: Bump employee stage INVITED/ACTIVE → DOCUMENTS_SUBMITTED on first doc processed.
+    //     Conditional update — only advances, never regresses.
+    try {
+      await dynamodb.send(new UpdateItemCommand({
+        TableName: process.env.EMPLOYEES_TABLE ?? 'employees',
+        Key: { employee_id: { S: employeeId } },
+        UpdateExpression: 'SET stage = :ds, documents_started_at = if_not_exists(documents_started_at, :now)',
+        ConditionExpression: 'stage IN (:invited, :active)',
+        ExpressionAttributeValues: {
+          ':ds':      { S: 'DOCUMENTS_SUBMITTED' },
+          ':invited': { S: 'INVITED' },
+          ':active':  { S: 'ACTIVE' },
+          ':now':     { S: new Date().toISOString() },
+        },
+      }));
+      logger.info('Stage bumped to DOCUMENTS_SUBMITTED', { employeeId });
+    } catch (stageErr) {
+      // ConditionalCheckFailedException = already past INVITED/ACTIVE — fine.
+      if (stageErr.name !== 'ConditionalCheckFailedException') {
+        logger.warn('Failed to bump stage to DOCUMENTS_SUBMITTED', { error: stageErr.message, employeeId });
+      }
+    }
+
+    // 7d. NH-42: Signal Step Functions that OCR + verification is complete.
     // createEmployee stored a task token on the employee record when it started
     // the StateMachine. We read it here and send SendTaskSuccess so the
     // WaitForDocumentUpload state can resume and proceed to AssessRisk.
