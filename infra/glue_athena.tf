@@ -118,3 +118,150 @@ resource "aws_athena_workgroup" "audit" {
     Ticket      = "NH-77"
   }
 }
+
+# ─── Glue Table (partition projection — no crawler run needed) ────────────────
+#
+# Defines the schema for the agent-audit archive so Athena can query immediately
+# without waiting for the weekly crawler. Partition projection auto-resolves
+# year/month/day from S3 key paths — no MSCK REPAIR TABLE needed.
+
+resource "aws_glue_catalog_table" "agent_audit_archive" {
+  name          = "agent_audit"
+  database_name = aws_glue_catalog_database.audit.name
+  description   = "AI agent audit trail archived from naleko-agent-audit DynamoDB stream (NH-77)"
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    "EXTERNAL"                  = "TRUE"
+    "classification"            = "json"
+    "projection.enabled"        = "true"
+    "projection.year.type"      = "integer"
+    "projection.year.range"     = "2026,2035"
+    "projection.year.digits"    = "4"
+    "projection.month.type"     = "integer"
+    "projection.month.range"    = "1,12"
+    "projection.month.digits"   = "2"
+    "projection.day.type"       = "integer"
+    "projection.day.range"      = "1,31"
+    "projection.day.digits"     = "2"
+    "storage.location.template" = "s3://${aws_s3_bucket.audit_archive.bucket}/year=$${year}/month=$${month}/day=$${day}"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.audit_archive.bucket}/"
+    input_format  = "org.apache.hadoop.mapred.TextInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
+    compressed    = true
+
+    ser_de_info {
+      serialization_library = "org.openx.data.jsonserde.JsonSerDe"
+      parameters = {
+        "ignore.malformed.json" = "TRUE"
+        "dots.in.keys"          = "FALSE"
+        "case.insensitive"      = "TRUE"
+      }
+    }
+
+    columns {
+      name = "pk"
+      type = "string"
+    }
+    columns {
+      name = "sk"
+      type = "string"
+    }
+    columns {
+      name = "staffid"
+      type = "string"
+    }
+    columns {
+      name = "conversation_id"
+      type = "string"
+    }
+    columns {
+      name = "templateid"
+      type = "string"
+    }
+    columns {
+      name = "modelid"
+      type = "string"
+    }
+    columns {
+      name = "inputtokens"
+      type = "bigint"
+    }
+    columns {
+      name = "outputtokens"
+      type = "bigint"
+    }
+    columns {
+      name = "latencyms"
+      type = "bigint"
+    }
+    columns {
+      name = "status"
+      type = "string"
+    }
+    columns {
+      name = "actor_type"
+      type = "string"
+    }
+    columns {
+      name = "intentclass"
+      type = "string"
+    }
+    columns {
+      name = "cachehit"
+      type = "boolean"
+    }
+    columns {
+      name = "responsesummary"
+      type = "string"
+    }
+    columns {
+      name = "promptsummary"
+      type = "string"
+    }
+    columns {
+      name = "toolcallsmade"
+      type = "string"
+    }
+    columns {
+      name = "tool_outputs_raw"
+      type = "string"
+    }
+    columns {
+      name = "employees_accessed"
+      type = "string"
+    }
+    columns {
+      name = "guardrail_action"
+      type = "string"
+    }
+    columns {
+      name = "date"
+      type = "string"
+    }
+    columns {
+      name = "bedrock_request_id"
+      type = "string"
+    }
+    columns {
+      name = "expiresat"
+      type = "bigint"
+    }
+  }
+
+  partition_keys {
+    name = "year"
+    type = "string"
+  }
+  partition_keys {
+    name = "month"
+    type = "string"
+  }
+  partition_keys {
+    name = "day"
+    type = "string"
+  }
+}
