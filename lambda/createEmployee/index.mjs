@@ -1,4 +1,4 @@
-import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, PutItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
 import { withIdempotency } from './shared/idempotency.mjs';
 import {
@@ -101,7 +101,30 @@ const handlerFn = async (event) => {
       };
     }
 
-    // 3. Generate UUID v4 employee ID (NH-28: replaces sequential EMP-NNNNNNN scan anti-pattern)
+    // 3. Check for duplicate email using email-index GSI (prevents duplicate employee records)
+    const emailCheck = await dynamodb.send(new QueryCommand({
+      TableName: 'employees',
+      IndexName: 'email-index',
+      KeyConditionExpression: 'email = :email',
+      ExpressionAttributeValues: { ':email': { S: body.email } },
+      Limit: 1,
+      ProjectionExpression: 'employee_id',
+    }));
+
+    if (emailCheck.Count > 0) {
+      logger.warn('Duplicate email rejected', { email: body.email, existingId: emailCheck.Items[0]?.employee_id?.S });
+      return {
+        statusCode: 409,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({
+          error: 'An employee with this email address already exists.',
+          code: 'DUPLICATE_EMAIL',
+          existingEmployeeId: emailCheck.Items[0]?.employee_id?.S,
+        }),
+      };
+    }
+
+    // 4. Generate UUID v4 employee ID (NH-28: replaces sequential EMP-NNNNNNN scan anti-pattern)
     const employeeId = randomUUID();
 
     // 4a. Envelope-encrypt SA ID number (NH-11)
@@ -185,7 +208,7 @@ const handlerFn = async (event) => {
     let cognitoUserCreated = false;
     let tempPassword = null;
     try {
-    // Generate a cryptographically random temporary password.
+      // Generate a cryptographically random temporary password.
       // Format: Np1!<16 random base64url chars> — guaranteed to satisfy Cognito
       // default policy (upper, lower, digit, symbol, min 8 chars).
       tempPassword = `Np1!${randomBytes(12).toString('base64url')}`;
@@ -205,7 +228,7 @@ const handlerFn = async (event) => {
             { Name: "custom:role", Value: "employee" },
             { Name: "custom:staff_id", Value: "" },
           ],
-          MessageAction: "SUPPRESS", // Don't send welcome email (fictional emails)
+          MessageAction: "SUPPRESS", // Don't send welcome email (we use Postmark)
         })
       );
 
@@ -231,7 +254,8 @@ const handlerFn = async (event) => {
       cognitoUserCreated = true;
       logger.info('Cognito user created', { employeeId });
     } catch (cognitoError) {
-      // Log but don't fail the entire request — employee is already in DynamoDB
+      // Email guard above prevents the UsernameExistsException path in normal operation.
+      // Log and continue — employee record is already persisted in DynamoDB.
       logger.error('Failed to create Cognito user', { employeeId, error: cognitoError });
     }
 

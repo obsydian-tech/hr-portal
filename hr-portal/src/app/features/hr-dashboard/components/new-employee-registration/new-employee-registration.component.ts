@@ -476,9 +476,16 @@ export class NewEmployeeRegistrationComponent {
           console.error('Employee registration failed:', err);
           this.submitting.set(false);
           this.submitProgress.set('');
-          this.submitError.set(
-            err.error?.message || 'Failed to create employee. Please try again.'
-          );
+          if (err.status === 409 && err.error?.code === 'DUPLICATE_EMAIL') {
+            this.emailExists.set(true); // trigger the inline warning on the email field too
+            this.submitError.set(
+              `An employee with this email address already exists. Please check the employee list or use a different email.`
+            );
+          } else {
+            this.submitError.set(
+              err.error?.error ?? err.error?.message ?? 'Failed to create employee. Please try again.'
+            );
+          }
         },
       });
   }

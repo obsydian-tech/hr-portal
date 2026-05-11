@@ -3,7 +3,7 @@
  * Auth interceptor auto-attaches Cognito Bearer token on every HTTP call.
  */
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, Subject } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -190,9 +190,15 @@ export class AiModeService {
           this.isLoading.set(false);
           this.canFollowUp.set(true);
         },
-        error: () => {
+        error: (err: HttpErrorResponse) => {
           this.isLoading.set(false);
-          this.errorMessage.set('Failed to create the employee. Please try again.');
+          if (err.status === 409 && err.error?.code === 'DUPLICATE_EMAIL') {
+            this.errorMessage.set(
+              `An employee with this email address already exists (ID: ${err.error.existingEmployeeId ?? 'unknown'}). Please check the employee list.`
+            );
+          } else {
+            this.errorMessage.set('Failed to create the employee. Please try again.');
+          }
         },
       });
   }
