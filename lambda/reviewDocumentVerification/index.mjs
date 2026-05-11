@@ -127,8 +127,19 @@ const handlerFn = async (event) => {
       ExpressionAttributeValues: { ':empId': { S: employeeId } },
     }));
 
-    const allPassed = allDocs.Items && allDocs.Items.length > 0 &&
-      allDocs.Items.every((item) => item.ocr_status?.S === 'PASSED');
+    // NH-100: exclude PENDING (not yet uploaded) and PROCESSING (in-flight OCR)
+    // from the all-passed check — only consider documents that have reached a
+    // terminal or review-ready state.
+    const processedDocs = (allDocs.Items || []).filter(
+      (item) => !['PENDING', 'PROCESSING'].includes(item.ocr_status?.S)
+    );
+    // Minimum gate: at least one NATIONAL_ID must be among the passed docs
+    const nationalIdPassed = processedDocs.some(
+      (item) => item.document_type?.S === 'NATIONAL_ID' && item.ocr_status?.S === 'PASSED'
+    );
+    const allPassed = processedDocs.length > 0 &&
+      processedDocs.every((item) => item.ocr_status?.S === 'PASSED') &&
+      nationalIdPassed;
 
     let stageUpdated = false;
     if (allPassed) {
