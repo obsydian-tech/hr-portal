@@ -80,13 +80,13 @@ export class EmployeeDetailComponent implements OnInit {
 
   stageSeverity(stage: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast' {
     switch (stage) {
-      case 'ONBOARDED': return 'success';
+      case 'ONBOARDED':           return 'success';
       case 'VERIFIED':
-      case 'TRAINING': return 'info';
-      case 'VERIFICATION_PENDING': return 'warn';
-      case 'DOCUMENTS': return 'secondary';
-      case 'INVITED': return 'contrast';
-      default: return 'secondary';
+      case 'TRAINING':            return 'info';
+      case 'DOCUMENTS_SUBMITTED': return 'warn';
+      case 'ACTIVE':              return 'secondary';
+      case 'INVITED':             return 'contrast';
+      default:                    return 'secondary';
     }
   }
 

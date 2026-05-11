@@ -88,10 +88,10 @@ export class HrDashboardHomeComponent implements OnInit, OnDestroy {
   // Stat computations
   readonly totalEmployees = computed(() => this.employees().length);
   readonly pendingDocuments = computed(
-    () => this.employees().filter((e) => e.stage === 'INVITED' || e.stage === 'DOCUMENTS').length
+    () => this.employees().filter((e) => e.stage === 'INVITED' || e.stage === 'ACTIVE').length
   );
   readonly verificationPending = computed(
-    () => this.employees().filter((e) => e.stage === 'VERIFICATION_PENDING').length
+    () => this.employees().filter((e) => e.stage === 'DOCUMENTS_SUBMITTED').length
   );
   readonly onboarded = computed(
     () => this.employees().filter((e) => e.stage === 'ONBOARDED').length
@@ -126,8 +126,8 @@ export class HrDashboardHomeComponent implements OnInit, OnDestroy {
       case 'ONBOARDED': return 'success';
       case 'VERIFIED':
       case 'TRAINING': return 'info';
-      case 'VERIFICATION_PENDING': return 'warn';
-      case 'DOCUMENTS': return 'secondary';
+      case 'DOCUMENTS_SUBMITTED': return 'warn';
+      case 'ACTIVE': return 'secondary';
       case 'INVITED': return 'contrast';
       default: return 'secondary';
     }

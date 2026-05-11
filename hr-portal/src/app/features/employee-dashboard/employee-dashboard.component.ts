@@ -63,14 +63,14 @@ function computeStage(backendStage: OnboardingStage, documents: EmployeeDocument
   // All 4 types PASSED → VERIFIED
   if (passedTypes.length === REQUIRED_DOC_TYPES.length) return 'VERIFIED';
 
-  // All 4 types uploaded and none still pending/processing → VERIFICATION_PENDING
+  // All 4 types uploaded and none still pending/processing → DOCUMENTS_SUBMITTED
   // (they're in some mix of PASSED, MANUAL_REVIEW, FAILED — HR is reviewing)
   if (uploadedTypes.length === REQUIRED_DOC_TYPES.length && pendingOrProcessing.length === 0) {
-    return 'VERIFICATION_PENDING';
+    return 'DOCUMENTS_SUBMITTED';
   }
 
-  // At least one doc uploaded → DOCUMENTS (employee is in the upload phase)
-  if (uploadedTypes.length > 0) return 'DOCUMENTS';
+  // At least one doc uploaded → ACTIVE (employee is in the upload phase)
+  if (uploadedTypes.length > 0) return 'ACTIVE';
 
   return 'INVITED';
 }
