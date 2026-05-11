@@ -26,6 +26,7 @@ export class AiModeService {
   private readonly authService = inject(AuthService);
 
   private readonly baseUrl = environment.agentApiUrl;
+  private readonly empApiUrl = environment.employeesApiUrl;
 
   // ── AI Mode panel visibility ──────────────────────────────────────────────
   readonly panelVisible = signal(false);
@@ -158,10 +159,10 @@ export class AiModeService {
     this.isLoading.set(true);
     this.pendingAction.set(null);
 
-    // confirmEndpoint is /agent/v1/employees — on the agent API (x-api-key).
+    // confirmEndpoint is /v1/employees — on the employees API (Cognito JWT, not x-api-key).
     this.http
       .post<{ employee: { employee_id: string } }>(
-        `${this.baseUrl}${action.confirmEndpoint}`,
+        `${this.empApiUrl}${action.confirmEndpoint}`,
         action.draft,
       )
       .subscribe({
