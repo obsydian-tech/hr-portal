@@ -89,6 +89,13 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
         Resource = aws_dynamodb_table.prompt_cache.arn
       },
+      {
+        # NH-50: KMS decrypt/encrypt for KMS-encrypted DynamoDB tables (agent_audit, prompt_cache)
+        Sid      = "KMSAuditAndCache"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
     ]
   })
 }
