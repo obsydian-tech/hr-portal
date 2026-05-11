@@ -94,4 +94,10 @@ resource "aws_cognito_user_pool" "naleko_dev" {
       min_length = "0"
     }
   }
+
+  # NH-80: Fire cognitoPostAuth Lambda on every successful login.
+  # Bumps employee stage INVITED → ACTIVE on first login.
+  lambda_config {
+    post_authentication = aws_lambda_function.cognito_post_auth.arn
+  }
 }

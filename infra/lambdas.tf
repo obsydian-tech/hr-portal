@@ -889,3 +889,45 @@ resource "aws_sqs_queue" "archive_audit_log_dlq" {
 
   tags = { Ticket = "NH-77" }
 }
+
+# ─── NH-80: cognitoPostAuth ───────────────────────────────────────────────────
+# Fires on every successful Cognito login. Bumps stage INVITED → ACTIVE.
+
+resource "aws_lambda_function" "cognito_post_auth" {
+  function_name = "cognitoPostAuth"
+  role          = aws_iam_role.cognito_post_auth.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      EMPLOYEES_TABLE = "employees"
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/cognitoPostAuth"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = { Component = "Onboarding", Ticket = "NH-80" }
+}
+
+# Allow Cognito to invoke this Lambda
+resource "aws_lambda_permission" "cognito_post_auth" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cognito_post_auth.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.naleko_dev.arn
+}
