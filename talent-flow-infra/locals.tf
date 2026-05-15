@@ -74,6 +74,18 @@ locals {
   # ── Cognito ───────────────────────────────────────────────────────────────
   tf_cognito_pool_name   = "talent-flow-user-pool"
   tf_cognito_client_name = "talent-flow-web-client"
+  tf_lambda_pre_token    = "talentFlowPreTokenTrigger"
+
+  # Groups — internal staff only (candidates are DynamoDB records, not Cognito users)
+  tf_cognito_groups = toset([
+    "TalentFlowAdmin",    # full access + config management
+    "HiringManager",      # create candidates, view pipeline, approve offers
+    "PanelMember",        # submit votes for assigned interviews
+    "ComplianceOfficer",  # read-only audit access
+    "ITAdmin",            # infrastructure and config read
+    "FinanceLead",        # budget approval in offer stage
+    "HRDirector",         # dashboard and reporting
+  ])
 
   # ── IAM role name prefix ──────────────────────────────────────────────────
   # Per-Lambda role name = tf_iam_role_prefix + lambda function name
