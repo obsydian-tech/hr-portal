@@ -71,3 +71,9 @@ Thumbs.db
 *.env.local
 .env.*
 !.env.example
+.vercel
+.env*.local
+
+# TalentFlow — never commit account IDs
+talent-flow-infra/terraform.tfvars
+talent-flow-infra/.terraform/
