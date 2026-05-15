@@ -30,3 +30,25 @@ output "state_key" {
   description = "S3 key (path) for the TalentFlow state file."
   value       = "talent-flow/mvp1/terraform.tfstate"
 }
+
+# ── KMS outputs (added TF-002 / NH-105) ──────────────────────────────────────
+
+output "kms_state_key_arn" {
+  description = "ARN of the TalentFlow state CMK (alias/talent-flow/state) — used for DynamoDB SSE."
+  value       = aws_kms_key.talent_flow_state.arn
+}
+
+output "kms_state_key_id" {
+  description = "Key ID of the TalentFlow state CMK — referenced by DynamoDB table resources."
+  value       = aws_kms_key.talent_flow_state.key_id
+}
+
+output "kms_agent_audit_key_arn" {
+  description = "ARN of the TalentFlow agent-audit CMK (alias/talent-flow/agent-audit) — used for agent-audit DynamoDB, S3, SQS, Secrets Manager."
+  value       = aws_kms_key.talent_flow_agent_audit.arn
+}
+
+output "kms_agent_audit_key_id" {
+  description = "Key ID of the TalentFlow agent-audit CMK — referenced by S3, SQS, and Secrets Manager resources."
+  value       = aws_kms_key.talent_flow_agent_audit.key_id
+}
