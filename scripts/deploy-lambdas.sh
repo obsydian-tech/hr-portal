@@ -11,10 +11,11 @@
 #   aws cli v2 configured (run: aws sts get-caller-identity to confirm)
 #   Node 22 + npm on PATH
 #
-# Lambdas changed in sprint NH-80:
-#   cognitoPostAuth    — new: bumps stage INVITED → ACTIVE on first login
-#   processDocumentOCR — bumps stage ACTIVE → DOCUMENTS_SUBMITTED on first doc
-#   reviewDocumentVerification — conditional guard added to VERIFIED transition
+# Lambdas changed in sprints NH-80 through NH-101:
+#   cognitoPostAuth                    — NH-80: bumps stage INVITED → ACTIVE on first login
+#   processDocumentOCR                 — NH-80: bumps stage ACTIVE → DOCUMENTS_SUBMITTED on first doc
+#   getEmployeeDocumentVerifications   — NH-95: explicit pending+processing counts in summary
+#   reviewDocumentVerification         — NH-80/NH-100/NH-101: stage guard + every() fix + GetItem O(1) lookup
 # =============================================================================
 
 set -euo pipefail
@@ -25,7 +26,7 @@ LAMBDA_DIR="$REPO_ROOT/lambda"
 TMP_DIR="${TMPDIR:-/tmp}"
 
 # Default sprint batch — override by passing names as args
-SPRINT_LAMBDAS=(cognitoPostAuth processDocumentOCR reviewDocumentVerification)
+SPRINT_LAMBDAS=(cognitoPostAuth processDocumentOCR getEmployeeDocumentVerifications reviewDocumentVerification)
 TARGETS=("${@:-${SPRINT_LAMBDAS[@]}}")
 
 # ── Colours ───────────────────────────────────────────────────────────────────
