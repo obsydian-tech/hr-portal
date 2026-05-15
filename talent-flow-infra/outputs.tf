@@ -52,3 +52,20 @@ output "kms_agent_audit_key_id" {
   description = "Key ID of the TalentFlow agent-audit CMK — referenced by S3, SQS, and Secrets Manager resources."
   value       = aws_kms_key.talent_flow_agent_audit.key_id
 }
+
+# ── Cognito outputs (added TF-003 / NH-106) ───────────────────────────────────
+
+output "cognito_user_pool_id" {
+  description = "TalentFlow Cognito User Pool ID — referenced by API Gateway authorizer (TF-010) and Angular environment config."
+  value       = aws_cognito_user_pool.talent_flow.id
+}
+
+output "cognito_user_pool_arn" {
+  description = "TalentFlow Cognito User Pool ARN."
+  value       = aws_cognito_user_pool.talent_flow.arn
+}
+
+output "cognito_client_id" {
+  description = "TalentFlow web app client ID — used by Angular Amplify configuration."
+  value       = aws_cognito_user_pool_client.talent_flow_web.id
+}
