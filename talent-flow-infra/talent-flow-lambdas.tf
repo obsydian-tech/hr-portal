@@ -247,9 +247,15 @@ resource "aws_lambda_function" "manage_config" {
   tags = merge(local.tf_tags, { Ticket = "NH-112" })
 }
 
+# ── Postmark API token (shared with Naleko; stored in SSM) ──────────────────────
+data "aws_ssm_parameter" "postmark_token" {
+  name            = "/naleko/postmark/api_token"
+  with_decryption = true
+}
+
 # ── 7. sendTalentFlowNotification ─────────────────────────────────────────────
 # Trigger: SQS talent-flow-notification-queue.fifo (ESM below)
-# Config-driven SES email templates, handles all 7 notification event types
+# Config-driven Postmark email templates, handles all 7 notification event types
 
 resource "aws_lambda_function" "send_notification" {
   function_name = local.tf_lambda_send_notification
@@ -263,10 +269,12 @@ resource "aws_lambda_function" "send_notification" {
 
   environment {
     variables = {
-      NOTIFICATION_QUEUE_URL = aws_sqs_queue.talent_flow_notification.url
-      CONFIG_TABLE_NAME      = local.tf_table_config
-      AWS_ACCOUNT_ID         = var.aws_account_id
-      ENVIRONMENT            = var.environment
+      NOTIFICATION_QUEUE_URL  = aws_sqs_queue.talent_flow_notification.url
+      CONFIG_TABLE_NAME       = local.tf_table_config
+      AWS_ACCOUNT_ID          = var.aws_account_id
+      ENVIRONMENT             = var.environment
+      POSTMARK_API_TOKEN      = data.aws_ssm_parameter.postmark_token.value
+      POSTMARK_SENDER_EMAIL   = "ignecious@obsydiantechnologies.com"
     }
   }
 
