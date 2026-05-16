@@ -345,8 +345,8 @@ resource "aws_dynamodb_table" "talent_flow_ai_rate_limit" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose   = "Per-user AI rate limiting — 50 req/hr rolling window"
-    Ticket    = "NH-107"
+    Purpose = "Per-user AI rate limiting — 50 req/hr rolling window"
+    Ticket  = "NH-107"
   })
 }
 
