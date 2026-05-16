@@ -131,3 +131,15 @@ output "dynamodb_idempotency_table_name" {
   description = "talent-flow-idempotency-keys table name."
   value       = aws_dynamodb_table.talent_flow_idempotency_keys.name
 }
+
+# ── S3 outputs (added TF-005 / NH-108) ────────────────────────────────────────
+
+output "s3_audit_archive_bucket_name" {
+  description = "talent-flow-audit-archive S3 bucket name — written to by talentFlowArchiveAuditLog Lambda."
+  value       = aws_s3_bucket.talent_flow_audit_archive.id
+}
+
+output "s3_audit_archive_bucket_arn" {
+  description = "talent-flow-audit-archive S3 bucket ARN — referenced in talentFlowArchiveAuditLog Lambda IAM role (TF-008)."
+  value       = aws_s3_bucket.talent_flow_audit_archive.arn
+}
