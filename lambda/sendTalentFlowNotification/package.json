@@ -1,0 +1,15 @@
+{
+  "name": "send-talent-flow-notification",
+  "version": "1.0.0",
+  "description": "Lambda: SQS consumer — config-driven Postmark email notifications for TalentFlow events",
+  "main": "index.js",
+  "dependencies": {
+    "postmark": "^4.0.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "scripts": {
+    "test": "jest --no-coverage"
+  }
+}
