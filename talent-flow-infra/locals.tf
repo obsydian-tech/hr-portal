@@ -25,13 +25,13 @@ locals {
   tf_placeholder_zip = "${path.root}/../placeholder.zip"
 
   # ── DynamoDB table names ──────────────────────────────────────────────────
-  tf_table_state            = "talent-flow-state"
-  tf_table_config           = "talent-flow-config"
-  tf_table_agent_audit      = "talent-flow-agent-audit"
-  tf_table_pending_actions  = "talent-flow-pending-actions"
-  tf_table_prompt_cache     = "talent-flow-prompt-cache"
-  tf_table_rate_limit       = "talent-flow-ai-rate-limit"
-  tf_table_idempotency      = "talent-flow-idempotency-keys"
+  tf_table_state           = "talent-flow-state"
+  tf_table_config          = "talent-flow-config"
+  tf_table_agent_audit     = "talent-flow-agent-audit"
+  tf_table_pending_actions = "talent-flow-pending-actions"
+  tf_table_prompt_cache    = "talent-flow-prompt-cache"
+  tf_table_rate_limit      = "talent-flow-ai-rate-limit"
+  tf_table_idempotency     = "talent-flow-idempotency-keys"
 
   # ── EventBridge ───────────────────────────────────────────────────────────
   tf_event_bus_name = "talent-flow-bus"
@@ -78,13 +78,13 @@ locals {
 
   # Groups — internal staff only (candidates are DynamoDB records, not Cognito users)
   tf_cognito_groups = toset([
-    "TalentFlowAdmin",    # full access + config management
-    "HiringManager",      # create candidates, view pipeline, approve offers
-    "PanelMember",        # submit votes for assigned interviews
-    "ComplianceOfficer",  # read-only audit access
-    "ITAdmin",            # infrastructure and config read
-    "FinanceLead",        # budget approval in offer stage
-    "HRDirector",         # dashboard and reporting
+    "TalentFlowAdmin",   # full access + config management
+    "HiringManager",     # create candidates, view pipeline, approve offers
+    "PanelMember",       # submit votes for assigned interviews
+    "ComplianceOfficer", # read-only audit access
+    "ITAdmin",           # infrastructure and config read
+    "FinanceLead",       # budget approval in offer stage
+    "HRDirector",        # dashboard and reporting
   ])
 
   # ── IAM role name prefix ──────────────────────────────────────────────────

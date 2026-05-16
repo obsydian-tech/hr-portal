@@ -91,7 +91,7 @@ resource "aws_apigatewayv2_stage" "talent_flow_api_default" {
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.talent_flow_api_logs.arn
-    format          = jsonencode({
+    format = jsonencode({
       requestId      = "$context.requestId"
       ip             = "$context.identity.sourceIp"
       requestTime    = "$context.requestTime"
