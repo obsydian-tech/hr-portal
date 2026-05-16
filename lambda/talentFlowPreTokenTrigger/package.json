@@ -1,0 +1,12 @@
+{
+  "name": "talent-flow-pre-token-trigger",
+  "version": "1.0.0",
+  "description": "Cognito Pre-Token Generation trigger — NH-121 / BE-005",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --no-coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}
