@@ -69,7 +69,13 @@ const DEFAULTS = {
       },
     },
   },
-  EMAIL_TEMPLATES: {},
+  EMAIL_TEMPLATES: {
+    CANDIDATE_CREATED:    'talent-flow-candidate-created',
+    INTERVIEW_SCHEDULED:  'talent-flow-interview-scheduled',
+    EVALUATION_COMPLETED: 'talent-flow-evaluation-completed',
+    OFFER_APPROVED:       'talent-flow-offer-approved',
+    SLA_BREACHED:         'talent-flow-sla-breached',
+  },
   STAGE_CONFIG: {
     enabled: [
       'APPLICATION_REVIEW',
