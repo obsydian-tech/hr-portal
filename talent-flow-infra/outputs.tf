@@ -175,3 +175,15 @@ output "sqs_feedback_dlq_arn" {
   description = "talent-flow-feedback-dlq.fifo ARN — for alarm configuration."
   value       = aws_sqs_queue.talent_flow_feedback_dlq.arn
 }
+
+# ── EventBridge outputs (added TF-007 / NH-110) ───────────────────────────────
+
+output "eventbridge_bus_name" {
+  description = "talent-flow-bus custom event bus name — used in Lambda publisher env vars (TF-009)."
+  value       = aws_cloudwatch_event_bus.talent_flow.name
+}
+
+output "eventbridge_bus_arn" {
+  description = "talent-flow-bus custom event bus ARN — referenced in Lambda IAM policies (TF-008)."
+  value       = aws_cloudwatch_event_bus.talent_flow.arn
+}
