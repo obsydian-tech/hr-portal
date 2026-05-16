@@ -1,0 +1,232 @@
+# ---------------------------------------------------------------------------
+# CI/CD — TalentFlow MVP1
+#
+# Runs on every PR and every push to main.
+#
+# Jobs:
+#   1. frontend          — Node 20, ng build (prod), unit tests
+#   2. validate-terraform — tf fmt -check + tf validate on talent-flow-infra/
+#   3. deploy-terraform   — tf init → plan → apply (main branch only, manual gate)
+#   4. e2e               — Playwright, ChromeHeadless (if E2E_ENABLED == 'true')
+#
+# Auth: GitHub OIDC (no long-lived AWS keys).
+# Note: Lambda code deployment (aws lambda update-function-code) is a separate
+#       post-apply step, not managed by Terraform. Lambdas use placeholder.zip
+#       with lifecycle ignore_changes — CI/CD deploys real code independently.
+# ---------------------------------------------------------------------------
+
+name: TalentFlow CI/CD
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "hr-portal/**"
+      - "talent-flow-infra/**"
+      - ".github/workflows/talent-flow-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "hr-portal/**"
+      - "talent-flow-infra/**"
+      - ".github/workflows/talent-flow-ci.yml"
+
+concurrency:
+  group: talent-flow-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  TF_VERSION: "1.10.5"
+  AWS_REGION: "af-south-1"
+  WORKING_DIR_TF: "talent-flow-infra"
+  WORKING_DIR_FE: "hr-portal"
+
+# ---------------------------------------------------------------------------
+# Job 1 — Angular frontend build + unit tests
+# ---------------------------------------------------------------------------
+jobs:
+  frontend:
+    name: Frontend — build & test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR_FE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: hr-portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (production)
+        run: npm run build -- --configuration production
+
+      - name: Unit tests
+        run: npm run test -- --no-watch --no-progress --browsers=ChromeHeadless
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: talent-flow-dist
+          path: hr-portal/dist/
+          retention-days: 3
+
+  # ---------------------------------------------------------------------------
+  # Job 2 — Terraform fmt check + validate (no AWS credentials needed)
+  # ---------------------------------------------------------------------------
+  validate-terraform:
+    name: Terraform — fmt & validate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR_TF }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform ${{ env.TF_VERSION }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init (no backend — validate only)
+        run: |
+          terraform init \
+            -backend=false \
+            -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+  # ---------------------------------------------------------------------------
+  # Job 3 — Terraform deploy (main branch only)
+  #
+  # Uses GitHub OIDC to assume talent-flow-role-github-deploy.
+  # Protected by GitHub environment "production" — requires manual approval
+  # from a repository admin before the job runs.
+  # ---------------------------------------------------------------------------
+  deploy-terraform:
+    name: Terraform — deploy to production
+    runs-on: ubuntu-latest
+    needs: [validate-terraform]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR_TF }}
+
+    permissions:
+      id-token: write   # required for OIDC token request
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::937137806477:role/talent-flow-role-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: TalentFlowGitHubDeploy
+
+      - name: Set up Terraform ${{ env.TF_VERSION }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: |
+          terraform init -input=false
+        env:
+          TF_VAR_environment: production
+          TF_VAR_aws_account_id: "937137806477"
+
+      - name: Terraform plan
+        id: plan
+        run: |
+          terraform plan \
+            -var="environment=production" \
+            -var="aws_account_id=937137806477" \
+            -out=tfplan \
+            -input=false
+        env:
+          TF_VAR_environment: production
+          TF_VAR_aws_account_id: "937137806477"
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve tfplan
+        env:
+          TF_VAR_environment: production
+          TF_VAR_aws_account_id: "937137806477"
+
+  # ---------------------------------------------------------------------------
+  # Job 4 — Playwright E2E tests
+  # Runs only when vars.E2E_ENABLED == 'true'.
+  # Needs both frontend (dist artifact) and a successful deploy to have endpoints.
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: E2E — Playwright journeys
+    runs-on: ubuntu-latest
+    if: vars.E2E_ENABLED == 'true'
+    needs: [frontend, deploy-terraform]
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR_FE }}
+
+    env:
+      E2E_BASE_URL: ${{ vars.E2E_BASE_URL || '' }}
+      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_AGENT_API_KEY: ${{ secrets.E2E_AGENT_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: hr-portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start dev server (local mode — when no E2E_BASE_URL set)
+        if: ${{ !vars.E2E_BASE_URL }}
+        run: |
+          npx ng serve --host 0.0.0.0 --port 4200 &
+          npx wait-on http://localhost:4200 --timeout 120000
+
+      - name: Run Playwright E2E tests
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talent-flow-playwright-report
+          path: hr-portal/e2e/reports/
+          retention-days: 14
