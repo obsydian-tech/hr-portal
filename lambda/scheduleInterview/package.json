@@ -1,0 +1,15 @@
+{
+  "name": "schedule-interview",
+  "version": "1.0.0",
+  "description": "TalentFlow scheduleInterview Lambda — panel rules config + votesRequired on interview record",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --no-coverage"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0",
+    "@aws-sdk/client-sqs": "^3.0.0",
+    "jest": "^29.0.0"
+  }
+}
