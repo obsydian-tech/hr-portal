@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — AI Chat Supplementary Infrastructure (NH-115 / TF-012)
+# TalentFlow - AI Chat Supplementary Infrastructure (NH-115 / TF-012)
 #
 # This file provisions the secrets + rotation schedule that support the
 # talentFlowAiChat and talentFlowAuthorizer Lambdas declared in TF-009.
@@ -22,14 +22,14 @@
 
 
 # ---------------------------------------------------------------------------
-# 1. Secrets Manager — Agent API Key
+# 1. Secrets Manager - Agent API Key
 #    Placeholder value. Real key injected by ops on first apply or via
 #    aws secretsmanager put-secret-value out-of-band.
 # ---------------------------------------------------------------------------
 
 resource "aws_secretsmanager_secret" "agent_api_key" {
   name        = local.tf_secret_agent_api_key
-  description = "TalentFlow Agent API key — validated by talentFlowAuthorizer on every request"
+  description = "TalentFlow Agent API key - validated by talentFlowAuthorizer on every request"
   kms_key_id  = aws_kms_key.talent_flow_agent_audit.arn
 
   # 90-day forced rotation period (manual rotation via talentFlowRotateApiKey Lambda)
@@ -50,9 +50,9 @@ resource "aws_secretsmanager_secret_version" "agent_api_key_placeholder" {
 }
 
 # ---------------------------------------------------------------------------
-# 2. EventBridge Scheduled Rule — 90-day API key rotation
+# 2. EventBridge Scheduled Rule - 90-day API key rotation
 #    Cron: 0 0 1 */3 ? * = midnight on 1st day of every 3rd month (~90 days)
-#    Must target the default event bus — scheduled rules cannot use custom buses.
+#    Must target the default event bus - scheduled rules cannot use custom buses.
 # ---------------------------------------------------------------------------
 
 resource "aws_cloudwatch_event_rule" "api_key_rotation" {
@@ -60,7 +60,7 @@ resource "aws_cloudwatch_event_rule" "api_key_rotation" {
   description         = "Trigger talentFlowRotateApiKey every ~90 days to rotate the agent API key"
   schedule_expression = "cron(0 0 1 */3 ? *)"
   state               = "ENABLED"
-  # No event_bus_name — scheduled rules must target the default bus
+  # No event_bus_name - scheduled rules must target the default bus
 
   tags = merge(local.tf_tags, { Ticket = "NH-115", Purpose = "ApiKeyRotation" })
 }
@@ -72,7 +72,7 @@ resource "aws_cloudwatch_event_target" "api_key_rotation" {
 }
 
 # ---------------------------------------------------------------------------
-# 3. Lambda permission — allow EventBridge to invoke talentFlowRotateApiKey
+# 3. Lambda permission - allow EventBridge to invoke talentFlowRotateApiKey
 # ---------------------------------------------------------------------------
 
 resource "aws_lambda_permission" "rotate_api_key_eventbridge" {

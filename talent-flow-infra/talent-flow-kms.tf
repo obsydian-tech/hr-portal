@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
-# TalentFlow KMS — Customer Managed Keys (NH-105 / TF-002)
+# TalentFlow KMS - Customer Managed Keys (NH-105 / TF-002)
 #
-# Two dedicated CMKs — completely separate from Naleko's naleko-onboarding-pii
+# Two dedicated CMKs - completely separate from Naleko's naleko-onboarding-pii
 # key. Zero cross-references with any Naleko resource.
 #
 # Key  1: alias/talent-flow/state
@@ -17,9 +17,9 @@
 #
 # Key policy pattern copied from infra/modules/kms/main.tf (Naleko):
 #   - Root admin statement (full kms:* for IAM delegation)
-#   - DynamoDB service principal — scoped with aws:SourceAccount condition
-#   - S3 service principal — scoped with aws:SourceAccount condition
-#   - SQS service principal — scoped with aws:SourceAccount condition
+#   - DynamoDB service principal - scoped with aws:SourceAccount condition
+#   - S3 service principal - scoped with aws:SourceAccount condition
+#   - SQS service principal - scoped with aws:SourceAccount condition
 #   - Lambda roles: deferred to TF-008 (IAM) once roles exist
 # ---------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@ data "aws_caller_identity" "current" {}
 # ── Key 1: talent-flow/state ─────────────────────────────────────────────────
 
 data "aws_iam_policy_document" "talent_flow_state_key_policy" {
-  # 1. Account root — full admin; enables IAM delegation for all child principals
+  # 1. Account root - full admin; enables IAM delegation for all child principals
   statement {
     sid    = "RootFullAdmin"
     effect = "Allow"
@@ -40,7 +40,7 @@ data "aws_iam_policy_document" "talent_flow_state_key_policy" {
     resources = ["*"]
   }
 
-  # 2. DynamoDB service — required for SSE-CMK on all talent-flow-* tables
+  # 2. DynamoDB service - required for SSE-CMK on all talent-flow-* tables
   statement {
     sid    = "AllowDynamoDBSSE"
     effect = "Allow"
@@ -71,7 +71,7 @@ data "aws_iam_policy_document" "talent_flow_state_key_policy" {
 }
 
 resource "aws_kms_key" "talent_flow_state" {
-  description             = "TalentFlow — CMK for DynamoDB table encryption (state, config, pending-actions, caches)"
+  description             = "TalentFlow - CMK for DynamoDB table encryption (state, config, pending-actions, caches)"
   enable_key_rotation     = true
   rotation_period_in_days = 365
   deletion_window_in_days = 30
@@ -92,7 +92,7 @@ resource "aws_kms_alias" "talent_flow_state" {
 # ── Key 2: talent-flow/agent-audit ───────────────────────────────────────────
 
 data "aws_iam_policy_document" "talent_flow_agent_audit_key_policy" {
-  # 1. Account root — full admin
+  # 1. Account root - full admin
   statement {
     sid    = "RootFullAdmin"
     effect = "Allow"
@@ -104,7 +104,7 @@ data "aws_iam_policy_document" "talent_flow_agent_audit_key_policy" {
     resources = ["*"]
   }
 
-  # 2. DynamoDB service — for talent-flow-agent-audit table SSE
+  # 2. DynamoDB service - for talent-flow-agent-audit table SSE
   statement {
     sid    = "AllowDynamoDBSSE"
     effect = "Allow"
@@ -130,7 +130,7 @@ data "aws_iam_policy_document" "talent_flow_agent_audit_key_policy" {
     }
   }
 
-  # 3. S3 service — for talent-flow-audit-archive bucket default SSE
+  # 3. S3 service - for talent-flow-audit-archive bucket default SSE
   statement {
     sid    = "AllowS3DefaultSSE"
     effect = "Allow"
@@ -155,7 +155,7 @@ data "aws_iam_policy_document" "talent_flow_agent_audit_key_policy" {
     }
   }
 
-  # 4. SQS service — for talent-flow-notification-queue + talent-flow-feedback-queue SSE
+  # 4. SQS service - for talent-flow-notification-queue + talent-flow-feedback-queue SSE
   statement {
     sid    = "AllowSQSSSE"
     effect = "Allow"
@@ -183,7 +183,7 @@ data "aws_iam_policy_document" "talent_flow_agent_audit_key_policy" {
 }
 
 resource "aws_kms_key" "talent_flow_agent_audit" {
-  description             = "TalentFlow — CMK for agent-audit DynamoDB table, S3 audit archive, SQS queues, Secrets Manager"
+  description             = "TalentFlow - CMK for agent-audit DynamoDB table, S3 audit archive, SQS queues, Secrets Manager"
   enable_key_rotation     = true
   rotation_period_in_days = 365
   deletion_window_in_days = 30
@@ -191,7 +191,7 @@ resource "aws_kms_key" "talent_flow_agent_audit" {
 
   tags = merge({
     Name    = "talent-flow/agent-audit"
-    Purpose = "DynamoDB SSE + S3 audit archive + SQS + Secrets Manager"
+    Purpose = "AgentAuditKey"
     Ticket  = "NH-105"
   }, local.tf_tags)
 }

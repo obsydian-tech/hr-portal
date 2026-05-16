@@ -1,9 +1,9 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — DynamoDB Tables (7)
+# TalentFlow - DynamoDB Tables (7)
 # Ticket : NH-107 / TF-004
 #
-# Architecture: 7 purpose-specific tables — each owns a concern.
-# Plan doc §2.3 + locals.tf are the source of truth for names and schemas.
+# Architecture: 7 purpose-specific tables - each owns a concern.
+# Plan doc s.2.3 + locals.tf are the source of truth for names and schemas.
 # Ticket's domain-separated design (candidates/workflows/interviews/votes…)
 # overridden by plan doc's SAGA-state single-table per concern approach.
 #
@@ -20,10 +20,10 @@
 
 # ---------------------------------------------------------------------------
 # 1. talent-flow-state
-#    SAGA operational records — candidates, interviews, votes, workflows.
+#    SAGA operational records - candidates, interviews, votes, workflows.
 #    All entities share this table, differentiated by PK prefix:
 #      CANDIDATE#{id}  INTERVIEW#{id}  VOTE#{id}  WORKFLOW#{id}
-#    Stream enabled — SLA monitor Lambda polls NEW_AND_OLD_IMAGES.
+#    Stream enabled - SLA monitor Lambda polls NEW_AND_OLD_IMAGES.
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_state" {
   name         = local.tf_table_state
@@ -41,7 +41,7 @@ resource "aws_dynamodb_table" "talent_flow_state" {
     type = "S"
   }
 
-  # GSI1 — generic reusable index (access pattern: query by tenant + entity type)
+  # GSI1 - generic reusable index (access pattern: query by tenant + entity type)
   attribute {
     name = "GSI1PK"
     type = "S"
@@ -59,7 +59,7 @@ resource "aws_dynamodb_table" "talent_flow_state" {
     projection_type = "ALL"
   }
 
-  # GSI2 — second reusable index (e.g. query by candidateId or workflowId)
+  # GSI2 - second reusable index (e.g. query by candidateId or workflowId)
   attribute {
     name = "GSI2PK"
     type = "S"
@@ -77,7 +77,7 @@ resource "aws_dynamodb_table" "talent_flow_state" {
     projection_type = "ALL"
   }
 
-  # Stream — consumed by monitorTalentFlowSLAs Lambda (TF-012)
+  # Stream - consumed by monitorTalentFlowSLAs Lambda (TF-012)
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
 
@@ -91,7 +91,7 @@ resource "aws_dynamodb_table" "talent_flow_state" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose            = "SAGA operational state — candidates, interviews, votes, workflows"
+    Purpose            = "SagaOperationalState"
     DataClassification = "Confidential"
     RetentionYears     = "7"
     Ticket             = "NH-107"
@@ -101,8 +101,8 @@ resource "aws_dynamodb_table" "talent_flow_state" {
 # ---------------------------------------------------------------------------
 # 2. talent-flow-config
 #    Metadata-Lite Variable Six store. MUST have GSI1 for active config queries.
-#    ALL Lambdas call getConfig() at runtime — GSI1 is the hot read path.
-#    TTL on expiresAt — set ONLY on inactive versions (365d retention then purge).
+#    ALL Lambdas call getConfig() at runtime - GSI1 is the hot read path.
+#    TTL on expiresAt - set ONLY on inactive versions (365d retention then purge).
 #
 #    PK  = TENANT#{tenantId}
 #    SK  = CONFIG#{configType}#v{version}
@@ -125,7 +125,7 @@ resource "aws_dynamodb_table" "talent_flow_config" {
     type = "S"
   }
 
-  # GSI1 — active config query: GSI1PK = TENANT#DEFAULT#ACTIVE AND GSI1SK = CONFIG#SCORING_WEIGHTS
+  # GSI1 - active config query: GSI1PK = TENANT#DEFAULT#ACTIVE AND GSI1SK = CONFIG#SCORING_WEIGHTS
   attribute {
     name = "GSI1PK"
     type = "S"
@@ -143,7 +143,7 @@ resource "aws_dynamodb_table" "talent_flow_config" {
     projection_type = "ALL"
   }
 
-  # TTL — set on inactive config versions only (active versions omit this attribute)
+  # TTL - set on inactive config versions only (active versions omit this attribute)
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
@@ -159,7 +159,7 @@ resource "aws_dynamodb_table" "talent_flow_config" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose            = "Metadata-Lite Variable Six — versioned tenant config"
+    Purpose            = "MetadataLiteConfig"
     DataClassification = "Confidential"
     RetentionYears     = "7"
     Ticket             = "NH-107"
@@ -168,10 +168,10 @@ resource "aws_dynamodb_table" "talent_flow_config" {
 
 # ---------------------------------------------------------------------------
 # 3. talent-flow-agent-audit
-#    Full AI interaction audit trail (POPIA §21 accountability).
+#    Full AI interaction audit trail (POPIA s.21 accountability).
 #    Every prompt + response from talentFlowAiChat Lambda recorded here.
 #    PK = AUDIT#{staffId}  SK = ISO8601 timestamp
-#    GSI DateIndex — compliance date-range queries
+#    GSI DateIndex - compliance date-range queries
 #    TTL 30 days (hot window); DynamoDB Stream → S3 archive (TF-005/TF-012)
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_agent_audit" {
@@ -195,7 +195,7 @@ resource "aws_dynamodb_table" "talent_flow_agent_audit" {
     type = "S"
   }
 
-  # DateIndex — compliance queries: all AI interactions on a calendar day
+  # DateIndex - compliance queries: all AI interactions on a calendar day
   global_secondary_index {
     name            = "DateIndex"
     hash_key        = "date"
@@ -222,7 +222,7 @@ resource "aws_dynamodb_table" "talent_flow_agent_audit" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose            = "AI agent audit trail — POPIA §21 accountability"
+    Purpose            = "AgentAuditTrail"
     DataClassification = "AUDIT"
     RetentionDays      = "30"
     Ticket             = "NH-107"
@@ -246,7 +246,7 @@ resource "aws_dynamodb_table" "talent_flow_prompt_cache" {
     type = "S"
   }
 
-  # 1-hour TTL — cache entries auto-purge
+  # 1-hour TTL - cache entries auto-purge
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
@@ -262,7 +262,7 @@ resource "aws_dynamodb_table" "talent_flow_prompt_cache" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose       = "SHA-256 prompt cache — eliminates duplicate Bedrock calls"
+    Purpose       = "PromptCache"
     RetentionDays = "0.04"
     Ticket        = "NH-107"
   })
@@ -270,7 +270,7 @@ resource "aws_dynamodb_table" "talent_flow_prompt_cache" {
 
 # ---------------------------------------------------------------------------
 # 5. talent-flow-pending-actions
-#    HITL gate — AI agent write actions pending human approval.
+#    HITL gate - AI agent write actions pending human approval.
 #    Matches Naleko naleko-pending-actions pattern exactly.
 #    PK = ACTION#{actionId}   TTL 24hr (auto-expire unapproved actions)
 # ---------------------------------------------------------------------------
@@ -284,7 +284,7 @@ resource "aws_dynamodb_table" "talent_flow_pending_actions" {
     type = "S"
   }
 
-  # 24hr TTL — unapproved actions auto-expire
+  # 24hr TTL - unapproved actions auto-expire
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
@@ -300,7 +300,7 @@ resource "aws_dynamodb_table" "talent_flow_pending_actions" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose            = "HITL gate — AI write actions pending human approval"
+    Purpose            = "HITLGate"
     DataClassification = "Internal"
     RetentionDays      = "1"
     Ticket             = "NH-107"
@@ -311,7 +311,7 @@ resource "aws_dynamodb_table" "talent_flow_pending_actions" {
 # 6. talent-flow-ai-rate-limit
 #    Rolling per-user rate limit (50 req/hr window).
 #    PK = RATE#{staffId}   SK = WINDOW#{epochMinute}
-#    TTL on window expiry — rolling window self-cleans
+#    TTL on window expiry - rolling window self-cleans
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_ai_rate_limit" {
   name         = local.tf_table_rate_limit
@@ -345,7 +345,7 @@ resource "aws_dynamodb_table" "talent_flow_ai_rate_limit" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose = "Per-user AI rate limiting — 50 req/hr rolling window"
+    Purpose = "AiRateLimit"
     Ticket  = "NH-107"
   })
 }
@@ -366,7 +366,7 @@ resource "aws_dynamodb_table" "talent_flow_idempotency_keys" {
     type = "S"
   }
 
-  # 48hr TTL — dedup window
+  # 48hr TTL - dedup window
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
@@ -382,7 +382,7 @@ resource "aws_dynamodb_table" "talent_flow_idempotency_keys" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose            = "Idempotency dedup — 48hr window for mutation Lambdas"
+    Purpose            = "IdempotencyDedup"
     DataClassification = "Internal"
     RetentionDays      = "2"
     Ticket             = "NH-107"

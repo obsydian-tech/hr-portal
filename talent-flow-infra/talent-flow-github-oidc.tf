@@ -1,14 +1,14 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — GitHub Actions OIDC Provider + Deploy Role (NH-115 / TF-012)
+# TalentFlow - GitHub Actions OIDC Provider + Deploy Role (NH-115 / TF-012)
 #
 # Enables GitHub Actions to authenticate to AWS without long-lived access keys.
-# The GitHub OIDC provider is an account-level singleton — if Naleko already
+# The GitHub OIDC provider is an account-level singleton - if Naleko already
 # created it, Terraform will adopt it via import (or use a data source).
 #
 # Resources:
-#   1. aws_iam_openid_connect_provider — registers GitHub's OIDC IdP
-#   2. aws_iam_role.talent_flow_github_deploy — assumed by the deploy job
-#   3. aws_iam_role_policy.talent_flow_github_deploy — least-privilege deploy perms
+#   1. aws_iam_openid_connect_provider - registers GitHub's OIDC IdP
+#   2. aws_iam_role.talent_flow_github_deploy - assumed by the deploy job
+#   3. aws_iam_role_policy.talent_flow_github_deploy - least-privilege deploy perms
 #
 # Trust policy constrains the role to:
 #   - repo: obsydian-tech/hr-portal
@@ -30,14 +30,14 @@ resource "aws_iam_openid_connect_provider" "github" {
 
   client_id_list = ["sts.amazonaws.com"]
 
-  # GitHub's OIDC root CA thumbprint — stable across all GitHub-hosted runners
+  # GitHub's OIDC root CA thumbprint - stable across all GitHub-hosted runners
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
 
   tags = merge(local.tf_tags, { Ticket = "NH-115", Purpose = "GitHubActionsOIDC" })
 }
 
 # ---------------------------------------------------------------------------
-# 2. IAM Role — assumed by the GitHub Actions deploy job
+# 2. IAM Role - assumed by the GitHub Actions deploy job
 # ---------------------------------------------------------------------------
 
 resource "aws_iam_role" "talent_flow_github_deploy" {
@@ -66,7 +66,7 @@ resource "aws_iam_role" "talent_flow_github_deploy" {
 }
 
 # ---------------------------------------------------------------------------
-# 3. Inline policy — least-privilege Terraform apply perms
+# 3. Inline policy - least-privilege Terraform apply perms
 #    Covers all AWS service types used across TF-001..TF-012.
 #    Scoped to talent-flow-* resources wherever the ARN pattern allows.
 # ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
     Version = "2012-10-17"
     Statement = [
       {
-        # Terraform remote state — S3 + DynamoDB lock table
+        # Terraform remote state - S3 + DynamoDB lock table
         Sid    = "TerraformState"
         Effect = "Allow"
         Action = [
@@ -99,7 +99,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         Resource = "arn:aws:dynamodb:af-south-1:937137806477:table/naleko-tfstate-lock"
       },
       {
-        # IAM — create/manage talent-flow roles + policies
+        # IAM - create/manage talent-flow roles + policies
         Sid    = "IAMTalentFlow"
         Effect = "Allow"
         Action = [
@@ -117,7 +117,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         ]
       },
       {
-        # KMS — manage talent-flow CMKs
+        # KMS - manage talent-flow CMKs
         Sid    = "KMSTalentFlow"
         Effect = "Allow"
         Action = [
@@ -134,7 +134,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         }
       },
       {
-        # DynamoDB — manage talent-flow tables
+        # DynamoDB - manage talent-flow tables
         Sid    = "DynamoDBTalentFlow"
         Effect = "Allow"
         Action = [
@@ -148,7 +148,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         Resource = "arn:aws:dynamodb:af-south-1:937137806477:table/talent-flow-*"
       },
       {
-        # Lambda — manage talent-flow functions + permissions + ESMs
+        # Lambda - manage talent-flow functions + permissions + ESMs
         Sid    = "LambdaTalentFlow"
         Effect = "Allow"
         Action = [
@@ -174,14 +174,14 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         ]
       },
       {
-        # Lambda ESM — event:* scoped separately (no resource-level condition on ESMs)
+        # Lambda ESM - event:* scoped separately (no resource-level condition on ESMs)
         Sid      = "LambdaESM"
         Effect   = "Allow"
         Action   = ["lambda:CreateEventSourceMapping", "lambda:DeleteEventSourceMapping", "lambda:GetEventSourceMapping", "lambda:UpdateEventSourceMapping", "lambda:ListEventSourceMappings"]
         Resource = "*"
       },
       {
-        # SQS — manage talent-flow queues
+        # SQS - manage talent-flow queues
         Sid    = "SQSTalentFlow"
         Effect = "Allow"
         Action = [
@@ -192,7 +192,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         Resource = "arn:aws:sqs:af-south-1:937137806477:talent-flow-*"
       },
       {
-        # S3 — manage talent-flow audit archive bucket
+        # S3 - manage talent-flow audit archive bucket
         Sid    = "S3TalentFlow"
         Effect = "Allow"
         Action = [
@@ -223,7 +223,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         ]
       },
       {
-        # Cognito — manage talent-flow user pool
+        # Cognito - manage talent-flow user pool
         Sid    = "CognitoTalentFlow"
         Effect = "Allow"
         Action = [
@@ -237,7 +237,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         Resource = "arn:aws:cognito-idp:af-south-1:937137806477:userpool/*"
       },
       {
-        # EventBridge — manage talent-flow rules + schedules
+        # EventBridge - manage talent-flow rules + schedules
         Sid    = "EventBridgeTalentFlow"
         Effect = "Allow"
         Action = [
@@ -252,7 +252,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         ]
       },
       {
-        # Step Functions — manage talent-flow state machine
+        # Step Functions - manage talent-flow state machine
         Sid    = "SFNTalentFlow"
         Effect = "Allow"
         Action = [
@@ -264,7 +264,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         Resource = "arn:aws:states:af-south-1:937137806477:stateMachine:talent-flow-*"
       },
       {
-        # Secrets Manager — manage talent-flow secrets
+        # Secrets Manager - manage talent-flow secrets
         Sid    = "SecretsTalentFlow"
         Effect = "Allow"
         Action = [
@@ -276,7 +276,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         Resource = "arn:aws:secretsmanager:af-south-1:937137806477:secret:talent-flow/*"
       },
       {
-        # CloudWatch Logs — manage talent-flow log groups
+        # CloudWatch Logs - manage talent-flow log groups
         Sid    = "LogsTalentFlow"
         Effect = "Allow"
         Action = [

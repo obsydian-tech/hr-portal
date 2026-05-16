@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — SQS FIFO Queues (NH-109 / TF-006)
+# TalentFlow - SQS FIFO Queues (NH-109 / TF-006)
 #
 # Two FIFO queue pairs (main + DLQ):
 #   1. talent-flow-notification-queue.fifo

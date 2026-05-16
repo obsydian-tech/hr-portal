@@ -1,9 +1,9 @@
 # ---------------------------------------------------------------------------
-# TalentFlow MVP1 — Input Variables (NH-104 / TF-001)
+# TalentFlow MVP1 - Input Variables (NH-104 / TF-001)
 # ---------------------------------------------------------------------------
 
 variable "aws_account_id" {
-  description = "AWS account ID — used in allowed_account_ids guard to prevent accidental cross-account applies."
+  description = "AWS account ID - used in allowed_account_ids guard to prevent accidental cross-account applies."
   type        = string
 
   validation {
@@ -30,6 +30,6 @@ variable "project" {
 
   validation {
     condition     = var.project == "talent-flow"
-    error_message = "project must be 'talent-flow' — all resource names depend on this prefix."
+    error_message = "project must be 'talent-flow' - all resource names depend on this prefix."
   }
 }

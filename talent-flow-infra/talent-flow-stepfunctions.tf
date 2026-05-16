@@ -1,25 +1,25 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — Step Functions Offer Approval State Machine (NH-114 / TF-011)
+# TalentFlow - Step Functions Offer Approval State Machine (NH-114 / TF-011)
 #
 # State machine: talent-flow-offer-approval (STANDARD type)
 #
 # Why STANDARD (not EXPRESS):
 #   EXPRESS has a 5-minute maximum execution duration.
 #   WaitForTaskToken for FinanceLead/HiringManager approval can take days to
-#   weeks — STANDARD is the only correct choice for long-running human approvals.
+#   weeks - STANDARD is the only correct choice for long-running human approvals.
 #   Naleko's own SFN (naleko-onboarding-flow) is also STANDARD type.
 #
 # ASL flow:
-#   1. SendApprovalRequest — Lambda.waitForTaskToken → sendTalentFlowNotification
+#   1. SendApprovalRequest - Lambda.waitForTaskToken → sendTalentFlowNotification
 #      Sends approval email with task token callback URL, then PAUSES until
 #      talentFlowApproveAction calls SendTaskSuccess / SendTaskFailure.
 #      HeartbeatSeconds = 86400 (24 h heartbeat to detect stale tokens).
-#   2. ProcessDecision — Choice state on $.decision
+#   2. ProcessDecision - Choice state on $.decision
 #      "APPROVED" → InvokeOfferProcessor
 #      default     → RejectOffer
-#   3a. InvokeOfferProcessor — sync Lambda invoke → talentFlowApproveAction
+#   3a. InvokeOfferProcessor - sync Lambda invoke → talentFlowApproveAction
 #       Payload flags action = "APPROVE"
-#   3b. RejectOffer — sync Lambda invoke → talentFlowApproveAction
+#   3b. RejectOffer - sync Lambda invoke → talentFlowApproveAction
 #       Payload flags action = "REJECT"
 #
 # Lambda wiring rationale:
@@ -31,10 +31,10 @@
 # IAM:
 #   Role: talent-flow-role-stepfunctions (follows tf_iam_role_prefix convention)
 #   KMS:  agent_audit key only (covers encrypted CloudWatch log group writes)
-#   No state key — state machine does not directly read/write DynamoDB tables.
+#   No state key - state machine does not directly read/write DynamoDB tables.
 #
 # Discrepancies resolved vs ticket:
-#   - type = STANDARD (not EXPRESS) — EXPRESS max 5 min, incompatible with WaitForTaskToken
+#   - type = STANDARD (not EXPRESS) - EXPRESS max 5 min, incompatible with WaitForTaskToken
 #   - Lambda names corrected to declared resources (send_notification, approve_action)
 #   - KMS key: agent_audit (not the nonexistent "general" key)
 #   - IAM role name: talent-flow-role-stepfunctions (follows TF-008 prefix convention)
@@ -47,13 +47,13 @@
 resource "aws_cloudwatch_log_group" "talent_flow_sfn" {
   name              = "/aws/states/talent-flow-offer-approval"
   retention_in_days = 90
-  kms_key_id        = aws_kms_key.talent_flow_agent_audit.arn
+  # kms_key_id requires cloudwatch.amazonaws.com grant on key policy - deferred to post-bootstrap
 
   tags = merge(local.tf_tags, { Ticket = "NH-114", Purpose = "StepFunctionsExecutionLogs" })
 }
 
 # ---------------------------------------------------------------------------
-# IAM Role — Step Functions execution
+# IAM Role - Step Functions execution
 # ---------------------------------------------------------------------------
 
 resource "aws_iam_role" "talent_flow_sfn" {
@@ -84,7 +84,7 @@ resource "aws_iam_role_policy" "talent_flow_sfn" {
     Version = "2012-10-17"
     Statement = [
       {
-        # CloudWatch Logs delivery — required for logging_configuration
+        # CloudWatch Logs delivery - required for logging_configuration
         Sid    = "CloudWatchLogs"
         Effect = "Allow"
         Action = [
@@ -148,9 +148,9 @@ resource "aws_sfn_state_machine" "offer_approval" {
   role_arn = aws_iam_role.talent_flow_sfn.arn
   type     = "STANDARD"
 
-  # ASL defined inline using jsonencode — no separate .asl.json file required
+  # ASL defined inline using jsonencode - no separate .asl.json file required
   definition = jsonencode({
-    Comment = "TalentFlow offer approval workflow — waits for human decision via task token"
+    Comment = "TalentFlow offer approval workflow - waits for human decision via task token"
     StartAt = "SendApprovalRequest"
 
     States = {
@@ -188,7 +188,7 @@ resource "aws_sfn_state_machine" "offer_approval" {
 
       InvokeOfferProcessor = {
         Type     = "Task"
-        Comment  = "Process approved offer — update state table and notify candidate"
+        Comment  = "Process approved offer - update state table and notify candidate"
         Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
           FunctionName = aws_lambda_function.approve_action.arn
@@ -203,7 +203,7 @@ resource "aws_sfn_state_machine" "offer_approval" {
 
       RejectOffer = {
         Type     = "Task"
-        Comment  = "Process rejected offer — update state table and notify candidate"
+        Comment  = "Process rejected offer - update state table and notify candidate"
         Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
           FunctionName = aws_lambda_function.approve_action.arn

@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — API Gateway Dual Setup (NH-113 / TF-010)
+# TalentFlow - API Gateway Dual Setup (NH-113 / TF-010)
 #
-# Gateway 1: HTTP API v2  — talent-flow-api
+# Gateway 1: HTTP API v2  - talent-flow-api
 #   - Cognito JWT authorizer (Bearer token from Angular SPA)
 #   - CORS: localhost:4200 + hr-portal-beryl-three.vercel.app
 #   - $default stage, auto_deploy, throttling burst=100 / rate=50
@@ -11,7 +11,7 @@
 #       GET  /v1/config              → manageTalentFlowConfig
 #       PUT  /v1/config/{id}         → manageTalentFlowConfig
 #
-# Gateway 2: REST API v1  — talent-flow-agent-api
+# Gateway 2: REST API v1  - talent-flow-agent-api
 #   - TOKEN Lambda authorizer (reads x-api-key header) → talentFlowAuthorizer
 #   - REST API v1 required: TOKEN-type authorizer not supported on HTTP API v2
 #   - Routes:
@@ -25,7 +25,7 @@
 
 
 # ===========================================================================
-# GATEWAY 1 — HTTP API v2  (talent-flow-api)
+# GATEWAY 1 - HTTP API v2  (talent-flow-api)
 # ===========================================================================
 
 resource "aws_apigatewayv2_api" "talent_flow_api" {
@@ -64,19 +64,19 @@ resource "aws_apigatewayv2_authorizer" "talent_flow_api_cognito" {
 }
 
 # ---------------------------------------------------------------------------
-# CloudWatch Log Group — Gateway 1
+# CloudWatch Log Group - Gateway 1
 # ---------------------------------------------------------------------------
 
 resource "aws_cloudwatch_log_group" "talent_flow_api_logs" {
   name              = "/aws/apigateway/talent-flow-api"
   retention_in_days = 90
-  kms_key_id        = aws_kms_key.talent_flow_agent_audit.arn
+  # DEFERRED:   kms_key_id        = aws_kms_key.talent_flow_agent_audit.arn
 
   tags = merge(local.tf_tags, { Ticket = "NH-113" })
 }
 
 # ---------------------------------------------------------------------------
-# $default Stage — auto_deploy, throttling matches Naleko (burst=100/rate=50)
+# $default Stage - auto_deploy, throttling matches Naleko (burst=100/rate=50)
 # ---------------------------------------------------------------------------
 
 resource "aws_apigatewayv2_stage" "talent_flow_api_default" {
@@ -183,7 +183,7 @@ resource "aws_lambda_permission" "manage_config_talent_flow_api" {
 
 
 # ===========================================================================
-# GATEWAY 2 — REST API v1  (talent-flow-agent-api)
+# GATEWAY 2 - REST API v1  (talent-flow-agent-api)
 #
 # REST API v1 is required because TOKEN-type Lambda authorizers (which read
 # raw header values like x-api-key and return IAM policies) are only
@@ -192,7 +192,7 @@ resource "aws_lambda_permission" "manage_config_talent_flow_api" {
 
 resource "aws_api_gateway_rest_api" "agent_api" {
   name        = "talent-flow-agent-api"
-  description = "TalentFlow AI Agent API — secured by TOKEN Lambda authorizer"
+  description = "TalentFlow AI Agent API - secured by TOKEN Lambda authorizer"
 
   endpoint_configuration {
     types = ["REGIONAL"]
@@ -221,7 +221,7 @@ resource "aws_api_gateway_resource" "approve" {
 # TOKEN Lambda Authorizer
 # Identity source: method.request.header.x-api-key
 # talentFlowAuthorizer validates the API key and returns an IAM policy.
-# TTL 300 s — matches best practice; set to 0 for immediate invalidation.
+# TTL 300 s - matches best practice; set to 0 for immediate invalidation.
 # ---------------------------------------------------------------------------
 
 resource "aws_api_gateway_authorizer" "agent_api_token" {
@@ -276,7 +276,7 @@ resource "aws_api_gateway_integration" "post_approve" {
 }
 
 # ---------------------------------------------------------------------------
-# Deployment — triggered by hash of method + integration config
+# Deployment - triggered by hash of method + integration config
 # create_before_destroy: required for zero-downtime redeployments
 # ---------------------------------------------------------------------------
 
@@ -305,13 +305,13 @@ resource "aws_api_gateway_deployment" "agent_api" {
 }
 
 # ---------------------------------------------------------------------------
-# CloudWatch Log Group — Gateway 2
+# CloudWatch Log Group - Gateway 2
 # ---------------------------------------------------------------------------
 
 resource "aws_cloudwatch_log_group" "agent_api_logs" {
   name              = "/aws/apigateway/talent-flow-agent-api"
   retention_in_days = 90
-  kms_key_id        = aws_kms_key.talent_flow_agent_audit.arn
+  # DEFERRED:   kms_key_id        = aws_kms_key.talent_flow_agent_audit.arn
 
   tags = merge(local.tf_tags, { Ticket = "NH-113" })
 }
@@ -333,7 +333,7 @@ resource "aws_api_gateway_stage" "agent_api_prod" {
 }
 
 # ---------------------------------------------------------------------------
-# Method Settings — logging + throttling (burst=100, rate=50)
+# Method Settings - logging + throttling (burst=100, rate=50)
 # Applies to all methods in the stage via "*/*"
 # ---------------------------------------------------------------------------
 
@@ -352,7 +352,7 @@ resource "aws_api_gateway_method_settings" "agent_api_all" {
 }
 
 # ---------------------------------------------------------------------------
-# IAM Role — API Gateway CloudWatch logging (account-level singleton)
+# IAM Role - API Gateway CloudWatch logging (account-level singleton)
 # Required for REST API v1 CloudWatch access log delivery
 # ---------------------------------------------------------------------------
 
@@ -368,7 +368,7 @@ resource "aws_iam_role" "api_gateway_cloudwatch" {
     }]
   })
 
-  tags = merge(local.tf_tags, { Ticket = "NH-113", Purpose = "API Gateway CloudWatch logging" })
+  tags = merge(local.tf_tags, { Ticket = "NH-113", Purpose = "ApiGatewayLogging" })
 }
 
 resource "aws_iam_role_policy_attachment" "api_gateway_cloudwatch" {
@@ -377,7 +377,7 @@ resource "aws_iam_role_policy_attachment" "api_gateway_cloudwatch" {
 }
 
 # ---------------------------------------------------------------------------
-# aws_api_gateway_account — account-level singleton
+# aws_api_gateway_account - account-level singleton
 # Associates the CloudWatch IAM role so REST API stages can push logs.
 # Safe to re-apply; Terraform will update in-place if role ARN changes.
 # ---------------------------------------------------------------------------
@@ -389,7 +389,7 @@ resource "aws_api_gateway_account" "talent_flow" {
 }
 
 # ---------------------------------------------------------------------------
-# Lambda permissions — Gateway 2
+# Lambda permissions - Gateway 2
 # source_arn uses execution_arn with wildcard stage + method
 # Authorizer invocation requires a separate permission scoped to /authorizers/*
 # ---------------------------------------------------------------------------
@@ -424,11 +424,11 @@ resource "aws_lambda_permission" "authorizer_agent_api" {
 # ===========================================================================
 
 output "talent_flow_api_endpoint" {
-  description = "TalentFlow HTTP API v2 endpoint (Gateway 1 — Cognito JWT)"
+  description = "TalentFlow HTTP API v2 endpoint (Gateway 1 - Cognito JWT)"
   value       = aws_apigatewayv2_api.talent_flow_api.api_endpoint
 }
 
 output "agent_api_endpoint" {
-  description = "TalentFlow Agent REST API endpoint (Gateway 2 — TOKEN authorizer)"
+  description = "TalentFlow Agent REST API endpoint (Gateway 2 - TOKEN authorizer)"
   value       = "https://${aws_api_gateway_rest_api.agent_api.id}.execute-api.af-south-1.amazonaws.com/${aws_api_gateway_stage.agent_api_prod.stage_name}"
 }

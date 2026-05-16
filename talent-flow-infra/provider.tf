@@ -1,13 +1,13 @@
 # ---------------------------------------------------------------------------
-# TalentFlow MVP1 — Terraform Provider & Backend (NH-104 / TF-001)
+# TalentFlow MVP1 - Terraform Provider & Backend (NH-104 / TF-001)
 #
 # TalentFlow is a SIBLING STACK to Naleko.
 # - Same AWS account (937137806477), same region (af-south-1)
-# - Separate Terraform state key — never shares state with Naleko
+# - Separate Terraform state key - never shares state with Naleko
 # - allowed_account_ids guard prevents accidental cross-account applies
 #
 # State bucket: naleko-tfstate-af-south-1  (already exists, created by Naleko)
-# State key:    talent-flow/mvp1/terraform.tfstate  (new key — TF creates it)
+# State key:    talent-flow/mvp1/terraform.tfstate  (new key - TF creates it)
 # ---------------------------------------------------------------------------
 
 terraform {
@@ -20,7 +20,7 @@ terraform {
     }
   }
 
-  # Reuse Naleko's existing state bucket — different key isolates TalentFlow state.
+  # Reuse Naleko's existing state bucket - different key isolates TalentFlow state.
   # use_lockfile = true uses TF 1.7+ native S3 locking (no DynamoDB lock table needed).
   backend "s3" {
     bucket       = "naleko-tfstate-af-south-1"
@@ -32,8 +32,8 @@ terraform {
 }
 
 provider "aws" {
-  # Hard-locked to af-south-1 (Cape Town) — POPIA data residency requirement.
-  # Do NOT parameterise this — region must never drift.
+  # Hard-locked to af-south-1 (Cape Town) - POPIA data residency requirement.
+  # Do NOT parameterise this - region must never drift.
   region = "af-south-1"
 
   # Safety guard: Terraform will refuse to run against any account other than

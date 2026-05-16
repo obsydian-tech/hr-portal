@@ -1,9 +1,9 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — EventBridge Bus + Routing Rules (NH-110 / TF-007)
+# TalentFlow - EventBridge Bus + Routing Rules (NH-110 / TF-007)
 #
 # Custom bus: talent-flow-bus
-# All inter-Lambda events route through this bus — never the default bus.
-# (Plan doc §4.7: "All inter-Lambda communication goes through talent-flow-bus")
+# All inter-Lambda events route through this bus - never the default bus.
+# (Plan doc s.4.7: "All inter-Lambda communication goes through talent-flow-bus")
 #
 # 7 workflow routing rules:
 #   1. CandidateCreated      → orchestrateTalentFlowWorkflow
@@ -259,15 +259,15 @@ resource "aws_lambda_permission" "send_notification_offer_approved" {
 }
 
 # ── Rule 8: Hourly cron → monitorTalentFlowSLAs (default bus) ────────────────
-# Uses the default event bus — scheduled rules must target the default bus.
-# (EventBridge Scheduler or default bus cron — cron on custom bus not supported)
+# Uses the default event bus - scheduled rules must target the default bus.
+# (EventBridge Scheduler or default bus cron - cron on custom bus not supported)
 
 resource "aws_cloudwatch_event_rule" "sla_monitor_cron" {
   name                = "talent-flow-sla-monitor-hourly"
   description         = "Trigger monitorTalentFlowSLAs every hour to detect SLA breaches"
   schedule_expression = "rate(1 hour)"
   state               = "ENABLED"
-  # No event_bus_name — targets the default bus (required for scheduled rules)
+  # No event_bus_name - targets the default bus (required for scheduled rules)
 
   tags = merge(local.tf_tags, { Ticket = "NH-110" })
 }

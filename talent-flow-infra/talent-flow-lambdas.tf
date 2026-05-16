@@ -1,13 +1,13 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — Lambda Function Declarations (NH-112 / TF-009)
+# TalentFlow - Lambda Function Declarations (NH-112 / TF-009)
 #
 # 13 placeholder-ZIP Lambda functions + 2 event source mappings + 1 DLQ.
 #
-# talentFlowPreTokenTrigger is EXCLUDED — already declared in talent-flow-cognito.tf
+# talentFlowPreTokenTrigger is EXCLUDED - already declared in talent-flow-cognito.tf
 #
 # Runtime: nodejs22.x, architectures: arm64
 # Placeholder ZIP: local.tf_placeholder_zip (repo-root placeholder.zip)
-# lifecycle: ignore_changes on [filename, source_code_hash] — CI/CD deploys code
+# lifecycle: ignore_changes on [filename, source_code_hash] - CI/CD deploys code
 #
 # Pattern: mirrors Naleko infra/lambdas.tf
 #   - tracing_config { mode = "Active" }
@@ -324,7 +324,7 @@ resource "aws_lambda_function" "monitor_slas" {
 
 # ── 9. talentFlowAiChat ───────────────────────────────────────────────────────
 # Trigger: POST /ai/chat (Agent API Gateway, wired in TF-010)
-# 512MB / 60s — Bedrock inference; HITL write-tool calls via pending-actions table
+# 512MB / 60s - Bedrock inference; HITL write-tool calls via pending-actions table
 
 resource "aws_lambda_function" "ai_chat" {
   function_name = local.tf_lambda_ai_chat
@@ -513,7 +513,7 @@ resource "aws_lambda_function" "rotate_api_key" {
 }
 
 # ── Event Source Mapping 1: SQS notification queue → sendTalentFlowNotification
-# batch_size=10 — processes up to 10 notifications per Lambda invocation
+# batch_size=10 - processes up to 10 notifications per Lambda invocation
 # FIFO queue: batch_size must be ≤ 10 per AWS docs
 
 resource "aws_lambda_event_source_mapping" "send_notification_sqs" {
@@ -548,7 +548,7 @@ resource "aws_lambda_event_source_mapping" "archive_audit_log_stream" {
   function_response_types = ["ReportBatchItemFailures"]
 }
 
-# DLQ for failed archive batches — 14-day retention, standard queue (not FIFO)
+# DLQ for failed archive batches - 14-day retention, standard queue (not FIFO)
 # Mirrors Naleko infra/lambdas.tf archive_audit_log_dlq
 
 resource "aws_sqs_queue" "archive_audit_log_dlq" {

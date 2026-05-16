@@ -1,8 +1,8 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — Shared Locals (NH-104 / TF-001, extended by all TF-00x tasks)
+# TalentFlow - Shared Locals (NH-104 / TF-001, extended by all TF-00x tasks)
 #
 # Single source of truth for every TalentFlow resource name and shared value.
-# No talent-flow-*.tf file hardcodes a table, Lambda, queue, or bus name —
+# No talent-flow-*.tf file hardcodes a table, Lambda, queue, or bus name -
 # all reference these locals.
 #
 # Convention: all locals are prefixed `tf_` to be self-documenting.
@@ -76,7 +76,7 @@ locals {
   tf_cognito_client_name = "talent-flow-web-client"
   tf_lambda_pre_token    = "talentFlowPreTokenTrigger"
 
-  # Groups — internal staff only (candidates are DynamoDB records, not Cognito users)
+  # Groups - internal staff only (candidates are DynamoDB records, not Cognito users)
   tf_cognito_groups = toset([
     "TalentFlowAdmin",   # full access + config management
     "HiringManager",     # create candidates, view pipeline, approve offers

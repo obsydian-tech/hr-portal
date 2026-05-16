@@ -1,18 +1,18 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — Per-Lambda IAM Roles (NH-111 / TF-008)
+# TalentFlow - Per-Lambda IAM Roles (NH-111 / TF-008)
 #
-# 13 least-privilege roles — one aws_iam_role + aws_iam_role_policy pair
+# 13 least-privilege roles - one aws_iam_role + aws_iam_role_policy pair
 # per Lambda function. All ARNs are scoped to talent-flow-* resources only.
 #
 # Pattern: mirrors Naleko infra/iam_per_lambda.tf (NH-8)
-#   - Inline policy (aws_iam_role_policy) — no managed policies
+#   - Inline policy (aws_iam_role_policy) - no managed policies
 #   - Sids: Logs, XRay, then service-specific
 #   - Path: /talent-flow/
 #
 # Role naming: local.tf_iam_role_prefix + function_name
 # = "talent-flow-role-<functionName>"
 #
-# preTokenTrigger role is excluded — created in TF-003 / talent-flow-cognito.tf
+# preTokenTrigger role is excluded - created in TF-003 / talent-flow-cognito.tf
 # ---------------------------------------------------------------------------
 
 locals {
@@ -776,6 +776,12 @@ resource "aws_iam_role_policy" "archive_audit_log" {
         Effect   = "Allow"
         Action   = local.tf_kms_actions
         Resource = aws_kms_key.talent_flow_agent_audit.arn
+      },
+      {
+        Sid      = "DLQSend"
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage"]
+        Resource = aws_sqs_queue.archive_audit_log_dlq.arn
       },
     ]
   })

@@ -1,9 +1,9 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — Cognito User Pool, App Client, Groups, Pre-Token Lambda
+# TalentFlow - Cognito User Pool, App Client, Groups, Pre-Token Lambda
 # Ticket : NH-106 / TF-003
 # Pattern: Follows infra/cognito.tf (ESSENTIALS tier, admin-create-only,
-#           lambda_config in same file — pragmatic for MVP1)
-# Auth   : PKCE / Authorization Code Grant — more secure, Angular-ready
+#           lambda_config in same file - pragmatic for MVP1)
+# Auth   : PKCE / Authorization Code Grant - more secure, Angular-ready
 # Groups : Internal staff only. Candidates are DynamoDB records, not
 #          Cognito users (they gain portal access in MVP2).
 # ---------------------------------------------------------------------------
@@ -31,7 +31,7 @@ resource "aws_iam_role" "pre_token_trigger" {
   assume_role_policy = data.aws_iam_policy_document.pre_token_assume.json
 
   tags = merge(local.tf_tags, {
-    Purpose = "Pre-token generation Lambda execution role"
+    Purpose = "PreTokenLambdaRole"
     Ticket  = "NH-106"
   })
 }
@@ -56,7 +56,7 @@ resource "aws_lambda_function" "talent_flow_pre_token_trigger" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose = "Inject custom:isAdmin claim into Cognito JWT for TalentFlowAdmin group"
+    Purpose = "CognitoIsAdminClaim"
     Ticket  = "NH-106"
   })
 }
@@ -96,7 +96,7 @@ resource "aws_cognito_user_pool" "talent_flow" {
     temporary_password_validity_days = 7
   }
 
-  # Internal staff only — no self-registration
+  # Internal staff only - no self-registration
   admin_create_user_config {
     allow_admin_create_user_only = true
   }
@@ -148,15 +148,15 @@ resource "aws_cognito_user_pool" "talent_flow" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose = "TalentFlow user authentication pool — internal staff"
+    Purpose = "TalentFlowUserPool"
     Ticket  = "NH-106"
   })
 }
 
 # ---------------------------------------------------------------------------
-# 3. App Client — Authorization Code Grant with PKCE
+# 3. App Client - Authorization Code Grant with PKCE
 #    Angular SPA will use Amplify / aws-amplify with PKCE flow.
-#    No client_secret — public SPA.
+#    No client_secret - public SPA.
 # ---------------------------------------------------------------------------
 
 resource "aws_cognito_user_pool_client" "talent_flow_web" {
@@ -169,13 +169,13 @@ resource "aws_cognito_user_pool_client" "talent_flow_web" {
   allowed_oauth_scopes                 = ["openid", "profile", "email"]
   supported_identity_providers         = ["COGNITO"]
 
-  # SRP + refresh — PKCE sits on top of code grant, SRP handles password exchange
+  # SRP + refresh - PKCE sits on top of code grant, SRP handles password exchange
   explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
 
-  # MVP1 dev redirects — extend with prod URL when domain is configured
+  # MVP1 dev redirects - extend with prod URL when domain is configured
   callback_urls = [
     "http://localhost:4200/auth/callback",
   ]
@@ -197,13 +197,13 @@ resource "aws_cognito_user_pool_client" "talent_flow_web" {
   prevent_user_existence_errors = "ENABLED"
   enable_token_revocation       = true
 
-  # No client secret — public SPA, PKCE provides the security
+  # No client secret - public SPA, PKCE provides the security
   generate_secret = false
 }
 
 # ---------------------------------------------------------------------------
-# 4. User Pool Groups — 7 internal staff roles
-#    for_each on tf_cognito_groups set — each group added with no IAM role
+# 4. User Pool Groups - 7 internal staff roles
+#    for_each on tf_cognito_groups set - each group added with no IAM role
 #    for MVP1. IAM role attachment deferred to TF-008.
 # ---------------------------------------------------------------------------
 

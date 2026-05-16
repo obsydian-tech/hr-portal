@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# TalentFlow — S3 Audit Archive (NH-108 / TF-005)
+# TalentFlow - S3 Audit Archive (NH-108 / TF-005)
 #
 # POPIA 5-year audit archive for the talent-flow-agent-audit DynamoDB stream.
 # The talentFlowArchiveAuditLog Lambda reads the stream and writes JSONL
