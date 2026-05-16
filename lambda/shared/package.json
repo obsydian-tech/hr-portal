@@ -1,0 +1,14 @@
+{
+  "name": "talentflow-shared",
+  "version": "1.0.0",
+  "description": "Shared utilities for TalentFlow workflow Lambdas",
+  "private": true,
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0",
+    "jest": "^29.0.0"
+  }
+}
