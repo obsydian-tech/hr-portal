@@ -142,4 +142,50 @@ function getDefaults(configType) {
   return defaults[configType] ?? {};
 }
 
-module.exports = { getConfig };
+/**
+ * Read the full active config item, including its version number.
+ * Used exclusively by orchestrateTalentFlowWorkflow to snapshot configVersion onto SAGA records.
+ *
+ * Unlike getConfig, this returns the raw DynamoDB item shape: { version, data, ... }
+ * so the caller can read item.version to form the configVersion string (e.g. 'v3').
+ *
+ * Falls back to { version: 0, data: defaults } if no active item found.
+ *
+ * @param {string} tenantId   - Tenant identifier (e.g. 'DEFAULT')
+ * @param {string} configType - Config type key (e.g. 'SCORING_WEIGHTS')
+ * @returns {Promise<{version: number|string, data: object}>}
+ */
+async function getConfigItem(tenantId, configType) {
+  const cacheKey = `${tenantId}#${configType}#ACTIVE_ITEM`;
+  const cached = cache.get(cacheKey);
+  if (cached && (Date.now() - cached.ts) < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  try {
+    const result = await client.send(new QueryCommand({
+      TableName: TABLE,
+      IndexName: 'GSI1-active-configs',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+      ExpressionAttributeValues: marshall({
+        ':pk': `TENANT#${tenantId}#ACTIVE`,
+        ':sk': `CONFIG#${configType}`
+      }),
+      Limit: 1
+    }));
+
+    if (result.Items?.length) {
+      const item = unmarshall(result.Items[0]);
+      cache.set(cacheKey, { data: item, ts: Date.now() });
+      return item;
+    }
+  } catch (err) {
+    console.error(`config-reader: getConfigItem DynamoDB error for ${tenantId}/${configType}:`, err.message);
+  }
+
+  // Fallback — version=0 so orchestrator still produces a valid configVersion string
+  console.warn(`config-reader: no active item found for configType=${configType} in getConfigItem — returning version=0`);
+  return { version: 0, data: getDefaults(configType) };
+}
+
+module.exports = { getConfig, getConfigItem };
