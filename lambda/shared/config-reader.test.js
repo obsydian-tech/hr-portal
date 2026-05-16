@@ -202,3 +202,47 @@ describe('error handling', () => {
     warnSpy.mockRestore();
   });
 });
+
+// ─── getConfigItem tests ─────────────────────────────────────────────────────
+
+describe('getConfigItem', () => {
+  test('returns full item including version when active item found in GSI1', async () => {
+    const fullItem = {
+      PK: 'TENANT#DEFAULT',
+      SK: 'CONFIG#SCORING_WEIGHTS#v3',
+      GSI1PK: 'TENANT#DEFAULT#ACTIVE',
+      GSI1SK: 'CONFIG#SCORING_WEIGHTS',
+      version: 3,
+      data: { technical: 30, communication: 25, culturalFit: 25, problemSolving: 20 }
+    };
+    mockSend.mockResolvedValueOnce({ Items: [fullItem] });
+
+    let getConfigItem;
+    jest.isolateModules(() => {
+      ({ getConfigItem } = require('./config-reader'));
+    });
+
+    const result = await getConfigItem('DEFAULT', 'SCORING_WEIGHTS');
+    expect(result).toEqual(fullItem);
+    expect(result.version).toBe(3);
+    expect(mockSend).toHaveBeenCalledTimes(1);
+  });
+
+  test('returns { version: 0, data: defaults } and warns when no active item found', async () => {
+    mockSend.mockResolvedValueOnce({ Items: [] });
+
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    let getConfigItem;
+    jest.isolateModules(() => {
+      ({ getConfigItem } = require('./config-reader'));
+    });
+
+    const result = await getConfigItem('DEFAULT', 'SCORING_WEIGHTS');
+    expect(result.version).toBe(0);
+    expect(result.data).toMatchObject({ technical: expect.any(Number) });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('version=0'));
+
+    warnSpy.mockRestore();
+  });
+});
