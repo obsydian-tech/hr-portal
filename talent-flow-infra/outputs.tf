@@ -69,3 +69,65 @@ output "cognito_client_id" {
   description = "TalentFlow web app client ID — used by Angular Amplify configuration."
   value       = aws_cognito_user_pool_client.talent_flow_web.id
 }
+
+# ── DynamoDB outputs (added TF-004 / NH-107) ──────────────────────────────────
+
+output "dynamodb_state_table_name" {
+  description = "talent-flow-state table name — SAGA operational records."
+  value       = aws_dynamodb_table.talent_flow_state.name
+}
+
+output "dynamodb_state_table_arn" {
+  description = "talent-flow-state table ARN."
+  value       = aws_dynamodb_table.talent_flow_state.arn
+}
+
+output "dynamodb_state_stream_arn" {
+  description = "talent-flow-state DynamoDB Stream ARN — consumed by SLA monitor Lambda."
+  value       = aws_dynamodb_table.talent_flow_state.stream_arn
+}
+
+output "dynamodb_config_table_name" {
+  description = "talent-flow-config table name — Metadata-Lite Variable Six store."
+  value       = aws_dynamodb_table.talent_flow_config.name
+}
+
+output "dynamodb_config_table_arn" {
+  description = "talent-flow-config table ARN."
+  value       = aws_dynamodb_table.talent_flow_config.arn
+}
+
+output "dynamodb_agent_audit_table_name" {
+  description = "talent-flow-agent-audit table name — AI audit trail (POPIA)."
+  value       = aws_dynamodb_table.talent_flow_agent_audit.name
+}
+
+output "dynamodb_agent_audit_table_arn" {
+  description = "talent-flow-agent-audit table ARN."
+  value       = aws_dynamodb_table.talent_flow_agent_audit.arn
+}
+
+output "dynamodb_agent_audit_stream_arn" {
+  description = "talent-flow-agent-audit DynamoDB Stream ARN — feeds S3 audit archive."
+  value       = aws_dynamodb_table.talent_flow_agent_audit.stream_arn
+}
+
+output "dynamodb_prompt_cache_table_name" {
+  description = "talent-flow-prompt-cache table name."
+  value       = aws_dynamodb_table.talent_flow_prompt_cache.name
+}
+
+output "dynamodb_pending_actions_table_name" {
+  description = "talent-flow-pending-actions table name — HITL gate."
+  value       = aws_dynamodb_table.talent_flow_pending_actions.name
+}
+
+output "dynamodb_rate_limit_table_name" {
+  description = "talent-flow-ai-rate-limit table name."
+  value       = aws_dynamodb_table.talent_flow_ai_rate_limit.name
+}
+
+output "dynamodb_idempotency_table_name" {
+  description = "talent-flow-idempotency-keys table name."
+  value       = aws_dynamodb_table.talent_flow_idempotency_keys.name
+}
