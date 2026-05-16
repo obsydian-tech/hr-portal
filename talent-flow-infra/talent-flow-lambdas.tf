@@ -112,12 +112,12 @@ resource "aws_lambda_function" "schedule_interview" {
 
   environment {
     variables = {
-      STATE_TABLE_NAME          = local.tf_table_state
-      CONFIG_TABLE_NAME         = local.tf_table_config
-      NOTIFICATION_QUEUE_URL    = aws_sqs_queue.talent_flow_notification.url
-      EVENTBRIDGE_BUS_NAME      = local.tf_event_bus_name
-      AWS_ACCOUNT_ID            = var.aws_account_id
-      ENVIRONMENT               = var.environment
+      STATE_TABLE_NAME       = local.tf_table_state
+      CONFIG_TABLE_NAME      = local.tf_table_config
+      NOTIFICATION_QUEUE_URL = aws_sqs_queue.talent_flow_notification.url
+      EVENTBRIDGE_BUS_NAME   = local.tf_event_bus_name
+      AWS_ACCOUNT_ID         = var.aws_account_id
+      ENVIRONMENT            = var.environment
     }
   }
 
@@ -338,17 +338,17 @@ resource "aws_lambda_function" "ai_chat" {
 
   environment {
     variables = {
-      STATE_TABLE_NAME          = local.tf_table_state
-      CONFIG_TABLE_NAME         = local.tf_table_config
-      AGENT_AUDIT_TABLE_NAME    = local.tf_table_agent_audit
-      RATE_LIMIT_TABLE_NAME     = local.tf_table_rate_limit
+      STATE_TABLE_NAME           = local.tf_table_state
+      CONFIG_TABLE_NAME          = local.tf_table_config
+      AGENT_AUDIT_TABLE_NAME     = local.tf_table_agent_audit
+      RATE_LIMIT_TABLE_NAME      = local.tf_table_rate_limit
       PENDING_ACTIONS_TABLE_NAME = local.tf_table_pending_actions
-      BEDROCK_MODEL_FAST        = local.tf_model_fast
-      BEDROCK_MODEL_SMART       = local.tf_model_smart
-      AGENT_API_KEY_SECRET_NAME = local.tf_secret_agent_api_key
-      EVENTBRIDGE_BUS_NAME      = local.tf_event_bus_name
-      AWS_ACCOUNT_ID            = var.aws_account_id
-      ENVIRONMENT               = var.environment
+      BEDROCK_MODEL_FAST         = local.tf_model_fast
+      BEDROCK_MODEL_SMART        = local.tf_model_smart
+      AGENT_API_KEY_SECRET_NAME  = local.tf_secret_agent_api_key
+      EVENTBRIDGE_BUS_NAME       = local.tf_event_bus_name
+      AWS_ACCOUNT_ID             = var.aws_account_id
+      ENVIRONMENT                = var.environment
     }
   }
 

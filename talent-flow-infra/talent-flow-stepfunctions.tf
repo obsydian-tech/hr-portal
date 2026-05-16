@@ -161,8 +161,8 @@ resource "aws_sfn_state_machine" "offer_approval" {
         Parameters = {
           FunctionName = aws_lambda_function.send_notification.arn
           Payload = {
-            "taskToken.$"   = "$$.Task.Token"
-            "input.$"       = "$"
+            "taskToken.$"    = "$$.Task.Token"
+            "input.$"        = "$"
             notificationType = "OFFER_APPROVAL_REQUEST"
           }
         }
