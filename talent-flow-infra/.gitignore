@@ -1,1 +1,15 @@
+# Terraform plan files (all patterns used during bootstrap)
 *.tfplan
+tfplan-*
+
+# Local state and vars (state lives in S3; tfvars has account IDs)
+*.tfstate
+*.tfstate.backup
+terraform.tfvars
+
+# Terraform working directory
+.terraform/
+
+# Crash logs
+crash.log
+crash.*.log
