@@ -184,9 +184,9 @@ resource "aws_cognito_user_pool_client" "talent_flow_web" {
   ]
 
   # Token validity
-  access_token_validity  = 60   # 1 hour (minutes)
-  id_token_validity      = 60   # 1 hour (minutes)
-  refresh_token_validity = 30   # 30 days
+  access_token_validity  = 60 # 1 hour (minutes)
+  id_token_validity      = 60 # 1 hour (minutes)
+  refresh_token_validity = 30 # 30 days
 
   token_validity_units {
     access_token  = "minutes"

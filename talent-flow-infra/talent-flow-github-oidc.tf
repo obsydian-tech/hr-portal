@@ -93,9 +93,9 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
       },
       {
         # DynamoDB state lock
-        Sid    = "TerraformStateLock"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+        Sid      = "TerraformStateLock"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
         Resource = "arn:aws:dynamodb:af-south-1:937137806477:table/naleko-tfstate-lock"
       },
       {
