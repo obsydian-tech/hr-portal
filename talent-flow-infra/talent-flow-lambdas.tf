@@ -269,12 +269,12 @@ resource "aws_lambda_function" "send_notification" {
 
   environment {
     variables = {
-      NOTIFICATION_QUEUE_URL  = aws_sqs_queue.talent_flow_notification.url
-      CONFIG_TABLE_NAME       = local.tf_table_config
-      AWS_ACCOUNT_ID          = var.aws_account_id
-      ENVIRONMENT             = var.environment
-      POSTMARK_API_TOKEN      = data.aws_ssm_parameter.postmark_token.value
-      POSTMARK_SENDER_EMAIL   = "ignecious@obsydiantechnologies.com"
+      NOTIFICATION_QUEUE_URL = aws_sqs_queue.talent_flow_notification.url
+      CONFIG_TABLE_NAME      = local.tf_table_config
+      AWS_ACCOUNT_ID         = var.aws_account_id
+      ENVIRONMENT            = var.environment
+      POSTMARK_API_TOKEN     = data.aws_ssm_parameter.postmark_token.value
+      POSTMARK_SENDER_EMAIL  = "ignecious@obsydiantechnologies.com"
     }
   }
 
