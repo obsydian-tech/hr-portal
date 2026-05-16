@@ -143,3 +143,35 @@ output "s3_audit_archive_bucket_arn" {
   description = "talent-flow-audit-archive S3 bucket ARN — referenced in talentFlowArchiveAuditLog Lambda IAM role (TF-008)."
   value       = aws_s3_bucket.talent_flow_audit_archive.arn
 }
+
+# ── SQS outputs (added TF-006 / NH-109) ───────────────────────────────────────
+
+output "sqs_notification_queue_url" {
+  description = "talent-flow-notification-queue.fifo URL — used as Lambda event source mapping target (TF-009)."
+  value       = aws_sqs_queue.talent_flow_notification.id
+}
+
+output "sqs_notification_queue_arn" {
+  description = "talent-flow-notification-queue.fifo ARN — referenced in sendTalentFlowNotification Lambda IAM role (TF-008)."
+  value       = aws_sqs_queue.talent_flow_notification.arn
+}
+
+output "sqs_notification_dlq_arn" {
+  description = "talent-flow-notification-dlq.fifo ARN — for alarm configuration."
+  value       = aws_sqs_queue.talent_flow_notification_dlq.arn
+}
+
+output "sqs_feedback_queue_url" {
+  description = "talent-flow-feedback-queue.fifo URL."
+  value       = aws_sqs_queue.talent_flow_feedback.id
+}
+
+output "sqs_feedback_queue_arn" {
+  description = "talent-flow-feedback-queue.fifo ARN."
+  value       = aws_sqs_queue.talent_flow_feedback.arn
+}
+
+output "sqs_feedback_dlq_arn" {
+  description = "talent-flow-feedback-dlq.fifo ARN — for alarm configuration."
+  value       = aws_sqs_queue.talent_flow_feedback_dlq.arn
+}
