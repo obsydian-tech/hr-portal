@@ -355,6 +355,7 @@ resource "aws_lambda_function" "ai_chat" {
       BEDROCK_MODEL_SMART        = local.tf_model_smart
       AGENT_API_KEY_SECRET_NAME  = local.tf_secret_agent_api_key
       EVENTBRIDGE_BUS_NAME       = local.tf_event_bus_name
+      PROMPT_CACHE_TABLE_NAME    = local.tf_table_prompt_cache
       AWS_ACCOUNT_ID             = var.aws_account_id
       ENVIRONMENT                = var.environment
     }
