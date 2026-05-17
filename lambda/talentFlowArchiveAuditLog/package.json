@@ -1,0 +1,23 @@
+{
+  "name": "talent-flow-archive-audit-log",
+  "version": "1.0.0",
+  "description": "DynamoDB Streams -> S3 audit archive Lambda (INSERT-only, gzip, KMS SSE)",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --no-coverage"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/?(*.)+(spec|test).[jt]s?(x)",
+      "**/?(*.)+(spec|test).mjs"
+    ],
+    "transform": {}
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@jest/globals": "^29.0.0",
+    "jest": "^29.0.0"
+  }
+}
