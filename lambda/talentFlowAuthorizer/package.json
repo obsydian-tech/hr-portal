@@ -1,0 +1,19 @@
+{
+  "name": "talent-flow-authorizer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --no-coverage"
+  },
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.0.0",
+    "@aws-sdk/client-secrets-manager": "^3.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/?(*.)+(spec|test).[jt]s?(x)", "**/?(*.)+(spec|test).mjs"]
+  }
+}
