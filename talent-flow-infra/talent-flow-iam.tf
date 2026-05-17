@@ -467,7 +467,7 @@ resource "aws_iam_role_policy" "send_notification" {
 
 # ── 8. monitorTalentFlowSLAs ──────────────────────────────────────────────────
 # Triggered by: EventBridge hourly cron
-# Needs: DynamoDB state (Query+Scan), config (GetItem),
+# Needs: DynamoDB state (Query+Scan+UpdateItem), config (GetItem),
 #        EventBridge PutEvents, KMS state CMK
 
 resource "aws_iam_role" "monitor_slas" {
@@ -505,6 +505,12 @@ resource "aws_iam_role_policy" "monitor_slas" {
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
         ]
+      },
+      {
+        Sid      = "StateTableUpdate"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
         Sid      = "ConfigTableRead"

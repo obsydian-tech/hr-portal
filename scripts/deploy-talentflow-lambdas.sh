@@ -32,7 +32,8 @@ fail() { echo -e "${RED}✗  $*${NC}"; }
 # All Lambda directories (under lambda/) that have real code.
 # EP2: createCandidate through talentFlowPreTokenTrigger
 # EP3: talentFlowAuthorizer (AI-003), talentFlowApproveAction (AI-004),
-#      talentFlowRotateApiKey (AI-006), talentFlowArchiveAuditLog (AI-005)
+#      talentFlowRotateApiKey (AI-006), talentFlowArchiveAuditLog (AI-005),
+#      monitorTalentFlowSLAs (AI-001)
 # ---------------------------------------------------------------------------
 ALL_TARGETS=(
   createCandidate
@@ -47,6 +48,7 @@ ALL_TARGETS=(
   talentFlowApproveAction
   talentFlowRotateApiKey
   talentFlowArchiveAuditLog
+  monitorTalentFlowSLAs
 )
 
 # Lambdas that import from ../shared/config-reader (need patch+bundle)
@@ -56,6 +58,7 @@ NEEDS_SHARED=(
   submitVote
   completeEvaluation
   sendTalentFlowNotification
+  monitorTalentFlowSLAs
 )
 
 needs_shared() {
