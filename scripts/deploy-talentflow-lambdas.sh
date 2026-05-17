@@ -89,8 +89,13 @@ for LAMBDA in "${TARGETS[@]}"; do
 
   echo "── $LAMBDA ──────────────────────────────────────────────────────────"
 
-  if [[ ! -f "$SRC/index.js" ]]; then
-    warn "SKIP $LAMBDA — no index.js found at $SRC"
+  # Detect entry file (.mjs for ESM lambdas, .js for CJS)
+  if [[ -f "$SRC/index.mjs" ]]; then
+    ENTRY_FILE="index.mjs"
+  elif [[ -f "$SRC/index.js" ]]; then
+    ENTRY_FILE="index.js"
+  else
+    warn "SKIP $LAMBDA — no index.js or index.mjs found at $SRC"
     continue
   fi
 
@@ -102,7 +107,7 @@ for LAMBDA in "${TARGETS[@]}"; do
   ok "deps ready"
 
   # Copy source into build dir
-  cp "$SRC/index.js"    "$BUILD/"
+  cp "$SRC/$ENTRY_FILE" "$BUILD/"
   cp "$SRC/package.json" "$BUILD/"
   cp -r "$SRC/node_modules" "$BUILD/"
 
@@ -114,7 +119,7 @@ for LAMBDA in "${TARGETS[@]}"; do
     # Patch: ../shared/config-reader → ./shared/config-reader
     sed -i '' \
       "s|require('../shared/config-reader')|require('./shared/config-reader')|g" \
-      "$BUILD/index.js"
+      "$BUILD/$ENTRY_FILE"
     ok "shared module patched"
   fi
 
@@ -123,6 +128,8 @@ for LAMBDA in "${TARGETS[@]}"; do
   (cd "$BUILD" && zip -r "$ZIP" . \
     --exclude "*.test.js" \
     --exclude "*.spec.js" \
+    --exclude "*.test.mjs" \
+    --exclude "*.spec.mjs" \
     --exclude ".git*" \
     --exclude "node_modules/.bin/*" \
     > /dev/null)
