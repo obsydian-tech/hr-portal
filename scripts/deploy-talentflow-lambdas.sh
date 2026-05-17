@@ -47,6 +47,7 @@ ALL_TARGETS=(
   talentFlowApproveAction
   talentFlowRotateApiKey
   talentFlowArchiveAuditLog
+  talentFlowAiChat
 )
 
 # Lambdas that import from ../shared/config-reader (need patch+bundle)
@@ -112,6 +113,8 @@ for LAMBDA in "${TARGETS[@]}"; do
 
   # Copy source into build dir
   cp "$SRC/$ENTRY_FILE" "$BUILD/"
+  # Copy sibling .mjs modules (e.g. tool-resolver.mjs, cache.mjs, intent-classifier.mjs, pii-sanitiser.mjs)
+  find "$SRC" -maxdepth 1 -name '*.mjs' ! -name "$ENTRY_FILE" -exec cp {} "$BUILD/" \;
   cp "$SRC/package.json" "$BUILD/"
   cp -r "$SRC/node_modules" "$BUILD/"
 
