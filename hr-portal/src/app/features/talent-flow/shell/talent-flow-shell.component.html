@@ -1,0 +1,19 @@
+<app-sidebar
+  [navItems]="navItems"
+  activeRoute="/talent-flow"
+  actionLabel="New Candidate"
+  actionIcon="pi-plus"
+  [(isOpen)]="sidebarOpen"
+  (logoutClicked)="onLogout()"
+/>
+
+<app-topbar
+  title="TalentFlow"
+  [showSearch]="false"
+  [showNotifications]="false"
+  (menuToggle)="toggleSidebar()"
+/>
+
+<main class="tf-shell-main">
+  <router-outlet />
+</main>

@@ -1,0 +1,16 @@
+/**
+ * TalentFlowShellComponent styles — mirrors HrDashboardComponent layout.
+ * Left offset matches sidebar width (250px); top offset matches topbar height (4rem).
+ */
+
+.tf-shell-main {
+  margin-left: 250px;
+  padding-top: 4rem;
+  min-height: 100vh;
+  background-color: var(--naleko-surface);
+  transition: margin-left 0.3s ease;
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+  }
+}
