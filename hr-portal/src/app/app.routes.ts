@@ -112,7 +112,7 @@ export const routes: Routes = [
       {
         // Epic 5: /platform/talentflow is the canonical TalentFlow entry point
         path: 'talentflow',
-        canActivate: [() => moduleGuard('talentflow')()],
+        canActivate: [moduleGuard('talentflow')],
         loadChildren: () =>
           import('./features/talent-flow/talent-flow.routes').then(
             (m) => m.talentFlowRoutes,
