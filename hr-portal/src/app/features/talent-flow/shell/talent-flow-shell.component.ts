@@ -34,9 +34,9 @@ export class TalentFlowShellComponent {
   protected readonly sidebarOpen = signal(true);
 
   protected readonly navItems: NavItem[] = [
-    { label: 'Dashboard',  icon: 'pi pi-th-large',     route: '/talent-flow',          disabled: false },
-    { label: 'Pipeline',   icon: 'pi pi-briefcase',    route: '/talent-flow/pipeline', disabled: false },
-    { label: 'Config',     icon: 'pi pi-cog',          route: '/talent-flow/config',   disabled: true  },
+    { label: 'Dashboard', icon: 'pi pi-th-large',  route: '/platform/talentflow',          disabled: false },
+    { label: 'Pipeline',  icon: 'pi pi-briefcase', route: '/platform/talentflow/pipeline', disabled: false },
+    { label: 'Config',    icon: 'pi pi-cog',        route: '/platform/talentflow/config',   disabled: true  },
   ];
 
   protected toggleSidebar(): void {
@@ -45,6 +45,6 @@ export class TalentFlowShellComponent {
 
   protected onLogout(): void {
     this.auth.logout();
-    void this.router.navigate(['/login']);
+    void this.router.navigate(['/platform/home']);
   }
 }

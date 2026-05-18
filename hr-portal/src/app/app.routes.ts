@@ -80,10 +80,22 @@ export const routes: Routes = [
         (m) => m.EmployeeDashboardComponent
       ),
   },
-  // ── NH-133 Platform Shell ─────────────────────────────────────────────────
+  // ── /unauthorised — authenticated but no module group assigned ─────────────
+  {
+    path: 'unauthorised',
+    loadComponent: () =>
+      import('./features/platform/unauthorised.component').then(
+        (m) => m.UnauthorisedComponent
+      ),
+  },
+  // ── Epic 5: Platform Shell ────────────────────────────────────────────────
   {
     path: 'platform',
     canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/platform/platform-shell.component').then(
+        (m) => m.PlatformShellComponent
+      ),
     children: [
       {
         path: 'home',
@@ -94,30 +106,25 @@ export const routes: Routes = [
       },
       {
         path: 'onboarding',
-        // TODO NH-134: replace with OnboardingModule lazy route when built
-        // canActivate removed: redirectTo and canActivate cannot coexist (NG04014)
+        // TODO NH-134: replace with lazy OnboardingModule + moduleGuard('onboarding') when built
         redirectTo: '/platform/home',
       },
       {
+        // Epic 5: /platform/talentflow is the canonical TalentFlow entry point
         path: 'talentflow',
-        // FE-004: redirect to the TalentFlow lazy module at /talent-flow
-        // canActivate removed: redirectTo and canActivate cannot coexist (NG04014)
-        redirectTo: '/talent-flow',
+        canActivate: [() => moduleGuard('talentflow')()],
+        loadChildren: () =>
+          import('./features/talent-flow/talent-flow.routes').then(
+            (m) => m.talentFlowRoutes,
+          ),
       },
       { path: '', redirectTo: 'home', pathMatch: 'full' },
     ],
   },
-  // ── NH-137 TalentFlow Module ─────────────────────────────────────────────
-  // FE-004: lazy-loaded TalentFlow routes (Dashboard, Pipeline, CandidateWorkspace)
-  // authGuard ensures Naleko platform session before entering the module.
-  // TalentFlowAuthService (TF Cognito pool) is handled within each page.
+  // ── /talent-flow legacy redirect (Epic 5) — preserves bookmarks ───────────
   {
     path: 'talent-flow',
-    canActivate: [authGuard],
-    loadChildren: () =>
-      import('./features/talent-flow/talent-flow.routes').then(
-        (m) => m.talentFlowRoutes,
-      ),
+    redirectTo: '/platform/talentflow',
   },
   { path: '**', redirectTo: '' },
 ];
