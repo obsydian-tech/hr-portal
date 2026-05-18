@@ -57,29 +57,13 @@ export const talentFlowRoutes: Routes = [
             (m) => m.EvaluationPageComponent,
           ),
       },
-      // ── Config — admin-only ──────────────────────────────────────────────
+      // ── Config hub — admin-only ──────────────────────────────────────────
       {
-        path: 'config/scoring',
+        path: 'config',
         canActivate: [adminGuard],
         loadComponent: () =>
-          import('./pages/config/scoring-weights/scoring-weights-page.component').then(
-            (m) => m.ScoringWeightsPageComponent,
-          ),
-      },
-      {
-        path: 'config/sla',
-        canActivate: [adminGuard],
-        loadComponent: () =>
-          import('./pages/config/sla-thresholds/sla-thresholds-page.component').then(
-            (m) => m.SLAThresholdsPageComponent,
-          ),
-      },
-      {
-        path: 'config/panel',
-        canActivate: [adminGuard],
-        loadComponent: () =>
-          import('./pages/config/panel-rules/panel-rules-page.component').then(
-            (m) => m.PanelRulesPageComponent,
+          import('./pages/config/config-hub/config-hub-page.component').then(
+            (m) => m.ConfigHubPageComponent,
           ),
       },
     ],

@@ -37,7 +37,7 @@ export class TalentFlowShellComponent {
   protected readonly navItems = computed<NavItem[]>(() => [
     { label: 'Dashboard', icon: 'pi pi-th-large',  route: '/platform/talentflow',                 disabled: false },
     { label: 'Pipeline',  icon: 'pi pi-briefcase', route: '/platform/talentflow/pipeline',        disabled: false },
-    { label: 'Config',    icon: 'pi pi-cog',        route: '/platform/talentflow/config/scoring', disabled: false },
+    { label: 'Config',    icon: 'pi pi-cog',        route: '/platform/talentflow/config',         disabled: false },
   ]);
 
   protected toggleSidebar(): void {

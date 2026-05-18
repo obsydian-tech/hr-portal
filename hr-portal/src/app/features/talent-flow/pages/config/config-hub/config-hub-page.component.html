@@ -1,0 +1,209 @@
+<!-- ConfigHubPage — single page for all admin configuration -->
+
+<section class="tf-config-hub">
+
+  <div class="tf-config-hub__header">
+    <h1 class="tf-config-hub__title">
+      <i class="pi pi-cog"></i> Configuration
+    </h1>
+    <p class="tf-config-hub__subtitle">
+      Manage scoring weights, SLA thresholds, and panel composition rules.
+    </p>
+  </div>
+
+  <p-accordion [multiple]="true" styleClass="tf-config-hub__accordion">
+
+    <!-- ── Scoring Weights ────────────────────────────────────────────────── -->
+    <p-accordionTab>
+      <ng-template pTemplate="header">
+        <span class="tf-config-hub__tab-header">
+          <i class="pi pi-chart-bar"></i>
+          Scoring Weights
+          <span class="tf-config-hub__tab-version">v{{ swVersion() }}</span>
+        </span>
+      </ng-template>
+
+      @if (swLoading()) {
+        <div class="tf-config-hub__loading">
+          <i class="pi pi-spin pi-spinner"></i> Loading…
+        </div>
+      } @else {
+
+        <!-- Sum indicator -->
+        <div class="tf-sw-sum" [class.tf-sw-sum--valid]="valid()" [class.tf-sw-sum--invalid]="!valid()">
+          <span class="tf-sw-sum__label">Total</span>
+          <span class="tf-sw-sum__value">{{ total() }} / 100 pts</span>
+          @if (!valid()) {
+            <span class="tf-sw-sum__hint">
+              @if (remaining() > 0) { {{ remaining() }} pts remaining }
+              @else { {{ -remaining() }} pts over limit }
+            </span>
+          } @else {
+            <span class="tf-sw-sum__ok"><i class="pi pi-check-circle"></i> Valid</span>
+          }
+        </div>
+
+        <!-- Sliders -->
+        @for (c of criteria; track c.key) {
+          <div class="tf-sw-row">
+            <div class="tf-sw-row__label">
+              <i class="pi {{ c.icon }}"></i> {{ c.label }}
+            </div>
+            <div class="tf-sw-row__slider">
+              <p-slider
+                [ngModel]="weights()[c.key]"
+                (ngModelChange)="updateWeight(c.key, $event)"
+                [min]="0" [max]="100" [step]="1">
+              </p-slider>
+            </div>
+            <div class="tf-sw-row__value">{{ weights()[c.key] }} pts</div>
+          </div>
+        }
+
+        @if (swError()) {
+          <div class="tf-config-hub__error"><i class="pi pi-exclamation-triangle"></i> {{ swError() }}</div>
+        }
+        @if (swSuccess()) {
+          <div class="tf-config-hub__success"><i class="pi pi-check-circle"></i> Scoring weights saved as a new version.</div>
+        }
+
+        <div class="tf-config-hub__actions">
+          <button pButton
+            [disabled]="!valid() || swSaving()"
+            [icon]="swSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
+            label="Save New Version"
+            (click)="saveScoringWeights()">
+          </button>
+        </div>
+      }
+    </p-accordionTab>
+
+    <!-- ── SLA Thresholds ─────────────────────────────────────────────────── -->
+    <p-accordionTab>
+      <ng-template pTemplate="header">
+        <span class="tf-config-hub__tab-header">
+          <i class="pi pi-clock"></i>
+          SLA Thresholds
+          <span class="tf-config-hub__tab-version">v{{ slaVersion() }}</span>
+        </span>
+      </ng-template>
+
+      @if (slaLoading()) {
+        <div class="tf-config-hub__loading">
+          <i class="pi pi-spin pi-spinner"></i> Loading…
+        </div>
+      } @else {
+
+        <p class="tf-config-hub__section-hint">Maximum hours allowed per hiring stage before an SLA breach is raised.</p>
+
+        <div class="tf-sla-grid">
+          @for (stage of stages; track stage) {
+            <div class="tf-sla-row">
+              <div class="tf-sla-row__label">
+                <i class="pi pi-flag"></i> {{ stageLabels[stage] }}
+              </div>
+              <p-inputNumber
+                [ngModel]="thresholds()[stage]"
+                (ngModelChange)="updateThreshold(stage, $event)"
+                [min]="1" [max]="720"
+                [showButtons]="true"
+                suffix=" hrs"
+                styleClass="tf-sla-input">
+              </p-inputNumber>
+            </div>
+          }
+        </div>
+
+        @if (slaError()) {
+          <div class="tf-config-hub__error"><i class="pi pi-exclamation-triangle"></i> {{ slaError() }}</div>
+        }
+        @if (slaSuccess()) {
+          <div class="tf-config-hub__success"><i class="pi pi-check-circle"></i> SLA thresholds saved as a new version.</div>
+        }
+
+        <div class="tf-config-hub__actions">
+          <button pButton
+            [disabled]="slaSaving()"
+            [icon]="slaSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
+            label="Save New Version"
+            (click)="saveSlaThresholds()">
+          </button>
+        </div>
+      }
+    </p-accordionTab>
+
+    <!-- ── Panel Rules ────────────────────────────────────────────────────── -->
+    <p-accordionTab>
+      <ng-template pTemplate="header">
+        <span class="tf-config-hub__tab-header">
+          <i class="pi pi-users"></i>
+          Panel Rules
+          <span class="tf-config-hub__tab-version">v{{ panelVersion() }}</span>
+        </span>
+      </ng-template>
+
+      @if (panelLoading()) {
+        <div class="tf-config-hub__loading">
+          <i class="pi pi-spin pi-spinner"></i> Loading…
+        </div>
+      } @else {
+
+        <h3 class="tf-config-hub__section-title">Votes Required</h3>
+        <p class="tf-config-hub__section-hint">Minimum panel votes needed before a hiring decision can be finalised.</p>
+
+        <div class="tf-panel-grid">
+          @for (lvl of levels; track lvl.value) {
+            <div class="tf-panel-row">
+              <div class="tf-panel-row__label">
+                <i class="pi {{ lvl.icon }}"></i> {{ lvl.label }}
+              </div>
+              <p-inputNumber
+                [ngModel]="rules().votesRequired[lvl.value]"
+                (ngModelChange)="updateVotesRequired(lvl.value, $event)"
+                [min]="1" [max]="10"
+                [showButtons]="true"
+                suffix=" votes"
+                styleClass="tf-panel-input">
+              </p-inputNumber>
+            </div>
+          }
+        </div>
+
+        <!-- STRONG_NO veto toggle -->
+        <div class="tf-panel-veto">
+          <div class="tf-panel-veto__info">
+            <h3 class="tf-panel-veto__title"><i class="pi pi-ban"></i> STRONG_NO Veto</h3>
+            <p class="tf-panel-veto__desc">
+              When enabled, a single STRONG_NO vote immediately blocks a candidate regardless of other votes.
+            </p>
+          </div>
+          <p-toggleButton
+            [ngModel]="rules().strongNoVetoEnabled"
+            (ngModelChange)="toggleStrongNo($event)"
+            onLabel="Enabled" offLabel="Disabled"
+            onIcon="pi pi-check" offIcon="pi pi-times"
+            styleClass="tf-panel-veto__toggle">
+          </p-toggleButton>
+        </div>
+
+        @if (panelError()) {
+          <div class="tf-config-hub__error"><i class="pi pi-exclamation-triangle"></i> {{ panelError() }}</div>
+        }
+        @if (panelSuccess()) {
+          <div class="tf-config-hub__success"><i class="pi pi-check-circle"></i> Panel rules saved as a new version.</div>
+        }
+
+        <div class="tf-config-hub__actions">
+          <button pButton
+            [disabled]="panelSaving()"
+            [icon]="panelSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
+            label="Save New Version"
+            (click)="savePanelRules()">
+          </button>
+        </div>
+      }
+    </p-accordionTab>
+
+  </p-accordion>
+
+</section>
