@@ -1,0 +1,97 @@
+<section class="tf-pipeline">
+
+  <!-- ── Page header ─────────────────────────────────────────────────────── -->
+  <header class="tf-pipeline__header">
+    <div>
+      <p class="tf-pipeline__eyebrow">TalentFlow · Kanban</p>
+      <h1 class="tf-pipeline__title">Hiring Pipeline</h1>
+    </div>
+    <div class="tf-pipeline__header-actions">
+      @if (state.slaBreachCount() > 0) {
+        <span class="tf-pipeline__breach-badge">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ state.slaBreachCount() }} SLA {{ state.slaBreachCount() === 1 ? 'breach' : 'breaches' }}
+        </span>
+      }
+    </div>
+  </header>
+
+  <!-- ── Filter bar ──────────────────────────────────────────────────────── -->
+  <div class="tf-pipeline__filters">
+    <div class="tf-pipeline__search">
+      <i class="pi pi-search"></i>
+      <input
+        class="tf-pipeline__search-input"
+        type="text"
+        placeholder="Search by name, email or role…"
+        [value]="searchQuery()"
+        (input)="setSearch($any($event.target).value)" />
+    </div>
+
+    <div class="tf-pipeline__sla-filters">
+      <button
+        class="tf-filter-btn"
+        [class.tf-filter-btn--active]="slaFilter() === 'ALL'"
+        (click)="setSlaFilter('ALL')">All</button>
+      <button
+        class="tf-filter-btn tf-filter-btn--green"
+        [class.tf-filter-btn--active]="slaFilter() === 'GREEN'"
+        (click)="setSlaFilter('GREEN')">
+        <i class="pi pi-check-circle"></i> Green
+      </button>
+      <button
+        class="tf-filter-btn tf-filter-btn--amber"
+        [class.tf-filter-btn--active]="slaFilter() === 'AMBER'"
+        (click)="setSlaFilter('AMBER')">
+        <i class="pi pi-clock"></i> Amber
+      </button>
+      <button
+        class="tf-filter-btn tf-filter-btn--red"
+        [class.tf-filter-btn--active]="slaFilter() === 'RED'"
+        (click)="setSlaFilter('RED')">
+        <i class="pi pi-times-circle"></i> Red
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Loading state ───────────────────────────────────────────────────── -->
+  @if (state.isLoading()) {
+    <div class="tf-pipeline__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading pipeline…</span>
+    </div>
+  }
+
+  <!-- ── Kanban board ─────────────────────────────────────────────────────── -->
+  @if (!state.isLoading()) {
+    <div class="tf-pipeline__board">
+      @for (stage of kanbanStages; track stage) {
+        @let cards = candidatesForStage(stage);
+        <div class="tf-pipeline__column" [class.tf-pipeline__column--empty]="cards.length === 0">
+          <div class="tf-pipeline__col-header">
+            <span class="tf-pipeline__col-label">{{ stageLabels[stage] }}</span>
+            <span class="tf-pipeline__col-count">{{ cards.length }}</span>
+          </div>
+
+          <div class="tf-pipeline__cards">
+            @for (c of cards; track c.id) {
+              <div class="tf-pipeline__card-wrapper" (click)="openCandidate(c.id)">
+                <tf-candidate-identity-card [candidate]="c" />
+                <div class="tf-pipeline__card-sla">
+                  <tf-sla-timer
+                    [stageEnteredAt]="toDate(c.updatedAt)"
+                    [thresholdHours]="defaultThreshold" />
+                </div>
+              </div>
+            } @empty {
+              <div class="tf-pipeline__col-empty">
+                <i class="pi pi-inbox"></i>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+</section>

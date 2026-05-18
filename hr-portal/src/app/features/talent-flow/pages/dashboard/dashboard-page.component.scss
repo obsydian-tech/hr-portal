@@ -1,0 +1,256 @@
+/**
+ * DashboardPageComponent styles — FE-004 / NH-137
+ *
+ * Design source: HRDashboard.jsx (.hr-stats, .nk-stat, .nk-table layout)
+ * Tokens: --naleko-* only. No hardcoded hex.
+ */
+
+.tf-dashboard {
+  padding: 2rem;
+  max-width: 84rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+// ── Welcome header ────────────────────────────────────────────────────────────
+.tf-dashboard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.tf-dashboard__eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--naleko-on-surface-variant);
+  margin: 0 0 0.3rem;
+}
+
+.tf-dashboard__title {
+  font-family: var(--naleko-font-display);
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--naleko-on-surface);
+  margin: 0;
+}
+
+.tf-dashboard__sub {
+  font-size: 0.9rem;
+  color: var(--naleko-on-surface-variant);
+  margin: 0.3rem 0 0;
+  max-width: 52rem;
+}
+
+.tf-dashboard__actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+// ── KPI stat grid ─────────────────────────────────────────────────────────────
+.tf-dashboard__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.tf-stat {
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: var(--naleko-shadow-sm);
+  transition: box-shadow 0.15s ease;
+
+  &:hover {
+    box-shadow: var(--naleko-shadow-md);
+  }
+}
+
+.tf-stat__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--naleko-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+
+  &--primary {
+    background: color-mix(in srgb, var(--naleko-primary) 12%, transparent);
+    color: var(--naleko-primary);
+  }
+  &--error {
+    background: color-mix(in srgb, var(--naleko-error) 12%, transparent);
+    color: var(--naleko-error);
+  }
+  &--cyan {
+    background: color-mix(in srgb, var(--naleko-tertiary) 12%, transparent);
+    color: var(--naleko-tertiary);
+  }
+  &--success {
+    background: color-mix(in srgb, var(--naleko-success) 12%, transparent);
+    color: var(--naleko-success);
+  }
+}
+
+.tf-stat__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tf-stat__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tf-stat__value {
+  font-family: var(--naleko-font-display);
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--naleko-on-surface);
+  line-height: 1;
+}
+
+// ── Loading / error ───────────────────────────────────────────────────────────
+.tf-dashboard__loading,
+.tf-dashboard__error {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  color: var(--naleko-on-surface-variant);
+  padding: 1rem 0;
+}
+
+.tf-dashboard__error {
+  color: var(--naleko-error);
+}
+
+// ── Candidate table card ──────────────────────────────────────────────────────
+.tf-dashboard__table-card {
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-xl);
+  overflow: hidden;
+  box-shadow: var(--naleko-shadow-sm);
+}
+
+.tf-dashboard__table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--naleko-outline-variant);
+}
+
+.tf-dashboard__table-title {
+  font-family: var(--naleko-font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+  margin: 0;
+}
+
+.tf-dashboard__table-sub {
+  font-size: 0.8rem;
+  color: var(--naleko-on-surface-variant);
+  margin: 0.2rem 0 0;
+}
+
+.tf-dashboard__table {
+  width: 100%;
+  border-collapse: collapse;
+
+  thead th {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--naleko-on-surface-variant);
+    padding: 0.6rem 1.5rem;
+    text-align: left;
+    background: var(--naleko-surface-container);
+    border-bottom: 1px solid var(--naleko-outline-variant);
+  }
+
+  tbody td {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    color: var(--naleko-on-surface);
+    border-bottom: 1px solid var(--naleko-outline-variant);
+  }
+}
+
+.tf-dashboard__table-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+
+  &:hover td {
+    background: var(--naleko-surface-container);
+  }
+
+  &:last-child td {
+    border-bottom: none;
+  }
+}
+
+.tf-dashboard__candidate-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--naleko-on-surface);
+}
+
+.tf-dashboard__candidate-email {
+  font-family: var(--naleko-font-mono);
+  font-size: 0.75rem;
+  color: var(--naleko-on-surface-variant);
+  margin-top: 0.1rem;
+}
+
+.tf-dashboard__table-empty {
+  text-align: center;
+  padding: 3rem 1.5rem !important;
+  color: var(--naleko-on-surface-variant);
+  font-size: 0.9rem;
+
+  i {
+    display: block;
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
+  }
+}
+
+// ── Shared chips ──────────────────────────────────────────────────────────────
+.tf-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  &--green  { background: color-mix(in srgb, var(--naleko-success) 15%, transparent); color: var(--naleko-success); }
+  &--amber  { background: color-mix(in srgb, var(--naleko-warning) 18%, transparent); color: var(--naleko-warning-dark, var(--naleko-warning)); }
+  &--red    { background: color-mix(in srgb, var(--naleko-error) 15%, transparent);   color: var(--naleko-error); }
+  &--stage  { background: color-mix(in srgb, var(--naleko-primary) 10%, transparent); color: var(--naleko-primary); }
+}

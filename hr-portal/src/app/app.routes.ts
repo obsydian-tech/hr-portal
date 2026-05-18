@@ -101,14 +101,23 @@ export const routes: Routes = [
       {
         path: 'talentflow',
         canActivate: [moduleGuard('talentflow')],
-        // TODO FE-001: replace with TalentFlowModule lazy route in Epic 4
-        loadComponent: () =>
-          import('./features/platform-home/platform-home.component').then(
-            (m) => m.PlatformHomeComponent
-          ),
+        // FE-004: redirect to the TalentFlow lazy module at /talent-flow
+        redirectTo: '/talent-flow',
       },
       { path: '', redirectTo: 'home', pathMatch: 'full' },
     ],
+  },
+  // ── NH-137 TalentFlow Module ─────────────────────────────────────────────
+  // FE-004: lazy-loaded TalentFlow routes (Dashboard, Pipeline, CandidateWorkspace)
+  // authGuard ensures Naleko platform session before entering the module.
+  // TalentFlowAuthService (TF Cognito pool) is handled within each page.
+  {
+    path: 'talent-flow',
+    canActivate: [authGuard],
+    loadChildren: () =>
+      import('./features/talent-flow/talent-flow.routes').then(
+        (m) => m.talentFlowRoutes,
+      ),
   },
   { path: '**', redirectTo: '' },
 ];

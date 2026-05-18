@@ -1,0 +1,214 @@
+<section class="tf-workspace">
+
+  <!-- ── Back navigation ────────────────────────────────────────────────── -->
+  <div class="tf-workspace__nav">
+    <button pButton
+      class="p-button-text p-button-sm"
+      icon="pi pi-arrow-left"
+      label="Back to Pipeline"
+      (click)="goBack()">
+    </button>
+  </div>
+
+  <!-- ── Loading ─────────────────────────────────────────────────────────── -->
+  @if (loading() || state.isLoading()) {
+    <div class="tf-workspace__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading candidate…</span>
+    </div>
+  }
+
+  <!-- ── Candidate not found ─────────────────────────────────────────────── -->
+  @if (!loading() && !state.isLoading() && !candidate()) {
+    <div class="tf-workspace__not-found">
+      <i class="pi pi-user"></i>
+      <h2>Candidate not found</h2>
+      <p>The candidate with ID <code>{{ candidateId() }}</code> could not be located in the pipeline.</p>
+      <button pButton label="Go to Dashboard" icon="pi pi-home" (click)="goBack()"></button>
+    </div>
+  }
+
+  <!-- ── Master-detail layout ─────────────────────────────────────────────── -->
+  @if (candidate(); as c) {
+    <div class="tf-workspace__layout">
+
+      <!-- LEFT RAIL ──────────────────────────────────────────────────────── -->
+      <aside class="tf-workspace__rail">
+
+        <!-- Identity card -->
+        <tf-candidate-identity-card [candidate]="c" />
+
+        <!-- SLA timer -->
+        <div class="tf-workspace__sla">
+          <tf-sla-timer
+            [stageEnteredAt]="toDate(c.updatedAt)"
+            [thresholdHours]="defaultThreshold"
+            slaLabel="Stage SLA" />
+        </div>
+
+        <!-- Stage stepper (readonly) -->
+        <div class="tf-workspace__stepper">
+          <p class="tf-workspace__section-label">Hiring Journey</p>
+          <tf-stage-selector
+            [stages]="allStages"
+            [currentStage]="c.currentStage"
+            [readonly]="true" />
+        </div>
+
+      </aside>
+
+      <!-- RIGHT PANEL ─────────────────────────────────────────────────────── -->
+      <main class="tf-workspace__main">
+
+        <!-- Tab nav -->
+        <nav class="tf-workspace__tabs">
+          <button
+            class="tf-tab-btn"
+            [class.tf-tab-btn--active]="activeTab() === 'overview'"
+            (click)="setTab('overview')">
+            <i class="pi pi-th-large"></i> Overview
+          </button>
+          <button
+            class="tf-tab-btn"
+            [class.tf-tab-btn--active]="activeTab() === 'timeline'"
+            (click)="setTab('timeline')">
+            <i class="pi pi-calendar"></i> Timeline
+          </button>
+          <button
+            class="tf-tab-btn"
+            [class.tf-tab-btn--active]="activeTab() === 'votes'"
+            (click)="setTab('votes')">
+            <i class="pi pi-users"></i> Panel Votes
+          </button>
+        </nav>
+
+        <!-- ── Overview tab ──────────────────────────────────────────────── -->
+        @if (activeTab() === 'overview') {
+          <div class="tf-workspace__panel tf-workspace__panel--overview">
+
+            <div class="tf-ws-grid">
+
+              <!-- Candidate meta card -->
+              <div class="tf-ws-card">
+                <h3 class="tf-ws-card__title">
+                  <i class="pi pi-info-circle"></i> Candidate Details
+                </h3>
+                <dl class="tf-ws-dl">
+                  <dt>Full Name</dt>
+                  <dd>{{ c.firstName }} {{ c.lastName }}</dd>
+                  <dt>Email</dt>
+                  <dd class="tf-ws-mono">{{ c.email }}</dd>
+                  @if (c.phone) {
+                    <dt>Phone</dt>
+                    <dd class="tf-ws-mono">{{ c.phone }}</dd>
+                  }
+                  <dt>Role</dt>
+                  <dd>{{ c.role }}</dd>
+                  <dt>Level</dt>
+                  <dd>{{ c.positionLevel }}</dd>
+                  <dt>Experience</dt>
+                  <dd>{{ c.experienceYears }} year{{ c.experienceYears !== 1 ? 's' : '' }}</dd>
+                  @if (c.source) {
+                    <dt>Source</dt>
+                    <dd>{{ c.source }}</dd>
+                  }
+                </dl>
+              </div>
+
+              <!-- Score & readiness card -->
+              <div class="tf-ws-card">
+                <h3 class="tf-ws-card__title">
+                  <i class="pi pi-chart-bar"></i> Readiness Scores
+                </h3>
+
+                @if (c.day1ReadinessScore != null) {
+                  <div class="tf-ws-score">
+                    <div class="tf-ws-score__label">Day-1 Readiness</div>
+                    <div class="tf-ws-score__bar">
+                      <div class="tf-ws-score__fill"
+                        [style.width.%]="c.day1ReadinessScore"
+                        [class.tf-ws-score__fill--high]="c.day1ReadinessScore >= 75"
+                        [class.tf-ws-score__fill--mid]="c.day1ReadinessScore >= 50 && c.day1ReadinessScore < 75"
+                        [class.tf-ws-score__fill--low]="c.day1ReadinessScore < 50">
+                      </div>
+                    </div>
+                    <div class="tf-ws-score__value">{{ c.day1ReadinessScore }}/100</div>
+                  </div>
+                } @else {
+                  <p class="tf-ws-empty-hint">Readiness score pending evaluation.</p>
+                }
+
+                @if (c.acceptanceSentiment) {
+                  <div class="tf-ws-sentiment">
+                    <span class="tf-ws-sentiment__label">Acceptance Sentiment</span>
+                    <span class="tf-ws-sentiment__chip tf-ws-sentiment__chip--{{ c.acceptanceSentiment | lowercase }}">
+                      {{ c.acceptanceSentiment }}
+                    </span>
+                  </div>
+                }
+              </div>
+
+            </div>
+
+            <!-- Applied & updated meta row -->
+            <div class="tf-ws-meta-row">
+              <span><i class="pi pi-calendar"></i> Applied {{ c.appliedDate | date:'d MMM yyyy' }}</span>
+              <span><i class="pi pi-refresh"></i> Updated {{ c.updatedAt | date:'d MMM yyyy HH:mm' }}</span>
+              <span class="tf-ws-mono"><i class="pi pi-tag"></i> Config {{ c.configVersion }}</span>
+            </div>
+
+          </div>
+        }
+
+        <!-- ── Timeline tab ───────────────────────────────────────────────── -->
+        @if (activeTab() === 'timeline') {
+          <div class="tf-workspace__panel tf-workspace__panel--timeline">
+            <div class="tf-ws-timeline">
+              <div class="tf-ws-timeline__event tf-ws-timeline__event--first">
+                <div class="tf-ws-timeline__dot"></div>
+                <div class="tf-ws-timeline__content">
+                  <div class="tf-ws-timeline__title">Candidate Created</div>
+                  <div class="tf-ws-timeline__time">{{ c.createdAt | date:'d MMM yyyy HH:mm' }}</div>
+                </div>
+              </div>
+              <div class="tf-ws-timeline__event">
+                <div class="tf-ws-timeline__dot"></div>
+                <div class="tf-ws-timeline__content">
+                  <div class="tf-ws-timeline__title">Current Stage: {{ c.currentStage | titlecase }}</div>
+                  <div class="tf-ws-timeline__time">Since {{ c.updatedAt | date:'d MMM yyyy HH:mm' }}</div>
+                </div>
+              </div>
+              @if (c.slaBreachedAt) {
+                <div class="tf-ws-timeline__event tf-ws-timeline__event--breach">
+                  <div class="tf-ws-timeline__dot"></div>
+                  <div class="tf-ws-timeline__content">
+                    <div class="tf-ws-timeline__title">⚠ SLA Breached</div>
+                    <div class="tf-ws-timeline__time">{{ c.slaBreachedAt | date:'d MMM yyyy HH:mm' }}</div>
+                  </div>
+                </div>
+              }
+            </div>
+            <p class="tf-ws-empty-hint tf-ws-empty-hint--center">
+              <i class="pi pi-info-circle"></i>
+              Full event timeline available after EventBridge audit stream integration (FE-006).
+            </p>
+          </div>
+        }
+
+        <!-- ── Votes tab ──────────────────────────────────────────────────── -->
+        @if (activeTab() === 'votes') {
+          <div class="tf-workspace__panel tf-workspace__panel--votes">
+            <div class="tf-ws-placeholder">
+              <i class="pi pi-users"></i>
+              <h3>Panel Votes</h3>
+              <p>Interview votes and scoring panel will be integrated in FE-005 (EvaluationScoringPanel).</p>
+            </div>
+          </div>
+        }
+
+      </main>
+
+    </div>
+  }
+
+</section>

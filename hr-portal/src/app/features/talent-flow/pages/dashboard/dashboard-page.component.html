@@ -1,0 +1,140 @@
+<section class="tf-dashboard">
+
+  <!-- ── Welcome bar ──────────────────────────────────────────────────── -->
+  <header class="tf-dashboard__header">
+    <div class="tf-dashboard__intro">
+      <p class="tf-dashboard__eyebrow">TalentFlow · Pipeline Overview</p>
+      <h1 class="tf-dashboard__title">Hiring Dashboard</h1>
+      <p class="tf-dashboard__sub">
+        Track candidate progress, SLA health, and Day-1 readiness across all open positions.
+      </p>
+    </div>
+    <div class="tf-dashboard__actions">
+      <button pButton
+        class="p-button-outlined p-button-secondary"
+        icon="pi pi-list"
+        label="Pipeline Kanban"
+        (click)="openPipeline()">
+      </button>
+    </div>
+  </header>
+
+  <!-- ── KPI stat grid ─────────────────────────────────────────────────── -->
+  <div class="tf-dashboard__stats">
+
+    <div class="tf-stat">
+      <div class="tf-stat__icon tf-stat__icon--primary">
+        <i class="pi pi-users"></i>
+      </div>
+      <div class="tf-stat__body">
+        <span class="tf-stat__label">Total Candidates</span>
+        <span class="tf-stat__value">{{ totalCandidates() }}</span>
+      </div>
+    </div>
+
+    <div class="tf-stat">
+      <div class="tf-stat__icon tf-stat__icon--error">
+        <i class="pi pi-exclamation-triangle"></i>
+      </div>
+      <div class="tf-stat__body">
+        <span class="tf-stat__label">SLA Breached</span>
+        <span class="tf-stat__value">{{ slaBreachCount() }}</span>
+      </div>
+    </div>
+
+    <div class="tf-stat">
+      <div class="tf-stat__icon tf-stat__icon--cyan">
+        <i class="pi pi-chart-bar"></i>
+      </div>
+      <div class="tf-stat__body">
+        <span class="tf-stat__label">Avg Day-1 Score</span>
+        <span class="tf-stat__value">{{ avgDay1Score() }}</span>
+      </div>
+    </div>
+
+    <div class="tf-stat">
+      <div class="tf-stat__icon tf-stat__icon--success">
+        <i class="pi pi-check-circle"></i>
+      </div>
+      <div class="tf-stat__body">
+        <span class="tf-stat__label">In Onboarding</span>
+        <span class="tf-stat__value">{{ onboardedCount() }}</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Loading / error state ─────────────────────────────────────────── -->
+  @if (state.isLoading()) {
+    <div class="tf-dashboard__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading pipeline…</span>
+    </div>
+  }
+
+  @if (state.error()) {
+    <div class="tf-dashboard__error">
+      <i class="pi pi-times-circle"></i>
+      <span>{{ state.error() }}</span>
+      <button pButton class="p-button-text p-button-sm" label="Retry" (click)="state.loadPipeline()"></button>
+    </div>
+  }
+
+  <!-- ── Recent candidate table ─────────────────────────────────────────── -->
+  @if (!state.isLoading()) {
+    <div class="tf-dashboard__table-card">
+      <div class="tf-dashboard__table-header">
+        <div>
+          <h2 class="tf-dashboard__table-title">Recent Activity</h2>
+          <p class="tf-dashboard__table-sub">Showing last 10 updated candidates</p>
+        </div>
+      </div>
+
+      <table class="tf-dashboard__table">
+        <thead>
+          <tr>
+            <th>Candidate</th>
+            <th>Role</th>
+            <th>Stage</th>
+            <th>SLA</th>
+            <th>Updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of recentCandidates(); track c.id) {
+            <tr (click)="openCandidate(c.id)" class="tf-dashboard__table-row">
+              <td>
+                <div class="tf-dashboard__candidate-name">{{ c.firstName }} {{ c.lastName }}</div>
+                <div class="tf-dashboard__candidate-email">{{ c.email }}</div>
+              </td>
+              <td>{{ c.role }}</td>
+              <td>
+                <span class="tf-chip tf-chip--stage">{{ c.currentStage | titlecase }}</span>
+              </td>
+              <td>
+                <span [class]="slaChipClass(c)">{{ slaLabel(c) }}</span>
+              </td>
+              <td>{{ c.updatedAt | date:'d MMM HH:mm' }}</td>
+              <td>
+                <button pButton
+                  class="p-button-text p-button-sm p-button-rounded"
+                  icon="pi pi-eye"
+                  (click)="$event.stopPropagation(); openCandidate(c.id)">
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="tf-dashboard__table-empty">
+                <i class="pi pi-inbox"></i>
+                No candidates found. Load some jobs to populate the pipeline.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+</section>

@@ -1,0 +1,237 @@
+/**
+ * PipelinePageComponent styles — FE-004 / NH-137
+ *
+ * Design source: HRDashboard.jsx (.hr-table actions), 22-wizard-stepper.html column inspiration
+ * Tokens: --naleko-* only. No hardcoded hex.
+ */
+
+.tf-pipeline {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  height: 100%;
+}
+
+// ── Page header ───────────────────────────────────────────────────────────────
+.tf-pipeline__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.tf-pipeline__eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--naleko-on-surface-variant);
+  margin: 0 0 0.25rem;
+}
+
+.tf-pipeline__title {
+  font-family: var(--naleko-font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--naleko-on-surface);
+  margin: 0;
+}
+
+.tf-pipeline__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tf-pipeline__breach-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: color-mix(in srgb, var(--naleko-error) 12%, transparent);
+  color: var(--naleko-error);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--naleko-error) 25%, transparent);
+}
+
+// ── Filter bar ────────────────────────────────────────────────────────────────
+.tf-pipeline__filters {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tf-pipeline__search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--naleko-surface-container);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  padding: 0.45rem 0.85rem;
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
+
+  i {
+    color: var(--naleko-on-surface-variant);
+    font-size: 0.85rem;
+  }
+}
+
+.tf-pipeline__search-input {
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  color: var(--naleko-on-surface);
+  font-family: var(--naleko-font-body);
+  width: 100%;
+
+  &::placeholder {
+    color: var(--naleko-on-surface-variant);
+  }
+}
+
+.tf-pipeline__sla-filters {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.tf-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-low);
+  color: var(--naleko-on-surface-variant);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+
+  &:hover {
+    background: var(--naleko-surface-container);
+  }
+
+  &--active {
+    background: var(--naleko-primary);
+    color: var(--naleko-on-primary);
+    border-color: var(--naleko-primary);
+  }
+
+  &--green.tf-filter-btn--active { background: var(--naleko-success); border-color: var(--naleko-success); color: #fff; }
+  &--amber.tf-filter-btn--active { background: var(--naleko-warning); border-color: var(--naleko-warning); color: #fff; }
+  &--red.tf-filter-btn--active   { background: var(--naleko-error);   border-color: var(--naleko-error);   color: #fff; }
+}
+
+// ── Loading ───────────────────────────────────────────────────────────────────
+.tf-pipeline__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  color: var(--naleko-on-surface-variant);
+  padding: 1rem 0;
+}
+
+// ── Kanban board ──────────────────────────────────────────────────────────────
+.tf-pipeline__board {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  flex: 1;
+  align-items: flex-start;
+
+  // custom scrollbar
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-track { background: var(--naleko-surface-container); border-radius: 3px; }
+  &::-webkit-scrollbar-thumb { background: var(--naleko-outline-variant); border-radius: 3px; }
+}
+
+.tf-pipeline__column {
+  min-width: 280px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--naleko-surface-container);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-xl);
+  padding: 0.75rem;
+  flex-shrink: 0;
+
+  &--empty {
+    opacity: 0.55;
+  }
+}
+
+.tf-pipeline__col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--naleko-outline-variant);
+}
+
+.tf-pipeline__col-label {
+  font-family: var(--naleko-font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tf-pipeline__col-count {
+  background: var(--naleko-primary);
+  color: var(--naleko-on-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tf-pipeline__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.tf-pipeline__card-wrapper {
+  cursor: pointer;
+  border-radius: var(--naleko-radius-lg);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--naleko-shadow-md);
+  }
+}
+
+.tf-pipeline__card-sla {
+  margin-top: 0.4rem;
+}
+
+.tf-pipeline__col-empty {
+  text-align: center;
+  padding: 1.5rem 0;
+  color: var(--naleko-on-surface-variant);
+  opacity: 0.4;
+
+  i {
+    font-size: 1.5rem;
+  }
+}
