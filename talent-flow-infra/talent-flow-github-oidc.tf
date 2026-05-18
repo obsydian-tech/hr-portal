@@ -118,6 +118,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         ]
         Resource = [
           "arn:aws:iam::937137806477:role/talent-flow-*",
+          "arn:aws:iam::937137806477:role/talent-flow/*",
           "arn:aws:iam::937137806477:oidc-provider/token.actions.githubusercontent.com",
         ]
       },
@@ -238,6 +239,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
           "cognito-idp:CreateUserPoolClient", "cognito-idp:DeleteUserPoolClient",
           "cognito-idp:DescribeUserPoolClient", "cognito-idp:UpdateUserPoolClient",
           "cognito-idp:CreateGroup", "cognito-idp:DeleteGroup", "cognito-idp:GetGroup",
+          "cognito-idp:GetUserPoolMfaConfig", "cognito-idp:SetUserPoolMfaConfig",
           "cognito-idp:TagResource", "cognito-idp:UntagResource", "cognito-idp:ListTagsForResource",
         ]
         Resource = "arn:aws:cognito-idp:af-south-1:937137806477:userpool/*"
