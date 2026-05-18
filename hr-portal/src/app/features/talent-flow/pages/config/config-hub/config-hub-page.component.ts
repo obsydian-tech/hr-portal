@@ -73,6 +73,37 @@ const LEVELS: { value: PositionLevel; label: string; icon: string }[] = [
   { value: 'DIRECTOR', label: 'Director', icon: 'pi-crown' },
 ];
 
+// ─── Approval Rules (V4) ─────────────────────────────────────────────────────
+
+export interface ApprovalRulesData {
+  minimumPassScore: number;
+  requireFinanceApprovalAbove: number;
+  escalationThresholdDays: number;
+}
+
+const DEFAULT_APPROVAL_RULES: ApprovalRulesData = {
+  minimumPassScore: 6.0,
+  requireFinanceApprovalAbove: 600000,
+  escalationThresholdDays: 3,
+};
+
+// ─── Stage Config (V6) ───────────────────────────────────────────────────────
+
+const ALL_STAGES_ORDERED: HiringStage[] = [
+  'APPLICATION_REVIEW', 'PHONE_SCREENING', 'TECHNICAL_INTERVIEW',
+  'PANEL_INTERVIEW', 'EVALUATION', 'OFFER_PREPARATION',
+  'OFFER_APPROVAL', 'OFFER_DELIVERY', 'CONTRACT_SIGNING',
+  'PRE_BOARDING', 'ONBOARDING',
+];
+
+export interface StageConfigData {
+  enabled: HiringStage[];
+}
+
+const DEFAULT_STAGE_CONFIG: StageConfigData = {
+  enabled: [...ALL_STAGES_ORDERED],
+};
+
 // ─── Hub Component ────────────────────────────────────────────────────────────
 
 @Component({
@@ -134,6 +165,39 @@ export class ConfigHubPageComponent implements OnInit {
     strongNoVetoEnabled: DEFAULT_PANEL_RULES.strongNoVetoEnabled,
   });
 
+  // ── Approval Rules (V4) ────────────────────────────────────────────────────
+  readonly arLoading  = signal(true);
+  readonly arSaving   = signal(false);
+  readonly arError    = signal<string | null>(null);
+  readonly arSuccess  = signal(false);
+  readonly arVersion  = signal<string>('—');
+  readonly approval   = signal<ApprovalRulesData>({ ...DEFAULT_APPROVAL_RULES });
+
+  // ── Stage Config (V6) ─────────────────────────────────────────────────────
+  readonly allStagesOrdered = ALL_STAGES_ORDERED;
+
+  readonly scLoading  = signal(true);
+  readonly scSaving   = signal(false);
+  readonly scError    = signal<string | null>(null);
+  readonly scSuccess  = signal(false);
+  readonly scVersion  = signal<string>('—');
+  readonly stageConfig = signal<StageConfigData>({ enabled: [...DEFAULT_STAGE_CONFIG.enabled] });
+
+  isStageEnabled(stage: HiringStage): boolean {
+    return this.stageConfig().enabled.includes(stage);
+  }
+
+  toggleStage(stage: HiringStage, enabled: boolean): void {
+    this.stageConfig.update((sc) => {
+      const next = enabled
+        ? [...new Set([...sc.enabled, stage])]
+        : sc.enabled.filter((s) => s !== stage);
+      // preserve plan order
+      return { enabled: ALL_STAGES_ORDERED.filter((s) => next.includes(s)) };
+    });
+    this.scSuccess.set(false);
+  }
+
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
@@ -180,6 +244,32 @@ export class ConfigHubPageComponent implements OnInit {
         this.panelLoading.set(false);
       },
       error: () => this.panelLoading.set(false),
+    });
+
+    this.api.getConfig('APPROVAL_RULES').subscribe({
+      next: (cfg: ConfigResponse) => {
+        const d = cfg.data as Partial<ApprovalRulesData>;
+        this.approval.set({
+          minimumPassScore:            d.minimumPassScore            ?? DEFAULT_APPROVAL_RULES.minimumPassScore,
+          requireFinanceApprovalAbove: d.requireFinanceApprovalAbove ?? DEFAULT_APPROVAL_RULES.requireFinanceApprovalAbove,
+          escalationThresholdDays:     d.escalationThresholdDays     ?? DEFAULT_APPROVAL_RULES.escalationThresholdDays,
+        });
+        this.arVersion.set(cfg.version);
+        this.arLoading.set(false);
+      },
+      error: () => this.arLoading.set(false),
+    });
+
+    this.api.getConfig('STAGE_CONFIG').subscribe({
+      next: (cfg: ConfigResponse) => {
+        const d = cfg.data as Partial<StageConfigData>;
+        this.stageConfig.set({
+          enabled: (d.enabled ?? DEFAULT_STAGE_CONFIG.enabled) as HiringStage[],
+        });
+        this.scVersion.set(cfg.version);
+        this.scLoading.set(false);
+      },
+      error: () => this.scLoading.set(false),
     });
   }
 
@@ -262,6 +352,51 @@ export class ConfigHubPageComponent implements OnInit {
       error: (err: { userMessage?: string }) => {
         this.panelError.set(err.userMessage ?? 'Failed to save.');
         this.panelSaving.set(false);
+      },
+    });
+  }
+
+  // ── Approval Rules actions (V4) ────────────────────────────────────────────
+
+  updateApproval<K extends keyof ApprovalRulesData>(key: K, value: ApprovalRulesData[K]): void {
+    this.approval.update((a) => ({ ...a, [key]: value }));
+    this.arSuccess.set(false);
+  }
+
+  saveApprovalRules(): void {
+    if (this.arSaving()) return;
+    this.arSaving.set(true);
+    this.arError.set(null);
+    this.arSuccess.set(false);
+    this.api.updateConfig('APPROVAL_RULES', this.approval()).subscribe({
+      next: (cfg: ConfigResponse) => {
+        this.arVersion.set(cfg.version);
+        this.arSaving.set(false);
+        this.arSuccess.set(true);
+      },
+      error: (err: { userMessage?: string }) => {
+        this.arError.set(err.userMessage ?? 'Failed to save.');
+        this.arSaving.set(false);
+      },
+    });
+  }
+
+  // ── Stage Config actions (V6) ──────────────────────────────────────────────
+
+  saveStageConfig(): void {
+    if (this.scSaving()) return;
+    this.scSaving.set(true);
+    this.scError.set(null);
+    this.scSuccess.set(false);
+    this.api.updateConfig('STAGE_CONFIG', this.stageConfig()).subscribe({
+      next: (cfg: ConfigResponse) => {
+        this.scVersion.set(cfg.version);
+        this.scSaving.set(false);
+        this.scSuccess.set(true);
+      },
+      error: (err: { userMessage?: string }) => {
+        this.scError.set(err.userMessage ?? 'Failed to save.');
+        this.scSaving.set(false);
       },
     });
   }

@@ -204,6 +204,148 @@
       }
     </p-accordionTab>
 
+    <!-- ── Approval Rules (V4) ──────────────────────────────────────────────── -->
+    <p-accordionTab>
+      <ng-template pTemplate="header">
+        <span class="tf-config-hub__tab-header">
+          <i class="pi pi-check-square"></i>
+          Approval Rules
+          <span class="tf-config-hub__tab-version">v{{ arVersion() }}</span>
+        </span>
+      </ng-template>
+
+      @if (arLoading()) {
+        <div class="tf-config-hub__loading">
+          <i class="pi pi-spin pi-spinner"></i> Loading…
+        </div>
+      } @else {
+
+        <div class="tf-ar-grid">
+
+          <!-- Minimum pass score -->
+          <div class="tf-ar-row">
+            <div class="tf-ar-row__info">
+              <div class="tf-ar-row__label"><i class="pi pi-star"></i> Minimum Pass Score</div>
+              <div class="tf-ar-row__hint">Weighted evaluation score (0–10) a candidate must reach to advance past evaluation stage.</div>
+            </div>
+            <p-inputNumber
+              [ngModel]="approval().minimumPassScore"
+              (ngModelChange)="updateApproval('minimumPassScore', $event)"
+              [min]="0" [max]="10" [step]="0.1" [minFractionDigits]="1" [maxFractionDigits]="1"
+              [showButtons]="true"
+              styleClass="tf-ar-input">
+            </p-inputNumber>
+          </div>
+
+          <!-- Finance approval threshold -->
+          <div class="tf-ar-row">
+            <div class="tf-ar-row__info">
+              <div class="tf-ar-row__label"><i class="pi pi-wallet"></i> Finance Approval Threshold (ZAR)</div>
+              <div class="tf-ar-row__hint">Offers above this annual salary (ZAR) are automatically routed to Finance for approval before delivery.</div>
+            </div>
+            <p-inputNumber
+              [ngModel]="approval().requireFinanceApprovalAbove"
+              (ngModelChange)="updateApproval('requireFinanceApprovalAbove', $event)"
+              [min]="0" [max]="10000000" [step]="50000"
+              [showButtons]="true"
+              prefix="R "
+              styleClass="tf-ar-input">
+            </p-inputNumber>
+          </div>
+
+          <!-- Escalation threshold -->
+          <div class="tf-ar-row">
+            <div class="tf-ar-row__info">
+              <div class="tf-ar-row__label"><i class="pi pi-bell"></i> Escalation Threshold (days)</div>
+              <div class="tf-ar-row__hint">Auto-escalate to hiring manager if no decision is made within this many days.</div>
+            </div>
+            <p-inputNumber
+              [ngModel]="approval().escalationThresholdDays"
+              (ngModelChange)="updateApproval('escalationThresholdDays', $event)"
+              [min]="1" [max]="30"
+              [showButtons]="true"
+              suffix=" days"
+              styleClass="tf-ar-input">
+            </p-inputNumber>
+          </div>
+
+        </div>
+
+        @if (arError()) {
+          <div class="tf-config-hub__error"><i class="pi pi-exclamation-triangle"></i> {{ arError() }}</div>
+        }
+        @if (arSuccess()) {
+          <div class="tf-config-hub__success"><i class="pi pi-check-circle"></i> Approval rules saved as a new version.</div>
+        }
+
+        <div class="tf-config-hub__actions">
+          <button pButton
+            [disabled]="arSaving()"
+            [icon]="arSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
+            label="Save New Version"
+            (click)="saveApprovalRules()">
+          </button>
+        </div>
+      }
+    </p-accordionTab>
+
+    <!-- ── Stage Config (V6) ────────────────────────────────────────────────── -->
+    <p-accordionTab>
+      <ng-template pTemplate="header">
+        <span class="tf-config-hub__tab-header">
+          <i class="pi pi-list"></i>
+          Stage Enablement
+          <span class="tf-config-hub__tab-version">v{{ scVersion() }}</span>
+        </span>
+      </ng-template>
+
+      @if (scLoading()) {
+        <div class="tf-config-hub__loading">
+          <i class="pi pi-spin pi-spinner"></i> Loading…
+        </div>
+      } @else {
+
+        <p class="tf-config-hub__section-hint">
+          Toggle which of the 12 hiring stages are active. Disabled stages are skipped by the workflow orchestrator.
+          At least one stage must remain enabled.
+        </p>
+
+        <div class="tf-sc-grid">
+          @for (stage of allStagesOrdered; track stage) {
+            <div class="tf-sc-row">
+              <div class="tf-sc-row__label">
+                <i class="pi pi-flag"></i>
+                {{ stageLabels[stage] }}
+              </div>
+              <p-toggleButton
+                [ngModel]="isStageEnabled(stage)"
+                (ngModelChange)="toggleStage(stage, $event)"
+                onLabel="Active" offLabel="Disabled"
+                onIcon="pi pi-check" offIcon="pi pi-times"
+                styleClass="tf-sc-toggle">
+              </p-toggleButton>
+            </div>
+          }
+        </div>
+
+        @if (scError()) {
+          <div class="tf-config-hub__error"><i class="pi pi-exclamation-triangle"></i> {{ scError() }}</div>
+        }
+        @if (scSuccess()) {
+          <div class="tf-config-hub__success"><i class="pi pi-check-circle"></i> Stage config saved as a new version.</div>
+        }
+
+        <div class="tf-config-hub__actions">
+          <button pButton
+            [disabled]="scSaving()"
+            [icon]="scSaving() ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
+            label="Save New Version"
+            (click)="saveStageConfig()">
+          </button>
+        </div>
+      }
+    </p-accordionTab>
+
   </p-accordion>
 
 </section>
