@@ -33,6 +33,7 @@ Before summarising any task, read ALL of the following in parallel and explicitl
 |--------|-----------------|
 | **Jira ticket** (e.g. NH-107) | Stated requirements, DO/DON'T list, resource names, schema |
 | **`talent-flow-infra/locals.tf`** | Locked-in resource names — if ticket names differ, ticket is wrong |
+| **`docs/PLATFORM-ARCHITECTURE.md`** ⭐ GOLDEN PATH | **Read this for ALL frontend/routing tasks.** Single login, platform home, module routing, Cognito group→module map, full route tree, guard rules, what to build vs what to leave alone. When any chat history or BRD conflicts with this, THIS wins. |
 | **`docs/TALENT-FLOW-PLAN-REVISED.md`** ⭐ PRIMARY SOURCE | **Read this first for ALL TalentFlow tasks.** Architectural source of truth — takes precedence over ticket, BRD, and PROJECT_CONTEXT. Defines: Angular folder structure, page routes, component specs, service interfaces, ConfigType enum values, HiringStage names, intent templates, tool definitions (6 read + 3 write), HITL gate requirements. When any other doc conflicts with this, THIS wins. |
 | **`docs/Event Driven Architecture Docs/MVP1-FOUNDATION-PLAN-v2.md`** | Milestone-level business intent, table schemas, access patterns, exact Lambda/table names |
 | **Naleko reference files** (`infra/*.tf` relevant to current task) | Existing patterns to follow (KMS style, GSI style, tagging, IAM policy documents) |
