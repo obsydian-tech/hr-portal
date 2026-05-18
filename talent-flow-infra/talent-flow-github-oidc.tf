@@ -12,7 +12,8 @@
 #
 # Trust policy constrains the role to:
 #   - repo: obsydian-tech/hr-portal
-#   - ref: refs/heads/main (deploy job only runs on main)
+#   - ref: refs/heads/main (direct push) OR environment:production (deploy job)
+#   NOTE: when a workflow job uses environment:, GitHub OIDC sub = environment:X not ref:branch
 #
 # Permissions granted:
 #   - Full Terraform apply scope: all talent-flow-* resources
@@ -55,8 +56,12 @@ resource "aws_iam_role" "talent_flow_github_deploy" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          # Constrain to the hr-portal repo, main branch only
-          "token.actions.githubusercontent.com:sub" = "repo:obsydian-tech/hr-portal:ref:refs/heads/main"
+          # Allow main branch push AND environment:production (used by deploy job)
+          # When a workflow job specifies environment:, GitHub issues sub=environment:X not ref:branch
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:obsydian-tech/hr-portal:ref:refs/heads/main",
+            "repo:obsydian-tech/hr-portal:environment:production"
+          ]
         }
       }
     }]
