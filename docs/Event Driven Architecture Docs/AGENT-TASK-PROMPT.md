@@ -427,7 +427,7 @@ BE-005 is the only Epic 2 task with Terraform additions:
 | AI-004: talentFlowApproveAction Lambda | NH-130 | `feature/AI-004-approve-action` | ✅ Deployed | #193 |
 | AI-006: talentFlowRotateApiKey Lambda | NH-132 | `feature/AI-006-rotate-api-key` | ✅ Deployed | #196 |
 | AI-005: talentFlowArchiveAuditLog Lambda | NH-131 | `feature/AI-005-archive-audit-log` | ✅ Deployed | #198 |
-| AI-001: monitorTalentFlowSLAs Lambda | NH-127 | `feature/AI-001-sla-monitor` | 🔲 Not started | — |
+| AI-001: monitorTalentFlowSLAs Lambda | NH-127 | `feature/AI-001-sla-monitor` | ✅ Deployed | #200 |
 | AI-002: talentFlowAiChat Lambda | NH-128 | `feature/AI-002-ai-chat` | 🔲 Not started | — |
 
 **Epic 3 implementation order:** AI-003 → AI-004 → AI-006 → AI-005 → AI-001 → AI-002
@@ -509,3 +509,32 @@ This is sufficient for POPIA compliance. Do not add SES, Postmark, or DynamoDB w
 
 #### 14e. Deploy script integrity — always verify after merge conflict resolution
 See Lesson 13b. The deploy script was silently broken by the PR #193 merge conflict resolution. This was only discovered when running the actual deploy. The `bash -n` check alone is insufficient — it validates shell syntax but not logic completeness.
+
+---
+
+### Lesson 15 — AI-001 (monitorTalentFlowSLAs) Design Decisions
+
+#### 15a. Always verify IAM before implementing — fix the gap properly, never work around it
+The deployed IAM policy for `monitorTalentFlowSLAs` had only `dynamodb:Query` + `dynamodb:Scan` on `talent-flow-state`. The ticket required `UpdateItem` to set `slaBreachedAt` idempotently. A Terraform amendment was made **before** writing Lambda code:
+- Added `StateTableUpdate` statement (`dynamodb:UpdateItem` on base table only — not indexes)
+- Ran `terraform plan` (confirmed 1 IAM change + 1 pre-existing env var drift, 0 destroys)
+- Applied and verified live with `aws iam get-role-policy` before writing a single line of Lambda code
+
+**Rule:** Never shortcut IAM gaps with read-only workarounds. Fix the TF, apply it, then implement.
+
+#### 15b. Conditional UpdateItem is the correct idempotency guard for once-per-stage writes
+Use `ConditionExpression: 'attribute_not_exists(slaBreachedAt)'`. This ensures:
+- First invocation sets the breach flags atomically
+- Subsequent hourly runs skip already-breached candidates in-memory (via `if (saga.slaBreachedAt)` check before the write)
+- Concurrent runs that both see no `slaBreachedAt` resolve safely: second write fails with `ConditionalCheckFailedException` → silent skip
+
+#### 15c. No direct SQS send — EventBridge Rule 6 handles notification routing
+The ticket asked for a direct SQS send to `talent-flow-notification-queue`. This was **correctly skipped** for two reasons:
+1. `NOTIFICATION_QUEUE_URL` is **not** in the Lambda's env vars (confirmed in TF)
+2. EventBridge Rule 6 (`sla_breached`) already routes `SLABreached` events → `sendTalentFlowNotification` automatically — a direct SQS send would cause duplicate notifications
+
+#### 15d. Active config read is non-negotiable for SLA monitoring
+`getConfig('DEFAULT', 'SLA_THRESHOLDS')` — **never** pass a version argument. SLA policy changes must take effect for ALL open candidates immediately. If a client lowers their threshold from 48h to 24h, all currently-open candidates should be evaluated against the new policy on the next cron run. This is intentional by design (TALENT-FLOW-PLAN-REVISED.md §4.5).
+
+#### 15e. `getConfig` failure is fatal — let the Lambda throw
+If `getConfig` fails, the Lambda throws and the cron logs a failure. This is correct — a silent swallow would cause ALL SLA breaches to be missed silently for that hour. Let EventBridge surface the Lambda error; it will retry on the next hour.
