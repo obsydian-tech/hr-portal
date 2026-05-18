@@ -1,0 +1,308 @@
+/* =============================================================
+   NALEKO DESIGN SYSTEM — colors_and_type.css
+   Source of truth for the Naleko / HR Pulse Portal brand.
+   Pull this with: <link rel="stylesheet" href="colors_and_type.css">
+   =============================================================
+   "The Digital Architect" — high-end editorial HR experience.
+   Deep navy depths against pristine white surfaces. No 1px
+   borders for sectioning; use tonal shifts. Generous white space.
+   =============================================================
+*/
+
+/* ────────── Webfonts (Google) ────────── */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ════════════════════════════════════════════
+     1. BRAND PALETTE — Navy + Indigo + Cyan
+     ════════════════════════════════════════════
+     The brand sits on two navys (one slightly cooler,
+     one slightly warmer) plus an indigo secondary and
+     a tertiary cyan accent. Cyan is the *only* high-
+     chroma color in the system — used very sparingly
+     for highlight + accent.
+  */
+  --naleko-primary:            #1a1a2e;  /* Anchor navy. Sidebar, topbar text, dark CTA start. */
+  --naleko-primary-deep:       #16124d;  /* Deeper editorial navy. Welcome bar, hero header. */
+  --naleko-primary-darkest:    #00000b;  /* CTA gradient end. */
+  --naleko-secondary:          #4a3f8a;  /* Indigo. CTA gradient end, interactive accents. */
+  --naleko-secondary-2:        #5c598b;  /* Slightly softer indigo for secondary text usage. */
+  --naleko-tertiary:           #2d8f9e;  /* Teal/cyan. HR-mode chat header, info accents. */
+  --naleko-tertiary-fixed-dim: #7ad4e4;  /* HERO accent. Sidebar active text, brand highlights. */
+  --naleko-tertiary-fixed:     #9cefff;  /* Lighter cyan, used in landing palette. */
+
+  /* Container / soft tints */
+  --naleko-primary-fixed:        #e3dfff; /* Subtle data-viz highlights */
+  --naleko-primary-fixed-dim:    #c4c0ff; /* Dimmed primary highlights */
+  --naleko-secondary-container:  #b7acff; /* Soft indigo button bg */
+  --naleko-secondary-fixed:      #e5deff; /* Pale indigo surface */
+  --naleko-secondary-fixed-dim:  #c8bfff; /* Dimmed pale indigo */
+  --naleko-tertiary-container:   #002025; /* Deep teal */
+
+  /* Warm accent (used sparingly — status capsules in editorial spec) */
+  --naleko-warm-fixed:           #ffdbce; /* Status capsule bg */
+  --naleko-warm-fixed-dim:       #ffb599; /* Dimmed warm */
+  --naleko-warm-deep:            #360f01; /* Status capsule text */
+
+  /* ════════════════════════════════════════════
+     2. SURFACE HIERARCHY (Material-3 inspired)
+     ════════════════════════════════════════════
+     The "no-line" rule: never use 1px borders for
+     sectioning. Use these tonal shifts instead.
+  */
+  --naleko-surface:                     #f8f9fa; /* L0 — Page backdrop */
+  --naleko-surface-container-lowest:    #ffffff; /* L2 — Cards, interaction points */
+  --naleko-surface-container-low:       #f3f4f5; /* L1 — Section bg, sidebar bg fallback */
+  --naleko-surface-container:           #edeeef; /* */
+  --naleko-surface-container-high:      #e7e8e9; /* Ghost button hover */
+  --naleko-surface-container-highest:   #e1e3e4; /* */
+  --naleko-surface-dim:                 #d9dadb;
+  --naleko-surface-variant:             #e1e3e4; /* Glassmorphic nav backdrop */
+  --naleko-surface-bright:              #f8f9fa; /* For backdrop-blur pop-overs at 40% */
+  --naleko-inverse-surface:             #2e3132;
+
+  /* ════════════════════════════════════════════
+     3. FOREGROUND / ON-COLORS
+     ════════════════════════════════════════════
+     NEVER use pure #000 for body text. Use on-surface.
+  */
+  --naleko-on-surface:           #191c1d; /* Body text */
+  --naleko-on-surface-variant:   #47464c; /* Secondary / muted text */
+  --naleko-on-background:        #191c1d; /* Page title text */
+  --naleko-on-primary:           #ffffff;
+  --naleko-on-primary-container: #807dbd;
+  --naleko-on-secondary:         #ffffff;
+  --naleko-on-secondary-container:#545182;
+  --naleko-on-tertiary:          #ffffff;
+  --naleko-inverse-on-surface:   #f0f1f2;
+
+  --naleko-outline:         #78767d; /* Input bottom-border indicator */
+  --naleko-outline-variant: #c8c5cd; /* Ghost border at 15% opacity only */
+
+  /* ════════════════════════════════════════════
+     4. SEMANTIC / STATUS COLORS
+     ════════════════════════════════════════════ */
+  --naleko-success:        #2e7d32;
+  --naleko-success-bg:     #e8f5e9;
+  --naleko-success-border: #c8e6c9;
+
+  --naleko-warning:        #f57f17;
+  --naleko-warning-bg:     #fff8e1;
+  --naleko-warning-border: #fff3cd;
+
+  --naleko-error:          #ba1a1a;
+  --naleko-error-strong:   #c62828;
+  --naleko-error-bg:       #fef2f2;
+  --naleko-error-border:   #fecaca;
+  --naleko-error-container:#ffdad6;
+  --naleko-on-error:       #ffffff;
+  --naleko-on-error-container:#93000a;
+
+  --naleko-info:           #16124d;
+  --naleko-info-bg:        rgba(22,18,77,0.06);
+
+  /* Risk badges (used in HR employee table) */
+  --naleko-risk-low:       #2e7d32;
+  --naleko-risk-medium:    #e2a03f;
+  --naleko-risk-high:      #e74c3c;
+
+  /* ════════════════════════════════════════════
+     5. SIGNATURE GRADIENTS
+     ════════════════════════════════════════════
+     Three signature gradients. Reach for these instead
+     of inventing new ones.
+  */
+  --naleko-grad-cta:        linear-gradient(135deg, #1a1a2e 0%, #4a3f8a 100%);
+  --naleko-grad-hero:       linear-gradient(135deg, #1a1a2e 0%, #2a1a4e 60%, #4a3f8a 100%);
+  --naleko-grad-welcome:    linear-gradient(135deg, #16124d 0%, #2a1a4e 60%, #4a3f8a 100%);
+  --naleko-grad-sidebar:    linear-gradient(180deg, #1a1a2e 0%, #2a2a42 100%);
+  --naleko-grad-chat-hr:    linear-gradient(135deg, #2d8f9e 0%, #256f7e 100%);
+  /* Radial "Digital Architect" gradient for hero headers */
+  --naleko-grad-architect:  radial-gradient(circle at top left, #16124d 0%, #00000b 100%);
+
+  /* ════════════════════════════════════════════
+     6. TYPOGRAPHY — Manrope + Inter + Mono
+     ════════════════════════════════════════════
+     Headlines: Manrope (wide apertures, modern).
+     Body:      Inter   (maximum legibility).
+     Mono:      JetBrains Mono (for IDs, codes).
+  */
+  --naleko-font-display: 'Manrope', 'Inter', system-ui, sans-serif;
+  --naleko-font-body:    'Inter', system-ui, -apple-system, sans-serif;
+  --naleko-font-mono:    'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Base type scale (use sparingly; prefer semantic vars below) */
+  --naleko-text-xs:   0.6875rem;  /* 11px — label-sm */
+  --naleko-text-sm:   0.75rem;    /* 12px — label */
+  --naleko-text-base: 0.875rem;   /* 14px — body-sm */
+  --naleko-text-md:   1rem;       /* 16px — body */
+  --naleko-text-lg:   1.125rem;   /* 18px — body-lg */
+  --naleko-text-xl:   1.5rem;     /* 24px — headline-sm */
+  --naleko-text-2xl:  1.75rem;    /* 28px — headline */
+  --naleko-text-3xl:  2.75rem;    /* 44px — display-md */
+  --naleko-text-4xl:  3.5rem;     /* 56px — display-lg */
+
+  /* ════════════════════════════════════════════
+     7. SPACING — base-4 scale (PrimeFlex aligned)
+     ════════════════════════════════════════════ */
+  --naleko-space-1:  0.25rem;
+  --naleko-space-2:  0.5rem;
+  --naleko-space-3:  0.75rem;
+  --naleko-space-4:  1rem;
+  --naleko-space-5:  1.25rem;
+  --naleko-space-6:  1.5rem;
+  --naleko-space-8:  2rem;
+  --naleko-space-10: 2.5rem;
+  --naleko-space-12: 3rem;   /* MAJOR section spacing */
+  --naleko-space-16: 4rem;   /* MAJOR section spacing */
+  --naleko-space-24: 6rem;
+
+  /* ════════════════════════════════════════════
+     8. RADII — mix structural (0px) and soft (xl)
+     ════════════════════════════════════════════
+     Don't use a single radius everywhere. The system
+     varies by element type: structural containers
+     get 0; interactive cards get xl; pills/avatars
+     get full.
+  */
+  --naleko-radius-none:  0;
+  --naleko-radius-sm:    0.25rem;   /* 4px — Material default */
+  --naleko-radius-md:    0.375rem;  /* 6px — buttons */
+  --naleko-radius-lg:    0.5rem;    /* 8px — inputs, alerts */
+  --naleko-radius-xl:    0.75rem;   /* 12px — cards, signature radius */
+  --naleko-radius-2xl:   1rem;      /* 16px — chat panel */
+  --naleko-radius-pill:  9999px;    /* status pills, avatars, search */
+
+  /* ════════════════════════════════════════════
+     9. SHADOWS — navy-tinted, never grey
+     ════════════════════════════════════════════ */
+  --naleko-shadow-xs:    0 1px 3px rgba(26,26,46,0.04);
+  --naleko-shadow-sm:    0 1px 4px rgba(0,0,0,0.06);
+  --naleko-shadow-card:  0 2px 12px rgba(26,26,46,0.06);
+  --naleko-shadow-md:    0 4px 12px rgba(74,63,138,0.25);  /* CTA button */
+  --naleko-shadow-lg:    0 6px 16px rgba(74,63,138,0.35);  /* CTA hover */
+  --naleko-shadow-ghost: 0px 24px 48px rgba(22,18,77,0.06); /* signature ambient */
+  --naleko-shadow-chat:  0 8px 40px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
+  --naleko-shadow-focus: 0 0 0 3px rgba(74,63,138,0.10);   /* focus ring */
+
+  /* ════════════════════════════════════════════
+     10. MOTION
+     ════════════════════════════════════════════
+     Mostly 200ms ease; sidebar uses cubic-bezier for
+     polish. Buttons get a subtle translateY(-1px) on
+     hover + scale(0.98–0.99) on press.
+  */
+  --naleko-ease:        cubic-bezier(0.4, 0, 0.2, 1);
+  --naleko-duration-fast:  150ms;
+  --naleko-duration:       200ms;
+  --naleko-duration-slow:  300ms;
+
+  /* ════════════════════════════════════════════
+     11. SEMANTIC TYPE TOKENS
+     ════════════════════════════════════════════
+     Prefer these over raw size/family vars below.
+  */
+}
+
+/* ────────── Selection ────────── */
+::selection {
+  background: var(--naleko-secondary-container);
+  color: var(--naleko-on-secondary-container);
+}
+
+/* ────────── Base / Semantic Type ──────────
+   Drop a base reset and semantic h1/h2/h3/p/code rules.
+   Wrap in `.naleko-type` if you don't want this to leak
+   into a host page.
+*/
+.naleko-type, .naleko-root {
+  font-family: var(--naleko-font-body);
+  color: var(--naleko-on-surface);
+  background: var(--naleko-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+.naleko-display-lg, .naleko-h1 {
+  font-family: var(--naleko-font-display);
+  font-size: var(--naleko-text-4xl);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--naleko-on-background);
+  text-wrap: balance;
+}
+
+.naleko-display-md, .naleko-h2 {
+  font-family: var(--naleko-font-display);
+  font-size: var(--naleko-text-3xl);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--naleko-on-background);
+  text-wrap: balance;
+}
+
+.naleko-headline, .naleko-h3 {
+  font-family: var(--naleko-font-display);
+  font-size: var(--naleko-text-xl);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--naleko-on-background);
+}
+
+.naleko-headline-sm, .naleko-h4 {
+  font-family: var(--naleko-font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--naleko-on-surface);
+}
+
+.naleko-body, .naleko-p {
+  font-family: var(--naleko-font-body);
+  font-size: var(--naleko-text-md);
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--naleko-on-surface);
+}
+
+.naleko-body-sm {
+  font-family: var(--naleko-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--naleko-on-surface-variant);
+}
+
+/* Label-MD: small uppercase metadata, the editorial signature.
+   Used heavily over hero images, stat cards, page sections. */
+.naleko-label, .naleko-eyebrow {
+  font-family: var(--naleko-font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--naleko-on-surface-variant);
+}
+
+.naleko-label-bright {
+  font-family: var(--naleko-font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #ffffff;
+  opacity: 0.9;
+}
+
+.naleko-mono, .naleko-code {
+  font-family: var(--naleko-font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}

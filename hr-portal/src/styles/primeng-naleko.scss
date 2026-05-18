@@ -1,0 +1,98 @@
+// primeng-naleko.scss
+// Maps PrimeNG semantic CSS variables to Naleko design tokens.
+// This file ensures all PrimeNG components (Button, DataTable, Card, etc.)
+// automatically use the Naleko brand palette without per-component overrides.
+//
+// PrimeNG 19 uses --p-* CSS custom properties for theming.
+// Ref: https://primeng.org/theming
+
+:root {
+  // ─── Primary (navy → indigo CTA) ────────────────────────────────────────
+  --p-primary-color:              var(--naleko-primary);
+  --p-primary-contrast-color:     var(--naleko-on-primary);
+  --p-primary-hover-color:        var(--naleko-secondary);
+  --p-primary-active-color:       var(--naleko-secondary);
+
+  // ─── Highlight / focus ring ──────────────────────────────────────────────
+  --p-focus-ring-color:           var(--naleko-tertiary);
+  --p-highlight-background:       var(--naleko-secondary-container);
+  --p-highlight-color:            var(--naleko-primary);
+
+  // ─── Surfaces ────────────────────────────────────────────────────────────
+  --p-surface-0:                  var(--naleko-surface-container-lowest);
+  --p-surface-50:                 var(--naleko-surface-container-low);
+  --p-surface-100:                var(--naleko-surface-container);
+  --p-surface-200:                var(--naleko-surface-container-high);
+  --p-surface-300:                var(--naleko-surface-container-highest);
+  --p-surface-400:                var(--naleko-outline-variant);
+  --p-surface-500:                var(--naleko-outline);
+  --p-surface-600:                var(--naleko-on-surface-variant);
+  --p-surface-700:                var(--naleko-on-surface);
+  --p-surface-800:                var(--naleko-secondary);
+  --p-surface-900:                var(--naleko-primary);
+
+  // ─── Content / overlays ──────────────────────────────────────────────────
+  --p-content-background:         var(--naleko-surface-container-lowest);
+  --p-content-hover-background:   var(--naleko-surface-container-low);
+  --p-content-border-color:       var(--naleko-outline-variant);
+  --p-content-color:              var(--naleko-on-surface);
+  --p-content-hover-color:        var(--naleko-on-surface);
+
+  // ─── Typography ──────────────────────────────────────────────────────────
+  --p-font-family:                var(--naleko-font-body);
+  --p-font-size:                  var(--naleko-text-sm, 0.875rem);
+  --p-font-feature-settings:      'cv02', 'cv03', 'cv04', 'cv11';
+
+  // ─── Border radius ───────────────────────────────────────────────────────
+  --p-border-radius-sm:           var(--naleko-radius-sm);
+  --p-border-radius-md:           var(--naleko-radius-md);
+  --p-border-radius-lg:           var(--naleko-radius-lg);
+  --p-border-radius-xl:           var(--naleko-radius-xl);
+
+  // ─── Form inputs ─────────────────────────────────────────────────────────
+  --p-form-field-background:      var(--naleko-surface-container-lowest);
+  --p-form-field-filled-background: var(--naleko-surface-container-low);
+  --p-form-field-border-color:    var(--naleko-outline-variant);
+  --p-form-field-hover-border-color: var(--naleko-outline);
+  --p-form-field-focus-border-color: var(--naleko-tertiary);
+  --p-form-field-color:           var(--naleko-on-surface);
+  --p-form-field-placeholder-color: var(--naleko-on-surface-variant);
+
+  // ─── Overlay / dialog / drawer ───────────────────────────────────────────
+  --p-overlay-modal-background:   var(--naleko-surface-container-lowest);
+  --p-overlay-modal-border-color: var(--naleko-outline-variant);
+  --p-overlay-popover-background: var(--naleko-surface-container-lowest);
+  --p-overlay-popover-border-color: var(--naleko-outline-variant);
+
+  // ─── Severity colours ────────────────────────────────────────────────────
+  --p-button-danger-background:   var(--naleko-error);
+  --p-button-danger-hover-background: var(--naleko-error-container, #ffdad6);
+  --p-button-success-background:  var(--naleko-success, #2e7d32);
+  --p-button-warn-background:     var(--naleko-warning, #e65100);
+
+  // ─── Navigation / menu ───────────────────────────────────────────────────
+  --p-navigation-item-color:      var(--naleko-on-surface);
+  --p-navigation-item-hover-background: var(--naleko-surface-container);
+  --p-navigation-item-active-background: var(--naleko-secondary-container);
+  --p-navigation-item-active-color: var(--naleko-primary);
+
+  // ─── DataTable ───────────────────────────────────────────────────────────
+  --p-datatable-header-background:     var(--naleko-surface-container-low);
+  --p-datatable-header-color:          var(--naleko-on-surface);
+  --p-datatable-row-hover-background:  var(--naleko-surface-container);
+  --p-datatable-row-selected-background: var(--naleko-secondary-container);
+  --p-datatable-row-selected-color:    var(--naleko-primary);
+  --p-datatable-border-color:          var(--naleko-outline-variant);
+
+  // ─── Tags / badges ───────────────────────────────────────────────────────
+  --p-tag-primary-background:     var(--naleko-primary);
+  --p-tag-primary-color:          var(--naleko-on-primary);
+  --p-tag-secondary-background:   var(--naleko-secondary-container);
+  --p-tag-secondary-color:        var(--naleko-primary);
+  --p-tag-success-background:     var(--naleko-risk-low-bg, #dcfce7);
+  --p-tag-success-color:          var(--naleko-risk-low-text, #166534);
+  --p-tag-warn-background:        var(--naleko-risk-medium-bg, #fef9c3);
+  --p-tag-warn-color:             var(--naleko-risk-medium-text, #854d0e);
+  --p-tag-danger-background:      var(--naleko-risk-high-bg, #fee2e2);
+  --p-tag-danger-color:           var(--naleko-risk-high-text, #991b1b);
+}
