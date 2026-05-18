@@ -1,0 +1,140 @@
+<!-- CandidateCreatePage — FE-007 / NH-140
+     Design: 16-inputs.html tokens -->
+
+<section class="tf-create">
+
+  <!-- Header -->
+  <div class="tf-create__header">
+    <button pButton
+      class="p-button-text p-button-sm"
+      icon="pi pi-arrow-left"
+      label="Back to Pipeline"
+      (click)="cancel()">
+    </button>
+    <div class="tf-create__title-block">
+      <h1 class="tf-create__title">
+        <i class="pi pi-user-plus"></i> New Candidate
+      </h1>
+      <p class="tf-create__subtitle">Fill in the details to add a candidate to the pipeline.</p>
+    </div>
+  </div>
+
+  <!-- Form card -->
+  <div class="tf-create__card">
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+
+      <!-- Row 1: Names -->
+      <div class="tf-form-row">
+        <div class="tf-fld" [class.tf-fld--error]="isInvalid('firstName')">
+          <label for="firstName">First Name *</label>
+          <input pInputText id="firstName" formControlName="firstName" placeholder="e.g. Amahle" />
+          @if (isInvalid('firstName')) {
+            <span class="tf-fld__error">First name is required (min 2 chars).</span>
+          }
+        </div>
+        <div class="tf-fld" [class.tf-fld--error]="isInvalid('lastName')">
+          <label for="lastName">Last Name *</label>
+          <input pInputText id="lastName" formControlName="lastName" placeholder="e.g. Dlamini" />
+          @if (isInvalid('lastName')) {
+            <span class="tf-fld__error">Last name is required (min 2 chars).</span>
+          }
+        </div>
+      </div>
+
+      <!-- Row 2: Contact -->
+      <div class="tf-form-row">
+        <div class="tf-fld" [class.tf-fld--error]="isInvalid('email')">
+          <label for="email">Email Address *</label>
+          <input pInputText id="email" formControlName="email" type="email" placeholder="candidate@example.com" />
+          @if (isInvalid('email')) {
+            <span class="tf-fld__error">A valid email is required.</span>
+          }
+        </div>
+        <div class="tf-fld">
+          <label for="phone">Phone <span class="tf-fld__optional">(optional)</span></label>
+          <input pInputText id="phone" formControlName="phone" placeholder="+27 82 000 0000" />
+        </div>
+      </div>
+
+      <!-- Row 3: Role + Level -->
+      <div class="tf-form-row">
+        <div class="tf-fld" [class.tf-fld--error]="isInvalid('role')">
+          <label for="role">Role / Job Title *</label>
+          <input pInputText id="role" formControlName="role" placeholder="e.g. Senior Engineer" />
+          @if (isInvalid('role')) {
+            <span class="tf-fld__error">Role is required.</span>
+          }
+        </div>
+        <div class="tf-fld" [class.tf-fld--error]="isInvalid('positionLevel')">
+          <label for="positionLevel">Position Level *</label>
+          <p-dropdown
+            inputId="positionLevel"
+            formControlName="positionLevel"
+            [options]="positionLevels"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select level">
+          </p-dropdown>
+          @if (isInvalid('positionLevel')) {
+            <span class="tf-fld__error">Position level is required.</span>
+          }
+        </div>
+      </div>
+
+      <!-- Row 4: Experience + Source -->
+      <div class="tf-form-row">
+        <div class="tf-fld" [class.tf-fld--error]="isInvalid('experienceYears')">
+          <label for="experienceYears">Years of Experience *</label>
+          <p-inputNumber
+            inputId="experienceYears"
+            formControlName="experienceYears"
+            [min]="0"
+            [max]="50"
+            [showButtons]="true"
+            suffix=" yrs">
+          </p-inputNumber>
+          @if (isInvalid('experienceYears')) {
+            <span class="tf-fld__error">Must be between 0 and 50.</span>
+          }
+        </div>
+        <div class="tf-fld">
+          <label for="source">Source <span class="tf-fld__optional">(optional)</span></label>
+          <p-dropdown
+            inputId="source"
+            formControlName="source"
+            [options]="sourceOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="How did they apply?">
+          </p-dropdown>
+        </div>
+      </div>
+
+      <!-- Error banner -->
+      @if (saveError()) {
+        <div class="tf-create__error">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ saveError() }}
+        </div>
+      }
+
+      <!-- Actions -->
+      <div class="tf-create__actions">
+        <button pButton
+          type="button"
+          class="p-button-outlined p-button-secondary"
+          label="Cancel"
+          (click)="cancel()">
+        </button>
+        <button pButton
+          type="submit"
+          [disabled]="saving()"
+          [icon]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"
+          label="Create Candidate">
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+</section>

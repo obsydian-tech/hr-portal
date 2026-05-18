@@ -203,8 +203,14 @@
 
         <!-- ── Votes tab ──────────────────────────────────────────────────── -->
         @if (activeTab() === 'votes') {
-          <div class="tf-workspace__panel tf-workspace__panel--votes">
-            <tf-evaluation-summary
+          <div class="tf-workspace__panel tf-workspace__panel--votes">            <div class="tf-workspace__votes-actions">
+              <button pButton
+                class="p-button-outlined p-button-sm"
+                icon="pi pi-check-circle"
+                label="Submit My Vote"
+                (click)="goToEvaluate(c.id)">
+              </button>
+            </div>            <tf-evaluation-summary
               [votes]="[]"
               [weights]="defaultWeights" />
             <tf-evaluation-scoring-panel

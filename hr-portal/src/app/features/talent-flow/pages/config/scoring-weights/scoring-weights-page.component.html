@@ -1,0 +1,94 @@
+<!-- ScoringWeightsPage — FE-007 / NH-140
+     Design: 17-stat-card.html, 16-inputs.html -->
+
+<section class="tf-config-page">
+
+  <!-- Header -->
+  <div class="tf-config-page__header">
+    <div>
+      <h1 class="tf-config-page__title">
+        <i class="pi pi-chart-bar"></i> Scoring Weights
+      </h1>
+      <p class="tf-config-page__subtitle">
+        Define how each evaluation criterion is weighted. Weights must sum to exactly 100 pts.
+      </p>
+    </div>
+    <div class="tf-config-page__version">
+      <span class="tf-config-page__version-label">Active version</span>
+      <span class="tf-config-page__version-value">{{ configVersion() }}</span>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="tf-config-page__loading">
+      <i class="pi pi-spin pi-spinner"></i> Loading configuration…
+    </div>
+  }
+
+  @if (!loading()) {
+    <div class="tf-config-page__card">
+
+      <!-- Sum indicator -->
+      <div class="tf-sw-sum" [class.tf-sw-sum--valid]="valid()" [class.tf-sw-sum--invalid]="!valid()">
+        <span class="tf-sw-sum__label">Total</span>
+        <span class="tf-sw-sum__value">{{ total() }} / 100 pts</span>
+        @if (!valid()) {
+          <span class="tf-sw-sum__hint">
+            @if (remaining() > 0) {
+              {{ remaining() }} pts remaining
+            } @else {
+              {{ -remaining() }} pts over limit
+            }
+          </span>
+        } @else {
+          <span class="tf-sw-sum__ok"><i class="pi pi-check-circle"></i> Valid</span>
+        }
+      </div>
+
+      <!-- Sliders -->
+      @for (c of criteria; track c.key) {
+        <div class="tf-sw-row">
+          <div class="tf-sw-row__label">
+            <i class="pi {{ c.icon }}"></i>
+            {{ c.label }}
+          </div>
+          <div class="tf-sw-row__slider">
+            <p-slider
+              [ngModel]="weights()[c.key]"
+              (ngModelChange)="updateWeight(c.key, $event)"
+              [min]="0"
+              [max]="100"
+              [step]="1">
+            </p-slider>
+          </div>
+          <div class="tf-sw-row__value">{{ weights()[c.key] }} pts</div>
+        </div>
+      }
+
+      <!-- Error / success -->
+      @if (saveError()) {
+        <div class="tf-config-page__error">
+          <i class="pi pi-exclamation-triangle"></i> {{ saveError() }}
+        </div>
+      }
+      @if (saveSuccess()) {
+        <div class="tf-config-page__success">
+          <i class="pi pi-check-circle"></i> Configuration saved as a new version.
+        </div>
+      }
+
+      <!-- Actions -->
+      <div class="tf-config-page__actions">
+        <button pButton
+          [disabled]="!valid() || saving()"
+          [icon]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
+          label="Save New Version"
+          (click)="save()">
+        </button>
+      </div>
+
+    </div>
+  }
+
+</section>

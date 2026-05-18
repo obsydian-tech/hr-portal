@@ -1,0 +1,69 @@
+<!-- EvaluationPage — FE-007 / NH-140 -->
+
+<section class="tf-eval">
+
+  <!-- Header -->
+  <div class="tf-eval__header">
+    <button pButton
+      class="p-button-text p-button-sm"
+      icon="pi pi-arrow-left"
+      label="Back to Workspace"
+      (click)="goBack()">
+    </button>
+    <div class="tf-eval__title-block">
+      <h1 class="tf-eval__title">
+        <i class="pi pi-check-circle"></i> Submit Evaluation
+      </h1>
+      @if (candidate(); as c) {
+        <p class="tf-eval__subtitle">
+          {{ c.firstName }} {{ c.lastName }} · {{ c.role }} · {{ c.positionLevel | titlecase }}
+        </p>
+      }
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="tf-eval__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading candidate…</span>
+    </div>
+  }
+
+  <!-- Not found -->
+  @if (!loading() && !candidate()) {
+    <div class="tf-eval__empty">
+      <i class="pi pi-user"></i>
+      <p>Candidate not found.</p>
+      <button pButton label="Go to Pipeline" icon="pi pi-arrow-left" (click)="goBack()"></button>
+    </div>
+  }
+
+  <!-- Scoring panel -->
+  @if (!loading() && candidate()) {
+    <div class="tf-eval__body">
+
+      @if (submitted()) {
+        <div class="tf-eval__success">
+          <i class="pi pi-check-circle"></i>
+          <span>Vote submitted! Returning to candidate workspace…</span>
+        </div>
+      } @else {
+        <tf-evaluation-scoring-panel
+          [weights]="weights()"
+          [interviewId]="''"
+          [readOnly]="false"
+          (scoreSubmitted)="onScoreSubmitted($event)" />
+      }
+
+      @if (submitError()) {
+        <div class="tf-eval__error">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ submitError() }}
+        </div>
+      }
+
+    </div>
+  }
+
+</section>

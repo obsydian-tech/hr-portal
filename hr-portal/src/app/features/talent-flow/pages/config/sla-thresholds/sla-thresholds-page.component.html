@@ -1,0 +1,76 @@
+<!-- SLAThresholdsPage — FE-007 / NH-140 -->
+
+<section class="tf-config-page">
+
+  <!-- Header -->
+  <div class="tf-config-page__header">
+    <div>
+      <h1 class="tf-config-page__title">
+        <i class="pi pi-clock"></i> SLA Thresholds
+      </h1>
+      <p class="tf-config-page__subtitle">
+        Set the maximum hours allowed per hiring stage before an SLA breach is raised.
+      </p>
+    </div>
+    <div class="tf-config-page__version">
+      <span class="tf-config-page__version-label">Active version</span>
+      <span class="tf-config-page__version-value">{{ configVersion() }}</span>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="tf-config-page__loading">
+      <i class="pi pi-spin pi-spinner"></i> Loading configuration…
+    </div>
+  }
+
+  @if (!loading()) {
+    <div class="tf-config-page__card">
+
+      <div class="tf-sla-grid">
+        @for (stage of stages; track stage) {
+          <div class="tf-sla-row">
+            <div class="tf-sla-row__label">
+              <i class="pi pi-flag"></i>
+              {{ stageLabels[stage] }}
+            </div>
+            <p-inputNumber
+              [ngModel]="thresholds()[stage]"
+              (ngModelChange)="updateThreshold(stage, $event)"
+              [min]="1"
+              [max]="720"
+              [showButtons]="true"
+              suffix=" hrs"
+              styleClass="tf-sla-input">
+            </p-inputNumber>
+          </div>
+        }
+      </div>
+
+      <!-- Error / success -->
+      @if (saveError()) {
+        <div class="tf-config-page__error">
+          <i class="pi pi-exclamation-triangle"></i> {{ saveError() }}
+        </div>
+      }
+      @if (saveSuccess()) {
+        <div class="tf-config-page__success">
+          <i class="pi pi-check-circle"></i> SLA thresholds saved as a new version.
+        </div>
+      }
+
+      <!-- Actions -->
+      <div class="tf-config-page__actions">
+        <button pButton
+          [disabled]="saving()"
+          [icon]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
+          label="Save New Version"
+          (click)="save()">
+        </button>
+      </div>
+
+    </div>
+  }
+
+</section>

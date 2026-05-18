@@ -1,0 +1,142 @@
+/**
+ * CandidateCreatePage styles — FE-007
+ * Design: 16-inputs.html — .fld tokens
+ */
+
+.tf-create {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 var(--naleko-space-4, 24px) var(--naleko-space-6, 48px);
+}
+
+.tf-create__header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.tf-create__title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tf-create__title {
+  font-family: var(--naleko-font-display, 'Nunito', sans-serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--naleko-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+
+  .pi { font-size: 18px; }
+}
+
+.tf-create__subtitle {
+  font-size: 13px;
+  color: var(--naleko-on-surface-variant);
+  margin: 0;
+}
+
+.tf-create__card {
+  background: var(--naleko-surface-container-lowest);
+  border: 1px solid var(--naleko-surface-container-high);
+  border-radius: 12px;
+  padding: 28px;
+}
+
+// ── Form layout ───────────────────────────────────────────────────────────────
+.tf-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tf-fld {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--naleko-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  input,
+  ::ng-deep .p-inputtext,
+  ::ng-deep .p-dropdown {
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--naleko-surface-dim);
+    font-family: var(--naleko-font-body, 'DM Sans', sans-serif);
+    background: #fff;
+
+    &:focus {
+      border-color: var(--naleko-secondary);
+      box-shadow: 0 0 0 3px rgba(74, 63, 138, 0.1);
+      outline: none;
+    }
+  }
+
+  &--error {
+    label { color: var(--naleko-error, #b00020); }
+
+    input,
+    ::ng-deep .p-inputtext,
+    ::ng-deep .p-dropdown {
+      border-color: var(--naleko-error, #b00020);
+    }
+  }
+
+  &__error {
+    font-size: 11px;
+    color: var(--naleko-error, #b00020);
+    margin-top: 2px;
+  }
+
+  &__optional {
+    font-weight: 400;
+    font-size: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+    opacity: 0.7;
+  }
+}
+
+// ── Error banner ──────────────────────────────────────────────────────────────
+.tf-create__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fce4ec;
+  border: 1px solid #f48fb1;
+  border-radius: 8px;
+  color: #880e4f;
+  font-size: 13px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+.tf-create__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--naleko-surface-container-high);
+}

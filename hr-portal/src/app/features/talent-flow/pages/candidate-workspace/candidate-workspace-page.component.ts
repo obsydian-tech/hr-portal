@@ -117,6 +117,10 @@ export class CandidateWorkspacePageComponent implements OnInit {
     this.chatVisible.update((v) => !v);
   }
 
+  protected goToEvaluate(candidateId: string): void {
+    void this.router.navigate(['/talent-flow/candidates', candidateId, 'evaluate']);
+  }
+
   protected toDate(iso: string): Date {
     return new Date(iso);
   }

@@ -1,0 +1,124 @@
+/** SLAThresholdsPage styles — FE-007 */
+
+.tf-config-page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 var(--naleko-space-4, 24px) var(--naleko-space-6, 48px);
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  &__title {
+    font-family: var(--naleko-font-display, 'Nunito', sans-serif);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--naleko-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 4px;
+    .pi { font-size: 18px; }
+  }
+
+  &__subtitle { font-size: 13px; color: var(--naleko-on-surface-variant); margin: 0; }
+
+  &__version {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+
+    &-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--naleko-on-surface-variant); }
+    &-value { font-size: 12px; font-weight: 600; color: var(--naleko-secondary); font-family: monospace; }
+  }
+
+  &__loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 32px 24px;
+    color: var(--naleko-on-surface-variant);
+    font-size: 14px;
+  }
+
+  &__card {
+    background: var(--naleko-surface-container-lowest);
+    border: 1px solid var(--naleko-surface-container-high);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #fce4ec;
+    border: 1px solid #f48fb1;
+    border-radius: 8px;
+    color: #880e4f;
+    font-size: 13px;
+    margin-top: 16px;
+  }
+
+  &__success {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 8px;
+    color: #1b5e20;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 16px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--naleko-surface-container-high);
+  }
+}
+
+// ── SLA grid ──────────────────────────────────────────────────────────────────
+.tf-sla-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tf-sla-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-surface-container-high);
+  border-radius: 8px;
+
+  &__label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--naleko-on-surface);
+
+    .pi { color: var(--naleko-tertiary); font-size: 13px; }
+  }
+}
+
+::ng-deep .tf-sla-input {
+  width: 140px;
+}

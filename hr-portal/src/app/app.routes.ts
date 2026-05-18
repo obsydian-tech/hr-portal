@@ -94,14 +94,14 @@ export const routes: Routes = [
       },
       {
         path: 'onboarding',
-        canActivate: [moduleGuard('onboarding')],
         // TODO NH-134: replace with OnboardingModule lazy route when built
+        // canActivate removed: redirectTo and canActivate cannot coexist (NG04014)
         redirectTo: '/platform/home',
       },
       {
         path: 'talentflow',
-        canActivate: [moduleGuard('talentflow')],
         // FE-004: redirect to the TalentFlow lazy module at /talent-flow
+        // canActivate removed: redirectTo and canActivate cannot coexist (NG04014)
         redirectTo: '/talent-flow',
       },
       { path: '', redirectTo: 'home', pathMatch: 'full' },
