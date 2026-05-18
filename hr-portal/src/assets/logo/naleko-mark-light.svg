@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Naleko mark, light on dark">
+  <title>Naleko</title>
+  <defs>
+    <linearGradient id="naleko-cyan-l" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9cefff"></stop>
+      <stop offset="1" stop-color="#7ad4e4"></stop>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect x="2" y="2" width="12" height="12" rx="2.5" fill="#ffffff"></rect>
+    <rect x="2" y="18" width="12" height="12" rx="2.5" fill="#ffffff"></rect>
+    <rect x="2" y="34" width="12" height="12" rx="2.5" fill="#ffffff"></rect>
+    <rect x="2" y="50" width="12" height="12" rx="2.5" fill="#ffffff"></rect>
+    <rect x="18" y="18" width="12" height="12" rx="2.5" fill="url(#naleko-cyan-l)"></rect>
+    <rect x="34" y="34" width="12" height="12" rx="2.5" fill="url(#naleko-cyan-l)"></rect>
+    <rect x="50" y="2" width="12" height="12" rx="2.5" fill="#ffffff"></rect>
+    <rect x="50" y="18" width="12" height="12" rx="2.5" fill="#ffffff"></rect>
+    <rect x="50" y="34" width="12" height="12" rx="2.5" fill="#ffffff"></rect>
+    <rect x="50" y="50" width="12" height="12" rx="2.5" fill="#ffffff"></rect>
+  </g>
+</svg>

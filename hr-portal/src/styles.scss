@@ -2,36 +2,11 @@
 @use 'primeflex/primeflex.scss';
 @use 'primeicons/primeicons.css';
 
-/* === Naleko Brand Tokens (from Stitch Design Theme) === */
-:root {
-  /* Primary palette */
-  --naleko-primary: #1a1a2e;
-  --naleko-secondary: #4a3f8a;
-  --naleko-tertiary: #2d8f9e;
+/* === Naleko Brand Tokens (from Stitch Design System) === */
+@import './styles/naleko-tokens.css';
 
-  /* Surface hierarchy */
-  --naleko-surface: #f8f9fa;
-  --naleko-surface-container: #edeeef;
-  --naleko-surface-container-low: #f3f4f5;
-  --naleko-surface-container-lowest: #ffffff;
-  --naleko-surface-container-high: #e7e8e9;
-  --naleko-surface-container-highest: #e1e3e4;
-
-  /* On-colors */
-  --naleko-on-surface: #191c1d;
-  --naleko-on-surface-variant: #47464c;
-  --naleko-on-primary: #ffffff;
-
-  /* Accent & utility */
-  --naleko-secondary-container: #b7acff;
-  --naleko-tertiary-fixed-dim: #7ad4e4;
-  --naleko-outline: #78767d;
-  --naleko-outline-variant: #c8c5cd;
-  --naleko-error: #ba1a1a;
-
-  /* Typography */
-  --naleko-font-family: 'Inter', sans-serif;
-}
+/* === PrimeNG → Naleko Token Bridge === */
+@import './styles/primeng-naleko';
 
 /* === Global Reset & Base === */
 *,
@@ -64,12 +39,6 @@ img {
   max-width: 100%;
   display: block;
 }
-
-/* === Inter Font Import === */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
-/* === Manrope Font Import (Naleko headlines) === */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 /* === AI Assistant Drawer — global header override ======================= */
 /* Must live here (not ::ng-deep) so Angular encapsulation doesn't strip it */
