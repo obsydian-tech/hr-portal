@@ -110,7 +110,7 @@ export class CandidateCreatePageComponent {
       source:          v.source || undefined,
     }).subscribe({
       next: ({ candidateId }) => {
-        void this.router.navigate(['/talent-flow/candidates', candidateId]);
+        void this.router.navigate(['/platform/talentflow/candidates', candidateId]);
       },
       error: (err: { userMessage?: string }) => {
         this.saveError.set(err.userMessage ?? 'Failed to create candidate.');
@@ -120,6 +120,6 @@ export class CandidateCreatePageComponent {
   }
 
   cancel(): void {
-    void this.router.navigate(['/talent-flow/pipeline']);
+    void this.router.navigate(['/platform/talentflow/pipeline']);
   }
 }

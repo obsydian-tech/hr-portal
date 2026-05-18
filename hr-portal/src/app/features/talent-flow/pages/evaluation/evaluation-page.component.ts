@@ -59,7 +59,7 @@ export class EvaluationPageComponent implements OnInit {
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
-    if (!id) { void this.router.navigate(['/talent-flow/pipeline']); return; }
+    if (!id) { void this.router.navigate(['/platform/talentflow/pipeline']); return; }
     this.candidateId.set(id);
 
     const inCache = this.state.pipeline().find((c) => c.id === id);
@@ -81,7 +81,7 @@ export class EvaluationPageComponent implements OnInit {
       next: () => {
         this.submitted.set(true);
         setTimeout(() => {
-          void this.router.navigate(['/talent-flow/candidates', id]);
+          void this.router.navigate(['/platform/talentflow/candidates', id]);
         }, 1200);
       },
       error: (err: { userMessage?: string }) => {
@@ -92,6 +92,6 @@ export class EvaluationPageComponent implements OnInit {
 
   goBack(): void {
     const id = this.candidateId();
-    void this.router.navigate(id ? ['/talent-flow/candidates', id] : ['/talent-flow/pipeline']);
+    void this.router.navigate(id ? ['/platform/talentflow/candidates', id] : ['/platform/talentflow/pipeline']);
   }
 }

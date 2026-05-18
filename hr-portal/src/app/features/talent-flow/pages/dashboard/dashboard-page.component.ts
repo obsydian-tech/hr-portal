@@ -74,11 +74,11 @@ export class DashboardPageComponent implements OnInit {
   }
 
   protected openPipeline(): void {
-    void this.router.navigate(['/talent-flow/pipeline']);
+    void this.router.navigate(['/platform/talentflow/pipeline']);
   }
 
   protected openCandidate(id: string): void {
-    void this.router.navigate(['/talent-flow/candidates', id]);
+    void this.router.navigate(['/platform/talentflow/candidates', id]);
   }
 
   protected slaChipClass(c: Candidate): string {

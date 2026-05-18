@@ -44,7 +44,10 @@ exports.handler = async (event) => {
       return respond(404, { message: `Candidate ${candidateId} not found` });
     }
 
-    return respond(200, unmarshall(result.Item));
+    const candidate = unmarshall(result.Item);
+    // Normalise: frontend Candidate interface uses `id`, DynamoDB stores `candidateId`
+    if (!candidate.id && candidate.candidateId) candidate.id = candidate.candidateId;
+    return respond(200, candidate);
   } catch (err) {
     console.error('getCandidate error', err);
     return respond(500, { message: 'Failed to retrieve candidate' });

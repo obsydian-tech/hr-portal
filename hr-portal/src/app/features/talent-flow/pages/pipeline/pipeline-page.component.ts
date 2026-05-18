@@ -111,7 +111,7 @@ export class PipelinePageComponent implements OnInit {
   }
 
   protected openCandidate(id: string): void {
-    void this.router.navigate(['/talent-flow/candidates', id]);
+    void this.router.navigate(['/platform/talentflow/candidates', id]);
   }
 
   protected toDate(iso: string): Date {

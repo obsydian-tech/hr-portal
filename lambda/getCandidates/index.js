@@ -38,9 +38,11 @@ exports.handler = async (event) => {
   const limit = Math.min(parseInt(qs.limit || '50', 10), 100);
   const { stage, positionLevel, slaStatus, search, nextToken, tenantId: qsTenant } = qs;
 
-  // Derive tenantId from JWT claims (injected by API GW) or query param fallback
+  // Pool consolidation (Epic 5): custom:tenantId was a TF-pool-only claim.
+  // Frontend now always sends ?tenantId= query param; fall back to 'DEFAULT' only
+  // if neither source is present (should not happen in production).
   const claims = event.requestContext?.authorizer?.jwt?.claims || {};
-  const tenantId = claims['custom:tenantId'] || qsTenant || 'DEFAULT';
+  const tenantId = qsTenant || claims['custom:tenantId'] || 'DEFAULT';
 
   // GSI1 key condition — only fetch SAGA records for this tenant
   const exprValues = {
@@ -96,7 +98,12 @@ exports.handler = async (event) => {
 
   try {
     const result = await dynamo.send(new QueryCommand(params));
-    const candidates = (result.Items || []).map((item) => unmarshall(item));
+    const candidates = (result.Items || []).map((item) => {
+      const c = unmarshall(item);
+      // Normalise: frontend Candidate interface uses `id`, DynamoDB stores `candidateId`
+      if (!c.id && c.candidateId) c.id = c.candidateId;
+      return c;
+    });
 
     const response = { candidates, total: candidates.length };
     if (result.LastEvaluatedKey) {
