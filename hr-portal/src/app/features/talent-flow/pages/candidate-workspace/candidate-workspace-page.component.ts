@@ -14,7 +14,9 @@ import { TalentFlowApiService } from '../../services/talent-flow-api.service';
 import { CandidateIdentityCardComponent } from '../../components/candidate-identity-card/candidate-identity-card.component';
 import { StageSelectorComponent, STAGE_LABELS } from '../../components/stage-selector/stage-selector.component';
 import { SlaTimerWidgetComponent } from '../../components/sla-timer-widget/sla-timer-widget.component';
-import { Candidate, HiringStage } from '../../models/talent-flow.models';
+import { EvaluationScoringPanelComponent } from '../../components/evaluation-scoring-panel/evaluation-scoring-panel.component';
+import { EvaluationSummaryWidgetComponent } from '../../components/evaluation-summary-widget/evaluation-summary-widget.component';
+import { Candidate, HiringStage, ScoringWeights, DEFAULT_SCORING_WEIGHTS } from '../../models/talent-flow.models';
 
 /**
  * CandidateWorkspacePageComponent — FE-004 / NH-137
@@ -46,6 +48,8 @@ export const ALL_STAGES: HiringStage[] = Object.keys(STAGE_LABELS) as HiringStag
     CandidateIdentityCardComponent,
     StageSelectorComponent,
     SlaTimerWidgetComponent,
+    EvaluationScoringPanelComponent,
+    EvaluationSummaryWidgetComponent,
   ],
   templateUrl: './candidate-workspace-page.component.html',
   styleUrl: './candidate-workspace-page.component.scss',
@@ -56,6 +60,8 @@ export class CandidateWorkspacePageComponent implements OnInit {
   private readonly api = inject(TalentFlowApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  protected readonly defaultWeights: ScoringWeights = DEFAULT_SCORING_WEIGHTS;
 
   protected readonly activeTab = signal<WorkspaceTab>('overview');
   protected readonly candidateId = signal<string | null>(null);

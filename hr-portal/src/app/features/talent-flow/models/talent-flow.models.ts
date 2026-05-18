@@ -63,6 +63,22 @@ export type ConfigType =
   | 'WORKFLOW_TEMPLATE'
   | 'NOTIFICATION_TEMPLATES';
 
+// ─── Scoring Weights (talent-flow-config, configType SCORING_WEIGHTS) ────────
+export interface ScoringWeights {
+  technical:       number; // 0–100, weights must sum to 100
+  communication:   number;
+  culturalFit:     number;
+  problemSolving:  number;
+}
+
+/** Default weights — used when config has not been loaded yet */
+export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
+  technical:      30,
+  communication:  25,
+  culturalFit:    25,
+  problemSolving: 20,
+};
+
 // ─── Core Entities ───────────────────────────────────────────────────────────
 
 export interface Candidate {

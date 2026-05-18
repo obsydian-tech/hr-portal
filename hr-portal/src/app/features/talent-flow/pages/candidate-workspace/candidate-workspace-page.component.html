@@ -198,11 +198,12 @@
         <!-- ── Votes tab ──────────────────────────────────────────────────── -->
         @if (activeTab() === 'votes') {
           <div class="tf-workspace__panel tf-workspace__panel--votes">
-            <div class="tf-ws-placeholder">
-              <i class="pi pi-users"></i>
-              <h3>Panel Votes</h3>
-              <p>Interview votes and scoring panel will be integrated in FE-005 (EvaluationScoringPanel).</p>
-            </div>
+            <tf-evaluation-summary
+              [votes]="[]"
+              [weights]="defaultWeights" />
+            <tf-evaluation-scoring-panel
+              [weights]="defaultWeights"
+              [interviewId]="''" />
           </div>
         }
 

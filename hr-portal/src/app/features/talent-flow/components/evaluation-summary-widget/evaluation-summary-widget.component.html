@@ -1,0 +1,102 @@
+<div class="ev-summary">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="ev-summary__head">
+    <i class="pi pi-users"></i>
+    <span class="ev-summary__title">Panel Vote Summary</span>
+    <span class="ev-summary__count">{{ totalVotes() }} vote{{ totalVotes() !== 1 ? 's' : '' }}</span>
+  </div>
+
+  @if (!totalVotes()) {
+    <!-- ── Empty state ──────────────────────────────────────────────────── -->
+    <div class="ev-summary__empty">
+      <i class="pi pi-inbox"></i>
+      <p>No votes submitted yet for this interview.</p>
+    </div>
+  } @else {
+
+    <!-- ── Consensus badge ──────────────────────────────────────────────── -->
+    <div [class]="'ev-summary__consensus ' + consensusClass()">
+      {{ consensusLabel() }}
+    </div>
+
+    <!-- ── Decision tally ──────────────────────────────────────────────── -->
+    <div class="ev-summary__tally">
+      <div class="ev-tally-item ev-tally-item--hire">
+        <span class="ev-tally-item__count">{{ hireCount() }}</span>
+        <span class="ev-tally-item__label">Hire</span>
+      </div>
+      <div class="ev-tally-item ev-tally-item--no-hire">
+        <span class="ev-tally-item__count">{{ noHireCount() }}</span>
+        <span class="ev-tally-item__label">No Hire</span>
+      </div>
+      <div class="ev-tally-item ev-tally-item--veto">
+        <span class="ev-tally-item__count">{{ vetoCount() }}</span>
+        <span class="ev-tally-item__label">Veto</span>
+      </div>
+    </div>
+
+    <!-- ── Avg scores per criterion ─────────────────────────────────────── -->
+    <div class="ev-summary__section-label">Average Criterion Scores</div>
+    <div class="ev-summary__avg-scores">
+
+      <div class="ev-avg-row">
+        <span class="ev-avg-row__label">Technical <span class="ev-avg-row__weight">({{ weights().technical }}%)</span></span>
+        <div class="ev-avg-row__bar">
+          <div class="ev-avg-row__fill" [style.width.%]="barWidth(avgTechnical())"></div>
+        </div>
+        <span class="ev-avg-row__val">{{ avgTechnical() }}/10</span>
+      </div>
+
+      <div class="ev-avg-row">
+        <span class="ev-avg-row__label">Communication <span class="ev-avg-row__weight">({{ weights().communication }}%)</span></span>
+        <div class="ev-avg-row__bar">
+          <div class="ev-avg-row__fill" [style.width.%]="barWidth(avgCommunication())"></div>
+        </div>
+        <span class="ev-avg-row__val">{{ avgCommunication() }}/10</span>
+      </div>
+
+      <div class="ev-avg-row">
+        <span class="ev-avg-row__label">Cultural Fit <span class="ev-avg-row__weight">({{ weights().culturalFit }}%)</span></span>
+        <div class="ev-avg-row__bar">
+          <div class="ev-avg-row__fill" [style.width.%]="barWidth(avgCulturalFit())"></div>
+        </div>
+        <span class="ev-avg-row__val">{{ avgCulturalFit() }}/10</span>
+      </div>
+
+      <div class="ev-avg-row">
+        <span class="ev-avg-row__label">Problem Solving <span class="ev-avg-row__weight">({{ weights().problemSolving }}%)</span></span>
+        <div class="ev-avg-row__bar">
+          <div class="ev-avg-row__fill" [style.width.%]="barWidth(avgProblemSolving())"></div>
+        </div>
+        <span class="ev-avg-row__val">{{ avgProblemSolving() }}/10</span>
+      </div>
+
+    </div>
+
+    <!-- ── Weighted avg total ───────────────────────────────────────────── -->
+    <div class="ev-summary__weighted">
+      <span class="ev-summary__weighted-label">Panel Weighted Average</span>
+      <span class="ev-summary__weighted-value">
+        {{ weightedAvg() }}<span class="ev-summary__weighted-max">/10</span>
+      </span>
+    </div>
+
+    <!-- ── Individual votes ──────────────────────────────────────────────── -->
+    <div class="ev-summary__section-label">Individual Votes</div>
+    <div class="ev-summary__votes">
+      @for (v of votes(); track v.id) {
+        <div class="ev-vote-row">
+          <div class="ev-vote-row__avatar"><i class="pi pi-user"></i></div>
+          <div class="ev-vote-row__info">
+            <span class="ev-vote-row__member">{{ v.panelMemberId }}</span>
+            <span class="ev-vote-row__time">{{ v.submittedAt | date:'d MMM HH:mm' }}</span>
+          </div>
+          <span [class]="decisionChipClass(v.decision)">{{ decisionLabel(v.decision) }}</span>
+        </div>
+      }
+    </div>
+
+  }
+
+</div>
