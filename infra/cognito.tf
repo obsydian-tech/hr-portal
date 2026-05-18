@@ -101,3 +101,24 @@ resource "aws_cognito_user_pool" "naleko_dev" {
     post_authentication = aws_lambda_function.cognito_post_auth.arn
   }
 }
+
+# ---------------------------------------------------------------------------
+# Cognito User Groups — NH-133 Platform Shell
+# Each group gates access to one platform module.
+# AuthService reads cognito:groups from the JWT and derives AuthUser.modules[].
+# No Lambda, no DynamoDB — purely JWT-based access control.
+# ---------------------------------------------------------------------------
+
+resource "aws_cognito_user_group" "onboarding_hr" {
+  name         = "naleko-onboarding-hr"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "HR staff with access to the Onboarding module"
+  precedence   = 10
+}
+
+resource "aws_cognito_user_group" "talentflow_hr" {
+  name         = "naleko-talentflow-hr"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "HR staff with access to the TalentFlow module"
+  precedence   = 20
+}
