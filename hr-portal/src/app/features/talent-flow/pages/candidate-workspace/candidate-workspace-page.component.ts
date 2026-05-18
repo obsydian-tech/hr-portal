@@ -75,34 +75,43 @@ export class CandidateWorkspacePageComponent implements OnInit {
   protected readonly allStages = ALL_STAGES;
 
   /**
-   * The active candidate, resolved from state cache or individual fetch.
-   * Falls back to state.activeCandidate() which is derived from pipeline signal.
+   * Candidate record: prefer pipeline cache (populated when coming from pipeline
+   * page), fall back to direct fetch result (when navigating directly via URL).
    */
+  private readonly _directCandidate = signal<Candidate | undefined>(undefined);
+
   protected readonly candidate = computed<Candidate | undefined>(
-    () => this.state.activeCandidate(),
+    () => this.state.activeCandidate() ?? this._directCandidate(),
   );
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
-      void this.router.navigate(['/talent-flow']);
+      void this.router.navigate(['/platform/talentflow']);
       return;
     }
     this.candidateId.set(id);
 
-    // If candidate already in pipeline cache, just activate it
+    // If candidate already in pipeline cache (e.g. came from pipeline page), use it
     const inCache = this.state.pipeline().find((c) => c.id === id);
     if (inCache) {
       this.state.setActiveCandidate(id);
       return;
     }
 
-    // Otherwise load full pipeline first (ensures state consistency)
+    // Not in cache — fetch directly to avoid race condition with pipeline load
     this.loading.set(true);
-    this.state.loadPipeline();
-    // Then set the active candidate — pipeline signal will propagate
     this.state.setActiveCandidate(id);
-    this.loading.set(false);
+    this.api.getCandidate(id).subscribe({
+      next: (c: Candidate) => {
+        this._directCandidate.set(c);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.fetchError.set('Could not load candidate.');
+        this.loading.set(false);
+      },
+    });
   }
 
   protected setTab(tab: WorkspaceTab): void {
@@ -110,7 +119,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   protected goBack(): void {
-    void this.router.navigate(['/talent-flow/pipeline']);
+    void this.router.navigate(['/platform/talentflow/pipeline']);
   }
 
   protected toggleChat(): void {
@@ -118,7 +127,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   protected goToEvaluate(candidateId: string): void {
-    void this.router.navigate(['/talent-flow/candidates', candidateId, 'evaluate']);
+    void this.router.navigate(['/platform/talentflow/candidates', candidateId, 'evaluate']);
   }
 
   protected toDate(iso: string): Date {
