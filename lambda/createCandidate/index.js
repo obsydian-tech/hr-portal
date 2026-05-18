@@ -154,6 +154,8 @@ exports.handler = async (event) => {
   const sagaRecord = {
     PK: `CANDIDATE#${candidateId}`,
     SK: 'SAGA',
+    GSI1PK: `TENANT#${tenantId}`,
+    GSI1SK: `SAGA#${now}`,
     candidateId,
     tenantId,
     firstName,

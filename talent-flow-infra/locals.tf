@@ -56,6 +56,8 @@ locals {
   tf_lambda_approve_action       = "talentFlowApproveAction"
   tf_lambda_archive_audit        = "talentFlowArchiveAuditLog"
   tf_lambda_rotate_api_key       = "talentFlowRotateApiKey"
+  tf_lambda_get_candidates       = "getCandidates"
+  tf_lambda_get_candidate        = "getCandidate"
 
   # ── KMS key aliases ───────────────────────────────────────────────────────
   tf_kms_alias_state       = "alias/talent-flow/state"

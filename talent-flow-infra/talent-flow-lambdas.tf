@@ -567,3 +567,73 @@ resource "aws_sqs_queue" "archive_audit_log_dlq" {
 
   tags = merge(local.tf_tags, { Ticket = "NH-112" })
 }
+
+# ── 14. getCandidates ─────────────────────────────────────────────────────────
+# Triggered by: API GW GET /v1/candidates (JWT-secured)
+# Lists candidate SAGA records via GSI1 query
+
+resource "aws_lambda_function" "get_candidates" {
+  function_name = local.tf_lambda_get_candidates
+  role          = aws_iam_role.get_candidates.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME = local.tf_table_state
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_get_candidates}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-113" })
+}
+
+# ── 15. getCandidate ──────────────────────────────────────────────────────────
+# Triggered by: API GW GET /v1/candidates/{id} (JWT-secured)
+# Returns a single candidate SAGA record by PK
+
+resource "aws_lambda_function" "get_candidate" {
+  function_name = local.tf_lambda_get_candidate
+  role          = aws_iam_role.get_candidate.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME = local.tf_table_state
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_get_candidate}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-113" })
+}

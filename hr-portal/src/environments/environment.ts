@@ -9,12 +9,10 @@ export const environment = {
     region: 'af-south-1',
   },
   talentFlow: {
-    // TalentFlow Human REST API (Cognito JWT auth)
-    // TODO: Replace with live API Gateway URL after TF-010 (NH-113) endpoint confirmed
-    apiUrl: '',
-    // TalentFlow Agent API (x-api-key auth)
-    // TODO: Replace with live Agent API Gateway URL after TF-010 (NH-113) confirmed
-    agentApiUrl: '',
+    // TalentFlow Human REST API (Cognito JWT auth) — talent-flow-api HTTP API v2
+    apiUrl: 'https://57l0w7kk9h.execute-api.af-south-1.amazonaws.com',
+    // TalentFlow Agent API (x-api-key auth) — talent-flow-agent-api REST API v1
+    agentApiUrl: 'https://16sd07qd9h.execute-api.af-south-1.amazonaws.com/prod',
     // TODO (SECURITY): For production, this key must NOT ship in the JS bundle.
     // Serve from a backend config endpoint or Cognito custom claims before go-live.
     // For MVP1 local/dev use only.

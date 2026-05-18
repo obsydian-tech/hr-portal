@@ -799,6 +799,91 @@ resource "aws_iam_role_policy" "archive_audit_log" {
   })
 }
 
+# ── 14. getCandidates ────────────────────────────────────────────────────────
+# Triggered by: API GW GET /v1/candidates
+# Needs: DynamoDB state table Query (GSI1), Logs, XRay
+
+resource "aws_iam_role" "get_candidates" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_get_candidates}"
+  description        = "Execution role for getCandidates Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-113" })
+}
+
+resource "aws_iam_role_policy" "get_candidates" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_get_candidates}-policy"
+  role = aws_iam_role.get_candidates.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_get_candidates}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "DynamoDBQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/GSI1",
+        ]
+      },
+    ]
+  })
+}
+
+# ── 15. getCandidate ─────────────────────────────────────────────────────────
+# Triggered by: API GW GET /v1/candidates/{id}
+# Needs: DynamoDB state table GetItem, Logs, XRay
+
+resource "aws_iam_role" "get_candidate" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_get_candidate}"
+  description        = "Execution role for getCandidate Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-113" })
+}
+
+resource "aws_iam_role_policy" "get_candidate" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_get_candidate}-policy"
+  role = aws_iam_role.get_candidate.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_get_candidate}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "DynamoDBGetItem"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+    ]
+  })
+}
+
 # ── 13. talentFlowRotateApiKey ────────────────────────────────────────────────
 # Triggered by: EventBridge 90-day cron (defined in talent-flow-ai-chat.tf / TF-012)
 # Needs: Secrets Manager (GetSecretValue+PutSecretValue) for agent API key,
