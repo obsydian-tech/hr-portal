@@ -15,33 +15,19 @@ import { HiringStage } from '../../models/talent-flow.models';
  * PrimeIcons, PrimeFlex, --naleko-* tokens, OnPush.
  */
 
-/** Human-readable labels for HiringStage values */
+/** Human-readable labels for HiringStage values (plan §2.5) */
 export const STAGE_LABELS: Record<HiringStage, string> = {
-  CREATED:                     'Created',
-  INTERVIEW_1_SCHEDULED:       'Interview 1',
-  INTERVIEW_1_COMPLETED:       'Interview 1',
-  EVALUATION_IN_PROGRESS:      'Evaluation',
-  SHORTLISTED:                 'Shortlisted',
-  INTERVIEW_2_SCHEDULED:       'Interview 2',
-  INTERVIEW_2_COMPLETED:       'Interview 2',
-  FINAL_EVALUATION_IN_PROGRESS:'Final Eval',
-  HIRE_APPROVED:               'Approved',
-  OFFER_IN_PROGRESS:           'Offer',
-  OFFER_SENT:                  'Offer Sent',
-  OFFER_ACCEPTED:              'Accepted',
-  OFFER_REJECTED:              'Rejected',
-  OFFER_EXPIRED:               'Expired',
-  REJECTED:                    'Rejected',
-  ONBOARDING_INITIATED:        'Onboarding',
-  COMPLIANCE_IN_PROGRESS:      'Compliance',
-  COMPLIANCE_CLEARED:          'Cleared',
-  COMPLIANCE_FAILED:           'Comp. Failed',
-  PROVISIONING_IN_PROGRESS:    'Provisioning',
-  PROVISIONING_COMPLETE:       'Provisioned',
-  AWAITING_DAY1:               'Awaiting Day 1',
-  ENGAGEMENT_AT_RISK:          'Eng. At Risk',
-  ACTIVE:                      'Active',
-  TERMINATED:                  'Terminated',
+  APPLICATION_REVIEW:  'Application Review',
+  PHONE_SCREENING:     'Phone Screening',
+  TECHNICAL_INTERVIEW: 'Technical Interview',
+  PANEL_INTERVIEW:     'Panel Interview',
+  EVALUATION:          'Evaluation',
+  OFFER_PREPARATION:   'Offer Preparation',
+  OFFER_APPROVAL:      'Offer Approval',
+  OFFER_DELIVERY:      'Offer Delivery',
+  CONTRACT_SIGNING:    'Contract Signing',
+  PRE_BOARDING:        'Pre-Boarding',
+  ONBOARDING:          'Onboarding',
 };
 
 export type StageState = 'completed' | 'current' | 'pending';

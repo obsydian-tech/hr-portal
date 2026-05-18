@@ -1,36 +1,23 @@
 /**
  * TalentFlow Domain Models
- * Source of truth: TALENTFLOW-BRD-v1.md §7 + §8
- * All types derived from BRD — never invent values.
+ * Primary source of truth: docs/TALENT-FLOW-PLAN-REVISED.md
+ * Plan takes precedence over BRD where they differ.
  */
 
-// ─── Hiring Pipeline States (BRD §7.1) ──────────────────────────────────────
+// ─── Hiring Pipeline Stages (TALENT-FLOW-PLAN-REVISED §2.5 + SLA defaults) ──
+// 11 operational stages matching Lambda DynamoDB keys — do NOT use BRD values
 export type HiringStage =
-  | 'CREATED'
-  | 'INTERVIEW_1_SCHEDULED'
-  | 'INTERVIEW_1_COMPLETED'
-  | 'EVALUATION_IN_PROGRESS'
-  | 'SHORTLISTED'
-  | 'INTERVIEW_2_SCHEDULED'
-  | 'INTERVIEW_2_COMPLETED'
-  | 'FINAL_EVALUATION_IN_PROGRESS'
-  | 'HIRE_APPROVED'
-  | 'OFFER_IN_PROGRESS'
-  | 'OFFER_SENT'
-  | 'OFFER_ACCEPTED'
-  | 'OFFER_REJECTED'
-  | 'OFFER_EXPIRED'
-  | 'REJECTED'
-  | 'ONBOARDING_INITIATED'
-  | 'COMPLIANCE_IN_PROGRESS'
-  | 'COMPLIANCE_CLEARED'
-  | 'COMPLIANCE_FAILED'
-  | 'PROVISIONING_IN_PROGRESS'
-  | 'PROVISIONING_COMPLETE'
-  | 'AWAITING_DAY1'
-  | 'ENGAGEMENT_AT_RISK'
-  | 'ACTIVE'
-  | 'TERMINATED';
+  | 'APPLICATION_REVIEW'
+  | 'PHONE_SCREENING'
+  | 'TECHNICAL_INTERVIEW'
+  | 'PANEL_INTERVIEW'
+  | 'EVALUATION'
+  | 'OFFER_PREPARATION'
+  | 'OFFER_APPROVAL'
+  | 'OFFER_DELIVERY'
+  | 'CONTRACT_SIGNING'
+  | 'PRE_BOARDING'
+  | 'ONBOARDING';
 
 // ─── Clearance States (BRD §7.2) ────────────────────────────────────────────
 export type ClearanceState =
@@ -56,12 +43,14 @@ export type EvaluationState = 'DRAFT' | 'SUBMITTED' | 'LATE' | 'MISSING';
 // ─── Position Level ──────────────────────────────────────────────────────────
 export type PositionLevel = 'JUNIOR' | 'MID' | 'SENIOR' | 'DIRECTOR';
 
-// ─── Config Types ────────────────────────────────────────────────────────────
+// ─── Config Types (TALENT-FLOW-PLAN-REVISED §3.1) ───────────────────────────
 export type ConfigType =
   | 'SCORING_WEIGHTS'
   | 'SLA_THRESHOLDS'
-  | 'WORKFLOW_TEMPLATE'
-  | 'NOTIFICATION_TEMPLATES';
+  | 'APPROVAL_RULES'
+  | 'PANEL_CONFIG'
+  | 'EMAIL_TEMPLATES'
+  | 'STAGE_CONFIG';
 
 // ─── Scoring Weights (talent-flow-config, configType SCORING_WEIGHTS) ────────
 export interface ScoringWeights {

@@ -29,16 +29,19 @@ import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.com
  * Reads from TalentFlowStateService.pipeline() signal — zero subscriptions.
  */
 
-/** The 8 primary stages shown as Kanban columns (most common active stages) */
+/** Kanban columns — all 11 plan stages in workflow order (TALENT-FLOW-PLAN-REVISED §2.5) */
 export const KANBAN_STAGES: HiringStage[] = [
-  'CREATED',
-  'INTERVIEW_1_SCHEDULED',
-  'INTERVIEW_1_COMPLETED',
-  'EVALUATION_IN_PROGRESS',
-  'SHORTLISTED',
-  'INTERVIEW_2_SCHEDULED',
-  'OFFER_IN_PROGRESS',
-  'ONBOARDING_INITIATED',
+  'APPLICATION_REVIEW',
+  'PHONE_SCREENING',
+  'TECHNICAL_INTERVIEW',
+  'PANEL_INTERVIEW',
+  'EVALUATION',
+  'OFFER_PREPARATION',
+  'OFFER_APPROVAL',
+  'OFFER_DELIVERY',
+  'CONTRACT_SIGNING',
+  'PRE_BOARDING',
+  'ONBOARDING',
 ];
 
 @Component({
