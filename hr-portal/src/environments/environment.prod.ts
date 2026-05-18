@@ -10,6 +10,7 @@ export const environment = {
   },
   talentFlow: {
     apiUrl: '',
+    tenantId: 'NALEKO',
     agentApiUrl: '',
     agentApiKey: '',
     // TalentFlow Cognito User Pool (TF pool, NOT Naleko pool - Lesson 18)

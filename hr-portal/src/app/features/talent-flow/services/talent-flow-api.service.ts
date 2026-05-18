@@ -72,9 +72,23 @@ export class TalentFlowApiService {
   }
 
   createCandidate(payload: CreateCandidatePayload): Observable<{ candidateId: string }> {
+    // Lambda (createCandidate) requires: idempotencyKey, positionTitle (not role),
+    // positionLevel, tenantId. Map frontend model to Lambda contract here.
+    const body = {
+      idempotencyKey:  crypto.randomUUID(),
+      firstName:       payload.firstName,
+      lastName:        payload.lastName,
+      email:           payload.email,
+      phone:           payload.phone,
+      positionTitle:   payload.role,          // form field 'role' maps to Lambda 'positionTitle'
+      positionLevel:   payload.positionLevel,
+      experienceYears: payload.experienceYears,
+      source:          payload.source,
+      tenantId:        environment.talentFlow.tenantId,
+    };
     return this.authHeaders().pipe(
       switchMap((headers) =>
-        this.http.post<{ candidateId: string }>(`${this.baseUrl}/candidates`, payload, { headers }),
+        this.http.post<{ candidateId: string }>(`${this.baseUrl}/candidates`, body, { headers }),
       ),
       catchError(this.handleError),
     );
