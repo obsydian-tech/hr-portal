@@ -22,6 +22,8 @@ export interface AuthUser {
   employeeId: string;
   role: 'hr_staff' | 'employee';
   groups: string[];
+  /** Platform modules this user can access, derived from cognito:groups. */
+  modules: string[];
 }
 
 export type AuthResult =
@@ -49,6 +51,8 @@ export class AuthService {
   readonly staffId = computed(() => this.currentUser()?.staffId ?? '');
   readonly employeeId = computed(() => this.currentUser()?.employeeId ?? '');
   readonly displayName = computed(() => this.currentUser()?.fullName ?? '');
+  /** Returns true if the current user has access to the given platform module. */
+  readonly hasModule = (module: string) => (this.currentUser()?.modules ?? []).includes(module);
 
   constructor() {
     this.userPool = new CognitoUserPool({
@@ -233,6 +237,7 @@ export class AuthService {
     const payload = session.getIdToken().decodePayload();
     const givenName = payload['given_name'] ?? '';
     const familyName = payload['family_name'] ?? '';
+    const groups: string[] = payload['cognito:groups'] ?? [];
 
     return {
       email: payload['email'] ?? '',
@@ -242,8 +247,25 @@ export class AuthService {
       staffId: payload['custom:staff_id'] ?? '',
       employeeId: payload['custom:employee_id'] ?? '',
       role: payload['custom:role'] ?? 'employee',
-      groups: payload['cognito:groups'] ?? [],
+      groups,
+      modules: AuthService.deriveModules(groups),
     };
+  }
+
+  /**
+   * Derives platform module keys from Cognito group membership.
+   * Add new entries here when a new module group is created in Terraform.
+   */
+  static deriveModules(groups: string[]): string[] {
+    const map: Record<string, string> = {
+      'naleko-onboarding-hr': 'onboarding',
+      'naleko-talentflow-hr': 'talentflow',
+      // Future: 'naleko-it-hr': 'it-requests', 'naleko-employee-self': 'employee-360'
+    };
+    return groups.reduce<string[]>((acc, g) => {
+      if (map[g]) acc.push(map[g]);
+      return acc;
+    }, []);
   }
 
   private mapCognitoError(err: any): string {

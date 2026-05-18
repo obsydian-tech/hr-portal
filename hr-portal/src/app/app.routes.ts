@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { hrGuard, employeeGuard, loginPageGuard } from './core/guards/auth.guard';
+import { hrGuard, employeeGuard, loginPageGuard, authGuard, moduleGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -79,6 +79,36 @@ export const routes: Routes = [
       import('./features/employee-dashboard/employee-dashboard.component').then(
         (m) => m.EmployeeDashboardComponent
       ),
+  },
+  // ── NH-133 Platform Shell ─────────────────────────────────────────────────
+  {
+    path: 'platform',
+    canActivate: [authGuard],
+    children: [
+      {
+        path: 'home',
+        loadComponent: () =>
+          import('./features/platform-home/platform-home.component').then(
+            (m) => m.PlatformHomeComponent
+          ),
+      },
+      {
+        path: 'onboarding',
+        canActivate: [moduleGuard('onboarding')],
+        // TODO NH-134: replace with OnboardingModule lazy route when built
+        redirectTo: '/platform/home',
+      },
+      {
+        path: 'talentflow',
+        canActivate: [moduleGuard('talentflow')],
+        // TODO FE-001: replace with TalentFlowModule lazy route in Epic 4
+        loadComponent: () =>
+          import('./features/platform-home/platform-home.component').then(
+            (m) => m.PlatformHomeComponent
+          ),
+      },
+      { path: '', redirectTo: 'home', pathMatch: 'full' },
+    ],
   },
   { path: '**', redirectTo: '' },
 ];
