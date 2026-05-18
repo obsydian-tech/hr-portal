@@ -1,0 +1,14 @@
+{
+  "name": "talent-flow-audit-stream",
+  "version": "1.0.0",
+  "description": "EventBridge audit stream consumer — writes talent-flow events to DynamoDB indexed by candidateId",
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

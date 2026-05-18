@@ -17,7 +17,7 @@ import { SlaTimerWidgetComponent } from '../../components/sla-timer-widget/sla-t
 import { EvaluationScoringPanelComponent } from '../../components/evaluation-scoring-panel/evaluation-scoring-panel.component';
 import { EvaluationSummaryWidgetComponent } from '../../components/evaluation-summary-widget/evaluation-summary-widget.component';
 import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
-import { Candidate, HiringStage, ScoringWeights, DEFAULT_SCORING_WEIGHTS } from '../../models/talent-flow.models';
+import { Candidate, CandidateEvent, HiringStage, ScoringWeights, DEFAULT_SCORING_WEIGHTS } from '../../models/talent-flow.models';
 
 /**
  * CandidateWorkspacePageComponent — FE-004 / NH-137
@@ -71,6 +71,12 @@ export class CandidateWorkspacePageComponent implements OnInit {
   protected readonly fetchError = signal<string | null>(null);
   protected readonly chatVisible = signal<boolean>(false);
 
+  // FE-006: event timeline
+  protected readonly eventsLoading = signal<boolean>(false);
+  protected readonly eventsError   = signal<string | null>(null);
+  protected readonly events         = signal<CandidateEvent[]>([]);
+  private _eventsLoaded             = false;
+
   /** All stages shown for the stepper */
   protected readonly allStages = ALL_STAGES;
 
@@ -116,6 +122,27 @@ export class CandidateWorkspacePageComponent implements OnInit {
 
   protected setTab(tab: WorkspaceTab): void {
     this.activeTab.set(tab);
+    // FE-006: lazy-load the event timeline on first switch to timeline tab
+    if (tab === 'timeline' && !this._eventsLoaded) {
+      const id = this.candidateId();
+      if (id) this._loadEvents(id);
+    }
+  }
+
+  private _loadEvents(id: string): void {
+    this._eventsLoaded = true;
+    this.eventsLoading.set(true);
+    this.eventsError.set(null);
+    this.api.getCandidateEvents(id, { limit: 100 }).subscribe({
+      next: (res) => {
+        this.events.set(res.events);
+        this.eventsLoading.set(false);
+      },
+      error: () => {
+        this.eventsError.set('Could not load event timeline.');
+        this.eventsLoading.set(false);
+      },
+    });
   }
 
   protected goBack(): void {

@@ -7,6 +7,7 @@ import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/services/auth.service';
 import {
   Candidate,
+  CandidateEventsResponse,
   CreateCandidatePayload,
   ScheduleInterviewPayload,
   VotePayload,
@@ -68,6 +69,26 @@ export class TalentFlowApiService {
     return this.authHeaders().pipe(
       switchMap((headers) =>
         this.http.get<Candidate>(`${this.baseUrl}/candidates/${id}`, { headers }),
+      ),
+      catchError(this.handleError),
+    );
+  }
+
+  /** FE-006: Full event timeline for a candidate from the audit stream table */
+  getCandidateEvents(
+    id: string,
+    opts?: { limit?: number; nextToken?: string; since?: string },
+  ): Observable<CandidateEventsResponse> {
+    let params = new HttpParams();
+    if (opts?.limit)     params = params.set('limit',     String(opts.limit));
+    if (opts?.nextToken) params = params.set('nextToken', opts.nextToken);
+    if (opts?.since)     params = params.set('since',     opts.since);
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<CandidateEventsResponse>(
+          `${this.baseUrl}/candidates/${id}/events`,
+          { headers, params },
+        ),
       ),
       catchError(this.handleError),
     );

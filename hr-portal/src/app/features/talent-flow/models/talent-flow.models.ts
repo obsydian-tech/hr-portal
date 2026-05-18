@@ -68,6 +68,25 @@ export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
   problemSolving: 20,
 };
 
+// ─── Candidate Event (talent-flow-events DynamoDB table) — FE-006 ─────────────
+
+export interface CandidateEvent {
+  eventId:     string;
+  eventType:   string;   // EventBridge detail-type, e.g. 'CandidateCreated'
+  source:      string;   // EventBridge source, e.g. 'talent-flow.candidates'
+  candidateId: string;
+  tenantId:    string;
+  actor:       string;   // 'SYSTEM' | 'HUMAN' | 'AGENT'
+  timestamp:   string;   // ISO-8601
+  detail:      Record<string, unknown>;
+}
+
+export interface CandidateEventsResponse {
+  events:     CandidateEvent[];
+  total:      number;
+  nextToken?: string;
+}
+
 // ─── Core Entities ───────────────────────────────────────────────────────────
 
 export interface Candidate {

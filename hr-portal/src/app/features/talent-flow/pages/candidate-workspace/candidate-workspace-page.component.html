@@ -169,35 +169,82 @@
         <!-- ── Timeline tab ───────────────────────────────────────────────── -->
         @if (activeTab() === 'timeline') {
           <div class="tf-workspace__panel tf-workspace__panel--timeline">
-            <div class="tf-ws-timeline">
-              <div class="tf-ws-timeline__event tf-ws-timeline__event--first">
-                <div class="tf-ws-timeline__dot"></div>
-                <div class="tf-ws-timeline__content">
-                  <div class="tf-ws-timeline__title">Candidate Created</div>
-                  <div class="tf-ws-timeline__time">{{ c.createdAt | date:'d MMM yyyy HH:mm' }}</div>
-                </div>
+
+            @if (eventsLoading()) {
+              <div class="tf-ws-timeline-loader">
+                <i class="pi pi-spin pi-spinner"></i> Loading event timeline…
               </div>
-              <div class="tf-ws-timeline__event">
-                <div class="tf-ws-timeline__dot"></div>
-                <div class="tf-ws-timeline__content">
-                  <div class="tf-ws-timeline__title">Current Stage: {{ c.currentStage | titlecase }}</div>
-                  <div class="tf-ws-timeline__time">Since {{ c.updatedAt | date:'d MMM yyyy HH:mm' }}</div>
-                </div>
+            } @else if (eventsError()) {
+              <div class="tf-ws-timeline-error">
+                <i class="pi pi-exclamation-circle"></i> {{ eventsError() }}
               </div>
-              @if (c.slaBreachedAt) {
-                <div class="tf-ws-timeline__event tf-ws-timeline__event--breach">
-                  <div class="tf-ws-timeline__dot"></div>
+            } @else {
+
+              <div class="tf-ws-timeline">
+
+                <!-- Static seed events (always shown) -->
+                <div class="tf-ws-timeline__event tf-ws-timeline__event--first">
+                  <div class="tf-ws-timeline__dot tf-ws-timeline__dot--system"></div>
                   <div class="tf-ws-timeline__content">
-                    <div class="tf-ws-timeline__title">⚠ SLA Breached</div>
-                    <div class="tf-ws-timeline__time">{{ c.slaBreachedAt | date:'d MMM yyyy HH:mm' }}</div>
+                    <div class="tf-ws-timeline__title">Candidate Created</div>
+                    <div class="tf-ws-timeline__time">{{ c.createdAt | date:'d MMM yyyy HH:mm' }}</div>
+                    <div class="tf-ws-timeline__meta">SYSTEM</div>
                   </div>
                 </div>
+
+                <!-- Dynamic events from FE-006 audit stream -->
+                @for (ev of events(); track ev.eventId) {
+                  <div class="tf-ws-timeline__event"
+                    [class.tf-ws-timeline__event--breach]="ev.eventType === 'SLABreached'"
+                    [class.tf-ws-timeline__event--offer]="ev.eventType === 'OfferGenerated' || ev.eventType === 'OfferApproved'"
+                    [class.tf-ws-timeline__event--vote]="ev.eventType === 'VoteSubmitted'"
+                    [class.tf-ws-timeline__event--stage]="ev.eventType === 'StageAdvanced' || ev.eventType === 'WorkflowStarted'">
+                    <div class="tf-ws-timeline__dot"
+                      [class.tf-ws-timeline__dot--breach]="ev.eventType === 'SLABreached'"
+                      [class.tf-ws-timeline__dot--offer]="ev.eventType === 'OfferGenerated' || ev.eventType === 'OfferApproved'"
+                      [class.tf-ws-timeline__dot--vote]="ev.eventType === 'VoteSubmitted'"
+                      [class.tf-ws-timeline__dot--stage]="ev.eventType === 'StageAdvanced' || ev.eventType === 'WorkflowStarted'">
+                    </div>
+                    <div class="tf-ws-timeline__content">
+                      <div class="tf-ws-timeline__title">{{ ev.eventType | titlecase }}</div>
+                      <div class="tf-ws-timeline__time">{{ ev.timestamp | date:'d MMM yyyy HH:mm' }}</div>
+                      <div class="tf-ws-timeline__meta">{{ ev.actor }}</div>
+                    </div>
+                  </div>
+                }
+
+                <!-- Current stage — always at the bottom -->
+                <div class="tf-ws-timeline__event tf-ws-timeline__event--current">
+                  <div class="tf-ws-timeline__dot tf-ws-timeline__dot--current"></div>
+                  <div class="tf-ws-timeline__content">
+                    <div class="tf-ws-timeline__title">Current Stage: {{ c.currentStage | titlecase }}</div>
+                    <div class="tf-ws-timeline__time">{{ c.updatedAt | date:'d MMM yyyy HH:mm' }}</div>
+                    <div class="tf-ws-timeline__meta">SYSTEM</div>
+                  </div>
+                </div>
+
+                @if (c.slaBreachedAt) {
+                  <div class="tf-ws-timeline__event tf-ws-timeline__event--breach">
+                    <div class="tf-ws-timeline__dot tf-ws-timeline__dot--breach"></div>
+                    <div class="tf-ws-timeline__content">
+                      <div class="tf-ws-timeline__title">⚠ SLA Breached</div>
+                      <div class="tf-ws-timeline__time">{{ c.slaBreachedAt | date:'d MMM yyyy HH:mm' }}</div>
+                      <div class="tf-ws-timeline__meta">MONITOR</div>
+                    </div>
+                  </div>
+                }
+
+              </div>
+
+              @if (events().length === 0) {
+                <p class="tf-ws-empty-hint tf-ws-empty-hint--center">
+                  <i class="pi pi-history"></i>
+                  No domain events recorded yet. Events will appear here as the workflow progresses.
+                </p>
               }
-            </div>
-            <p class="tf-ws-empty-hint tf-ws-empty-hint--center">
-              <i class="pi pi-info-circle"></i>
-              Full event timeline available after EventBridge audit stream integration (FE-006).
-            </p>
+
+            }
+
           </div>
         }
 

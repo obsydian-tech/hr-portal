@@ -390,6 +390,38 @@
   margin-top: 0.15rem;
 }
 
+.tf-ws-timeline__meta {
+  font-size: 0.7rem;
+  color: var(--naleko-on-surface-variant);
+  opacity: 0.6;
+  margin-top: 0.1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+// Dot colour variants
+.tf-ws-timeline__dot--system  { background: var(--naleko-on-surface-variant); box-shadow: none; }
+.tf-ws-timeline__dot--current { background: var(--naleko-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-primary) 20%, transparent); }
+.tf-ws-timeline__dot--breach  { background: var(--naleko-error); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-error) 20%, transparent); }
+.tf-ws-timeline__dot--offer   { background: #22c55e; box-shadow: 0 0 0 3px color-mix(in srgb, #22c55e 20%, transparent); }
+.tf-ws-timeline__dot--vote    { background: #f59e0b; box-shadow: 0 0 0 3px color-mix(in srgb, #f59e0b 20%, transparent); }
+.tf-ws-timeline__dot--stage   { background: var(--naleko-secondary); }
+
+// Timeline loading / error states
+.tf-ws-timeline-loader,
+.tf-ws-timeline-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 0;
+  font-size: 0.875rem;
+  color: var(--naleko-on-surface-variant);
+}
+
+.tf-ws-timeline-error {
+  color: var(--naleko-error);
+}
+
 // ── Placeholder ───────────────────────────────────────────────────────────────
 .tf-ws-placeholder {
   display: flex;
