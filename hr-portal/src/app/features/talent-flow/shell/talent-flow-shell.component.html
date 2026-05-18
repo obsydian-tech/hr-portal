@@ -1,9 +1,10 @@
 <app-sidebar
-  [navItems]="navItems"
-  activeRoute="/talent-flow"
+  [navItems]="navItems()"
+  activeRoute="/platform/talentflow"
   actionLabel="New Candidate"
   actionIcon="pi-plus"
   [(isOpen)]="sidebarOpen"
+  (actionClicked)="onNewCandidate()"
   (logoutClicked)="onLogout()"
 />
 

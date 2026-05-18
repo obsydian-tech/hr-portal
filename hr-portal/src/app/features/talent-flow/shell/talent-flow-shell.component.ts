@@ -3,11 +3,12 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
+  computed,
 } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { SidebarComponent, NavItem } from '../../../shared/components/sidebar/sidebar.component';
 import { TopbarComponent } from '../../../shared/components/topbar/topbar.component';
-import { TalentFlowAuthService } from '../services/talent-flow-auth.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { TalentFlowStateService } from '../services/talent-flow-state.service';
 
 /**
@@ -27,20 +28,24 @@ import { TalentFlowStateService } from '../services/talent-flow-state.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TalentFlowShellComponent {
-  private readonly auth = inject(TalentFlowAuthService);
+  private readonly auth = inject(AuthService);
   protected readonly state = inject(TalentFlowStateService);
   private readonly router = inject(Router);
 
   protected readonly sidebarOpen = signal(true);
 
-  protected readonly navItems: NavItem[] = [
-    { label: 'Dashboard', icon: 'pi pi-th-large',  route: '/platform/talentflow',          disabled: false },
-    { label: 'Pipeline',  icon: 'pi pi-briefcase', route: '/platform/talentflow/pipeline', disabled: false },
-    { label: 'Config',    icon: 'pi pi-cog',        route: '/platform/talentflow/config',   disabled: true  },
-  ];
+  protected readonly navItems = computed<NavItem[]>(() => [
+    { label: 'Dashboard', icon: 'pi pi-th-large',  route: '/platform/talentflow',                 disabled: false },
+    { label: 'Pipeline',  icon: 'pi pi-briefcase', route: '/platform/talentflow/pipeline',        disabled: false },
+    { label: 'Config',    icon: 'pi pi-cog',        route: '/platform/talentflow/config/scoring', disabled: false },
+  ]);
 
   protected toggleSidebar(): void {
     this.sidebarOpen.update((v) => !v);
+  }
+
+  protected onNewCandidate(): void {
+    void this.router.navigate(['/platform/talentflow/candidates/new']);
   }
 
   protected onLogout(): void {

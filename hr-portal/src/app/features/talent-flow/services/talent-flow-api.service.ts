@@ -2,10 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, catchError, from, switchMap, throwError } from 'rxjs';
 import { environment } from '../../../../environments/environment';
-// NOTE: TalentFlowAuthService - NOT Naleko AuthService (Lesson 18).
-// The TF API Gateway authorizer validates against the TF Cognito pool.
-// A Naleko pool JWT will be rejected with 401. Never swap these.
-import { TalentFlowAuthService } from './talent-flow-auth.service';
+// Pool consolidation (Epic 5): TF API Gateway authorizer now validates against
+// the Naleko pool. Naleko AuthService token is used for all TF API calls.
+import { AuthService } from '../../../core/services/auth.service';
 import {
   Candidate,
   CreateCandidatePayload,
@@ -25,7 +24,7 @@ export interface PipelineResponse {
 @Injectable({ providedIn: 'root' })
 export class TalentFlowApiService {
   private readonly http = inject(HttpClient);
-  private readonly authService = inject(TalentFlowAuthService);
+  private readonly authService = inject(AuthService);
 
   private get baseUrl(): string {
     return environment.talentFlow.apiUrl;
