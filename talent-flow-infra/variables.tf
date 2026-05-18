@@ -16,11 +16,6 @@ variable "environment" {
   description = "Deployment environment label applied to all resource tags."
   type        = string
   default     = "prod"
-
-  validation {
-    condition     = contains(["prod", "staging", "dev"], var.environment)
-    error_message = "environment must be one of: prod, staging, dev."
-  }
 }
 
 variable "project" {

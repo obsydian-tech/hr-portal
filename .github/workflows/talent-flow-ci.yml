@@ -155,25 +155,25 @@ jobs:
         run: |
           terraform init -input=false
         env:
-          TF_VAR_environment: production
+          TF_VAR_environment: prod
           TF_VAR_aws_account_id: "937137806477"
 
       - name: Terraform plan
         id: plan
         run: |
           terraform plan \
-            -var="environment=production" \
+            -var="environment=prod" \
             -var="aws_account_id=937137806477" \
             -out=tfplan \
             -input=false
         env:
-          TF_VAR_environment: production
+          TF_VAR_environment: prod
           TF_VAR_aws_account_id: "937137806477"
 
       - name: Terraform apply
         run: terraform apply -auto-approve tfplan
         env:
-          TF_VAR_environment: production
+          TF_VAR_environment: prod
           TF_VAR_aws_account_id: "937137806477"
 
   # ---------------------------------------------------------------------------
