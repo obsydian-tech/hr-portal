@@ -311,7 +311,7 @@ resource "aws_apigatewayv2_integration" "get_candidate_events" {
 
 resource "aws_apigatewayv2_route" "get_candidate_events" {
   api_id             = data.aws_apigatewayv2_api.talent_flow_api.id
-  route_key          = "GET /candidates/{id}/events"
+  route_key          = "GET /v1/candidates/{id}/events"
   target             = "integrations/${aws_apigatewayv2_integration.get_candidate_events.id}"
   # Re-use the existing JWT authorizer already protecting /candidates/* routes
   authorization_type = "JWT"
@@ -323,7 +323,7 @@ resource "aws_lambda_permission" "get_candidate_events_apigw" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.get_candidate_events.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/candidates/*/events"
+  source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/candidates/*/events"
 }
 
 # ─── Outputs ──────────────────────────────────────────────────────────────────
