@@ -1,18 +1,16 @@
 # ---------------------------------------------------------------------------
-# CI/CD — TalentFlow MVP1
+# CI — TalentFlow MVP1
 #
 # Runs on every PR and every push to main.
 #
 # Jobs:
 #   1. frontend          — Node 20, ng build (prod), unit tests
 #   2. validate-terraform — tf fmt -check + tf validate on talent-flow-infra/
-#   3. deploy-terraform   — tf init → plan → apply (main branch only, manual gate)
-#   4. e2e               — Playwright, ChromeHeadless (if E2E_ENABLED == 'true')
+#   3. e2e               — Playwright, ChromeHeadless (if E2E_ENABLED == 'true')
 #
-# Auth: GitHub OIDC (no long-lived AWS keys).
-# Note: Lambda code deployment (aws lambda update-function-code) is a separate
-#       post-apply step, not managed by Terraform. Lambdas use placeholder.zip
-#       with lifecycle ignore_changes — CI/CD deploys real code independently.
+# Gate-only: no terraform plan or apply in CI. All infra changes are applied
+# manually via `terraform apply` from a dev machine. This matches the Naleko
+# CI pattern and avoids maintaining an ever-growing deploy-role permission list.
 # ---------------------------------------------------------------------------
 
 name: TalentFlow CI/CD
@@ -114,78 +112,14 @@ jobs:
         run: terraform validate
 
   # ---------------------------------------------------------------------------
-  # Job 3 — Terraform deploy (main branch only)
-  #
-  # Uses GitHub OIDC to assume talent-flow-role-github-deploy.
-  # Protected by GitHub environment "production" — requires manual approval
-  # from a repository admin before the job runs.
-  # ---------------------------------------------------------------------------
-  deploy-terraform:
-    name: Terraform — deploy to production
-    runs-on: ubuntu-latest
-    needs: [validate-terraform]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
-    defaults:
-      run:
-        working-directory: ${{ env.WORKING_DIR_TF }}
-
-    permissions:
-      id-token: write   # required for OIDC token request
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::937137806477:role/talent-flow-role-github-deploy
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: TalentFlowGitHubDeploy
-
-      - name: Set up Terraform ${{ env.TF_VERSION }}
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Terraform init
-        run: |
-          terraform init -input=false
-        env:
-          TF_VAR_environment: prod
-          TF_VAR_aws_account_id: "937137806477"
-
-      - name: Terraform plan
-        id: plan
-        run: |
-          terraform plan \
-            -var="environment=prod" \
-            -var="aws_account_id=937137806477" \
-            -out=tfplan \
-            -input=false
-        env:
-          TF_VAR_environment: prod
-          TF_VAR_aws_account_id: "937137806477"
-
-      - name: Terraform apply
-        run: terraform apply -auto-approve tfplan
-        env:
-          TF_VAR_environment: prod
-          TF_VAR_aws_account_id: "937137806477"
-
-  # ---------------------------------------------------------------------------
-  # Job 4 — Playwright E2E tests
+  # Job 3 — Playwright E2E tests
   # Runs only when vars.E2E_ENABLED == 'true'.
-  # Needs both frontend (dist artifact) and a successful deploy to have endpoints.
   # ---------------------------------------------------------------------------
   e2e:
     name: E2E — Playwright journeys
     runs-on: ubuntu-latest
     if: vars.E2E_ENABLED == 'true'
-    needs: [frontend, deploy-terraform]
+    needs: [frontend]
 
     defaults:
       run:
