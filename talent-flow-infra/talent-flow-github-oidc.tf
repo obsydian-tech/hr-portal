@@ -165,6 +165,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
           "lambda:GetEventSourceMapping", "lambda:UpdateEventSourceMapping",
           "lambda:TagResource", "lambda:UntagResource", "lambda:ListTags",
           "lambda:PutFunctionEventInvokeConfig",
+          "lambda:GetFunctionCodeSigningConfig",
         ]
         Resource = [
           "arn:aws:lambda:af-south-1:937137806477:function:talentFlow*",
@@ -203,7 +204,7 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
         Action = [
           "s3:CreateBucket", "s3:DeleteBucket", "s3:GetBucketPolicy",
           "s3:PutBucketPolicy", "s3:GetBucketVersioning", "s3:PutBucketVersioning",
-          "s3:GetBucketEncryption", "s3:PutBucketEncryption",
+          "s3:GetEncryptionConfiguration", "s3:PutEncryptionConfiguration",
           "s3:GetLifecycleConfiguration", "s3:PutLifecycleConfiguration",
           "s3:GetBucketPublicAccessBlock", "s3:PutBucketPublicAccessBlock",
           "s3:GetBucketTagging", "s3:PutBucketTagging",
@@ -276,9 +277,20 @@ resource "aws_iam_role_policy" "talent_flow_github_deploy" {
           "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret",
           "secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue",
           "secretsmanager:PutSecretValue", "secretsmanager:TagResource",
-          "secretsmanager:RestoreSecret",
+          "secretsmanager:RestoreSecret", "secretsmanager:GetResourcePolicy",
+          "secretsmanager:PutResourcePolicy", "secretsmanager:DeleteResourcePolicy",
         ]
         Resource = "arn:aws:secretsmanager:af-south-1:937137806477:secret:talent-flow/*"
+      },
+      {
+        # SSM - read Naleko shared parameters used as Lambda env var data sources
+        Sid    = "SSMReadNaleko"
+        Effect = "Allow"
+        Action = ["ssm:GetParameter", "ssm:GetParameters"]
+        Resource = [
+          "arn:aws:ssm:af-south-1:937137806477:parameter/naleko/*",
+          "arn:aws:ssm:af-south-1:937137806477:parameter/talent-flow/*",
+        ]
       },
       {
         # CloudWatch Logs - manage talent-flow log groups
