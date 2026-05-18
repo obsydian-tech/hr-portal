@@ -53,8 +53,10 @@ function respond(statusCode, body) {
 
 function isAdmin(event) {
   const claims = event?.requestContext?.authorizer?.jwt?.claims ?? {};
-  // Cognito JWT authorizer passes claim values as strings
-  return claims['custom:isAdmin'] === 'true';
+  // Pool consolidation (Epic 5): check naleko-talentflow-admin group in Naleko pool JWT.
+  // HTTP API v2 JWT authorizer passes cognito:groups as a comma-separated string.
+  const groups = (claims['cognito:groups'] ?? '').split(',').map(g => g.trim());
+  return groups.includes('naleko-talentflow-admin');
 }
 
 /**

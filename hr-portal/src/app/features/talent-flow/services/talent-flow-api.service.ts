@@ -116,21 +116,23 @@ export class TalentFlowApiService {
   // Config
 
   getConfig(configType: ConfigType, version?: string): Observable<ConfigResponse> {
-    let params = new HttpParams();
+    // Lambda expects: GET /v1/config?configType=X&active=true
+    let params = new HttpParams().set('configType', configType).set('active', 'true');
     if (version) params = params.set('version', version);
 
     return this.authHeaders().pipe(
       switchMap((headers) =>
-        this.http.get<ConfigResponse>(`${this.baseUrl}/config/${configType}`, { headers, params }),
+        this.http.get<ConfigResponse>(`${this.baseUrl}/config`, { headers, params }),
       ),
       catchError(this.handleError),
     );
   }
 
   updateConfig(configType: ConfigType, data: unknown): Observable<ConfigResponse> {
+    // Lambda expects: PUT /v1/config with { configType, data } in body
     return this.authHeaders().pipe(
       switchMap((headers) =>
-        this.http.put<ConfigResponse>(`${this.baseUrl}/config/${configType}`, data, { headers }),
+        this.http.put<ConfigResponse>(`${this.baseUrl}/config`, { configType, data }, { headers }),
       ),
       catchError(this.handleError),
     );

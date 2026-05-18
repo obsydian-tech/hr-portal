@@ -10,7 +10,7 @@ export const environment = {
   },
   talentFlow: {
     // TalentFlow Human REST API (Cognito JWT auth) — talent-flow-api HTTP API v2
-    apiUrl: 'https://57l0w7kk9h.execute-api.af-south-1.amazonaws.com',
+    apiUrl: 'https://57l0w7kk9h.execute-api.af-south-1.amazonaws.com/v1',
     // TalentFlow Agent API (x-api-key auth) — talent-flow-agent-api REST API v1
     agentApiUrl: 'https://16sd07qd9h.execute-api.af-south-1.amazonaws.com/prod',
     // TODO (SECURITY): For production, this key must NOT ship in the JS bundle.
