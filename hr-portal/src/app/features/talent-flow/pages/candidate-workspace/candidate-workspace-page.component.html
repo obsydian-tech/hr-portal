@@ -8,6 +8,12 @@
       label="Back to Pipeline"
       (click)="goBack()">
     </button>
+    <button pButton
+      class="p-button-outlined p-button-sm tf-workspace__ai-btn"
+      icon="pi pi-sparkles"
+      label="Ask AI"
+      (click)="toggleChat()">
+    </button>
   </div>
 
   <!-- ── Loading ─────────────────────────────────────────────────────────── -->
@@ -210,6 +216,15 @@
       </main>
 
     </div>
+  }
+
+  <!-- ── AI Chat Panel ──────────────────────────────────────────────────────── -->
+  @if (candidate(); as c) {
+    <tf-ai-chat-panel
+      [candidateId]="c.id"
+      [candidate]="c"
+      [visible]="chatVisible()"
+      (closePanel)="chatVisible.set(false)" />
   }
 
 </section>

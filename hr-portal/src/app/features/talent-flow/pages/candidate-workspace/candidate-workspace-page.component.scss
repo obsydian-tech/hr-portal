@@ -17,6 +17,16 @@
 .tf-workspace__nav {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+}
+
+.tf-workspace__ai-btn {
+  border-color: var(--naleko-secondary) !important;
+  color: var(--naleko-secondary) !important;
+
+  &:hover {
+    background: var(--naleko-secondary-fixed) !important;
+  }
 }
 
 // ── Loading ───────────────────────────────────────────────────────────────────

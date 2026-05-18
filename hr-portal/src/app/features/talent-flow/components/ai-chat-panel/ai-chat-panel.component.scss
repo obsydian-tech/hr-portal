@@ -1,0 +1,387 @@
+/**
+ * AiChatPanel styles — FE-006
+ * Design source: naleko-design-handoff/preview/23-chat-bubble.html
+ * All colours via --naleko-* tokens — no hardcoded hex.
+ */
+
+// ── PrimeNG Sidebar override ──────────────────────────────────────────────────
+:host ::ng-deep .ai-chat-sidebar {
+  width: 420px !important;
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+
+  .p-sidebar-header {
+    padding: 0;
+    background: linear-gradient(135deg, var(--naleko-primary), var(--naleko-secondary));
+  }
+
+  .p-sidebar-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 0;
+    overflow: hidden;
+    background: var(--naleko-surface);
+  }
+
+  // Hide default close button — we render our own in header template
+  .p-sidebar-close {
+    display: none;
+  }
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.ch-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  color: #fff;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  &__title {
+    font-family: var(--naleko-font-display, 'Nunito', sans-serif);
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  &__status {
+    font-size: 10px;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--naleko-tertiary-fixed-dim); // teal #7ad4e4
+  }
+
+  &__close {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.15s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+// ── Chat body (scrollable message thread) ─────────────────────────────────────
+.ch-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--naleko-surface);
+  min-height: 0;
+}
+
+// ── Welcome state ─────────────────────────────────────────────────────────────
+.ch-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 16px;
+  text-align: center;
+
+  &__bubble {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--naleko-primary), var(--naleko-secondary));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 4px 16px rgba(26, 26, 46, 0.3);
+    position: relative;
+
+    // AI glow dot
+    &::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--naleko-tertiary-fixed-dim);
+      border: 2px solid #fff;
+    }
+  }
+
+  &__text {
+    font-size: 13px;
+    color: var(--naleko-on-surface-variant);
+    line-height: 1.55;
+    margin: 0;
+  }
+}
+
+// ── Message wrapper ───────────────────────────────────────────────────────────
+.ch-msg-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+
+  &--user {
+    flex-direction: row-reverse;
+  }
+}
+
+.ch-msg {
+  &__avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--naleko-primary), var(--naleko-secondary));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  &__time {
+    font-size: 10px;
+    color: inherit;
+    opacity: 0.5;
+    margin-top: 4px;
+    display: block;
+  }
+}
+
+// ── Message bubbles (from 23-chat-bubble.html) ────────────────────────────────
+.msg {
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 80%;
+  border-radius: 14px;
+  white-space: pre-wrap;
+
+  &.ai {
+    background: var(--naleko-surface-container-lowest);
+    border: 1px solid var(--naleko-surface-container-high);
+    color: var(--naleko-on-surface);
+    border-radius: 14px 14px 14px 4px;
+  }
+
+  &.user {
+    background: linear-gradient(135deg, var(--naleko-secondary), var(--naleko-primary));
+    color: #fff;
+    border-radius: 14px 14px 4px 14px;
+    margin-left: auto;
+  }
+}
+
+// ── Typing indicator ──────────────────────────────────────────────────────────
+.ch-typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px;
+  min-width: 52px;
+
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--naleko-secondary);
+    opacity: 0.4;
+    animation: ch-bounce 1.2s infinite;
+
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.4s; }
+  }
+}
+
+@keyframes ch-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%            { transform: translateY(-5px); opacity: 1; }
+}
+
+// ── HITL approval banner ──────────────────────────────────────────────────────
+.ch-hitl {
+  margin-top: 10px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--naleko-primary-fixed); // #e3dfff subtle indigo
+  border: 1px solid var(--naleko-secondary-container);
+  font-size: 12px;
+
+  &__badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 700;
+    color: var(--naleko-primary-deep);
+    margin-bottom: 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+
+    .pi { font-size: 12px; }
+  }
+
+  &__desc {
+    margin: 0 0 8px;
+    color: var(--naleko-on-surface);
+    line-height: 1.4;
+  }
+
+  &__params {
+    background: var(--naleko-surface-container-low);
+    border: 1px solid var(--naleko-surface-container-high);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 11px;
+    overflow-x: auto;
+    margin: 0 0 10px;
+    color: var(--naleko-on-surface-variant);
+    font-family: 'Courier New', monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  &--approved {
+    background: #e8f5e9;
+    border-color: #a5d6a7;
+    color: #1b5e20;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+  }
+
+  &--rejected {
+    background: #fce4ec;
+    border-color: #f48fb1;
+    color: #880e4f;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+  }
+}
+
+// ── Intent chips (scrollable row) ─────────────────────────────────────────────
+.ch-chips {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px;
+  background: var(--naleko-surface-container-lowest);
+  border-top: 1px solid var(--naleko-surface-container-high);
+  overflow-x: auto;
+  flex-shrink: 0;
+
+  // Hide scrollbar but keep scrollable
+  &::-webkit-scrollbar { height: 0; }
+  scrollbar-width: none;
+}
+
+.chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--naleko-surface-container-high);
+  background: var(--naleko-surface-container-lowest);
+  color: var(--naleko-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--naleko-secondary-fixed);
+    border-color: var(--naleko-secondary-container);
+  }
+
+  &--hitl {
+    border-color: var(--naleko-secondary-container);
+    color: var(--naleko-primary-deep);
+  }
+
+  &__hitl-icon {
+    font-size: 10px;
+    opacity: 0.7;
+  }
+
+  .pi:first-child {
+    font-size: 11px;
+  }
+}
+
+// ── Input bar ─────────────────────────────────────────────────────────────────
+.ch-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--naleko-surface-container-lowest);
+  border-top: 1px solid var(--naleko-surface-container-high);
+  flex-shrink: 0;
+
+  &__field {
+    flex: 1;
+    font-size: 13px;
+    border-radius: 9999px;
+    padding: 8px 14px;
+  }
+
+  &__send {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    background: linear-gradient(135deg, var(--naleko-primary), var(--naleko-secondary)) !important;
+    border: none !important;
+    flex-shrink: 0;
+  }
+}

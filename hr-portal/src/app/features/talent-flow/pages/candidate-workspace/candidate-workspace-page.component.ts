@@ -16,6 +16,7 @@ import { StageSelectorComponent, STAGE_LABELS } from '../../components/stage-sel
 import { SlaTimerWidgetComponent } from '../../components/sla-timer-widget/sla-timer-widget.component';
 import { EvaluationScoringPanelComponent } from '../../components/evaluation-scoring-panel/evaluation-scoring-panel.component';
 import { EvaluationSummaryWidgetComponent } from '../../components/evaluation-summary-widget/evaluation-summary-widget.component';
+import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
 import { Candidate, HiringStage, ScoringWeights, DEFAULT_SCORING_WEIGHTS } from '../../models/talent-flow.models';
 
 /**
@@ -50,6 +51,7 @@ export const ALL_STAGES: HiringStage[] = Object.keys(STAGE_LABELS) as HiringStag
     SlaTimerWidgetComponent,
     EvaluationScoringPanelComponent,
     EvaluationSummaryWidgetComponent,
+    AiChatPanelComponent,
   ],
   templateUrl: './candidate-workspace-page.component.html',
   styleUrl: './candidate-workspace-page.component.scss',
@@ -67,6 +69,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
   protected readonly candidateId = signal<string | null>(null);
   protected readonly loading = signal<boolean>(false);
   protected readonly fetchError = signal<string | null>(null);
+  protected readonly chatVisible = signal<boolean>(false);
 
   /** All stages shown for the stepper */
   protected readonly allStages = ALL_STAGES;
@@ -108,6 +111,10 @@ export class CandidateWorkspacePageComponent implements OnInit {
 
   protected goBack(): void {
     void this.router.navigate(['/talent-flow/pipeline']);
+  }
+
+  protected toggleChat(): void {
+    this.chatVisible.update((v) => !v);
   }
 
   protected toDate(iso: string): Date {
