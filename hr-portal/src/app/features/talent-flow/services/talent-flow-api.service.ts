@@ -46,7 +46,9 @@ export class TalentFlowApiService {
   // Candidates
 
   getCandidates(filters?: PipelineFilters): Observable<PipelineResponse> {
-    let params = new HttpParams();
+    // Always pass tenantId — Lambda derives tenant scope from this query param
+    // (custom:tenantId JWT claim was TF-pool-only; no longer reliable post pool consolidation)
+    let params = new HttpParams().set('tenantId', environment.talentFlow.tenantId);
     if (filters?.stage) params = params.set('stage', filters.stage);
     if (filters?.positionLevel) params = params.set('positionLevel', filters.positionLevel);
     if (filters?.slaStatus) params = params.set('slaStatus', filters.slaStatus);
