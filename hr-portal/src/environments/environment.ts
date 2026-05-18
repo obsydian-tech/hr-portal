@@ -19,5 +19,11 @@ export const environment = {
     // Serve from a backend config endpoint or Cognito custom claims before go-live.
     // For MVP1 local/dev use only.
     agentApiKey: '',
+    // TalentFlow Cognito User Pool (TF pool, NOT Naleko pool - Lesson 18)
+    cognitoConfig: {
+      userPoolId: 'af-south-1_C8TTlQxY7',
+      clientId: '74644m5eck56vvq4fp7nfm8dht',
+      region: 'af-south-1',
+    },
   },
 };
