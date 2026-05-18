@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { TalentFlowAgentApiService } from '../../services/talent-flow-agent-api.service';
@@ -136,7 +136,7 @@ export interface ChatMessage {
   imports: [
     CommonModule,
     FormsModule,
-    SidebarModule,
+    DrawerModule,
     ButtonModule,
     InputTextModule,
   ],

@@ -5,11 +5,13 @@
      - .chip: intent template chips
 -->
 
-<p-sidebar
+<p-drawer
   [visible]="visible()"
-  (onHide)="close()"
+  (visibleChange)="$event ? null : close()"
   position="right"
-  styleClass="ai-chat-sidebar">
+  styleClass="ai-chat-sidebar"
+  [modal]="true"
+  [closeOnEscape]="true">
 
   <!-- ── Header ─────────────────────────────────────────────────────────── -->
   <ng-template pTemplate="header">
@@ -167,4 +169,4 @@
     </button>
   </div>
 
-</p-sidebar>
+</p-drawer>
