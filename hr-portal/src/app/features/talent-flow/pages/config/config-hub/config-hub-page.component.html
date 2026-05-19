@@ -14,14 +14,15 @@
   <p-accordion [multiple]="true" styleClass="tf-config-hub__accordion">
 
     <!-- ── Scoring Weights ────────────────────────────────────────────────── -->
-    <p-accordionTab>
-      <ng-template pTemplate="header">
+    <p-accordion-panel value="0">
+      <p-accordion-header>
         <span class="tf-config-hub__tab-header">
           <i class="pi pi-chart-bar"></i>
           Scoring Weights
           <span class="tf-config-hub__tab-version">v{{ swVersion() }}</span>
         </span>
-      </ng-template>
+      </p-accordion-header>
+      <p-accordion-content>
 
       @if (swLoading()) {
         <div class="tf-config-hub__loading">
@@ -76,17 +77,19 @@
           </button>
         </div>
       }
-    </p-accordionTab>
+      </p-accordion-content>
+    </p-accordion-panel>
 
     <!-- ── SLA Thresholds ─────────────────────────────────────────────────── -->
-    <p-accordionTab>
-      <ng-template pTemplate="header">
+    <p-accordion-panel value="1">
+      <p-accordion-header>
         <span class="tf-config-hub__tab-header">
           <i class="pi pi-clock"></i>
           SLA Thresholds
           <span class="tf-config-hub__tab-version">v{{ slaVersion() }}</span>
         </span>
-      </ng-template>
+      </p-accordion-header>
+      <p-accordion-content>
 
       @if (slaLoading()) {
         <div class="tf-config-hub__loading">
@@ -130,17 +133,19 @@
           </button>
         </div>
       }
-    </p-accordionTab>
+      </p-accordion-content>
+    </p-accordion-panel>
 
     <!-- ── Panel Rules ────────────────────────────────────────────────────── -->
-    <p-accordionTab>
-      <ng-template pTemplate="header">
+    <p-accordion-panel value="2">
+      <p-accordion-header>
         <span class="tf-config-hub__tab-header">
           <i class="pi pi-users"></i>
           Panel Rules
           <span class="tf-config-hub__tab-version">v{{ panelVersion() }}</span>
         </span>
-      </ng-template>
+      </p-accordion-header>
+      <p-accordion-content>
 
       @if (panelLoading()) {
         <div class="tf-config-hub__loading">
@@ -202,17 +207,19 @@
           </button>
         </div>
       }
-    </p-accordionTab>
+      </p-accordion-content>
+    </p-accordion-panel>
 
     <!-- ── Approval Rules (V4) ──────────────────────────────────────────────── -->
-    <p-accordionTab>
-      <ng-template pTemplate="header">
+    <p-accordion-panel value="3">
+      <p-accordion-header>
         <span class="tf-config-hub__tab-header">
           <i class="pi pi-check-square"></i>
           Approval Rules
           <span class="tf-config-hub__tab-version">v{{ arVersion() }}</span>
         </span>
-      </ng-template>
+      </p-accordion-header>
+      <p-accordion-content>
 
       @if (arLoading()) {
         <div class="tf-config-hub__loading">
@@ -287,17 +294,19 @@
           </button>
         </div>
       }
-    </p-accordionTab>
+      </p-accordion-content>
+    </p-accordion-panel>
 
     <!-- ── Stage Config (V6) ────────────────────────────────────────────────── -->
-    <p-accordionTab>
-      <ng-template pTemplate="header">
+    <p-accordion-panel value="4">
+      <p-accordion-header>
         <span class="tf-config-hub__tab-header">
           <i class="pi pi-list"></i>
           Stage Enablement
           <span class="tf-config-hub__tab-version">v{{ scVersion() }}</span>
         </span>
-      </ng-template>
+      </p-accordion-header>
+      <p-accordion-content>
 
       @if (scLoading()) {
         <div class="tf-config-hub__loading">
@@ -344,7 +353,8 @@
           </button>
         </div>
       }
-    </p-accordionTab>
+      </p-accordion-content>
+    </p-accordion-panel>
 
   </p-accordion>
 

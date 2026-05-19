@@ -13,12 +13,9 @@ export const environment = {
     apiUrl: 'https://57l0w7kk9h.execute-api.af-south-1.amazonaws.com/v1',
     // Single-tenant MVP. Replace with a per-user claim or config endpoint before multi-tenant go-live.
     tenantId: 'NALEKO',
-    // TalentFlow Agent API (x-api-key auth) — talent-flow-agent-api REST API v1
-    agentApiUrl: 'https://16sd07qd9h.execute-api.af-south-1.amazonaws.com/prod',
-    // TODO (SECURITY): For production, this key must NOT ship in the JS bundle.
-    // Serve from a backend config endpoint or Cognito custom claims before go-live.
-    // For MVP1 local/dev use only.
-    agentApiKey: '',
+    // TalentFlow Agent API (Cognito JWT auth) — naleko-agent-api HTTP API v2 (fou21cj8tj)
+    agentApiUrl: 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com',
+    agentApiKey: '', // unused — JWT Bearer auth via AuthService.getIdToken()
     // TalentFlow Cognito User Pool (TF pool, NOT Naleko pool - Lesson 18)
     cognitoConfig: {
       userPoolId: 'af-south-1_C8TTlQxY7',
