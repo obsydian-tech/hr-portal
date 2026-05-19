@@ -66,6 +66,26 @@ resource "aws_dynamodb_table" "talent_flow_events" {
     type = "S"
   }
 
+  # GSI1: tenant-scoped event timeline (matches talent-flow-state convention)
+  # GSI1PK = TENANT#<tenantId>  /  GSI1SK = ISO-8601 timestamp
+  # Supports: POPIA audit exports, compliance date-range queries, multi-tenant ops
+  attribute {
+    name = "GSI1PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "GSI1SK"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "GSI1"
+    hash_key        = "GSI1PK"
+    range_key       = "GSI1SK"
+    projection_type = "ALL"
+  }
+
   # TTL: events expire 2 years after creation (POPIA minimum audit trail)
   ttl {
     attribute_name = "ttl"
@@ -250,9 +270,12 @@ resource "aws_iam_role_policy" "get_candidate_events" {
       {
         Sid    = "DynamoDBQuery"
         Effect = "Allow"
-        # Read-only: GetItem + Query
+        # Read-only: GetItem + Query (table + all GSIs)
         Action   = ["dynamodb:GetItem", "dynamodb:Query"]
-        Resource = aws_dynamodb_table.talent_flow_events.arn
+        Resource = [
+          aws_dynamodb_table.talent_flow_events.arn,
+          "${aws_dynamodb_table.talent_flow_events.arn}/index/*",
+        ]
       },
       {
         Sid      = "KMS"

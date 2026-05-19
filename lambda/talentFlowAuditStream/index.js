@@ -81,12 +81,19 @@ exports.handler = async (event) => {
     const SK = buildSK(timestamp, eventId);
     const ttl = Math.floor(new Date(timestamp).getTime() / 1000) + TWO_YEARS_SECONDS;
 
+    // GSI1: tenant-scoped timeline — GSI1PK = TENANT#<tenantId>, GSI1SK = ISO timestamp
+    // Matches talent-flow-state pattern (same table family convention)
+    const GSI1PK = `TENANT#${tenantId}`;
+    const GSI1SK = timestamp;
+
     try {
       await dynamo.send(new PutItemCommand({
         TableName: EVENTS_TABLE,
         Item: marshall({
           PK,
           SK,
+          GSI1PK,
+          GSI1SK,
           eventId,
           eventType,
           source,
