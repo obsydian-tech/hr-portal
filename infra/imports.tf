@@ -138,3 +138,45 @@ import {
   id = "getDocumentPresignedUrl"
   to = aws_lambda_function.get_document_presigned_url
 }
+
+# ── TalentFlow Config Management (NH-Config) ──────────────────────────────────
+
+import {
+  id = "manageTalentFlowConfig"
+  to = aws_lambda_function.manage_talent_flow_config
+}
+
+import {
+  id = "talent-flow-role-manageTalentFlowConfig"
+  to = aws_iam_role.manage_talent_flow_config
+}
+
+import {
+  id = "talent-flow-role-manageTalentFlowConfig:talent-flow-role-manageTalentFlowConfig-policy"
+  to = aws_iam_role_policy.manage_talent_flow_config
+}
+
+import {
+  id = "57l0w7kk9h/lj112ce"
+  to = aws_apigatewayv2_integration.manage_talent_flow_config
+}
+
+import {
+  id = "57l0w7kk9h/icdwhvf"
+  to = aws_apigatewayv2_route.get_config
+}
+
+import {
+  id = "57l0w7kk9h/yjchsyd"
+  to = aws_apigatewayv2_route.put_config
+}
+
+import {
+  id = "57l0w7kk9h/f643ou1"
+  to = aws_apigatewayv2_route.post_config
+}
+
+import {
+  id = "manageTalentFlowConfig/AllowTalentFlowAPIInvokeManageConfig"
+  to = aws_lambda_permission.manage_talent_flow_config_apigw
+}
