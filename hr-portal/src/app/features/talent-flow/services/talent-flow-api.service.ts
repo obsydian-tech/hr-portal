@@ -9,6 +9,7 @@ import {
   Candidate,
   CandidateEventsResponse,
   CreateCandidatePayload,
+  HiringStage,
   ScheduleInterviewPayload,
   VotePayload,
   PipelineFilters,
@@ -158,6 +159,42 @@ export class TalentFlowApiService {
       switchMap((headers) =>
         this.http.post<{ voteId: string }>(
           `${this.baseUrl}/candidates/${candidateId}/votes`,
+          body,
+          { headers },
+        ),
+      ),
+      catchError(this.handleError),
+    );
+  }
+
+  // Config
+
+  // Stage Advancement
+
+  /** Ordered stages used for forward-only validation (mirrors Lambda STAGE_ORDER) */
+  static readonly STAGE_ORDER: HiringStage[] = [
+    'APPLICATION_REVIEW', 'PHONE_SCREENING', 'TECHNICAL_INTERVIEW',
+    'PANEL_INTERVIEW', 'EVALUATION', 'OFFER_PREPARATION',
+    'OFFER_APPROVAL', 'OFFER_DELIVERY', 'CONTRACT_SIGNING',
+    'PRE_BOARDING', 'ONBOARDING',
+  ];
+
+  static nextStage(current: HiringStage): HiringStage | null {
+    const idx = TalentFlowApiService.STAGE_ORDER.indexOf(current);
+    return idx >= 0 && idx < TalentFlowApiService.STAGE_ORDER.length - 1
+      ? TalentFlowApiService.STAGE_ORDER[idx + 1]
+      : null;
+  }
+
+  advanceStage(
+    candidateId: string,
+    newStage: HiringStage,
+  ): Observable<{ candidateId: string; previousStage: HiringStage; newStage: HiringStage; stageEnteredAt: string }> {
+    const body = { newStage, tenantId: environment.talentFlow.tenantId };
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.put<{ candidateId: string; previousStage: HiringStage; newStage: HiringStage; stageEnteredAt: string }>(
+          `${this.baseUrl}/candidates/${candidateId}/stage`,
           body,
           { headers },
         ),

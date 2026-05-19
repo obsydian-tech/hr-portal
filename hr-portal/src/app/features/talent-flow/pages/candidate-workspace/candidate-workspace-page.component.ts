@@ -18,6 +18,7 @@ import { EvaluationScoringPanelComponent } from '../../components/evaluation-sco
 import { EvaluationSummaryWidgetComponent } from '../../components/evaluation-summary-widget/evaluation-summary-widget.component';
 import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
 import { Candidate, CandidateEvent, HiringStage, InterviewType, ScheduleInterviewPayload, ScoringWeights, DEFAULT_SCORING_WEIGHTS } from '../../models/talent-flow.models';
+import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.component';
 
 /**
  * CandidateWorkspacePageComponent — FE-004 / NH-137
@@ -163,7 +164,47 @@ export class CandidateWorkspacePageComponent implements OnInit {
 
   protected readonly defaultThreshold = 72;
 
-  // ── Schedule Interview ─────────────────────────────────────────────────────
+  // ── Advance Stage ─────────────────────────────────────────────────────
+  protected readonly advancingStage  = signal<boolean>(false);
+  protected readonly advanceError    = signal<string | null>(null);
+  protected readonly advanceSuccess  = signal<string | null>(null);
+
+  protected readonly stageLabels = STAGE_LABELS;
+
+  protected nextStageFor(current: HiringStage): HiringStage | null {
+    return TalentFlowApiService.nextStage(current);
+  }
+
+  protected advanceStage(candidateId: string, newStage: HiringStage): void {
+    this.advancingStage.set(true);
+    this.advanceError.set(null);
+    this.advanceSuccess.set(null);
+
+    this.api.advanceStage(candidateId, newStage).subscribe({
+      next: (res) => {
+        this.advancingStage.set(false);
+        this.advanceSuccess.set(res.newStage);
+        // Refresh candidate to update stage stepper
+        this.api.getCandidate(candidateId).subscribe({
+          next: (c) => {
+            this._directCandidate.set(c);
+            // Also update pipeline cache
+            const idx = this.state.pipeline().findIndex((p) => p.id === candidateId);
+            if (idx >= 0) {
+              const updated = [...this.state.pipeline()];
+              updated[idx] = c;
+            }
+          },
+          error: () => { /* non-fatal */ },
+        });
+      },
+      error: (err) => {
+        this.advancingStage.set(false);
+        const msg = err?.error?.error ?? err?.message ?? 'Failed to advance stage';
+        this.advanceError.set(msg);
+      },
+    });
+  }
   protected readonly showScheduleForm = signal<boolean>(false);
   protected readonly scheduleSubmitting  = signal<boolean>(false);
   protected readonly scheduleSuccess     = signal<string | null>(null);

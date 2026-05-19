@@ -561,3 +561,45 @@
   align-items: center;
 }
 
+// ── Advance Stage card ────────────────────────────────────────────────────────
+.tf-ws-card--advance {
+  margin-top: 0.75rem;
+}
+
+.tf-ws-advance-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tf-ws-advance-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tf-ws-advance-label {
+  font-size: 0.75rem;
+  color: var(--naleko-on-surface-variant);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tf-ws-advance-stage {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+
+  &--next {
+    color: var(--naleko-primary);
+  }
+}
+
+.tf-ws-advance-arrow {
+  font-size: 1.1rem;
+  color: var(--naleko-on-surface-variant);
+  flex-shrink: 0;
+}
+

@@ -252,6 +252,47 @@
               </div>
             }
 
+            <!-- ── Advance Stage card (shown when next stage exists) ─────── -->
+            @if (nextStageFor(c.currentStage); as next) {
+              <div class="tf-ws-card tf-ws-card--action tf-ws-card--advance">
+
+                @if (advanceSuccess()) {
+                  <div class="tf-ws-alert tf-ws-alert--success">
+                    <i class="pi pi-check-circle"></i>
+                    Stage advanced to <strong>{{ stageLabels[advanceSuccess()!] }}</strong>.
+                    Refreshing…
+                  </div>
+                }
+
+                @if (advanceError()) {
+                  <div class="tf-ws-alert tf-ws-alert--error">
+                    <i class="pi pi-exclamation-triangle"></i> {{ advanceError() }}
+                  </div>
+                }
+
+                <div class="tf-ws-advance-row">
+                  <div class="tf-ws-advance-info">
+                    <span class="tf-ws-advance-label">Current Stage</span>
+                    <span class="tf-ws-advance-stage">{{ stageLabels[c.currentStage] }}</span>
+                  </div>
+                  <i class="pi pi-arrow-right tf-ws-advance-arrow"></i>
+                  <div class="tf-ws-advance-info">
+                    <span class="tf-ws-advance-label">Next Stage</span>
+                    <span class="tf-ws-advance-stage tf-ws-advance-stage--next">{{ stageLabels[next] }}</span>
+                  </div>
+                  <button pButton
+                    class="p-button-sm"
+                    icon="pi pi-forward"
+                    [label]="'Advance to ' + stageLabels[next]"
+                    [disabled]="advancingStage()"
+                    [loading]="advancingStage()"
+                    (click)="advanceStage(c.id, next)">
+                  </button>
+                </div>
+
+              </div>
+            }
+
           </div>
         }
 
