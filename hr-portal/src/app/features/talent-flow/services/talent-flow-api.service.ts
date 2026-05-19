@@ -145,11 +145,20 @@ export class TalentFlowApiService {
   // Votes
 
   submitVote(candidateId: string, payload: VotePayload): Observable<{ voteId: string }> {
+    // Lambda expects: candidateId, tenantId, voterId, scores, rating (not decision)
+    const body = {
+      candidateId,
+      tenantId: environment.talentFlow.tenantId,
+      voterId: this.authService.currentUser()?.email ?? 'unknown',
+      scores: payload.scores,
+      rating: payload.decision, // VotePayload uses 'decision'; Lambda uses 'rating'
+      notes: payload.notes,
+    };
     return this.authHeaders().pipe(
       switchMap((headers) =>
         this.http.post<{ voteId: string }>(
           `${this.baseUrl}/candidates/${candidateId}/votes`,
-          payload,
+          body,
           { headers },
         ),
       ),

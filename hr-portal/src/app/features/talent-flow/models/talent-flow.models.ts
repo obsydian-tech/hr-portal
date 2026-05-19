@@ -109,6 +109,8 @@ export interface Candidate {
   slaBreachedAt?: string; // ISO 8601
   createdAt: string;
   updatedAt: string;
+  /** Set by getCandidate Lambda when a SCHEDULED interview exists */
+  currentInterviewId?: string;
 }
 
 export interface Interview {

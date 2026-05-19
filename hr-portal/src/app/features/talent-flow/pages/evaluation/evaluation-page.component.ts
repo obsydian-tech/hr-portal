@@ -51,8 +51,11 @@ export class EvaluationPageComponent implements OnInit {
   readonly submitted   = signal(false);
   readonly submitError = signal<string | null>(null);
 
+  private readonly _fetchedCandidate = signal<Candidate | undefined>(undefined);
+
   readonly candidate = computed<Candidate | undefined>(
-    () => this.state.activeCandidate(),
+    // Prefer directly-fetched candidate (has currentInterviewId); fall back to cache
+    () => this._fetchedCandidate() ?? this.state.activeCandidate(),
   );
 
   readonly weights = computed<ScoringWeights>(() => DEFAULT_SCORING_WEIGHTS);
@@ -62,15 +65,21 @@ export class EvaluationPageComponent implements OnInit {
     if (!id) { void this.router.navigate(['/platform/talentflow/pipeline']); return; }
     this.candidateId.set(id);
 
-    const inCache = this.state.pipeline().find((c) => c.id === id);
-    if (inCache) {
-      this.state.setActiveCandidate(id);
-    } else {
-      this.loading.set(true);
-      this.state.loadPipeline();
-      this.state.setActiveCandidate(id);
-      this.loading.set(false);
-    }
+    // Always fetch directly to get currentInterviewId (not available in pipeline cache)
+    this.loading.set(true);
+    this.state.setActiveCandidate(id);
+    this.api.getCandidate(id).subscribe({
+      next: (c: Candidate) => {
+        this._fetchedCandidate.set(c);
+        this.loading.set(false);
+      },
+      error: () => {
+        // Fall back to pipeline cache if direct fetch fails
+        const inCache = this.state.pipeline().find((cand) => cand.id === id);
+        if (!inCache) this.state.loadPipeline();
+        this.loading.set(false);
+      },
+    });
   }
 
   onScoreSubmitted(payload: VotePayload): void {

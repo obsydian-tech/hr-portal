@@ -51,7 +51,7 @@
       } @else {
         <tf-evaluation-scoring-panel
           [weights]="weights()"
-          [interviewId]="''"
+          [interviewId]="candidate()?.currentInterviewId ?? ''"
           [readOnly]="false"
           (scoreSubmitted)="onScoreSubmitted($event)" />
       }
