@@ -150,8 +150,10 @@ export interface CreateCandidatePayload {
   workflowTemplateId?: string;
 }
 
+export type InterviewType = 'TECHNICAL' | 'BEHAVIORAL' | 'CULTURE_FIT' | 'FINAL';
+
 export interface ScheduleInterviewPayload {
-  round: 1 | 2;
+  interviewType: InterviewType;
   scheduledAt: string; // ISO 8601
   location?: string;
   panelMemberIds: string[];

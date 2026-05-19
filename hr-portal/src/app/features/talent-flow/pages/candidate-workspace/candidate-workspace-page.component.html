@@ -163,6 +163,95 @@
               <span class="tf-ws-mono"><i class="pi pi-tag"></i> Config {{ c.configVersion }}</span>
             </div>
 
+            <!-- ── Schedule Interview card (shown when APPLICATION_REVIEW) ── -->
+            @if (c.currentStage === 'APPLICATION_REVIEW') {
+              <div class="tf-ws-card tf-ws-card--action">
+                <div class="tf-ws-card__title-row">
+                  <h3 class="tf-ws-card__title">
+                    <i class="pi pi-calendar-plus"></i> Schedule Technical Interview
+                  </h3>
+                  <button pButton
+                    class="p-button-text p-button-sm"
+                    [icon]="showScheduleForm() ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                    [label]="showScheduleForm() ? 'Collapse' : 'Open Form'"
+                    (click)="showScheduleForm.update(v => !v)">
+                  </button>
+                </div>
+
+                @if (scheduleSuccess()) {
+                  <div class="tf-ws-alert tf-ws-alert--success">
+                    <i class="pi pi-check-circle"></i>
+                    Interview scheduled! ID: <code>{{ scheduleSuccess() }}</code>
+                    — candidate has been advanced to <strong>TECHNICAL_INTERVIEW</strong>.
+                  </div>
+                }
+
+                @if (scheduleError()) {
+                  <div class="tf-ws-alert tf-ws-alert--error">
+                    <i class="pi pi-exclamation-triangle"></i> {{ scheduleError() }}
+                  </div>
+                }
+
+                @if (showScheduleForm()) {
+                  <form class="tf-ws-schedule-form" (submit)="$event.preventDefault(); submitScheduleInterview(c.id)">
+
+                    <!-- Interview type -->
+                    <div class="tf-ws-form-field">
+                      <label class="tf-ws-form-label">Interview Type</label>
+                      <select class="tf-ws-form-select"
+                        [value]="scheduleForm().interviewType"
+                        (change)="scheduleForm.update(f => ({ ...f, interviewType: $any($event.target).value }))">
+                        <option value="TECHNICAL">Technical</option>
+                        <option value="BEHAVIORAL">Behavioral</option>
+                        <option value="CULTURE_FIT">Culture Fit</option>
+                        <option value="FINAL">Final Round</option>
+                      </select>
+                    </div>
+
+                    <!-- Scheduled date/time -->
+                    <div class="tf-ws-form-field">
+                      <label class="tf-ws-form-label">Scheduled At</label>
+                      <input class="tf-ws-form-input" type="datetime-local"
+                        [value]="scheduleForm().scheduledAt"
+                        (change)="scheduleForm.update(f => ({ ...f, scheduledAt: $any($event.target).value + ':00Z' }))" />
+                    </div>
+
+                    <!-- Panel members -->
+                    <div class="tf-ws-form-field">
+                      <label class="tf-ws-form-label">Panel Members (select at least one)</label>
+                      <div class="tf-ws-panel-roster">
+                        @for (member of PANEL_ROSTER; track member.id) {
+                          <label class="tf-ws-panel-member"
+                            [class.tf-ws-panel-member--selected]="scheduleForm().panelMemberIds.includes(member.id)">
+                            <input type="checkbox"
+                              [checked]="scheduleForm().panelMemberIds.includes(member.id)"
+                              (change)="togglePanelMember(member.id)" />
+                            {{ member.name }}
+                          </label>
+                        }
+                      </div>
+                    </div>
+
+                    <div class="tf-ws-form-actions">
+                      <button pButton type="submit"
+                        class="p-button-sm"
+                        icon="pi pi-send"
+                        label="Schedule Interview"
+                        [disabled]="scheduleSubmitting() || !scheduleForm().scheduledAt || scheduleForm().panelMemberIds.length === 0"
+                        [loading]="scheduleSubmitting()">
+                      </button>
+                      <button pButton type="button"
+                        class="p-button-text p-button-sm p-button-secondary"
+                        label="Cancel"
+                        (click)="showScheduleForm.set(false); scheduleError.set(null)">
+                      </button>
+                    </div>
+
+                  </form>
+                }
+              </div>
+            }
+
           </div>
         }
 

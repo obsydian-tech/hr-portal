@@ -58,7 +58,19 @@ function ok(body) {
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
-  const detail = event.detail || event;
+  // Support both EventBridge invocations (event.detail) and HTTP API v2 invocations (event.body)
+  let detail;
+  if (event.detail) {
+    // EventBridge — detail.candidateId is set by the event
+    detail = event.detail;
+  } else if (event.body != null) {
+    // HTTP API v2 — body is JSON string; candidateId comes from path parameter
+    const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+    const pathCandidateId = event.pathParameters && event.pathParameters.id;
+    detail = { ...body, candidateId: body.candidateId || pathCandidateId };
+  } else {
+    detail = event;
+  }
 
   const { candidateId, tenantId, interviewId, interviewType, scheduledAt, panelMemberIds } = detail;
 

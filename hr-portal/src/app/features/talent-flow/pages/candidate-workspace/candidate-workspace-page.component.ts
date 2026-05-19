@@ -17,7 +17,7 @@ import { SlaTimerWidgetComponent } from '../../components/sla-timer-widget/sla-t
 import { EvaluationScoringPanelComponent } from '../../components/evaluation-scoring-panel/evaluation-scoring-panel.component';
 import { EvaluationSummaryWidgetComponent } from '../../components/evaluation-summary-widget/evaluation-summary-widget.component';
 import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
-import { Candidate, CandidateEvent, HiringStage, ScoringWeights, DEFAULT_SCORING_WEIGHTS } from '../../models/talent-flow.models';
+import { Candidate, CandidateEvent, HiringStage, InterviewType, ScheduleInterviewPayload, ScoringWeights, DEFAULT_SCORING_WEIGHTS } from '../../models/talent-flow.models';
 
 /**
  * CandidateWorkspacePageComponent — FE-004 / NH-137
@@ -162,4 +162,70 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   protected readonly defaultThreshold = 72;
+
+  // ── Schedule Interview ─────────────────────────────────────────────────────
+  protected readonly showScheduleForm = signal<boolean>(false);
+  protected readonly scheduleSubmitting  = signal<boolean>(false);
+  protected readonly scheduleSuccess     = signal<string | null>(null);
+  protected readonly scheduleError       = signal<string | null>(null);
+
+  /** Mutable form model for the schedule interview panel */
+  protected readonly scheduleForm = signal<{
+    interviewType: InterviewType;
+    scheduledAt: string;
+    panelMemberIds: string[];
+  }>({
+    interviewType: 'TECHNICAL',
+    scheduledAt: '',
+    panelMemberIds: [],
+  });
+
+  /** Hardcoded MVP panel member roster — replace with dynamic lookup in v2 */
+  protected readonly PANEL_ROSTER = [
+    { id: 'ignecious@obsydiantechnologies.com', name: 'Ignecious (Admin)' },
+    { id: 'hr@naleko.co.za', name: 'HR Manager' },
+    { id: 'tech.lead@naleko.co.za', name: 'Tech Lead' },
+    { id: 'cto@naleko.co.za', name: 'CTO' },
+  ];
+
+  protected togglePanelMember(memberId: string): void {
+    const current = this.scheduleForm();
+    const ids = current.panelMemberIds.includes(memberId)
+      ? current.panelMemberIds.filter((id) => id !== memberId)
+      : [...current.panelMemberIds, memberId];
+    this.scheduleForm.set({ ...current, panelMemberIds: ids });
+  }
+
+  protected submitScheduleInterview(candidateId: string): void {
+    const form = this.scheduleForm();
+    if (!form.scheduledAt || form.panelMemberIds.length === 0) return;
+
+    this.scheduleSubmitting.set(true);
+    this.scheduleError.set(null);
+    this.scheduleSuccess.set(null);
+
+    const payload: ScheduleInterviewPayload = {
+      interviewType: form.interviewType,
+      scheduledAt: form.scheduledAt,
+      panelMemberIds: form.panelMemberIds,
+    };
+
+    this.api.scheduleInterview(candidateId, payload).subscribe({
+      next: (res) => {
+        this.scheduleSubmitting.set(false);
+        this.scheduleSuccess.set(res.interviewId);
+        this.showScheduleForm.set(false);
+        // Refresh candidate to reflect new stage (TECHNICAL_INTERVIEW)
+        this.api.getCandidate(candidateId).subscribe({
+          next: (c) => this._directCandidate.set(c),
+          error: () => { /* non-fatal */ },
+        });
+      },
+      error: (err) => {
+        this.scheduleSubmitting.set(false);
+        const msg = err?.error?.error ?? err?.message ?? 'Failed to schedule interview';
+        this.scheduleError.set(msg);
+      },
+    });
+  }
 }

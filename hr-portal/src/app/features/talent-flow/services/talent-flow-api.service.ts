@@ -123,11 +123,18 @@ export class TalentFlowApiService {
     candidateId: string,
     payload: ScheduleInterviewPayload,
   ): Observable<{ interviewId: string }> {
+    // Lambda requires interviewId (idempotency key), tenantId, and candidateId in body
+    const body = {
+      ...payload,
+      interviewId: crypto.randomUUID(),
+      tenantId: environment.talentFlow.tenantId,
+      candidateId,
+    };
     return this.authHeaders().pipe(
       switchMap((headers) =>
         this.http.post<{ interviewId: string }>(
           `${this.baseUrl}/candidates/${candidateId}/interviews`,
-          payload,
+          body,
           { headers },
         ),
       ),
