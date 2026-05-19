@@ -18,7 +18,6 @@ import { EvaluationScoringPanelComponent } from '../../components/evaluation-sco
 import { EvaluationSummaryWidgetComponent } from '../../components/evaluation-summary-widget/evaluation-summary-widget.component';
 import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
 import { Candidate, CandidateEvent, HiringStage, InterviewType, ScheduleInterviewPayload, ScoringWeights, DEFAULT_SCORING_WEIGHTS } from '../../models/talent-flow.models';
-import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.component';
 
 /**
  * CandidateWorkspacePageComponent — FE-004 / NH-137
@@ -171,6 +170,10 @@ export class CandidateWorkspacePageComponent implements OnInit {
 
   protected readonly stageLabels = STAGE_LABELS;
 
+  protected stageLabelFor(stage: string | null | undefined): string {
+    return stage ? (STAGE_LABELS[stage as HiringStage] ?? stage) : '';
+  }
+
   protected nextStageFor(current: HiringStage): HiringStage | null {
     return TalentFlowApiService.nextStage(current);
   }
@@ -228,6 +231,20 @@ export class CandidateWorkspacePageComponent implements OnInit {
     { id: 'tech.lead@naleko.co.za', name: 'Tech Lead' },
     { id: 'cto@naleko.co.za', name: 'CTO' },
   ];
+
+  protected toggleScheduleForm(): void {
+    this.showScheduleForm.update((v) => !v);
+  }
+
+  protected setInterviewType(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value as InterviewType;
+    this.scheduleForm.update((f) => ({ ...f, interviewType: value }));
+  }
+
+  protected setScheduledAt(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.scheduleForm.update((f) => ({ ...f, scheduledAt: value + ':00Z' }));
+  }
 
   protected togglePanelMember(memberId: string): void {
     const current = this.scheduleForm();

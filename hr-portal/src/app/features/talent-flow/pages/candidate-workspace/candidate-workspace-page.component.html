@@ -174,7 +174,7 @@
                     class="p-button-text p-button-sm"
                     [icon]="showScheduleForm() ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
                     [label]="showScheduleForm() ? 'Collapse' : 'Open Form'"
-                    (click)="showScheduleForm.update(v => !v)">
+                    (click)="toggleScheduleForm()">
                   </button>
                 </div>
 
@@ -200,7 +200,7 @@
                       <label class="tf-ws-form-label">Interview Type</label>
                       <select class="tf-ws-form-select"
                         [value]="scheduleForm().interviewType"
-                        (change)="scheduleForm.update(f => ({ ...f, interviewType: $any($event.target).value }))">
+                        (change)="setInterviewType($event)">
                         <option value="TECHNICAL">Technical</option>
                         <option value="BEHAVIORAL">Behavioral</option>
                         <option value="CULTURE_FIT">Culture Fit</option>
@@ -213,7 +213,7 @@
                       <label class="tf-ws-form-label">Scheduled At</label>
                       <input class="tf-ws-form-input" type="datetime-local"
                         [value]="scheduleForm().scheduledAt"
-                        (change)="scheduleForm.update(f => ({ ...f, scheduledAt: $any($event.target).value + ':00Z' }))" />
+                        (change)="setScheduledAt($event)" />
                     </div>
 
                     <!-- Panel members -->
@@ -259,7 +259,7 @@
                 @if (advanceSuccess()) {
                   <div class="tf-ws-alert tf-ws-alert--success">
                     <i class="pi pi-check-circle"></i>
-                    Stage advanced to <strong>{{ stageLabels[advanceSuccess()!] }}</strong>.
+                    Stage advanced to <strong>{{ stageLabelFor(advanceSuccess()) }}</strong>.
                     Refreshing…
                   </div>
                 }
