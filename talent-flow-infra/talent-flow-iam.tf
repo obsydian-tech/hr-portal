@@ -261,8 +261,8 @@ resource "aws_iam_role_policy" "submit_vote" {
         Resource = "*"
       },
       {
-        Sid      = "StateTableReadWrite"
-        Effect   = "Allow"
+        Sid    = "StateTableReadWrite"
+        Effect = "Allow"
         # NH-FIX: PutItem (vote record) + Query (quorum check) added — were missing
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
@@ -841,9 +841,9 @@ resource "aws_iam_role_policy" "get_candidates" {
         Resource = "*"
       },
       {
-        Sid      = "DynamoDBQuery"
-        Effect   = "Allow"
-        Action   = ["dynamodb:Query"]
+        Sid    = "DynamoDBQuery"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
         Resource = [
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/GSI1",
@@ -1089,9 +1089,9 @@ resource "aws_iam_role_policy" "get_panel_members" {
         Resource = "*"
       },
       {
-        Sid    = "CognitoDirectoryRead"
-        Effect = "Allow"
-        Action = ["cognito-idp:ListUsersInGroup"]
+        Sid      = "CognitoDirectoryRead"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:ListUsersInGroup"]
         Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
       },
     ]
@@ -1177,15 +1177,15 @@ resource "aws_iam_role_policy" "create_offer" {
         Resource = "*"
       },
       {
-        Sid    = "StateTableReadWrite"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Sid      = "StateTableReadWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
-        Sid      = "ConfigTableRead"
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:Query"]
+        Sid    = "ConfigTableRead"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query"]
         Resource = [
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}",
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/*",
@@ -1290,9 +1290,9 @@ resource "aws_iam_role_policy" "update_candidate" {
         Resource = "*"
       },
       {
-        Sid    = "StateTableReadWrite"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Sid      = "StateTableReadWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
@@ -1342,9 +1342,9 @@ resource "aws_iam_role_policy" "advance_offer_state" {
         Resource = "*"
       },
       {
-        Sid    = "StateTableReadWrite"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Sid      = "StateTableReadWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
