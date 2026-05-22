@@ -266,7 +266,7 @@ resource "aws_iam_role_policy" "get_candidate_events" {
         Sid    = "DynamoDBQuery"
         Effect = "Allow"
         # Read-only: GetItem + Query (table + all GSIs)
-        Action   = ["dynamodb:GetItem", "dynamodb:Query"]
+        Action = ["dynamodb:GetItem", "dynamodb:Query"]
         Resource = [
           aws_dynamodb_table.talent_flow_events.arn,
           "${aws_dynamodb_table.talent_flow_events.arn}/index/*",
@@ -328,9 +328,9 @@ resource "aws_apigatewayv2_integration" "get_candidate_events" {
 }
 
 resource "aws_apigatewayv2_route" "get_candidate_events" {
-  api_id             = data.aws_apigatewayv2_api.talent_flow_api.id
-  route_key          = "GET /v1/candidates/{id}/events"
-  target             = "integrations/${aws_apigatewayv2_integration.get_candidate_events.id}"
+  api_id    = data.aws_apigatewayv2_api.talent_flow_api.id
+  route_key = "GET /v1/candidates/{id}/events"
+  target    = "integrations/${aws_apigatewayv2_integration.get_candidate_events.id}"
   # Re-use the existing JWT authorizer already protecting /candidates/* routes
   authorization_type = "JWT"
   authorizer_id      = local.talent_flow_cognito_authorizer_id
