@@ -1094,6 +1094,22 @@ resource "aws_iam_role_policy" "get_panel_members" {
         Action   = ["cognito-idp:ListUsersInGroup"]
         Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
       },
+      # Phase E: query SCORING_LINK# records when candidateId param is provided
+      {
+        Sid    = "StateTableQueryScoringLinks"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
+        ]
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
     ]
   })
 }
@@ -1346,6 +1362,117 @@ resource "aws_iam_role_policy" "advance_offer_state" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid      = "EventBridgePutEvents"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = "arn:aws:events:af-south-1:${var.aws_account_id}:event-bus/${local.tf_event_bus_name}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── Phase E: generateScoringLink ──────────────────────────────────────────────
+# Needs: DynamoDB state (GetItem + Query + PutItem), KMS state CMK
+
+resource "aws_iam_role" "generate_scoring_link" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_generate_scoring_link}"
+  description        = "Execution role for generateScoringLink Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-138", Phase = "E" })
+}
+
+resource "aws_iam_role_policy" "generate_scoring_link" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_generate_scoring_link}-policy"
+  role = aws_iam_role.generate_scoring_link.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_generate_scoring_link}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "StateTableReadWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
+        ]
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── Phase E: submitVoteByToken ────────────────────────────────────────────────
+# Needs: DynamoDB state (GetItem + Query + PutItem + UpdateItem),
+#        config (GetItem), EventBridge (PutEvents), KMS state CMK
+
+resource "aws_iam_role" "submit_vote_by_token" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_submit_vote_by_token}"
+  description        = "Execution role for submitVoteByToken Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-138", Phase = "E" })
+}
+
+resource "aws_iam_role_policy" "submit_vote_by_token" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_submit_vote_by_token}-policy"
+  role = aws_iam_role.submit_vote_by_token.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_submit_vote_by_token}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "StateTableReadWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
+        ]
+      },
+      {
+        Sid      = "ConfigTableRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
         Sid      = "EventBridgePutEvents"
