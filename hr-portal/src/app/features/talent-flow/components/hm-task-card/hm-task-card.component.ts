@@ -76,25 +76,25 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
 
             <div class="hm-slider-row">
               <span class="hm-slider-label">Technical</span>
-              <p-slider [(ngModel)]="techScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" />
+              <p-slider [(ngModel)]="techScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" (ngModelChange)="autoAdjustVote()" />
               <span class="hm-slider-value">{{ techScore }}</span>
             </div>
 
             <div class="hm-slider-row">
               <span class="hm-slider-label">Communication</span>
-              <p-slider [(ngModel)]="commScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" />
+              <p-slider [(ngModel)]="commScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" (ngModelChange)="autoAdjustVote()" />
               <span class="hm-slider-value">{{ commScore }}</span>
             </div>
 
             <div class="hm-slider-row">
               <span class="hm-slider-label">Cultural Fit</span>
-              <p-slider [(ngModel)]="cultureScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" />
+              <p-slider [(ngModel)]="cultureScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" (ngModelChange)="autoAdjustVote()" />
               <span class="hm-slider-value">{{ cultureScore }}</span>
             </div>
 
             <div class="hm-slider-row">
               <span class="hm-slider-label">Problem Solving</span>
-              <p-slider [(ngModel)]="problemScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" />
+              <p-slider [(ngModel)]="problemScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" (ngModelChange)="autoAdjustVote()" />
               <span class="hm-slider-value">{{ problemScore }}</span>
             </div>
 
@@ -102,9 +102,12 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
 
           <!-- Vote grid (D050) — 4 options, "Yes" pre-selected -->
           <div class="hm-vote-grid">
+            <!-- Score ≤ 5 → only negative votes; Score > 5 → only positive votes -->
             <button
               class="hm-vote-btn hm-vote-btn--negative"
               [class.hm-vote-btn--active-negative]="vote() === 'STRONG_NO'"
+              [disabled]="isHighScore"
+              [title]="isHighScore ? 'Scores above 5 — only Yes votes available' : ''"
               type="button"
               (click)="setVote('STRONG_NO')"
             >
@@ -113,6 +116,8 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
             <button
               class="hm-vote-btn hm-vote-btn--negative"
               [class.hm-vote-btn--active-negative]="vote() === 'NO'"
+              [disabled]="isHighScore"
+              [title]="isHighScore ? 'Scores above 5 — only Yes votes available' : ''"
               type="button"
               (click)="setVote('NO')"
             >
@@ -121,6 +126,8 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
             <button
               class="hm-vote-btn hm-vote-btn--positive"
               [class.hm-vote-btn--active-positive]="vote() === 'YES'"
+              [disabled]="!isHighScore"
+              [title]="!isHighScore ? 'Scores must be above 5 to vote Yes' : ''"
               type="button"
               (click)="setVote('YES')"
             >
@@ -129,6 +136,8 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
             <button
               class="hm-vote-btn hm-vote-btn--positive"
               [class.hm-vote-btn--active-positive]="vote() === 'STRONG_YES'"
+              [disabled]="!isHighScore"
+              [title]="!isHighScore ? 'Scores must be above 5 to vote Strong Yes' : ''"
               type="button"
               (click)="setVote('STRONG_YES')"
             >
@@ -325,6 +334,28 @@ export class HmTaskCardComponent {
   protected commScore    = 5;
   protected cultureScore = 5;
   protected problemScore = 5;
+
+  /** Average of the 4 sliders (1–10 scale) */
+  protected get averageScore(): number {
+    return (this.techScore + this.commScore + this.cultureScore + this.problemScore) / 4;
+  }
+
+  /**
+   * True when average > 5 — only YES/STRONG_YES are valid.
+   * False (≤ 5) — only NO/STRONG_NO are valid.
+   */
+  protected get isHighScore(): boolean {
+    return this.averageScore > 5;
+  }
+
+  /** Auto-correct the vote direction whenever a slider changes. */
+  protected autoAdjustVote(): void {
+    if (this.isHighScore && (this.vote() === 'NO' || this.vote() === 'STRONG_NO')) {
+      this.vote.set('YES');
+    } else if (!this.isHighScore && (this.vote() === 'YES' || this.vote() === 'STRONG_YES')) {
+      this.vote.set('NO');
+    }
+  }
 
   // ── Computed ──────────────────────────────────────────────────────────────
   protected initials(): string {

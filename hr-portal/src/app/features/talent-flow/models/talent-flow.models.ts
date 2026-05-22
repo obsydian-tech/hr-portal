@@ -146,6 +146,9 @@ export interface Candidate {
   createdAt:           string;
   updatedAt:           string;
   currentInterviewId?: string;
+  // Evaluation outcome — set by completeEvaluation Lambda
+  evaluationResult?:   'PASSED' | 'FAILED';
+  finalScore?:         number;
 }
 
 export interface Interview {

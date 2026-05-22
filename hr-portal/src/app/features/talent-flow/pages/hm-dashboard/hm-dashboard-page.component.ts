@@ -238,6 +238,8 @@ export class HmDashboardPageComponent implements OnInit {
   );
   protected readonly taskCandidates    = computed(() =>
     this.candidates().filter((c) =>
+      // Option E: remove from queue once evaluationResult is written by completeEvaluation
+      !c.evaluationResult &&
       ['TECHNICAL_INTERVIEW', 'PANEL_INTERVIEW', 'EVALUATION'].includes(c.currentStage),
     ),
   );
