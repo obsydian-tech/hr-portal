@@ -71,9 +71,9 @@ resource "aws_iam_role_policy" "manage_talent_flow_config" {
         ]
       },
       {
-        Sid    = "KMSStateKey"
-        Effect = "Allow"
-        Action = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
         Resource = "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/87842eae-1ee4-43d1-8bf8-9dd92415ea68"
       }
     ]
@@ -91,8 +91,8 @@ resource "aws_lambda_function" "manage_talent_flow_config" {
 
   environment {
     variables = {
-      ENVIRONMENT    = "prod"
-      AWS_ACCOUNT_ID = var.aws_account_id
+      ENVIRONMENT       = "prod"
+      AWS_ACCOUNT_ID    = var.aws_account_id
       CONFIG_TABLE_NAME = "talent-flow-config"
     }
   }
