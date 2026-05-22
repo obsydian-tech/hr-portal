@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { TalentFlowShellComponent } from './shell/talent-flow-shell.component';
 import { adminGuard } from './guards/admin.guard';
+import { hmRedirectGuard } from './guards/hm-redirect.guard';
 
 /**
  * TalentFlow lazy routes
@@ -14,9 +15,10 @@ export const talentFlowRoutes: Routes = [
     path: '',
     component: TalentFlowShellComponent,
     children: [
-      // ── TA Dashboard ─────────────────────────────────────────────────────
+      // ── TA Dashboard — HM users are redirected to hm-dashboard ──────────
       {
         path: '',
+        canActivate: [hmRedirectGuard],
         loadComponent: () =>
           import('./pages/dashboard/dashboard-page.component').then(
             (m) => m.DashboardPageComponent,

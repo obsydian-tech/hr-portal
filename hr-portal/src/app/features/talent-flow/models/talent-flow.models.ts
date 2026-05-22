@@ -302,12 +302,14 @@ export interface VotePayload {
 // ─── Pipeline Filters ─────────────────────────────────────────────────────────
 
 export interface PipelineFilters {
-  stage?:         HiringStage;
-  positionLevel?: PositionLevel;
+  stage?:           HiringStage;
+  positionLevel?:   PositionLevel;
   // D021: filter by signal health language, not colour codes
-  slaStatus?:     SlaHealthStatus;
-  search?:        string;
-  limit?:         number;
+  slaStatus?:       SlaHealthStatus;
+  search?:          string;
+  /** D051 — filter to candidates assigned to this HM (sub or email). */
+  hiringManagerId?: string;
+  limit?:           number;
   nextToken?:     string;
 }
 

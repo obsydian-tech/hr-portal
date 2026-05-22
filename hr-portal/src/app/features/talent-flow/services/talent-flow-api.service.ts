@@ -64,6 +64,7 @@ export class TalentFlowApiService {
     if (filters?.positionLevel) params = params.set('positionLevel', filters.positionLevel);
     if (filters?.slaStatus) params = params.set('slaStatus', filters.slaStatus);
     if (filters?.search) params = params.set('search', filters.search);
+    if (filters?.hiringManagerId) params = params.set('hiringManagerId', filters.hiringManagerId);
     if (filters?.limit) params = params.set('limit', String(filters.limit));
     if (filters?.nextToken) params = params.set('nextToken', filters.nextToken);
 

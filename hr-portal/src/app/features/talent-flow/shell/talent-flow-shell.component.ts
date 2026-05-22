@@ -51,6 +51,12 @@ export class TalentFlowShellComponent {
   protected readonly addCandidateOpen = signal(false);
   protected readonly aiChatOpen       = signal(false);
 
+  /** True when the user is a pure HiringManager (not admin) — drives nav switching. */
+  protected readonly isHM = computed<boolean>(
+    () => (this.tfAuth.currentUser()?.groups.includes('HiringManager') ?? false)
+          && !this.tfAuth.currentUser()?.isAdmin,
+  );
+
   protected readonly rolePill = computed<string>(() => {
     const user = this.tfAuth.currentUser();
     if (!user) return '';

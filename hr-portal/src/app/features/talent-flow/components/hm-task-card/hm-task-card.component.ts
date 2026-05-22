@@ -1,0 +1,394 @@
+import {
+  Component,
+  ChangeDetectionStrategy,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ButtonModule } from 'primeng/button';
+import { SliderModule } from 'primeng/slider';
+import { TagModule } from 'primeng/tag';
+import { TalentFlowApiService } from '../../services/talent-flow-api.service';
+import { Candidate, VotePayload } from '../../models/talent-flow.models';
+
+type VoteDecision = 'STRONG_NO' | 'NO' | 'YES' | 'STRONG_YES';
+
+const STAGE_LABELS: Record<string, string> = {
+  APPLICATION_REVIEW:  'Application Review',
+  PHONE_SCREENING:     'Phone Screening',
+  TECHNICAL_INTERVIEW: 'Technical Interview',
+  PANEL_INTERVIEW:     'Panel Interview',
+  EVALUATION:          'Evaluation',
+};
+
+const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
+  JUNIOR: 'success',
+  MID:    'info',
+  SENIOR: 'warn',
+};
+
+@Component({
+  selector: 'tf-hm-task-card',
+  standalone: true,
+  imports: [FormsModule, ButtonModule, SliderModule, TagModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <!-- ── Card header ──────────────────────────────────────────────────── -->
+    <div class="hm-card">
+      <div class="hm-card__header">
+        <div class="hm-card__avatar">
+          {{ initials() }}
+        </div>
+
+        <div class="hm-card__meta">
+          <div class="hm-card__name">{{ candidate().firstName }} {{ candidate().lastName }}</div>
+          <div class="hm-card__role">{{ candidate().role }}</div>
+          <div class="hm-card__tags">
+            <p-tag
+              [value]="candidate().positionLevel"
+              [severity]="levelSeverity()"
+              styleClass="hm-tag"
+            />
+            <span class="hm-card__stage">{{ currentStageLabel() }}</span>
+            <span class="hm-card__sla hm-card__sla--{{ candidate().slaStatus ?? 'ON_TRACK' }}">
+              ●
+            </span>
+          </div>
+        </div>
+
+        <p-button
+          [label]="panelOpen() ? 'Close' : 'Evaluate'"
+          [icon]="panelOpen() ? 'pi pi-times' : 'pi pi-file-edit'"
+          styleClass="hm-card__eval-btn"
+          [outlined]="!panelOpen()"
+          (onClick)="togglePanel()"
+        />
+      </div>
+
+      <!-- ── Inline scoring panel (D048 — NOT a modal/drawer) ───────────── -->
+      @if (panelOpen()) {
+        <div class="hm-scoring-panel">
+
+          <!-- 4 sliders (D049) -->
+          <div class="hm-sliders">
+
+            <div class="hm-slider-row">
+              <span class="hm-slider-label">Technical</span>
+              <p-slider [(ngModel)]="techScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" />
+              <span class="hm-slider-value">{{ techScore }}</span>
+            </div>
+
+            <div class="hm-slider-row">
+              <span class="hm-slider-label">Communication</span>
+              <p-slider [(ngModel)]="commScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" />
+              <span class="hm-slider-value">{{ commScore }}</span>
+            </div>
+
+            <div class="hm-slider-row">
+              <span class="hm-slider-label">Cultural Fit</span>
+              <p-slider [(ngModel)]="cultureScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" />
+              <span class="hm-slider-value">{{ cultureScore }}</span>
+            </div>
+
+            <div class="hm-slider-row">
+              <span class="hm-slider-label">Problem Solving</span>
+              <p-slider [(ngModel)]="problemScore" [min]="1" [max]="10" [step]="1" styleClass="hm-slider" />
+              <span class="hm-slider-value">{{ problemScore }}</span>
+            </div>
+
+          </div>
+
+          <!-- Vote grid (D050) — 4 options, "Yes" pre-selected -->
+          <div class="hm-vote-grid">
+            <button
+              class="hm-vote-btn hm-vote-btn--negative"
+              [class.hm-vote-btn--active-negative]="vote() === 'STRONG_NO'"
+              type="button"
+              (click)="setVote('STRONG_NO')"
+            >
+              Strong No
+            </button>
+            <button
+              class="hm-vote-btn hm-vote-btn--negative"
+              [class.hm-vote-btn--active-negative]="vote() === 'NO'"
+              type="button"
+              (click)="setVote('NO')"
+            >
+              No
+            </button>
+            <button
+              class="hm-vote-btn hm-vote-btn--positive"
+              [class.hm-vote-btn--active-positive]="vote() === 'YES'"
+              type="button"
+              (click)="setVote('YES')"
+            >
+              Yes
+            </button>
+            <button
+              class="hm-vote-btn hm-vote-btn--positive"
+              [class.hm-vote-btn--active-positive]="vote() === 'STRONG_YES'"
+              type="button"
+              (click)="setVote('STRONG_YES')"
+            >
+              Strong Yes
+            </button>
+          </div>
+
+          <!-- Submit -->
+          @if (errorMsg()) {
+            <div class="hm-error">{{ errorMsg() }}</div>
+          }
+
+          <p-button
+            label="Submit Evaluation"
+            icon="pi pi-check"
+            styleClass="hm-submit-btn"
+            [loading]="submitting()"
+            [disabled]="!hasInterviewId()"
+            (onClick)="submitEvaluation()"
+          />
+
+          @if (!hasInterviewId()) {
+            <p class="hm-no-interview">No active interview — schedule one first.</p>
+          }
+
+        </div>
+      }
+    </div>
+  `,
+  styles: [`
+    .hm-card {
+      background: var(--naleko-surface-card, #fff);
+      border: 1px solid var(--naleko-border-subtle, #e2e8f0);
+      border-radius: var(--naleko-radius-lg, 12px);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .hm-card__header {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.875rem;
+    }
+
+    .hm-card__avatar {
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+      border-radius: 50%;
+      background: var(--naleko-brand-indigo, #6366f1);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .hm-card__meta { flex: 1; }
+
+    .hm-card__name {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--naleko-text-primary, #1e293b);
+    }
+
+    .hm-card__role {
+      font-size: 0.8125rem;
+      color: var(--naleko-text-secondary, #64748b);
+      margin-top: 0.125rem;
+    }
+
+    .hm-card__tags {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.375rem;
+    }
+
+    .hm-card__stage {
+      font-size: 0.75rem;
+      color: var(--naleko-text-muted, #94a3b8);
+    }
+
+    .hm-card__sla { font-size: 0.625rem; }
+    .hm-card__sla--ON_TRACK  { color: var(--naleko-success, #22c55e); }
+    .hm-card__sla--AT_RISK   { color: var(--naleko-warning, #f59e0b); }
+    .hm-card__sla--BREACHED  { color: var(--naleko-danger, #ef4444); }
+
+    /* ── Scoring panel ──────────────────────────────────────────── */
+    .hm-scoring-panel {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--naleko-border-subtle, #e2e8f0);
+    }
+
+    .hm-sliders { display: flex; flex-direction: column; gap: 0.875rem; margin-bottom: 1.25rem; }
+
+    .hm-slider-row {
+      display: grid;
+      grid-template-columns: 130px 1fr 28px;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .hm-slider-label {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--naleko-text-secondary, #475569);
+      white-space: nowrap;
+    }
+
+    .hm-slider-value {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--naleko-brand-indigo, #6366f1);
+      text-align: right;
+    }
+
+    /* ── Vote grid (D050) ─────────────────────────────────────── */
+    .hm-vote-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .hm-vote-btn {
+      padding: 0.5rem 0.25rem;
+      border-radius: var(--naleko-radius-md, 8px);
+      border: 2px solid transparent;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .hm-vote-btn--positive {
+      background: var(--naleko-surface-secondary, #f1f5f9);
+      color: var(--naleko-text-secondary, #475569);
+      border-color: var(--naleko-border-subtle, #e2e8f0);
+    }
+
+    .hm-vote-btn--positive.hm-vote-btn--active-positive {
+      background: var(--naleko-brand-indigo, #6366f1);
+      color: #fff;
+      border-color: var(--naleko-brand-indigo, #6366f1);
+    }
+
+    .hm-vote-btn--negative {
+      background: var(--naleko-surface-secondary, #f1f5f9);
+      color: var(--naleko-text-secondary, #475569);
+      border-color: var(--naleko-border-subtle, #e2e8f0);
+    }
+
+    .hm-vote-btn--negative.hm-vote-btn--active-negative {
+      background: var(--naleko-danger-muted, #fef2f2);
+      color: var(--naleko-danger, #ef4444);
+      border-color: var(--naleko-danger, #ef4444);
+    }
+
+    .hm-error {
+      color: var(--naleko-danger, #ef4444);
+      font-size: 0.8125rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .hm-no-interview {
+      font-size: 0.75rem;
+      color: var(--naleko-text-muted, #94a3b8);
+      margin-top: 0.375rem;
+    }
+
+    :host ::ng-deep .hm-slider { width: 100%; }
+    :host ::ng-deep .hm-submit-btn { width: 100%; justify-content: center; }
+    :host ::ng-deep .hm-card__eval-btn { white-space: nowrap; }
+  `],
+})
+export class HmTaskCardComponent {
+  private readonly api = inject(TalentFlowApiService);
+
+  // ── Inputs / Outputs ──────────────────────────────────────────────────────
+  readonly candidate     = input.required<Candidate>();
+  readonly voteSubmitted = output<void>();
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  protected readonly panelOpen  = signal(false);
+  protected readonly vote       = signal<VoteDecision>('YES');
+  protected readonly submitting = signal(false);
+  protected readonly errorMsg   = signal('');
+
+  // Plain properties for p-slider ngModel binding (CVA requires mutable ref)
+  protected techScore    = 5;
+  protected commScore    = 5;
+  protected cultureScore = 5;
+  protected problemScore = 5;
+
+  // ── Computed ──────────────────────────────────────────────────────────────
+  protected initials(): string {
+    const c = this.candidate();
+    return ((c.firstName[0] ?? '') + (c.lastName[0] ?? '')).toUpperCase();
+  }
+
+  protected currentStageLabel(): string {
+    return STAGE_LABELS[this.candidate().currentStage] ?? this.candidate().currentStage;
+  }
+
+  protected levelSeverity(): 'success' | 'info' | 'warn' {
+    return LEVEL_SEVERITY[this.candidate().positionLevel] ?? 'info';
+  }
+
+  protected hasInterviewId(): boolean {
+    return !!this.candidate().currentInterviewId;
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  protected togglePanel(): void {
+    this.panelOpen.update((v) => !v);
+    this.errorMsg.set('');
+  }
+
+  protected setVote(decision: VoteDecision): void {
+    this.vote.set(decision);
+  }
+
+  protected submitEvaluation(): void {
+    const c = this.candidate();
+    if (!c.currentInterviewId) return;
+
+    this.submitting.set(true);
+    this.errorMsg.set('');
+
+    const payload: VotePayload = {
+      interviewId: c.currentInterviewId,
+      decision:    this.vote(),
+      scores: {
+        technical:      this.techScore,
+        communication:  this.commScore,
+        culturalFit:    this.cultureScore,
+        problemSolving: this.problemScore,
+      },
+      notes: '',
+    };
+
+    this.api.submitVote(c.id, payload).subscribe({
+      next: () => {
+        this.submitting.set(false);
+        this.panelOpen.set(false);
+        this.voteSubmitted.emit();
+        // Reset sliders for next use
+        this.techScore    = 5;
+        this.commScore    = 5;
+        this.cultureScore = 5;
+        this.problemScore = 5;
+        this.vote.set('YES');
+      },
+      error: (err: { message?: string }) => {
+        this.submitting.set(false);
+        this.errorMsg.set(err?.message ?? 'Submission failed. Please try again.');
+      },
+    });
+  }
+}
