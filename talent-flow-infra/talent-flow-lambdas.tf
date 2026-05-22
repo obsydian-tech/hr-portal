@@ -657,9 +657,10 @@ resource "aws_lambda_function" "get_panel_members" {
 
   environment {
     variables = {
-      COGNITO_POOL_ID = local.tf_naleko_pool_id
-      TENANT_ID       = "NALEKO"
-      ENVIRONMENT     = var.environment
+      COGNITO_POOL_ID  = local.tf_naleko_pool_id
+      STATE_TABLE_NAME = local.tf_table_state
+      TENANT_ID        = "NALEKO"
+      ENVIRONMENT      = var.environment
     }
   }
 
@@ -932,4 +933,83 @@ resource "aws_lambda_function" "update_candidate" {
   }
 
   tags = merge(local.tf_tags, { Ticket = "NH-133", Purpose = "CandidateUpdate" })
+}
+
+# ── 23. generateScoringLink ───────────────────────────────────────────────────
+# Phase E — D004 hybrid panel model (email-link panelists)
+# Triggered by: POST /v1/candidates/{id}/scoring-links (JWT-secured HTTP API)
+# Generates a UUID token, writes candidate-indexed + token-indexed DDB records,
+# returns a signed scoring URL valid for TOKEN_TTL_DAYS (default: 7 days).
+
+resource "aws_lambda_function" "generate_scoring_link" {
+  function_name = local.tf_lambda_generate_scoring_link
+  role          = aws_iam_role.generate_scoring_link.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME = local.tf_table_state
+      FRONTEND_URL     = "https://hr-portal-beryl-three.vercel.app"
+      TOKEN_TTL_DAYS   = "7"
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_generate_scoring_link}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-138", Purpose = "ScoringLink", Phase = "E" })
+}
+
+# ── 24. submitVoteByToken ─────────────────────────────────────────────────────
+# Phase E — D004 hybrid panel model (token-gated vote for email-link panelists)
+# Triggered by: POST /v1/scoring/{token}/votes (authorization_type = NONE)
+# Validates token from DDB, resolves identity, runs same scoring logic as
+# submitVote but marks token used=true after successful submission.
+
+resource "aws_lambda_function" "submit_vote_by_token" {
+  function_name = local.tf_lambda_submit_vote_by_token
+  role          = aws_iam_role.submit_vote_by_token.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME     = local.tf_table_state
+      CONFIG_TABLE_NAME    = local.tf_table_config
+      EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
+      AWS_ACCOUNT_ID       = var.aws_account_id
+      ENVIRONMENT          = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_submit_vote_by_token}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-138", Purpose = "TokenVote", Phase = "E" })
 }

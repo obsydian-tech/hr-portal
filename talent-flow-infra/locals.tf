@@ -67,7 +67,9 @@ locals {
   tf_lambda_create_offer         = "createOffer"
   tf_lambda_get_offer            = "getOffer"
   tf_lambda_advance_offer_state  = "advanceOfferState"
-  tf_lambda_update_candidate     = "updateCandidate"
+  tf_lambda_update_candidate          = "updateCandidate"
+  tf_lambda_generate_scoring_link     = "generateScoringLink"
+  tf_lambda_submit_vote_by_token      = "submitVoteByToken"
 
   # ── KMS key aliases ───────────────────────────────────────────────────────
   tf_kms_alias_state       = "alias/talent-flow/state"
