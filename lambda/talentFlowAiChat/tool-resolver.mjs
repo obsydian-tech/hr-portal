@@ -255,24 +255,30 @@ export const TOOL_MAP = {
   },
 
   get_pipeline_overview: async (args, _ctx) => {
-    // Query via GSI1PK = "PIPELINE#DEFAULT" if stage is given, else use PK prefix scan
-    // For simplicity, query the state table PK prefix CANDIDATE# and filter by stage
-    const limit = args.limit ?? 20;
+    // Candidates are stored with GSI1PK = 'TENANT#NALEKO' and GSI1SK = 'SAGA#...'
+    const limit = args.limit ?? 50;
     const res = await ddb.send(new QueryCommand({
       TableName:                 STATE_TABLE,
       IndexName:                 'GSI1',
-      KeyConditionExpression:    args.stage
-        ? 'GSI1PK = :pk AND begins_with(GSI1SK, :skp)'
-        : 'GSI1PK = :pk',
-      ExpressionAttributeValues: marshall(
-        args.stage
-          ? { ':pk': 'PIPELINE#DEFAULT', ':skp': `${args.stage}#` }
-          : { ':pk': 'PIPELINE#DEFAULT' },
-      ),
+      KeyConditionExpression:    'GSI1PK = :pk AND begins_with(GSI1SK, :skp)',
+      ExpressionAttributeValues: marshall({
+        ':pk':  'TENANT#NALEKO',
+        ':skp': 'SAGA#',
+      }),
       Limit: limit,
     }));
-    const items = (res.Items ?? []).map(item => unmarshall(item));
-    return { candidates: items, count: items.length };
+    let items = (res.Items ?? []).map(item => unmarshall(item));
+    // Filter by stage if requested
+    if (args.stage) {
+      items = items.filter(i => i.currentStage === args.stage);
+    }
+    // Summarise by stage
+    const summary = {};
+    for (const item of items) {
+      const s = item.currentStage ?? 'UNKNOWN';
+      summary[s] = (summary[s] ?? 0) + 1;
+    }
+    return { candidates: items, count: items.length, stageSummary: summary };
   },
 
   get_vote_summary: async (args, _ctx) => {

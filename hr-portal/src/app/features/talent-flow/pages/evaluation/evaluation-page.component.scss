@@ -1,0 +1,72 @@
+/** EvaluationPage styles — FE-007 */
+
+.tf-eval {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 var(--naleko-space-4, 24px) var(--naleko-space-6, 48px);
+}
+
+.tf-eval__header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.tf-eval__title-block { display: flex; flex-direction: column; gap: 4px; }
+
+.tf-eval__title {
+  font-family: var(--naleko-font-display, 'Nunito', sans-serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--naleko-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.tf-eval__subtitle {
+  font-size: 13px;
+  color: var(--naleko-on-surface-variant);
+  margin: 0;
+}
+
+.tf-eval__loading,
+.tf-eval__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 24px;
+  color: var(--naleko-on-surface-variant);
+  font-size: 14px;
+}
+
+.tf-eval__body { display: flex; flex-direction: column; gap: 16px; }
+
+.tf-eval__success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  color: #1b5e20;
+  font-weight: 600;
+
+  .pi { font-size: 18px; }
+}
+
+.tf-eval__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fce4ec;
+  border: 1px solid #f48fb1;
+  border-radius: 8px;
+  color: #880e4f;
+  font-size: 13px;
+}

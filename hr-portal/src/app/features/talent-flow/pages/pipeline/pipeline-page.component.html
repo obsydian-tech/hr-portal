@@ -1,0 +1,287 @@
+<section class="tf-pipeline">
+
+  <!-- ── Page header ─────────────────────────────────────────────────────── -->
+  <header class="tf-pipeline__header">
+    <div class="tf-pipeline__header-left">
+      <button class="tf-pipeline__back-btn" (click)="openDashboard()">
+        <i class="pi pi-arrow-left"></i>
+      </button>
+      <div>
+        <p class="tf-pipeline__eyebrow">TalentFlow</p>
+        <h1 class="tf-pipeline__title">Pipeline</h1>
+      </div>
+    </div>
+
+    <div class="tf-pipeline__header-right">
+      @if (state.slaBreachCount() > 0) {
+        <span class="tf-pipeline__breach-badge">
+          <i class="pi pi-exclamation-triangle"></i>
+          {{ state.slaBreachCount() }} SLA {{ state.slaBreachCount() === 1 ? 'breach' : 'breaches' }}
+        </span>
+      }
+
+      <!-- View toggle: List | Kanban (D052: list default) -->
+      <div class="tf-view-toggle" role="group" aria-label="View mode">
+        <button class="tf-view-toggle__btn"
+          [class.tf-view-toggle__btn--active]="viewMode() === 'list'"
+          (click)="setView('list')"
+          title="List view">
+          <i class="pi pi-list"></i>
+        </button>
+        <button class="tf-view-toggle__btn"
+          [class.tf-view-toggle__btn--active]="viewMode() === 'kanban'"
+          (click)="setView('kanban')"
+          title="Kanban view">
+          <i class="pi pi-table"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Filter bar (D053 — 5 groups) ──────────────────────────────────── -->
+  <div class="tf-pipeline__filter-bar">
+
+    <!-- Search -->
+    <div class="tf-pipeline__search">
+      <i class="pi pi-search tf-pipeline__search-icon"></i>
+      <input
+        class="tf-pipeline__search-input"
+        type="text"
+        placeholder="Search by name, email or role…"
+        [value]="searchQuery()"
+        (input)="setSearch($any($event.target).value)" />
+    </div>
+
+    <!-- Group 1: Phase (D054 — phase chips, not individual stages) -->
+    <div class="tf-filter-group">
+      <span class="tf-filter-group__label">Stage</span>
+      <div class="tf-filter-chips">
+        @for (opt of phaseOptions; track opt.id) {
+          <button class="tf-chip-btn"
+            [class.tf-chip-btn--active]="phaseFilter() === opt.id"
+            (click)="setPhaseFilter(opt.id)">
+            {{ opt.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Group 2: Health (D021 signal language) -->
+    <div class="tf-filter-group">
+      <span class="tf-filter-group__label">Health</span>
+      <div class="tf-filter-chips">
+        <button class="tf-chip-btn" [class.tf-chip-btn--active]="healthFilter() === 'ALL'"
+          (click)="setHealthFilter('ALL')">All</button>
+        <button class="tf-chip-btn tf-chip-btn--green" [class.tf-chip-btn--active]="healthFilter() === 'ON_TRACK'"
+          (click)="setHealthFilter('ON_TRACK')">On Track</button>
+        <button class="tf-chip-btn tf-chip-btn--amber" [class.tf-chip-btn--active]="healthFilter() === 'AT_RISK'"
+          (click)="setHealthFilter('AT_RISK')">At Risk</button>
+        <button class="tf-chip-btn tf-chip-btn--red" [class.tf-chip-btn--active]="healthFilter() === 'BREACHED'"
+          (click)="setHealthFilter('BREACHED')">Breached</button>
+      </div>
+    </div>
+
+    <!-- Group 3: Seniority (D039 — 3 levels) -->
+    <div class="tf-filter-group">
+      <span class="tf-filter-group__label">Seniority</span>
+      <div class="tf-filter-chips">
+        @for (opt of seniorityOptions; track opt) {
+          <button class="tf-chip-btn"
+            [class.tf-chip-btn--active]="seniorityFilter() === opt"
+            (click)="setSeniorityFilter(opt)">
+            {{ opt === 'ALL' ? 'All' : (opt | titlecase) }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Group 4: Sentiment -->
+    <div class="tf-filter-group">
+      <span class="tf-filter-group__label">Sentiment</span>
+      <div class="tf-filter-chips">
+        @for (opt of sentimentOptions; track opt) {
+          <button class="tf-chip-btn"
+            [class.tf-chip-btn--active]="sentimentFilter() === opt"
+            [class.tf-chip-btn--amber]="opt === 'HESITANT'"
+            [class.tf-chip-btn--green]="opt === 'POSITIVE' || opt === 'EXCITED'"
+            (click)="setSentimentFilter(opt)">
+            {{ opt === 'ALL' ? 'All' : (opt | titlecase) }}
+          </button>
+        }
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Loading ─────────────────────────────────────────────────────────── -->
+  @if (state.isLoading()) {
+    <div class="tf-pipeline__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading pipeline…</span>
+    </div>
+  }
+
+  @if (!state.isLoading()) {
+
+    <!-- ── Results bar (D054) ──────────────────────────────────────────────── -->
+    <div class="tf-pipeline__results-bar">
+      <span class="tf-results-count">
+        {{ filteredPipeline().length }} candidate{{ filteredPipeline().length !== 1 ? 's' : '' }}
+        @if (resultBreachCount() > 0) {
+          <span class="tf-results-badge tf-results-badge--red">{{ resultBreachCount() }} breached</span>
+        }
+        @if (resultAtRiskCount() > 0) {
+          <span class="tf-results-badge tf-results-badge--amber">{{ resultAtRiskCount() }} at risk</span>
+        }
+      </span>
+
+      <!-- Sort (D055) -->
+      <div class="tf-results-sort">
+        <label class="tf-results-sort__label">Sort</label>
+        <select class="tf-filter-select tf-filter-select--sm"
+          [value]="sortBy()"
+          (change)="setSortBy($any($event.target).value)">
+          <option value="urgency">Urgency (default)</option>
+          <option value="name">Name A–Z</option>
+          <option value="stage">Stage</option>
+          <option value="applied">Applied Date</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!-- LIST VIEW (D052 default) -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    @if (viewMode() === 'list') {
+
+      @if (filteredPipeline().length === 0) {
+        <div class="tf-pipeline__empty">
+          <i class="pi pi-filter-slash"></i>
+          <p>No candidates match the current filters.</p>
+        </div>
+      } @else {
+        <div class="tf-pipeline__list">
+          @for (c of filteredPipeline(); track c.id) {
+            <div class="tf-pl-row"
+              [class.tf-pl-row--breached]="c.slaStatus === 'BREACHED'"
+              [class.tf-pl-row--at-risk]="c.slaStatus === 'AT_RISK'"
+              (click)="openCandidate(c.id)"
+              role="button"
+              tabindex="0">
+
+              <!-- Avatar -->
+              <div [class]="avatarClass(c)">{{ initials(c) }}</div>
+
+              <!-- Identity -->
+              <div class="tf-pl-row__identity">
+                <p class="tf-pl-row__name">{{ c.firstName }} {{ c.lastName }}</p>
+                <p class="tf-pl-row__role">{{ c.role }}</p>
+              </div>
+
+              <!-- Pills -->
+              <div class="tf-pl-row__pills">
+                <span class="tf-pill tf-pill--seniority">{{ c.positionLevel | titlecase }}</span>
+                @if (sentimentLabel(c); as label) {
+                  <span [class]="sentimentPillClass(c)">{{ label }}</span>
+                }
+              </div>
+
+              <!-- Stage -->
+              <span class="tf-pl-row__stage">{{ stageLabels[c.currentStage] }}</span>
+
+              <!-- Health + SLA bar -->
+              <div class="tf-pl-row__health">
+                <span [class]="healthPillClass(c)">{{ healthLabel(c) }}</span>
+                <div class="tf-sla-bar" role="progressbar"
+                  [attr.aria-valuenow]="slaBarWidth(c)" aria-valuemin="0" aria-valuemax="100">
+                  <div class="tf-sla-bar__fill"
+                    [class.tf-sla-bar__fill--breached]="c.slaStatus === 'BREACHED'"
+                    [class.tf-sla-bar__fill--at-risk]="c.slaStatus === 'AT_RISK'"
+                    [style.width.%]="slaBarWidth(c)">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Applied -->
+              <span class="tf-pl-row__applied">{{ c.appliedDate | date:'d MMM yy' }}</span>
+
+              <!-- Chevron -->
+              <i class="pi pi-chevron-right tf-pl-row__chevron"></i>
+
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!-- KANBAN VIEW (D057: 4 phase columns, no drag-and-drop) -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    @if (viewMode() === 'kanban') {
+      <div class="tf-pipeline__board">
+        @for (phase of kanbanPhases; track phase.id) {
+          <div class="tf-pipeline__column"
+               [class.tf-pipeline__column--empty]="candidatesForPhase(phase).length === 0">
+
+            <div class="tf-pipeline__col-header">
+              <div class="tf-pipeline__col-title">
+                <span class="tf-pipeline__col-label">{{ phase.label }}</span>
+                <span class="tf-pipeline__col-sub">{{ phase.sub }}</span>
+              </div>
+              <span class="tf-pipeline__col-count"
+                [class.tf-pipeline__col-count--alert]="hasUrgent(candidatesForPhase(phase))">
+                {{ candidatesForPhase(phase).length }}
+              </span>
+            </div>
+
+            <div class="tf-pipeline__cards">
+              @for (c of candidatesForPhase(phase); track c.id) {
+                <div class="tf-kb-card"
+                  [class.tf-kb-card--breached]="c.slaStatus === 'BREACHED'"
+                  [class.tf-kb-card--at-risk]="c.slaStatus === 'AT_RISK'"
+                  (click)="openCandidate(c.id)"
+                  role="button"
+                  tabindex="0">
+
+                  <div class="tf-kb-card__top">
+                    <div [class]="avatarClass(c)">{{ initials(c) }}</div>
+                    <div class="tf-kb-card__info">
+                      <p class="tf-kb-card__name">{{ c.firstName }} {{ c.lastName }}</p>
+                      <p class="tf-kb-card__role">{{ c.role }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Stage sub-label inside card (D057) -->
+                  <p class="tf-kb-card__stage">{{ phaseStageLabel(c) }}</p>
+
+                  <div class="tf-kb-card__footer">
+                    @if (sentimentLabel(c); as label) {
+                      <span [class]="sentimentPillClass(c)">{{ label }}</span>
+                    }
+                    <span [class]="healthPillClass(c)">{{ healthLabel(c) }}</span>
+                  </div>
+
+                  <div class="tf-sla-bar tf-sla-bar--kanban">
+                    <div class="tf-sla-bar__fill"
+                      [class.tf-sla-bar__fill--breached]="c.slaStatus === 'BREACHED'"
+                      [class.tf-sla-bar__fill--at-risk]="c.slaStatus === 'AT_RISK'"
+                      [style.width.%]="slaBarWidth(c)">
+                    </div>
+                  </div>
+
+                </div>
+              } @empty {
+                <div class="tf-pipeline__col-empty">
+                  <i class="pi pi-inbox"></i>
+                </div>
+              }
+            </div>
+
+          </div>
+        }
+      </div>
+    }
+
+  }
+
+</section>

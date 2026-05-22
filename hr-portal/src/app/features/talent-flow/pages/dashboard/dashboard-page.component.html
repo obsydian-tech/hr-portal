@@ -1,0 +1,229 @@
+<section class="tf-dash">
+
+  <!-- ── Loading ─────────────────────────────────────────────────────────── -->
+  @if (state.isLoading()) {
+    <div class="tf-dash__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading pipeline…</span>
+    </div>
+  }
+
+  @if (state.error()) {
+    <div class="tf-dash__error">
+      <i class="pi pi-exclamation-triangle"></i>
+      {{ state.error() }}
+    </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       ZONE 1 — Signal Summary Strip (D020 Z1, D016 signal-first)
+       4 KPI cards: SLA Breaches · At Risk · Acceptance Rate · Active Pipeline
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="tf-dash__zone-1">
+
+    <div class="tf-signal-card tf-signal-card--breached" (click)="openPipeline({ health: 'BREACHED' })">
+      <p class="tf-signal-card__eyebrow">SLA Breaches</p>
+      <p class="tf-signal-card__value">{{ slaBreachCount() }}</p>
+      <p class="tf-signal-card__sub">Candidates past SLA threshold</p>
+    </div>
+
+    <div class="tf-signal-card tf-signal-card--at-risk" (click)="openPipeline({ health: 'AT_RISK' })">
+      <p class="tf-signal-card__eyebrow">At Risk</p>
+      <p class="tf-signal-card__value">{{ atRiskCount() }}</p>
+      <p class="tf-signal-card__sub">Approaching SLA threshold</p>
+    </div>
+
+    <div class="tf-signal-card tf-signal-card--success">
+      <p class="tf-signal-card__eyebrow">Acceptance Rate</p>
+      <p class="tf-signal-card__value">{{ acceptanceRate() }}</p>
+      <p class="tf-signal-card__sub">Pipeline reaching offer stage</p>
+    </div>
+
+    <div class="tf-signal-card tf-signal-card--primary" (click)="openPipeline()">
+      <p class="tf-signal-card__eyebrow">Active Pipeline</p>
+      <p class="tf-signal-card__value">{{ activePipelineCount() }}</p>
+      <p class="tf-signal-card__sub">Total open candidates</p>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       ZONE 2 — Candidates at Risk (D020 Z2, D024 card anatomy, max 2)
+  ══════════════════════════════════════════════════════════════════════════ -->
+  @if (atRiskTotal() > 0) {
+    <div class="tf-dash__zone-2">
+
+      <div class="tf-section-head">
+        <h2 class="tf-section-head__title">Candidates at risk</h2>
+        <div class="tf-section-head__badges">
+          @if (slaBreachCount() > 0) {
+            <span class="tf-badge tf-badge--red">{{ slaBreachCount() }} breached</span>
+          }
+          @if (atRiskCount() > 0) {
+            <span class="tf-badge tf-badge--amber">{{ atRiskCount() }} at risk</span>
+          }
+        </div>
+        <button class="tf-link-btn" (click)="openPipeline({ health: 'AT_RISK' })">
+          View all {{ atRiskTotal() }} →
+        </button>
+      </div>
+
+      <div class="tf-risk-cards">
+        @for (c of candidatesAtRisk(); track c.id) {
+          <!-- Candidate Card — D024 anatomy -->
+          <div class="tf-cand-card"
+               [class.tf-cand-card--breached]="c.slaStatus === 'BREACHED'"
+               [class.tf-cand-card--at-risk]="c.slaStatus === 'AT_RISK'"
+               (click)="openCandidate(c.id)"
+               role="button"
+               tabindex="0">
+
+            <!-- Avatar (colour = urgency) -->
+            <div [class]="avatarClass(c)">{{ initials(c) }}</div>
+
+            <!-- Centre: name + pills -->
+            <div class="tf-cand-card__info">
+              <p class="tf-cand-card__name">{{ c.firstName }} {{ c.lastName }}</p>
+              <div class="tf-cand-card__pills">
+                <span class="tf-pill tf-pill--role">{{ c.role }}</span>
+                <span class="tf-pill tf-pill--seniority">{{ c.positionLevel }}</span>
+                @if (sentimentLabel(c); as label) {
+                  <span [class]="sentimentPillClass(c)">{{ label }}</span>
+                }
+              </div>
+              <p class="tf-cand-card__stage-ctx">{{ stageContext(c.currentStage) }}</p>
+            </div>
+
+            <!-- Right: stage + health pill + SLA bar (no numbers — D021) -->
+            <div class="tf-cand-card__right">
+              <p class="tf-cand-card__stage">{{ stageLabel(c.currentStage) }}</p>
+              <span [class]="healthPillClass(c)">{{ healthLabel(c) }}</span>
+              <div class="tf-sla-bar" role="progressbar" [attr.aria-valuenow]="slaBarWidth(c)" aria-valuemin="0" aria-valuemax="100">
+                <div class="tf-sla-bar__fill"
+                     [class.tf-sla-bar__fill--breached]="c.slaStatus === 'BREACHED'"
+                     [class.tf-sla-bar__fill--at-risk]="c.slaStatus === 'AT_RISK'"
+                     [style.width.%]="slaBarWidth(c)">
+                </div>
+              </div>
+            </div>
+
+          </div>
+        }
+      </div>
+
+    </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       ZONES 3 + 4 — two-column grid (D020 Z3 My Actions | Z4 Pipeline Summary)
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="tf-dash__zone-mid">
+
+    <!-- Zone 3 — My Actions Today (max 3, D020 Z3) -->
+    <div class="tf-dash__zone-3">
+
+      <div class="tf-section-head">
+        <h2 class="tf-section-head__title">My actions today</h2>
+        @if (state.pendingActionsCount() > 0) {
+          <span class="tf-badge tf-badge--indigo">{{ state.pendingActionsCount() }} pending</span>
+        }
+        @if (state.pendingActionsCount() > 3) {
+          <button class="tf-link-btn" (click)="openCandidates()">View all →</button>
+        }
+      </div>
+
+      @if (myActionsToday().length === 0) {
+        <div class="tf-empty-state">
+          <i class="pi pi-check-circle"></i>
+          <p>All clear — no actions pending.</p>
+        </div>
+      } @else {
+        <div class="tf-actions-list">
+          @for (action of myActionsToday(); track action.actionId) {
+            <div class="tf-action-item">
+              <div [class]="actionIconClass(action)">
+                <i class="pi pi-bolt"></i>
+              </div>
+              <div class="tf-action-item__body">
+                <p class="tf-action-item__title">{{ actionTitle(action) }}</p>
+                <p class="tf-action-item__desc">Requested by {{ action.requestedBy }}</p>
+              </div>
+              <span [class]="actionPriorityClass(action)">{{ actionPriorityLabel(action) }}</span>
+            </div>
+          }
+        </div>
+      }
+
+    </div>
+
+    <!-- Zone 4 — Pipeline Summary: counts + health dots only (D025, no candidate names) -->
+    <div class="tf-dash__zone-4">
+
+      <div class="tf-section-head">
+        <h2 class="tf-section-head__title">Pipeline</h2>
+        <button class="tf-link-btn" (click)="openPipeline()">Full view →</button>
+      </div>
+
+      <div class="tf-pipeline-summary">
+        @for (phase of pipelinePhases(); track phase.phase) {
+          <div class="tf-phase-row" (click)="openPipeline()" role="button" tabindex="0">
+
+            <div class="tf-phase-row__label">
+              <p class="tf-phase-row__name">{{ phase.name }}</p>
+              <p class="tf-phase-row__sub">{{ phase.sub }}</p>
+            </div>
+
+            <!-- Health dots — one per candidate, coloured by health (D025) -->
+            <div class="tf-phase-row__dots">
+              @for (c of phase.candidates; track c.id) {
+                <span [class]="dotClass(c)"></span>
+              }
+              @if (phase.candidates.length === 0) {
+                <span class="tf-phase-dot tf-phase-dot--empty"></span>
+              }
+            </div>
+
+            <p class="tf-phase-row__count">{{ phase.candidates.length }}</p>
+
+          </div>
+        }
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       ZONE 5 — This Month (D020 Z5, 3 stat cards)
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="tf-dash__zone-5">
+
+    <div class="tf-section-head">
+      <h2 class="tf-section-head__title">This month</h2>
+    </div>
+
+    <div class="tf-month-cards">
+
+      <div class="tf-month-card">
+        <p class="tf-month-card__eyebrow">Offers Sent</p>
+        <p class="tf-month-card__value">{{ offersSentCount() }}</p>
+        <p class="tf-month-card__sub">Candidates at offer stage or beyond</p>
+      </div>
+
+      <div class="tf-month-card tf-month-card--success">
+        <p class="tf-month-card__eyebrow">Acceptance Rate</p>
+        <p class="tf-month-card__value">{{ acceptanceRate() }}</p>
+        <p class="tf-month-card__sub">Of active pipeline beyond offer</p>
+      </div>
+
+      <div class="tf-month-card tf-month-card--warning">
+        <p class="tf-month-card__eyebrow">Hesitant Signals</p>
+        <p class="tf-month-card__value">{{ hesitantCount() }}</p>
+        <p class="tf-month-card__sub">Candidates flagged as hesitant</p>
+      </div>
+
+    </div>
+
+  </div>
+
+</section>

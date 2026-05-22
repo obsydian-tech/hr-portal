@@ -87,6 +87,30 @@ resource "aws_sqs_queue_redrive_allow_policy" "talent_flow_feedback_dlq" {
   })
 }
 
+# ── Notification queue resource policy — allow EventBridge to publish ─────────
+# Required for EventBridge → SQS FIFO targets (Rules 5a/5b, 6, 7, 8).
+# SQS has no default policy; without this EventBridge sends fail silently.
+
+resource "aws_sqs_queue_policy" "talent_flow_notification_eventbridge" {
+  queue_url = aws_sqs_queue.talent_flow_notification.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "AllowEventBridgePublish"
+      Effect    = "Allow"
+      Principal = { Service = "events.amazonaws.com" }
+      Action    = "sqs:SendMessage"
+      Resource  = aws_sqs_queue.talent_flow_notification.arn
+      Condition = {
+        StringEquals = {
+          "aws:SourceAccount" = var.aws_account_id
+        }
+      }
+    }]
+  })
+}
+
 # ── Feedback Queue ────────────────────────────────────────────────────────────
 
 resource "aws_sqs_queue" "talent_flow_feedback" {

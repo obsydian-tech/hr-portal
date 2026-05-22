@@ -33,11 +33,32 @@ Before summarising any task, read ALL of the following in parallel and explicitl
 |--------|-----------------|
 | **Jira ticket** (e.g. NH-107) | Stated requirements, DO/DON'T list, resource names, schema |
 | **`talent-flow-infra/locals.tf`** | Locked-in resource names — if ticket names differ, ticket is wrong |
-| **`docs/TALENT-FLOW-PLAN-REVISED.md`** | Architectural source of truth — takes precedence over ticket |
+| **`docs/PLATFORM-ARCHITECTURE.md`** ⭐ GOLDEN PATH | **Read this for ALL frontend/routing tasks.** Single login, platform home, module routing, Cognito group→module map, full route tree, guard rules, what to build vs what to leave alone. When any chat history or BRD conflicts with this, THIS wins. |
+| **`docs/TALENT-FLOW-PLAN-REVISED.md`** ⭐ PRIMARY SOURCE | **Read this first for ALL TalentFlow tasks.** Architectural source of truth — takes precedence over ticket, BRD, and PROJECT_CONTEXT. Defines: Angular folder structure, page routes, component specs, service interfaces, ConfigType enum values, HiringStage names, intent templates, tool definitions (6 read + 3 write), HITL gate requirements. When any other doc conflicts with this, THIS wins. |
 | **`docs/Event Driven Architecture Docs/MVP1-FOUNDATION-PLAN-v2.md`** | Milestone-level business intent, table schemas, access patterns, exact Lambda/table names |
 | **Naleko reference files** (`infra/*.tf` relevant to current task) | Existing patterns to follow (KMS style, GSI style, tagging, IAM policy documents) |
 | **AWS CLI** | Current live state — what already exists, what is missing |
 | **Previously merged PRs / existing `talent-flow-infra/` files** | What has already been created — avoid duplication or referencing nonexistent resources |
+
+### Frontend-Specific Research Protocol (Angular tasks only)
+
+For every FE task, BEFORE writing any code, read in parallel:
+
+1. **`docs/TALENT-FLOW-PLAN-REVISED.md` §3.4 (Angular file structure) + §6.1 (Component Specifications)** — defines exact folder structure, page routes, component inputs/outputs, and service method signatures
+2. **`docs/TALENT-FLOW-PLAN-REVISED.md` §3.3 (`talentFlowAiChat` intent templates)** — the only authoritative list of AI chat templates (7 intents, 6 read + 1 write → HITL)
+3. **Design handoff**: `~/Downloads/naleko-design-handoff/naleko-design-system/project/preview/` — read the relevant preview HTML files before writing a single CSS class (see Lesson 17)
+4. **Existing committed files** — read current `.ts` files before adding/modifying to avoid duplication
+
+**Key values locked by `docs/TALENT-FLOW-PLAN-REVISED.md` (do not invent alternatives):**
+
+| Item | Correct value from plan |
+|------|------------------------|
+| `ConfigType` enum | `'SCORING_WEIGHTS' \| 'SLA_THRESHOLDS' \| 'APPROVAL_RULES' \| 'PANEL_CONFIG' \| 'EMAIL_TEMPLATES' \| 'STAGE_CONFIG'` |
+| HiringStage names | `APPLICATION_REVIEW`, `PHONE_SCREENING`, `TECHNICAL_INTERVIEW`, `PANEL_INTERVIEW`, `EVALUATION`, `OFFER_PREPARATION`, `OFFER_APPROVAL`, `OFFER_DELIVERY`, `CONTRACT_SIGNING`, `PRE_BOARDING`, `ONBOARDING` (12 stages) |
+| AI chat templates | 7 intents: `candidate_status`, `pipeline_overview`, `vote_summary`, `sla_status`, `evaluation_risk`, `sla_prediction`, `config_recommendation` |
+| AI write tools (HITL) | Only `update_config` (`config_recommendation` intent) |
+| Missing MVP1 pages | `candidate-create` (`/candidates/new`), `evaluation` (`/candidates/:id/evaluate`), `config/scoring`, `config/sla`, `config/panel` |
+| MVP2 deferred pages | `config/approval-rules`, `config/notification-templates`, `config/stage-enablement` |
 
 ---
 
@@ -538,3 +559,165 @@ The ticket asked for a direct SQS send to `talent-flow-notification-queue`. This
 
 #### 15e. `getConfig` failure is fatal — let the Lambda throw
 If `getConfig` fails, the Lambda throws and the cron logs a failure. This is correct — a silent swallow would cause ALL SLA breaches to be missed silently for that hour. Let EventBridge surface the Lambda error; it will retry on the next hour.
+
+---
+
+### Lesson 16 — Never Use `cat` Heredoc for TypeScript/Unicode Files
+
+Attempting to write TypeScript files via a shell `cat > file << 'ENDOFFILE'` heredoc **will corrupt the file** if the content contains any Unicode characters (em-dashes `—`, section signs `§`, box-drawing chars `─`, smart quotes, etc.). The shell mangles encoding, may get stuck in heredoc state, and leaves the file unreadable.
+
+**Rule:** ALWAYS use the `create_file` VS Code tool to write TypeScript, SCSS, or any file containing non-ASCII characters. If the file already exists and must be overwritten, use a Python script:
+
+```python
+# Safe file overwrite — handles Unicode correctly
+path = '/absolute/path/to/file.ts'
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(content)
+```
+
+Never use `cat` heredoc for code files. This corrupted `talent-flow-api.service.ts` during FE-002 and required a full recovery cycle.
+
+---
+
+### Lesson 17 — FE Design System Protocol: Always Read the Handoff Before Implementing UI
+
+Before implementing any Angular UI component for TalentFlow, run the following pre-implementation design system check. This ensures every component uses the correct Naleko token, PrimeNG element, and visual pattern — no guessing, no inventing.
+
+#### 17a. Design Handoff Location
+
+```
+~/Downloads/naleko-design-handoff/naleko-design-system/project/
+  colors_and_type.css          ← token definitions (same as naleko-tokens.css in app)
+  preview/                     ← 27 HTML preview files — one per component/pattern
+  ui_kits/hr-portal/components/ ← full JSX reference implementations
+```
+
+#### 17b. Preview File Index (read before picking PrimeNG components)
+
+| File | What it defines |
+|---|---|
+| `17-stat-card.html` | `.scard` stat card — white, radius 12, shadow-xs, `.sicon` icon tile |
+| `18-doc-card-states.html` | `.doc` document card — accepted/review/rejected/pending states |
+| `19-status-pills.html` | `.pill` status tags, `.cap` editorial capsule, `.spill` on-dark pill |
+| `22-wizard-stepper.html` | `.wz-dot/.wz-line` stepper — done/active/pending dot + connector |
+| `14-shadows.html` | shadow-xs, shadow-card, shadow-md-CTA, shadow-ghost values |
+| `15-buttons.html` | `.nk-btn` primary/secondary/ghost/danger variants |
+| `16-inputs.html` | `.nk-field` input, `.nk-select` — underline-only style |
+| `23-chat-bubble.html` | Chat bubble — user/AI sides |
+| `20-sidebar-nav.html` | Sidebar nav active/hover states |
+
+#### 17c. JSX Reference Files (copy layout + class names from these)
+
+| File | Contains |
+|---|---|
+| `EmployeeDetail.jsx` | `.ed__avatar` (grad-cta initials), `.ed__name` (Manrope 800), `.ed__meta` (icon row), `.ed__risk-chip` (LOW/MEDIUM/HIGH), progress bar |
+| `HRDashboard.jsx` | `.scard` stat cards grid, table rows, risk badge |
+| `primitives.jsx` | `Button`, `Tag`, `Icon`, `Eyebrow`, `WelcomePill` patterns |
+
+#### 17d. Required Pre-Implementation Steps (run before every FE component)
+
+1. **Read the relevant preview HTML** — identify which `.css` classes define the component
+2. **Read the relevant JSX file** — copy exact class hierarchy and token references
+3. **Map to Angular 19 + PrimeNG** — use `<p-card>`, `<p-tag>`, `<p-progressbar>` where the design uses plain divs; keep `--naleko-*` token names unchanged
+4. **Check token names are correct** — run `grep -n "<token-name>" src/styles/naleko-tokens.css` before using any `--naleko-*` var
+5. **No hardcoded hex** — every colour MUST come from `--naleko-*`. If a hex appears in the JSX, find its token equivalent in `naleko-tokens.css`
+
+#### 17e. Angular 19 Component Template (follow exactly)
+
+```typescript
+@Component({
+  selector: 'tf-my-component',
+  standalone: true,
+  imports: [CommonModule, /* PrimeNG modules */],
+  templateUrl: './my-component.component.html',
+  styleUrl:    './my-component.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class MyComponent {
+  readonly myInput  = input.required<MyType>();   // NOT @Input()
+  readonly myOutput = output<void>();             // NOT @Output() EventEmitter
+  readonly derived  = computed(() => ...);        // NOT pipe/getter
+}
+```
+
+#### 17f. SCSS Template
+
+```scss
+// MyComponent styles
+// Design source: naleko-design-handoff/preview/XX-name.html (.class-name)
+//                naleko-design-handoff/ui_kits/hr-portal/components/File.jsx
+// All colours via --naleko-* tokens — no hardcoded hex.
+
+.tf-my-component {
+  // ...token-only styles
+}
+```
+
+**The comment block citing exact design source file + class name is mandatory** — this ensures future agents can trace any styling decision back to the handoff.
+
+---
+
+### Lesson 18 — TalentFlow Cognito Pool Is NOT the Naleko Pool (FE-002, Lesson locked)
+
+The TalentFlow API Gateway authorizer validates tokens against the **TF Cognito User Pool** (`af-south-1_C8TTlQxY7`), not the Naleko pool (`af-south-1_2LdAGFnw2`). A Naleko pool JWT sent to the TF API Gateway returns 401.
+
+**Hard rule (ss5.6):** `TalentFlowAuthService` MUST use `environment.talentFlow.cognitoConfig` exclusively. Never inject or call `AuthService` (Naleko) from any TalentFlow component, service, or guard. Never swap the two pool references.
+
+Confirmed values (from `terraform output`):
+- Pool ID: `af-south-1_C8TTlQxY7`
+- Client ID: `74644m5eck56vvq4fp7nfm8dht`
+- Region: `af-south-1`
+
+---
+
+### Lesson 20 — TALENT-FLOW-PLAN-REVISED.md Is The Angular Source of Truth
+
+**Background:** FE-001 through FE-005 were implemented before `docs/TALENT-FLOW-PLAN-REVISED.md` was identified as the primary reference. As a result, several items were implemented against the BRD (`TALENTFLOW-BRD-v1.md`) rather than the plan, causing misalignments:
+
+#### 20a. `ConfigType` Mismatch (must fix in FE-008)
+Implemented (from BRD): `'SCORING_WEIGHTS' | 'SLA_THRESHOLDS' | 'WORKFLOW_TEMPLATE' | 'NOTIFICATION_TEMPLATES'`
+Correct (from plan §3.1 DynamoDB schema): `'SCORING_WEIGHTS' | 'SLA_THRESHOLDS' | 'APPROVAL_RULES' | 'PANEL_CONFIG' | 'EMAIL_TEMPLATES' | 'STAGE_CONFIG'`
+
+Fix: replace `WORKFLOW_TEMPLATE` → `APPROVAL_RULES`, `PANEL_CONFIG`, `STAGE_CONFIG`; replace `NOTIFICATION_TEMPLATES` → `EMAIL_TEMPLATES`.
+
+#### 20b. `HiringStage` Values (verify against plan)
+The BRD defines 24+ granular states. The plan's SLA_THRESHOLDS default uses 12 operational stage names (`APPLICATION_REVIEW`, `PHONE_SCREENING`, `TECHNICAL_INTERVIEW`, `PANEL_INTERVIEW`, `EVALUATION`, `OFFER_PREPARATION`, `OFFER_APPROVAL`, `OFFER_DELIVERY`, `CONTRACT_SIGNING`, `PRE_BOARDING`, `ONBOARDING`). These are the stage names used by all Lambdas. The Angular models must use these 12 values as the `HiringStage` type — not the BRD's 24+ states.
+
+Fix: align `HiringStage` type to the 12 plan stage names.
+
+#### 20c. Missing MVP1 Pages (must build in FE-007)
+Plan §6.1 requires 5 additional pages not yet built:
+- `CandidateCreatePageComponent` — `/talent-flow/candidates/new`
+- `EvaluationPageComponent` — `/talent-flow/candidates/:id/evaluate`
+- `ScoringWeightsPageComponent` — `/talent-flow/config/scoring` (admin-guard)
+- `SLAThresholdsPageComponent` — `/talent-flow/config/sla` (admin-guard)
+- `PanelRulesPageComponent` — `/talent-flow/config/panel` (admin-guard)
+
+#### 20d. BRD vs Plan precedence rule
+When `TALENTFLOW-BRD-v1.md` and `TALENT-FLOW-PLAN-REVISED.md` conflict on type/enum values, **TALENT-FLOW-PLAN-REVISED.md wins**. The plan was written after the BRD and explicitly resolves BRD ambiguities (§4.1–§4.9).
+
+---
+
+### Lesson 19 — FE-002 Confirmed Decisions (locked, do not relitigate)
+
+- `TalentFlowAuthService` is `providedIn: 'root'` for MVP1; change to `null` (feature-level) in FE-006 when lazy routes are wired
+- `adminGuard` redirects to `/talent-flow` (not `/login`) — non-admin is authenticated, just unprivileged
+- `authHeaders()` in `TalentFlowApiService` returns `Observable<HttpHeaders>` using `from(authService.getIdToken()).pipe(switchMap(...))` — never a sync call
+- `environment.ts` and `environment.prod.ts` both carry `talentFlow.cognitoConfig` with the TF pool values
+
+---
+
+### Epic 4 — TalentFlow Angular Frontend (NH-133) Progress
+
+| Task | Jira | Description | Status | Commit |
+|------|------|-------------|--------|--------|
+| FE-001 | NH-134 | TalentFlow Angular services + domain models | Committed | `7840abe` |
+| FE-002 | NH-135 | TalentFlowAuthService + AdminGuard + auth isolation | Committed | `22db2d1`, `20a595a` |
+| FE-003 | NH-136 | CandidateIdentityCard, StageSelector, SlaTimerWidget | Committed | `8467acb` |
+| FE-004 | NH-137 | Routes + pages (Dashboard, Pipeline, CandidateWorkspace) | Committed | `0a361ab` |
+| FE-005 | NH-138 | EvaluationScoringPanel + EvaluationSummaryWidget | ✅ Committed | `7043dfb` |
+| FE-006 | NH-139 | AiChatPanel + lazy routes wiring | Not started | — |
+| FE-007 | NH-140 | Missing MVP1 pages: CandidateCreate, EvaluationPage, 3 Config pages | Not started | — |
+| FE-008 | NH-141 | Fix ConfigType enum + HiringStage alignment to TALENT-FLOW-PLAN-REVISED | Not started | — |
+
+**Branch:** `feature/epic4-talentflow-frontend`

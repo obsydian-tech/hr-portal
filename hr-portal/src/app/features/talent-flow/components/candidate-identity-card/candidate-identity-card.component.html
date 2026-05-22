@@ -1,0 +1,45 @@
+<article class="tf-identity-card" [class]="cardStateClass()">
+
+  <!-- Avatar — .ed__avatar pattern from EmployeeDetail.jsx -->
+  <div class="tf-identity-card__avatar" aria-hidden="true">
+    {{ initials() }}
+  </div>
+
+  <!-- Core identity info -->
+  <div class="tf-identity-card__body">
+    <h2 class="tf-identity-card__name">{{ fullName() }}</h2>
+    <p class="tf-identity-card__role">
+      {{ candidate().role }}
+      <span class="tf-identity-card__level">{{ candidate().positionLevel }}</span>
+      @if (candidate().experienceYears) {
+        <span class="tf-identity-card__sep">·</span>
+        <span>{{ candidate().experienceYears }} yrs exp</span>
+      }
+    </p>
+
+    <!-- Meta row — .ed__meta pattern -->
+    <div class="tf-identity-card__meta">
+      <span><i class="pi pi-calendar"></i> Applied {{ appliedFormatted() }}</span>
+      @if (candidate().source) {
+        <span><i class="pi pi-send"></i> {{ candidate().source }}</span>
+      }
+      <span><i class="pi pi-envelope"></i> {{ candidate().email }}</span>
+      @if (candidate().phone) {
+        <span><i class="pi pi-phone"></i> {{ candidate().phone }}</span>
+      }
+    </div>
+  </div>
+
+  <!-- Status chips — right-aligned, .chip pattern from 19-status-pills.html -->
+  <div class="tf-identity-card__chips">
+    @if (slaChip(); as chip) {
+      <span class="tf-chip" [ngClass]="chip.cssClass">
+        <i class="pi pi-clock"></i> {{ chip.label }}
+      </span>
+    }
+    @if (sentimentChip(); as chip) {
+      <span class="tf-chip" [ngClass]="chip.cssClass">{{ chip.label }}</span>
+    }
+  </div>
+
+</article>

@@ -1,0 +1,128 @@
+// CandidateIdentityCard styles
+// Design source: EmployeeDetail.jsx (.ed__header, .ed__avatar, .ed__meta, .ed__risk-chip)
+//                19-status-pills.html (.pill colour system)
+// All colours via --naleko-* tokens — no hardcoded hex.
+
+.tf-identity-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: var(--naleko-surface-container-lowest);
+  border-radius: 16px;
+  border: 1px solid var(--naleko-outline-variant);
+  box-shadow: 0 1px 3px rgba(26, 26, 46, 0.04); // naleko-shadow-xs
+  transition: border-color 0.2s;
+
+  // State variants — driven by slaHealthStatus
+  &.card--at-risk   { border-color: var(--naleko-warning); }
+  &.card--escalation { border-color: var(--naleko-error); }
+
+  // ── Avatar — .ed__avatar from EmployeeDetail.jsx ──
+  &__avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: var(--naleko-grad-cta);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--naleko-font-display);
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+  }
+
+  // ── Body ──
+  &__body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  // ── Name — .ed__name from EmployeeDetail.jsx ──
+  &__name {
+    font-family: var(--naleko-font-display);
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--naleko-on-surface);
+    margin: 0 0 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // ── Role line ──
+  &__role {
+    font-size: 0.88rem;
+    color: var(--naleko-on-surface);
+    margin: 0 0 0.5rem;
+  }
+
+  &__level {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 1px 7px;
+    background: var(--naleko-info-bg);
+    color: var(--naleko-primary);
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__sep {
+    margin: 0 0.25rem;
+    color: var(--naleko-on-surface-variant);
+  }
+
+  // ── Meta row — .ed__meta from EmployeeDetail.jsx ──
+  &__meta {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: var(--naleko-on-surface-variant);
+
+    span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .pi {
+      font-size: 0.75rem;
+    }
+  }
+
+  // ── Chips column — right-aligned ──
+  &__chips {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+}
+
+// ── Status chips — .pill pattern from 19-status-pills.html ──
+.tf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--naleko-font-body);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+
+  &.chip--red    { background: var(--naleko-error-bg);    color: var(--naleko-error); }
+  &.chip--amber  { background: var(--naleko-warning-bg);  color: var(--naleko-warning); }
+  &.chip--warning{ background: var(--naleko-warning-bg);  color: var(--naleko-warning); }
+  &.chip--neutral{ background: var(--naleko-info-bg);     color: var(--naleko-primary); }
+}

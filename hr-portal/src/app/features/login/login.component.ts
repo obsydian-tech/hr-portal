@@ -92,12 +92,12 @@ export class LoginComponent {
   }
 
   private redirectToDashboard(user: AuthUser | null): void {
-    if (user?.role === 'hr_staff' && user.staffId) {
-      this.router.navigate(['/hr', user.staffId]);
-    } else if (user?.role === 'employee' && user.employeeId) {
+    if (user?.role === 'employee' && user.employeeId) {
+      // Legacy employee dashboard — kept until Epic 6 migration
       this.router.navigate(['/employees', user.employeeId]);
     } else {
-      this.router.navigate(['/']);
+      // All HR staff (platform users) land on /platform/home
+      this.router.navigate(['/platform/home']);
     }
   }
 }

@@ -1,0 +1,16 @@
+{
+  "name": "capture-sentiment-lambda",
+  "version": "1.0.0",
+  "description": "TalentFlow captureSentiment Lambda — TA-captured interview engagement sentiment (D007)",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --no-coverage"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0",
+    "@aws-sdk/client-eventbridge": "^3.0.0",
+    "jest": "^29.0.0"
+  }
+}

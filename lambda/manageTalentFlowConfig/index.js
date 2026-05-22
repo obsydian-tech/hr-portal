@@ -53,8 +53,28 @@ function respond(statusCode, body) {
 
 function isAdmin(event) {
   const claims = event?.requestContext?.authorizer?.jwt?.claims ?? {};
-  // Cognito JWT authorizer passes claim values as strings
-  return claims['custom:isAdmin'] === 'true';
+  // Primary check: custom:isAdmin injected by talentFlowPreTokenTrigger
+  if (claims['custom:isAdmin'] === 'true') return true;
+  // cognito:groups — API GW HTTP JWT authorizer serialises the array claim as a string.
+  // Observed formats:
+  //   1. JSON array string: '["g1","g2"]'
+  //   2. Bracket+space:     '[g1 g2]'   ← actual Cognito format from browser
+  //   3. Comma-separated:   'g1,g2'
+  //   4. Native JS array:   ['g1','g2']
+  const rawGroups = claims['cognito:groups'] ?? '';
+  let groups;
+  if (Array.isArray(rawGroups)) {
+    groups = rawGroups;
+  } else if (typeof rawGroups === 'string' && rawGroups.startsWith('[')) {
+    try {
+      groups = JSON.parse(rawGroups); // format 1
+    } catch {
+      groups = rawGroups.slice(1, -1).split(/\s+/).filter(Boolean); // format 2
+    }
+  } else {
+    groups = String(rawGroups).split(',').map(g => g.trim()).filter(Boolean); // format 3
+  }
+  return groups.includes('naleko-talentflow-admin') || groups.includes('TalentFlowAdmin');
 }
 
 /**

@@ -138,3 +138,77 @@ import {
   id = "getDocumentPresignedUrl"
   to = aws_lambda_function.get_document_presigned_url
 }
+
+# ── TalentFlow Config Management (NH-Config) ──────────────────────────────────
+
+import {
+  id = "manageTalentFlowConfig"
+  to = aws_lambda_function.manage_talent_flow_config
+}
+
+import {
+  id = "talent-flow-role-manageTalentFlowConfig"
+  to = aws_iam_role.manage_talent_flow_config
+}
+
+import {
+  id = "talent-flow-role-manageTalentFlowConfig:talent-flow-role-manageTalentFlowConfig-policy"
+  to = aws_iam_role_policy.manage_talent_flow_config
+}
+
+import {
+  id = "57l0w7kk9h/lj112ce"
+  to = aws_apigatewayv2_integration.manage_talent_flow_config
+}
+
+import {
+  id = "57l0w7kk9h/icdwhvf"
+  to = aws_apigatewayv2_route.get_config
+}
+
+import {
+  id = "57l0w7kk9h/yjchsyd"
+  to = aws_apigatewayv2_route.put_config
+}
+
+import {
+  id = "57l0w7kk9h/f643ou1"
+  to = aws_apigatewayv2_route.post_config
+}
+
+import {
+  id = "manageTalentFlowConfig/AllowTalentFlowAPIInvokeManageConfig"
+  to = aws_lambda_permission.manage_talent_flow_config_apigw
+}
+
+# ── Feature 4: advanceCandidateStage (2026-05-19) ────────────────────────────
+
+import {
+  id = "talent-flow-role-advanceCandidateStage"
+  to = aws_iam_role.advance_candidate_stage
+}
+
+import {
+  id = "talent-flow-role-advanceCandidateStage:talent-flow-policy-advanceCandidateStage"
+  to = aws_iam_role_policy.advance_candidate_stage
+}
+
+import {
+  id = "advanceCandidateStage"
+  to = aws_lambda_function.advance_candidate_stage
+}
+
+import {
+  id = "57l0w7kk9h/t1ug192"
+  to = aws_apigatewayv2_integration.advance_candidate_stage
+}
+
+import {
+  id = "57l0w7kk9h/0y9pxoi"
+  to = aws_apigatewayv2_route.advance_candidate_stage
+}
+
+import {
+  id = "advanceCandidateStage/AllowTalentFlowAPIInvokeAdvanceCandidateStage"
+  to = aws_lambda_permission.advance_candidate_stage_api
+}

@@ -388,3 +388,66 @@ resource "aws_dynamodb_table" "talent_flow_idempotency_keys" {
     Ticket             = "NH-107"
   })
 }
+
+# ---------------------------------------------------------------------------
+# 8. talent-flow-notifications
+#    In-app notification inbox per user. PK=USER#{userId}, SK=NOTIF#{iso-timestamp}.
+#    GSI1 (UnreadIndex): sparse — only unread items have GSI1PK/GSI1SK attributes.
+#      GSI1PK = USER#{userId}#UNREAD, GSI1SK = NOTIF#{iso-timestamp}
+#    markNotificationRead removes GSI1PK/GSI1SK, evicting item from GSI.
+#    30-day TTL (POPIA: operational notifications not retained beyond one month).
+# ---------------------------------------------------------------------------
+resource "aws_dynamodb_table" "talent_flow_notifications" {
+  name         = local.tf_table_notifications
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "PK"
+  range_key    = "SK"
+
+  attribute {
+    name = "PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "SK"
+    type = "S"
+  }
+
+  attribute {
+    name = "GSI1PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "GSI1SK"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "UnreadIndex"
+    hash_key        = "GSI1PK"
+    range_key       = "GSI1SK"
+    projection_type = "ALL"
+  }
+
+  # 30-day TTL
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.talent_flow_state.arn
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  tags = merge(local.tf_tags, {
+    Purpose       = "InAppNotifications"
+    RetentionDays = "30"
+    Ticket        = "NH-123"
+  })
+}

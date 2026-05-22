@@ -1,0 +1,109 @@
+// SlaTimerWidget styles
+// Design source:
+//   Container:   17-stat-card.html (.scard) — white card, radius 12px, shadow-xs
+//   Icon tile:   17-stat-card.html (.sicon) — 48x48, radius 12px, tinted bg
+//   Progress bar: EmployeeDetail.jsx (.ed-progress__bar / .ed-progress__fill)
+//   Status pill:  19-status-pills.html (.pill colour system)
+//   Font:         naleko-font-mono (JetBrains Mono) for time digits
+// All colours via --naleko-* tokens — no hardcoded hex.
+
+.tf-sla-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1rem;
+  background: var(--naleko-surface-container-lowest);
+  border-radius: 12px;
+  border: 1px solid var(--naleko-outline-variant);
+  box-shadow: 0 1px 3px rgba(26, 26, 46, 0.04); // shadow-xs
+
+  // ── Status colour variants ──
+  &.sla--green {
+    .tf-sla-timer__icon  { background: var(--naleko-success-bg);  color: var(--naleko-success); }
+    .tf-sla-timer__bar-fill { background: var(--naleko-success); }
+  }
+
+  &.sla--amber {
+    .tf-sla-timer__icon  { background: var(--naleko-warning-bg);  color: var(--naleko-warning); }
+    .tf-sla-timer__bar-fill { background: var(--naleko-warning); }
+  }
+
+  &.sla--red {
+    border-color: var(--naleko-error-border);
+    .tf-sla-timer__icon  { background: var(--naleko-error-bg);    color: var(--naleko-error); }
+    .tf-sla-timer__bar-fill { background: var(--naleko-error); }
+    .tf-sla-timer__time  { color: var(--naleko-error); }
+  }
+
+  // ── Pulse animation — RED / BREACHED ──
+  &.sla--pulse .tf-sla-timer__icon {
+    animation: tf-sla-pulse 2s ease-in-out infinite;
+  }
+
+  // ── Icon tile — .sicon from 17-stat-card.html ──
+  &__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  // ── Text content ──
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  // ── Stage label — EYEBROW style (.slabel from 17-stat-card.html) ──
+  &__label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--naleko-on-surface-variant);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // ── Time digits — JetBrains Mono ──
+  &__time {
+    font-family: var(--naleko-font-mono);
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--naleko-on-surface);
+    margin: 0 0 0.5rem;
+
+    &--breached {
+      font-weight: 700;
+      // colour set by .sla--red parent rule
+    }
+  }
+
+  // ── Progress bar — .ed-progress__bar from EmployeeDetail.jsx ──
+  &__bar {
+    height: 5px;
+    background: var(--naleko-surface-container);
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  &__bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.4s ease, background 0.3s;
+  }
+}
+
+// ── Pulse keyframes ──
+@keyframes tf-sla-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50%       { box-shadow: 0 0 0 6px transparent; opacity: 0.85; }
+}

@@ -354,6 +354,39 @@ resource "aws_lambda_permission" "approve_agent_action" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.agent_api.execution_arn}/*/*"
 }
+
+# ─── GET /agent/v1/actions/pending — HR staff list pending HITL approvals ──────
+# This SPECIFIC route must appear before the {actionId} wildcard so API GW
+# routes "pending" literally to this JWT-authenticated endpoint, not the
+# x-api-key agent route.
+
+data "aws_lambda_function" "talent_flow_approve_action" {
+  function_name = "talentFlowApproveAction"
+}
+
+resource "aws_apigatewayv2_integration" "tf_pending_actions" {
+  api_id                 = aws_apigatewayv2_api.agent_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = data.aws_lambda_function.talent_flow_approve_action.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "tf_actions_pending" {
+  api_id             = aws_apigatewayv2_api.agent_api.id
+  route_key          = "GET /agent/v1/actions/pending"
+  target             = "integrations/${aws_apigatewayv2_integration.tf_pending_actions.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.agent_api_cognito_jwt.id
+}
+
+resource "aws_lambda_permission" "tf_pending_actions" {
+  statement_id  = "AllowAgentAPIInvokeTFPendingActions"
+  action        = "lambda:InvokeFunction"
+  function_name = data.aws_lambda_function.talent_flow_approve_action.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.agent_api.execution_arn}/*/*"
+}
+
 # ─── Output ───────────────────────────────────────────────────────────────────
 
 output "agent_api_endpoint" {

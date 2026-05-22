@@ -50,6 +50,12 @@ ALL_TARGETS=(
   talentFlowArchiveAuditLog
   monitorTalentFlowSLAs
   talentFlowAiChat
+  talentFlowAuditStream
+  getCandidateEvents
+  getUserNotifications
+  markNotificationRead
+  captureSentiment
+  getPanelMembers
 )
 
 # Lambdas that import from ../shared/config-reader (need patch+bundle)

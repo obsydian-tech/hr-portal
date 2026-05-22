@@ -1,0 +1,516 @@
+<!-- OfferTabComponent — D064–D071 -->
+
+<!-- ── Loading ─────────────────────────────────────────────────────────────── -->
+@if (offerLoading()) {
+  <div class="tf-offer-loading">
+    <i class="pi pi-spin pi-spinner"></i>
+    <span>Loading offer…</span>
+  </div>
+}
+
+<!-- ── Error ──────────────────────────────────────────────────────────────── -->
+@if (!offerLoading() && offerError()) {
+  <div class="tf-offer-error">
+    <i class="pi pi-exclamation-triangle"></i>
+    {{ offerError() }}
+  </div>
+}
+
+<!-- ── No offer yet ───────────────────────────────────────────────────────── -->
+@if (!offerLoading() && !offerError() && noOffer()) {
+  <div class="tf-offer-empty">
+    <i class="pi pi-clock tf-offer-empty__icon"></i>
+    <p class="tf-offer-empty__title">No offer yet</p>
+    <p class="tf-offer-empty__sub">
+      An offer is created automatically when the candidate passes evaluation.
+      Ensure the evaluation panel has submitted all required scores.
+    </p>
+    <div class="tf-offer-empty__divider">
+      <span>or create manually</span>
+    </div>
+    <p class="tf-offer-empty__manual-hint">
+      Use this if the automatic flow did not trigger after a passed evaluation.
+    </p>
+    <button class="tf-offer-btn tf-offer-btn--primary"
+      [disabled]="creating()"
+      (click)="createOfferManually()">
+      @if (creating()) {
+        <i class="pi pi-spin pi-spinner"></i> Creating…
+      } @else {
+        <i class="pi pi-plus-circle"></i> Create Offer Manually
+      }
+    </button>
+    @if (createError()) {
+      <div class="tf-offer-alert tf-offer-alert--error" style="margin-top:0.75rem">
+        <i class="pi pi-exclamation-triangle"></i> {{ createError() }}
+      </div>
+    }
+  </div>
+}
+
+<!-- ── Offer exists ───────────────────────────────────────────────────────── -->
+@if (!offerLoading() && !offerError() && offer(); as o) {
+
+  <!-- ── State navigator (D065) ──────────────────────────────────────────── -->
+  <div class="tf-offer-nav">
+    @for (step of stateSteps; track step.state; let idx = $index) {
+      <div [class]="'tf-offer-step ' + stepClass(idx)">
+        <div class="tf-offer-step__dot">
+          @if (isStepCompleted(idx)) {
+            <i class="pi pi-check"></i>
+          } @else if (isStepActive(idx)) {
+            <i [class]="'pi ' + step.icon"></i>
+          } @else {
+            <span>{{ idx + 1 }}</span>
+          }
+        </div>
+        <span class="tf-offer-step__label">{{ step.label }}</span>
+        @if (idx < stateSteps.length - 1) {
+          <div class="tf-offer-step__connector"></div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- ── Signal Intelligence (D071) — only when risk signal is active ──── -->
+  @if (signalIntel()) {
+    <div class="tf-intel-box">
+      <div class="tf-intel-ico"><i class="pi pi-exclamation-circle"></i></div>
+      <div class="tf-intel-body">
+        <div class="tf-intel-label">Signal Intelligence</div>
+        <div class="tf-intel-text">{{ signalIntel() }}</div>
+      </div>
+    </div>
+  }
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       STATE 1 — Offer Created (D067)
+  ════════════════════════════════════════════════════════════════════════════ -->
+  <div [class]="'tf-offer-block ' + (isStepPending(0) ? 'tf-offer-block--pending' : '')">
+    <div class="tf-offer-block__header">
+      <span class="tf-offer-block__title">
+        <i class="pi pi-file-edit"></i> Offer Details
+      </span>
+      @if (isStepCompleted(0)) {
+        <span class="tf-offer-badge tf-offer-badge--done">Submitted</span>
+      }
+    </div>
+
+    @if (isStepCompleted(0)) {
+      <!-- Collapsed read-only summary (D066) -->
+      <div class="tf-offer-summary">
+        <span class="tf-offer-summary__item">
+          <span class="tf-offer-summary__label">Salary</span>
+          <span class="tf-offer-summary__val">{{ o.currency }} {{ o.baseSalary | number }}</span>
+        </span>
+        <span class="tf-offer-summary__item">
+          <span class="tf-offer-summary__label">Start Date</span>
+          <span class="tf-offer-summary__val">{{ o.startDate | date:'d MMM yyyy' }}</span>
+        </span>
+        <span class="tf-offer-summary__item">
+          <span class="tf-offer-summary__label">Expiry</span>
+          <span class="tf-offer-summary__val">{{ o.expiryDate | date:'d MMM yyyy' }}</span>
+        </span>
+      </div>
+    }
+
+    @if (isStepActive(0)) {
+      <!-- Pre-populated context row (D067) -->
+      <div class="tf-offer-context">
+        @if (o.role) {
+          <span class="tf-offer-context__item"><strong>Role:</strong> {{ o.role }}</span>
+        }
+        @if (o.department) {
+          <span class="tf-offer-context__item"><strong>Dept:</strong> {{ o.department }}</span>
+        }
+        @if (o.location) {
+          <span class="tf-offer-context__item"><strong>Location:</strong> {{ o.location }}</span>
+        }
+        @if (!o.department || !o.location) {
+          <span class="tf-offer-context__warn">
+            <i class="pi pi-info-circle"></i>
+            Department or location missing. Complete these on the candidate record first.
+          </span>
+        }
+      </div>
+
+      <!-- TA-entered fields -->
+      <div class="tf-offer-form">
+        <div class="tf-offer-form__row">
+          <div class="tf-offer-fld">
+            <label class="tf-offer-fld__label" for="of-salary">CTC / Salary *</label>
+            <input class="tf-offer-fld__input" id="of-salary" type="number" min="0"
+              [value]="state1Form().baseSalary ?? ''"
+              (input)="setSalary($event)"
+              placeholder="e.g. 480000" />
+          </div>
+          <div class="tf-offer-fld">
+            <label class="tf-offer-fld__label" for="of-currency">Currency *</label>
+            <select class="tf-offer-fld__select" id="of-currency"
+              [value]="state1Form().currency"
+              (change)="setCurrency($event)">
+              <option value="ZAR">ZAR</option>
+              <option value="USD">USD</option>
+              <option value="GBP">GBP</option>
+              <option value="EUR">EUR</option>
+            </select>
+          </div>
+        </div>
+        <div class="tf-offer-form__row">
+          <div class="tf-offer-fld">
+            <label class="tf-offer-fld__label" for="of-start">Start Date *</label>
+            <input class="tf-offer-fld__input" id="of-start" type="date"
+              [value]="state1Form().startDate"
+              (change)="setStartDate($event)" />
+          </div>
+          <div class="tf-offer-fld">
+            <label class="tf-offer-fld__label" for="of-expiry">Offer Expiry *</label>
+            <input class="tf-offer-fld__input" id="of-expiry" type="date"
+              [value]="state1Form().expiryDate"
+              (change)="setExpiryDate($event)" />
+          </div>
+        </div>
+        <div class="tf-offer-fld tf-offer-fld--full">
+          <label class="tf-offer-fld__label" for="of-benefits">
+            Benefits <span class="tf-offer-fld__opt">(optional)</span>
+          </label>
+          <textarea class="tf-offer-fld__textarea" id="of-benefits" rows="3"
+            [value]="state1Form().benefits"
+            (input)="setBenefits($event)"
+            placeholder="Medical aid, provident fund, leave days…">
+          </textarea>
+        </div>
+
+        @if (state1Error()) {
+          <div class="tf-offer-alert tf-offer-alert--error">
+            <i class="pi pi-exclamation-triangle"></i> {{ state1Error() }}
+          </div>
+        }
+
+        <div class="tf-offer-form__actions">
+          <button class="tf-offer-btn tf-offer-btn--primary"
+            [disabled]="state1Submitting()"
+            (click)="submitForApproval()">
+            @if (state1Submitting()) {
+              <i class="pi pi-spin pi-spinner"></i> Submitting…
+            } @else {
+              <i class="pi pi-send"></i> Submit for Approval
+            }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       STATE 2 — In Approval (D068-D069)
+  ════════════════════════════════════════════════════════════════════════════ -->
+  <div [class]="'tf-offer-block ' + (isStepPending(1) ? 'tf-offer-block--pending' : '')">
+    <div class="tf-offer-block__header">
+      <span class="tf-offer-block__title">
+        <i class="pi pi-users"></i> Approval Chain
+      </span>
+      @if (isStepCompleted(1)) {
+        <span class="tf-offer-badge tf-offer-badge--done">All Approved</span>
+      }
+    </div>
+
+    @if (!isStepPending(1)) {
+      <div class="tf-offer-approvals">
+        @for (step of o.approvalChain; track step.stepId) {
+          <div [class]="'tf-offer-approver ' + (step.status === 'APPROVED' ? 'tf-offer-approver--done' : step.status === 'REJECTED' ? 'tf-offer-approver--rejected' : 'tf-offer-approver--pending')">
+            <div class="tf-offer-approver__dot">
+              @if (step.status === 'APPROVED') {
+                <i class="pi pi-check"></i>
+              } @else if (step.status === 'REJECTED') {
+                <i class="pi pi-times"></i>
+              } @else {
+                <i class="pi pi-spin pi-spinner"></i>
+              }
+            </div>
+            <div class="tf-offer-approver__body">
+              <span class="tf-offer-approver__role">{{ step.approverRole }}</span>
+              @if (step.status === 'PENDING') {
+                <span class="tf-offer-approver__status">Awaiting decision</span>
+              } @else if (step.status === 'APPROVED') {
+                <span class="tf-offer-approver__status tf-offer-approver__status--done">
+                  Approved {{ step.decidedAt | date:'d MMM yyyy' }}
+                </span>
+              } @else {
+                <span class="tf-offer-approver__status tf-offer-approver__status--rejected">
+                  Rejected {{ step.decidedAt | date:'d MMM yyyy' }}
+                </span>
+              }
+            </div>
+            @if (step.status === 'PENDING' && isStepActive(1)) {
+              <button class="tf-offer-btn tf-offer-btn--ghost tf-offer-btn--sm">
+                <i class="pi pi-bell"></i> Remind {{ step.approverRole }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      @if (isStepActive(1) && o.approvalChain.length === 0) {
+        <p class="tf-offer-hint">Approval chain is being configured. Check back shortly.</p>
+      }
+    }
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       STATE 3 — Offer Sent (D069)
+  ════════════════════════════════════════════════════════════════════════════ -->
+  <div [class]="'tf-offer-block ' + (isStepPending(2) ? 'tf-offer-block--pending' : '')">
+    <div class="tf-offer-block__header">
+      <span class="tf-offer-block__title">
+        <i class="pi pi-send"></i> Offer Sent
+      </span>
+      @if (isStepCompleted(2)) {
+        <span class="tf-offer-badge tf-offer-badge--done">Sent</span>
+      }
+    </div>
+
+    @if (!isStepPending(2)) {
+      @if (o.sentAt) {
+        <div class="tf-offer-sent-meta">
+          <span><i class="pi pi-calendar"></i> Sent {{ o.sentAt | date:'d MMM yyyy' }}</span>
+          @if (o.expiryDate) {
+            <span><i class="pi pi-clock"></i> Expires {{ o.expiryDate | date:'d MMM yyyy' }}</span>
+          }
+          <!-- SLA health bar — signal language only (D021) -->
+          <div class="tf-offer-sla-bar" role="progressbar">
+            <div class="tf-offer-sla-bar__fill"></div>
+          </div>
+        </div>
+      }
+
+      @if (isStepActive(2) && !o.sentAt) {
+        <div class="tf-offer-mark-sent">
+          <p class="tf-offer-hint">
+            Once all approvals are complete, mark the offer as sent to start the candidate response timer.
+          </p>
+          <button class="tf-offer-btn tf-offer-btn--primary" (click)="markSent()">
+            <i class="pi pi-send"></i> Mark as Sent Externally
+          </button>
+        </div>
+      }
+
+      <!-- Interaction Log -->
+      @if (o.sentAt || isStepCompleted(2)) {
+        <div class="tf-offer-log">
+          <div class="tf-offer-log__header">
+            <span class="tf-offer-log__title">Candidate Interactions</span>
+            @if (isStepActive(2)) {
+              <button class="tf-offer-btn tf-offer-btn--ghost tf-offer-btn--sm"
+                (click)="showLogForm.set(!showLogForm())">
+                <i class="pi pi-plus"></i> Log Interaction
+              </button>
+            }
+          </div>
+
+          @if (showLogForm() && isStepActive(2)) {
+            <div class="tf-offer-log-form">
+              <div class="tf-offer-form__row">
+                <div class="tf-offer-fld">
+                  <label class="tf-offer-fld__label">Type</label>
+                  <select class="tf-offer-fld__select"
+                    [value]="logForm().interactionType"
+                    (change)="setLogType($event)">
+                    @for (t of INTERACTION_TYPES; track t) {
+                      <option [value]="t">{{ t | titlecase }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="tf-offer-fld">
+                  <label class="tf-offer-fld__label">Outcome</label>
+                  <select class="tf-offer-fld__select"
+                    [value]="logForm().outcome"
+                    (change)="setLogOutcome($event)">
+                    @for (opt of INTERACTION_OUTCOMES; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="tf-offer-fld tf-offer-fld--full">
+                <label class="tf-offer-fld__label">Notes <span class="tf-offer-fld__opt">(optional)</span></label>
+                <textarea class="tf-offer-fld__textarea" rows="2"
+                  [value]="logForm().notes"
+                  (input)="setLogNotes($event)"
+                  placeholder="Any relevant context…"></textarea>
+              </div>
+              @if (logError()) {
+                <div class="tf-offer-alert tf-offer-alert--error">
+                  <i class="pi pi-exclamation-triangle"></i> {{ logError() }}
+                </div>
+              }
+              <div class="tf-offer-form__actions">
+                <button class="tf-offer-btn tf-offer-btn--primary tf-offer-btn--sm"
+                  [disabled]="logSubmitting()"
+                  (click)="submitLogInteraction()">
+                  @if (logSubmitting()) {
+                    <i class="pi pi-spin pi-spinner"></i>
+                  } @else {
+                    Save
+                  }
+                </button>
+                <button class="tf-offer-btn tf-offer-btn--ghost tf-offer-btn--sm"
+                  (click)="showLogForm.set(false)">Cancel</button>
+              </div>
+            </div>
+          }
+
+          @if (o.interactionLog.length > 0) {
+            <div class="tf-offer-log-entries">
+              @for (entry of o.interactionLog; track entry.loggedAt) {
+                <div class="tf-offer-log-entry">
+                  <span class="tf-offer-log-entry__type">{{ entry.interactionType | titlecase }}</span>
+                  <span class="tf-offer-log-entry__outcome">{{ outcomeLabel(entry.outcome) }}</span>
+                  @if (entry.notes) {
+                    <span class="tf-offer-log-entry__notes">{{ entry.notes }}</span>
+                  }
+                  <span class="tf-offer-log-entry__date">{{ entry.loggedAt | date:'d MMM · HH:mm' }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="tf-offer-hint" style="margin-top:0.5rem">No interactions logged yet.</p>
+          }
+        </div>
+      }
+    }
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       STATE 4 — Offer Accepted (D070)
+  ════════════════════════════════════════════════════════════════════════════ -->
+  <div [class]="'tf-offer-block ' + (isStepPending(3) ? 'tf-offer-block--pending' : '')">
+    <div class="tf-offer-block__header">
+      <span class="tf-offer-block__title">
+        <i class="pi pi-check-circle"></i> Acceptance
+      </span>
+      @if (isStepCompleted(3) || o.state === 'ACCEPTED') {
+        <span class="tf-offer-badge tf-offer-badge--accepted">Accepted</span>
+      }
+    </div>
+
+    @if (o.state === 'ACCEPTED') {
+      <!-- Locked summary post-confirm -->
+      <div class="tf-offer-accepted-summary">
+        <i class="pi pi-check-circle tf-offer-accepted-summary__icon"></i>
+        <div>
+          <p class="tf-offer-accepted-summary__title">Offer Accepted — All downstream workflows triggered</p>
+          <div class="tf-offer-summary">
+            @if (o.acceptanceDate) {
+              <span class="tf-offer-summary__item">
+                <span class="tf-offer-summary__label">Accepted</span>
+                <span class="tf-offer-summary__val">{{ o.acceptanceDate | date:'d MMM yyyy' }}</span>
+              </span>
+            }
+            @if (o.confirmedStartDate) {
+              <span class="tf-offer-summary__item">
+                <span class="tf-offer-summary__label">Start Date</span>
+                <span class="tf-offer-summary__val">{{ o.confirmedStartDate | date:'d MMM yyyy' }}</span>
+              </span>
+            }
+            @if (o.acceptanceSentiment) {
+              <span class="tf-offer-summary__item">
+                <span class="tf-offer-summary__label">Sentiment</span>
+                <span [class]="'tf-offer-sentiment-chip tf-offer-sentiment-chip--' + (o.acceptanceSentiment | lowercase)">
+                  {{ o.acceptanceSentiment | titlecase }}
+                </span>
+              </span>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (isStepActive(3)) {
+      <!-- Downstream triggers preview (D070) -->
+      <div class="tf-offer-triggers">
+        <p class="tf-offer-triggers__title">On confirmation, these fire simultaneously:</p>
+        <div class="tf-offer-trigger-cards">
+          <div class="tf-offer-trigger-card">
+            <i class="pi pi-clock tf-offer-trigger-card__icon"></i>
+            <span class="tf-offer-trigger-card__label">48-hour countdown</span>
+            <span class="tf-offer-trigger-card__desc">HM engagement task starts</span>
+          </div>
+          <div class="tf-offer-trigger-card">
+            <i class="pi pi-desktop tf-offer-trigger-card__icon"></i>
+            <span class="tf-offer-trigger-card__label">IT &amp; Facilities notified</span>
+            <span class="tf-offer-trigger-card__desc">Full details + start date sent</span>
+          </div>
+          <div class="tf-offer-trigger-card">
+            <i class="pi pi-chart-line tf-offer-trigger-card__icon"></i>
+            <span class="tf-offer-trigger-card__label">Risk signal surfaced</span>
+            <span class="tf-offer-trigger-card__desc">Hesitant sentiment triggers alert</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Acceptance form -->
+      <div class="tf-offer-form">
+        <div class="tf-offer-form__row">
+          <div class="tf-offer-fld">
+            <label class="tf-offer-fld__label" for="of-acc-date">Acceptance Date *</label>
+            <input class="tf-offer-fld__input" id="of-acc-date" type="date"
+              [value]="acceptForm().acceptanceDate"
+              (change)="setAcceptDate($event)" />
+          </div>
+          <div class="tf-offer-fld">
+            <label class="tf-offer-fld__label" for="of-start-conf">Confirmed Start Date *</label>
+            <input class="tf-offer-fld__input" id="of-start-conf" type="date"
+              [value]="acceptForm().confirmedStartDate"
+              (change)="setConfirmedStart($event)" />
+          </div>
+        </div>
+
+        <!-- Acceptance sentiment selector (D070 — same visual as Stage 1) -->
+        <div class="tf-offer-fld tf-offer-fld--full">
+          <label class="tf-offer-fld__label">Acceptance Sentiment *</label>
+          <div class="tf-offer-sentiment-cards">
+            @for (opt of ACCEPTANCE_SENTIMENTS; track opt.value) {
+              <button type="button"
+                [class]="'tf-offer-sentiment-card ' + (acceptSentiment() === opt.value ? 'tf-offer-sentiment-card--selected' : '')"
+                (click)="selectAcceptSentiment(opt.value)">
+                <i [class]="'pi ' + opt.icon + ' tf-offer-sentiment-card__icon'"></i>
+                <span class="tf-offer-sentiment-card__label">{{ opt.label }}</span>
+                <span class="tf-offer-sentiment-card__desc">{{ opt.desc }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="tf-offer-fld tf-offer-fld--full">
+          <label class="tf-offer-fld__label" for="of-acc-notes">
+            Notes <span class="tf-offer-fld__opt">(optional)</span>
+          </label>
+          <textarea class="tf-offer-fld__textarea" id="of-acc-notes" rows="3"
+            [value]="acceptForm().notes"
+            (input)="setAcceptNotes($event)"
+            placeholder="Any relevant context from the acceptance conversation…"></textarea>
+        </div>
+
+        @if (acceptError()) {
+          <div class="tf-offer-alert tf-offer-alert--error">
+            <i class="pi pi-exclamation-triangle"></i> {{ acceptError() }}
+          </div>
+        }
+
+        <div class="tf-offer-form__actions">
+          <button class="tf-offer-btn tf-offer-btn--primary tf-offer-btn--confirm"
+            [disabled]="acceptSubmitting()"
+            (click)="confirmAcceptance()">
+            @if (acceptSubmitting()) {
+              <i class="pi pi-spin pi-spinner"></i> Confirming…
+            } @else {
+              <i class="pi pi-check-circle"></i> Confirm Acceptance &amp; Trigger Workflows
+            }
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+}

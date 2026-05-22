@@ -1,0 +1,14 @@
+{
+  "name": "get-candidate-events",
+  "version": "1.0.0",
+  "description": "API handler — returns the full event timeline for a TalentFlow candidate",
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

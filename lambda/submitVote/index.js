@@ -54,7 +54,7 @@ const eb      = new EventBridgeClient({});
 const STATE_TABLE  = process.env.STATE_TABLE_NAME;
 const EB_BUS       = process.env.EVENTBRIDGE_BUS_NAME;
 
-const VALID_RATINGS = ['STRONG_NO', 'NO', 'NEUTRAL', 'YES', 'STRONG_YES'];
+const VALID_RATINGS = ['STRONG_NO', 'NO', 'YES', 'STRONG_YES'];
 
 // ── Response helpers ──────────────────────────────────────────────────────────
 const ok          = (body) => ({ statusCode: 200, body: JSON.stringify(body) });

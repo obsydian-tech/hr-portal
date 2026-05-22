@@ -1,0 +1,244 @@
+// CandidateEditDrawer — Naleko design tokens throughout
+
+// ── Backdrop ──────────────────────────────────────────────────────────────────
+.tf-edit-backdrop {
+  position:   fixed;
+  inset:      0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index:    200;
+  animation:  tfFadeIn 0.15s ease;
+}
+
+// ── Drawer panel ──────────────────────────────────────────────────────────────
+.tf-edit-drawer {
+  position:       fixed;
+  top:            0;
+  right:          0;
+  bottom:         0;
+  width:          min(480px, 100vw);
+  display:        flex;
+  flex-direction: column;
+  background:     var(--naleko-surface);
+  border-left:    1px solid var(--naleko-outline-variant);
+  box-shadow:     -4px 0 24px rgba(0, 0, 0, 0.12);
+  z-index:        201;
+  animation:      tfSlideIn 0.2s ease;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.tf-edit-drawer__header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         1rem 1.25rem;
+  border-bottom:   1px solid var(--naleko-outline-variant);
+  flex-shrink:     0;
+}
+
+.tf-edit-drawer__title {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+  font-size:   1rem;
+  font-weight: 600;
+  color:       var(--naleko-on-surface);
+
+  .pi { color: var(--naleko-primary); }
+}
+
+.tf-edit-drawer__close {
+  width:           32px;
+  height:          32px;
+  border:          none;
+  background:      transparent;
+  border-radius:   50%;
+  cursor:          pointer;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  color:           var(--naleko-on-surface-variant);
+  transition:      background 0.15s;
+
+  &:hover { background: var(--naleko-surface-variant); }
+}
+
+// ── Locked notice ─────────────────────────────────────────────────────────────
+.tf-edit-drawer__locked-notice {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+  padding:     0.625rem 1.25rem;
+  background:  var(--naleko-surface-variant);
+  font-size:   0.78rem;
+  color:       var(--naleko-on-surface-variant);
+  flex-shrink: 0;
+
+  .pi-lock { color: var(--naleko-secondary); }
+}
+
+// ── Scrollable body ───────────────────────────────────────────────────────────
+.tf-edit-drawer__body {
+  flex:        1;
+  overflow-y:  auto;
+  padding:     1.25rem;
+  display:     flex;
+  flex-direction: column;
+  gap:         0.75rem;
+}
+
+// ── Section labels ────────────────────────────────────────────────────────────
+.tf-edit-section-label {
+  font-size:   0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color:       var(--naleko-on-surface-variant);
+  margin:      0.5rem 0 0;
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+
+  &__note {
+    font-size:      0.65rem;
+    font-weight:    500;
+    text-transform: none;
+    letter-spacing: 0;
+    color:          var(--naleko-primary);
+    background:     color-mix(in srgb, var(--naleko-primary) 10%, transparent);
+    padding:        0.1rem 0.4rem;
+    border-radius:  4px;
+  }
+}
+
+// ── Form rows ─────────────────────────────────────────────────────────────────
+.tf-edit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+// ── Fields ────────────────────────────────────────────────────────────────────
+.tf-edit-fld {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.3rem;
+
+  &--full { grid-column: 1 / -1; }
+
+  &__label {
+    font-size:   0.78rem;
+    font-weight: 500;
+    color:       var(--naleko-on-surface-variant);
+    display:     flex;
+    align-items: center;
+    gap:         0.4rem;
+  }
+
+  &__opt {
+    font-size:  0.72rem;
+    font-weight: 400;
+    color:      var(--naleko-on-surface-variant);
+    opacity:    0.7;
+  }
+
+  &__locked {
+    font-size:  0.72rem;
+    font-weight: 400;
+    color:      var(--naleko-secondary);
+    display:    flex;
+    align-items: center;
+    gap:        0.25rem;
+  }
+
+  &__input,
+  &__select {
+    padding:       0.5rem 0.75rem;
+    border:        1px solid var(--naleko-outline-variant);
+    border-radius: 6px;
+    background:    var(--naleko-surface-container);
+    color:         var(--naleko-on-surface);
+    font-size:     0.875rem;
+    outline:       none;
+    transition:    border-color 0.15s, box-shadow 0.15s;
+    width:         100%;
+
+    &:focus {
+      border-color: var(--naleko-primary);
+      box-shadow:   0 0 0 3px color-mix(in srgb, var(--naleko-primary) 15%, transparent);
+    }
+
+    &:disabled {
+      opacity:    0.5;
+      cursor:     not-allowed;
+      background: var(--naleko-surface-variant);
+    }
+  }
+}
+
+// ── Error alert ───────────────────────────────────────────────────────────────
+.tf-edit-alert {
+  display:       flex;
+  align-items:   center;
+  gap:           0.5rem;
+  padding:       0.625rem 0.875rem;
+  background:    color-mix(in srgb, var(--naleko-error) 10%, transparent);
+  border:        1px solid color-mix(in srgb, var(--naleko-error) 30%, transparent);
+  border-radius: 6px;
+  color:         var(--naleko-error);
+  font-size:     0.83rem;
+}
+
+// ── Footer ────────────────────────────────────────────────────────────────────
+.tf-edit-drawer__footer {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             0.75rem;
+  padding:         1rem 1.25rem;
+  border-top:      1px solid var(--naleko-outline-variant);
+  flex-shrink:     0;
+}
+
+// ── Buttons ───────────────────────────────────────────────────────────────────
+.tf-edit-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.4rem;
+  padding:       0.5rem 1.25rem;
+  border-radius: 6px;
+  font-size:     0.875rem;
+  font-weight:   500;
+  cursor:        pointer;
+  transition:    background 0.15s, opacity 0.15s;
+  border:        1px solid transparent;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &--primary {
+    background: var(--naleko-primary);
+    color:      var(--naleko-on-primary);
+    border-color: var(--naleko-primary);
+
+    &:not(:disabled):hover {
+      background: color-mix(in srgb, var(--naleko-primary) 85%, black);
+    }
+  }
+
+  &--ghost {
+    background:  transparent;
+    color:       var(--naleko-on-surface-variant);
+    border-color: var(--naleko-outline-variant);
+
+    &:not(:disabled):hover { background: var(--naleko-surface-variant); }
+  }
+}
+
+// ── Animations ────────────────────────────────────────────────────────────────
+@keyframes tfFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes tfSlideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "mark-notification-read-lambda",
+  "version": "1.0.0",
+  "description": "TalentFlow markNotificationRead Lambda — marks a notification as read, evicts from UnreadIndex GSI",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "jest": "^29.0.0"
+  }
+}
