@@ -747,6 +747,63 @@ resource "aws_lambda_permission" "update_candidate_talent_flow_api" {
   source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
 }
 
+# ---------------------------------------------------------------------------
+# Phase E — POST /v1/candidates/{id}/scoring-links → generateScoringLink
+# JWT-secured: only authenticated TA/Admin can generate scoring links
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "generate_scoring_link" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.generate_scoring_link.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "post_candidate_scoring_links" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/candidates/{id}/scoring-links"
+  target             = "integrations/${aws_apigatewayv2_integration.generate_scoring_link.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "generate_scoring_link_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeGenerateScoringLink"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.generate_scoring_link.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# Phase E — POST /v1/scoring/{token}/votes → submitVoteByToken
+# authorization_type = NONE — token is validated internally by the Lambda.
+# This route is intentionally unauthenticated: email-link panelists have no
+# Cognito account. The Lambda performs all security checks itself.
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "submit_vote_by_token" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.submit_vote_by_token.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "post_scoring_vote_by_token" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/scoring/{token}/votes"
+  target             = "integrations/${aws_apigatewayv2_integration.submit_vote_by_token.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "submit_vote_by_token_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeSubmitVoteByToken"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.submit_vote_by_token.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
 # ===========================================================================
 # OUTPUTS
 # ===========================================================================
