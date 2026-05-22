@@ -13,6 +13,297 @@
   height: 100%;
 }
 
+// ── Persistent Header (D027) ─────────────────────────────────────────────────
+.tf-ws-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-xl);
+  flex-wrap: wrap;
+}
+.tf-ws-header__left {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex: 1;
+  min-width: 0;
+}
+.tf-ws-header__right {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex-shrink: 0;
+}
+.tf-ws-header__back {
+  background: none;
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--naleko-on-surface-variant);
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+  &:hover { background: var(--naleko-surface-container); color: var(--naleko-on-surface); }
+}
+// Candidate avatar in header
+.tf-ws-avatar {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+
+  &--breached {
+    background: color-mix(in srgb, var(--naleko-error) 20%, transparent);
+    color: var(--naleko-error);
+    border: 2px solid color-mix(in srgb, var(--naleko-error) 40%, transparent);
+  }
+  &--at-risk {
+    background: color-mix(in srgb, var(--naleko-warning) 22%, transparent);
+    color: var(--naleko-warning-dark, var(--naleko-warning));
+    border: 2px solid color-mix(in srgb, var(--naleko-warning) 40%, transparent);
+  }
+  &--healthy {
+    background: color-mix(in srgb, var(--naleko-success) 18%, transparent);
+    color: var(--naleko-success);
+    border: 2px solid color-mix(in srgb, var(--naleko-success) 30%, transparent);
+  }
+}
+.tf-ws-header__identity { flex: 1; min-width: 0; }
+.tf-ws-header__name {
+  font-family: var(--naleko-font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--naleko-on-surface);
+  margin: 0 0 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tf-ws-header__pills {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+.tf-ws-header__sla {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.tf-ws-header__sla-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--naleko-on-surface-variant);
+  white-space: nowrap;
+}
+
+// Shared pills
+.tf-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--naleko-radius-pill);
+  font-size: 0.67rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &--role {
+    background: color-mix(in srgb, var(--naleko-primary) 10%, transparent);
+    color: var(--naleko-primary);
+  }
+  &--seniority {
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
+  }
+}
+.tf-health-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--naleko-radius-pill);
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+
+  &--breached { background: color-mix(in srgb, var(--naleko-error) 15%, transparent); color: var(--naleko-error); }
+  &--at-risk  { background: color-mix(in srgb, var(--naleko-warning) 18%, transparent); color: var(--naleko-warning-dark, var(--naleko-warning)); }
+  &--on-track { background: color-mix(in srgb, var(--naleko-success) 15%, transparent); color: var(--naleko-success); }
+}
+.tf-sla-bar {
+  width: 7rem;
+  height: 5px;
+  background: var(--naleko-outline-variant);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.tf-sla-bar__fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--naleko-success);
+  transition: width 0.3s ease;
+  &--at-risk  { background: var(--naleko-warning); }
+  &--breached { background: var(--naleko-error); }
+}
+
+// ── 5-Column Details Strip (D028) ────────────────────────────────────────────
+.tf-ws-details-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+  overflow: hidden;
+
+  @media (max-width: 700px) { grid-template-columns: repeat(3, 1fr); }
+}
+.tf-ws-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 1rem;
+  border-right: 1px solid var(--naleko-outline-variant);
+
+  &:last-child { border-right: none; }
+}
+.tf-ws-detail__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--naleko-on-surface-variant);
+}
+.tf-ws-detail__value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+  &--mono { font-family: var(--naleko-font-mono); font-size: 0.78rem; }
+}
+
+// ── 4-Phase Horizontal Stepper (D029) ────────────────────────────────────────
+.tf-ws-phase-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+  padding: 0.875rem 1.25rem;
+  overflow-x: auto;
+}
+.tf-ws-phase {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.tf-ws-phase__dot {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 2px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface);
+  color: var(--naleko-on-surface-variant);
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.tf-ws-phase__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.tf-ws-phase__connector {
+  height: 2px;
+  width: 2.5rem;
+  background: var(--naleko-outline-variant);
+  margin: 0 0.5rem;
+  border-radius: 1px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+
+  &--done { background: var(--naleko-success); }
+}
+.tf-ws-phase--active {
+  .tf-ws-phase__dot {
+    border-color: var(--naleko-primary);
+    background: var(--naleko-primary);
+    color: var(--naleko-on-primary);
+  }
+  .tf-ws-phase__label { color: var(--naleko-primary); font-weight: 700; }
+}
+.tf-ws-phase--done {
+  .tf-ws-phase__dot {
+    border-color: var(--naleko-success);
+    background: var(--naleko-success);
+    color: #fff;
+  }
+  .tf-ws-phase__label { color: var(--naleko-success); }
+}
+
+// ── Ghost Actions Bar (D030) ──────────────────────────────────────────────────
+.tf-ws-actions-bar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0;
+}
+.tf-ws-ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-pill);
+  background: transparent;
+  color: var(--naleko-on-surface-variant);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+
+  &:hover { background: var(--naleko-surface-container); color: var(--naleko-on-surface); border-color: var(--naleko-primary); }
+
+  &--primary {
+    background: var(--naleko-primary);
+    border-color: var(--naleko-primary);
+    color: var(--naleko-on-primary);
+    &:hover { opacity: 0.9; }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+}
+
+// ── Body (tab content wrapper) ────────────────────────────────────────────────
+.tf-workspace__body {
+  display: flex;
+  gap: 1rem;
+  align-items: start;
+  flex: 1;
+}
+
 // ── Nav ───────────────────────────────────────────────────────────────────────
 .tf-workspace__nav {
   display: flex;
@@ -555,6 +846,127 @@
   }
 }
 
+.tf-ws-panel-member__name  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf-ws-panel-member__email { font-size: 0.75rem; color: var(--naleko-on-surface-variant); }
+.tf-ws-panel-member__role  { font-size: 0.75rem; color: var(--naleko-on-surface-variant); font-style: italic; }
+
+.tf-ws-panel-member--adhoc {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px dashed var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+}
+
+.tf-ws-panel-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 2rem;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  &--system {
+    background: color-mix(in srgb, var(--naleko-primary) 12%, transparent);
+    color: var(--naleko-primary);
+  }
+
+  &--link {
+    background: color-mix(in srgb, #22c55e 15%, transparent);
+    color: #15803d;
+  }
+}
+
+.tf-ws-panel-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--naleko-on-surface-variant);
+  padding: 0.15rem 0.25rem;
+  border-radius: var(--naleko-radius-sm);
+  line-height: 1;
+  &:hover { color: var(--naleko-error); }
+}
+
+.tf-ws-panel-loading,
+.tf-ws-panel-error {
+  font-size: 0.8125rem;
+  color: var(--naleko-on-surface-variant);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0;
+}
+
+.tf-ws-panel-error { color: var(--naleko-error); }
+
+.tf-ws-adhoc-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--naleko-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.3rem 0;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  &:hover { text-decoration: underline; }
+}
+
+.tf-ws-adhoc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface-container);
+}
+
+.tf-ws-form-input--sm {
+  font-size: 0.8125rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.tf-ws-adhoc-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.tf-ws-adhoc-add,
+.tf-ws-adhoc-cancel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--naleko-radius-pill);
+  border: 1px solid;
+  cursor: pointer;
+
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+
+.tf-ws-adhoc-add {
+  background: var(--naleko-primary);
+  color: var(--naleko-on-primary);
+  border-color: var(--naleko-primary);
+}
+
+.tf-ws-adhoc-cancel {
+  background: transparent;
+  color: var(--naleko-on-surface-variant);
+  border-color: var(--naleko-outline-variant);
+}
+
 .tf-ws-form-actions {
   display: flex;
   gap: 0.75rem;
@@ -601,5 +1013,397 @@
   font-size: 1.1rem;
   color: var(--naleko-on-surface-variant);
   flex-shrink: 0;
+}
+
+// ── Reject button (header right) ──────────────────────────────────────────────
+.tf-ws-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.875rem;
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-pill);
+  background: transparent;
+  color: var(--naleko-on-surface-variant);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  &:hover {
+    background: var(--naleko-surface-variant);
+    color: var(--naleko-on-surface);
+  }
+}
+
+.tf-ws-reject-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--naleko-error) 30%, transparent);
+  border-radius: var(--naleko-radius-pill);
+  background: transparent;
+  color: var(--naleko-error);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  &:hover { background: color-mix(in srgb, var(--naleko-error) 8%, transparent); }
+}
+
+// ── Header sentiment + source pills ──────────────────────────────────────────
+.tf-pill--sentiment {
+  &-positive { background: color-mix(in srgb, var(--naleko-success) 15%, transparent); color: var(--naleko-success); }
+  &-neutral  { background: color-mix(in srgb, var(--naleko-primary) 10%, transparent); color: var(--naleko-primary); }
+  &-hesitant { background: color-mix(in srgb, var(--naleko-warning) 18%, transparent); color: var(--naleko-warning-dark, var(--naleko-warning)); }
+}
+.tf-pill--source {
+  background: var(--naleko-surface-container);
+  color: var(--naleko-on-surface-variant);
+}
+
+// ── Phase text block (label + desc) ──────────────────────────────────────────
+.tf-ws-phase__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.tf-ws-phase__desc {
+  font-size: 0.65rem;
+  color: var(--naleko-on-surface-variant);
+  font-style: italic;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+// ── 2-Column content area (main 1fr + activity panel 280px) ──────────────────
+.tf-ws-content-area {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1rem;
+  align-items: start;
+  flex: 1;
+  min-height: 0;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    .tf-ws-activity-panel { display: none; }
+  }
+}
+
+// ── Section label (used inside tab panels) ────────────────────────────────────
+.tf-ws-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--naleko-on-surface-variant);
+  margin: 0.75rem 0 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  i { font-size: 0.68rem; }
+  &:first-child { margin-top: 0; }
+}
+
+// ── Signal Intelligence box ───────────────────────────────────────────────────
+.tf-intel-box {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--naleko-secondary) 5%, var(--naleko-surface));
+  border: 1px solid color-mix(in srgb, var(--naleko-secondary) 18%, transparent);
+  border-radius: var(--naleko-radius-lg);
+  padding: 0.875rem 1rem;
+  margin-bottom: 0.25rem;
+}
+.tf-intel-ico {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  i { color: var(--naleko-secondary); font-size: 0.8rem; }
+}
+.tf-intel-body { flex: 1; }
+.tf-intel-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--naleko-secondary);
+}
+.tf-intel-text {
+  font-size: 0.82rem;
+  color: var(--naleko-on-surface);
+  margin-top: 0.25rem;
+  line-height: 1.55;
+}
+
+// ── Sentiment selector card ───────────────────────────────────────────────────
+.tf-sent-card {
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+  padding: 0.875rem 1rem;
+  margin-bottom: 0.25rem;
+}
+.tf-sent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.tf-sent-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+}
+.tf-sent-updated {
+  font-size: 0.7rem;
+  color: var(--naleko-on-surface-variant);
+}
+.tf-sent-options {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+}
+.tf-sent-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.625rem 0.25rem;
+  border-radius: var(--naleko-radius-md);
+  border: 1.5px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover { border-color: var(--naleko-secondary); }
+
+  &--selected {
+    border-color: var(--naleko-warning);
+    background: color-mix(in srgb, var(--naleko-warning) 10%, var(--naleko-surface));
+  }
+}
+.tf-sent-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--excited  { background: var(--naleko-success); }
+  &--positive { background: #1565c0; }
+  &--neutral  { background: var(--naleko-on-surface-variant); }
+  &--hesitant { background: var(--naleko-warning); }
+  &--reluctant { background: var(--naleko-error); }
+}
+.tf-sent-opt-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface-variant);
+  white-space: nowrap;
+}
+
+.tf-sent-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--naleko-outline-variant);
+}
+
+.tf-sent-feedback {
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+
+  &--ok  { color: var(--naleko-success, #2e7d32); }
+  &--err { color: var(--naleko-error); }
+}
+
+// ── Interview Round card ──────────────────────────────────────────────────────
+.tf-round-card {
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+  padding: 0.875rem 1rem;
+  margin-bottom: 0.5rem;
+
+  &--active {
+    border-color: color-mix(in srgb, var(--naleko-secondary) 30%, transparent);
+    background: color-mix(in srgb, var(--naleko-secondary) 3%, var(--naleko-surface));
+  }
+}
+.tf-round-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.625rem;
+}
+.tf-round-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+}
+.tf-round-status {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--naleko-radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+
+  &--active {
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
+  }
+  &--done {
+    background: color-mix(in srgb, var(--naleko-success) 12%, transparent);
+    color: var(--naleko-success);
+  }
+}
+.tf-round-meta {
+  font-size: 0.78rem;
+  color: var(--naleko-on-surface-variant);
+  margin-bottom: 0.75rem;
+  display: flex;
+  gap: 1rem;
+  strong { color: var(--naleko-on-surface); }
+}
+.tf-round-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+// ── Activity Log Panel (D035 — 280px right rail) ──────────────────────────────
+.tf-ws-activity-panel {
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-xl);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 480px;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  max-height: 80vh;
+}
+.tf-act-hdr {
+  font-family: var(--naleko-font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--naleko-on-surface);
+  flex-shrink: 0;
+}
+.tf-act-filters {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.tf-act-filter {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--naleko-radius-pill);
+  border: 1px solid var(--naleko-outline-variant);
+  background: transparent;
+  color: var(--naleko-on-surface-variant);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+
+  &:hover { border-color: var(--naleko-secondary); color: var(--naleko-secondary); }
+  &--on { background: var(--naleko-secondary); color: #fff; border-color: var(--naleko-secondary); }
+}
+.tf-act-loading {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0;
+  color: var(--naleko-on-surface-variant);
+  font-size: 1.1rem;
+}
+.tf-act-feed {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.tf-act-item {
+  display: flex;
+  gap: 0.625rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--naleko-outline-variant);
+
+  &:last-child { border-bottom: none; }
+}
+.tf-act-dot-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding-top: 3px;
+  width: 10px;
+}
+.tf-act-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--blue  { background: var(--naleko-secondary); }
+  &--green { background: var(--naleko-success); }
+  &--amber { background: var(--naleko-warning); }
+  &--grey  { background: var(--naleko-outline-variant); }
+}
+.tf-act-line {
+  width: 1px;
+  background: var(--naleko-outline-variant);
+  flex: 1;
+  min-height: 12px;
+  margin-top: 3px;
+}
+.tf-act-body { flex: 1; min-width: 0; }
+.tf-act-what {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+  line-height: 1.4;
+}
+.tf-act-who {
+  font-size: 0.68rem;
+  color: var(--naleko-on-surface-variant);
+  margin-top: 1px;
+}
+.tf-act-when {
+  font-size: 0.65rem;
+  color: var(--naleko-outline-variant);
+  margin-top: 1px;
+  font-family: var(--naleko-font-mono);
+}
+.tf-act-empty {
+  font-size: 0.78rem;
+  color: var(--naleko-on-surface-variant);
+  font-style: italic;
+  text-align: center;
+  padding: 1rem 0;
 }
 

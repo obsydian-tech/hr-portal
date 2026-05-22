@@ -30,14 +30,12 @@ import { CommonModule } from '@angular/common';
  * inject(DestroyRef) for interval cleanup, OnPush.
  */
 
-export type SlaStatus = 'GREEN' | 'AMBER' | 'RED' | 'BREACHED';
+// D021: signal health language — NEVER expose exact times
+export type SlaStatus = 'ON_TRACK' | 'AT_RISK' | 'BREACHED';
 
 export interface TimerState {
-  hoursRemaining: number;
-  minutesRemaining: number;
   percentElapsed: number;
   status: SlaStatus;
-  breachedDuration: string | null;
 }
 
 @Component({
@@ -49,74 +47,63 @@ export interface TimerState {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SlaTimerWidgetComponent implements OnInit {
-  readonly stageEnteredAt   = input.required<Date>();
-  readonly thresholdHours   = input.required<number>();
-  readonly slaLabel         = input<string>('SLA');
+  readonly stageEnteredAt  = input.required<Date>();
+  readonly thresholdHours  = input.required<number>();
+  readonly slaLabel        = input<string>('SLA');
+  /** D010: AT_RISK threshold — % elapsed (default 75). Configurable per tenant. */
+  readonly atRiskThreshold = input<number>(75);
 
-  /** Fires once when the timer first crosses into BREACHED state */
+  /** Fires once when the timer first crosses into BREACHED (100% elapsed) */
   readonly slaBreached = output<void>();
+  /** Fires once when the timer first crosses into AT_RISK (atRiskThreshold% elapsed) */
+  readonly slaAtRisk   = output<void>();
 
-  private readonly destroyRef = inject(DestroyRef);
-  private hasEmittedBreach = false;
+  private readonly destroyRef     = inject(DestroyRef);
+  private hasEmittedAtRisk        = false;
+  private hasEmittedBreach        = false;
 
   /** Reactive current time — updated every 30 seconds */
   private readonly now = signal<Date>(new Date());
 
   readonly timerState = computed<TimerState>(() => {
-    const entered     = this.stageEnteredAt();
-    const threshold   = this.thresholdHours();
-    const now         = this.now();
+    const entered   = this.stageEnteredAt();
+    const threshold = this.thresholdHours();
+    const now       = this.now();
 
-    const totalMs     = threshold * 60 * 60 * 1000;
-    const elapsedMs   = now.getTime() - entered.getTime();
-    const remainingMs = totalMs - elapsedMs;
-
+    const totalMs        = threshold * 60 * 60 * 1000;
+    const elapsedMs      = Math.max(0, now.getTime() - entered.getTime());
     const percentElapsed = Math.min(100, Math.round((elapsedMs / totalMs) * 100));
-    const percentRemaining = 100 - percentElapsed;
 
+    // D010: 75% elapsed = AT_RISK, 100% elapsed = BREACHED
     let status: SlaStatus;
-    if (remainingMs <= 0) {
+    if (percentElapsed >= 100) {
       status = 'BREACHED';
-    } else if (percentRemaining <= 25) {
-      status = 'RED';
-    } else if (percentRemaining <= 50) {
-      status = 'AMBER';
+    } else if (percentElapsed >= this.atRiskThreshold()) {
+      status = 'AT_RISK';
     } else {
-      status = 'GREEN';
+      status = 'ON_TRACK';
     }
 
-    let hoursRemaining = 0;
-    let minutesRemaining = 0;
-    let breachedDuration: string | null = null;
-
-    if (remainingMs > 0) {
-      hoursRemaining   = Math.floor(remainingMs / (1000 * 60 * 60));
-      minutesRemaining = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-    } else {
-      const overMs = Math.abs(remainingMs);
-      const overH  = Math.floor(overMs / (1000 * 60 * 60));
-      const overM  = Math.floor((overMs % (1000 * 60 * 60)) / (1000 * 60));
-      breachedDuration = overH > 0 ? `${overH}h ${overM}m overdue` : `${overM}m overdue`;
-    }
-
-    return { hoursRemaining, minutesRemaining, percentElapsed, status, breachedDuration };
+    return { percentElapsed, status };
   });
 
-  /** CSS modifier class for the container */
   readonly statusClass = computed<string>(() => {
     const s = this.timerState().status;
-    return s === 'BREACHED' ? 'sla--red sla--pulse' :
-           s === 'RED'      ? 'sla--red sla--pulse'  :
-           s === 'AMBER'    ? 'sla--amber'            :
-                              'sla--green';
+    return s === 'BREACHED' ? 'sla--breached sla--pulse' :
+           s === 'AT_RISK'  ? 'sla--at-risk'             :
+                              'sla--on-track';
   });
 
   ngOnInit(): void {
     const interval = setInterval(() => {
       this.now.set(new Date());
-
       const state = this.timerState();
-      if ((state.status === 'BREACHED' || state.status === 'RED') && !this.hasEmittedBreach) {
+
+      if (state.status === 'AT_RISK' && !this.hasEmittedAtRisk) {
+        this.hasEmittedAtRisk = true;
+        this.slaAtRisk.emit();
+      }
+      if (state.status === 'BREACHED' && !this.hasEmittedBreach) {
         this.hasEmittedBreach = true;
         this.slaBreached.emit();
       }

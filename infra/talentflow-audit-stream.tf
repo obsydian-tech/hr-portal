@@ -31,16 +31,11 @@ data "aws_apigatewayv2_api" "talent_flow_api" {
   api_id = "57l0w7kk9h"
 }
 
-# TalentFlow API stage — /v1
-data "aws_apigatewayv2_stage" "talent_flow_v1" {
-  api_id   = data.aws_apigatewayv2_api.talent_flow_api.id
-  stage_id = "v1"
-}
-
-# TalentFlow Cognito authorizer — used by other routes; we attach to the new route.
-# Fetch the first authorizer on the TF api (there should be exactly one — talentFlowAuthorizer).
-data "aws_apigatewayv2_authorizers" "talent_flow" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id
+# TalentFlow Cognito JWT authorizer ID (cognito-jwt, id: ko4zam).
+# aws_apigatewayv2_authorizer has no data source in this provider version;
+# the ID is stable — managed by talent-flow-infra/ and imported here by value.
+locals {
+  talent_flow_cognito_authorizer_id = "ko4zam"
 }
 
 # TalentFlow KMS key — used to encrypt the events table at rest.
@@ -338,7 +333,7 @@ resource "aws_apigatewayv2_route" "get_candidate_events" {
   target             = "integrations/${aws_apigatewayv2_integration.get_candidate_events.id}"
   # Re-use the existing JWT authorizer already protecting /candidates/* routes
   authorization_type = "JWT"
-  authorizer_id      = tolist(data.aws_apigatewayv2_authorizers.talent_flow.ids)[0]
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 
 resource "aws_lambda_permission" "get_candidate_events_apigw" {

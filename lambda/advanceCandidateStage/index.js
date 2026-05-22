@@ -34,6 +34,7 @@ const STAGE_ORDER = [
   'TECHNICAL_INTERVIEW',
   'PANEL_INTERVIEW',
   'EVALUATION',
+  'BACKGROUND_CHECK',
   'OFFER_PREPARATION',
   'OFFER_APPROVAL',
   'OFFER_DELIVERY',
@@ -111,8 +112,8 @@ exports.handler = async (event) => {
     await dynamo.send(new UpdateItemCommand({
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-      UpdateExpression: 'SET currentStage = :stage, stageEnteredAt = :ts',
-      ExpressionAttributeValues: marshall({ ':stage': newStage, ':ts': now }),
+      UpdateExpression: 'SET currentStage = :stage, stageEnteredAt = :ts, slaStatus = :slaReset',
+      ExpressionAttributeValues: marshall({ ':stage': newStage, ':ts': now, ':slaReset': 'ON_TRACK' }),
     }));
   } catch (err) {
     console.error('Failed to update SAGA stage', { candidateId, newStage, error: err.message });

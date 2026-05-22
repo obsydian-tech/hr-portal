@@ -1,0 +1,10 @@
+{
+  "name": "get-panel-members-lambda",
+  "version": "1.0.0",
+  "description": "TalentFlow getPanelMembers Lambda — Cognito group directory lookup (D005/D041)",
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.0.0"
+  }
+}

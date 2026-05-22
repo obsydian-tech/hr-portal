@@ -3,21 +3,18 @@ import { TalentFlowShellComponent } from './shell/talent-flow-shell.component';
 import { adminGuard } from './guards/admin.guard';
 
 /**
- * TalentFlow lazy routes (FE-004 / NH-137, updated FE-007 / NH-140)
+ * TalentFlow lazy routes
  *
- * Loaded via loadChildren() from app.routes.ts at path: 'talent-flow'
- *
- * TalentFlowShellComponent is the eagerly-loaded parent (provides sidebar +
- * topbar shell). Page components are lazy-loaded as children via loadComponent.
- *
- * Config routes are protected by adminGuard (checks custom:isAdmin Cognito claim).
+ * Shell: TalentFlowShellComponent — horizontal topbar (D022), no sidebar.
+ * Add Candidate is a drawer in the shell, NOT a route (D036).
+ * HM evaluation panel is inline in the workspace, NOT a route (D047).
  */
 export const talentFlowRoutes: Routes = [
   {
     path: '',
     component: TalentFlowShellComponent,
     children: [
-      // ── Dashboard ────────────────────────────────────────────────────────
+      // ── TA Dashboard ─────────────────────────────────────────────────────
       {
         path: '',
         loadComponent: () =>
@@ -33,12 +30,12 @@ export const talentFlowRoutes: Routes = [
             (m) => m.PipelinePageComponent,
           ),
       },
-      // ── Candidate Create ─────────────────────────────────────────────────
+      // ── Candidates (search-first view, D059–D063) ─────────────────────
       {
-        path: 'candidates/new',
+        path: 'candidates',
         loadComponent: () =>
-          import('./pages/candidate-create/candidate-create-page.component').then(
-            (m) => m.CandidateCreatePageComponent,
+          import('./pages/candidates/candidates-page.component').then(
+            (m) => m.CandidatesPageComponent,
           ),
       },
       // ── Candidate Workspace ──────────────────────────────────────────────
@@ -49,13 +46,27 @@ export const talentFlowRoutes: Routes = [
             (m) => m.CandidateWorkspacePageComponent,
           ),
       },
-      // ── Evaluation (submit vote) ─────────────────────────────────────────
+      // ── Offers (offer lifecycle view, D064–D071) ──────────────────────
       {
-        path: 'candidates/:id/evaluate',
+        path: 'offers',
         loadComponent: () =>
-          import('./pages/evaluation/evaluation-page.component').then(
-            (m) => m.EvaluationPageComponent,
+          import('./pages/offers/offers-page.component').then(
+            (m) => m.OffersPageComponent,
           ),
+      },
+      // ── HM Dashboard (D044–D051) ─────────────────────────────────────
+      {
+        path: 'hm-dashboard',
+        loadComponent: () =>
+          import('./pages/hm-dashboard/hm-dashboard-page.component').then(
+            (m) => m.HmDashboardPageComponent,
+          ),
+      },
+      // ── Reports (placeholder — Phase C/D) ────────────────────────────
+      {
+        path: 'reports',
+        redirectTo: '',
+        pathMatch: 'full',
       },
       // ── Config hub — admin-only ──────────────────────────────────────────
       {

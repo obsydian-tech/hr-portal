@@ -1,33 +1,35 @@
-<!-- SlaTimerWidget — .scard + .ed-progress pattern from design handoff -->
+<!-- SlaTimerWidget — D021: no exact times, signal health language only -->
 <div class="tf-sla-timer" [ngClass]="statusClass()">
 
-  <!-- Icon tile — .sicon pattern from 17-stat-card.html -->
+  <!-- Icon tile -->
   <div class="tf-sla-timer__icon" aria-hidden="true">
-    <i class="pi" [class.pi-clock]="timerState().status !== 'BREACHED'"
-                  [class.pi-exclamation-circle]="timerState().status === 'BREACHED'"></i>
+    <i class="pi"
+       [class.pi-clock]="timerState().status !== 'BREACHED'"
+       [class.pi-exclamation-circle]="timerState().status === 'BREACHED'"></i>
   </div>
 
   <!-- Content -->
   <div class="tf-sla-timer__content">
 
-    <!-- Stage label — EYEBROW style from design system -->
+    <!-- Stage label -->
     <span class="tf-sla-timer__label">{{ slaLabel() }}</span>
 
-    <!-- Time display — JetBrains Mono for digits -->
-    @if (timerState().status === 'BREACHED') {
-      <p class="tf-sla-timer__time tf-sla-timer__time--breached">
-        BREACHED &mdash; {{ timerState().breachedDuration }}
-      </p>
-    } @else {
-      <p class="tf-sla-timer__time">
-        {{ timerState().hoursRemaining }}h {{ timerState().minutesRemaining }}m remaining
-      </p>
-    }
+    <!-- Status — signal health language only, NEVER time values (D021) -->
+    <span class="tf-sla-timer__status">
+      @switch (timerState().status) {
+        @case ('BREACHED') { Breached }
+        @case ('AT_RISK')  { At Risk  }
+        @default           { On Track }
+      }
+    </span>
 
-    <!-- Progress bar — .ed-progress__bar pattern, fills as time DRAINS -->
-    <div class="tf-sla-timer__bar" role="progressbar"
+    <!-- Progress bar — visual fill % only, no labels (D021) -->
+    <div class="tf-sla-timer__bar"
+         role="progressbar"
          [attr.aria-valuenow]="timerState().percentElapsed"
-         aria-valuemin="0" aria-valuemax="100">
+         aria-valuemin="0"
+         aria-valuemax="100"
+         aria-label="SLA elapsed">
       <div class="tf-sla-timer__bar-fill"
            [style.width.%]="timerState().percentElapsed"></div>
     </div>

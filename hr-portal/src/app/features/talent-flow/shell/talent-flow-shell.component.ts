@@ -5,51 +5,83 @@ import {
   signal,
   computed,
 } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
-import { SidebarComponent, NavItem } from '../../../shared/components/sidebar/sidebar.component';
-import { TopbarComponent } from '../../../shared/components/topbar/topbar.component';
-import { AuthService } from '../../../core/services/auth.service';
+import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
+import { BadgeModule } from 'primeng/badge';
+import { AvatarModule } from 'primeng/avatar';
+import { DrawerModule } from 'primeng/drawer';
+import { TalentFlowAuthService } from '../services/talent-flow-auth.service';
 import { TalentFlowStateService } from '../services/talent-flow-state.service';
+import { ConnectivityService } from '../services/connectivity.service';
+import { AiChatPanelComponent } from '../components/ai-chat-panel/ai-chat-panel.component';
+import { CandidateCreatePageComponent } from '../pages/candidate-create/candidate-create-page.component';
 
-/**
- * TalentFlowShellComponent — FE-004 / NH-137
- *
- * Provides the Naleko app shell (sidebar + topbar + router-outlet) for all
- * TalentFlow pages. Mirrors the pattern used by HrDashboardComponent.
- *
- * Child routes render inside <router-outlet />.
- */
+const ROLE_LABELS: Record<string, string> = {
+  TalentFlowAdmin: 'Admin',
+  HiringManager:   'Hiring Manager',
+  PanelMember:     'Panel Member',
+  ComplianceOfficer: 'Compliance',
+  HRDirector:      'HR Director',
+};
+
 @Component({
   selector: 'tf-shell',
   standalone: true,
-  imports: [RouterOutlet, SidebarComponent, TopbarComponent],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    ButtonModule,
+    BadgeModule,
+    AvatarModule,
+    DrawerModule,
+    AiChatPanelComponent,
+    CandidateCreatePageComponent,
+  ],
   templateUrl: './talent-flow-shell.component.html',
   styleUrl: './talent-flow-shell.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TalentFlowShellComponent {
-  private readonly auth = inject(AuthService);
-  protected readonly state = inject(TalentFlowStateService);
-  private readonly router = inject(Router);
+  private readonly router         = inject(Router);
+  protected readonly tfAuth       = inject(TalentFlowAuthService);
+  protected readonly state        = inject(TalentFlowStateService);
+  protected readonly connectivity = inject(ConnectivityService);
 
-  protected readonly sidebarOpen = signal(true);
+  protected readonly addCandidateOpen = signal(false);
+  protected readonly aiChatOpen       = signal(false);
 
-  protected readonly navItems = computed<NavItem[]>(() => [
-    { label: 'Dashboard', icon: 'pi pi-th-large',  route: '/platform/talentflow',                 disabled: false },
-    { label: 'Pipeline',  icon: 'pi pi-briefcase', route: '/platform/talentflow/pipeline',        disabled: false },
-    { label: 'Config',    icon: 'pi pi-cog',        route: '/platform/talentflow/config',         disabled: false },
-  ]);
+  protected readonly rolePill = computed<string>(() => {
+    const user = this.tfAuth.currentUser();
+    if (!user) return '';
+    for (const group of user.groups) {
+      if (ROLE_LABELS[group]) return ROLE_LABELS[group];
+    }
+    return 'TA Specialist';
+  });
 
-  protected toggleSidebar(): void {
-    this.sidebarOpen.update((v) => !v);
+  protected readonly initials = computed<string>(() => {
+    const user = this.tfAuth.currentUser();
+    if (!user) return '?';
+    return ((user.givenName[0] ?? '') + (user.familyName[0] ?? '')).toUpperCase();
+  });
+
+  protected readonly bellBadge = computed<string | undefined>(() => {
+    const count = this.state.slaBreachCount();
+    return count > 0 ? count.toString() : undefined;
+  });
+
+  protected openAiChat(): void {
+    this.aiChatOpen.set(true);
   }
 
-  protected onNewCandidate(): void {
-    void this.router.navigate(['/platform/talentflow/candidates/new']);
+  protected onCandidateCreated(candidateId: string): void {
+    this.addCandidateOpen.set(false);
+    void this.router.navigate(['/platform/talentflow/candidates', candidateId]);
   }
 
   protected onLogout(): void {
-    this.auth.logout();
+    this.tfAuth.logout();
     void this.router.navigate(['/platform/home']);
   }
 }

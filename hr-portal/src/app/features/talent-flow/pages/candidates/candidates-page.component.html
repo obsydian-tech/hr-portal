@@ -1,0 +1,164 @@
+<section class="tf-candidates">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="tf-candidates__header">
+    <button class="tf-candidates__back-btn" (click)="openDashboard()">
+      <i class="pi pi-arrow-left"></i>
+    </button>
+    <div>
+      <p class="tf-candidates__eyebrow">TalentFlow</p>
+      <h1 class="tf-candidates__title">Candidates</h1>
+    </div>
+  </header>
+
+  <!-- ── Search hero (D059 — search-first) ─────────────────────────────── -->
+  <div class="tf-candidates__search-hero">
+    <div class="tf-search-bar">
+      <i class="pi pi-search tf-search-bar__icon"></i>
+      <input
+        class="tf-search-bar__input"
+        type="text"
+        placeholder="Search candidates by name, email or role…"
+        [value]="searchQuery()"
+        (input)="setSearch($any($event.target).value)"
+        autofocus />
+    </div>
+
+    <!-- Quick filter chips -->
+    <div class="tf-candidates__quick-filters">
+
+      <div class="tf-qf-group">
+        <span class="tf-qf-group__label">Health</span>
+        <div class="tf-qf-chips">
+          <button class="tf-qf-chip" [class.tf-qf-chip--active]="healthFilter() === 'ALL'"
+            (click)="setHealth('ALL')">All</button>
+          <button class="tf-qf-chip tf-qf-chip--green" [class.tf-qf-chip--active]="healthFilter() === 'ON_TRACK'"
+            (click)="setHealth('ON_TRACK')">On Track</button>
+          <button class="tf-qf-chip tf-qf-chip--amber" [class.tf-qf-chip--active]="healthFilter() === 'AT_RISK'"
+            (click)="setHealth('AT_RISK')">At Risk</button>
+          <button class="tf-qf-chip tf-qf-chip--red" [class.tf-qf-chip--active]="healthFilter() === 'BREACHED'"
+            (click)="setHealth('BREACHED')">Breached</button>
+        </div>
+      </div>
+
+      <div class="tf-qf-group">
+        <span class="tf-qf-group__label">Seniority</span>
+        <div class="tf-qf-chips">
+          @for (opt of seniorityOptions; track opt) {
+            <button class="tf-qf-chip"
+              [class.tf-qf-chip--active]="seniorityFilter() === opt"
+              (click)="setSeniority(opt)">
+              {{ opt === 'ALL' ? 'All' : (opt | titlecase) }}
+            </button>
+          }
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Loading ─────────────────────────────────────────────────────────── -->
+  @if (state.isLoading()) {
+    <div class="tf-candidates__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading candidates…</span>
+    </div>
+  }
+
+  @if (!state.isLoading()) {
+
+    <!-- ── Recently Viewed (D060 — 4 cards, shown when no active search) ── -->
+    @if (!searchQuery() && recentlyViewed().length > 0) {
+      <div class="tf-candidates__section">
+        <h2 class="tf-candidates__section-title">Recently Viewed</h2>
+        <div class="tf-recent-grid">
+          @for (c of recentlyViewed(); track c.id) {
+            <div class="tf-recent-card"
+              [class.tf-recent-card--breached]="c.slaStatus === 'BREACHED'"
+              [class.tf-recent-card--at-risk]="c.slaStatus === 'AT_RISK'"
+              (click)="openCandidate(c.id)"
+              role="button"
+              tabindex="0">
+
+              <div [class]="avatarClass(c)">{{ initials(c) }}</div>
+
+              <div class="tf-recent-card__info">
+                <p class="tf-recent-card__name">{{ c.firstName }} {{ c.lastName }}</p>
+                <p class="tf-recent-card__role">{{ c.role }}</p>
+                <p class="tf-recent-card__stage">{{ stageLabel(c.currentStage) }}</p>
+              </div>
+
+              <span [class]="healthPillClass(c)">{{ healthLabel(c) }}</span>
+
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ── All Candidates list (D061–D063) ───────────────────────────────── -->
+    <div class="tf-candidates__section">
+      <div class="tf-candidates__list-head">
+        <h2 class="tf-candidates__section-title">
+          {{ searchQuery() ? 'Results' : 'All Candidates' }}
+        </h2>
+        <span class="tf-candidates__count">{{ filteredCandidates().length }}</span>
+      </div>
+
+      @if (filteredCandidates().length === 0) {
+        <div class="tf-candidates__empty">
+          <i class="pi pi-search"></i>
+          <p>No candidates match your search.</p>
+        </div>
+      } @else {
+        <div class="tf-candidates__list">
+          @for (c of filteredCandidates(); track c.id) {
+            <div class="tf-cv-row"
+              [class.tf-cv-row--breached]="c.slaStatus === 'BREACHED'"
+              [class.tf-cv-row--at-risk]="c.slaStatus === 'AT_RISK'"
+              (click)="openCandidate(c.id)"
+              role="button"
+              tabindex="0">
+
+              <!-- Avatar -->
+              <div [class]="avatarClass(c)">{{ initials(c) }}</div>
+
+              <!-- Identity -->
+              <div class="tf-cv-row__identity">
+                <p class="tf-cv-row__name">{{ c.firstName }} {{ c.lastName }}</p>
+                <p class="tf-cv-row__role">{{ c.role }}</p>
+              </div>
+
+              <!-- Stage -->
+              <span class="tf-cv-row__stage">{{ stageLabel(c.currentStage) }}</span>
+
+              <!-- Seniority -->
+              <span class="tf-pill tf-pill--seniority">{{ c.positionLevel | titlecase }}</span>
+
+              <!-- Health + SLA bar -->
+              <div class="tf-cv-row__health">
+                <span [class]="healthPillClass(c)">{{ healthLabel(c) }}</span>
+                <div class="tf-sla-bar" role="progressbar"
+                  [attr.aria-valuenow]="slaBarWidth(c)" aria-valuemin="0" aria-valuemax="100">
+                  <div class="tf-sla-bar__fill"
+                    [class.tf-sla-bar__fill--breached]="c.slaStatus === 'BREACHED'"
+                    [class.tf-sla-bar__fill--at-risk]="c.slaStatus === 'AT_RISK'"
+                    [style.width.%]="slaBarWidth(c)">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Applied -->
+              <span class="tf-cv-row__applied">{{ c.appliedDate | date:'d MMM yy' }}</span>
+
+              <i class="pi pi-chevron-right tf-cv-row__chevron"></i>
+
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+  }
+
+</section>

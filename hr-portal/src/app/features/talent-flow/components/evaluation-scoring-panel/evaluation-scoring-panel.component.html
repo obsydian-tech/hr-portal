@@ -69,29 +69,36 @@
 
   @if (!readOnly()) {
 
-    <!-- ── Decision ─────────────────────────────────────────────────────── -->
+    <!-- ── Decision — D050 vote grid: Strong No / No / Yes / Strong Yes ─── -->
     <div class="ev-panel__section-label">Decision</div>
     <div class="ev-panel__decisions">
       <button
         type="button"
-        class="ev-decision-btn ev-decision-btn--hire"
-        [class.ev-decision-btn--active]="decision() === 'HIRE'"
-        (click)="setDecision('HIRE')">
-        <i class="pi pi-check-circle"></i> Hire
+        class="ev-decision-btn ev-decision-btn--veto"
+        [class.ev-decision-btn--active]="decision() === 'STRONG_NO'"
+        (click)="setDecision('STRONG_NO')">
+        <i class="pi pi-ban"></i> Strong No
       </button>
       <button
         type="button"
         class="ev-decision-btn ev-decision-btn--no-hire"
-        [class.ev-decision-btn--active]="decision() === 'NO_HIRE'"
-        (click)="setDecision('NO_HIRE')">
-        <i class="pi pi-times-circle"></i> No Hire
+        [class.ev-decision-btn--active]="decision() === 'NO'"
+        (click)="setDecision('NO')">
+        <i class="pi pi-times-circle"></i> No
       </button>
       <button
         type="button"
-        class="ev-decision-btn ev-decision-btn--veto"
-        [class.ev-decision-btn--active]="decision() === 'STRONG_NO_VETO'"
-        (click)="setDecision('STRONG_NO_VETO')">
-        <i class="pi pi-ban"></i> Strong No (Veto)
+        class="ev-decision-btn ev-decision-btn--hire"
+        [class.ev-decision-btn--active]="decision() === 'YES'"
+        (click)="setDecision('YES')">
+        <i class="pi pi-check-circle"></i> Yes
+      </button>
+      <button
+        type="button"
+        class="ev-decision-btn ev-decision-btn--strong-yes"
+        [class.ev-decision-btn--active]="decision() === 'STRONG_YES'"
+        (click)="setDecision('STRONG_YES')">
+        <i class="pi pi-star-fill"></i> Strong Yes
       </button>
     </div>
 

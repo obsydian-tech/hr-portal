@@ -22,17 +22,21 @@
 
     <!-- ── Decision tally ──────────────────────────────────────────────── -->
     <div class="ev-summary__tally">
-      <div class="ev-tally-item ev-tally-item--hire">
-        <span class="ev-tally-item__count">{{ hireCount() }}</span>
-        <span class="ev-tally-item__label">Hire</span>
+      <div class="ev-tally-item ev-tally-item--strong-yes">
+        <span class="ev-tally-item__count">{{ strongYesCount() }}</span>
+        <span class="ev-tally-item__label">Strong Yes</span>
       </div>
-      <div class="ev-tally-item ev-tally-item--no-hire">
-        <span class="ev-tally-item__count">{{ noHireCount() }}</span>
-        <span class="ev-tally-item__label">No Hire</span>
+      <div class="ev-tally-item ev-tally-item--yes">
+        <span class="ev-tally-item__count">{{ yesCount() }}</span>
+        <span class="ev-tally-item__label">Yes</span>
       </div>
-      <div class="ev-tally-item ev-tally-item--veto">
-        <span class="ev-tally-item__count">{{ vetoCount() }}</span>
-        <span class="ev-tally-item__label">Veto</span>
+      <div class="ev-tally-item ev-tally-item--no">
+        <span class="ev-tally-item__count">{{ noCount() }}</span>
+        <span class="ev-tally-item__label">No</span>
+      </div>
+      <div class="ev-tally-item ev-tally-item--strong-no">
+        <span class="ev-tally-item__count">{{ strongNoCount() }}</span>
+        <span class="ev-tally-item__label">Strong No</span>
       </div>
     </div>
 

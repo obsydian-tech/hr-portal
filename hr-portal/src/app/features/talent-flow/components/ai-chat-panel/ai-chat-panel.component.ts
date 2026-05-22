@@ -61,7 +61,7 @@ export const INTENT_TEMPLATES: IntentTemplate[] = [
     fast: true,
     requiresHitl: false,
     starterPrompt: (c) =>
-      `What is the current status of candidate ${c.firstName} ${c.lastName} (${c.role})?`,
+      `What is the current status of candidate ${c.firstName} ${c.lastName}${c.role ? ` (${c.role})` : ''}?`,
   },
   {
     intent: 'pipeline_overview',
@@ -210,7 +210,7 @@ export class AiChatPanelComponent {
 
     const context: ChatContext = {
       candidateId: this.candidateId(),
-      sessionId: this.sessionId(),
+      sessionId:   this.sessionId(),
     };
 
     this.agentApi.chat(text, context).subscribe({
@@ -227,11 +227,14 @@ export class AiChatPanelComponent {
         this.messages.update((msgs) => [...msgs, aiMsg]);
         this.isLoading.set(false);
       },
-      error: () => {
+      error: (err: any) => {
+        const is401 = err?.status === 401 || err?.status === 403;
         const errMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'ai',
-          text: 'Sorry, something went wrong. Please try again.',
+          text: is401
+            ? 'Your session has expired. Please refresh the page or log in again to use AI Chat.'
+            : 'Sorry, something went wrong. Please try again.',
           timestamp: new Date(),
         };
         this.messages.update((msgs) => [...msgs, errMsg]);

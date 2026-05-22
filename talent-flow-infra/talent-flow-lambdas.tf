@@ -269,12 +269,14 @@ resource "aws_lambda_function" "send_notification" {
 
   environment {
     variables = {
-      NOTIFICATION_QUEUE_URL = aws_sqs_queue.talent_flow_notification.url
-      CONFIG_TABLE_NAME      = local.tf_table_config
-      AWS_ACCOUNT_ID         = var.aws_account_id
-      ENVIRONMENT            = var.environment
-      POSTMARK_API_TOKEN     = data.aws_ssm_parameter.postmark_token.value
-      POSTMARK_SENDER_EMAIL  = "ignecious@obsydiantechnologies.com"
+      NOTIFICATION_QUEUE_URL    = aws_sqs_queue.talent_flow_notification.url
+      CONFIG_TABLE_NAME         = local.tf_table_config
+      NOTIFICATIONS_TABLE_NAME  = local.tf_table_notifications
+      MVP1_RECIPIENT_OVERRIDE   = "ignecious@obsydiantechnologies.com"
+      AWS_ACCOUNT_ID            = var.aws_account_id
+      ENVIRONMENT               = var.environment
+      POSTMARK_API_TOKEN        = data.aws_ssm_parameter.postmark_token.value
+      POSTMARK_SENDER_EMAIL     = "ignecious@obsydiantechnologies.com"
     }
   }
 
@@ -311,6 +313,7 @@ resource "aws_lambda_function" "monitor_slas" {
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
+      TENANT_ID            = "NALEKO"
       AWS_ACCOUNT_ID       = var.aws_account_id
       ENVIRONMENT          = var.environment
     }
@@ -636,4 +639,297 @@ resource "aws_lambda_function" "get_candidate" {
   }
 
   tags = merge(local.tf_tags, { Ticket = "NH-113" })
+}
+
+# ── 17. getPanelMembers ───────────────────────────────────────────────────────
+# Triggered by: GET /v1/panel-members (JWT-secured HTTP API)
+# Lists system users from Naleko Cognito groups — internal panel directory (D005/D041)
+
+resource "aws_lambda_function" "get_panel_members" {
+  function_name = local.tf_lambda_get_panel_members
+  role          = aws_iam_role.get_panel_members.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      COGNITO_POOL_ID = local.tf_naleko_pool_id
+      TENANT_ID       = "NALEKO"
+      ENVIRONMENT     = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_get_panel_members}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-114" })
+}
+
+# ── 16. getUserNotifications ──────────────────────────────────────────────────
+# Triggered by: GET /v1/notifications (JWT-secured HTTP API)
+# Returns notification inbox for the calling user (userId from JWT sub claim).
+# Optional query param ?unreadOnly=true queries via GSI1 UnreadIndex.
+
+resource "aws_lambda_function" "get_notifications" {
+  function_name = local.tf_lambda_get_notifications
+  role          = aws_iam_role.get_notifications.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      NOTIFICATIONS_TABLE_NAME = local.tf_table_notifications
+      ENVIRONMENT              = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_get_notifications}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-123" })
+}
+
+# ── 18. captureSentiment ─────────────────────────────────────────────────────
+# Triggered by: POST /v1/candidates/{id}/sentiment (JWT-secured HTTP API)
+# Writes D007 interview sentiment to SAGA record; publishes SentimentCaptured to EventBridge
+
+resource "aws_lambda_function" "capture_sentiment" {
+  function_name = local.tf_lambda_capture_sentiment
+  role          = aws_iam_role.capture_sentiment.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME     = local.tf_table_state
+      EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
+      ENVIRONMENT          = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_capture_sentiment}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-123" })
+}
+
+# ── 17. markNotificationRead ──────────────────────────────────────────────────
+# Triggered by: PATCH /v1/notifications/{id}/read (JWT-secured HTTP API)
+# Sets read=true on the notification item and removes it from the UnreadIndex GSI
+# by deleting GSI1PK and GSI1SK attributes.
+
+resource "aws_lambda_function" "mark_notif_read" {
+  function_name = local.tf_lambda_mark_notif_read
+  role          = aws_iam_role.mark_notif_read.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      NOTIFICATIONS_TABLE_NAME = local.tf_table_notifications
+      ENVIRONMENT              = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_mark_notif_read}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-123" })
+}
+
+# ── 19. createOffer ───────────────────────────────────────────────────────────
+# Triggered by: EventBridge EvaluationCompleted (outcome=PASSED)
+# Creates the offer record in DynamoDB, builds the seniority-driven approval chain,
+# and starts the Step Functions offer-approval state machine.
+
+resource "aws_lambda_function" "create_offer" {
+  function_name = local.tf_lambda_create_offer
+  role          = aws_iam_role.create_offer.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME       = local.tf_table_state
+      CONFIG_TABLE_NAME      = local.tf_table_config
+      EVENTBRIDGE_BUS_NAME   = local.tf_event_bus_name
+      SFN_OFFER_APPROVAL_ARN = aws_sfn_state_machine.offer_approval.arn
+      ENVIRONMENT            = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_create_offer}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-130", Purpose = "OfferCreation" })
+}
+
+# ── 20. getOffer ──────────────────────────────────────────────────────────────
+# Triggered by: GET /v1/candidates/{id}/offer (JWT-secured HTTP API)
+# Read-only: returns the current offer record including approvalChain and interactionLog.
+
+resource "aws_lambda_function" "get_offer" {
+  function_name = local.tf_lambda_get_offer
+  role          = aws_iam_role.get_offer.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 15
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME = local.tf_table_state
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_get_offer}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-131", Purpose = "OfferRead" })
+}
+
+# ── 21. advanceOfferState ─────────────────────────────────────────────────────
+# Triggered by: PUT /v1/candidates/{id}/offer (JWT-secured HTTP API)
+# Handles all offer state transitions and interaction logging.
+# On CONFIRM_ACCEPTANCE publishes OfferAccepted (Trigger 4 — IT/Facilities fan-out).
+
+resource "aws_lambda_function" "advance_offer_state" {
+  function_name = local.tf_lambda_advance_offer_state
+  role          = aws_iam_role.advance_offer_state.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME     = local.tf_table_state
+      EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
+      ENVIRONMENT          = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_advance_offer_state}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-132", Purpose = "OfferStateAdvance" })
+}
+
+# ── 22. updateCandidate ───────────────────────────────────────────────────────
+# Triggered by: PATCH /v1/candidates/{id} (JWT-secured HTTP API)
+# Partial update of mutable candidate fields.
+# positionLevel locked once stage >= PANEL_INTERVIEW.
+# Publishes CandidateUpdated to EventBridge for the activity log.
+
+resource "aws_lambda_function" "update_candidate" {
+  function_name = local.tf_lambda_update_candidate
+  role          = aws_iam_role.update_candidate.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME     = local.tf_table_state
+      EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
+      ENVIRONMENT          = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_update_candidate}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "NH-133", Purpose = "CandidateUpdate" })
 }

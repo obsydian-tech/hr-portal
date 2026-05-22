@@ -30,6 +30,7 @@ import {
   DynamoDBClient,
   GetItemCommand,
   UpdateItemCommand,
+  ScanCommand,
 } from '@aws-sdk/client-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
@@ -82,6 +83,17 @@ async function setStatus(actionId, status, extra = {}) {
 }
 
 // ─── Route handlers ───────────────────────────────────────────────────────────
+
+async function handleListPending() {
+  const r = await db.send(new ScanCommand({
+    TableName: TABLE,
+    FilterExpression: '#s = :pending',
+    ExpressionAttributeNames: { '#s': 'status' },
+    ExpressionAttributeValues: marshall({ ':pending': 'PENDING_APPROVAL' }),
+  }));
+  const actions = (r.Items ?? []).map(unmarshall);
+  return response(200, { actions, count: actions.length });
+}
 
 async function handleGet(actionId) {
   const action = await getAction(actionId);
@@ -179,6 +191,11 @@ async function handleReject(actionId, rejectorStaffId, reason) {
 export const handler = async (event) => {
   const method  = event.requestContext?.http?.method ?? event.httpMethod;
   const rawPath = event.rawPath ?? event.path ?? '';
+
+  // HR-staff list-pending route (JWT-authenticated, specific path)
+  if (method === 'GET' && rawPath.endsWith('/actions/pending')) {
+    return handleListPending();
+  }
 
   // Extract actionId and optional route suffix (/approve | /reject)
   const pathMatch = rawPath.match(/\/actions\/([^/]+)(?:\/(approve|reject))?$/);

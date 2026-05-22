@@ -1,16 +1,249 @@
-/**
- * TalentFlowShellComponent styles — mirrors HrDashboardComponent layout.
- * Left offset matches sidebar width (250px); top offset matches topbar height (4rem).
- */
+// TalentFlow Shell — horizontal topbar layout (D022)
+// No sidebar. All pages render below the fixed topbar.
 
-.tf-shell-main {
-  margin-left: 250px;
+// ── Topbar ───────────────────────────────────────────────────────────────────
+
+.tf-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 4rem;
+  padding: 0 1.5rem;
+  background: var(--naleko-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+// ── Left: brand + nav ────────────────────────────────────────────────────────
+
+.tf-topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.tf-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.tf-brand__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: var(--naleko-tertiary);
+  color: var(--naleko-on-primary);
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  font-size: 0.75rem;
+  border-radius: var(--naleko-radius-md);
+}
+
+.tf-brand__name {
+  font-family: 'Manrope', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--naleko-on-primary);
+  letter-spacing: -0.01em;
+}
+
+// ── Nav links ────────────────────────────────────────────────────────────────
+
+.tf-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tf-nav__item {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--naleko-radius-pill);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  transition: color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    color: var(--naleko-on-primary);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &--active {
+    color: var(--naleko-tertiary-fixed-dim);
+    background: rgba(122, 212, 228, 0.12);
+  }
+}
+
+// ── Right: action buttons ────────────────────────────────────────────────────
+
+.tf-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+// Add Candidate — teal solid pill (D022)
+::ng-deep .tf-btn-add.p-button {
+  background: var(--naleko-tertiary);
+  border-color: var(--naleko-tertiary);
+  color: var(--naleko-on-primary);
+  border-radius: var(--naleko-radius-pill);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 0.4rem 1rem;
+
+  &:hover {
+    background: color-mix(in srgb, var(--naleko-tertiary) 85%, white);
+    border-color: color-mix(in srgb, var(--naleko-tertiary) 85%, white);
+  }
+}
+
+// Ask AI — cyan outlined pill (D022)
+::ng-deep .tf-btn-ai.p-button {
+  background: transparent;
+  border-color: var(--naleko-tertiary-fixed-dim);
+  color: var(--naleko-tertiary-fixed-dim);
+  border-radius: var(--naleko-radius-pill);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 0.4rem 1rem;
+
+  &:hover {
+    background: rgba(122, 212, 228, 0.1);
+  }
+}
+
+// Bell button
+::ng-deep .tf-btn-bell.p-button {
+  color: rgba(255, 255, 255, 0.7);
+
+  &:hover {
+    color: var(--naleko-on-primary);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .p-badge {
+    font-size: 0.625rem;
+    min-width: 1rem;
+    height: 1rem;
+    line-height: 1rem;
+  }
+}
+
+// Role pill
+.tf-role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--naleko-radius-pill);
+  background: rgba(122, 212, 228, 0.15);
+  color: var(--naleko-tertiary-fixed-dim);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+// Avatar
+::ng-deep .tf-avatar.p-avatar {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--naleko-secondary);
+  color: var(--naleko-on-primary);
+  cursor: pointer;
+}
+
+// ── Connectivity banner ───────────────────────────────────────────────────────
+
+.tf-connectivity-banner {
+  position: fixed;
+  top: 4rem;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+
+  &--offline {
+    background: var(--naleko-error);
+    color: var(--naleko-on-error);
+  }
+
+  &--slow {
+    background: var(--naleko-warning, #f59e0b);
+    color: #1c1b1f;
+  }
+}
+
+// ── Page content ─────────────────────────────────────────────────────────────
+
+.tf-shell-content {
   padding-top: 4rem;
   min-height: 100vh;
-  background-color: var(--naleko-surface);
-  transition: margin-left 0.3s ease;
+  background: var(--naleko-surface);
 
-  @media (max-width: 768px) {
-    margin-left: 0;
+  &--banner {
+    padding-top: 6rem;
+  }
+}
+
+// ── Drawer shared styles ──────────────────────────────────────────────────────
+
+.tf-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.tf-drawer-title {
+  font-family: 'Manrope', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+}
+
+// AI no-context placeholder
+.tf-ai-no-context {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  height: 100%;
+  color: var(--naleko-on-surface-variant);
+  text-align: center;
+  padding: 2rem;
+
+  i {
+    font-size: 2rem;
+    color: var(--naleko-tertiary-fixed-dim);
+  }
+
+  p {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9375rem;
+    margin: 0;
   }
 }

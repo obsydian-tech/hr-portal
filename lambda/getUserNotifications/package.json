@@ -1,0 +1,16 @@
+{
+  "name": "get-user-notifications-lambda",
+  "version": "1.0.0",
+  "description": "TalentFlow getUserNotifications Lambda — in-app notification inbox",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0",
+    "jest": "^29.0.0"
+  }
+}

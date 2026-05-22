@@ -46,6 +46,7 @@ const DEFAULT_THRESHOLDS: Record<HiringStage, number> = {
   TECHNICAL_INTERVIEW: 120,
   PANEL_INTERVIEW:     120,
   EVALUATION:          48,
+  BACKGROUND_CHECK:    72,
   OFFER_PREPARATION:   72,
   OFFER_APPROVAL:      48,
   OFFER_DELIVERY:      24,
@@ -62,15 +63,14 @@ export interface PanelRulesData {
 }
 
 const DEFAULT_PANEL_RULES: PanelRulesData = {
-  votesRequired: { JUNIOR: 2, MID: 3, SENIOR: 3, DIRECTOR: 4 },
+  votesRequired: { JUNIOR: 2, MID: 3, SENIOR: 3 },
   strongNoVetoEnabled: true,
 };
 
 const LEVELS: { value: PositionLevel; label: string; icon: string }[] = [
-  { value: 'JUNIOR',   label: 'Junior',   icon: 'pi-user' },
-  { value: 'MID',      label: 'Mid',      icon: 'pi-users' },
-  { value: 'SENIOR',   label: 'Senior',   icon: 'pi-star' },
-  { value: 'DIRECTOR', label: 'Director', icon: 'pi-crown' },
+  { value: 'JUNIOR', label: 'Junior', icon: 'pi-user' },
+  { value: 'MID',    label: 'Mid',    icon: 'pi-users' },
+  { value: 'SENIOR', label: 'Senior', icon: 'pi-star' },
 ];
 
 // ─── Approval Rules (V4) ─────────────────────────────────────────────────────

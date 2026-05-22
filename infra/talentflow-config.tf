@@ -126,7 +126,7 @@ resource "aws_apigatewayv2_route" "get_config" {
   route_key          = "GET /v1/config"
   target             = "integrations/${aws_apigatewayv2_integration.manage_talent_flow_config.id}"
   authorization_type = "JWT"
-  authorizer_id      = tolist(data.aws_apigatewayv2_authorizers.talent_flow.ids)[0]
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 
 resource "aws_apigatewayv2_route" "put_config" {
@@ -134,7 +134,7 @@ resource "aws_apigatewayv2_route" "put_config" {
   route_key          = "PUT /v1/config"
   target             = "integrations/${aws_apigatewayv2_integration.manage_talent_flow_config.id}"
   authorization_type = "JWT"
-  authorizer_id      = tolist(data.aws_apigatewayv2_authorizers.talent_flow.ids)[0]
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 
 resource "aws_apigatewayv2_route" "post_config" {
@@ -142,7 +142,7 @@ resource "aws_apigatewayv2_route" "post_config" {
   route_key          = "POST /v1/config"
   target             = "integrations/${aws_apigatewayv2_integration.manage_talent_flow_config.id}"
   authorization_type = "JWT"
-  authorizer_id      = tolist(data.aws_apigatewayv2_authorizers.talent_flow.ids)[0]
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 
 # ─── Lambda permission — allow API GW to invoke ───────────────────────────────

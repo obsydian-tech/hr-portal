@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, catchError, from, switchMap, throwError } from 'rxjs';
+import { Observable, catchError, from, map, switchMap, throwError, timeout } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 // Pool consolidation (Epic 5): Agent API uses Cognito JWT auth (naleko-agent-api HTTP API v2).
 // Same token pattern as TalentFlowApiService — avoids shipping API keys in the JS bundle.
@@ -23,6 +23,9 @@ import {
  * NOTE: chat() is intentionally non-streaming for FE-001.
  * Upgrade to EventSource / chunked HTTP in a future iteration.
  */
+const AGENT_TIMEOUT_MS = 15_000;
+const CHAT_TIMEOUT_MS  = 60_000;
+
 @Injectable({ providedIn: 'root' })
 export class TalentFlowAgentApiService {
   private readonly http = inject(HttpClient);
@@ -48,14 +51,21 @@ export class TalentFlowAgentApiService {
   // ─── AI Chat ───────────────────────────────────────────────────────────────
 
   chat(message: string, context: ChatContext): Observable<ChatResponse> {
+    // talentFlowAiChat Lambda reads { message, screenContext, conversationHistory }
+    // Map ChatContext → screenContext shape the Lambda expects.
+    const screenContext = {
+      candidateId: context.candidateId,
+      view:        'talent_flow',
+    };
     return this.authHeaders().pipe(
       switchMap((headers) =>
         this.http.post<ChatResponse>(
-          `${this.baseUrl}/agent/v1/ai-chat`,
-          { message, context },
+          `${this.baseUrl}/agent/v1/talentflow/chat`,
+          { message, screenContext },
           { headers },
         ),
       ),
+      timeout(CHAT_TIMEOUT_MS),
       catchError(this.handleError),
     );
   }
@@ -65,8 +75,13 @@ export class TalentFlowAgentApiService {
   getPendingActions(): Observable<PendingAction[]> {
     return this.authHeaders().pipe(
       switchMap((headers) =>
-        this.http.get<PendingAction[]>(`${this.baseUrl}/agent/v1/actions/pending`, { headers }),
+        this.http.get<{ actions: PendingAction[]; count: number }>(
+          `${this.baseUrl}/agent/v1/actions/pending`,
+          { headers },
+        ),
       ),
+      map((res) => res.actions ?? []),
+      timeout(AGENT_TIMEOUT_MS),
       catchError(this.handleError),
     );
   }
@@ -80,6 +95,7 @@ export class TalentFlowAgentApiService {
           { headers },
         ),
       ),
+      timeout(AGENT_TIMEOUT_MS),
       catchError(this.handleError),
     );
   }
@@ -93,6 +109,7 @@ export class TalentFlowAgentApiService {
           { headers },
         ),
       ),
+      timeout(AGENT_TIMEOUT_MS),
       catchError(this.handleError),
     );
   }
@@ -100,10 +117,11 @@ export class TalentFlowAgentApiService {
   // ─── Error Handling ────────────────────────────────────────────────────────
 
   private handleError(error: unknown): Observable<never> {
-    const err = error as { status?: number; message?: string };
+    const err = error as { status?: number; message?: string; name?: string };
     let userMessage = 'An unexpected error occurred. Please try again.';
 
-    if (err.status === 401) userMessage = 'Session expired. Please log in again.';
+    if (err.name === 'TimeoutError') userMessage = 'Request timed out. Please check your connection and try again.';
+    else if (err.status === 401) userMessage = 'Session expired. Please log in again.';
     else if (err.status === 403) userMessage = 'You do not have permission to perform this action.';
     else if (err.status === 404) userMessage = 'The requested action was not found or has expired.';
     else if (err.status && err.status >= 500) userMessage = 'Agent service error. Please try again later.';

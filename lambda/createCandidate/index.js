@@ -33,7 +33,7 @@ const STATE_TABLE       = process.env.STATE_TABLE_NAME;        // talent-flow-st
 const IDEMPOTENCY_TABLE = process.env.IDEMPOTENCY_TABLE_NAME;  // talent-flow-idempotency-keys
 const EVENT_BUS_NAME    = process.env.EVENTBRIDGE_BUS_NAME;    // talent-flow-bus
 
-const VALID_POSITION_LEVELS = ['JUNIOR', 'MID', 'SENIOR', 'DIRECTOR'];
+const VALID_POSITION_LEVELS = ['JUNIOR', 'MID', 'SENIOR'];
 const IDEMPOTENCY_TTL_SECONDS = 48 * 60 * 60; // 48 hours
 
 // ─── Response helpers ─────────────────────────────────────────────────────────
@@ -166,6 +166,7 @@ exports.handler = async (event) => {
     currentStage: 'APPLICATION_REVIEW',
     stageEnteredAt: now,
     status: 'ACTIVE',
+    slaStatus: 'ON_TRACK',
     configVersion: null,  // set by orchestrateTalentFlowWorkflow
     createdAt: now,
   };

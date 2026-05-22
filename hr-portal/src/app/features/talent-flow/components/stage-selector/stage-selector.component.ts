@@ -22,6 +22,7 @@ export const STAGE_LABELS: Record<HiringStage, string> = {
   TECHNICAL_INTERVIEW: 'Technical Interview',
   PANEL_INTERVIEW:     'Panel Interview',
   EVALUATION:          'Evaluation',
+  BACKGROUND_CHECK:    'Background Check',
   OFFER_PREPARATION:   'Offer Preparation',
   OFFER_APPROVAL:      'Offer Approval',
   OFFER_DELIVERY:      'Offer Delivery',

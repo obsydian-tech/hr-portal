@@ -32,6 +32,7 @@ locals {
   tf_table_prompt_cache    = "talent-flow-prompt-cache"
   tf_table_rate_limit      = "talent-flow-ai-rate-limit"
   tf_table_idempotency     = "talent-flow-idempotency-keys"
+  tf_table_notifications   = "talent-flow-notifications"
 
   # ── EventBridge ───────────────────────────────────────────────────────────
   tf_event_bus_name = "talent-flow-bus"
@@ -58,6 +59,15 @@ locals {
   tf_lambda_rotate_api_key       = "talentFlowRotateApiKey"
   tf_lambda_get_candidates       = "getCandidates"
   tf_lambda_get_candidate        = "getCandidate"
+  tf_lambda_get_panel_members    = "getPanelMembers"
+  tf_lambda_advance_stage        = "advanceCandidateStage"
+  tf_lambda_get_notifications    = "getUserNotifications"
+  tf_lambda_mark_notif_read      = "markNotificationRead"
+  tf_lambda_capture_sentiment    = "captureSentiment"
+  tf_lambda_create_offer         = "createOffer"
+  tf_lambda_get_offer            = "getOffer"
+  tf_lambda_advance_offer_state  = "advanceOfferState"
+  tf_lambda_update_candidate     = "updateCandidate"
 
   # ── KMS key aliases ───────────────────────────────────────────────────────
   tf_kms_alias_state       = "alias/talent-flow/state"
@@ -77,6 +87,13 @@ locals {
   tf_cognito_pool_name   = "talent-flow-user-pool"
   tf_cognito_client_name = "talent-flow-web-client"
   tf_lambda_pre_token    = "talentFlowPreTokenTrigger"
+
+  # Epic 5 Step 2: pool consolidation — talent-flow-api JWT authorizer now
+  # validates tokens from the Naleko parent pool (af-south-1_2LdAGFnw2).
+  # TalentFlow users exist as groups inside the Naleko pool. Angular logs in
+  # once via the Naleko pool and that single token is accepted everywhere.
+  tf_naleko_pool_id   = "af-south-1_2LdAGFnw2"
+  tf_naleko_client_id = "1pk5rd58glsohfplnlr63tg0qb"
 
   # Groups - internal staff only (candidates are DynamoDB records, not Cognito users)
   tf_cognito_groups = toset([

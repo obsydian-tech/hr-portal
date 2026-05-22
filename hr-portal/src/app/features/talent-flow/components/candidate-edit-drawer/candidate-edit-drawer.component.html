@@ -1,0 +1,163 @@
+<!-- CandidateEditDrawer — slide-in from right, header-triggered -->
+
+@if (visible()) {
+  <!-- Backdrop -->
+  <div class="tf-edit-backdrop" (click)="close()"></div>
+
+  <!-- Drawer panel -->
+  <aside class="tf-edit-drawer">
+
+    <!-- Header -->
+    <div class="tf-edit-drawer__header">
+      <div class="tf-edit-drawer__title">
+        <i class="pi pi-pencil"></i>
+        Edit Candidate Details
+      </div>
+      <button class="tf-edit-drawer__close" (click)="close()" aria-label="Close">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <!-- Email — always locked, shown for context -->
+    <div class="tf-edit-drawer__locked-notice">
+      <i class="pi pi-lock"></i>
+      <span>Email <strong>{{ candidate().email }}</strong> cannot be changed — it is the candidate's identity anchor.</span>
+    </div>
+
+    <!-- Form -->
+    <div class="tf-edit-drawer__body">
+
+      <!-- Section: Personal -->
+      <p class="tf-edit-section-label">Personal Details</p>
+
+      <div class="tf-edit-row">
+        <div class="tf-edit-fld">
+          <label class="tf-edit-fld__label" for="ed-firstName">First Name *</label>
+          <input class="tf-edit-fld__input" id="ed-firstName" type="text"
+            [value]="form().firstName"
+            (input)="setFirstName($event)"
+            placeholder="First name" />
+        </div>
+        <div class="tf-edit-fld">
+          <label class="tf-edit-fld__label" for="ed-lastName">Last Name *</label>
+          <input class="tf-edit-fld__input" id="ed-lastName" type="text"
+            [value]="form().lastName"
+            (input)="setLastName($event)"
+            placeholder="Last name" />
+        </div>
+      </div>
+
+      <div class="tf-edit-fld tf-edit-fld--full">
+        <label class="tf-edit-fld__label" for="ed-phone">
+          Phone <span class="tf-edit-fld__opt">(optional)</span>
+        </label>
+        <input class="tf-edit-fld__input" id="ed-phone" type="tel"
+          [value]="form().phone"
+          (input)="setPhone($event)"
+          placeholder="+27 82 000 0000" />
+      </div>
+
+      <!-- Section: Role -->
+      <p class="tf-edit-section-label">Role & Experience</p>
+
+      <div class="tf-edit-fld tf-edit-fld--full">
+        <label class="tf-edit-fld__label" for="ed-role">Job Title / Role *</label>
+        <input class="tf-edit-fld__input" id="ed-role" type="text"
+          [value]="form().role"
+          (input)="setRole($event)"
+          placeholder="e.g. Senior Software Engineer" />
+      </div>
+
+      <div class="tf-edit-row">
+        <div class="tf-edit-fld">
+          <label class="tf-edit-fld__label" for="ed-exp">Years of Experience</label>
+          <input class="tf-edit-fld__input" id="ed-exp" type="number"
+            min="0" max="50"
+            [value]="form().experienceYears"
+            (input)="setExperienceYears($event)" />
+        </div>
+        <div class="tf-edit-fld">
+          <label class="tf-edit-fld__label" for="ed-source">
+            Source <span class="tf-edit-fld__opt">(optional)</span>
+          </label>
+          <select class="tf-edit-fld__select" id="ed-source"
+            [value]="form().source"
+            (change)="setSource($event)">
+            <option value="">— Select —</option>
+            @for (opt of sourceOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- Seniority — guarded -->
+      <div class="tf-edit-fld tf-edit-fld--full">
+        <label class="tf-edit-fld__label" for="ed-level">
+          Seniority Level
+          @if (levelLocked) {
+            <span class="tf-edit-fld__locked">
+              <i class="pi pi-lock"></i> Locked — evaluation in progress
+            </span>
+          }
+        </label>
+        <select class="tf-edit-fld__select" id="ed-level"
+          [value]="form().positionLevel"
+          [disabled]="levelLocked"
+          (change)="setPositionLevel($event)">
+          @for (opt of seniorityOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Section: Department & Location -->
+      <p class="tf-edit-section-label">
+        Department &amp; Location
+        <span class="tf-edit-section-label__note">Required for offer generation</span>
+      </p>
+
+      <div class="tf-edit-row">
+        <div class="tf-edit-fld">
+          <label class="tf-edit-fld__label" for="ed-dept">Department</label>
+          <input class="tf-edit-fld__input" id="ed-dept" type="text"
+            [value]="form().department"
+            (input)="setDepartment($event)"
+            placeholder="e.g. Engineering" />
+        </div>
+        <div class="tf-edit-fld">
+          <label class="tf-edit-fld__label" for="ed-loc">Location</label>
+          <input class="tf-edit-fld__input" id="ed-loc" type="text"
+            [value]="form().location"
+            (input)="setLocation($event)"
+            placeholder="e.g. Cape Town" />
+        </div>
+      </div>
+
+      <!-- Error -->
+      @if (saveError()) {
+        <div class="tf-edit-alert">
+          <i class="pi pi-exclamation-triangle"></i> {{ saveError() }}
+        </div>
+      }
+
+    </div>
+
+    <!-- Footer -->
+    <div class="tf-edit-drawer__footer">
+      <button class="tf-edit-btn tf-edit-btn--ghost" (click)="close()">
+        Cancel
+      </button>
+      <button class="tf-edit-btn tf-edit-btn--primary"
+        [disabled]="saving()"
+        (click)="save()">
+        @if (saving()) {
+          <i class="pi pi-spin pi-spinner"></i> Saving…
+        } @else {
+          <i class="pi pi-check"></i> Save Changes
+        }
+      </button>
+    </div>
+
+  </aside>
+}

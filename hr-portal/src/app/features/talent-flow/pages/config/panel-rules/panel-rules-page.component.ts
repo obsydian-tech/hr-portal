@@ -19,7 +19,7 @@ import { PositionLevel } from '../../../models/talent-flow.models';
  * Route: /talent-flow/config/panel  (adminGuard protected)
  *
  * Loads current PANEL_CONFIG on init.
- * votesRequired per PositionLevel (JUNIOR/MID/SENIOR/DIRECTOR).
+ * votesRequired per PositionLevel (JUNIOR/MID/SENIOR — D039, no DIRECTOR in MVP1).
  * strongNoVetoEnabled global toggle.
  * PUT updateConfig('PANEL_CONFIG', rules)
  */
@@ -31,19 +31,17 @@ export interface PanelRulesData {
 
 const DEFAULT_PANEL_RULES: PanelRulesData = {
   votesRequired: {
-    JUNIOR:   2,
-    MID:      3,
-    SENIOR:   3,
-    DIRECTOR: 4,
+    JUNIOR: 2,
+    MID:    3,
+    SENIOR: 3,
   },
   strongNoVetoEnabled: true,
 };
 
 const LEVELS: { value: PositionLevel; label: string; icon: string }[] = [
-  { value: 'JUNIOR',   label: 'Junior',   icon: 'pi-user' },
-  { value: 'MID',      label: 'Mid',      icon: 'pi-users' },
-  { value: 'SENIOR',   label: 'Senior',   icon: 'pi-star' },
-  { value: 'DIRECTOR', label: 'Director', icon: 'pi-crown' },
+  { value: 'JUNIOR', label: 'Junior', icon: 'pi-user' },
+  { value: 'MID',    label: 'Mid',    icon: 'pi-users' },
+  { value: 'SENIOR', label: 'Senior', icon: 'pi-star' },
 ];
 
 @Component({

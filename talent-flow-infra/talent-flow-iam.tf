@@ -230,7 +230,7 @@ resource "aws_iam_role_policy" "schedule_interview" {
 
 # ── 4. submitVote ─────────────────────────────────────────────────────────────
 # Triggered by: EventBridge VoteSubmitted
-# Needs: DynamoDB state (GetItem+UpdateItem), config (GetItem),
+# Needs: DynamoDB state (GetItem+PutItem+UpdateItem+Query), config (GetItem),
 #        EventBridge PutEvents, KMS state CMK
 
 resource "aws_iam_role" "submit_vote" {
@@ -263,7 +263,8 @@ resource "aws_iam_role_policy" "submit_vote" {
       {
         Sid      = "StateTableReadWrite"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        # NH-FIX: PutItem (vote record) + Query (quorum check) added — were missing
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
@@ -444,6 +445,12 @@ resource "aws_iam_role_policy" "send_notification" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
+        Sid      = "NotificationsTableWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_notifications}"
+      },
+      {
         Sid      = "SESSendEmail"
         Effect   = "Allow"
         Action   = ["ses:SendEmail", "ses:SendRawEmail"]
@@ -513,10 +520,13 @@ resource "aws_iam_role_policy" "monitor_slas" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
-        Sid      = "ConfigTableRead"
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem"]
-        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
+        Sid    = "ConfigTableRead"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/*",
+        ]
       },
       {
         Sid      = "EventBridgePublish"
@@ -715,7 +725,7 @@ resource "aws_iam_role_policy" "approve_action" {
       {
         Sid      = "PendingActionsReadWrite"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Scan"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_pending_actions}"
       },
       {
@@ -839,6 +849,12 @@ resource "aws_iam_role_policy" "get_candidates" {
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/GSI1",
         ]
       },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
     ]
   })
 }
@@ -879,6 +895,12 @@ resource "aws_iam_role_policy" "get_candidate" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
       },
     ]
   })
@@ -927,6 +949,415 @@ resource "aws_iam_role_policy" "rotate_api_key" {
         Effect   = "Allow"
         Action   = local.tf_kms_actions
         Resource = aws_kms_key.talent_flow_agent_audit.arn
+      },
+    ]
+  })
+}
+
+# ── 14. captureSentiment ─────────────────────────────────────────────────────
+# Triggered by: POST /v1/candidates/{id}/sentiment (HTTP API JWT-secured)
+# Needs: DynamoDB state (UpdateItem), EventBridge PutEvents, KMS state CMK
+
+resource "aws_iam_role" "capture_sentiment" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_capture_sentiment}"
+  description        = "Execution role for captureSentiment Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-123" })
+}
+
+resource "aws_iam_role_policy" "capture_sentiment" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_capture_sentiment}-policy"
+  role = aws_iam_role.capture_sentiment.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_capture_sentiment}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "StateTableUpdate"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid      = "EventBridgePutEvents"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = "arn:aws:events:af-south-1:${var.aws_account_id}:event-bus/${local.tf_event_bus_name}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── 15. getUserNotifications ──────────────────────────────────────────────────
+# Triggered by: GET /v1/notifications (HTTP API JWT-secured)
+# Needs: DynamoDB notifications (Query), KMS state CMK
+
+resource "aws_iam_role" "get_notifications" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_get_notifications}"
+  description        = "Execution role for getUserNotifications Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-123" })
+}
+
+resource "aws_iam_role_policy" "get_notifications" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_get_notifications}-policy"
+  role = aws_iam_role.get_notifications.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_get_notifications}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "NotificationsTableQuery"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_notifications}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_notifications}/index/UnreadIndex",
+        ]
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── 16. getPanelMembers ───────────────────────────────────────────────────────
+# Triggered by: GET /v1/panel-members (JWT-secured HTTP API)
+# Needs: cognito-idp:ListUsersInGroup on Naleko pool (D005 internal directory)
+
+resource "aws_iam_role" "get_panel_members" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_get_panel_members}"
+  description        = "Execution role for getPanelMembers Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-114" })
+}
+
+resource "aws_iam_role_policy" "get_panel_members" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_get_panel_members}-policy"
+  role = aws_iam_role.get_panel_members.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_get_panel_members}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "CognitoDirectoryRead"
+        Effect = "Allow"
+        Action = ["cognito-idp:ListUsersInGroup"]
+        Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
+      },
+    ]
+  })
+}
+
+# ── 15. markNotificationRead ──────────────────────────────────────────────────
+# Triggered by: PATCH /v1/notifications/{id}/read (HTTP API JWT-secured)
+# Needs: DynamoDB notifications (UpdateItem), KMS state CMK
+
+resource "aws_iam_role" "mark_notif_read" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_mark_notif_read}"
+  description        = "Execution role for markNotificationRead Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-123" })
+}
+
+resource "aws_iam_role_policy" "mark_notif_read" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_mark_notif_read}-policy"
+  role = aws_iam_role.mark_notif_read.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_mark_notif_read}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "NotificationsTableUpdate"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_notifications}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── Phase D: createOffer ──────────────────────────────────────────────────────
+# Needs: DynamoDB state (GetItem + PutItem), DynamoDB config (GetItem),
+#        EventBridge (PutEvents), Step Functions (StartExecution), KMS state CMK
+
+resource "aws_iam_role" "create_offer" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_create_offer}"
+  description        = "Execution role for createOffer Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-130" })
+}
+
+resource "aws_iam_role_policy" "create_offer" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_create_offer}-policy"
+  role = aws_iam_role.create_offer.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_create_offer}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "StateTableReadWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid      = "ConfigTableRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/*",
+        ]
+      },
+      {
+        Sid      = "EventBridgePutEvents"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = "arn:aws:events:af-south-1:${var.aws_account_id}:event-bus/${local.tf_event_bus_name}"
+      },
+      {
+        Sid      = "StepFunctionsStart"
+        Effect   = "Allow"
+        Action   = ["states:StartExecution"]
+        Resource = aws_sfn_state_machine.offer_approval.arn
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── Phase D: getOffer ─────────────────────────────────────────────────────────
+# Needs: DynamoDB state (GetItem), KMS state CMK
+
+resource "aws_iam_role" "get_offer" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_get_offer}"
+  description        = "Execution role for getOffer Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-131" })
+}
+
+resource "aws_iam_role_policy" "get_offer" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_get_offer}-policy"
+  role = aws_iam_role.get_offer.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_get_offer}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "StateTableRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── Phase D: updateCandidate ──────────────────────────────────────────────────
+# Needs: DynamoDB state (GetItem + UpdateItem), EventBridge (PutEvents), KMS state CMK
+
+resource "aws_iam_role" "update_candidate" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_update_candidate}"
+  description        = "Execution role for updateCandidate Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-133" })
+}
+
+resource "aws_iam_role_policy" "update_candidate" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_update_candidate}-policy"
+  role = aws_iam_role.update_candidate.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_update_candidate}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "StateTableReadWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid      = "EventBridgePutEvents"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = "arn:aws:events:af-south-1:${var.aws_account_id}:event-bus/${local.tf_event_bus_name}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── Phase D: advanceOfferState ────────────────────────────────────────────────
+# Needs: DynamoDB state (GetItem + UpdateItem), EventBridge (PutEvents), KMS state CMK
+
+resource "aws_iam_role" "advance_offer_state" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_advance_offer_state}"
+  description        = "Execution role for advanceOfferState Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "NH-132" })
+}
+
+resource "aws_iam_role_policy" "advance_offer_state" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_advance_offer_state}-policy"
+  role = aws_iam_role.advance_offer_state.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_advance_offer_state}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "StateTableReadWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid      = "EventBridgePutEvents"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = "arn:aws:events:af-south-1:${var.aws_account_id}:event-bus/${local.tf_event_bus_name}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
       },
     ]
   })

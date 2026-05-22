@@ -591,14 +591,18 @@ export const handler = async (event) => {
 
   // ── 1. Extract staffId from Cognito JWT (NH-53) ──────────────────────────
   const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
-  const staffId = claims['custom:staff_id'];
+  // Fall back to sub (Cognito UUID) if custom:staff_id is not yet provisioned.
+  const staffId = claims['custom:staff_id'] || claims['sub'];
   if (!staffId) {
-    logger.warn('Missing custom:staff_id JWT claim');
+    logger.warn('Missing custom:staff_id and sub JWT claims — cannot identify caller');
     return {
       statusCode: 401,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Missing staff_id claim in JWT' }),
     };
+  }
+  if (!claims['custom:staff_id']) {
+    logger.warn(JSON.stringify({ event: 'staff_id_fallback_to_sub', sub: staffId }));
   }
 
   // ── 1b. NH-80: Hourly rate limit check ─────────────────────────────────

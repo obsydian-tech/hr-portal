@@ -31,26 +31,28 @@ export class EvaluationSummaryWidgetComponent {
   readonly votes   = input<Vote[]>([]);
   readonly weights = input<ScoringWeights>(DEFAULT_SCORING_WEIGHTS);
 
-  // ── Decision tally ────────────────────────────────────────────────────────
-  protected readonly hireCount      = computed(() => this.votes().filter((v) => v.decision === 'HIRE').length);
-  protected readonly noHireCount    = computed(() => this.votes().filter((v) => v.decision === 'NO_HIRE').length);
-  protected readonly vetoCount      = computed(() => this.votes().filter((v) => v.decision === 'STRONG_NO_VETO').length);
+  // ── Decision tally (D050: STRONG_NO | NO | YES | STRONG_YES) ─────────────
+  protected readonly strongYesCount = computed(() => this.votes().filter((v) => v.decision === 'STRONG_YES').length);
+  protected readonly yesCount       = computed(() => this.votes().filter((v) => v.decision === 'YES').length);
+  protected readonly noCount        = computed(() => this.votes().filter((v) => v.decision === 'NO').length);
+  protected readonly strongNoCount  = computed(() => this.votes().filter((v) => v.decision === 'STRONG_NO').length);
   protected readonly totalVotes     = computed(() => this.votes().length);
 
   protected readonly consensusLabel = computed<string>(() => {
     if (!this.totalVotes()) return 'No votes yet';
-    if (this.vetoCount() > 0) return 'Strong No — Veto';
-    const hire = this.hireCount();
+    if (this.strongNoCount() > 0) return 'Strong No';
+    const yes = this.yesCount() + this.strongYesCount();
     const total = this.totalVotes();
-    if (hire === total) return 'Unanimous Hire';
-    if (hire > total / 2) return 'Majority Hire';
-    return 'Majority No Hire';
+    if (yes === total) return 'Unanimous Yes';
+    if (yes > total / 2) return 'Majority Yes';
+    return 'Majority No';
   });
 
   protected readonly consensusClass = computed<string>(() => {
     if (!this.totalVotes()) return '';
-    if (this.vetoCount() > 0) return 'consensus--veto';
-    return this.hireCount() > this.totalVotes() / 2 ? 'consensus--hire' : 'consensus--no-hire';
+    if (this.strongNoCount() > 0) return 'consensus--veto';
+    const yes = this.yesCount() + this.strongYesCount();
+    return yes > this.totalVotes() / 2 ? 'consensus--hire' : 'consensus--no-hire';
   });
 
   // ── Avg scores per criterion ──────────────────────────────────────────────
@@ -77,15 +79,17 @@ export class EvaluationSummaryWidgetComponent {
   });
 
   protected decisionChipClass(decision: string): string {
-    if (decision === 'HIRE')           return 'ev-chip ev-chip--hire';
-    if (decision === 'STRONG_NO_VETO') return 'ev-chip ev-chip--veto';
+    if (decision === 'STRONG_YES') return 'ev-chip ev-chip--strong-yes';
+    if (decision === 'YES')        return 'ev-chip ev-chip--hire';
+    if (decision === 'STRONG_NO')  return 'ev-chip ev-chip--veto';
     return 'ev-chip ev-chip--no-hire';
   }
 
   protected decisionLabel(decision: string): string {
-    if (decision === 'HIRE')           return 'Hire';
-    if (decision === 'STRONG_NO_VETO') return 'Veto';
-    return 'No Hire';
+    if (decision === 'STRONG_YES') return 'Strong Yes';
+    if (decision === 'YES')        return 'Yes';
+    if (decision === 'STRONG_NO')  return 'Strong No';
+    return 'No';
   }
 
   protected barWidth(score: number): number {

@@ -45,32 +45,34 @@ export class CandidateIdentityCardComponent {
     });
   });
 
-  /** Card border class driven by SLA health */
+  /** Card border class driven by SLA health (D021 signal health language) */
   readonly cardStateClass = computed<string>(() => {
-    const status = this.candidate().slaHealthStatus;
-    if (status === 'RED') return 'card--escalation';
-    if (status === 'AMBER') return 'card--at-risk';
+    const status = this.candidate().slaStatus;
+    if (status === 'BREACHED') return 'card--escalation';
+    if (status === 'AT_RISK') return 'card--at-risk';
     return '';
   });
 
-  /** SLA chip config */
+  /** SLA chip config — D021: signal health language only */
   readonly slaChip = computed<{ label: string; cssClass: string } | null>(() => {
-    const status = this.candidate().slaHealthStatus;
-    if (!status || status === 'GREEN') return null;
+    const status = this.candidate().slaStatus;
+    if (!status || status === 'ON_TRACK') return null;
     return {
-      label: status === 'RED' ? 'SLA BREACHED' : 'SLA AT RISK',
-      cssClass: status === 'RED' ? 'chip--red' : 'chip--amber',
+      label:    status === 'BREACHED' ? 'Breached' : 'At Risk',
+      cssClass: status === 'BREACHED' ? 'chip--red' : 'chip--amber',
     };
   });
 
-  /** Sentiment chip config */
+  // D007/D034: show interviewSentiment (Trigger 1 baseline); only surface risk signals
   readonly sentimentChip = computed<{ label: string; cssClass: string } | null>(() => {
-    const s = this.candidate().acceptanceSentiment;
-    if (!s || s === 'POSITIVE') return null;
+    const s = this.candidate().interviewSentiment;
+    if (!s) return null;
     const map: Record<string, { label: string; cssClass: string }> = {
-      HESITANT: { label: 'HESITANT', cssClass: 'chip--warning' },
-      NEUTRAL:  { label: 'NEUTRAL',  cssClass: 'chip--neutral' },
-      AT_RISK:  { label: 'AT RISK',  cssClass: 'chip--red' },
+      HESITANT:        { label: 'Hesitant',   cssClass: 'chip--warning' },
+      DISENGAGED:      { label: 'Disengaged', cssClass: 'chip--red' },
+      NEUTRAL:         { label: 'Neutral',    cssClass: 'chip--neutral' },
+      INTERESTED:      { label: 'Interested', cssClass: 'chip--green' },
+      VERY_INTERESTED: { label: 'Very Interested', cssClass: 'chip--green' },
     };
     return map[s] ?? null;
   });

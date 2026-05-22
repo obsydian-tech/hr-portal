@@ -33,9 +33,9 @@ export class TalentFlowStateService {
     this.pipeline().find((c) => c.id === this.activeCandidateId()),
   );
 
-  /** Count of candidates with slaHealthStatus RED — shown as badge on nav */
+  /** Count of candidates with slaStatus BREACHED — shown as badge on bell (D021) */
   readonly slaBreachCount = computed<number>(
-    () => this.pipeline().filter((c) => c.slaHealthStatus === 'RED').length,
+    () => this.pipeline().filter((c) => c.slaStatus === 'BREACHED').length,
   );
 
   /** Count of pending HITL actions awaiting approval */
@@ -69,6 +69,12 @@ export class TalentFlowStateService {
       error: (err: { userMessage?: string }) =>
         this.error.set(err.userMessage ?? 'Failed to load pending actions.'),
     });
+  }
+
+  patchCandidate(updated: Candidate): void {
+    this.pipeline.update((list) =>
+      list.map((c) => (c.id === updated.id ? updated : c)),
+    );
   }
 
   clearError(): void {

@@ -23,10 +23,10 @@ import { ScoringWeights, VotePayload, DEFAULT_SCORING_WEIGHTS } from '../../mode
  * Criteria → weights mapping:
  *   technical (30%), communication (25%), culturalFit (25%), problemSolving (20%)
  *
- * Decision: HIRE | NO_HIRE | STRONG_NO_VETO
+ * Decision: STRONG_NO | NO | YES | STRONG_YES — D050, no NEUTRAL (D050)
  */
 
-export type DecisionOption = 'HIRE' | 'NO_HIRE' | 'STRONG_NO_VETO';
+export type DecisionOption = 'STRONG_NO' | 'NO' | 'YES' | 'STRONG_YES';
 
 interface CriterionRow {
   key:    keyof ScoringWeights;

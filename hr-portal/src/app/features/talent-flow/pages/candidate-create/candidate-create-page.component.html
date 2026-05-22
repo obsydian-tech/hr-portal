@@ -1,140 +1,228 @@
-<!-- CandidateCreatePage — FE-007 / NH-140
-     Design: 16-inputs.html tokens -->
+<!-- CandidateCreatePage — Phase B (D036–D043) -->
 
-<section class="tf-create">
+<div class="tf-create" [class.tf-create--drawer]="isDrawer()">
 
-  <!-- Header -->
-  <div class="tf-create__header">
-    <button pButton
-      class="p-button-text p-button-sm"
-      icon="pi pi-arrow-left"
-      label="Back to Pipeline"
-      (click)="cancel()">
-    </button>
-    <div class="tf-create__title-block">
-      <h1 class="tf-create__title">
-        <i class="pi pi-user-plus"></i> New Candidate
-      </h1>
-      <p class="tf-create__subtitle">Fill in the details to add a candidate to the pipeline.</p>
+  <!-- ── Completeness bar (D037) ──────────────────────────────────────────── -->
+  <div class="tf-create__completeness">
+    <div class="tf-completeness-bar">
+      <div class="tf-completeness-bar__fill" [style.width.%]="completeness()"></div>
     </div>
+    <span class="tf-completeness-bar__label">{{ completeness() }}% complete</span>
   </div>
 
-  <!-- Form card -->
-  <div class="tf-create__card">
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <!-- ── Drawer title (only in drawer mode) ───────────────────────────────── -->
+  @if (isDrawer()) {
+    <div class="tf-create__drawer-head">
+      <h2 class="tf-create__drawer-title">
+        <i class="pi pi-user-plus"></i> Add Candidate
+      </h2>
+      <p class="tf-create__drawer-sub">Required fields marked with *</p>
+    </div>
+  }
 
-      <!-- Row 1: Names -->
+  <!-- ── Standalone header ────────────────────────────────────────────────── -->
+  @if (!isDrawer()) {
+    <div class="tf-create__header">
+      <button class="tf-create__back-btn" (click)="cancel()">
+        <i class="pi pi-arrow-left"></i>
+      </button>
+      <div>
+        <h1 class="tf-create__title">Add Candidate</h1>
+        <p class="tf-create__sub">Fill in the details below to add a candidate to the pipeline.</p>
+      </div>
+    </div>
+  }
+
+  <!-- ── Form ─────────────────────────────────────────────────────────────── -->
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="tf-create__form">
+
+    <!-- ── Section 1: Personal Details ──────────────────────────────────── -->
+    <div class="tf-create__section">
+      <p class="tf-create__section-label">Personal Details</p>
+
       <div class="tf-form-row">
         <div class="tf-fld" [class.tf-fld--error]="isInvalid('firstName')">
-          <label for="firstName">First Name *</label>
-          <input pInputText id="firstName" formControlName="firstName" placeholder="e.g. Amahle" />
+          <label class="tf-fld__label" for="cr-firstName">First Name *</label>
+          <input class="tf-fld__input" id="cr-firstName" type="text"
+            formControlName="firstName" placeholder="e.g. Amahle" />
           @if (isInvalid('firstName')) {
             <span class="tf-fld__error">First name is required (min 2 chars).</span>
           }
         </div>
         <div class="tf-fld" [class.tf-fld--error]="isInvalid('lastName')">
-          <label for="lastName">Last Name *</label>
-          <input pInputText id="lastName" formControlName="lastName" placeholder="e.g. Dlamini" />
+          <label class="tf-fld__label" for="cr-lastName">Last Name *</label>
+          <input class="tf-fld__input" id="cr-lastName" type="text"
+            formControlName="lastName" placeholder="e.g. Dlamini" />
           @if (isInvalid('lastName')) {
             <span class="tf-fld__error">Last name is required (min 2 chars).</span>
           }
         </div>
       </div>
 
-      <!-- Row 2: Contact -->
       <div class="tf-form-row">
         <div class="tf-fld" [class.tf-fld--error]="isInvalid('email')">
-          <label for="email">Email Address *</label>
-          <input pInputText id="email" formControlName="email" type="email" placeholder="candidate@example.com" />
+          <label class="tf-fld__label" for="cr-email">Email Address *</label>
+          <input class="tf-fld__input" id="cr-email" type="email"
+            formControlName="email" placeholder="candidate@example.com" />
           @if (isInvalid('email')) {
-            <span class="tf-fld__error">A valid email is required.</span>
+            <span class="tf-fld__error">A valid email address is required.</span>
           }
         </div>
         <div class="tf-fld">
-          <label for="phone">Phone <span class="tf-fld__optional">(optional)</span></label>
-          <input pInputText id="phone" formControlName="phone" placeholder="+27 82 000 0000" />
+          <label class="tf-fld__label" for="cr-phone">Phone <span class="tf-fld__optional">(optional)</span></label>
+          <input class="tf-fld__input" id="cr-phone" type="tel"
+            formControlName="phone" placeholder="+27 82 000 0000" />
         </div>
       </div>
+    </div>
 
-      <!-- Row 3: Role + Level -->
+    <!-- ── Section 2: Role ───────────────────────────────────────────────── -->
+    <div class="tf-create__section">
+      <p class="tf-create__section-label">Role</p>
+
       <div class="tf-form-row">
-        <div class="tf-fld" [class.tf-fld--error]="isInvalid('role')">
-          <label for="role">Role / Job Title *</label>
-          <input pInputText id="role" formControlName="role" placeholder="e.g. Senior Engineer" />
+        <div class="tf-fld tf-fld--full" [class.tf-fld--error]="isInvalid('role')">
+          <label class="tf-fld__label" for="cr-role">Job Title / Role *</label>
+          <input class="tf-fld__input" id="cr-role" type="text"
+            formControlName="role" placeholder="e.g. Senior Software Engineer" />
           @if (isInvalid('role')) {
             <span class="tf-fld__error">Role is required.</span>
           }
         </div>
-        <div class="tf-fld" [class.tf-fld--error]="isInvalid('positionLevel')">
-          <label for="positionLevel">Position Level *</label>
-          <p-dropdown
-            inputId="positionLevel"
-            formControlName="positionLevel"
-            [options]="positionLevels"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="Select level">
-          </p-dropdown>
-          @if (isInvalid('positionLevel')) {
-            <span class="tf-fld__error">Position level is required.</span>
-          }
-        </div>
       </div>
 
-      <!-- Row 4: Experience + Source -->
       <div class="tf-form-row">
-        <div class="tf-fld" [class.tf-fld--error]="isInvalid('experienceYears')">
-          <label for="experienceYears">Years of Experience *</label>
+        <div class="tf-fld">
+          <label class="tf-fld__label" for="cr-exp">Years of Experience *</label>
           <p-inputNumber
-            inputId="experienceYears"
+            inputId="cr-exp"
             formControlName="experienceYears"
-            [min]="0"
-            [max]="50"
+            [min]="0" [max]="50"
             [showButtons]="true"
-            suffix=" yrs">
+            suffix=" yrs"
+            styleClass="tf-fld__p-input">
           </p-inputNumber>
-          @if (isInvalid('experienceYears')) {
-            <span class="tf-fld__error">Must be between 0 and 50.</span>
-          }
         </div>
         <div class="tf-fld">
-          <label for="source">Source <span class="tf-fld__optional">(optional)</span></label>
-          <p-dropdown
-            inputId="source"
+          <label class="tf-fld__label" for="cr-source">Source <span class="tf-fld__optional">(optional)</span></label>
+          <p-select
+            inputId="cr-source"
             formControlName="source"
             [options]="sourceOptions"
             optionLabel="label"
             optionValue="value"
-            placeholder="How did they apply?">
-          </p-dropdown>
+            placeholder="How did they apply?"
+            styleClass="tf-fld__p-input">
+          </p-select>
         </div>
       </div>
+    </div>
 
-      <!-- Error banner -->
-      @if (saveError()) {
-        <div class="tf-create__error">
-          <i class="pi pi-exclamation-triangle"></i>
-          {{ saveError() }}
+    <!-- ── Section 2b: Department + Location (D029) ────────────────────── -->
+    <div class="tf-create__section">
+      <p class="tf-create__section-label">Department &amp; Location <span class="tf-fld__optional">(optional)</span></p>
+
+      <div class="tf-form-row">
+        <div class="tf-fld">
+          <label class="tf-fld__label" for="cr-dept">Department</label>
+          <input class="tf-fld__input" id="cr-dept" type="text"
+            formControlName="department" placeholder="e.g. Engineering" />
+        </div>
+        <div class="tf-fld">
+          <label class="tf-fld__label" for="cr-loc">Location</label>
+          <input class="tf-fld__input" id="cr-loc" type="text"
+            formControlName="location" placeholder="e.g. Cape Town" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 3: Seniority — visual 3-card selector (D038) ─────────── -->
+    <div class="tf-create__section">
+      <p class="tf-create__section-label">
+        Seniority Level *
+        @if (isInvalid('positionLevel')) {
+          <span class="tf-fld__error tf-fld__error--inline">Please select a level.</span>
+        }
+      </p>
+
+      <div class="tf-seniority-cards">
+        @for (card of seniorityCards; track card.value) {
+          <button type="button"
+            class="tf-seniority-card"
+            [class.tf-seniority-card--selected]="form.get('positionLevel')?.value === card.value"
+            (click)="selectSeniority(card.value)">
+            <i class="pi {{ card.icon }} tf-seniority-card__icon"></i>
+            <span class="tf-seniority-card__label">{{ card.label }}</span>
+            <span class="tf-seniority-card__desc">{{ card.desc }}</span>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- ── Section 4: Workflow — visual 2-card selector (D039) ──────────── -->
+    <div class="tf-create__section">
+      <p class="tf-create__section-label">Workflow Template *</p>
+
+      <div class="tf-workflow-cards">
+        @for (card of workflowCards; track card.value) {
+          <button type="button"
+            class="tf-workflow-card"
+            [class.tf-workflow-card--selected]="form.get('workflowTemplateId')?.value === card.value"
+            (click)="selectWorkflow(card.value)">
+            <i class="pi {{ card.icon }} tf-workflow-card__icon"></i>
+            <div class="tf-workflow-card__body">
+              <span class="tf-workflow-card__label">{{ card.label }}</span>
+              <span class="tf-workflow-card__desc">{{ card.desc }}</span>
+            </div>
+            @if (form.get('workflowTemplateId')?.value === card.value) {
+              <i class="pi pi-check-circle tf-workflow-card__check"></i>
+            }
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- ── Section 5: Interview setup toggle (D040) ──────────────────────── -->
+    <div class="tf-create__section">
+      <button type="button" class="tf-interview-toggle"
+        (click)="showInterview.set(!showInterview())">
+        <i class="pi pi-calendar-plus"></i>
+        <span>{{ showInterview() ? 'Hide' : 'Add' }} initial interview setup</span>
+        <i class="pi" [class.pi-chevron-down]="!showInterview()" [class.pi-chevron-up]="showInterview()"></i>
+      </button>
+
+      @if (showInterview()) {
+        <div class="tf-interview-hint">
+          <i class="pi pi-info-circle"></i>
+          An interview can be scheduled from the candidate workspace once the record is created.
         </div>
       }
+    </div>
 
-      <!-- Actions -->
-      <div class="tf-create__actions">
-        <button pButton
-          type="button"
-          class="p-button-outlined p-button-secondary"
-          label="Cancel"
-          (click)="cancel()">
-        </button>
-        <button pButton
-          type="submit"
-          [disabled]="saving()"
-          [icon]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"
-          label="Create Candidate">
-        </button>
+    <!-- ── Error banner ──────────────────────────────────────────────────── -->
+    @if (saveError()) {
+      <div class="tf-create__error">
+        <i class="pi pi-exclamation-triangle"></i>
+        {{ saveError() }}
       </div>
+    }
 
-    </form>
+  </form>
+
+  <!-- ── Fixed footer CTA (D041) ──────────────────────────────────────────── -->
+  <div class="tf-create__footer">
+    <button type="button" class="tf-create__footer-cancel" (click)="cancel()">
+      Cancel
+    </button>
+    <button type="button" class="tf-create__footer-submit"
+      [disabled]="saving()"
+      (click)="submit()">
+      @if (saving()) {
+        <i class="pi pi-spin pi-spinner"></i> Creating…
+      } @else {
+        <i class="pi pi-user-plus"></i> Create Candidate
+      }
+    </button>
   </div>
 
-</section>
+</div>
