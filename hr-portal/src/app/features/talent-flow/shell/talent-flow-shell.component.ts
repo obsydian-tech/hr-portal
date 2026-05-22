@@ -12,6 +12,7 @@ import { AvatarModule } from 'primeng/avatar';
 import { DrawerModule } from 'primeng/drawer';
 import { TalentFlowAuthService } from '../services/talent-flow-auth.service';
 import { TalentFlowStateService } from '../services/talent-flow-state.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ConnectivityService } from '../services/connectivity.service';
 import { AiChatPanelComponent } from '../components/ai-chat-panel/ai-chat-panel.component';
 import { CandidateCreatePageComponent } from '../pages/candidate-create/candidate-create-page.component';
@@ -45,17 +46,24 @@ const ROLE_LABELS: Record<string, string> = {
 export class TalentFlowShellComponent {
   private readonly router         = inject(Router);
   protected readonly tfAuth       = inject(TalentFlowAuthService);
+  protected readonly nalekoAuth   = inject(AuthService);
   protected readonly state        = inject(TalentFlowStateService);
   protected readonly connectivity = inject(ConnectivityService);
 
   protected readonly addCandidateOpen = signal(false);
   protected readonly aiChatOpen       = signal(false);
 
-  /** True when the user is a pure HiringManager (not admin) — drives nav switching. */
-  protected readonly isHM = computed<boolean>(
-    () => (this.tfAuth.currentUser()?.groups.includes('HiringManager') ?? false)
-          && !this.tfAuth.currentUser()?.isAdmin,
-  );
+  /** True when the user is a pure HiringManager (not admin) — drives nav switching.
+   * Checks TF pool groups (HiringManager) OR Naleko pool groups (naleko-talentflow-hiringmanager).
+   * Admins in either pool are excluded so they retain the full TA view. */
+  protected readonly isHM = computed<boolean>(() => {
+    const tfUser     = this.tfAuth.currentUser();
+    const nalekoUser = this.nalekoAuth.currentUser();
+    const isTfHM     = (tfUser?.groups.includes('HiringManager') ?? false) && !(tfUser?.isAdmin ?? false);
+    const isNalekoAdmin = nalekoUser?.groups.includes('naleko-talentflow-admin') ?? false;
+    const isNalekoHM = (nalekoUser?.groups.includes('naleko-talentflow-hiringmanager') ?? false) && !isNalekoAdmin;
+    return isTfHM || isNalekoHM;
+  });
 
   protected readonly rolePill = computed<string>(() => {
     const user = this.tfAuth.currentUser();

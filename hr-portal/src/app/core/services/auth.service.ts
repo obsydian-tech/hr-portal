@@ -260,6 +260,8 @@ export class AuthService {
     const map: Record<string, string> = {
       'naleko-onboarding-hr': 'onboarding',
       'naleko-talentflow-hr': 'talentflow',
+      'naleko-talentflow-hiringmanager': 'talentflow',
+      'naleko-talentflow-admin': 'talentflow',
       // Future: 'naleko-it-hr': 'it-requests', 'naleko-employee-self': 'employee-360'
     };
     return groups.reduce<string[]>((acc, g) => {

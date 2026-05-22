@@ -10,6 +10,7 @@ import { Tabs, TabList, Tab, TabPanels, TabPanel } from 'primeng/tabs';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TalentFlowApiService } from '../../services/talent-flow-api.service';
 import { TalentFlowAuthService } from '../../services/talent-flow-auth.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { HmTaskCardComponent } from '../../components/hm-task-card/hm-task-card.component';
 import { Candidate } from '../../models/talent-flow.models';
 
@@ -223,15 +224,18 @@ import { Candidate } from '../../models/talent-flow.models';
   `],
 })
 export class HmDashboardPageComponent implements OnInit {
-  private readonly api      = inject(TalentFlowApiService);
-  protected readonly tfAuth = inject(TalentFlowAuthService);
+  private readonly api        = inject(TalentFlowApiService);
+  protected readonly tfAuth   = inject(TalentFlowAuthService);
+  private readonly nalekoAuth = inject(AuthService);
 
   protected readonly activeTab  = signal<string>('tasks');
   protected readonly loading    = signal(true);
   protected readonly loadError  = signal('');
   private readonly candidates   = signal<Candidate[]>([]);
 
-  protected readonly currentUser       = this.tfAuth.currentUser;
+  protected readonly currentUser = computed(() =>
+    this.tfAuth.currentUser() ?? (this.nalekoAuth.currentUser() as any),
+  );
   protected readonly taskCandidates    = computed(() =>
     this.candidates().filter((c) =>
       ['TECHNICAL_INTERVIEW', 'PANEL_INTERVIEW', 'EVALUATION'].includes(c.currentStage),
@@ -270,8 +274,10 @@ export class HmDashboardPageComponent implements OnInit {
   private loadCandidates(): void {
     this.loading.set(true);
     this.loadError.set('');
-    const user = this.tfAuth.currentUser();
-    const hmId = user?.sub ?? user?.email ?? '';
+    const tfUser     = this.tfAuth.currentUser();
+    const nalekoUser = this.nalekoAuth.currentUser();
+    // Prefer TF pool sub (exact DynamoDB key), fall back to email (cross-pool safe)
+    const hmId = tfUser?.sub ?? tfUser?.email ?? nalekoUser?.email ?? '';
     this.api.getCandidates({ hiringManagerId: hmId }).subscribe({
       next: (res) => {
         this.candidates.set(res.candidates);
