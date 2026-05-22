@@ -1096,9 +1096,9 @@ resource "aws_iam_role_policy" "get_panel_members" {
       },
       # Phase E: query SCORING_LINK# records when candidateId param is provided
       {
-        Sid      = "StateTableQueryScoringLinks"
-        Effect   = "Allow"
-        Action   = ["dynamodb:Query"]
+        Sid    = "StateTableQueryScoringLinks"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
         Resource = [
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
@@ -1410,9 +1410,9 @@ resource "aws_iam_role_policy" "generate_scoring_link" {
         Resource = "*"
       },
       {
-        Sid      = "StateTableReadWrite"
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem"]
+        Sid    = "StateTableReadWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem"]
         Resource = [
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
@@ -1460,9 +1460,9 @@ resource "aws_iam_role_policy" "submit_vote_by_token" {
         Resource = "*"
       },
       {
-        Sid      = "StateTableReadWrite"
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+        Sid    = "StateTableReadWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
         Resource = [
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
