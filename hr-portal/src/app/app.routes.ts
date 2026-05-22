@@ -80,10 +80,22 @@ export const routes: Routes = [
         (m) => m.EmployeeDashboardComponent
       ),
   },
-  // ── NH-133 Platform Shell ─────────────────────────────────────────────────
+  // ── /unauthorised — authenticated but no module group assigned ─────────────
+  {
+    path: 'unauthorised',
+    loadComponent: () =>
+      import('./features/platform/unauthorised.component').then(
+        (m) => m.UnauthorisedComponent
+      ),
+  },
+  // ── Epic 5: Platform Shell ────────────────────────────────────────────────
   {
     path: 'platform',
     canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/platform/platform-shell.component').then(
+        (m) => m.PlatformShellComponent
+      ),
     children: [
       {
         path: 'home',
@@ -94,21 +106,25 @@ export const routes: Routes = [
       },
       {
         path: 'onboarding',
-        canActivate: [moduleGuard('onboarding')],
-        // TODO NH-134: replace with OnboardingModule lazy route when built
+        // TODO NH-134: replace with lazy OnboardingModule + moduleGuard('onboarding') when built
         redirectTo: '/platform/home',
       },
       {
+        // Epic 5: /platform/talentflow is the canonical TalentFlow entry point
         path: 'talentflow',
         canActivate: [moduleGuard('talentflow')],
-        // TODO FE-001: replace with TalentFlowModule lazy route in Epic 4
-        loadComponent: () =>
-          import('./features/platform-home/platform-home.component').then(
-            (m) => m.PlatformHomeComponent
+        loadChildren: () =>
+          import('./features/talent-flow/talent-flow.routes').then(
+            (m) => m.talentFlowRoutes,
           ),
       },
       { path: '', redirectTo: 'home', pathMatch: 'full' },
     ],
+  },
+  // ── /talent-flow legacy redirect (Epic 5) — preserves bookmarks ───────────
+  {
+    path: 'talent-flow',
+    redirectTo: '/platform/talentflow',
   },
   { path: '**', redirectTo: '' },
 ];

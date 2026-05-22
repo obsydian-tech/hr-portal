@@ -1,0 +1,538 @@
+// OfferTabComponent styles — D064–D071
+// Naleko design tokens: --naleko-* (no hardcoded colours)
+
+// ── Loading / Error / Empty ────────────────────────────────────────────────
+.tf-offer-loading,
+.tf-offer-error,
+.tf-offer-empty {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             0.5rem;
+  padding:         2.5rem 1rem;
+  text-align:      center;
+  color:           var(--naleko-on-surface-variant);
+}
+
+.tf-offer-error { color: var(--naleko-error); }
+
+.tf-offer-empty__icon { font-size: 2rem; margin-bottom: 0.25rem; }
+.tf-offer-empty__title {
+  font-size:   1rem;
+  font-weight: 600;
+  color:       var(--naleko-on-surface);
+  margin:      0;
+}
+.tf-offer-empty__sub {
+  font-size:  0.85rem;
+  max-width:  400px;
+  margin:     0;
+  line-height: 1.5;
+}
+.tf-offer-empty__divider {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+  width:       100%;
+  max-width:   320px;
+  margin-top:  0.5rem;
+  color:       var(--naleko-on-surface-variant);
+  font-size:   0.75rem;
+
+  &::before, &::after {
+    content:    '';
+    flex:       1;
+    height:     1px;
+    background: var(--naleko-outline-variant);
+  }
+}
+.tf-offer-empty__manual-hint {
+  font-size:  0.78rem;
+  max-width:  320px;
+  margin:     0;
+  color:      var(--naleko-on-surface-variant);
+  font-style: italic;
+}
+
+// ── State navigator ────────────────────────────────────────────────────────
+.tf-offer-nav {
+  display:         flex;
+  align-items:     flex-start;
+  gap:             0;
+  padding:         1rem 0 1.25rem;
+  overflow-x:      auto;
+}
+
+.tf-offer-step {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            0.35rem;
+  position:       relative;
+  flex:           1;
+  min-width:      80px;
+
+  &--pending { opacity: 0.45; }
+}
+
+.tf-offer-step__dot {
+  width:           32px;
+  height:          32px;
+  border-radius:   50%;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       0.8rem;
+  font-weight:     600;
+  border:          2px solid var(--naleko-outline-variant);
+  background:      var(--naleko-surface);
+  color:           var(--naleko-on-surface-variant);
+  position:        relative;
+  z-index:         1;
+
+  .tf-offer-step--completed & {
+    background: var(--naleko-success, #22c55e);
+    border-color: var(--naleko-success, #22c55e);
+    color: #fff;
+  }
+  .tf-offer-step--active & {
+    background: var(--naleko-primary);
+    border-color: var(--naleko-primary);
+    color: #fff;
+  }
+}
+
+.tf-offer-step__label {
+  font-size:   0.72rem;
+  font-weight: 500;
+  text-align:  center;
+  color:       var(--naleko-on-surface-variant);
+
+  .tf-offer-step--active & { color: var(--naleko-primary); font-weight: 700; }
+  .tf-offer-step--completed & { color: var(--naleko-on-surface); }
+}
+
+.tf-offer-step__connector {
+  position:   absolute;
+  top:        16px;
+  left:       calc(50% + 16px);
+  right:      calc(-50% + 16px);
+  height:     2px;
+  background: var(--naleko-outline-variant);
+
+  .tf-offer-step--completed & { background: var(--naleko-success, #22c55e); }
+}
+
+// ── Signal Intelligence (shared with workspace) ────────────────────────────
+.tf-intel-box {
+  display:       flex;
+  gap:           0.75rem;
+  background:    var(--naleko-surface-container-low, #f8f8fc);
+  border:        1px solid var(--naleko-secondary);
+  border-radius: 8px;
+  padding:       0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.tf-intel-ico  { color: var(--naleko-secondary); font-size: 1rem; padding-top: 0.1rem; }
+.tf-intel-label { font-weight: 700; font-size: 0.78rem; color: var(--naleko-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.tf-intel-text  { font-size: 0.875rem; color: var(--naleko-on-surface); margin-top: 0.15rem; }
+
+// ── Offer state blocks ─────────────────────────────────────────────────────
+.tf-offer-block {
+  background:    var(--naleko-surface);
+  border:        1px solid var(--naleko-outline-variant);
+  border-radius: 10px;
+  padding:       1.25rem;
+  margin-bottom: 1rem;
+  transition:    opacity 0.2s;
+
+  &--pending { opacity: 0.45; pointer-events: none; }
+}
+
+.tf-offer-block__header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   0.75rem;
+}
+
+.tf-offer-block__title {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+  font-size:   0.95rem;
+  font-weight: 600;
+  color:       var(--naleko-on-surface);
+}
+
+.tf-offer-badge {
+  font-size:     0.7rem;
+  font-weight:   700;
+  padding:       0.2rem 0.6rem;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+
+  &--done     { background: var(--naleko-success-container, #dcfce7); color: var(--naleko-success, #166534); }
+  &--accepted { background: var(--naleko-primary-container); color: var(--naleko-on-primary-container, var(--naleko-primary)); }
+}
+
+// ── Context strip ──────────────────────────────────────────────────────────
+.tf-offer-context {
+  display:       flex;
+  flex-wrap:     wrap;
+  gap:           0.75rem;
+  margin-bottom: 1rem;
+  font-size:     0.85rem;
+  color:         var(--naleko-on-surface-variant);
+}
+
+.tf-offer-context__warn {
+  display:     flex;
+  align-items: center;
+  gap:         0.35rem;
+  color:       var(--naleko-warning, #d97706);
+  font-size:   0.83rem;
+}
+
+// ── Read-only summary ──────────────────────────────────────────────────────
+.tf-offer-summary {
+  display:    flex;
+  flex-wrap:  wrap;
+  gap:        1.25rem;
+  padding:    0.5rem 0;
+  font-size:  0.875rem;
+}
+
+.tf-offer-summary__item {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.15rem;
+}
+.tf-offer-summary__label {
+  font-size:   0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color:       var(--naleko-on-surface-variant);
+}
+.tf-offer-summary__val {
+  font-weight: 600;
+  color:       var(--naleko-on-surface);
+}
+
+// ── Forms ──────────────────────────────────────────────────────────────────
+.tf-offer-form { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.tf-offer-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+
+  @media (max-width: 640px) { grid-template-columns: 1fr; }
+}
+
+.tf-offer-form__actions {
+  display:    flex;
+  gap:        0.5rem;
+  margin-top: 0.25rem;
+}
+
+.tf-offer-fld {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.35rem;
+
+  &--full { grid-column: 1 / -1; }
+}
+
+.tf-offer-fld__label {
+  font-size:   0.78rem;
+  font-weight: 600;
+  color:       var(--naleko-on-surface);
+}
+.tf-offer-fld__opt {
+  font-weight: 400;
+  color:       var(--naleko-on-surface-variant);
+}
+
+.tf-offer-fld__input,
+.tf-offer-fld__select,
+.tf-offer-fld__textarea {
+  border:        1px solid var(--naleko-outline-variant);
+  border-radius: 6px;
+  padding:       0.5rem 0.75rem;
+  font-size:     0.875rem;
+  color:         var(--naleko-on-surface);
+  background:    var(--naleko-surface);
+  outline:       none;
+  font-family:   inherit;
+  transition:    border-color 0.15s;
+
+  &:focus { border-color: var(--naleko-primary); }
+}
+.tf-offer-fld__textarea { resize: vertical; min-height: 72px; }
+
+// ── Alert ─────────────────────────────────────────────────────────────────
+.tf-offer-alert {
+  display:       flex;
+  align-items:   center;
+  gap:           0.5rem;
+  padding:       0.6rem 0.75rem;
+  border-radius: 6px;
+  font-size:     0.85rem;
+
+  &--error {
+    background: var(--naleko-error-container, #fee2e2);
+    color:      var(--naleko-error, #dc2626);
+  }
+}
+
+// ── Buttons ────────────────────────────────────────────────────────────────
+.tf-offer-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.4rem;
+  padding:       0.55rem 1.1rem;
+  border:        none;
+  border-radius: 6px;
+  font-size:     0.875rem;
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background 0.15s, opacity 0.15s;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  &--primary {
+    background: var(--naleko-primary);
+    color:      var(--naleko-on-primary, #fff);
+    &:not(:disabled):hover { filter: brightness(0.92); }
+  }
+  &--ghost {
+    background: transparent;
+    color:      var(--naleko-primary);
+    border:     1px solid var(--naleko-primary);
+    &:not(:disabled):hover { background: var(--naleko-primary-container); }
+  }
+  &--sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+  &--confirm { font-size: 0.9rem; padding: 0.65rem 1.25rem; }
+}
+
+// ── Approval chain steps ───────────────────────────────────────────────────
+.tf-offer-approvals {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.75rem;
+}
+
+.tf-offer-approver {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+  padding:     0.75rem;
+  border:      1px solid var(--naleko-outline-variant);
+  border-radius: 8px;
+  background:  var(--naleko-surface-container-lowest, #fafafa);
+}
+
+.tf-offer-approver__dot {
+  width:           28px;
+  height:          28px;
+  border-radius:   50%;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       0.8rem;
+  flex-shrink:     0;
+
+  .tf-offer-approver--done &     { background: var(--naleko-success, #22c55e); color: #fff; }
+  .tf-offer-approver--rejected & { background: var(--naleko-error, #dc2626); color: #fff; }
+  .tf-offer-approver--pending &  { background: var(--naleko-outline-variant); color: var(--naleko-on-surface-variant); }
+}
+
+.tf-offer-approver__body { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; }
+.tf-offer-approver__role { font-weight: 600; font-size: 0.875rem; }
+.tf-offer-approver__status {
+  font-size: 0.78rem;
+  color:     var(--naleko-on-surface-variant);
+  &--done     { color: var(--naleko-success, #166534); }
+  &--rejected { color: var(--naleko-error, #dc2626); }
+}
+
+// ── Offer Sent ────────────────────────────────────────────────────────────
+.tf-offer-sent-meta {
+  display:       flex;
+  flex-wrap:     wrap;
+  gap:           1rem;
+  font-size:     0.875rem;
+  margin-bottom: 1rem;
+  color:         var(--naleko-on-surface-variant);
+}
+
+.tf-offer-sla-bar {
+  width:         100%;
+  height:        4px;
+  background:    var(--naleko-outline-variant);
+  border-radius: 2px;
+  overflow:      hidden;
+}
+.tf-offer-sla-bar__fill {
+  height:        100%;
+  width:         40%;
+  background:    var(--naleko-primary);
+  border-radius: 2px;
+}
+
+.tf-offer-mark-sent { padding: 0.5rem 0 0.75rem; }
+.tf-offer-hint {
+  font-size: 0.85rem;
+  color:     var(--naleko-on-surface-variant);
+  margin:    0 0 0.5rem;
+}
+
+// ── Interaction Log ────────────────────────────────────────────────────────
+.tf-offer-log { margin-top: 0.75rem; }
+
+.tf-offer-log__header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   0.5rem;
+}
+
+.tf-offer-log__title { font-size: 0.85rem; font-weight: 600; }
+
+.tf-offer-log-form {
+  background:    var(--naleko-surface-container-low, #f8f8fc);
+  border:        1px solid var(--naleko-outline-variant);
+  border-radius: 8px;
+  padding:       0.75rem;
+  margin-bottom: 0.75rem;
+  display:       flex;
+  flex-direction: column;
+  gap:           0.75rem;
+}
+
+.tf-offer-log-entries { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.tf-offer-log-entry {
+  display:       flex;
+  flex-wrap:     wrap;
+  align-items:   center;
+  gap:           0.5rem;
+  padding:       0.5rem 0.75rem;
+  border:        1px solid var(--naleko-outline-variant);
+  border-radius: 6px;
+  font-size:     0.82rem;
+}
+
+.tf-offer-log-entry__type {
+  font-weight:   700;
+  background:    var(--naleko-surface-container);
+  border-radius: 4px;
+  padding:       0.1rem 0.4rem;
+  color:         var(--naleko-on-surface);
+}
+.tf-offer-log-entry__outcome { color: var(--naleko-on-surface); }
+.tf-offer-log-entry__notes   { color: var(--naleko-on-surface-variant); flex: 1; }
+.tf-offer-log-entry__date    { margin-left: auto; color: var(--naleko-on-surface-variant); white-space: nowrap; }
+
+// ── Trigger cards (D070) ───────────────────────────────────────────────────
+.tf-offer-triggers {
+  margin-bottom: 1.25rem;
+}
+.tf-offer-triggers__title {
+  font-size:     0.85rem;
+  font-weight:   600;
+  color:         var(--naleko-on-surface);
+  margin-bottom: 0.75rem;
+}
+.tf-offer-trigger-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+
+  @media (max-width: 640px) { grid-template-columns: 1fr; }
+}
+.tf-offer-trigger-card {
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-start;
+  gap:            0.25rem;
+  padding:        0.75rem;
+  background:     var(--naleko-primary-container);
+  border-radius:  8px;
+  border:         1px solid var(--naleko-outline-variant);
+}
+.tf-offer-trigger-card__icon  { font-size: 1.1rem; color: var(--naleko-primary); }
+.tf-offer-trigger-card__label { font-weight: 700; font-size: 0.82rem; }
+.tf-offer-trigger-card__desc  { font-size: 0.78rem; color: var(--naleko-on-surface-variant); }
+
+// ── Acceptance sentiment cards ─────────────────────────────────────────────
+.tf-offer-sentiment-cards {
+  display: flex;
+  gap:     0.75rem;
+  flex-wrap: wrap;
+}
+
+.tf-offer-sentiment-card {
+  flex:           1;
+  min-width:      120px;
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            0.35rem;
+  padding:        0.85rem 1rem;
+  border:         2px solid var(--naleko-outline-variant);
+  border-radius:  10px;
+  background:     var(--naleko-surface);
+  cursor:         pointer;
+  transition:     border-color 0.15s, background 0.15s;
+
+  &--selected {
+    border-color: var(--naleko-primary);
+    background:   var(--naleko-primary-container);
+  }
+  &:hover:not(.tf-offer-sentiment-card--selected) {
+    border-color: var(--naleko-primary);
+  }
+}
+
+.tf-offer-sentiment-card__icon  { font-size: 1.25rem; color: var(--naleko-on-surface-variant); }
+.tf-offer-sentiment-card__label { font-weight: 700; font-size: 0.85rem; }
+.tf-offer-sentiment-card__desc  { font-size: 0.75rem; color: var(--naleko-on-surface-variant); }
+
+// ── Accepted summary ──────────────────────────────────────────────────────
+.tf-offer-accepted-summary {
+  display:     flex;
+  align-items: flex-start;
+  gap:         0.75rem;
+  padding:     0.5rem 0;
+}
+
+.tf-offer-accepted-summary__icon {
+  font-size: 1.75rem;
+  color:     var(--naleko-success, #22c55e);
+  flex-shrink: 0;
+}
+
+.tf-offer-accepted-summary__title {
+  font-weight:   600;
+  font-size:     0.9rem;
+  margin:        0 0 0.5rem;
+  color:         var(--naleko-on-surface);
+}
+
+// ── Sentiment chips ────────────────────────────────────────────────────────
+.tf-offer-sentiment-chip {
+  display:       inline-block;
+  padding:       0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size:     0.75rem;
+  font-weight:   700;
+
+  &--excited  { background: #dcfce7; color: #166534; }
+  &--positive { background: #dbeafe; color: #1e40af; }
+  &--hesitant { background: #fef3c7; color: #92400e; }
+}

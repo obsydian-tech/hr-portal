@@ -1,0 +1,333 @@
+// EvaluationScoringPanel — FE-005
+// Design source: 17-stat-card.html (.scard, .svalue, .slabel)
+//                18-doc-card-states.html (.doc card + state borders)
+//                19-status-pills.html (.pill decision chips)
+
+.ev-panel {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(200, 197, 205, 0.15);
+  box-shadow: 0 1px 3px rgba(26, 26, 46, 0.04);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--naleko-font-body);
+
+  // ── Header ───────────────────────────────────────────────────────────────
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    i { color: var(--naleko-primary); font-size: 16px; }
+  }
+
+  &__title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--naleko-on-surface);
+    flex: 1;
+  }
+
+  // ── Weighted total — mirrors .scard/.svalue pattern ───────────────────────
+  &__total {
+    background: var(--naleko-surface-variant, #f3f4f5);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-left: 4px solid var(--naleko-on-surface-variant, #9e9e9e);
+    transition: border-color 0.2s;
+
+    &.score--high { border-left-color: #27ae60; }
+    &.score--mid  { border-left-color: #f57f17; }
+    &.score--low  { border-left-color: #c62828; }
+  }
+
+  // ── Section labels — mirrors .slabel ─────────────────────────────────────
+  &__section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--naleko-on-surface-variant);
+    margin-bottom: -8px;
+  }
+
+  &__optional {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--naleko-on-surface-variant);
+  }
+
+  // ── Decision buttons ──────────────────────────────────────────────────────
+  &__decisions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  // ── Notes textarea ────────────────────────────────────────────────────────
+  &__notes {
+    width: 100%;
+    border: 1px solid rgba(200, 197, 205, 0.4);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: var(--naleko-font-body);
+    font-size: 13px;
+    color: var(--naleko-on-surface);
+    resize: vertical;
+    box-sizing: border-box;
+    outline: none;
+
+    &:focus {
+      border-color: var(--naleko-primary);
+      box-shadow: 0 0 0 2px rgba(74, 63, 138, 0.12);
+    }
+  }
+
+  // ── Submit button ─────────────────────────────────────────────────────────
+  &__submit {
+    align-self: flex-end;
+  }
+
+  // ── Submitted confirmation ────────────────────────────────────────────────
+  &__submitted {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #2e7d32;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 14px;
+    background: #e8f5e9;
+    border-radius: 8px;
+
+    i { font-size: 16px; }
+  }
+
+  // ── Criteria ──────────────────────────────────────────────────────────────
+  &__criteria {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+// ── Weighted total inner elements ─────────────────────────────────────────────
+.ev-total {
+  &__label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--naleko-on-surface-variant);
+  }
+
+  &__value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--naleko-on-surface);
+    line-height: 1.2;
+    font-family: var(--naleko-font-body);
+  }
+
+  &__max {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--naleko-on-surface-variant);
+  }
+}
+
+// ── Criterion row — mirrors .doc card pattern ─────────────────────────────────
+.ev-criterion {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__icon {
+    color: var(--naleko-primary);
+    font-size: 14px;
+    width: 18px;
+    text-align: center;
+  }
+
+  &__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--naleko-on-surface);
+    flex: 1;
+  }
+
+  &__weight {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--naleko-on-surface-variant);
+    background: rgba(200, 197, 205, 0.15);
+    padding: 2px 8px;
+    border-radius: 9999px;
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  // ── Score bar ─────────────────────────────────────────────────────────────
+  &__bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: rgba(200, 197, 205, 0.2);
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  &__bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+    background: var(--naleko-on-surface-variant, #9e9e9e);
+    transition: width 0.2s;
+
+    &--high { background: #27ae60; }
+    &--mid  { background: #f57f17; }
+    &--low  { background: #c62828; }
+  }
+
+  &__score-val {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--naleko-on-surface);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  // ── Stepper ───────────────────────────────────────────────────────────────
+  &__stepper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+// ── Stepper button ────────────────────────────────────────────────────────────
+.ev-step-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(200, 197, 205, 0.4);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--naleko-on-surface);
+  font-size: 10px;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--naleko-surface-variant, #f3f4f5);
+    border-color: var(--naleko-primary);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.ev-step-input {
+  width: 40px;
+  text-align: center;
+  border: 1px solid rgba(200, 197, 205, 0.4);
+  border-radius: 6px;
+  padding: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--naleko-font-body);
+  outline: none;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+  &:focus { border-color: var(--naleko-primary); }
+}
+
+// ── Decision buttons — derived from .pill pattern ─────────────────────────────
+.ev-decision-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--naleko-font-body);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+  background: rgba(200, 197, 205, 0.12);
+  color: var(--naleko-on-surface-variant);
+
+  &--hire {
+    &.ev-decision-btn--active,
+    &:hover {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-color: #c8e6c9;
+    }
+  }
+
+  &--no-hire {
+    &.ev-decision-btn--active,
+    &:hover {
+      background: #fff8e1;
+      color: #f57f17;
+      border-color: #ffe082;
+    }
+  }
+
+  &--veto {
+    &.ev-decision-btn--active,
+    &:hover {
+      background: #fef2f2;
+      color: #c62828;
+      border-color: #ffcdd2;
+    }
+  }
+}
+
+// ── Decision chips (readonly display) — mirrors .pill ─────────────────────────
+.ev-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--naleko-font-body);
+  letter-spacing: 0.02em;
+
+  &--hire    { background: #e8f5e9; color: #2e7d32; }
+  &--no-hire { background: #fff8e1; color: #f57f17; }
+  &--veto    { background: #fef2f2; color: #c62828; }
+  &--readonly {
+    background: rgba(200, 197, 205, 0.15);
+    color: var(--naleko-on-surface-variant);
+  }
+}

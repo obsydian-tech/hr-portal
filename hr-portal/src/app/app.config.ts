@@ -23,7 +23,7 @@ export const appConfig: ApplicationConfig = {
         },
       },
     }),
-    // Restore auth session before routing begins
+    // Restore Naleko auth session before routing begins
     {
       provide: APP_INITIALIZER,
       useFactory: () => {
@@ -32,5 +32,6 @@ export const appConfig: ApplicationConfig = {
       },
       multi: true,
     },
+    // Pool consolidation (Epic 5): single Naleko session covers all modules.
   ],
 };

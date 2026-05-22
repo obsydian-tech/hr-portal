@@ -1,0 +1,300 @@
+.tf-config-hub {
+  padding: 2rem;
+  max-width: 860px;
+  margin: 0 auto;
+
+  &__header {
+    margin-bottom: 2rem;
+  }
+
+  &__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__subtitle {
+    color: var(--text-color-secondary);
+    margin: 0;
+  }
+
+  &__accordion {
+    width: 100%;
+  }
+
+  &__tab-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+
+  &__tab-version {
+    margin-left: auto;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-color-secondary);
+    background: var(--surface-100);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+  }
+
+  &__loading {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-color-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  &__section-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+  }
+
+  &__section-hint {
+    font-size: 0.85rem;
+    color: var(--text-color-secondary);
+    margin: 0 0 1.25rem;
+  }
+
+  &__actions {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  &__error {
+    background: var(--red-50);
+    color: var(--red-700);
+    border: 1px solid var(--red-200);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__success {
+    background: var(--green-50);
+    color: var(--green-700);
+    border: 1px solid var(--green-200);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+// ── Scoring Weights ──────────────────────────────────────────────────────────
+
+.tf-sw-sum {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  background: var(--surface-50);
+
+  &--valid   { border: 1px solid var(--green-300); }
+  &--invalid { border: 1px solid var(--orange-300); }
+
+  &__label { color: var(--text-color-secondary); }
+  &__value { font-weight: 700; }
+  &__hint  { color: var(--orange-600); margin-left: auto; }
+  &__ok    { color: var(--green-600); margin-left: auto; }
+}
+
+.tf-sw-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 70px;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  &__label {
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  &__value {
+    text-align: right;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+}
+
+// ── SLA Thresholds ────────────────────────────────────────────────────────────
+
+.tf-sla-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tf-sla-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  &__label {
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 200px;
+  }
+}
+
+// ── Panel Rules ───────────────────────────────────────────────────────────────
+
+.tf-panel-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.tf-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  &__label {
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 120px;
+  }
+}
+
+.tf-panel-veto {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: var(--surface-50);
+  border-radius: 8px;
+  border: 1px solid var(--surface-200);
+
+  &__info { flex: 1; }
+
+  &__title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  &__desc {
+    font-size: 0.8rem;
+    color: var(--text-color-secondary);
+    margin: 0;
+  }
+
+  &__toggle { flex-shrink: 0; }
+}
+
+// ── Approval Rules (V4) ───────────────────────────────────────────────────────
+.tf-ar-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.tf-ar-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: var(--surface-50);
+  border: 1px solid var(--surface-200);
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  &__label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    i { color: var(--primary-color); }
+  }
+
+  &__hint {
+    font-size: 0.78rem;
+    color: var(--text-color-secondary);
+    line-height: 1.4;
+  }
+}
+
+::ng-deep .tf-ar-input.p-inputnumber {
+  .p-inputtext { width: 7rem; text-align: right; }
+}
+
+// ── Stage Config (V6) ─────────────────────────────────────────────────────────
+.tf-sc-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.tf-sc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.9rem;
+  border-radius: 6px;
+  background: var(--surface-50);
+  border: 1px solid var(--surface-200);
+  transition: opacity 0.2s, background 0.15s;
+
+  &:has(.p-togglebutton:not(.p-highlight)) {
+    opacity: 0.55;
+  }
+
+  &__label {
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    i { color: var(--text-color-secondary); font-size: 0.75rem; }
+  }
+}
+
+::ng-deep .tf-sc-toggle.p-togglebutton {
+  padding: 0.3rem 0.85rem;
+  font-size: 0.8rem;
+}

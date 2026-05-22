@@ -9,8 +9,6 @@ import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
-import { TopbarComponent } from '../../shared/components/topbar/topbar.component';
-import { FooterComponent } from '../../shared/components/footer/footer.component';
 import { AuthService } from '../../core/services/auth.service';
 
 interface ModuleTile {
@@ -26,7 +24,7 @@ interface ModuleTile {
 @Component({
   selector: 'app-platform-home',
   standalone: true,
-  imports: [CommonModule, ButtonModule, CardModule, TagModule, TopbarComponent, FooterComponent],
+  imports: [CommonModule, ButtonModule, CardModule, TagModule],
   templateUrl: './platform-home.component.html',
   styleUrl: './platform-home.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

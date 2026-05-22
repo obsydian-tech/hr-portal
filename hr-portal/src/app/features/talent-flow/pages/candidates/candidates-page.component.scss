@@ -1,0 +1,399 @@
+/**
+ * CandidatesPageComponent — Phase B (D059–D063 search-first, recently viewed)
+ * Tokens: --naleko-* only.
+ */
+
+// ── Page shell ────────────────────────────────────────────────────────────────
+.tf-candidates {
+  padding: 1.5rem 2rem 3rem;
+  max-width: 88rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.tf-candidates__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.tf-candidates__back-btn {
+  background: none;
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--naleko-on-surface-variant);
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+  &:hover { background: var(--naleko-surface-container); color: var(--naleko-on-surface); }
+}
+.tf-candidates__eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--naleko-on-surface-variant);
+  margin: 0 0 0.15rem;
+}
+.tf-candidates__title {
+  font-family: var(--naleko-font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--naleko-on-surface);
+  margin: 0;
+}
+
+// ── Search hero (D059) ────────────────────────────────────────────────────────
+.tf-candidates__search-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-xl);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--naleko-shadow-sm);
+}
+
+.tf-search-bar {
+  position: relative;
+}
+.tf-search-bar__icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  color: var(--naleko-on-surface-variant);
+  pointer-events: none;
+}
+.tf-search-bar__input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.75rem;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+  background: var(--naleko-surface);
+  color: var(--naleko-on-surface);
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+
+  &:focus { border-color: var(--naleko-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-primary) 12%, transparent); }
+  &::placeholder { color: var(--naleko-on-surface-variant); }
+}
+
+// ── Quick filters ─────────────────────────────────────────────────────────────
+.tf-candidates__quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+}
+.tf-qf-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.tf-qf-group__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--naleko-on-surface-variant);
+  white-space: nowrap;
+}
+.tf-qf-chips {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+.tf-qf-chip {
+  padding: 3px 11px;
+  border-radius: var(--naleko-radius-pill);
+  border: 1.5px solid var(--naleko-outline-variant);
+  background: transparent;
+  color: var(--naleko-on-surface-variant);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+
+  &:hover { background: var(--naleko-surface-container); }
+
+  &--active {
+    background: var(--naleko-primary);
+    border-color: var(--naleko-primary);
+    color: var(--naleko-on-primary);
+    &:hover { background: var(--naleko-primary); }
+  }
+  &--green.tf-qf-chip--active { background: var(--naleko-success); border-color: var(--naleko-success); color: #fff; }
+  &--amber.tf-qf-chip--active { background: var(--naleko-warning); border-color: var(--naleko-warning); color: #fff; }
+  &--red.tf-qf-chip--active   { background: var(--naleko-error);   border-color: var(--naleko-error);   color: #fff; }
+}
+
+// ── Loading ───────────────────────────────────────────────────────────────────
+.tf-candidates__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  color: var(--naleko-on-surface-variant);
+  padding: 0.5rem 0;
+}
+
+// ── Section ───────────────────────────────────────────────────────────────────
+.tf-candidates__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.tf-candidates__list-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.tf-candidates__section-title {
+  font-family: var(--naleko-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+  margin: 0;
+}
+.tf-candidates__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 6px;
+  border-radius: var(--naleko-radius-pill);
+  background: color-mix(in srgb, var(--naleko-primary) 12%, transparent);
+  color: var(--naleko-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+// ── Recently Viewed grid (D060 — 4 cards) ─────────────────────────────────────
+.tf-recent-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 520px) { grid-template-columns: 1fr; }
+}
+
+.tf-recent-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--naleko-surface-container-low);
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+  cursor: pointer;
+  transition: box-shadow 0.12s, border-color 0.12s;
+
+  &:hover { box-shadow: var(--naleko-shadow-sm); }
+
+  &--breached { border-color: color-mix(in srgb, var(--naleko-error) 40%, transparent); }
+  &--at-risk  { border-color: color-mix(in srgb, var(--naleko-warning) 35%, transparent); }
+}
+.tf-recent-card__info { width: 100%; }
+.tf-recent-card__name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tf-recent-card__role {
+  font-size: 0.72rem;
+  color: var(--naleko-on-surface-variant);
+  margin: 0.1rem 0 0;
+}
+.tf-recent-card__stage {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--naleko-primary);
+  margin: 0.25rem 0 0;
+}
+
+// ── Shared avatar ─────────────────────────────────────────────────────────────
+.tf-cv-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+
+  &--breached {
+    background: color-mix(in srgb, var(--naleko-error) 20%, transparent);
+    color: var(--naleko-error);
+    border: 2px solid color-mix(in srgb, var(--naleko-error) 40%, transparent);
+  }
+  &--at-risk {
+    background: color-mix(in srgb, var(--naleko-warning) 22%, transparent);
+    color: var(--naleko-warning-dark, var(--naleko-warning));
+    border: 2px solid color-mix(in srgb, var(--naleko-warning) 40%, transparent);
+  }
+  &--healthy {
+    background: color-mix(in srgb, var(--naleko-success) 18%, transparent);
+    color: var(--naleko-success);
+    border: 2px solid color-mix(in srgb, var(--naleko-success) 30%, transparent);
+  }
+}
+
+// ── Shared health pill ────────────────────────────────────────────────────────
+.tf-health-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--naleko-radius-pill);
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+
+  &--breached { background: color-mix(in srgb, var(--naleko-error) 15%, transparent); color: var(--naleko-error); }
+  &--at-risk  { background: color-mix(in srgb, var(--naleko-warning) 18%, transparent); color: var(--naleko-warning-dark, var(--naleko-warning)); }
+  &--on-track { background: color-mix(in srgb, var(--naleko-success) 15%, transparent); color: var(--naleko-success); }
+}
+
+// ── Shared pill ───────────────────────────────────────────────────────────────
+.tf-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--naleko-radius-pill);
+  font-size: 0.67rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &--seniority {
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
+  }
+}
+
+// ── Shared SLA bar ────────────────────────────────────────────────────────────
+.tf-sla-bar {
+  width: 5rem;
+  height: 4px;
+  background: var(--naleko-outline-variant);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.tf-sla-bar__fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--naleko-success);
+  transition: width 0.3s ease;
+  &--at-risk  { background: var(--naleko-warning); }
+  &--breached { background: var(--naleko-error); }
+}
+
+// ── All Candidates list ───────────────────────────────────────────────────────
+.tf-candidates__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tf-cv-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--naleko-surface-container-low);
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+  cursor: pointer;
+  transition: box-shadow 0.12s, border-color 0.12s;
+
+  &:hover { box-shadow: var(--naleko-shadow-sm); }
+
+  &--breached {
+    border-color: color-mix(in srgb, var(--naleko-error) 40%, transparent);
+    background: color-mix(in srgb, var(--naleko-error) 4%, var(--naleko-surface-container-low));
+  }
+  &--at-risk {
+    border-color: color-mix(in srgb, var(--naleko-warning) 35%, transparent);
+    background: color-mix(in srgb, var(--naleko-warning) 3%, var(--naleko-surface-container-low));
+  }
+}
+.tf-cv-row__identity {
+  flex: 1;
+  min-width: 0;
+}
+.tf-cv-row__name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tf-cv-row__role {
+  font-size: 0.72rem;
+  color: var(--naleko-on-surface-variant);
+  margin: 0.1rem 0 0;
+}
+.tf-cv-row__stage {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 8rem;
+  text-align: center;
+}
+.tf-cv-row__health {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  min-width: 6.5rem;
+}
+.tf-cv-row__applied {
+  font-size: 0.72rem;
+  color: var(--naleko-on-surface-variant);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.tf-cv-row__chevron {
+  font-size: 0.75rem;
+  color: var(--naleko-on-surface-variant);
+  flex-shrink: 0;
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+.tf-candidates__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 3rem 1rem;
+  color: var(--naleko-on-surface-variant);
+  text-align: center;
+
+  i { font-size: 2rem; opacity: 0.4; }
+  p { margin: 0; font-size: 0.9rem; }
+}

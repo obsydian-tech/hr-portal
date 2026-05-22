@@ -1,0 +1,156 @@
+<!-- TalentFlow Shell — horizontal topbar layout (D022) -->
+
+<!-- ── Topbar ─────────────────────────────────────────────────────────────── -->
+<header class="tf-topbar">
+
+  <!-- Left: brand + nav -->
+  <div class="tf-topbar__left">
+    <div class="tf-brand">
+      <span class="tf-brand__mark">TF</span>
+      <span class="tf-brand__name">TalentFlow</span>
+    </div>
+
+    <nav class="tf-nav" aria-label="Main navigation">
+      <a class="tf-nav__item"
+         routerLink="/platform/talentflow"
+         routerLinkActive="tf-nav__item--active"
+         [routerLinkActiveOptions]="{ exact: true }">
+        Dashboard
+      </a>
+      <a class="tf-nav__item"
+         routerLink="/platform/talentflow/pipeline"
+         routerLinkActive="tf-nav__item--active">
+        Pipeline
+      </a>
+      <a class="tf-nav__item"
+         routerLink="/platform/talentflow/candidates"
+         routerLinkActive="tf-nav__item--active">
+        Candidates
+      </a>
+      <a class="tf-nav__item"
+         routerLink="/platform/talentflow/offers"
+         routerLinkActive="tf-nav__item--active">
+        Offers
+      </a>
+      <a class="tf-nav__item"
+         routerLink="/platform/talentflow/reports"
+         routerLinkActive="tf-nav__item--active">
+        Reports
+      </a>
+    </nav>
+  </div>
+
+  <!-- Right: actions -->
+  <div class="tf-topbar__right">
+
+    <!-- Add Candidate — teal solid pill (D022) -->
+    <p-button
+      label="Add Candidate"
+      icon="pi pi-plus"
+      styleClass="tf-btn-add"
+      (onClick)="addCandidateOpen.set(true)"
+    />
+
+    <!-- Ask AI — cyan outlined pill (D022) -->
+    <p-button
+      label="Ask AI"
+      icon="pi pi-sparkles"
+      styleClass="tf-btn-ai"
+      [outlined]="true"
+      (onClick)="openAiChat()"
+    />
+
+    <!-- Bell with breach badge -->
+    <p-button
+      icon="pi pi-bell"
+      styleClass="tf-btn-bell"
+      [text]="true"
+      [rounded]="true"
+      [badge]="bellBadge()"
+      badgeSeverity="danger"
+    />
+
+    <!-- Role pill -->
+    @if (rolePill()) {
+      <span class="tf-role-pill">{{ rolePill() }}</span>
+    }
+
+    <!-- Avatar -->
+    <p-avatar
+      [label]="initials()"
+      shape="circle"
+      styleClass="tf-avatar"
+    />
+
+  </div>
+</header>
+
+<!-- ── Connectivity banner ──────────────────────────────────────────────── -->
+@if (connectivity.showBanner()) {
+  <div class="tf-connectivity-banner"
+       [class.tf-connectivity-banner--offline]="!connectivity.isOnline()"
+       [class.tf-connectivity-banner--slow]="connectivity.isOnline() && connectivity.isSlowConnection()">
+    <i class="pi" [class.pi-wifi-off]="!connectivity.isOnline()" [class.pi-exclamation-triangle]="connectivity.isOnline() && connectivity.isSlowConnection()"></i>
+    <span>{{ connectivity.bannerMessage() }}</span>
+  </div>
+}
+
+<!-- ── Page content ──────────────────────────────────────────────────────── -->
+<main class="tf-shell-content" [class.tf-shell-content--banner]="connectivity.showBanner()">
+  <router-outlet />
+</main>
+
+<!-- ── Add Candidate Drawer (480px, right, D036) ────────────────────────── -->
+<p-drawer
+  [visible]="addCandidateOpen()"
+  (visibleChange)="addCandidateOpen.set($event)"
+  position="right"
+  [style]="{ width: '480px' }"
+  [showCloseIcon]="false"
+  styleClass="tf-add-candidate-drawer"
+>
+  <ng-template pTemplate="header">
+    <div class="tf-drawer-header">
+      <span class="tf-drawer-title">New Candidate</span>
+      <p-button
+        icon="pi pi-times"
+        [text]="true"
+        [rounded]="true"
+        (onClick)="addCandidateOpen.set(false)"
+      />
+    </div>
+  </ng-template>
+
+  <tf-candidate-create-page
+    [isDrawer]="true"
+    (cancelled)="addCandidateOpen.set(false)"
+    (created)="onCandidateCreated($event)"
+  />
+</p-drawer>
+
+<!-- ── AI Chat Panel ──────────────────────────────────────────────────────── -->
+@if (state.activeCandidate(); as candidate) {
+  <tf-ai-chat-panel
+    [candidate]="candidate"
+    [candidateId]="candidate.id"
+    [visible]="aiChatOpen()"
+    (closePanel)="aiChatOpen.set(false)"
+  />
+} @else {
+  <!-- No candidate in context — placeholder drawer -->
+  <p-drawer
+    [visible]="aiChatOpen()"
+    (visibleChange)="aiChatOpen.set($event)"
+    position="right"
+    [style]="{ width: '420px' }"
+    styleClass="tf-ai-placeholder-drawer"
+  >
+    <ng-template pTemplate="header">
+      <span class="tf-drawer-title">Ask AI</span>
+    </ng-template>
+    <div class="tf-ai-no-context">
+      <i class="pi pi-info-circle"></i>
+      <p>Open a candidate record to use AI Chat.</p>
+    </div>
+  </p-drawer>
+}

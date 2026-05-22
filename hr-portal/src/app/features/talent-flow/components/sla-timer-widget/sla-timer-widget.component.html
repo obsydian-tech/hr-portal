@@ -1,0 +1,39 @@
+<!-- SlaTimerWidget — D021: no exact times, signal health language only -->
+<div class="tf-sla-timer" [ngClass]="statusClass()">
+
+  <!-- Icon tile -->
+  <div class="tf-sla-timer__icon" aria-hidden="true">
+    <i class="pi"
+       [class.pi-clock]="timerState().status !== 'BREACHED'"
+       [class.pi-exclamation-circle]="timerState().status === 'BREACHED'"></i>
+  </div>
+
+  <!-- Content -->
+  <div class="tf-sla-timer__content">
+
+    <!-- Stage label -->
+    <span class="tf-sla-timer__label">{{ slaLabel() }}</span>
+
+    <!-- Status — signal health language only, NEVER time values (D021) -->
+    <span class="tf-sla-timer__status">
+      @switch (timerState().status) {
+        @case ('BREACHED') { Breached }
+        @case ('AT_RISK')  { At Risk  }
+        @default           { On Track }
+      }
+    </span>
+
+    <!-- Progress bar — visual fill % only, no labels (D021) -->
+    <div class="tf-sla-timer__bar"
+         role="progressbar"
+         [attr.aria-valuenow]="timerState().percentElapsed"
+         aria-valuemin="0"
+         aria-valuemax="100"
+         aria-label="SLA elapsed">
+      <div class="tf-sla-timer__bar-fill"
+           [style.width.%]="timerState().percentElapsed"></div>
+    </div>
+
+  </div>
+
+</div>

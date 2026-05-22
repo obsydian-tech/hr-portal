@@ -36,7 +36,7 @@ resource "aws_apigatewayv2_api" "talent_flow_api" {
   cors_configuration {
     allow_credentials = false
     allow_headers     = ["authorization", "content-type"]
-    allow_methods     = ["GET", "OPTIONS", "POST", "PUT"]
+    allow_methods     = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
     allow_origins     = ["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"]
     expose_headers    = []
     max_age           = 86400
@@ -58,8 +58,8 @@ resource "aws_apigatewayv2_authorizer" "talent_flow_api_cognito" {
   name             = "cognito-jwt"
 
   jwt_configuration {
-    audience = [aws_cognito_user_pool_client.talent_flow_web.id]
-    issuer   = "https://cognito-idp.af-south-1.amazonaws.com/${aws_cognito_user_pool.talent_flow.id}"
+    audience = [local.tf_naleko_client_id]
+    issuer   = "https://cognito-idp.af-south-1.amazonaws.com/${local.tf_naleko_pool_id}"
   }
 }
 
@@ -181,6 +181,154 @@ resource "aws_lambda_permission" "manage_config_talent_flow_api" {
   source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
 }
 
+# ---------------------------------------------------------------------------
+# GET /v1/candidates → getCandidates
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "get_candidates" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_candidates.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_candidates" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/candidates"
+  target             = "integrations/${aws_apigatewayv2_integration.get_candidates.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_candidates_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeGetCandidates"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_candidates.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# GET /v1/candidates/{id} → getCandidate
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "get_candidate" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_candidate.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_candidate" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/candidates/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.get_candidate.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_candidate_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeGetCandidate"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_candidate.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# POST /v1/candidates/{id}/interviews → scheduleInterview
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "schedule_interview" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.schedule_interview.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "post_candidate_interviews" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/candidates/{id}/interviews"
+  target             = "integrations/${aws_apigatewayv2_integration.schedule_interview.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "schedule_interview_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeScheduleInterview"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.schedule_interview.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# PATCH /v1/candidates/{id}/interviews/{interviewId} → scheduleInterview (PATCH handler)
+# Reuses the same Lambda and integration — PATCH handler branches internally
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_route" "patch_candidate_interview" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "PATCH /v1/candidates/{id}/interviews/{interviewId}"
+  target             = "integrations/${aws_apigatewayv2_integration.schedule_interview.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+# ---------------------------------------------------------------------------
+# POST /v1/candidates/{id}/votes → submitVote
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "submit_vote" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.submit_vote.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "post_candidate_votes" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/candidates/{id}/votes"
+  target             = "integrations/${aws_apigatewayv2_integration.submit_vote.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "submit_vote_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeSubmitVote"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.submit_vote.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/panel-members → getPanelMembers (D005/D041 internal directory)
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "get_panel_members" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_panel_members.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_panel_members" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/panel-members"
+  target             = "integrations/${aws_apigatewayv2_integration.get_panel_members.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_panel_members_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeGetPanelMembers"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_panel_members.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
 
 # ===========================================================================
 # GATEWAY 2 - REST API v1  (talent-flow-agent-api)
@@ -418,6 +566,186 @@ resource "aws_lambda_permission" "authorizer_agent_api" {
   source_arn    = "${aws_api_gateway_rest_api.agent_api.execution_arn}/authorizers/*"
 }
 
+# ---------------------------------------------------------------------------
+# POST /v1/candidates/{id}/sentiment → captureSentiment
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "capture_sentiment" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.capture_sentiment.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "capture_sentiment" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/candidates/{id}/sentiment"
+  target             = "integrations/${aws_apigatewayv2_integration.capture_sentiment.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "capture_sentiment_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeCaptureSentiment"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.capture_sentiment.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# GET /v1/notifications → getUserNotifications
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "get_notifications" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_notifications.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_notifications" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/notifications"
+  target             = "integrations/${aws_apigatewayv2_integration.get_notifications.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_notifications_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeGetNotifications"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_notifications.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
+# PATCH /v1/notifications/{id}/read → markNotificationRead
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "mark_notif_read" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.mark_notif_read.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "mark_notif_read" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "PATCH /v1/notifications/{id}/read"
+  target             = "integrations/${aws_apigatewayv2_integration.mark_notif_read.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "mark_notif_read_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeMarkNotifRead"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.mark_notif_read.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+
+# ---------------------------------------------------------------------------
+# Phase D: Offer management routes
+# POST   /v1/candidates/{id}/offer → createOffer (manual trigger, guards already handled in Lambda)
+# GET    /v1/candidates/{id}/offer → getOffer
+# PUT    /v1/candidates/{id}/offer → advanceOfferState
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "create_offer" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.create_offer.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "post_candidate_offer" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/candidates/{id}/offer"
+  target             = "integrations/${aws_apigatewayv2_integration.create_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "create_offer_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeCreateOffer"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.create_offer.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "get_offer" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_offer.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_candidate_offer" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/candidates/{id}/offer"
+  target             = "integrations/${aws_apigatewayv2_integration.get_offer.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_offer_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeGetOffer"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_offer.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "advance_offer_state" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.advance_offer_state.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "put_candidate_offer" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "PUT /v1/candidates/{id}/offer"
+  target             = "integrations/${aws_apigatewayv2_integration.advance_offer_state.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "advance_offer_state_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeAdvanceOfferState"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.advance_offer_state.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "update_candidate" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.update_candidate.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "patch_candidate" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "PATCH /v1/candidates/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.update_candidate.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "update_candidate_talent_flow_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeUpdateCandidate"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.update_candidate.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
 
 # ===========================================================================
 # OUTPUTS

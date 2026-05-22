@@ -1,0 +1,172 @@
+<!-- AiChatPanel — FE-006 / NH-139
+     Design: 23-chat-bubble.html
+     - .ch-h: gradient header (#1a1a2e → #4a3f8a)
+     - .msg.ai / .msg.user: chat bubbles
+     - .chip: intent template chips
+-->
+
+<p-drawer
+  [visible]="visible()"
+  (visibleChange)="$event ? null : close()"
+  position="right"
+  styleClass="ai-chat-sidebar"
+  [modal]="true"
+  [closeOnEscape]="true">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <ng-template pTemplate="header">
+    <div class="ch-h">
+      <div class="ch-h__left">
+        <div class="ch-h__avatar">
+          <i class="pi pi-sparkles"></i>
+        </div>
+        <div class="ch-h__meta">
+          <div class="ch-h__title">TalentFlow AI</div>
+          <span class="ch-h__status">
+            <span class="ch-h__dot"></span>
+            Powered by Claude · {{ candidate().firstName }} {{ candidate().lastName }}
+          </span>
+        </div>
+      </div>
+      <button class="ch-h__close" (click)="close()" aria-label="Close AI panel">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+  </ng-template>
+
+  <!-- ── Body ───────────────────────────────────────────────────────────── -->
+  <div class="ch-body" #chatBody>
+
+    <!-- Welcome state (no messages yet) -->
+    @if (!hasMessages()) {
+      <div class="ch-welcome">
+        <div class="ch-welcome__bubble">
+          <i class="pi pi-sparkles"></i>
+        </div>
+        <p class="ch-welcome__text">
+          Hi! I can help you with insights about
+          <strong>{{ candidate().firstName }} {{ candidate().lastName }}</strong>.
+          Select a topic below or type your question.
+        </p>
+      </div>
+    }
+
+    <!-- Message thread -->
+    @for (msg of messages(); track msg.id) {
+      <div class="ch-msg-wrapper" [class.ch-msg-wrapper--user]="msg.role === 'user'">
+
+        <!-- AI avatar dot -->
+        @if (msg.role === 'ai') {
+          <div class="ch-msg__avatar">
+            <i class="pi pi-sparkles"></i>
+          </div>
+        }
+
+        <div class="msg" [class.ai]="msg.role === 'ai'" [class.user]="msg.role === 'user'">
+
+          <!-- Message text -->
+          <span>{{ msg.text }}</span>
+
+          <!-- HITL approval banner (config_recommendation only) -->
+          @if (msg.pendingAction && msg.pendingActionStatus === 'pending') {
+            <div class="ch-hitl">
+              <div class="ch-hitl__badge">
+                <i class="pi pi-shield"></i>
+                Human approval required
+              </div>
+              <p class="ch-hitl__desc">
+                The AI wants to update <strong>{{ msg.pendingAction.toolName }}</strong>.
+                Review below before applying.
+              </p>
+              <pre class="ch-hitl__params">{{ msg.pendingAction.parameters | json }}</pre>
+              <div class="ch-hitl__actions">
+                <button pButton
+                  class="p-button-success p-button-sm"
+                  icon="pi pi-check"
+                  label="Approve"
+                  (click)="approveAction(msg)">
+                </button>
+                <button pButton
+                  class="p-button-danger p-button-outlined p-button-sm"
+                  icon="pi pi-times"
+                  label="Reject"
+                  (click)="rejectAction(msg)">
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (msg.pendingActionStatus === 'approved') {
+            <div class="ch-hitl ch-hitl--approved">
+              <i class="pi pi-check-circle"></i> Action approved and executed.
+            </div>
+          }
+
+          @if (msg.pendingActionStatus === 'rejected') {
+            <div class="ch-hitl ch-hitl--rejected">
+              <i class="pi pi-ban"></i> Action rejected.
+            </div>
+          }
+
+          <!-- Timestamp -->
+          <div class="ch-msg__time">{{ msg.timestamp | date:'HH:mm' }}</div>
+        </div>
+
+      </div>
+    }
+
+    <!-- Loading indicator -->
+    @if (isLoading()) {
+      <div class="ch-msg-wrapper">
+        <div class="ch-msg__avatar">
+          <i class="pi pi-sparkles"></i>
+        </div>
+        <div class="msg ai ch-typing">
+          <span class="ch-typing__dot"></span>
+          <span class="ch-typing__dot"></span>
+          <span class="ch-typing__dot"></span>
+        </div>
+      </div>
+    }
+
+  </div>
+
+  <!-- ── Intent chips ───────────────────────────────────────────────────── -->
+  <div class="ch-chips">
+    @for (tpl of intentTemplates; track tpl.intent) {
+      <button
+        class="chip"
+        [class.chip--hitl]="tpl.requiresHitl"
+        [title]="tpl.requiresHitl ? 'Requires human approval' : ''"
+        (click)="selectIntent(tpl)">
+        <i class="pi {{ tpl.icon }}"></i>
+        {{ tpl.label }}
+        @if (tpl.requiresHitl) {
+          <i class="pi pi-shield chip__hitl-icon" title="HITL required"></i>
+        }
+      </button>
+    }
+  </div>
+
+  <!-- ── Input ──────────────────────────────────────────────────────────── -->
+  <div class="ch-input">
+    <input
+      pInputText
+      class="ch-input__field"
+      type="text"
+      placeholder="Ask anything about this candidate…"
+      [ngModel]="inputText()"
+      (ngModelChange)="inputText.set($event)"
+      (keydown)="onKeydown($event)"
+      [disabled]="isLoading()" />
+    <button
+      pButton
+      class="ch-input__send p-button-rounded"
+      icon="pi pi-send"
+      [disabled]="!canSend()"
+      (click)="send()"
+      aria-label="Send message">
+    </button>
+  </div>
+
+</p-drawer>

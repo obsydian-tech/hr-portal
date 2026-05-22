@@ -1,0 +1,135 @@
+<div class="ev-panel">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <div class="ev-panel__head">
+    <i class="pi pi-star"></i>
+    <span class="ev-panel__title">Evaluation Scorecard</span>
+    @if (readOnly()) {
+      <span class="ev-chip ev-chip--readonly">Read Only</span>
+    }
+  </div>
+
+  <!-- ── Weighted total ───────────────────────────────────────────────────── -->
+  <div class="ev-panel__total" [class]="totalClass()">
+    <div class="ev-total__label">Weighted Score</div>
+    <div class="ev-total__value">
+      {{ weightedTotal() | number:'1.1-1' }}<span class="ev-total__max">/10</span>
+    </div>
+  </div>
+
+  <!-- ── Criteria rows ────────────────────────────────────────────────────── -->
+  <div class="ev-panel__criteria">
+    @for (c of criteria; track c.key) {
+      <div class="ev-criterion">
+        <div class="ev-criterion__meta">
+          <i [class]="'pi ' + c.icon + ' ev-criterion__icon'"></i>
+          <span class="ev-criterion__label">{{ c.label }}</span>
+          <span class="ev-criterion__weight">{{ weightLabel(c.key) }}</span>
+        </div>
+        <div class="ev-criterion__controls">
+          <div class="ev-criterion__bar-wrap">
+            <div
+              class="ev-criterion__bar-fill"
+              [class.ev-criterion__bar-fill--high]="scores()[c.key] >= 7"
+              [class.ev-criterion__bar-fill--mid]="scores()[c.key] >= 5 && scores()[c.key] < 7"
+              [class.ev-criterion__bar-fill--low]="scores()[c.key] < 5"
+              [style.width.%]="scoreBarWidth(c.key)">
+            </div>
+          </div>
+          <span class="ev-criterion__score-val">{{ scores()[c.key] }}/10</span>
+          @if (!readOnly()) {
+            <div class="ev-criterion__stepper">
+              <button
+                class="ev-step-btn"
+                type="button"
+                (click)="setScore(c.key, scores()[c.key] - 1)"
+                [disabled]="scores()[c.key] <= 0">
+                <i class="pi pi-minus"></i>
+              </button>
+              <input
+                class="ev-step-input"
+                type="number"
+                min="0"
+                max="10"
+                [value]="scores()[c.key]"
+                (change)="setScore(c.key, +$any($event.target).value)" />
+              <button
+                class="ev-step-btn"
+                type="button"
+                (click)="setScore(c.key, scores()[c.key] + 1)"
+                [disabled]="scores()[c.key] >= 10">
+                <i class="pi pi-plus"></i>
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  @if (!readOnly()) {
+
+    <!-- ── Decision — D050 vote grid: Strong No / No / Yes / Strong Yes ─── -->
+    <div class="ev-panel__section-label">Decision</div>
+    <div class="ev-panel__decisions">
+      <button
+        type="button"
+        class="ev-decision-btn ev-decision-btn--veto"
+        [class.ev-decision-btn--active]="decision() === 'STRONG_NO'"
+        (click)="setDecision('STRONG_NO')">
+        <i class="pi pi-ban"></i> Strong No
+      </button>
+      <button
+        type="button"
+        class="ev-decision-btn ev-decision-btn--no-hire"
+        [class.ev-decision-btn--active]="decision() === 'NO'"
+        (click)="setDecision('NO')">
+        <i class="pi pi-times-circle"></i> No
+      </button>
+      <button
+        type="button"
+        class="ev-decision-btn ev-decision-btn--hire"
+        [class.ev-decision-btn--active]="decision() === 'YES'"
+        (click)="setDecision('YES')">
+        <i class="pi pi-check-circle"></i> Yes
+      </button>
+      <button
+        type="button"
+        class="ev-decision-btn ev-decision-btn--strong-yes"
+        [class.ev-decision-btn--active]="decision() === 'STRONG_YES'"
+        (click)="setDecision('STRONG_YES')">
+        <i class="pi pi-star-fill"></i> Strong Yes
+      </button>
+    </div>
+
+    <!-- ── Notes ────────────────────────────────────────────────────────── -->
+    <div class="ev-panel__section-label">
+      Notes <span class="ev-panel__optional">(optional)</span>
+    </div>
+    <textarea
+      class="ev-panel__notes"
+      rows="3"
+      placeholder="Add qualitative observations…"
+      [value]="notes()"
+      (input)="setNotes($any($event.target).value)">
+    </textarea>
+
+    <!-- ── Submit ───────────────────────────────────────────────────────── -->
+    @if (submitted()) {
+      <div class="ev-panel__submitted">
+        <i class="pi pi-check-circle"></i> Vote submitted successfully.
+      </div>
+    } @else {
+      <button
+        pButton
+        class="ev-panel__submit"
+        icon="pi pi-send"
+        label="Submit Vote"
+        [disabled]="!canSubmit()"
+        (click)="submit()">
+      </button>
+    }
+
+  }
+
+</div>

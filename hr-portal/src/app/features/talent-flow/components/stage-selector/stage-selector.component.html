@@ -1,0 +1,42 @@
+<!-- StageSelector — based on 22-wizard-stepper.html pattern -->
+<div class="tf-stage-selector" role="progressbar" [attr.aria-label]="'Hiring stage: ' + currentStage()">
+
+  <div class="tf-stage-selector__track">
+    @for (item of stageItems(); track item.stage; let last = $last) {
+
+      <!-- Step -->
+      <div class="tf-stage-selector__step">
+        <button
+          class="tf-stage-selector__dot"
+          [class.is-done]="item.state === 'completed'"
+          [class.is-active]="item.state === 'current'"
+          [class.is-pending]="item.state === 'pending'"
+          [disabled]="item.state === 'pending' || readonly()"
+          [attr.aria-label]="item.label + ' — ' + item.state"
+          (click)="onStageClick(item)"
+          type="button"
+        >
+          @if (item.state === 'completed') {
+            <i class="pi pi-check"></i>
+          } @else {
+            {{ item.index + 1 }}
+          }
+        </button>
+        <span
+          class="tf-stage-selector__label"
+          [class.is-active]="item.state !== 'pending'"
+        >{{ item.label }}</span>
+      </div>
+
+      <!-- Connector line (not after last step) -->
+      @if (!last) {
+        <div
+          class="tf-stage-selector__line"
+          [class.is-done]="item.state === 'completed'"
+        ></div>
+      }
+
+    }
+  </div>
+
+</div>

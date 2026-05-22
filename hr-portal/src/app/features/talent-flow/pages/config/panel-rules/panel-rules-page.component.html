@@ -1,0 +1,104 @@
+<!-- PanelRulesPage — FE-007 / NH-140 -->
+
+<section class="tf-config-page">
+
+  <!-- Header -->
+  <div class="tf-config-page__header">
+    <div>
+      <h1 class="tf-config-page__title">
+        <i class="pi pi-users"></i> Panel Rules
+      </h1>
+      <p class="tf-config-page__subtitle">
+        Configure required votes per position level and STRONG_NO veto behaviour.
+      </p>
+    </div>
+    <div class="tf-config-page__version">
+      <span class="tf-config-page__version-label">Active version</span>
+      <span class="tf-config-page__version-value">{{ configVersion() }}</span>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="tf-config-page__loading">
+      <i class="pi pi-spin pi-spinner"></i> Loading configuration…
+    </div>
+  }
+
+  @if (!loading()) {
+    <div class="tf-config-page__card">
+
+      <!-- Votes required per level -->
+      <h3 class="tf-config-page__section-title">Votes Required</h3>
+      <p class="tf-config-page__section-hint">
+        Minimum panel votes needed before a hiring decision can be finalised.
+      </p>
+
+      <div class="tf-panel-grid">
+        @for (lvl of levels; track lvl.value) {
+          <div class="tf-panel-row">
+            <div class="tf-panel-row__label">
+              <i class="pi {{ lvl.icon }}"></i>
+              {{ lvl.label }}
+            </div>
+            <p-inputNumber
+              [ngModel]="rules().votesRequired[lvl.value]"
+              (ngModelChange)="updateVotesRequired(lvl.value, $event)"
+              [min]="1"
+              [max]="10"
+              [showButtons]="true"
+              suffix=" votes"
+              styleClass="tf-panel-input">
+            </p-inputNumber>
+          </div>
+        }
+      </div>
+
+      <!-- STRONG_NO veto toggle -->
+      <div class="tf-panel-veto">
+        <div class="tf-panel-veto__info">
+          <h3 class="tf-panel-veto__title">
+            <i class="pi pi-ban"></i> STRONG_NO Veto
+          </h3>
+          <p class="tf-panel-veto__desc">
+            When enabled, a single STRONG_NO vote immediately blocks a candidate from progressing,
+            regardless of other votes.
+          </p>
+        </div>
+        <p-toggleButton
+          [ngModel]="rules().strongNoVetoEnabled"
+          (ngModelChange)="toggleStrongNo($event)"
+          onLabel="Enabled"
+          offLabel="Disabled"
+          onIcon="pi pi-check"
+          offIcon="pi pi-times"
+          styleClass="tf-panel-veto__toggle">
+        </p-toggleButton>
+      </div>
+
+      <!-- Error / success -->
+      @if (saveError()) {
+        <div class="tf-config-page__error">
+          <i class="pi pi-exclamation-triangle"></i> {{ saveError() }}
+        </div>
+      }
+      @if (saveSuccess()) {
+        <div class="tf-config-page__success">
+          <i class="pi pi-check-circle"></i> Panel rules saved as a new version.
+        </div>
+      }
+
+      <!-- Actions -->
+      <div class="tf-config-page__actions">
+        <button pButton
+          [disabled]="saving()"
+          [icon]="saving() ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
+          label="Save New Version"
+          (click)="save()">
+        </button>
+      </div>
+
+    </div>
+  }
+
+</section>

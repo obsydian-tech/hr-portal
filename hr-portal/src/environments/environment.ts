@@ -8,4 +8,19 @@ export const environment = {
     clientId: '1pk5rd58glsohfplnlr63tg0qb',
     region: 'af-south-1',
   },
+  talentFlow: {
+    // TalentFlow Human REST API (Cognito JWT auth) — talent-flow-api HTTP API v2
+    apiUrl: 'https://57l0w7kk9h.execute-api.af-south-1.amazonaws.com/v1',
+    // Single-tenant MVP. Replace with a per-user claim or config endpoint before multi-tenant go-live.
+    tenantId: 'NALEKO',
+    // TalentFlow Agent API (Cognito JWT auth) — naleko-agent-api HTTP API v2 (fou21cj8tj)
+    agentApiUrl: 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com',
+    agentApiKey: '', // unused — JWT Bearer auth via AuthService.getIdToken()
+    // TalentFlow Cognito User Pool (TF pool, NOT Naleko pool - Lesson 18)
+    cognitoConfig: {
+      userPoolId: 'af-south-1_C8TTlQxY7',
+      clientId: '74644m5eck56vvq4fp7nfm8dht',
+      region: 'af-south-1',
+    },
+  },
 };

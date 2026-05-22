@@ -165,42 +165,86 @@ resource "aws_lambda_permission" "complete_evaluation_eventbridge" {
   source_arn    = aws_cloudwatch_event_rule.voting_completed.arn
 }
 
-# ── Rule 5: EvaluationCompleted → sendTalentFlowNotification ─────────────────
+# ── Rule 5a: EvaluationCompleted (FAILED) → notification queue (I9-002) ───────
+# FAILED path: TA receives an in-app/email notification that evaluation failed.
 
-resource "aws_cloudwatch_event_rule" "evaluation_completed" {
-  name           = "talent-flow-evaluation-completed"
-  description    = "Route EvaluationCompleted events to sendTalentFlowNotification"
+resource "aws_cloudwatch_event_rule" "evaluation_completed_failed" {
+  name           = "talent-flow-evaluation-completed-failed"
+  description    = "Route failed EvaluationCompleted events to notification queue"
   event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
   state          = "ENABLED"
 
   event_pattern = jsonencode({
     source      = ["talent-flow.workflow"]
     detail-type = ["EvaluationCompleted"]
+    detail      = { outcome = ["FAILED"] }
   })
 
   tags = merge(local.tf_tags, { Ticket = "NH-110" })
 }
 
-resource "aws_cloudwatch_event_target" "evaluation_completed" {
-  rule           = aws_cloudwatch_event_rule.evaluation_completed.name
+resource "aws_cloudwatch_event_target" "evaluation_completed_failed" {
+  rule           = aws_cloudwatch_event_rule.evaluation_completed_failed.name
   event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
-  target_id      = "sendTalentFlowNotification-evalCompleted"
-  arn            = "${local.tf_lambda_arn_prefix}:${local.tf_lambda_send_notification}"
+  target_id      = "notificationQueue-evalFailed"
+  arn            = aws_sqs_queue.talent_flow_notification.arn
+
+  sqs_target {
+    message_group_id = "evaluation-failed"
+  }
+
+  input_transformer {
+    input_paths = {
+      candidateId = "$.detail.candidateId"
+      tenantId    = "$.detail.tenantId"
+      finalScore  = "$.detail.finalScore"
+    }
+    input_template = "{\"type\":\"EVALUATION_FAILED\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenantId\":<tenantId>,\"finalScore\":<finalScore>}"
+  }
 }
 
-resource "aws_lambda_permission" "send_notification_evaluation_completed" {
-  statement_id  = "AllowEventBridgeInvokeNotifyEvalCompleted"
+# ── Rule 5b: EvaluationCompleted (PASSED) → createOffer Lambda (Phase D) ──────
+# Phase D: target updated from SQS placeholder to createOffer Lambda (NH-130).
+# createOffer reads APPROVAL_RULES config, builds seniority-driven chain, writes
+# the OFFER record to DynamoDB, and starts the Step Functions offer-approval machine.
+
+resource "aws_cloudwatch_event_rule" "evaluation_completed_passed" {
+  name           = "talent-flow-evaluation-completed-passed"
+  description    = "Route passed EvaluationCompleted events to createOffer Lambda"
+  event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
+  state          = "ENABLED"
+
+  event_pattern = jsonencode({
+    source      = ["talent-flow.workflow"]
+    detail-type = ["EvaluationCompleted"]
+    detail      = { outcome = ["PASSED"] }
+  })
+
+  tags = merge(local.tf_tags, { Ticket = "NH-130" })
+}
+
+resource "aws_cloudwatch_event_target" "evaluation_completed_passed" {
+  rule           = aws_cloudwatch_event_rule.evaluation_completed_passed.name
+  event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
+  target_id      = "createOffer-evalPassed"
+  arn            = aws_lambda_function.create_offer.arn
+}
+
+resource "aws_lambda_permission" "create_offer_eventbridge" {
+  statement_id  = "AllowEventBridgeInvokeCreateOffer"
   action        = "lambda:InvokeFunction"
-  function_name = local.tf_lambda_send_notification
+  function_name = aws_lambda_function.create_offer.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.evaluation_completed.arn
+  source_arn    = aws_cloudwatch_event_rule.evaluation_completed_passed.arn
 }
 
-# ── Rule 6: SLABreached → sendTalentFlowNotification ─────────────────────────
+# ── Rule 6: SLABreached → notification queue (I9-003) ────────────────────────
+# Fix: was invoking Lambda directly (wrong event format). Now routes via SQS
+# so the Lambda's ESM handler processes it correctly.
 
 resource "aws_cloudwatch_event_rule" "sla_breached" {
   name           = "talent-flow-sla-breached"
-  description    = "Route SLABreached events to sendTalentFlowNotification"
+  description    = "Route SLABreached events to notification queue"
   event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
   state          = "ENABLED"
 
@@ -215,23 +259,32 @@ resource "aws_cloudwatch_event_rule" "sla_breached" {
 resource "aws_cloudwatch_event_target" "sla_breached" {
   rule           = aws_cloudwatch_event_rule.sla_breached.name
   event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
-  target_id      = "sendTalentFlowNotification-slaBreached"
-  arn            = "${local.tf_lambda_arn_prefix}:${local.tf_lambda_send_notification}"
+  target_id      = "notificationQueue-slaBreached"
+  arn            = aws_sqs_queue.talent_flow_notification.arn
+
+  sqs_target {
+    message_group_id = "sla-breached"
+  }
+
+  input_transformer {
+    input_paths = {
+      candidateId    = "$.detail.candidateId"
+      tenantId       = "$.detail.tenantId"
+      stage          = "$.detail.stage"
+      hoursElapsed   = "$.detail.hoursElapsed"
+      thresholdHours = "$.detail.thresholdHours"
+    }
+    input_template = "{\"type\":\"SLA_BREACHED\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenantId\":<tenantId>,\"stage\":<stage>,\"hoursElapsed\":<hoursElapsed>,\"thresholdHours\":<thresholdHours>}"
+  }
 }
 
-resource "aws_lambda_permission" "send_notification_sla_breached" {
-  statement_id  = "AllowEventBridgeInvokeNotifySLABreached"
-  action        = "lambda:InvokeFunction"
-  function_name = local.tf_lambda_send_notification
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.sla_breached.arn
-}
-
-# ── Rule 7: OfferApproved → sendTalentFlowNotification ───────────────────────
+# ── Rule 7: OfferApproved → notification queue (I9-004) ──────────────────────
+# Fix: was invoking Lambda directly (wrong event format). Now routes via SQS.
+# Phase D wires the offer state transition (OFFER_APPROVED → OFFER_SENT) separately.
 
 resource "aws_cloudwatch_event_rule" "offer_approved" {
   name           = "talent-flow-offer-approved"
-  description    = "Route OfferApproved events to sendTalentFlowNotification"
+  description    = "Route OfferApproved events to notification queue"
   event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
   state          = "ENABLED"
 
@@ -246,19 +299,65 @@ resource "aws_cloudwatch_event_rule" "offer_approved" {
 resource "aws_cloudwatch_event_target" "offer_approved" {
   rule           = aws_cloudwatch_event_rule.offer_approved.name
   event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
-  target_id      = "sendTalentFlowNotification-offerApproved"
-  arn            = "${local.tf_lambda_arn_prefix}:${local.tf_lambda_send_notification}"
+  target_id      = "notificationQueue-offerApproved"
+  arn            = aws_sqs_queue.talent_flow_notification.arn
+
+  sqs_target {
+    message_group_id = "offer-approved"
+  }
+
+  input_transformer {
+    input_paths = {
+      candidateId = "$.detail.candidateId"
+      tenantId    = "$.detail.tenantId"
+      offerId     = "$.detail.offerId"
+    }
+    input_template = "{\"type\":\"OFFER_APPROVED\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenantId\":<tenantId>,\"offerId\":<offerId>}"
+  }
 }
 
-resource "aws_lambda_permission" "send_notification_offer_approved" {
-  statement_id  = "AllowEventBridgeInvokeNotifyOfferApproved"
-  action        = "lambda:InvokeFunction"
-  function_name = local.tf_lambda_send_notification
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.offer_approved.arn
+# ── Rule 8: SentimentCaptured (HESITANT/DISENGAGED) → notification queue (I9-005) ─
+# Fix: was invoking Lambda directly (wrong event format). Now routes via SQS.
+# VERY_INTERESTED, INTERESTED, NEUTRAL are published to EventBridge but have no rule.
+
+resource "aws_cloudwatch_event_rule" "sentiment_captured_risk" {
+  name           = "talent-flow-sentiment-captured-risk"
+  description    = "Route high-risk SentimentCaptured events to notification queue"
+  event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
+  state          = "ENABLED"
+
+  event_pattern = jsonencode({
+    source      = ["talent-flow.workflow"]
+    detail-type = ["SentimentCaptured"]
+    detail = {
+      interviewSentiment = ["HESITANT", "DISENGAGED"]
+    }
+  })
+
+  tags = merge(local.tf_tags, { Ticket = "NH-123" })
 }
 
-# ── Rule 8: Hourly cron → monitorTalentFlowSLAs (default bus) ────────────────
+resource "aws_cloudwatch_event_target" "sentiment_captured_risk" {
+  rule           = aws_cloudwatch_event_rule.sentiment_captured_risk.name
+  event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
+  target_id      = "notificationQueue-sentimentRisk"
+  arn            = aws_sqs_queue.talent_flow_notification.arn
+
+  sqs_target {
+    message_group_id = "sentiment-risk"
+  }
+
+  input_transformer {
+    input_paths = {
+      candidateId        = "$.detail.candidateId"
+      tenantId           = "$.detail.tenantId"
+      interviewSentiment = "$.detail.interviewSentiment"
+    }
+    input_template = "{\"type\":\"SENTIMENT_RISK\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenantId\":<tenantId>,\"interviewSentiment\":<interviewSentiment>}"
+  }
+}
+
+# ── Rule 9: Hourly cron → monitorTalentFlowSLAs (default bus) ────────────────
 # Uses the default event bus - scheduled rules must target the default bus.
 # (EventBridge Scheduler or default bus cron - cron on custom bus not supported)
 

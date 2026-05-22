@@ -1,0 +1,194 @@
+/** ScoringWeightsPage styles — FE-007 */
+
+// ── Shared config page layout ─────────────────────────────────────────────────
+.tf-config-page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 var(--naleko-space-4, 24px) var(--naleko-space-6, 48px);
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  &__title {
+    font-family: var(--naleko-font-display, 'Nunito', sans-serif);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--naleko-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 4px;
+    .pi { font-size: 18px; }
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: var(--naleko-on-surface-variant);
+    margin: 0;
+  }
+
+  &__version {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+
+    &-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--naleko-on-surface-variant); }
+    &-value { font-size: 12px; font-weight: 600; color: var(--naleko-secondary); font-family: monospace; }
+  }
+
+  &__loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 32px 24px;
+    color: var(--naleko-on-surface-variant);
+    font-size: 14px;
+  }
+
+  &__card {
+    background: var(--naleko-surface-container-lowest);
+    border: 1px solid var(--naleko-surface-container-high);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #fce4ec;
+    border: 1px solid #f48fb1;
+    border-radius: 8px;
+    color: #880e4f;
+    font-size: 13px;
+    margin-top: 16px;
+  }
+
+  &__success {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 8px;
+    color: #1b5e20;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 16px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--naleko-surface-container-high);
+  }
+}
+
+// ── Sum indicator ─────────────────────────────────────────────────────────────
+.tf-sw-sum {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  background: var(--naleko-surface-container-low);
+  border: 1px solid var(--naleko-surface-container-high);
+  font-size: 13px;
+
+  &__label {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--naleko-on-surface-variant);
+  }
+
+  &__value {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--naleko-on-surface);
+  }
+
+  &__hint {
+    font-size: 11px;
+    color: var(--naleko-error, #b00020);
+    margin-left: auto;
+  }
+
+  &__ok {
+    font-size: 12px;
+    color: #1b5e20;
+    font-weight: 600;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &--valid {
+    border-color: #a5d6a7;
+    background: #e8f5e9;
+
+    .tf-sw-sum__value { color: #1b5e20; }
+  }
+
+  &--invalid {
+    border-color: #f48fb1;
+    background: #fce4ec;
+  }
+}
+
+// ── Criterion slider rows ─────────────────────────────────────────────────────
+.tf-sw-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+
+  &__label {
+    width: 160px;
+    min-width: 160px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--naleko-on-surface);
+
+    .pi { color: var(--naleko-secondary); font-size: 14px; }
+  }
+
+  &__slider {
+    flex: 1;
+
+    ::ng-deep .p-slider .p-slider-handle {
+      background: var(--naleko-secondary);
+      border-color: var(--naleko-secondary);
+    }
+
+    ::ng-deep .p-slider .p-slider-range {
+      background: linear-gradient(90deg, var(--naleko-secondary), var(--naleko-tertiary));
+    }
+  }
+
+  &__value {
+    width: 52px;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--naleko-secondary);
+    font-family: monospace;
+  }
+}

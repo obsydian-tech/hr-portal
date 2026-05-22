@@ -32,7 +32,7 @@ exports.handler = async () => {
   const BUS_NAME    = process.env.EVENTBRIDGE_BUS_NAME;
 
   // Step 1: Read ACTIVE SLA thresholds — no version arg (Epic 2 Invariant #3)
-  const slaConfig    = await getConfig('DEFAULT', 'SLA_THRESHOLDS');
+  const slaConfig    = await getConfig(process.env.TENANT_ID || 'NALEKO', 'SLA_THRESHOLDS');
   // config-reader returns the DynamoDB item's `data` field as the payload
   const slaThresholds = slaConfig.data ?? slaConfig ?? {};
 
@@ -64,52 +64,61 @@ exports.handler = async () => {
         continue;
       }
 
-      const hoursElapsed = (Date.now() - new Date(saga.stageEnteredAt).getTime()) / 3600000;
+      const hoursElapsed    = (Date.now() - new Date(saga.stageEnteredAt).getTime()) / 3600000;
+      const percentElapsed  = (hoursElapsed / thresholdHours) * 100;
 
-      if (hoursElapsed <= thresholdHours) {
-        continue;
-      }
-
-      // Breach detected — write once with conditional expression
       const now         = new Date().toISOString();
       const candidateId = saga.candidateId ?? saga.PK?.replace('CANDIDATE#', '') ?? saga.PK;
       const tenantId    = saga.tenantId ?? 'DEFAULT';
 
-      try {
+      if (percentElapsed >= 100) {
+        // BREACHED — write once with conditional to guard against concurrent runs
+        try {
+          await dynamo.send(new UpdateItemCommand({
+            TableName:                 STATE_TABLE,
+            Key:                       marshall({ PK: saga.PK, SK: 'SAGA' }),
+            UpdateExpression:          'SET slaBreachedAt = :now, slaBreachedStage = :stage, slaStatus = :status',
+            ConditionExpression:       'attribute_not_exists(slaBreachedAt)',
+            ExpressionAttributeValues: marshall({ ':now': now, ':stage': stage, ':status': 'BREACHED' }),
+          }));
+        } catch (err) {
+          if (err.name === 'ConditionalCheckFailedException') {
+            console.log(JSON.stringify({ event: 'sla_breach_already_recorded', pk: saga.PK, stage }));
+            continue;
+          }
+          throw err;
+        }
+
+        // Publish SLABreached event — EventBridge Rule 6 routes this to notification Lambda
+        await eventbridge.send(new PutEventsCommand({
+          Entries: [{
+            EventBusName: BUS_NAME,
+            Source:       'talent-flow.sla',
+            DetailType:   'SLABreached',
+            Detail:       JSON.stringify({
+              candidateId,
+              tenantId,
+              stage,
+              hoursElapsed: Math.round(hoursElapsed * 10) / 10,
+              thresholdHours,
+            }),
+          }],
+        }));
+
+        breached++;
+        console.log(JSON.stringify({ event: 'sla_breached', pk: saga.PK, candidateId, stage, hoursElapsed: Math.round(hoursElapsed * 10) / 10 }));
+
+      } else if (percentElapsed >= 75 && saga.slaStatus !== 'AT_RISK') {
+        // AT_RISK — update slaStatus only if not already marked
         await dynamo.send(new UpdateItemCommand({
           TableName:                 STATE_TABLE,
           Key:                       marshall({ PK: saga.PK, SK: 'SAGA' }),
-          UpdateExpression:          'SET slaBreachedAt = :now, slaBreachedStage = :stage',
-          ConditionExpression:       'attribute_not_exists(slaBreachedAt)',
-          ExpressionAttributeValues: marshall({ ':now': now, ':stage': stage }),
+          UpdateExpression:          'SET slaStatus = :status',
+          ExpressionAttributeValues: marshall({ ':status': 'AT_RISK' }),
         }));
-      } catch (err) {
-        if (err.name === 'ConditionalCheckFailedException') {
-          // Concurrent run already wrote the breach flag — safe to skip
-          console.log(JSON.stringify({ event: 'sla_breach_already_recorded', pk: saga.PK, stage }));
-          continue;
-        }
-        throw err; // rethrow unexpected DynamoDB errors — caught by outer try/catch
+        console.log(JSON.stringify({ event: 'sla_at_risk', pk: saga.PK, candidateId, stage, percentElapsed: Math.round(percentElapsed) }));
       }
-
-      // Publish SLABreached event — EventBridge Rule 6 routes this to notification Lambda
-      await eventbridge.send(new PutEventsCommand({
-        Entries: [{
-          EventBusName: BUS_NAME,
-          Source:       'talent-flow.sla',
-          DetailType:   'SLABreached',
-          Detail:       JSON.stringify({
-            candidateId,
-            tenantId,
-            stage,
-            hoursElapsed: Math.round(hoursElapsed * 10) / 10,
-            thresholdHours,
-          }),
-        }],
-      }));
-
-      breached++;
-      console.log(JSON.stringify({ event: 'sla_breached', pk: saga.PK, candidateId, stage, hoursElapsed: Math.round(hoursElapsed * 10) / 10 }));
+      // else: ON_TRACK — slaStatus already set at creation / stage advance
     } catch (err) {
       // Per-candidate failure must never crash the whole scan
       console.error(JSON.stringify({ event: 'sla_check_error', pk: saga.PK, error: err.message }));
