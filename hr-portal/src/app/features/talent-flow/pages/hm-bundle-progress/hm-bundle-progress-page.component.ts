@@ -99,6 +99,9 @@ export class HmBundleProgressPageComponent implements OnInit {
   protected readonly breachedItems = computed(() =>
     this._bundle()?.items.filter(i => i.status === 'BREACHED') ?? []);
 
+  protected readonly firstBreachedId = computed(() =>
+    this.breachedItems()[0]?.id ?? '');
+
   /** Readiness label: plain language for Day 1 Readiness panel */
   protected readonly readinessLabel = computed(() => {
     const pct = this.progressPct();
