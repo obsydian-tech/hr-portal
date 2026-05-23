@@ -33,6 +33,7 @@ locals {
   tf_table_rate_limit      = "talent-flow-ai-rate-limit"
   tf_table_idempotency     = "talent-flow-idempotency-keys"
   tf_table_notifications   = "talent-flow-notifications"
+  tf_table_users           = "talent-flow-users"
 
   # ── EventBridge ───────────────────────────────────────────────────────────
   tf_event_bus_name = "talent-flow-bus"
