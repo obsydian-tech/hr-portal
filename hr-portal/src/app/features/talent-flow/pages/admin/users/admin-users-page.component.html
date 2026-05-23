@@ -1,0 +1,307 @@
+<!-- Admin Users & Roles — Section 2 -->
+<section class="tfad-users">
+
+  <!-- ── Page header ──────────────────────────────────────────────────────── -->
+  <div class="tfad-users__header">
+    <div class="tfad-users__title-row">
+      <h1 class="tfad-users__title">Users &amp; Roles</h1>
+      <span class="tfad-users__count">{{ filteredUsers().length }}</span>
+    </div>
+    <p-button
+      icon="pi pi-user-plus"
+      label="Add User"
+      styleClass="tfad-btn-add"
+      (onClick)="openAddDrawer()"
+    />
+  </div>
+
+  <!-- ── Toolbar ───────────────────────────────────────────────────────────── -->
+  <div class="tfad-users__toolbar">
+    <div class="tfad-search-wrap">
+      <i class="pi pi-search tfad-search-icon"></i>
+      <input
+        class="tfad-search-input"
+        type="text"
+        placeholder="Search by name or email…"
+        [value]="searchQuery()"
+        (input)="setSearch($any($event.target).value)"
+      />
+    </div>
+
+    <div class="tfad-status-filter">
+      @for (opt of [['ALL','All'],['ACTIVE','Active'],['INACTIVE','Inactive']]; track opt[0]) {
+        <button
+          class="tfad-filter-chip"
+          [class.tfad-filter-chip--active]="statusFilter() === opt[0]"
+          (click)="setStatus($any(opt[0]))"
+        >{{ opt[1] }}</button>
+      }
+    </div>
+
+    <p-button
+      icon="pi pi-refresh"
+      styleClass="tfad-btn-refresh"
+      [text]="true"
+      [rounded]="true"
+      [loading]="loading()"
+      pTooltip="Refresh list"
+      tooltipPosition="left"
+      (onClick)="refresh()"
+    />
+  </div>
+
+  <!-- ── Loading ──────────────────────────────────────────────────────────── -->
+  @if (loading()) {
+    <div class="tfad-state-msg">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading users…</span>
+    </div>
+  }
+
+  <!-- ── Error ────────────────────────────────────────────────────────────── -->
+  @if (error()) {
+    <div class="tfad-state-msg tfad-state-msg--error">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>{{ error() }}</span>
+      <p-button label="Retry" styleClass="tfad-btn-retry" [text]="true" (onClick)="refresh()" />
+    </div>
+  }
+
+  <!-- ── User table ────────────────────────────────────────────────────────── -->
+  @if (!loading() && !error()) {
+    @if (filteredUsers().length === 0) {
+      <div class="tfad-empty">
+        <i class="pi pi-users"></i>
+        <span>No users match your filters.</span>
+      </div>
+    } @else {
+      <div class="tfad-table-wrap">
+        <table class="tfad-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Roles</th>
+              <th>Active Role</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (u of filteredUsers(); track u.userId) {
+              <tr class="tfad-table__row" [class.tfad-table__row--inactive]="u.status === 'INACTIVE'">
+
+                <!-- User details -->
+                <td class="tfad-table__user">
+                  <div class="tfad-avatar" [class.tfad-avatar--inactive]="u.status === 'INACTIVE'">
+                    {{ initials(u) }}
+                  </div>
+                  <div class="tfad-table__user-info">
+                    <span class="tfad-table__user-name">{{ u.fullName }}</span>
+                    <span class="tfad-table__user-email">{{ u.email }}</span>
+                  </div>
+                </td>
+
+                <!-- Roles -->
+                <td class="tfad-table__roles">{{ roleChips(u) }}</td>
+
+                <!-- Active role -->
+                <td>
+                  <span class="tfad-role-badge">{{ roleLabels[u.activeRole] }}</span>
+                </td>
+
+                <!-- Status -->
+                <td>
+                  <span
+                    class="tfad-status-badge"
+                    [class.tfad-status-badge--active]="u.status === 'ACTIVE'"
+                    [class.tfad-status-badge--inactive]="u.status === 'INACTIVE'"
+                  >{{ u.status }}</span>
+                </td>
+
+                <!-- Created -->
+                <td class="tfad-table__date">
+                  {{ u.createdAt | slice: 0 : 10 }}
+                </td>
+
+                <!-- Actions -->
+                <td class="tfad-table__actions">
+                  @if (u.status === 'ACTIVE') {
+                    <p-button
+                      icon="pi pi-pencil"
+                      styleClass="tfad-action-btn"
+                      [text]="true"
+                      [rounded]="true"
+                      pTooltip="Edit roles"
+                      (onClick)="openEditDrawer(u)"
+                    />
+                    <p-button
+                      icon="pi pi-ban"
+                      styleClass="tfad-action-btn tfad-action-btn--danger"
+                      [text]="true"
+                      [rounded]="true"
+                      pTooltip="Deactivate user"
+                      (onClick)="confirmDeactivate(u, $event)"
+                    />
+                  }
+                </td>
+
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+</section>
+
+<!-- ── Toast ─────────────────────────────────────────────────────────────── -->
+<p-toast position="bottom-right" />
+
+<!-- ── Confirm dialog ─────────────────────────────────────────────────────── -->
+<p-confirmDialog styleClass="tfad-confirm-dialog" />
+
+
+<!-- ────────────────────────────────────────────────────────────────────────
+     ADD USER DRAWER
+──────────────────────────────────────────────────────────────────────────── -->
+<p-dialog
+  header="Add User"
+  [visible]="addDrawerVisible()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '32rem' }"
+  styleClass="tfad-drawer"
+  (onHide)="closeAddDrawer()"
+>
+
+  @if (addError()) {
+    <div class="tfad-drawer-error">
+      <i class="pi pi-exclamation-circle"></i>
+      {{ addError() }}
+    </div>
+  }
+
+  <div class="tfad-form">
+
+    <div class="tfad-field">
+      <label class="tfad-field__label" for="addEmail">Work email *</label>
+      <input
+        id="addEmail"
+        class="tfad-input"
+        type="email"
+        placeholder="user@company.com"
+        [(ngModel)]="newEmail"
+      />
+    </div>
+
+    <div class="tfad-field-row">
+      <div class="tfad-field">
+        <label class="tfad-field__label" for="addGiven">First name *</label>
+        <input
+          id="addGiven"
+          class="tfad-input"
+          type="text"
+          placeholder="Jane"
+          [(ngModel)]="newGivenName"
+        />
+      </div>
+      <div class="tfad-field">
+        <label class="tfad-field__label" for="addFamily">Last name *</label>
+        <input
+          id="addFamily"
+          class="tfad-input"
+          type="text"
+          placeholder="Smith"
+          [(ngModel)]="newFamilyName"
+        />
+      </div>
+    </div>
+
+    <div class="tfad-field">
+      <label class="tfad-field__label">Roles * <span class="tfad-field__hint">(select at least one)</span></label>
+      <div class="tfad-role-list">
+        @for (role of allRoles; track role) {
+          <label class="tfad-role-item">
+            <p-checkbox
+              [binary]="true"
+              [ngModel]="newRoles.includes(role)"
+              (onChange)="toggleNewRole(role, $event.checked)"
+            />
+            <span>{{ roleLabels[role] }}</span>
+          </label>
+        }
+      </div>
+    </div>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="tfad-drawer-footer">
+      <p-button label="Cancel" styleClass="p-button-text" (onClick)="closeAddDrawer()" />
+      <p-button
+        label="Create User"
+        icon="pi pi-check"
+        [loading]="addSaving()"
+        (onClick)="submitAddUser()"
+      />
+    </div>
+  </ng-template>
+
+</p-dialog>
+
+
+<!-- ────────────────────────────────────────────────────────────────────────
+     EDIT ROLES DRAWER
+──────────────────────────────────────────────────────────────────────────── -->
+<p-dialog
+  [header]="editUser() ? 'Edit Roles — ' + editUser()!.fullName : 'Edit Roles'"
+  [visible]="editDrawerVisible()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '28rem' }"
+  styleClass="tfad-drawer"
+  (onHide)="closeEditDrawer()"
+>
+
+  @if (editError()) {
+    <div class="tfad-drawer-error">
+      <i class="pi pi-exclamation-circle"></i>
+      {{ editError() }}
+    </div>
+  }
+
+  <div class="tfad-form">
+    <div class="tfad-field">
+      <label class="tfad-field__label">Roles <span class="tfad-field__hint">(at least one required)</span></label>
+      <div class="tfad-role-list">
+        @for (role of allRoles; track role) {
+          <label class="tfad-role-item">
+            <p-checkbox
+              [binary]="true"
+              [ngModel]="editRoles.includes(role)"
+              (onChange)="toggleEditRole(role, $event.checked)"
+            />
+            <span>{{ roleLabels[role] }}</span>
+          </label>
+        }
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="tfad-drawer-footer">
+      <p-button label="Cancel" styleClass="p-button-text" (onClick)="closeEditDrawer()" />
+      <p-button
+        label="Save Roles"
+        icon="pi pi-check"
+        [loading]="editSaving()"
+        (onClick)="submitEditRoles()"
+      />
+    </div>
+  </ng-template>
+
+</p-dialog>
