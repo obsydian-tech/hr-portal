@@ -262,7 +262,8 @@ export class AuthService {
       'naleko-talentflow-hr': 'talentflow',
       'naleko-talentflow-hiringmanager': 'talentflow',
       'naleko-talentflow-admin': 'talentflow',
-      // Future: 'naleko-it-hr': 'it-requests', 'naleko-employee-self': 'employee-360'
+      'naleko-it-provisioning': 'it-provisioning',
+      // Future: 'naleko-employee-self': 'employee-360'
     };
     return groups.reduce<string[]>((acc, g) => {
       if (map[g]) acc.push(map[g]);

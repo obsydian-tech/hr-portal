@@ -1,0 +1,152 @@
+<!-- IT Queue Page — Screen 4: IT Specialist Queue View -->
+
+@if (loading()) {
+  <div class="ip-loading" role="status" aria-label="Loading tasks">
+    <i class="pi pi-spin pi-spinner ip-loading__icon"></i>
+    <span>Loading your queue…</span>
+  </div>
+} @else {
+
+<!-- ── Page header ──────────────────────────────────────────────────────────── -->
+<div class="ip-page-header">
+  <h1 class="ip-page-header__title">My Queue</h1>
+  <p class="ip-page-header__sub">Tasks assigned to your queues — sorted by urgency</p>
+</div>
+
+<!-- ── Signal strip ────────────────────────────────────────────────────────── -->
+<div class="ip-signal-strip" role="region" aria-label="Task summary">
+  <div class="ip-signal-card ip-signal-card--breached">
+    <span class="ip-signal-card__count">{{ breachedCount() }}</span>
+    <span class="ip-signal-card__label">Breached</span>
+  </div>
+  <div class="ip-signal-card ip-signal-card--at-risk">
+    <span class="ip-signal-card__count">{{ atRiskCount() }}</span>
+    <span class="ip-signal-card__label">At Risk</span>
+  </div>
+  <div class="ip-signal-card ip-signal-card--claimed">
+    <span class="ip-signal-card__count">{{ claimedByMeCount() }}</span>
+    <span class="ip-signal-card__label">Claimed by me</span>
+  </div>
+  <div class="ip-signal-card ip-signal-card--on-track">
+    <span class="ip-signal-card__count">{{ onTrackCount() }}</span>
+    <span class="ip-signal-card__label">On Track</span>
+  </div>
+</div>
+
+<!-- ── Queue selector ───────────────────────────────────────────────────────── -->
+<div class="ip-queue-selector" role="tablist" aria-label="Queue filter">
+  <button
+    class="ip-queue-tab"
+    [class.ip-queue-tab--active]="selectedQueue() === 'ALL'"
+    role="tab"
+    [attr.aria-selected]="selectedQueue() === 'ALL'"
+    (click)="selectQueue('ALL')"
+  >
+    All Queues
+    <span class="ip-queue-tab__badge">{{ tasks().length }}</span>
+  </button>
+  @for (q of queues(); track q.type) {
+    <button
+      class="ip-queue-tab"
+      [class.ip-queue-tab--active]="selectedQueue() === q.type"
+      role="tab"
+      [attr.aria-selected]="selectedQueue() === q.type"
+      (click)="selectQueue(q.type)"
+    >
+      {{ q.type }}
+      <span class="ip-queue-tab__badge">{{ q.count }}</span>
+    </button>
+  }
+</div>
+
+<!-- ── Task list ────────────────────────────────────────────────────────────── -->
+<div class="ip-task-list" role="list">
+  @if (filteredTasks().length === 0) {
+    <div class="ip-task-list__empty">
+      <i class="pi pi-check-circle ip-task-list__empty-icon"></i>
+      <p>No tasks in this queue — great work!</p>
+    </div>
+  }
+
+  @for (task of filteredTasks(); track task.id) {
+    <article
+      class="task-card"
+      [class]="cardBorderClass(task)"
+      role="listitem"
+    >
+      <!-- ── Card header: requirement type + SLA badge ── -->
+      <div class="task-card__header">
+        <span class="task-card__req-type">{{ task.requirementType }}</span>
+        <span
+          class="task-card__sla-badge"
+          [class.task-card__sla-badge--breached]="task.slaStatus === 'BREACHED'"
+          [class.task-card__sla-badge--at-risk]="task.slaStatus === 'AT_RISK'"
+          [class.task-card__sla-badge--on-track]="task.slaStatus === 'ON_TRACK'"
+        >
+          @if (task.slaStatus === 'BREACHED') { SLA Breached }
+          @else if (task.slaStatus === 'AT_RISK') { At Risk }
+          @else { On Track }
+        </span>
+      </div>
+
+      <!-- ── New hire context ── -->
+      <div class="task-card__hire">
+        <div class="task-card__hire-info">
+          <span class="task-card__hire-name">{{ task.newHire.name }}</span>
+          <span class="task-card__hire-role">{{ task.newHire.role }}</span>
+        </div>
+        <div class="task-card__hire-dates">
+          <span class="task-card__start-date">
+            <i class="pi pi-calendar"></i>
+            Start: {{ task.newHire.startDate }}
+          </span>
+          <span class="task-card__days" [class]="daysClass(task.newHire.daysRemaining)">
+            {{ task.newHire.daysRemaining }}d remaining
+          </span>
+        </div>
+      </div>
+
+      <!-- ── SLA health bar ── -->
+      <div class="task-card__sla-bar" aria-label="SLA progress" role="progressbar"
+           [attr.aria-valuenow]="task.slaProgress" aria-valuemin="0" aria-valuemax="100">
+        <div
+          class="task-card__sla-bar-fill"
+          [class.task-card__sla-bar-fill--breached]="task.slaStatus === 'BREACHED'"
+          [class.task-card__sla-bar-fill--at-risk]="task.slaStatus === 'AT_RISK'"
+          [style.width.%]="task.slaProgress > 100 ? 100 : task.slaProgress"
+        ></div>
+      </div>
+      <div class="task-card__sla-pct">{{ task.slaProgress > 100 ? 100 : task.slaProgress }}% elapsed</div>
+
+      <!-- ── HM note (if present) ── -->
+      @if (task.hmNote) {
+        <p class="task-card__hm-note">
+          <i class="pi pi-comment task-card__hm-note-icon"></i>
+          <em>{{ task.hmNote }}</em>
+        </p>
+      }
+
+      <!-- ── CTA ── -->
+      <div class="task-card__footer">
+        @if (task.taskStatus === 'CLAIMED' && task.claimedBy !== specialistId()) {
+          <span class="task-card__claimed-by">Claimed by another specialist</span>
+        } @else {
+          <button
+            type="button"
+            class="task-card__cta"
+            [class]="ctaClass(task)"
+            [disabled]="actionPending() === task.id"
+            (click)="onCta(task)"
+          >
+            @if (actionPending() === task.id) {
+              <i class="pi pi-spin pi-spinner"></i>
+            }
+            {{ ctaLabel(task) }}
+          </button>
+        }
+      </div>
+    </article>
+  }
+</div>
+
+} <!-- end @if loading -->
