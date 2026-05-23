@@ -72,6 +72,13 @@ locals {
   tf_lambda_generate_scoring_link = "generateScoringLink"
   tf_lambda_submit_vote_by_token  = "submitVoteByToken"
 
+  # Admin workspace Lambdas (Admin-S1)
+  tf_lambda_admin_get_dashboard = "adminGetDashboard"
+  tf_lambda_admin_get_users     = "adminGetUsers"
+  tf_lambda_admin_create_user   = "adminCreateUser"
+  tf_lambda_admin_update_user   = "adminUpdateUser"
+  tf_lambda_admin_deactivate    = "adminDeactivateUser"
+
   # ── KMS key aliases ───────────────────────────────────────────────────────
   tf_kms_alias_state       = "alias/talent-flow/state"
   tf_kms_alias_agent_audit = "alias/talent-flow/agent-audit"

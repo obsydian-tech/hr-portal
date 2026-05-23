@@ -1013,3 +1013,197 @@ resource "aws_lambda_function" "submit_vote_by_token" {
 
   tags = merge(local.tf_tags, { Ticket = "NH-138", Purpose = "TokenVote", Phase = "E" })
 }
+
+# ===========================================================================
+# Admin Workspace Lambdas (Admin-S1)
+# All five are JWT-secured via Gateway 1; ADMIN check enforced in-Lambda
+# by reading custom:roles claim from the JWT context.
+# Cognito operations target the Naleko pool (post pool-consolidation auth).
+# ===========================================================================
+
+# ── adminGetDashboard ────────────────────────────────────────────────────────
+# GET /v1/admin/dashboard
+# Aggregates KPI metrics (active candidates, SLA breaches, open offers,
+# active users) from state + users tables. Read-only.
+
+resource "aws_lambda_function" "admin_get_dashboard" {
+  function_name = local.tf_lambda_admin_get_dashboard
+  role          = aws_iam_role.admin_get_dashboard.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      STATE_TABLE_NAME = local.tf_table_state
+      USERS_TABLE_NAME = local.tf_table_users
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_admin_get_dashboard}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "Admin-S1", Purpose = "AdminDashboard" })
+}
+
+# ── adminGetUsers ────────────────────────────────────────────────────────────
+# GET /v1/admin/users
+# Queries talent-flow-users table (fast, no Cognito N+1). Returns user list
+# with roles[], status, and profile data for the admin Users & Roles UI.
+
+resource "aws_lambda_function" "admin_get_users" {
+  function_name = local.tf_lambda_admin_get_users
+  role          = aws_iam_role.admin_get_users.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      USERS_TABLE_NAME = local.tf_table_users
+      COGNITO_POOL_ID  = local.tf_naleko_pool_id
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_admin_get_users}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "Admin-S1", Purpose = "AdminUsersList" })
+}
+
+# ── adminCreateUser ──────────────────────────────────────────────────────────
+# POST /v1/admin/users
+# Calls cognitoIdentityServiceProvider.adminCreateUser on the Naleko pool,
+# adds the user to the appropriate Cognito groups, then writes the profile +
+# roles[] record to the talent-flow-users table.
+
+resource "aws_lambda_function" "admin_create_user" {
+  function_name = local.tf_lambda_admin_create_user
+  role          = aws_iam_role.admin_create_user.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      USERS_TABLE_NAME = local.tf_table_users
+      COGNITO_POOL_ID  = local.tf_naleko_pool_id
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_admin_create_user}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "Admin-S1", Purpose = "AdminUserCreate" })
+}
+
+# ── adminUpdateUser ──────────────────────────────────────────────────────────
+# PUT /v1/admin/users/{userId}
+# Updates Cognito group membership (add/remove) AND writes the new roles[]
+# to the talent-flow-users table atomically. Both writes must succeed;
+# Lambda rolls back the Cognito change if the DynamoDB write fails.
+
+resource "aws_lambda_function" "admin_update_user" {
+  function_name = local.tf_lambda_admin_update_user
+  role          = aws_iam_role.admin_update_user.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      USERS_TABLE_NAME = local.tf_table_users
+      COGNITO_POOL_ID  = local.tf_naleko_pool_id
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_admin_update_user}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "Admin-S1", Purpose = "AdminUserUpdate" })
+}
+
+# ── adminDeactivateUser ──────────────────────────────────────────────────────
+# DELETE /v1/admin/users/{userId}
+# Soft delete: calls adminDisableUser on Cognito + sets status = INACTIVE
+# in the talent-flow-users table. User record is retained for POPIA audit trail.
+
+resource "aws_lambda_function" "admin_deactivate_user" {
+  function_name = local.tf_lambda_admin_deactivate
+  role          = aws_iam_role.admin_deactivate_user.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.tf_placeholder_zip
+  memory_size   = 256
+  timeout       = 30
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      USERS_TABLE_NAME = local.tf_table_users
+      COGNITO_POOL_ID  = local.tf_naleko_pool_id
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/${local.tf_lambda_admin_deactivate}"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = merge(local.tf_tags, { Ticket = "Admin-S1", Purpose = "AdminUserDeactivate" })
+}

@@ -1489,3 +1489,279 @@ resource "aws_iam_role_policy" "submit_vote_by_token" {
     ]
   })
 }
+
+# ===========================================================================
+# Admin Workspace IAM Roles (Admin-S1)
+# One least-privilege role per Lambda. All admin Lambdas share a common
+# pattern: Logs + XRay + scoped DynamoDB/Cognito permissions.
+# Cognito operations target the Naleko pool (post pool-consolidation auth).
+# ===========================================================================
+
+# ── adminGetDashboard ─────────────────────────────────────────────────────────
+
+resource "aws_iam_role" "admin_get_dashboard" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_get_dashboard}"
+  description        = "Execution role for adminGetDashboard Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "Admin-S1" })
+}
+
+resource "aws_iam_role_policy" "admin_get_dashboard" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_get_dashboard}-policy"
+  role = aws_iam_role.admin_get_dashboard.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_admin_get_dashboard}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "StateTableRead"
+        Effect = "Allow"
+        Action = ["dynamodb:Query", "dynamodb:Scan"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
+        ]
+      },
+      {
+        Sid    = "UsersTableRead"
+        Effect = "Allow"
+        Action = ["dynamodb:Query", "dynamodb:Scan"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}/index/*",
+        ]
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── adminGetUsers ─────────────────────────────────────────────────────────────
+
+resource "aws_iam_role" "admin_get_users" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_get_users}"
+  description        = "Execution role for adminGetUsers Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "Admin-S1" })
+}
+
+resource "aws_iam_role_policy" "admin_get_users" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_get_users}-policy"
+  role = aws_iam_role.admin_get_users.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_admin_get_users}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "UsersTableRead"
+        Effect = "Allow"
+        Action = ["dynamodb:Query", "dynamodb:Scan", "dynamodb:GetItem"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}/index/*",
+        ]
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── adminCreateUser ───────────────────────────────────────────────────────────
+
+resource "aws_iam_role" "admin_create_user" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_create_user}"
+  description        = "Execution role for adminCreateUser Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "Admin-S1" })
+}
+
+resource "aws_iam_role_policy" "admin_create_user" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_create_user}-policy"
+  role = aws_iam_role.admin_create_user.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_admin_create_user}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "UsersTableWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}/index/*",
+        ]
+      },
+      {
+        Sid    = "CognitoUserAdmin"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:AdminCreateUser",
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminGetUser",
+        ]
+        Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── adminUpdateUser ───────────────────────────────────────────────────────────
+
+resource "aws_iam_role" "admin_update_user" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_update_user}"
+  description        = "Execution role for adminUpdateUser Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "Admin-S1" })
+}
+
+resource "aws_iam_role_policy" "admin_update_user" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_update_user}-policy"
+  role = aws_iam_role.admin_update_user.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_admin_update_user}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "UsersTableWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}"
+      },
+      {
+        Sid    = "CognitoGroupSync"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminRemoveUserFromGroup",
+          "cognito-idp:AdminListGroupsForUser",
+        ]
+        Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+# ── adminDeactivateUser ───────────────────────────────────────────────────────
+
+resource "aws_iam_role" "admin_deactivate_user" {
+  name               = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_deactivate}"
+  description        = "Execution role for adminDeactivateUser Lambda"
+  path               = "/talent-flow/"
+  assume_role_policy = local.tf_lambda_assume_role_policy
+  tags               = merge(local.tf_tags, { Ticket = "Admin-S1" })
+}
+
+resource "aws_iam_role_policy" "admin_deactivate_user" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_deactivate}-policy"
+  role = aws_iam_role.admin_deactivate_user.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_admin_deactivate}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "UsersTableWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}"
+      },
+      {
+        Sid      = "CognitoDisableUser"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminDisableUser"]
+        Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
