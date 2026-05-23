@@ -1,0 +1,56 @@
+<!-- Admin Workspace Shell — darker topbar + 220px left sidebar -->
+
+<!-- ── Admin Topbar ──────────────────────────────────────────────────────── -->
+<header class="tf-admin-topbar">
+  <div class="tf-admin-topbar__left">
+    <div class="tf-admin-brand">
+      <span class="tf-admin-brand__mark">TF</span>
+      <span class="tf-admin-brand__name">TalentFlow</span>
+      <span class="tf-admin-brand__badge">Admin</span>
+    </div>
+  </div>
+
+  <div class="tf-admin-topbar__right">
+    <p-button
+      label="← Back to TalentFlow"
+      styleClass="tf-admin-btn-back"
+      [text]="true"
+      (onClick)="backToTalentFlow()"
+    />
+    <span class="tf-admin-user-name">{{ displayName() }}</span>
+    <p-avatar
+      [label]="initials()"
+      shape="circle"
+      styleClass="tf-admin-avatar"
+    />
+  </div>
+</header>
+
+<!-- ── Body: sidebar + content ──────────────────────────────────────────── -->
+<div class="tf-admin-body">
+
+  <!-- Left Sidebar -->
+  <nav class="tf-admin-sidebar" aria-label="Admin navigation">
+    <div class="tf-admin-sidebar__section">
+      <span class="tf-admin-sidebar__section-label">Workspace</span>
+      <a class="tf-admin-sidebar__item"
+         routerLink="/platform/talentflow/admin/overview"
+         routerLinkActive="tf-admin-sidebar__item--active">
+        <i class="pi pi-chart-bar"></i>
+        <span>Overview</span>
+      </a>
+      <a class="tf-admin-sidebar__item"
+         routerLink="/platform/talentflow/admin/users"
+         routerLinkActive="tf-admin-sidebar__item--active">
+        <i class="pi pi-users"></i>
+        <span>Users &amp; Roles</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="tf-admin-main">
+    <router-outlet />
+  </main>
+
+</div>
