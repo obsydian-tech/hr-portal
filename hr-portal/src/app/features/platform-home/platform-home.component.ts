@@ -66,8 +66,7 @@ export class PlatformHomeComponent {
         icon: 'pi pi-desktop',
         description: 'Automate IT provisioning for new hires.',
         route: '/platform/it-requests',
-        available: false,
-        comingSoon: true,
+        available: modules.includes('it-provisioning'),
       },
       {
         key: 'employee-360',

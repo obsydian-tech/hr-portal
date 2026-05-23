@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { TalentFlowShellComponent } from './shell/talent-flow-shell.component';
 import { adminGuard } from './guards/admin.guard';
+import { hmRedirectGuard } from './guards/hm-redirect.guard';
 
 /**
  * TalentFlow lazy routes
@@ -14,9 +15,10 @@ export const talentFlowRoutes: Routes = [
     path: '',
     component: TalentFlowShellComponent,
     children: [
-      // ── TA Dashboard ─────────────────────────────────────────────────────
+      // ── TA Dashboard — HM users are redirected to hm-dashboard ──────────
       {
         path: '',
+        canActivate: [hmRedirectGuard],
         loadComponent: () =>
           import('./pages/dashboard/dashboard-page.component').then(
             (m) => m.DashboardPageComponent,
@@ -60,6 +62,30 @@ export const talentFlowRoutes: Routes = [
         loadComponent: () =>
           import('./pages/hm-dashboard/hm-dashboard-page.component').then(
             (m) => m.HmDashboardPageComponent,
+          ),
+      },
+      // ── HM Provisioning (IT Request Module) ──────────────────────────
+      {
+        path: 'hm-provisioning',
+        loadComponent: () =>
+          import('./pages/hm-provisioning/hm-provisioning-page.component').then(
+            (m) => m.HmProvisioningPageComponent,
+          ),
+      },
+      // ── HM Bundle Review Screen (Screen 2) ───────────────────────────
+      {
+        path: 'hm-provisioning/:bundleId/review',
+        loadComponent: () =>
+          import('./pages/hm-bundle-review/hm-bundle-review-page.component').then(
+            (m) => m.HmBundleReviewPageComponent,
+          ),
+      },
+      // ── HM Bundle Progress Screen (Screen 3) ─────────────────────────
+      {
+        path: 'hm-provisioning/:bundleId/progress',
+        loadComponent: () =>
+          import('./pages/hm-bundle-progress/hm-bundle-progress-page.component').then(
+            (m) => m.HmBundleProgressPageComponent,
           ),
       },
       // ── Reports (placeholder — Phase C/D) ────────────────────────────

@@ -118,6 +118,15 @@ export const routes: Routes = [
             (m) => m.talentFlowRoutes,
           ),
       },
+      {
+        // Epic 5 Screen 4: IT Provisioning Specialist Queue
+        path: 'it-requests',
+        canActivate: [moduleGuard('it-provisioning')],
+        loadChildren: () =>
+          import('./features/it-provisioning/it-provisioning.routes').then(
+            (m) => m.itProvisioningRoutes,
+          ),
+      },
       { path: '', redirectTo: 'home', pathMatch: 'full' },
     ],
   },

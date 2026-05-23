@@ -1,0 +1,282 @@
+<!-- Screen 2 — Bundle Review (IT Request Module) -->
+
+@if (loading()) {
+  <div class="br-loading"><p-progressSpinner strokeWidth="3" /></div>
+} @else if (loadError()) {
+  <div class="br-error">
+    <i class="pi pi-exclamation-triangle"></i>
+    <p>{{ loadError() }}</p>
+    <p-button label="Back" icon="pi pi-arrow-left" styleClass="br-btn-back" [outlined]="true" (onClick)="goBack()" />
+  </div>
+} @else {
+@if (bundle(); as b) {
+
+  <!-- Breadcrumb -->
+  <nav class="br-breadcrumb" aria-label="Breadcrumb">
+    <a class="br-breadcrumb__link" routerLink="/platform/talentflow/hm-provisioning">Provisioning</a>
+    <i class="pi pi-chevron-right br-breadcrumb__sep"></i>
+    <span class="br-breadcrumb__current">Review bundle — {{ b.candidateName }}</span>
+  </nav>
+
+  <!-- Page header -->
+  <div class="br-page-header">
+    <h1 class="br-page-header__title">Review provisioning bundle</h1>
+    <p class="br-page-header__sub">
+      Auto-generated from {{ b.templateName }} · Review, adjust, then approve
+    </p>
+  </div>
+
+  <!-- ── Two-column layout ─────────────────────────────────────────────── -->
+  <div class="br-layout">
+
+    <!-- ── LEFT COLUMN ────────────────────────────────────────────────── -->
+    <div class="br-main">
+
+      <!-- Candidate strip -->
+      <section class="br-card br-candidate">
+        <div class="br-candidate__label">
+          <i class="pi pi-user"></i>
+          <span>NEW HIRE</span>
+        </div>
+        <div class="br-candidate__body">
+          <div class="br-candidate__avatar"
+               [style.background]="avatarColour(b.candidateName)">
+            {{ avatarInitials(b.candidateName) }}
+          </div>
+          <div class="br-candidate__info">
+            <span class="br-candidate__name">{{ b.candidateName }}</span>
+            <div class="br-candidate__tags">
+              <span class="br-tag br-tag--seniority">{{ b.seniority | uppercase }}</span>
+              <span class="br-tag br-tag--role">{{ b.candidateRole }}</span>
+              @if (b.department) {
+                <span class="br-tag br-tag--dept">{{ b.department }}</span>
+              }
+            </div>
+          </div>
+          <div class="br-candidate__dates">
+            <div class="br-candidate__start">
+              <i class="pi pi-calendar"></i>
+              Starts {{ startDateFormatted(b.startDate) }}
+            </div>
+            @if (daysToStart(); as d) {
+              <div class="br-candidate__days"
+                   [class.br-candidate__days--urgent]="d <= 14"
+                   [class.br-candidate__days--warning]="d > 14 && d <= 30">
+                @if (d < 0) {
+                  <i class="pi pi-exclamation-triangle"></i> Start date passed
+                } @else {
+                  <i class="pi pi-clock"></i> {{ d }} days to start
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+
+      <!-- Signal Intelligence (SLA breached) -->
+      @if (b.slaStatus === 'BREACHED' || b.slaStatus === 'AT_RISK') {
+        <div class="br-signal" [class.br-signal--breached]="b.slaStatus === 'BREACHED'"
+                               [class.br-signal--risk]="b.slaStatus === 'AT_RISK'">
+          <div class="br-signal__header">
+            <i class="pi pi-bolt"></i>
+            <span>SIGNAL INTELLIGENCE</span>
+          </div>
+          <p class="br-signal__body">
+            @if (b.slaStatus === 'BREACHED') {
+              Your review is overdue — IT Queues are waiting. Every day of delay reduces the lead time before {{ b.candidateName.split(' ')[0] }}'s start date. Review and approve to unblock fulfilment.
+            } @else {
+              Your review is due today. Approving now gives IT the maximum lead time to fulfil all requirements before the start date.
+            }
+          </p>
+        </div>
+      }
+
+      <!-- Requirements section -->
+      <section class="br-card br-reqs">
+        <div class="br-reqs__header">
+          <div class="br-reqs__header-left">
+            <i class="pi pi-list"></i>
+            <span class="br-reqs__title">PROVISIONING REQUIREMENTS</span>
+          </div>
+          <div class="br-reqs__header-right">
+            <span class="br-reqs__count">
+              <span class="br-reqs__count-num">{{ items().length }}</span>
+              ITEMS
+            </span>
+            <span class="br-reqs__template">
+              <i class="pi pi-info-circle"></i>
+              From {{ b.templateName }}
+            </span>
+          </div>
+        </div>
+
+        <div class="br-req-list">
+          @for (item of items(); track item.id) {
+            <div class="br-req" [class.br-req--editing]="editingId() === item.id">
+
+              <!-- Row top: icon / label / tags / actions -->
+              <div class="br-req__row">
+                <div class="br-req__icon-wrap" [style.background]="typeColour(item.type) + '18'">
+                  <i class="pi {{ typeIcon(item.type) }}" [style.color]="typeColour(item.type)"></i>
+                </div>
+                <div class="br-req__body">
+                  <div class="br-req__top">
+                    <span class="br-req__label">{{ item.label }}</span>
+                    @if (item.fromTemplate) {
+                      <span class="br-req__from-template">From template</span>
+                    }
+                  </div>
+                  <div class="br-req__meta">
+                    <span class="br-req__type-badge br-req__type-badge--{{ item.type }}">
+                      {{ item.type }}
+                    </span>
+                    <i class="pi pi-arrow-right br-req__arrow"></i>
+                    <span class="br-req__queue">{{ item.queue }}</span>
+                  </div>
+                  @if (item.specNote && editingId() !== item.id) {
+                    <p class="br-req__spec">{{ item.specNote }}</p>
+                  }
+                  @if (item.notes && editingId() !== item.id) {
+                    <p class="br-req__note">
+                      <i class="pi pi-comment"></i> {{ item.notes }}
+                    </p>
+                  }
+                </div>
+                <div class="br-req__actions">
+                  <button class="br-icon-btn" (click)="openEdit(item)" title="Add note for IT">
+                    <i class="pi pi-pencil"></i>
+                  </button>
+                  <button class="br-icon-btn br-icon-btn--danger" (click)="removeItem(item.id)" title="Remove requirement">
+                    <i class="pi pi-trash"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Inline notes editor -->
+              @if (editingId() === item.id) {
+                <div class="br-req__editor">
+                  <label class="br-req__editor-label">NOTES FOR IT</label>
+                  <textarea
+                    class="br-req__textarea"
+                    rows="3"
+                    placeholder="Add context or specific instructions for the IT team..."
+                    [(ngModel)]="editNote"
+                  ></textarea>
+                  <div class="br-req__editor-actions">
+                    <button class="br-editor-btn br-editor-btn--cancel" (click)="cancelEdit()">Cancel</button>
+                    <button class="br-editor-btn br-editor-btn--save" (click)="saveNote(item.id)">Save note</button>
+                  </div>
+                </div>
+              }
+
+            </div>
+          }
+        </div>
+
+        <!-- Add requirement -->
+        <button class="br-add-req" (click)="addRequirement()">
+          <i class="pi pi-plus"></i> Add requirement
+        </button>
+
+      </section>
+
+    </div>
+
+    <!-- ── RIGHT SIDEBAR ──────────────────────────────────────────────── -->
+    <aside class="br-sidebar">
+
+      <!-- Review SLA panel -->
+      <section class="br-card br-sla-card">
+        <div class="br-sla-card__header">
+          <i class="pi pi-clock"></i>
+          <span>REVIEW SLA</span>
+        </div>
+        <div class="br-sla-card__row">
+          <span class="br-sla-card__window-label">Review window</span>
+          <span class="br-sla-card__status br-sla-card__status--{{ b.slaStatus }}">
+            {{ b.slaStatus === 'BREACHED' ? 'BREACHED' : b.slaStatus === 'AT_RISK' ? 'AT RISK' : 'ON TRACK' }}
+          </span>
+        </div>
+        <div class="br-sla-bar br-sla-bar--{{ b.slaStatus }}"></div>
+        <p class="br-sla-card__message">
+          @if (b.slaStatus === 'BREACHED') {
+            Your review SLA has been breached. TA and HR Director have been notified. Approve immediately to restore lead time for IT fulfilment.
+          } @else if (b.slaStatus === 'AT_RISK') {
+            Your review is due today. Approving now gives IT the maximum time to fulfil requirements before the start date.
+          } @else {
+            Review window is open. Approve before the SLA window closes to keep fulfilment on schedule.
+          }
+        </p>
+      </section>
+
+      <!-- Approval chain -->
+      <section class="br-card br-chain">
+        <div class="br-chain__header">
+          <i class="pi pi-users"></i>
+          <span>APPROVAL CHAIN</span>
+        </div>
+        <ol class="br-chain__list">
+          @for (step of approvalChain(); track step.id; let last = $last) {
+            <li class="br-chain__step">
+              <div class="br-chain__avatar" [class.br-chain__avatar--you]="step.type === 'HM'">
+                {{ step.type === 'HM' ? 'You' : '…' }}
+              </div>
+              <div class="br-chain__info">
+                <span class="br-chain__name">{{ step.label }}</span>
+                <span class="br-chain__sub">{{ step.sublabel }}</span>
+              </div>
+            </li>
+          }
+        </ol>
+      </section>
+
+      <!-- What happens on approval -->
+      <section class="br-card br-what-happens">
+        <div class="br-what-happens__header">
+          <i class="pi pi-bolt"></i>
+          <span>WHAT HAPPENS ON APPROVAL</span>
+        </div>
+        <ul class="br-what-happens__list">
+          <li>
+            <span class="br-what-happens__dot br-what-happens__dot--teal"></span>
+            Each requirement routes to its IT Queue automatically — no manual assignment needed
+          </li>
+          <li>
+            <span class="br-what-happens__dot br-what-happens__dot--indigo"></span>
+            IT specialists are notified immediately and can begin fulfilment
+          </li>
+          <li>
+            <span class="br-what-happens__dot br-what-happens__dot--amber"></span>
+            SLA timers start per Queue — you will be alerted if any task falls at risk before the start date
+          </li>
+        </ul>
+      </section>
+
+    </aside>
+
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+  <div class="br-footer">
+    <button class="br-footer__back" (click)="goBack()">
+      <i class="pi pi-arrow-left"></i> Back
+    </button>
+    <button class="br-footer__approve"
+            [class.br-footer__approve--loading]="approving()"
+            [class.br-footer__approve--done]="approved()"
+            [disabled]="approving() || approved()"
+            (click)="approveBundle()">
+      @if (approved()) {
+        <i class="pi pi-check"></i> Approved — sending to queues…
+      } @else if (approving()) {
+        <i class="pi pi-spin pi-spinner"></i> Approving…
+      } @else {
+        <i class="pi pi-check"></i>
+        Approve bundle<br>&amp; send to IT queues
+      }
+    </button>
+    <span class="br-footer__lock">Cannot be changed after approval</span>
+  </div>
+
+}
+}

@@ -7,12 +7,13 @@
  * using GSI1 (GSI1PK = TENANT#<tenantId>) — avoids full table scan.
  *
  * Query params (all optional):
- *   stage          — FilterExpression on currentStage
- *   positionLevel  — FilterExpression on positionLevel
- *   slaStatus      — FilterExpression on slaStatus
- *   search         — contains() match on firstName/lastName/email
- *   limit          — default 50, max 100
- *   nextToken      — exclusive start key (base64 JSON)
+ *   stage            — FilterExpression on currentStage
+ *   positionLevel    — FilterExpression on positionLevel
+ *   slaStatus        — FilterExpression on slaStatus
+ *   search           — contains() match on firstName/lastName/email
+ *   hiringManagerId  — FilterExpression on hiringManagerId (Cognito sub of HM)
+ *   limit            — default 50, max 100
+ *   nextToken        — exclusive start key (base64 JSON)
  */
 
 const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
@@ -36,7 +37,7 @@ function respond(statusCode, body) {
 exports.handler = async (event) => {
   const qs = event.queryStringParameters || {};
   const limit = Math.min(parseInt(qs.limit || '50', 10), 100);
-  const { stage, positionLevel, slaStatus, search, nextToken, tenantId: qsTenant } = qs;
+  const { stage, positionLevel, slaStatus, search, hiringManagerId, nextToken, tenantId: qsTenant } = qs;
 
   // Pool consolidation (Epic 5): custom:tenantId was a TF-pool-only claim.
   // Frontend now always sends ?tenantId= query param; fall back to 'DEFAULT' only
@@ -71,6 +72,10 @@ exports.handler = async (event) => {
       '(contains(firstName, :s) OR contains(lastName, :s) OR contains(email, :s))',
     );
     exprValues[':s'] = { S: search };
+  }
+  if (hiringManagerId) {
+    filterParts.push('hiringManagerId = :hmId');
+    exprValues[':hmId'] = { S: hiringManagerId };
   }
 
   const params = {

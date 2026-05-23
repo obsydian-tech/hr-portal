@@ -1245,6 +1245,14 @@
     border-color: color-mix(in srgb, var(--naleko-secondary) 30%, transparent);
     background: color-mix(in srgb, var(--naleko-secondary) 3%, var(--naleko-surface));
   }
+  &--passed {
+    border-color: color-mix(in srgb, var(--naleko-success, #22c55e) 35%, transparent);
+    background: color-mix(in srgb, var(--naleko-success, #22c55e) 4%, var(--naleko-surface));
+  }
+  &--failed {
+    border-color: color-mix(in srgb, var(--naleko-danger, #ef4444) 30%, transparent);
+    background: color-mix(in srgb, var(--naleko-danger, #ef4444) 4%, var(--naleko-surface));
+  }
 }
 .tf-round-header {
   display: flex;
@@ -1275,6 +1283,14 @@
   &--done {
     background: color-mix(in srgb, var(--naleko-success) 12%, transparent);
     color: var(--naleko-success);
+  }
+  &--passed {
+    background: color-mix(in srgb, var(--naleko-success, #22c55e) 15%, transparent);
+    color: var(--naleko-success, #16a34a);
+  }
+  &--failed {
+    background: color-mix(in srgb, var(--naleko-danger, #ef4444) 12%, transparent);
+    color: var(--naleko-danger, #dc2626);
   }
 }
 .tf-round-meta {
