@@ -192,9 +192,9 @@
 .task-card {
   background: #fff;
   border: 1px solid var(--surface-200, #e2e8f0);
+  border-left: 4px solid var(--surface-300, #cbd5e1);
   border-radius: 12px;
   padding: 1.25rem;
-  border-left-width: 4px;
   transition: box-shadow 0.15s;
 
   &:hover {
@@ -213,9 +213,6 @@
   &--claimed {
     border-left-color: #6366f1;
   }
-
-  // Default/on-track: no left accent
-  border-left-color: var(--surface-300, #cbd5e1);
 
   // ── Header ──
   &__header {

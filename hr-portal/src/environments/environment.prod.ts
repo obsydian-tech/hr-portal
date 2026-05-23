@@ -8,6 +8,15 @@ export const environment = {
     clientId: '1pk5rd58glsohfplnlr63tg0qb',
     region: 'af-south-1',
   },
+  itProvisioning: {
+    // Fill once Terraform provisions `it-provisioning-user-pool`
+    cognitoConfig: {
+      userPoolId: 'PLACEHOLDER_IT_POOL_ID',
+      clientId: 'PLACEHOLDER_IT_CLIENT_ID',
+      region: 'af-south-1',
+    },
+    apiUrl: '',
+  },
   talentFlow: {
     apiUrl: 'https://57l0w7kk9h.execute-api.af-south-1.amazonaws.com/v1',
     tenantId: 'NALEKO',
