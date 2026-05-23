@@ -1,0 +1,68 @@
+<!-- IT Provisioning Shell — horizontal topbar (mirrors tf-shell layout) -->
+
+<header class="ip-topbar">
+  <div class="ip-topbar__left">
+    <div class="ip-brand">
+      <span class="ip-brand__mark">IT</span>
+      <span class="ip-brand__name">IT Provisioning</span>
+    </div>
+
+    <nav class="ip-nav" aria-label="IT Provisioning navigation">
+      <a class="ip-nav__item"
+         routerLink="/platform/it-requests/queue"
+         routerLinkActive="ip-nav__item--active">
+        My Queue
+      </a>
+      <a class="ip-nav__item"
+         routerLink="/platform/it-requests/completed"
+         routerLinkActive="ip-nav__item--active">
+        Completed
+      </a>
+    </nav>
+  </div>
+
+  <div class="ip-topbar__right">
+    <!-- Role pill -->
+    <span class="ip-role-pill">IT</span>
+
+    <!-- User avatar -->
+    <p-avatar
+      [label]="initials()"
+      size="normal"
+      shape="circle"
+      styleClass="ip-avatar"
+    />
+
+    <span class="ip-display-name">{{ displayName() }}</span>
+
+    <!-- Back to platform home -->
+    <button
+      pButton
+      type="button"
+      icon="pi pi-home"
+      [text]="true"
+      [rounded]="true"
+      class="ip-home-btn"
+      aria-label="Platform home"
+      routerLink="/platform/home"
+    ></button>
+
+    <!-- Log out -->
+    <button
+      pButton
+      type="button"
+      icon="pi pi-sign-out"
+      [text]="true"
+      [rounded]="true"
+      severity="secondary"
+      class="ip-logout-btn"
+      aria-label="Log out"
+      (click)="onLogout()"
+    ></button>
+  </div>
+</header>
+
+<!-- Page content -->
+<main class="ip-main">
+  <router-outlet />
+</main>

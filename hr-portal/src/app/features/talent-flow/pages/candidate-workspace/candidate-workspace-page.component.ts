@@ -166,7 +166,9 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   protected goToEvaluate(candidateId: string): void {
-    void this.router.navigate(['/platform/talentflow/candidates', candidateId, 'evaluate']);
+    // Evaluation route removed (D048 — inline scoring in HM dashboard).
+    // Navigate to the candidate workspace so TA can review submitted panel votes.
+    void this.router.navigate(['/platform/talentflow/candidates', candidateId]);
   }
 
   protected toDate(iso: string): Date {

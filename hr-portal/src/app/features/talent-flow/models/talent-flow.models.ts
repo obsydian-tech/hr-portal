@@ -146,6 +146,9 @@ export interface Candidate {
   createdAt:           string;
   updatedAt:           string;
   currentInterviewId?: string;
+  // Evaluation outcome — set by completeEvaluation Lambda
+  evaluationResult?:   'PASSED' | 'FAILED';
+  finalScore?:         number;
 }
 
 export interface Interview {
@@ -302,12 +305,14 @@ export interface VotePayload {
 // ─── Pipeline Filters ─────────────────────────────────────────────────────────
 
 export interface PipelineFilters {
-  stage?:         HiringStage;
-  positionLevel?: PositionLevel;
+  stage?:           HiringStage;
+  positionLevel?:   PositionLevel;
   // D021: filter by signal health language, not colour codes
-  slaStatus?:     SlaHealthStatus;
-  search?:        string;
-  limit?:         number;
+  slaStatus?:       SlaHealthStatus;
+  search?:          string;
+  /** D051 — filter to candidates assigned to this HM (sub or email). */
+  hiringManagerId?: string;
+  limit?:           number;
   nextToken?:     string;
 }
 
@@ -357,4 +362,66 @@ export interface RejectActionResponse {
   actionId: string;
   status:   'REJECTED';
   reason:   string;
+}
+
+// ─── IT Provisioning Module ─────────────────────────────────────────────────
+
+export type ProvisioningRequirementType = 'HARDWARE' | 'ACCESS' | 'SOFTWARE' | 'FACILITIES';
+export type ProvisioningItemStatus      = 'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'BREACHED';
+export type ProvisioningBundleStatus    = 'PENDING_REVIEW' | 'APPROVED' | 'IN_FULFILMENT' | 'READY';
+
+export interface ProvisioningItem {
+  id:           string;
+  type:         ProvisioningRequirementType;
+  label:        string;          // e.g. 'Laptop', 'Email account', 'Dev environment'
+  queue:        string;          // e.g. 'Hardware queue', 'Access & Identity'
+  status:       ProvisioningItemStatus;
+  notes?:       string;          // HM note for IT specialist
+  fromTemplate: boolean;         // true = auto-generated, false = manually added by HM
+  specNote?:    string;          // inline spec shown on review screen (e.g. 'Senior level — high performance spec required')
+}
+
+/** One step in the provisioning approval / fulfilment chain shown on the review sidebar */
+export interface ProvisioningApprovalChainStep {
+  id:       string;
+  type:     'HM' | 'QUEUE';
+  label:    string;   // e.g. 'Marcus Khumalo' or 'Hardware queue'
+  sublabel: string;   // e.g. 'Hiring Manager · Bundle review' or 'IT specialist · Laptop fulfilment'
+}
+
+export interface ProvisioningBundle {
+  id:             string;
+  candidateId:    string;
+  candidateName:  string;
+  candidateRole:  string;
+  seniority:      string;   // e.g. 'Senior', 'Mid'
+  department?:    string;   // e.g. 'Product Team'
+  startDate:      string;   // ISO 8601
+  items:          ProvisioningItem[];
+  slaStatus:      SlaHealthStatus;
+  templateName:   string;   // e.g. 'Senior PM template'
+  bundleStatus:   ProvisioningBundleStatus;
+  approvedAt?:    string;   // ISO 8601 — set when HM approves
+}
+
+/** Extended item for the Bundle Progress screen — includes fulfilment metadata */
+export interface ProvisioningItemProgress extends ProvisioningItem {
+  specialistName?:     string;           // null/absent = Unassigned
+  specialistInitials?: string;           // derived from specialistName for avatar
+  completedAt?:        string;           // ISO 8601 — set when COMPLETE
+  taskSlaStatus:       SlaHealthStatus;  // task-level SLA (may differ from bundle-level)
+}
+
+/** One event in the bundle-level activity log (Screen 3 — right sidebar) */
+export interface ActivityLogEntry {
+  id:        string;
+  type:      'APPROVAL' | 'COMPLETE' | 'BREACH' | 'INFO';
+  message:   string;   // e.g. 'System access SLA breached — task unassigned in Software queue'
+  detail:    string;   // e.g. 'Today · TA and HM notified'
+}
+
+/** Full bundle progress view — used on Screen 3 */
+export interface ProvisioningBundleProgress extends ProvisioningBundle {
+  items:       ProvisioningItemProgress[];
+  activityLog: ActivityLogEntry[];
 }

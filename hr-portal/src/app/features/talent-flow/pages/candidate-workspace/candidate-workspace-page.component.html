@@ -254,6 +254,36 @@
               <div class="tf-ws-timeline-loader">
                 <i class="pi pi-spin pi-spinner"></i> Loading interview data…
               </div>
+            } @else if (c.evaluationResult) {
+              <!-- Evaluation has been completed — show result, no further action needed -->
+              <div class="tf-round-card" [class.tf-round-card--passed]="c.evaluationResult === 'PASSED'" [class.tf-round-card--failed]="c.evaluationResult === 'FAILED'">
+                <div class="tf-round-header">
+                  <div class="tf-round-title">
+                    <i class="pi" [class.pi-check-circle]="c.evaluationResult === 'PASSED'" [class.pi-times-circle]="c.evaluationResult === 'FAILED'"
+                       [style.color]="c.evaluationResult === 'PASSED' ? 'var(--naleko-success, #22c55e)' : 'var(--naleko-danger, #ef4444)'"
+                       style="font-size:0.9rem"></i>
+                    Evaluation Completed
+                  </div>
+                  <span class="tf-round-status" [class.tf-round-status--passed]="c.evaluationResult === 'PASSED'" [class.tf-round-status--failed]="c.evaluationResult === 'FAILED'">
+                    {{ c.evaluationResult }}
+                  </span>
+                </div>
+                <div class="tf-round-meta" style="margin-top:0.5rem; display:flex; gap:1.25rem; flex-wrap:wrap">
+                  @if (c.finalScore != null) {
+                    <span>Panel Score: <strong>{{ c.finalScore | number:'1.1-2' }} / 10</strong></span>
+                  }
+                  <span>Stage: <strong>{{ stageLabels[c.currentStage] }}</strong></span>
+                </div>
+                @if (c.evaluationResult === 'FAILED') {
+                  <p style="margin-top:0.5rem; font-size:0.8rem; color:var(--naleko-text-muted,#94a3b8)">
+                    Candidate did not meet the minimum pass score. No offer will be created.
+                  </p>
+                } @else {
+                  <p style="margin-top:0.5rem; font-size:0.8rem; color:var(--naleko-text-muted,#94a3b8)">
+                    Offer creation has been triggered automatically.
+                  </p>
+                }
+              </div>
             } @else if (c.currentInterviewId) {
               <div class="tf-round-card tf-round-card--active">
                 <div class="tf-round-header">

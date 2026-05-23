@@ -18,6 +18,8 @@ import { environment } from '../../../../environments/environment';
  *   ComplianceOfficer, ITAdmin, FinanceLead, HRDirector
  */
 export interface TalentFlowUser {
+  /** Cognito subject (unique user UUID). Used as hiringManagerId on Candidate records. */
+  sub: string;
   email: string;
   givenName: string;
   familyName: string;
@@ -224,6 +226,7 @@ export class TalentFlowAuthService {
     const groups: string[] = payload['cognito:groups'] ?? [];
 
     return {
+      sub: payload['sub'] ?? '',
       email: payload['email'] ?? '',
       givenName,
       familyName,
