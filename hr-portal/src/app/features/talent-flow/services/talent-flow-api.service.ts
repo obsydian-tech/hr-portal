@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, catchError, from, switchMap, throwError, timeout } from 'rxjs';
+import { Observable, catchError, from, of, switchMap, throwError, timeout } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 // Pool consolidation (Epic 5): TF API Gateway authorizer now validates against
 // the Naleko pool. Naleko AuthService token is used for all TF API calls.
@@ -22,6 +22,7 @@ import {
   PipelineFilters,
   ConfigResponse,
   ConfigType,
+  ProvisioningBundle,
 } from '../models/talent-flow.models';
 
 export interface PipelineResponse {
@@ -364,6 +365,93 @@ export class TalentFlowApiService {
       timeout(API_TIMEOUT_MS),
       catchError(this.handleError),
     );
+  }
+
+  // IT Provisioning
+
+  /**
+   * TODO: wire to GET /v1/provisioning/bundles once Lambda is deployed.
+   * Returns bundles for the requesting HM (userId from JWT, scoped server-side).
+   */
+  getProvisioningBundles(): Observable<ProvisioningBundle[]> {
+    // ── MOCK DATA — replace with real HTTP call after Lambda is deployed ──
+    // TODO: wire to GET /v1/provisioning/bundles (scoped to HM userId from JWT)
+    const now = new Date();
+    const iso = (d: Date) => d.toISOString().split('T')[0];
+    const inDays = (n: number) => { const d = new Date(now); d.setDate(d.getDate() + n); return iso(d); };
+    const mock: ProvisioningBundle[] = [
+      {
+        id: 'bundle-001', candidateId: 'cand-sm', candidateName: 'Sarah Mitchell',
+        candidateRole: 'Product Manager', seniority: 'Senior',
+        startDate: inDays(39), slaStatus: 'BREACHED', templateName: 'Senior PM template',
+        bundleStatus: 'PENDING_REVIEW',
+        items: [
+          { id: 'i1', type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',      status: 'PENDING' },
+          { id: 'i2', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',   status: 'PENDING' },
+          { id: 'i3', type: 'ACCESS',     label: 'Access card',    queue: 'Facilities queue',    status: 'PENDING' },
+          { id: 'i4', type: 'SOFTWARE',   label: 'System access',  queue: 'Software queue',      status: 'PENDING' },
+        ],
+      },
+      {
+        id: 'bundle-002', candidateId: 'cand-jk', candidateName: 'James Kowalski',
+        candidateRole: 'Engineering Lead', seniority: 'Senior',
+        startDate: inDays(53), slaStatus: 'AT_RISK', templateName: 'Senior Engineer template',
+        bundleStatus: 'PENDING_REVIEW',
+        items: [
+          { id: 'i5', type: 'HARDWARE',   label: 'Laptop',           queue: 'Hardware queue',     status: 'PENDING' },
+          { id: 'i6', type: 'HARDWARE',   label: 'Mobile phone',     queue: 'Hardware queue',     status: 'PENDING' },
+          { id: 'i7', type: 'ACCESS',     label: 'Email account',    queue: 'Access & Identity',  status: 'PENDING' },
+          { id: 'i8', type: 'SOFTWARE',   label: 'Dev environment',  queue: 'Software queue',     status: 'PENDING' },
+        ],
+      },
+      {
+        id: 'bundle-003', candidateId: 'cand-pn', candidateName: 'Priya Naidoo',
+        candidateRole: 'Data Analyst', seniority: 'Mid',
+        startDate: inDays(10), slaStatus: 'AT_RISK', templateName: 'Mid Analyst template',
+        bundleStatus: 'IN_FULFILMENT', approvedAt: new Date(now.getTime() - 86400000 * 3).toISOString(),
+        items: [
+          { id: 'i9',  type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',     status: 'COMPLETE' },
+          { id: 'i10', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',  status: 'COMPLETE' },
+          { id: 'i11', type: 'ACCESS',     label: 'Access card',    queue: 'Facilities queue',   status: 'COMPLETE' },
+          { id: 'i12', type: 'SOFTWARE',   label: 'System access',  queue: 'Software queue',     status: 'BREACHED' },
+        ],
+      },
+      {
+        id: 'bundle-004', candidateId: 'cand-lb', candidateName: 'Liam Brooks',
+        candidateRole: 'UX Designer', seniority: 'Mid',
+        startDate: inDays(21), slaStatus: 'ON_TRACK', templateName: 'Mid Designer template',
+        bundleStatus: 'IN_FULFILMENT', approvedAt: new Date(now.getTime() - 86400000 * 2).toISOString(),
+        items: [
+          { id: 'i13', type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',     status: 'COMPLETE' },
+          { id: 'i14', type: 'SOFTWARE',   label: 'Design tools',   queue: 'Software queue',     status: 'IN_PROGRESS' },
+          { id: 'i15', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',  status: 'IN_PROGRESS' },
+        ],
+      },
+      {
+        id: 'bundle-005', candidateId: 'cand-tm', candidateName: 'Thabo Molefe',
+        candidateRole: 'Finance Analyst', seniority: 'Senior',
+        startDate: inDays(30), slaStatus: 'ON_TRACK', templateName: 'Senior Finance template',
+        bundleStatus: 'IN_FULFILMENT', approvedAt: new Date(now.getTime() - 86400000).toISOString(),
+        items: [
+          { id: 'i16', type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',     status: 'IN_PROGRESS' },
+          { id: 'i17', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',  status: 'PENDING' },
+          { id: 'i18', type: 'SOFTWARE',   label: 'Finance suite',  queue: 'Software queue',     status: 'PENDING' },
+        ],
+      },
+      {
+        id: 'bundle-006', candidateId: 'cand-nv', candidateName: 'Naledi van Wyk',
+        candidateRole: 'HR Business Partner', seniority: 'Senior',
+        startDate: inDays(14), slaStatus: 'ON_TRACK', templateName: 'Senior HR template',
+        bundleStatus: 'READY',
+        items: [
+          { id: 'i19', type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',     status: 'COMPLETE' },
+          { id: 'i20', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',  status: 'COMPLETE' },
+          { id: 'i21', type: 'ACCESS',     label: 'Access card',    queue: 'Facilities queue',   status: 'COMPLETE' },
+          { id: 'i22', type: 'SOFTWARE',   label: 'HRIS access',    queue: 'Software queue',     status: 'COMPLETE' },
+        ],
+      },
+    ];
+    return of(mock);
   }
 
   // Error Handling

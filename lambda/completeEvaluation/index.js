@@ -159,7 +159,28 @@ exports.handler = async (event) => {
     return serverError('Failed to update candidate evaluation record');
   }
 
-  // ── Step 6b: Publish EvaluationCompleted ───────────────────────────────
+  // ── Step 6b: Mark INTERVIEW record as COMPLETED ────────────────────────
+  if (saga.currentInterviewId) {
+    try {
+      await dynamo.send(new UpdateItemCommand({
+        TableName: STATE_TABLE,
+        Key: marshall({
+          PK: `CANDIDATE#${candidateId}`,
+          SK: `INTERVIEW#${saga.currentInterviewId}`,
+        }),
+        UpdateExpression: 'SET #s = :completed, completedAt = :at',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: marshall({ ':completed': 'COMPLETED', ':at': now }),
+      }));
+    } catch (err) {
+      // Non-fatal — SAGA and event already written; log and continue
+      console.warn('Failed to mark INTERVIEW record as COMPLETED', {
+        candidateId, interviewId: saga.currentInterviewId, error: err.message,
+      });
+    }
+  }
+
+  // ── Step 6c: Publish EvaluationCompleted ─────────────────────────────────
   await publishEvaluationCompleted({
     candidateId,
     tenantId,

@@ -1,0 +1,200 @@
+<!-- HM Provisioning Page — IT Request Module Screen 1 -->
+
+<!-- ── Page header ─────────────────────────────────────────────────────── -->
+<div class="hm-prov">
+
+  <div class="hm-prov__header">
+    <h1 class="hm-prov__title">Provisioning</h1>
+    <p class="hm-prov__sub">New hire IT provisioning bundles for your team</p>
+  </div>
+
+  <!-- ── Loading / Error ──────────────────────────────────────────────── -->
+  @if (loading()) {
+    <div class="hm-prov__loading">
+      <p-progressSpinner strokeWidth="3" />
+    </div>
+  } @else if (loadError()) {
+    <div class="hm-prov__error">
+      <i class="pi pi-exclamation-triangle"></i>
+      <p>{{ loadError() }}</p>
+    </div>
+  } @else {
+
+    <!-- ── Signal strip ───────────────────────────────────────────────── -->
+    <div class="hm-prov__strip">
+
+      <!-- Awaiting review -->
+      <div class="hm-prov__stat hm-prov__stat--danger">
+        <span class="hm-prov__stat-label">AWAITING YOUR REVIEW</span>
+        <span class="hm-prov__stat-count">{{ awaitingReviewCount() }}</span>
+        <span class="hm-prov__stat-sub">Bundle{{ awaitingReviewCount() === 1 ? '' : 's' }} pending approval</span>
+      </div>
+
+      <!-- In fulfilment -->
+      <div class="hm-prov__stat hm-prov__stat--warning">
+        <span class="hm-prov__stat-label">IN FULFILMENT</span>
+        <span class="hm-prov__stat-count">{{ inFulfilmentCount() }}</span>
+        <span class="hm-prov__stat-sub">
+          @if (fulfilmentAtRisk()) {
+            Tasks at risk of missing start date
+          } @else {
+            Tasks in progress
+          }
+        </span>
+      </div>
+
+      <!-- Ready for Day 1 -->
+      <div class="hm-prov__stat hm-prov__stat--success">
+        <span class="hm-prov__stat-label">READY FOR DAY 1</span>
+        <span class="hm-prov__stat-count">{{ readyCount() }}</span>
+        <span class="hm-prov__stat-sub">All tasks complete</span>
+      </div>
+
+    </div>
+
+    <!-- ── Pending your review ────────────────────────────────────────── -->
+    @if (pendingBundles().length > 0) {
+      <section class="hm-prov__section">
+        <div class="hm-prov__section-header">
+          <i class="pi pi-clock hm-prov__section-icon"></i>
+          <h2 class="hm-prov__section-title">PENDING YOUR REVIEW</h2>
+          <span class="hm-prov__section-badge">{{ pendingBundles().length }} BUNDLE{{ pendingBundles().length === 1 ? '' : 'S' }}</span>
+        </div>
+        @for (bundle of pendingBundles(); track bundle.id) {
+          <tf-provisioning-bundle-card
+            [bundle]="bundle"
+            (modify)="openModify($event)"
+            (approve)="approveBundle($event)"
+          />
+        }
+      </section>
+    }
+
+    <!-- ── In fulfilment ─────────────────────────────────────────────── -->
+    @if (fulfilmentBundles().length > 0) {
+      <section class="hm-prov__section">
+        <div class="hm-prov__section-header">
+          <i class="pi pi-sync hm-prov__section-icon hm-prov__section-icon--spin"></i>
+          <h2 class="hm-prov__section-title">IN FULFILMENT</h2>
+          <span class="hm-prov__section-badge hm-prov__section-badge--active">{{ inFulfilmentCount() }} ACTIVE</span>
+          @if (hiddenFulfilmentCount() > 0 && !showAllFulfilment()) {
+            <a class="hm-prov__view-all" (click)="showAllFulfilment.set(true)">
+              View all <i class="pi pi-arrow-right"></i>
+            </a>
+          } @else if (showAllFulfilment() && fulfilmentBundles().length > 3) {
+            <a class="hm-prov__view-all" (click)="showAllFulfilment.set(false)">
+              Show less <i class="pi pi-arrow-up"></i>
+            </a>
+          }
+        </div>
+        @for (bundle of visibleFulfilment(); track bundle.id) {
+          <tf-provisioning-bundle-card
+            [bundle]="bundle"
+            (viewDetails)="viewDetails($event)"
+          />
+        }
+      </section>
+    }
+
+    <!-- ── All empty ─────────────────────────────────────────────────── -->
+    @if (pendingBundles().length === 0 && fulfilmentBundles().length === 0 && readyCount() === 0) {
+      <div class="hm-prov__empty">
+        <i class="pi pi-check-circle"></i>
+        <p>No provisioning bundles yet. They will appear here once candidates reach the pre-boarding stage.</p>
+      </div>
+    }
+
+  }
+
+</div>
+
+<!-- ── Modify Bundle Drawer ─────────────────────────────────────────────── -->
+<p-drawer
+  [visible]="modifyDrawerOpen()"
+  (visibleChange)="modifyDrawerOpen.set($event)"
+  position="right"
+  [style]="{ width: '520px' }"
+  [showCloseIcon]="false"
+  styleClass="tf-prov-modify-drawer"
+>
+  <ng-template pTemplate="header">
+    <div class="tf-drawer-header">
+      <div class="tf-drawer-header__left">
+        <span class="tf-drawer-title">Modify Bundle</span>
+        @if (modifyTarget(); as t) {
+          <span class="tf-drawer-sub">{{ t.candidateName }} · {{ t.templateName }}</span>
+        }
+      </div>
+      <p-button
+        icon="pi pi-times"
+        [text]="true"
+        [rounded]="true"
+        (onClick)="closeModify()"
+      />
+    </div>
+  </ng-template>
+
+  @if (modifyTarget(); as target) {
+    <div class="prov-modify">
+
+      <p class="prov-modify__hint">
+        Add or remove provisioning requirements before approving. Changes apply to this bundle only.
+      </p>
+
+      <!-- Item list -->
+      <div class="prov-modify__list">
+        @for (item of editItems(); track item.id) {
+          <div class="prov-modify__item">
+            <div class="prov-modify__item-icon">
+              <i class="pi {{ typeIcon(item.type) }}"></i>
+            </div>
+            <div class="prov-modify__item-body">
+              <span class="prov-modify__item-type">{{ typeLabelFor(item.type) }}</span>
+              <span class="prov-modify__item-label">{{ item.label }}</span>
+              <span class="prov-modify__item-queue">{{ item.queue }}</span>
+            </div>
+            <p-button
+              icon="pi pi-trash"
+              [text]="true"
+              [rounded]="true"
+              severity="danger"
+              styleClass="prov-modify__remove-btn"
+              (onClick)="removeEditItem(item.id)"
+            />
+          </div>
+        }
+        @if (editItems().length === 0) {
+          <div class="prov-modify__empty">
+            <i class="pi pi-inbox"></i>
+            <span>No requirements. Add items below.</span>
+          </div>
+        }
+      </div>
+
+      <!-- Add requirement row — placeholder for Phase 2 (real add form) -->
+      <div class="prov-modify__add-row">
+        <span class="prov-modify__add-hint">
+          <i class="pi pi-info-circle"></i>
+          Full requirement library available in Phase 2.
+        </span>
+      </div>
+
+      <!-- Footer actions -->
+      <div class="prov-modify__footer">
+        <p-button
+          label="Cancel"
+          styleClass="prov-modify__btn prov-modify__btn--cancel"
+          [outlined]="true"
+          (onClick)="closeModify()"
+        />
+        <p-button
+          label="Save changes"
+          icon="pi pi-check"
+          styleClass="prov-modify__btn prov-modify__btn--save"
+          (onClick)="saveModify()"
+        />
+      </div>
+
+    </div>
+  }
+</p-drawer>

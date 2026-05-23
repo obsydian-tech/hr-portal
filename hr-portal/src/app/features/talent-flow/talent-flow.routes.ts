@@ -64,6 +64,14 @@ export const talentFlowRoutes: Routes = [
             (m) => m.HmDashboardPageComponent,
           ),
       },
+      // ── HM Provisioning (IT Request Module) ──────────────────────────
+      {
+        path: 'hm-provisioning',
+        loadComponent: () =>
+          import('./pages/hm-provisioning/hm-provisioning-page.component').then(
+            (m) => m.HmProvisioningPageComponent,
+          ),
+      },
       // ── Reports (placeholder — Phase C/D) ────────────────────────────
       {
         path: 'reports',

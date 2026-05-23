@@ -363,3 +363,31 @@ export interface RejectActionResponse {
   status:   'REJECTED';
   reason:   string;
 }
+
+// ─── IT Provisioning Module ─────────────────────────────────────────────────
+
+export type ProvisioningRequirementType = 'HARDWARE' | 'ACCESS' | 'SOFTWARE' | 'FACILITIES';
+export type ProvisioningItemStatus      = 'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'BREACHED';
+export type ProvisioningBundleStatus    = 'PENDING_REVIEW' | 'APPROVED' | 'IN_FULFILMENT' | 'READY';
+
+export interface ProvisioningItem {
+  id:       string;
+  type:     ProvisioningRequirementType;
+  label:    string;   // e.g. 'Laptop', 'Email account', 'Dev environment'
+  queue:    string;   // e.g. 'Hardware queue', 'Access & Identity'
+  status:   ProvisioningItemStatus;
+}
+
+export interface ProvisioningBundle {
+  id:             string;
+  candidateId:    string;
+  candidateName:  string;
+  candidateRole:  string;
+  seniority:      string;   // e.g. 'Senior', 'Mid'
+  startDate:      string;   // ISO 8601
+  items:          ProvisioningItem[];
+  slaStatus:      SlaHealthStatus;
+  templateName:   string;   // e.g. 'Senior PM template'
+  bundleStatus:   ProvisioningBundleStatus;
+  approvedAt?:    string;   // ISO 8601 — set when HM approves
+}
