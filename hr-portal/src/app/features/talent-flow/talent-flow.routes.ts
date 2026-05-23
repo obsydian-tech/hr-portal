@@ -72,6 +72,14 @@ export const talentFlowRoutes: Routes = [
             (m) => m.HmProvisioningPageComponent,
           ),
       },
+      // ── HM Bundle Review Screen (Screen 2) ───────────────────────────
+      {
+        path: 'hm-provisioning/:bundleId/review',
+        loadComponent: () =>
+          import('./pages/hm-bundle-review/hm-bundle-review-page.component').then(
+            (m) => m.HmBundleReviewPageComponent,
+          ),
+      },
       // ── Reports (placeholder — Phase C/D) ────────────────────────────
       {
         path: 'reports',

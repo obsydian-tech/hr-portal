@@ -382,76 +382,89 @@ export class TalentFlowApiService {
     const mock: ProvisioningBundle[] = [
       {
         id: 'bundle-001', candidateId: 'cand-sm', candidateName: 'Sarah Mitchell',
-        candidateRole: 'Product Manager', seniority: 'Senior',
+        candidateRole: 'Product Manager', seniority: 'Senior', department: 'Product Team',
         startDate: inDays(39), slaStatus: 'BREACHED', templateName: 'Senior PM template',
         bundleStatus: 'PENDING_REVIEW',
         items: [
-          { id: 'i1', type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',      status: 'PENDING' },
-          { id: 'i2', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',   status: 'PENDING' },
-          { id: 'i3', type: 'ACCESS',     label: 'Access card',    queue: 'Facilities queue',    status: 'PENDING' },
-          { id: 'i4', type: 'SOFTWARE',   label: 'System access',  queue: 'Software queue',      status: 'PENDING' },
+          { id: 'i1', type: 'HARDWARE', label: 'Laptop',        queue: 'Hardware queue',    status: 'PENDING', fromTemplate: true,  specNote: 'Senior level — high performance spec required' },
+          { id: 'i2', type: 'ACCESS',   label: 'Email account', queue: 'Access & Identity', status: 'PENDING', fromTemplate: true  },
+          { id: 'i3', type: 'ACCESS',   label: 'Access card',   queue: 'Facilities queue',  status: 'PENDING', fromTemplate: true  },
+          { id: 'i4', type: 'SOFTWARE', label: 'System access', queue: 'Software queue',    status: 'PENDING', fromTemplate: true,  specNote: 'Product management tools — Jira, Confluence, Figma, Analytics suite' },
         ],
       },
       {
         id: 'bundle-002', candidateId: 'cand-jk', candidateName: 'James Kowalski',
-        candidateRole: 'Engineering Lead', seniority: 'Senior',
+        candidateRole: 'Engineering Lead', seniority: 'Senior', department: 'Engineering',
         startDate: inDays(53), slaStatus: 'AT_RISK', templateName: 'Senior Engineer template',
         bundleStatus: 'PENDING_REVIEW',
         items: [
-          { id: 'i5', type: 'HARDWARE',   label: 'Laptop',           queue: 'Hardware queue',     status: 'PENDING' },
-          { id: 'i6', type: 'HARDWARE',   label: 'Mobile phone',     queue: 'Hardware queue',     status: 'PENDING' },
-          { id: 'i7', type: 'ACCESS',     label: 'Email account',    queue: 'Access & Identity',  status: 'PENDING' },
-          { id: 'i8', type: 'SOFTWARE',   label: 'Dev environment',  queue: 'Software queue',     status: 'PENDING' },
+          { id: 'i5', type: 'HARDWARE', label: 'Laptop',          queue: 'Hardware queue',    status: 'PENDING', fromTemplate: true,  specNote: 'Senior level — high performance spec required' },
+          { id: 'i6', type: 'HARDWARE', label: 'Mobile phone',    queue: 'Hardware queue',    status: 'PENDING', fromTemplate: true  },
+          { id: 'i7', type: 'ACCESS',   label: 'Email account',   queue: 'Access & Identity', status: 'PENDING', fromTemplate: true  },
+          { id: 'i8', type: 'SOFTWARE', label: 'Dev environment', queue: 'Software queue',    status: 'PENDING', fromTemplate: true,  specNote: 'Full dev stack — GitHub, AWS console, CI/CD access' },
         ],
       },
       {
         id: 'bundle-003', candidateId: 'cand-pn', candidateName: 'Priya Naidoo',
-        candidateRole: 'Data Analyst', seniority: 'Mid',
+        candidateRole: 'Data Analyst', seniority: 'Mid', department: 'Analytics',
         startDate: inDays(10), slaStatus: 'AT_RISK', templateName: 'Mid Analyst template',
         bundleStatus: 'IN_FULFILMENT', approvedAt: new Date(now.getTime() - 86400000 * 3).toISOString(),
         items: [
-          { id: 'i9',  type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',     status: 'COMPLETE' },
-          { id: 'i10', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',  status: 'COMPLETE' },
-          { id: 'i11', type: 'ACCESS',     label: 'Access card',    queue: 'Facilities queue',   status: 'COMPLETE' },
-          { id: 'i12', type: 'SOFTWARE',   label: 'System access',  queue: 'Software queue',     status: 'BREACHED' },
+          { id: 'i9',  type: 'HARDWARE', label: 'Laptop',        queue: 'Hardware queue',    status: 'COMPLETE',  fromTemplate: true },
+          { id: 'i10', type: 'ACCESS',   label: 'Email account', queue: 'Access & Identity', status: 'COMPLETE',  fromTemplate: true },
+          { id: 'i11', type: 'ACCESS',   label: 'Access card',   queue: 'Facilities queue',  status: 'COMPLETE',  fromTemplate: true },
+          { id: 'i12', type: 'SOFTWARE', label: 'System access', queue: 'Software queue',    status: 'BREACHED',  fromTemplate: true },
         ],
       },
       {
         id: 'bundle-004', candidateId: 'cand-lb', candidateName: 'Liam Brooks',
-        candidateRole: 'UX Designer', seniority: 'Mid',
+        candidateRole: 'UX Designer', seniority: 'Mid', department: 'Design',
         startDate: inDays(21), slaStatus: 'ON_TRACK', templateName: 'Mid Designer template',
         bundleStatus: 'IN_FULFILMENT', approvedAt: new Date(now.getTime() - 86400000 * 2).toISOString(),
         items: [
-          { id: 'i13', type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',     status: 'COMPLETE' },
-          { id: 'i14', type: 'SOFTWARE',   label: 'Design tools',   queue: 'Software queue',     status: 'IN_PROGRESS' },
-          { id: 'i15', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',  status: 'IN_PROGRESS' },
+          { id: 'i13', type: 'HARDWARE', label: 'Laptop',       queue: 'Hardware queue',    status: 'COMPLETE',    fromTemplate: true },
+          { id: 'i14', type: 'SOFTWARE', label: 'Design tools', queue: 'Software queue',    status: 'IN_PROGRESS', fromTemplate: true, specNote: 'Figma, Adobe CC, Zeplin' },
+          { id: 'i15', type: 'ACCESS',   label: 'Email account',queue: 'Access & Identity', status: 'IN_PROGRESS', fromTemplate: true },
         ],
       },
       {
         id: 'bundle-005', candidateId: 'cand-tm', candidateName: 'Thabo Molefe',
-        candidateRole: 'Finance Analyst', seniority: 'Senior',
+        candidateRole: 'Finance Analyst', seniority: 'Senior', department: 'Finance',
         startDate: inDays(30), slaStatus: 'ON_TRACK', templateName: 'Senior Finance template',
         bundleStatus: 'IN_FULFILMENT', approvedAt: new Date(now.getTime() - 86400000).toISOString(),
         items: [
-          { id: 'i16', type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',     status: 'IN_PROGRESS' },
-          { id: 'i17', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',  status: 'PENDING' },
-          { id: 'i18', type: 'SOFTWARE',   label: 'Finance suite',  queue: 'Software queue',     status: 'PENDING' },
+          { id: 'i16', type: 'HARDWARE', label: 'Laptop',        queue: 'Hardware queue',    status: 'IN_PROGRESS', fromTemplate: true },
+          { id: 'i17', type: 'ACCESS',   label: 'Email account', queue: 'Access & Identity', status: 'PENDING',     fromTemplate: true },
+          { id: 'i18', type: 'SOFTWARE', label: 'Finance suite', queue: 'Software queue',    status: 'PENDING',     fromTemplate: true, specNote: 'SAP, PowerBI, Excel 365' },
         ],
       },
       {
         id: 'bundle-006', candidateId: 'cand-nv', candidateName: 'Naledi van Wyk',
-        candidateRole: 'HR Business Partner', seniority: 'Senior',
+        candidateRole: 'HR Business Partner', seniority: 'Senior', department: 'Human Resources',
         startDate: inDays(14), slaStatus: 'ON_TRACK', templateName: 'Senior HR template',
         bundleStatus: 'READY',
         items: [
-          { id: 'i19', type: 'HARDWARE',   label: 'Laptop',         queue: 'Hardware queue',     status: 'COMPLETE' },
-          { id: 'i20', type: 'ACCESS',     label: 'Email account',  queue: 'Access & Identity',  status: 'COMPLETE' },
-          { id: 'i21', type: 'ACCESS',     label: 'Access card',    queue: 'Facilities queue',   status: 'COMPLETE' },
-          { id: 'i22', type: 'SOFTWARE',   label: 'HRIS access',    queue: 'Software queue',     status: 'COMPLETE' },
+          { id: 'i19', type: 'HARDWARE', label: 'Laptop',       queue: 'Hardware queue',    status: 'COMPLETE', fromTemplate: true },
+          { id: 'i20', type: 'ACCESS',   label: 'Email account',queue: 'Access & Identity', status: 'COMPLETE', fromTemplate: true },
+          { id: 'i21', type: 'ACCESS',   label: 'Access card',  queue: 'Facilities queue',  status: 'COMPLETE', fromTemplate: true },
+          { id: 'i22', type: 'SOFTWARE', label: 'HRIS access',  queue: 'Software queue',    status: 'COMPLETE', fromTemplate: true },
         ],
       },
     ];
     return of(mock);
+  }
+
+  /**
+   * TODO: wire to GET /v1/provisioning/bundles/:id once Lambda is deployed.
+   * Returns single bundle by id from the mock dataset.
+   */
+  getProvisioningBundle(id: string): Observable<ProvisioningBundle | undefined> {
+    return new Observable((observer) => {
+      this.getProvisioningBundles().subscribe((bundles) => {
+        observer.next(bundles.find((b) => b.id === id));
+        observer.complete();
+      });
+    });
   }
 
   // Error Handling

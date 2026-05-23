@@ -371,11 +371,22 @@ export type ProvisioningItemStatus      = 'PENDING' | 'IN_PROGRESS' | 'COMPLETE'
 export type ProvisioningBundleStatus    = 'PENDING_REVIEW' | 'APPROVED' | 'IN_FULFILMENT' | 'READY';
 
 export interface ProvisioningItem {
+  id:           string;
+  type:         ProvisioningRequirementType;
+  label:        string;          // e.g. 'Laptop', 'Email account', 'Dev environment'
+  queue:        string;          // e.g. 'Hardware queue', 'Access & Identity'
+  status:       ProvisioningItemStatus;
+  notes?:       string;          // HM note for IT specialist
+  fromTemplate: boolean;         // true = auto-generated, false = manually added by HM
+  specNote?:    string;          // inline spec shown on review screen (e.g. 'Senior level — high performance spec required')
+}
+
+/** One step in the provisioning approval / fulfilment chain shown on the review sidebar */
+export interface ProvisioningApprovalChainStep {
   id:       string;
-  type:     ProvisioningRequirementType;
-  label:    string;   // e.g. 'Laptop', 'Email account', 'Dev environment'
-  queue:    string;   // e.g. 'Hardware queue', 'Access & Identity'
-  status:   ProvisioningItemStatus;
+  type:     'HM' | 'QUEUE';
+  label:    string;   // e.g. 'Marcus Khumalo' or 'Hardware queue'
+  sublabel: string;   // e.g. 'Hiring Manager · Bundle review' or 'IT specialist · Laptop fulfilment'
 }
 
 export interface ProvisioningBundle {
@@ -384,6 +395,7 @@ export interface ProvisioningBundle {
   candidateName:  string;
   candidateRole:  string;
   seniority:      string;   // e.g. 'Senior', 'Mid'
+  department?:    string;   // e.g. 'Product Team'
   startDate:      string;   // ISO 8601
   items:          ProvisioningItem[];
   slaStatus:      SlaHealthStatus;

@@ -6,6 +6,7 @@ import {
   computed,
   OnInit,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { DrawerModule } from 'primeng/drawer';
 import { ButtonModule } from 'primeng/button';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -46,6 +47,7 @@ export class HmProvisioningPageComponent implements OnInit {
   private readonly api      = inject(TalentFlowApiService);
   protected readonly tfAuth = inject(TalentFlowAuthService);
   private readonly auth     = inject(AuthService);
+  private readonly router   = inject(Router);
 
   // ── State ───────────────────────────────────────────────────────────────
 
@@ -144,14 +146,8 @@ export class HmProvisioningPageComponent implements OnInit {
   }
 
   protected approveBundle(bundle: ProvisioningBundle): void {
-    // TODO: wire POST /v1/provisioning/bundles/:id/approve
-    this.bundles.update((list) =>
-      list.map((b) =>
-        b.id === bundle.id
-          ? { ...b, bundleStatus: 'IN_FULFILMENT', approvedAt: new Date().toISOString() }
-          : b,
-      ),
-    );
+    // Navigate to the full review screen (Screen 2) — approval happens there
+    void this.router.navigate(['/platform/talentflow/hm-provisioning', bundle.id, 'review']);
   }
 
   protected viewDetails(bundle: ProvisioningBundle): void {
