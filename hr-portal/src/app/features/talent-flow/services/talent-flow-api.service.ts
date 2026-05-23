@@ -23,6 +23,9 @@ import {
   ConfigResponse,
   ConfigType,
   ProvisioningBundle,
+  ProvisioningBundleProgress,
+  ProvisioningItemProgress,
+  ActivityLogEntry,
 } from '../models/talent-flow.models';
 
 export interface PipelineResponse {
@@ -462,6 +465,107 @@ export class TalentFlowApiService {
     return new Observable((observer) => {
       this.getProvisioningBundles().subscribe((bundles) => {
         observer.next(bundles.find((b) => b.id === id));
+        observer.complete();
+      });
+    });
+  }
+
+  /**
+   * TODO: wire to GET /v1/provisioning/bundles/:id/progress once Lambda is deployed.
+   * Returns full bundle progress view — items with specialist data + activity log.
+   */
+  getProvisioningBundleProgress(id: string): Observable<ProvisioningBundleProgress | undefined> {
+    const now = new Date();
+    const iso = (d: Date) => d.toISOString().split('T')[0];
+    const inDays = (n: number) => { const d = new Date(now); d.setDate(d.getDate() + n); return iso(d); };
+    const daysAgo = (n: number) => new Date(now.getTime() - 86400000 * n).toISOString();
+
+    // ── Rich mock for Priya Naidoo (bundle-003) — matches Screen 3 design ──
+    const progressMocks: Record<string, ProvisioningBundleProgress> = {
+      'bundle-003': {
+        id: 'bundle-003', candidateId: 'cand-pn', candidateName: 'Priya Naidoo',
+        candidateRole: 'Data Analyst', seniority: 'Mid', department: 'Analytics Team',
+        startDate: inDays(10), slaStatus: 'BREACHED', templateName: 'Mid Analyst template',
+        bundleStatus: 'IN_FULFILMENT', approvedAt: daysAgo(5),
+        items: [
+          {
+            id: 'i9', type: 'HARDWARE', label: 'Laptop', queue: 'Hardware queue',
+            status: 'COMPLETE', fromTemplate: true,
+            specialistName: 'Tom M.', specialistInitials: 'TM',
+            completedAt: daysAgo(3), taskSlaStatus: 'ON_TRACK',
+          },
+          {
+            id: 'i10', type: 'ACCESS', label: 'Email account', queue: 'Access & Identity queue',
+            status: 'COMPLETE', fromTemplate: true,
+            specialistName: 'Kim L.', specialistInitials: 'KL',
+            completedAt: daysAgo(2), taskSlaStatus: 'ON_TRACK',
+          },
+          {
+            id: 'i11', type: 'FACILITIES', label: 'Access card', queue: 'Facilities queue',
+            status: 'COMPLETE', fromTemplate: true,
+            specialistName: 'Nomsa Z.', specialistInitials: 'NZ',
+            completedAt: daysAgo(1), taskSlaStatus: 'ON_TRACK',
+          },
+          {
+            id: 'i12', type: 'SOFTWARE', label: 'System access', queue: 'Software queue',
+            status: 'BREACHED', fromTemplate: true,
+            notes: 'Analytics suite access required — Tableau, BigQuery, dbt, Looker. Priya cannot start without this.',
+            taskSlaStatus: 'BREACHED',
+            // no specialistName/Initials — Unassigned
+          },
+        ] as ProvisioningItemProgress[],
+        activityLog: [
+          {
+            id: 'log-1', type: 'BREACH',
+            message: 'System access SLA breached — task unassigned in Software queue',
+            detail: 'Today · TA and HM notified',
+          },
+          {
+            id: 'log-2', type: 'COMPLETE',
+            message: 'Access card complete — marked ready by Nomsa Z.',
+            detail: 'Yesterday · Facilities queue',
+          },
+          {
+            id: 'log-3', type: 'COMPLETE',
+            message: 'Email account complete — marked ready by Kim L.',
+            detail: '2 days ago · Access & Identity queue',
+          },
+          {
+            id: 'log-4', type: 'COMPLETE',
+            message: 'Laptop complete — marked ready by Tom M.',
+            detail: '3 days ago · Hardware queue',
+          },
+          {
+            id: 'log-5', type: 'APPROVAL',
+            message: 'Bundle approved by Marcus Khumalo — tasks routed to queues',
+            detail: '5 days ago',
+          },
+        ] as ActivityLogEntry[],
+      },
+    };
+
+    // For any other in-fulfilment bundle id not in the detailed mock map,
+    // synthesise a basic progress view from the base mock.
+    return new Observable((observer) => {
+      if (progressMocks[id]) {
+        observer.next(progressMocks[id]);
+        observer.complete();
+        return;
+      }
+      this.getProvisioningBundles().subscribe((bundles) => {
+        const base = bundles.find((b) => b.id === id);
+        if (!base) { observer.next(undefined); observer.complete(); return; }
+        const progress: ProvisioningBundleProgress = {
+          ...base,
+          items: base.items.map((item) => ({
+            ...item,
+            taskSlaStatus: item.status === 'BREACHED' ? 'BREACHED' : 'ON_TRACK',
+          } as ProvisioningItemProgress)),
+          activityLog: [
+            { id: 'log-a', type: 'APPROVAL', message: `Bundle approved — tasks routed to queues`, detail: 'Recently' },
+          ],
+        };
+        observer.next(progress);
         observer.complete();
       });
     });

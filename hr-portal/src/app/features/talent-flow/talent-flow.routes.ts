@@ -80,6 +80,14 @@ export const talentFlowRoutes: Routes = [
             (m) => m.HmBundleReviewPageComponent,
           ),
       },
+      // ── HM Bundle Progress Screen (Screen 3) ─────────────────────────
+      {
+        path: 'hm-provisioning/:bundleId/progress',
+        loadComponent: () =>
+          import('./pages/hm-bundle-progress/hm-bundle-progress-page.component').then(
+            (m) => m.HmBundleProgressPageComponent,
+          ),
+      },
       // ── Reports (placeholder — Phase C/D) ────────────────────────────
       {
         path: 'reports',

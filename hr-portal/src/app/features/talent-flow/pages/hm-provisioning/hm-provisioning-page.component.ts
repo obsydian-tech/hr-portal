@@ -151,8 +151,7 @@ export class HmProvisioningPageComponent implements OnInit {
   }
 
   protected viewDetails(bundle: ProvisioningBundle): void {
-    // TODO: navigate to bundle detail screen (Screen 4 — IT Specialist Task Detail)
-    console.log('View details:', bundle.id);
+    void this.router.navigate(['/platform/talentflow/hm-provisioning', bundle.id, 'progress']);
   }
 
   protected typeIcon(type: ProvisioningRequirementType): string {

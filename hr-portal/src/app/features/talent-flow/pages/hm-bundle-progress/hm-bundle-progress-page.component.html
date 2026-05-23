@@ -1,0 +1,336 @@
+<!-- Screen 3 — Bundle Progress (IT Request Module) -->
+
+@if (loading()) {
+  <div class="bp-loading"><p-progressSpinner strokeWidth="3" /></div>
+} @else if (loadError()) {
+  <div class="bp-error">
+    <i class="pi pi-exclamation-triangle"></i>
+    <p>{{ loadError() }}</p>
+    <p-button label="Back" icon="pi pi-arrow-left" [outlined]="true" (onClick)="goBack()" />
+  </div>
+} @else {
+@if (bundle(); as b) {
+
+  <!-- Breadcrumb -->
+  <nav class="bp-breadcrumb" aria-label="Breadcrumb">
+    <a class="bp-breadcrumb__link" routerLink="/platform/talentflow/hm-provisioning">Provisioning</a>
+    <i class="pi pi-chevron-right bp-breadcrumb__sep"></i>
+    <span class="bp-breadcrumb__current">Bundle progress — {{ b.candidateName }}</span>
+  </nav>
+
+  <!-- Page header -->
+  <div class="bp-page-header">
+    <h1 class="bp-page-header__title">Bundle progress</h1>
+    <p class="bp-page-header__sub">
+      Approved · In fulfilment · {{ completedCount() }} of {{ totalCount() }} tasks complete
+    </p>
+  </div>
+
+  <!-- ── Two-column layout ──────────────────────────────────────────────── -->
+  <div class="bp-layout">
+
+    <!-- ── LEFT COLUMN ──────────────────────────────────────────────────── -->
+    <div class="bp-main">
+
+      <!-- Candidate strip + progress summary -->
+      <section class="bp-card bp-candidate">
+        <div class="bp-candidate__label">
+          <i class="pi pi-user"></i>
+          <span>NEW HIRE</span>
+        </div>
+        <div class="bp-candidate__body">
+          <div class="bp-candidate__avatar"
+               [style.background]="avatarColour(b.candidateName)">
+            {{ avatarInitials(b.candidateName) }}
+          </div>
+          <div class="bp-candidate__info">
+            <span class="bp-candidate__name">{{ b.candidateName }}</span>
+            <div class="bp-candidate__tags">
+              <span class="bp-tag bp-tag--seniority">{{ b.seniority | uppercase }}</span>
+              <span class="bp-tag bp-tag--role">{{ b.candidateRole }}</span>
+              @if (b.department) {
+                <span class="bp-tag bp-tag--dept">{{ b.department }}</span>
+              }
+            </div>
+          </div>
+          <div class="bp-candidate__dates">
+            <div class="bp-candidate__start">
+              <i class="pi pi-calendar"></i>
+              Starts {{ startDateFormatted(b.startDate) }}
+            </div>
+            @if (daysToStart(); as d) {
+              <div class="bp-candidate__days"
+                   [class.bp-candidate__days--urgent]="d <= 14"
+                   [class.bp-candidate__days--warning]="d > 14 && d <= 30">
+                <i class="pi pi-clock"></i>
+                @if (d < 0) { Start date passed } @else { {{ d }} days to start }
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Overall progress bar -->
+        <div class="bp-progress">
+          <div class="bp-progress__row">
+            <span class="bp-progress__label">Overall bundle completion</span>
+            <span class="bp-progress__pct">{{ progressPct() }}%</span>
+          </div>
+          <div class="bp-progress__track">
+            <div class="bp-progress__fill"
+                 [class.bp-progress__fill--breached]="hasBreachedTask()"
+                 [style.width.%]="progressPct()"></div>
+          </div>
+        </div>
+
+        <!-- Four-count summary strip -->
+        <div class="bp-summary">
+          <div class="bp-summary__cell bp-summary__cell--complete">
+            <span class="bp-summary__num">{{ completedCount() }}</span>
+            <span class="bp-summary__lbl">COMPLETE</span>
+          </div>
+          <div class="bp-summary__cell bp-summary__cell--breached">
+            <span class="bp-summary__num">{{ breachedCount() }}</span>
+            <span class="bp-summary__lbl">BREACHED</span>
+          </div>
+          <div class="bp-summary__cell bp-summary__cell--inprogress">
+            <span class="bp-summary__num">{{ inProgressCount() }}</span>
+            <span class="bp-summary__lbl">IN PROGRESS</span>
+          </div>
+          <div class="bp-summary__cell bp-summary__cell--pending">
+            <span class="bp-summary__num">{{ pendingCount() }}</span>
+            <span class="bp-summary__lbl">PENDING</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Signal Intelligence — fires only when a task is breached -->
+      @if (hasBreachedTask()) {
+        <div class="bp-signal bp-signal--breached">
+          <div class="bp-signal__header">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>SIGNAL INTELLIGENCE</span>
+          </div>
+          @for (item of breachedItems(); track item.id) {
+            <p class="bp-signal__body">
+              {{ item.label }} is breached with {{ daysToStart() }} days to start.
+              {{ b.candidateName.split(' ')[0] }} cannot work on Day 1 without this.
+              Escalate to the {{ item.queue }} now or add a note for the assigned specialist.
+            </p>
+          }
+        </div>
+      }
+
+      <!-- Task list -->
+      <section class="bp-card bp-tasks">
+        <div class="bp-tasks__header">
+          <i class="pi pi-list"></i>
+          <span>REQUIREMENTS</span>
+        </div>
+
+        <div class="bp-task-list">
+          @for (item of b.items; track item.id) {
+            <div class="bp-task"
+                 [class.bp-task--complete]="item.status === 'COMPLETE'"
+                 [class.bp-task--breached]="item.status === 'BREACHED'"
+                 [class.bp-task--inprogress]="item.status === 'IN_PROGRESS'">
+
+              <!-- Main row -->
+              <div class="bp-task__row">
+
+                <!-- Status icon (left of icon-wrap) -->
+                <div class="bp-task__status-icon">
+                  @if (item.status === 'COMPLETE') {
+                    <i class="pi pi-check-circle bp-task__status-icon--complete"></i>
+                  } @else if (item.status === 'BREACHED') {
+                    <i class="pi pi-times-circle bp-task__status-icon--breached"></i>
+                  } @else {
+                    <i class="pi pi-circle bp-task__status-icon--pending"></i>
+                  }
+                </div>
+
+                <!-- Type icon -->
+                <div class="bp-task__icon-wrap" [style.background]="typeColour(item.type) + '18'">
+                  <i class="pi {{ typeIcon(item.type) }}" [style.color]="typeColour(item.type)"></i>
+                </div>
+
+                <!-- Body -->
+                <div class="bp-task__body">
+                  <div class="bp-task__top">
+                    <span class="bp-task__label">{{ item.label }}</span>
+                    <span class="bp-task__type-badge bp-task__type-badge--{{ item.type }}">{{ item.type }}</span>
+                    <span class="bp-task__arrow"><i class="pi pi-arrow-right"></i></span>
+                    <span class="bp-task__queue">{{ item.queue }}</span>
+                  </div>
+
+                  <!-- Specialist row -->
+                  <div class="bp-task__specialist">
+                    @if (item.specialistName) {
+                      <div class="bp-task__specialist-avatar">{{ item.specialistInitials }}</div>
+                      <span class="bp-task__specialist-name">{{ item.specialistName }}</span>
+                    } @else {
+                      <div class="bp-task__specialist-avatar bp-task__specialist-avatar--unassigned">
+                        <i class="pi pi-ban"></i>
+                      </div>
+                      <span class="bp-task__unassigned">Unassigned</span>
+                    }
+                  </div>
+
+                  <!-- HM note (if present, shown on task row only) -->
+                  @if (item.notes) {
+                    <p class="bp-task__note">
+                      <i class="pi pi-comment"></i> {{ item.notes }}
+                    </p>
+                  }
+                </div>
+
+                <!-- Right: status badge -->
+                <div class="bp-task__right">
+                  <span class="bp-task__badge bp-task__badge--{{ item.status }}">
+                    {{ item.status === 'IN_PROGRESS' ? 'IN PROGRESS' : item.status }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- SLA health bar (full width, below the row) -->
+              <div class="bp-task__bar bp-task__bar--{{ item.taskSlaStatus }}"></div>
+
+              <!-- Inline status label below bar -->
+              <div class="bp-task__bar-label bp-task__bar-label--{{ item.taskSlaStatus }}">
+                {{ item.taskSlaStatus }}
+              </div>
+
+              <!-- Breached task: Add Note + Escalate inline actions -->
+              @if (item.status === 'BREACHED') {
+                @if (addNoteOpen() === item.id) {
+                  <!-- Inline note editor -->
+                  <div class="bp-task__note-editor">
+                    <label class="bp-task__note-editor-label">ADD NOTE FOR IT SPECIALIST</label>
+                    <textarea
+                      class="bp-task__textarea"
+                      rows="3"
+                      placeholder="Provide context or specific instructions..."
+                      [value]="addNoteText()"
+                      (input)="addNoteText.set($any($event.target).value)"
+                    ></textarea>
+                    <div class="bp-task__note-editor-actions">
+                      <button class="bp-editor-btn bp-editor-btn--cancel" (click)="cancelNote()">Cancel</button>
+                      <button class="bp-editor-btn bp-editor-btn--save" (click)="saveNote(item.id)">Save note</button>
+                    </div>
+                  </div>
+                } @else {
+                  <!-- Unassigned + action row -->
+                  <div class="bp-task__action-row">
+                    <span class="bp-task__action-hint">
+                      Unassigned in {{ item.queue }} · SLA breached
+                    </span>
+                    <div class="bp-task__actions">
+                      <button class="bp-action-btn" (click)="openAddNote(item.id)">
+                        <i class="pi pi-comment"></i> Add note
+                      </button>
+                      <button class="bp-action-btn bp-action-btn--escalate"
+                              [disabled]="escalating() || escalated()"
+                              (click)="escalateToManager()">
+                        @if (escalated()) {
+                          <i class="pi pi-check"></i> Escalated
+                        } @else if (escalating()) {
+                          <i class="pi pi-spin pi-spinner"></i> Escalating…
+                        } @else {
+                          <i class="pi pi-bell"></i> Escalate now
+                        }
+                      </button>
+                    </div>
+                  </div>
+                }
+              }
+
+            </div>
+          }
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ── RIGHT SIDEBAR ──────────────────────────────────────────────────── -->
+    <aside class="bp-sidebar">
+
+      <!-- Day 1 Readiness -->
+      <section class="bp-card bp-readiness">
+        <div class="bp-readiness__header">
+          <i class="pi pi-chart-bar"></i>
+          <span>DAY 1 READINESS</span>
+        </div>
+        <div class="bp-readiness__gauge" [class.bp-readiness__gauge--breached]="hasBreachedTask()">
+          {{ progressPct() }}%
+        </div>
+        <p class="bp-readiness__label">Provisioning readiness</p>
+        <div class="bp-readiness__bar-track">
+          <div class="bp-readiness__bar-fill"
+               [class.bp-readiness__bar-fill--breached]="hasBreachedTask()"
+               [style.width.%]="progressPct()"></div>
+        </div>
+        <p class="bp-readiness__message">{{ readinessLabel() }}</p>
+      </section>
+
+      <!-- Action Required (only shown when breach is active) -->
+      @if (hasBreachedTask()) {
+        <section class="bp-card bp-action-required">
+          <div class="bp-action-required__header">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>ACTION REQUIRED</span>
+          </div>
+          <p class="bp-action-required__body">
+            System access is breached and unassigned. With {{ daysToStart() }} days to start,
+            this must be resolved immediately.
+          </p>
+          <button class="bp-action-required__btn"
+                  [disabled]="escalating() || escalated()"
+                  (click)="escalateToManager()">
+            @if (escalated()) {
+              <i class="pi pi-check"></i> Escalated to IT Manager
+            } @else if (escalating()) {
+              <i class="pi pi-spin pi-spinner"></i> Escalating…
+            } @else {
+              <i class="pi pi-bell"></i> Escalate to IT Manager
+            }
+          </button>
+          <button class="bp-action-required__btn bp-action-required__btn--secondary"
+                  (click)="openAddNote(breachedItems()[0]?.id ?? '')">
+            <i class="pi pi-comment"></i> Add note to task
+          </button>
+        </section>
+      }
+
+      <!-- Activity Log -->
+      <section class="bp-card bp-activity">
+        <div class="bp-activity__header">
+          <i class="pi pi-history"></i>
+          <span>ACTIVITY LOG</span>
+        </div>
+        <ul class="bp-activity__list">
+          @for (entry of b.activityLog; track entry.id) {
+            <li class="bp-activity__item">
+              <div class="bp-activity__icon-wrap bp-activity__icon-wrap--{{ entry.type }}">
+                <i class="pi {{ activityIcon(entry.type) }}"></i>
+              </div>
+              <div class="bp-activity__content">
+                <p class="bp-activity__message">{{ entry.message }}</p>
+                <span class="bp-activity__detail">{{ entry.detail }}</span>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+
+    </aside>
+
+  </div>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+  <div class="bp-footer">
+    <button class="bp-footer__back" (click)="goBack()">
+      <i class="pi pi-arrow-left"></i> Back to Provisioning
+    </button>
+  </div>
+
+}
+}

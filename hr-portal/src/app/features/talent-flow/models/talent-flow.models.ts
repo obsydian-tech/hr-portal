@@ -403,3 +403,25 @@ export interface ProvisioningBundle {
   bundleStatus:   ProvisioningBundleStatus;
   approvedAt?:    string;   // ISO 8601 — set when HM approves
 }
+
+/** Extended item for the Bundle Progress screen — includes fulfilment metadata */
+export interface ProvisioningItemProgress extends ProvisioningItem {
+  specialistName?:     string;           // null/absent = Unassigned
+  specialistInitials?: string;           // derived from specialistName for avatar
+  completedAt?:        string;           // ISO 8601 — set when COMPLETE
+  taskSlaStatus:       SlaHealthStatus;  // task-level SLA (may differ from bundle-level)
+}
+
+/** One event in the bundle-level activity log (Screen 3 — right sidebar) */
+export interface ActivityLogEntry {
+  id:        string;
+  type:      'APPROVAL' | 'COMPLETE' | 'BREACH' | 'INFO';
+  message:   string;   // e.g. 'System access SLA breached — task unassigned in Software queue'
+  detail:    string;   // e.g. 'Today · TA and HM notified'
+}
+
+/** Full bundle progress view — used on Screen 3 */
+export interface ProvisioningBundleProgress extends ProvisioningBundle {
+  items:       ProvisioningItemProgress[];
+  activityLog: ActivityLogEntry[];
+}
