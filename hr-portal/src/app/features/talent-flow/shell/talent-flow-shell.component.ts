@@ -11,7 +11,8 @@ import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
 import { AvatarModule } from 'primeng/avatar';
 import { DrawerModule } from 'primeng/drawer';
-import { OverlayPanel, OverlayPanelModule } from 'primeng/overlaypanel';
+import { Popover, PopoverModule } from 'primeng/popover';
+import { UpperCasePipe } from '@angular/common';
 import { TalentFlowAuthService } from '../services/talent-flow-auth.service';
 import { TalentFlowStateService } from '../services/talent-flow-state.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -38,7 +39,8 @@ const ROLE_LABELS: Record<string, string> = {
     BadgeModule,
     AvatarModule,
     DrawerModule,
-    OverlayPanelModule,
+    PopoverModule,
+    UpperCasePipe,
     AiChatPanelComponent,
     CandidateCreatePageComponent,
   ],
@@ -47,7 +49,7 @@ const ROLE_LABELS: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TalentFlowShellComponent {
-  @ViewChild('bellPanel') private readonly bellPanel!: OverlayPanel;
+  @ViewChild('bellPanel') private readonly bellPanel!: Popover;
 
   private readonly router         = inject(Router);
   protected readonly tfAuth       = inject(TalentFlowAuthService);

@@ -210,7 +210,7 @@
 
 // ── Bell popover ─────────────────────────────────────────────────────────────
 
-::ng-deep .tf-bell-panel.p-overlaypanel {
+::ng-deep .tf-bell-panel.p-popover {
   width: 320px;
   padding: 0;
   border-radius: var(--naleko-radius-lg, 0.75rem);
@@ -218,7 +218,7 @@
   border: 1px solid var(--naleko-outline-variant, rgba(0,0,0,0.08));
   overflow: hidden;
 
-  .p-overlaypanel-content {
+  .p-popover-content {
     padding: 0;
   }
 }

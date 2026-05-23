@@ -103,7 +103,7 @@
     />
 
     <!-- Bell popover: SLA breach list -->
-    <p-overlayPanel #bellPanel styleClass="tf-bell-panel">
+    <p-popover #bellPanel styleClass="tf-bell-panel">
       <div class="tf-bell-panel__header">
         <span class="tf-bell-panel__title">SLA Breaches</span>
         @if (breachedCandidates().length > 0) {
@@ -133,7 +133,7 @@
           <a routerLink="/platform/talentflow/pipeline" (click)="bellPanel.hide()" class="tf-bell-panel__view-all">View all in pipeline →</a>
         </div>
       }
-    </p-overlayPanel>
+    </p-popover>
 
     <!-- Role pill -->
     @if (rolePill()) {
