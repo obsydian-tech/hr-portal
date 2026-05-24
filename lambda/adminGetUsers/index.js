@@ -44,20 +44,20 @@ function hasAdminRole(claims) {
     if (Array.isArray(roles) && roles.includes('ADMIN')) return true;
   } catch { /* fall through */ }
 
-  // Path 2: Naleko pool token (pool consolidation, Epic 5) — cognito:groups
-  // is auto-populated by Cognito and contains group names as an array.
-  try {
-    const raw = claims['cognito:groups'];
-    if (!raw) return false;
-    const groups = Array.isArray(raw) ? raw : JSON.parse(raw);
-    return groups.includes('naleko-talentflow-admin');
-  } catch {
-    return false;
-  }
+  // Path 2: Naleko pool token (pool consolidation, Epic 5).
+  // API Gateway HTTP API v2 serialises cognito:groups as a space-separated
+  // string, NOT a JSON array. Handle both formats defensively.
+  const raw = claims['cognito:groups'];
+  if (!raw) return false;
+  let groups;
+  try { groups = JSON.parse(raw); } catch { /* not JSON */ }
+  if (!Array.isArray(groups)) groups = String(raw).split(' ');
+  return groups.includes('naleko-talentflow-admin');
 }
 
 exports.handler = async (event) => {
   const claims = extractClaims(event);
+  console.info('adminGetUsers auth', { rolesRaw: claims['custom:roles'], groupsRaw: claims['cognito:groups'] });
   if (!hasAdminRole(claims)) {
     return respond(403, { error: 'Admin role required' });
   }
