@@ -63,12 +63,20 @@ function extractClaims(event) {
 }
 
 function hasAdminRole(claims) {
+  // Path 1: TF pool — custom:roles JSON array
   try {
     const roles = JSON.parse(claims['custom:roles'] || '[]');
-    return Array.isArray(roles) && roles.includes('ADMIN');
-  } catch {
-    return false;
+    if (Array.isArray(roles) && roles.includes('ADMIN')) return true;
+  } catch { /* fall through */ }
+  // Path 2: Naleko pool — API GW HTTP API v2 sends cognito:groups as '[group1 group2]'
+  const raw = claims['cognito:groups'];
+  if (!raw) return false;
+  let groups;
+  try { groups = JSON.parse(raw); } catch { /* not JSON */ }
+  if (!Array.isArray(groups)) {
+    groups = String(raw).replace(/^\[|\]$/g, '').split(' ').filter(Boolean);
   }
+  return groups.includes('naleko-talentflow-admin');
 }
 
 exports.handler = async (event) => {
