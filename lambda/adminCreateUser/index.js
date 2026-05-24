@@ -33,10 +33,10 @@ const POOL_ID     = process.env.COGNITO_POOL_ID  || 'af-south-1_2LdAGFnw2';
 
 // Role → Naleko pool group mapping (mirrors pre-token trigger's group→role mapping in reverse)
 const ROLE_TO_GROUP = {
-  ADMIN: 'naleko-talentflow-admin',
-  HM:    'naleko-talentflow-hiringmanager',
-  IT:    'naleko-it-provisioning',
-  TA:    'naleko-talentflow-hr',
+  ADMIN: 'TalentFlowAdmin',
+  HM:    'HiringManager',
+  IT:    'ITAdmin',
+  TA:    'HRDirector',
 };
 
 const VALID_ROLES = Object.keys(ROLE_TO_GROUP);
