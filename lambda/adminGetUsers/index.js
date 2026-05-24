@@ -45,13 +45,15 @@ function hasAdminRole(claims) {
   } catch { /* fall through */ }
 
   // Path 2: Naleko pool token (pool consolidation, Epic 5).
-  // API Gateway HTTP API v2 serialises cognito:groups as a space-separated
-  // string, NOT a JSON array. Handle both formats defensively.
+  // API Gateway HTTP API v2 serialises cognito:groups as a bracket-wrapped
+  // space-separated string: '[group1 group2]'. Strip brackets then split.
   const raw = claims['cognito:groups'];
   if (!raw) return false;
   let groups;
   try { groups = JSON.parse(raw); } catch { /* not JSON */ }
-  if (!Array.isArray(groups)) groups = String(raw).split(' ');
+  if (!Array.isArray(groups)) {
+    groups = String(raw).replace(/^\[|\]$/g, '').split(' ');
+  }
   return groups.includes('naleko-talentflow-admin');
 }
 
