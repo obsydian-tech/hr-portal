@@ -40,9 +40,19 @@ function extractClaims(event) {
 }
 
 function hasAdminRole(claims) {
+  // Path 1: TalentFlow pool token — custom:roles injected by pre-token trigger
   try {
     const roles = JSON.parse(claims['custom:roles'] || '[]');
-    return Array.isArray(roles) && roles.includes('ADMIN');
+    if (Array.isArray(roles) && roles.includes('ADMIN')) return true;
+  } catch { /* fall through */ }
+
+  // Path 2: Naleko pool token (pool consolidation, Epic 5) — cognito:groups
+  // is auto-populated by Cognito and contains group names as an array.
+  try {
+    const raw = claims['cognito:groups'];
+    if (!raw) return false;
+    const groups = Array.isArray(raw) ? raw : JSON.parse(raw);
+    return groups.includes('naleko-talentflow-admin');
   } catch {
     return false;
   }
