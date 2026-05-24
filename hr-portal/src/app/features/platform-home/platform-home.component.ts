@@ -77,6 +77,16 @@ export class PlatformHomeComponent {
         available: false,
         comingSoon: true,
       },
+      ...(this.auth.currentUser()?.groups?.includes('naleko-talentflow-admin')
+        ? [{
+            key: 'platform-admin',
+            label: 'Platform Administration',
+            icon: 'pi pi-sliders-h',
+            description: 'Manage users, roles, and platform-wide settings.',
+            route: '/platform/talentflow/admin/overview',
+            available: true,
+          }]
+        : []),
     ];
   });
 
