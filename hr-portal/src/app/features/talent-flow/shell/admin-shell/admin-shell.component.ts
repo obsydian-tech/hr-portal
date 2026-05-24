@@ -4,15 +4,16 @@ import {
   inject,
   computed,
 } from '@angular/core';
-import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { AvatarModule } from 'primeng/avatar';
 import { AuthService } from '../../../../core/services/auth.service';
+import { AdminSidebarComponent } from './components/admin-sidebar/admin-sidebar.component';
 
 @Component({
   selector: 'tf-admin-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ButtonModule, AvatarModule],
+  imports: [RouterOutlet, ButtonModule, AvatarModule, AdminSidebarComponent],
   templateUrl: './admin-shell.component.html',
   styleUrl: './admin-shell.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

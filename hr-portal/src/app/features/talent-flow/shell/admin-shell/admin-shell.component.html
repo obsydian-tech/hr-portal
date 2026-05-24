@@ -30,62 +30,7 @@
 <div class="tf-admin-body">
 
   <!-- Left Sidebar -->
-  <nav class="tf-admin-sidebar" aria-label="Admin navigation">
-    <div class="tf-admin-sidebar__section">
-      <span class="tf-admin-sidebar__section-label">Workspace</span>
-
-      <!-- Section 1: Overview — active -->
-      <a class="tf-admin-sidebar__item"
-         routerLink="/platform/talentflow/admin/overview"
-         routerLinkActive="tf-admin-sidebar__item--active">
-        <i class="pi pi-chart-bar"></i>
-        <span>Overview</span>
-      </a>
-
-      <!-- Section 2: Users & Roles — active -->
-      <a class="tf-admin-sidebar__item"
-         routerLink="/platform/talentflow/admin/users"
-         routerLinkActive="tf-admin-sidebar__item--active">
-        <i class="pi pi-users"></i>
-        <span>Users &amp; Roles</span>
-      </a>
-
-      <!-- Section 3: Tenant Settings — coming soon -->
-      <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
-        <i class="pi pi-cog"></i>
-        <span>Tenant Settings</span>
-        <span class="tf-admin-sidebar__soon-badge">Soon</span>
-      </span>
-
-      <!-- Section 4: TalentFlow Config — coming soon -->
-      <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
-        <i class="pi pi-sliders-h"></i>
-        <span>TalentFlow Config</span>
-        <span class="tf-admin-sidebar__soon-badge">Soon</span>
-      </span>
-
-      <!-- Section 5: IT Request Config — coming soon -->
-      <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
-        <i class="pi pi-server"></i>
-        <span>IT Request Config</span>
-        <span class="tf-admin-sidebar__soon-badge">Soon</span>
-      </span>
-
-      <!-- Section 6: Audit & Compliance — coming soon -->
-      <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
-        <i class="pi pi-shield"></i>
-        <span>Audit &amp; Compliance</span>
-        <span class="tf-admin-sidebar__soon-badge">Soon</span>
-      </span>
-
-      <!-- Section 7: Notifications — coming soon -->
-      <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
-        <i class="pi pi-bell"></i>
-        <span>Notifications</span>
-        <span class="tf-admin-sidebar__soon-badge">Soon</span>
-      </span>
-    </div>
-  </nav>
+  <tf-admin-sidebar />
 
   <!-- Main Content -->
   <main class="tf-admin-main">

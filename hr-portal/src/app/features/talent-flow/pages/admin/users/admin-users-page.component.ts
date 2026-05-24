@@ -6,24 +6,18 @@ import {
   computed,
   OnInit,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { SlicePipe } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { CheckboxModule } from 'primeng/checkbox';
-import { DialogModule } from 'primeng/dialog';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 import { AdminApiService } from '../../../services/admin-api.service';
-import {
-  AdminUser,
-  TalentFlowRole,
-  ALL_ROLES,
-  ROLE_LABELS,
-  CreateUserPayload,
-} from '../../../models/admin.models';
+import { AdminUser } from '../../../models/admin.models';
+import { RolePillComponent } from './components/role-pill/role-pill.component';
+import { AddUserDrawerComponent } from './components/add-user-drawer/add-user-drawer.component';
+import { EditRolesDrawerComponent } from './components/edit-roles-drawer/edit-roles-drawer.component';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
@@ -31,15 +25,15 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
   selector: 'tf-admin-users-page',
   standalone: true,
   imports: [
-    FormsModule,
     SlicePipe,
     ButtonModule,
     InputTextModule,
-    CheckboxModule,
-    DialogModule,
     TooltipModule,
     ConfirmDialogModule,
     ToastModule,
+    RolePillComponent,
+    AddUserDrawerComponent,
+    EditRolesDrawerComponent,
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './admin-users-page.component.html',
@@ -47,9 +41,9 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminUsersPageComponent implements OnInit {
-  private readonly api          = inject(AdminApiService);
-  private readonly confirmSvc   = inject(ConfirmationService);
-  private readonly messageSvc   = inject(MessageService);
+  private readonly api        = inject(AdminApiService);
+  private readonly confirmSvc = inject(ConfirmationService);
+  private readonly messageSvc = inject(MessageService);
 
   // ── List state ────────────────────────────────────────────────────────────
 
@@ -73,29 +67,11 @@ export class AdminUsersPageComponent implements OnInit {
     });
   });
 
-  // ── Add User drawer ───────────────────────────────────────────────────────
+  // ── Drawer state ──────────────────────────────────────────────────────────
 
-  protected addDrawerVisible = signal(false);
-  protected addSaving        = signal(false);
-  protected addError         = signal<string | null>(null);
-
-  protected newEmail      = '';
-  protected newGivenName  = '';
-  protected newFamilyName = '';
-  protected newRoles: TalentFlowRole[] = [];
-
-  // ── Edit Roles drawer ─────────────────────────────────────────────────────
-
-  protected editDrawerVisible = signal(false);
-  protected editSaving        = signal(false);
-  protected editError         = signal<string | null>(null);
-  protected editUser          = signal<AdminUser | null>(null);
-  protected editRoles: TalentFlowRole[] = [];
-
-  // ── Shared constants ──────────────────────────────────────────────────────
-
-  protected readonly allRoles   = ALL_ROLES;
-  protected readonly roleLabels = ROLE_LABELS;
+  protected readonly showAdd    = signal(false);
+  protected readonly showEdit   = signal(false);
+  protected readonly editTarget = signal<AdminUser | null>(null);
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -115,10 +91,6 @@ export class AdminUsersPageComponent implements OnInit {
 
   protected initials(u: AdminUser): string {
     return (u.givenName[0] ?? '') + (u.familyName[0] ?? '');
-  }
-
-  protected roleChips(u: AdminUser): string {
-    return u.roles.map((r) => ROLE_LABELS[r]).join(', ');
   }
 
   // ── Load users ────────────────────────────────────────────────────────────
@@ -145,96 +117,36 @@ export class AdminUsersPageComponent implements OnInit {
   // ── Add User ──────────────────────────────────────────────────────────────
 
   protected openAddDrawer(): void {
-    this.newEmail      = '';
-    this.newGivenName  = '';
-    this.newFamilyName = '';
-    this.newRoles      = [];
-    this.addError.set(null);
-    this.addDrawerVisible.set(true);
+    this.showAdd.set(true);
   }
 
-  protected closeAddDrawer(): void {
-    this.addDrawerVisible.set(false);
-  }
-
-  protected submitAddUser(): void {
-    if (!this.newEmail || !this.newGivenName || !this.newFamilyName || this.newRoles.length === 0) {
-      this.addError.set('All fields are required and at least one role must be selected.');
-      return;
-    }
-    const payload: CreateUserPayload = {
-      email:      this.newEmail.trim(),
-      givenName:  this.newGivenName.trim(),
-      familyName: this.newFamilyName.trim(),
-      roles:      this.newRoles,
-    };
-    this.addSaving.set(true);
-    this.addError.set(null);
-    this.api.createUser(payload).subscribe({
-      next: (res) => {
-        this.users.update((list) => [res.user, ...list]);
-        this.addSaving.set(false);
-        this.addDrawerVisible.set(false);
-        this.messageSvc.add({ severity: 'success', summary: 'User created', detail: `${res.user.fullName} has been added.` });
-      },
-      error: (err: { userMessage?: string }) => {
-        this.addError.set(err.userMessage ?? 'Failed to create user.');
-        this.addSaving.set(false);
-      },
+  protected onUserCreated(user: AdminUser): void {
+    this.users.update((list) => [user, ...list]);
+    this.showAdd.set(false);
+    this.messageSvc.add({
+      severity: 'success',
+      summary: 'User created',
+      detail: `${user.fullName} has been added.`,
     });
-  }
-
-  protected toggleNewRole(role: TalentFlowRole, checked: boolean): void {
-    if (checked) {
-      if (!this.newRoles.includes(role)) this.newRoles = [...this.newRoles, role];
-    } else {
-      this.newRoles = this.newRoles.filter((r) => r !== role);
-    }
   }
 
   // ── Edit Roles ────────────────────────────────────────────────────────────
 
   protected openEditDrawer(user: AdminUser): void {
-    this.editUser.set(user);
-    this.editRoles = [...user.roles];
-    this.editError.set(null);
-    this.editDrawerVisible.set(true);
+    this.editTarget.set(user);
+    this.showEdit.set(true);
   }
 
-  protected closeEditDrawer(): void {
-    this.editDrawerVisible.set(false);
-  }
-
-  protected submitEditRoles(): void {
-    const user = this.editUser();
-    if (!user) return;
-    if (this.editRoles.length === 0) {
-      this.editError.set('At least one role must be assigned.');
-      return;
-    }
-    this.editSaving.set(true);
-    this.editError.set(null);
-    this.api.updateUserRoles(user.userId, { roles: this.editRoles }).subscribe({
-      next: (res) => {
-        const updated = res.user;
-        this.users.update((list) => list.map((u) => (u.userId === updated.userId ? updated : u)));
-        this.editSaving.set(false);
-        this.editDrawerVisible.set(false);
-        this.messageSvc.add({ severity: 'success', summary: 'Roles updated', detail: `${updated.fullName}'s roles have been updated.` });
-      },
-      error: (err: { userMessage?: string }) => {
-        this.editError.set(err.userMessage ?? 'Failed to update roles.');
-        this.editSaving.set(false);
-      },
+  protected onRolesUpdated(updated: AdminUser): void {
+    this.users.update((list) =>
+      list.map((u) => (u.userId === updated.userId ? updated : u)),
+    );
+    this.showEdit.set(false);
+    this.messageSvc.add({
+      severity: 'success',
+      summary: 'Roles updated',
+      detail: `${updated.fullName}'s roles have been updated.`,
     });
-  }
-
-  protected toggleEditRole(role: TalentFlowRole, checked: boolean): void {
-    if (checked) {
-      if (!this.editRoles.includes(role)) this.editRoles = [...this.editRoles, role];
-    } else {
-      this.editRoles = this.editRoles.filter((r) => r !== role);
-    }
   }
 
   // ── Deactivate ────────────────────────────────────────────────────────────
@@ -260,11 +172,20 @@ export class AdminUsersPageComponent implements OnInit {
             u.userId === user.userId ? { ...u, status: 'INACTIVE' as const } : u,
           ),
         );
-        this.messageSvc.add({ severity: 'info', summary: 'User deactivated', detail: `${user.fullName} has been deactivated.` });
+        this.messageSvc.add({
+          severity: 'info',
+          summary: 'User deactivated',
+          detail: `${user.fullName} has been deactivated.`,
+        });
       },
       error: (err: { userMessage?: string }) => {
-        this.messageSvc.add({ severity: 'error', summary: 'Error', detail: err.userMessage ?? 'Failed to deactivate user.' });
+        this.messageSvc.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: err.userMessage ?? 'Failed to deactivate user.',
+        });
       },
     });
   }
 }
+

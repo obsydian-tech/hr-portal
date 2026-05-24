@@ -81,7 +81,6 @@
             <tr>
               <th>User</th>
               <th>Roles</th>
-              <th>Active Role</th>
               <th>Status</th>
               <th>Created</th>
               <th></th>
@@ -102,12 +101,9 @@
                   </div>
                 </td>
 
-                <!-- Roles -->
-                <td class="tfad-table__roles">{{ roleChips(u) }}</td>
-
-                <!-- Active role -->
-                <td>
-                  <span class="tfad-role-badge">{{ roleLabels[u.activeRole] }}</span>
+                <!-- Roles (array-aware pill strip; active role receives ring) -->
+                <td class="tfad-table__roles">
+                  <tf-role-pill [roles]="u.roles" [activeRole]="u.activeRole" />
                 </td>
 
                 <!-- Status -->
@@ -163,145 +159,17 @@
 <p-confirmDialog styleClass="tfad-confirm-dialog" />
 
 
-<!-- ────────────────────────────────────────────────────────────────────────
-     ADD USER DRAWER
-──────────────────────────────────────────────────────────────────────────── -->
-<p-dialog
-  header="Add User"
-  [visible]="addDrawerVisible()"
-  [modal]="true"
-  [draggable]="false"
-  [resizable]="false"
-  [style]="{ width: '32rem' }"
-  styleClass="tfad-drawer"
-  (onHide)="closeAddDrawer()"
->
+<!-- ── Add User drawer (extracted standalone component) ─────────────────── -->
+<tf-add-user-drawer
+  [visible]="showAdd()"
+  (saved)="onUserCreated($event)"
+  (cancelled)="showAdd.set(false)"
+/>
 
-  @if (addError()) {
-    <div class="tfad-drawer-error">
-      <i class="pi pi-exclamation-circle"></i>
-      {{ addError() }}
-    </div>
-  }
-
-  <div class="tfad-form">
-
-    <div class="tfad-field">
-      <label class="tfad-field__label" for="addEmail">Work email *</label>
-      <input
-        id="addEmail"
-        class="tfad-input"
-        type="email"
-        placeholder="user@company.com"
-        [(ngModel)]="newEmail"
-      />
-    </div>
-
-    <div class="tfad-field-row">
-      <div class="tfad-field">
-        <label class="tfad-field__label" for="addGiven">First name *</label>
-        <input
-          id="addGiven"
-          class="tfad-input"
-          type="text"
-          placeholder="Jane"
-          [(ngModel)]="newGivenName"
-        />
-      </div>
-      <div class="tfad-field">
-        <label class="tfad-field__label" for="addFamily">Last name *</label>
-        <input
-          id="addFamily"
-          class="tfad-input"
-          type="text"
-          placeholder="Smith"
-          [(ngModel)]="newFamilyName"
-        />
-      </div>
-    </div>
-
-    <div class="tfad-field">
-      <label class="tfad-field__label">Roles * <span class="tfad-field__hint">(select at least one)</span></label>
-      <div class="tfad-role-list">
-        @for (role of allRoles; track role) {
-          <label class="tfad-role-item">
-            <p-checkbox
-              [binary]="true"
-              [ngModel]="newRoles.includes(role)"
-              (onChange)="toggleNewRole(role, $event.checked)"
-            />
-            <span>{{ roleLabels[role] }}</span>
-          </label>
-        }
-      </div>
-    </div>
-
-  </div>
-
-  <ng-template pTemplate="footer">
-    <div class="tfad-drawer-footer">
-      <p-button label="Cancel" styleClass="p-button-text" (onClick)="closeAddDrawer()" />
-      <p-button
-        label="Create User"
-        icon="pi pi-check"
-        [loading]="addSaving()"
-        (onClick)="submitAddUser()"
-      />
-    </div>
-  </ng-template>
-
-</p-dialog>
-
-
-<!-- ────────────────────────────────────────────────────────────────────────
-     EDIT ROLES DRAWER
-──────────────────────────────────────────────────────────────────────────── -->
-<p-dialog
-  [header]="editUser() ? 'Edit Roles — ' + editUser()!.fullName : 'Edit Roles'"
-  [visible]="editDrawerVisible()"
-  [modal]="true"
-  [draggable]="false"
-  [resizable]="false"
-  [style]="{ width: '28rem' }"
-  styleClass="tfad-drawer"
-  (onHide)="closeEditDrawer()"
->
-
-  @if (editError()) {
-    <div class="tfad-drawer-error">
-      <i class="pi pi-exclamation-circle"></i>
-      {{ editError() }}
-    </div>
-  }
-
-  <div class="tfad-form">
-    <div class="tfad-field">
-      <label class="tfad-field__label">Roles <span class="tfad-field__hint">(at least one required)</span></label>
-      <div class="tfad-role-list">
-        @for (role of allRoles; track role) {
-          <label class="tfad-role-item">
-            <p-checkbox
-              [binary]="true"
-              [ngModel]="editRoles.includes(role)"
-              (onChange)="toggleEditRole(role, $event.checked)"
-            />
-            <span>{{ roleLabels[role] }}</span>
-          </label>
-        }
-      </div>
-    </div>
-  </div>
-
-  <ng-template pTemplate="footer">
-    <div class="tfad-drawer-footer">
-      <p-button label="Cancel" styleClass="p-button-text" (onClick)="closeEditDrawer()" />
-      <p-button
-        label="Save Roles"
-        icon="pi pi-check"
-        [loading]="editSaving()"
-        (onClick)="submitEditRoles()"
-      />
-    </div>
-  </ng-template>
-
-</p-dialog>
+<!-- ── Edit Roles drawer (extracted standalone component) ────────────────── -->
+<tf-edit-roles-drawer
+  [visible]="showEdit()"
+  [user]="editTarget()"
+  (saved)="onRolesUpdated($event)"
+  (cancelled)="showEdit.set(false)"
+/>
