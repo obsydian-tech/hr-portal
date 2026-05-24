@@ -1,0 +1,16 @@
+{
+  "name": "admin-create-user-lambda",
+  "version": "1.0.0",
+  "description": "TalentFlow adminCreateUser Lambda — Cognito + DynamoDB user provisioning",
+  "private": true,
+  "scripts": {
+    "test": "jest --no-coverage"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.0.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0",
+    "jest": "^29.0.0"
+  }
+}

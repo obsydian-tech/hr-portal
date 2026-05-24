@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { TalentFlowShellComponent } from './shell/talent-flow-shell.component';
 import { adminGuard } from './guards/admin.guard';
 import { hmRedirectGuard } from './guards/hm-redirect.guard';
+import { AdminShellComponent } from './shell/admin-shell/admin-shell.component';
 
 /**
  * TalentFlow lazy routes
@@ -101,6 +102,31 @@ export const talentFlowRoutes: Routes = [
         loadComponent: () =>
           import('./pages/config/config-hub/config-hub-page.component').then(
             (m) => m.ConfigHubPageComponent,
+          ),
+      },
+    ],
+  },
+  // ── Admin Workspace (/platform/talentflow/admin/*) ───────────────────────
+  // Own shell (darker topbar + 220px sidebar). Sibling to TF shell so it
+  // renders independently — the regular TF topbar is not visible here.
+  {
+    path: 'admin',
+    canActivate: [adminGuard],
+    component: AdminShellComponent,
+    children: [
+      { path: '', redirectTo: 'overview', pathMatch: 'full' },
+      {
+        path: 'overview',
+        loadComponent: () =>
+          import('./pages/admin/overview/admin-overview-page.component').then(
+            (m) => m.AdminOverviewPageComponent,
+          ),
+      },
+      {
+        path: 'users',
+        loadComponent: () =>
+          import('./pages/admin/users/admin-users-page.component').then(
+            (m) => m.AdminUsersPageComponent,
           ),
       },
     ],

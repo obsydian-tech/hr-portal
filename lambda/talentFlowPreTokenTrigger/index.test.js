@@ -84,6 +84,108 @@ describe('talentFlowPreTokenTrigger', () => {
     });
   });
 
+  describe('custom:roles claim', () => {
+    test('TalentFlowAdmin group → roles = ["ADMIN"]', async () => {
+      const event = buildEvent(['TalentFlowAdmin']);
+      const result = await handler(event);
+      const roles = JSON.parse(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:roles']
+      );
+      expect(roles).toEqual(['ADMIN']);
+    });
+
+    test('HiringManager group → roles = ["HM"]', async () => {
+      const event = buildEvent(['HiringManager']);
+      const result = await handler(event);
+      const roles = JSON.parse(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:roles']
+      );
+      expect(roles).toEqual(['HM']);
+    });
+
+    test('ITAdmin group → roles = ["IT"]', async () => {
+      const event = buildEvent(['ITAdmin']);
+      const result = await handler(event);
+      const roles = JSON.parse(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:roles']
+      );
+      expect(roles).toEqual(['IT']);
+    });
+
+    test('PanelMember / ComplianceOfficer / FinanceLead / HRDirector → roles = ["TA"]', async () => {
+      for (const group of ['PanelMember', 'ComplianceOfficer', 'FinanceLead', 'HRDirector']) {
+        const event = buildEvent([group]);
+        const result = await handler(event);
+        const roles = JSON.parse(
+          result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:roles']
+        );
+        expect(roles).toEqual(['TA']);
+      }
+    });
+
+    test('empty groups → roles = ["TA"]', async () => {
+      const event = buildEvent([]);
+      const result = await handler(event);
+      const roles = JSON.parse(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:roles']
+      );
+      expect(roles).toEqual(['TA']);
+    });
+
+    test('TalentFlowAdmin + HiringManager → roles contains ADMIN and HM (no duplicates)', async () => {
+      const event = buildEvent(['TalentFlowAdmin', 'HiringManager', 'TalentFlowAdmin']);
+      const result = await handler(event);
+      const roles = JSON.parse(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:roles']
+      );
+      expect(roles).toContain('ADMIN');
+      expect(roles).toContain('HM');
+      expect(roles.filter((r) => r === 'ADMIN').length).toBe(1);
+    });
+  });
+
+  describe('custom:activeRole claim', () => {
+    test('TalentFlowAdmin → activeRole = ADMIN', async () => {
+      const event = buildEvent(['TalentFlowAdmin']);
+      const result = await handler(event);
+      expect(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:activeRole']
+      ).toBe('ADMIN');
+    });
+
+    test('ADMIN takes precedence over HM when user has both groups', async () => {
+      const event = buildEvent(['HiringManager', 'TalentFlowAdmin']);
+      const result = await handler(event);
+      expect(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:activeRole']
+      ).toBe('ADMIN');
+    });
+
+    test('HM takes precedence over IT', async () => {
+      const event = buildEvent(['ITAdmin', 'HiringManager']);
+      const result = await handler(event);
+      expect(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:activeRole']
+      ).toBe('HM');
+    });
+
+    test('PanelMember only → activeRole = TA', async () => {
+      const event = buildEvent(['PanelMember']);
+      const result = await handler(event);
+      expect(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:activeRole']
+      ).toBe('TA');
+    });
+
+    test('empty groups → activeRole = TA', async () => {
+      const event = buildEvent([]);
+      const result = await handler(event);
+      expect(
+        result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:activeRole']
+      ).toBe('TA');
+    });
+  });
+
   describe('defensive: malformed event shapes', () => {
     test('handles missing groupConfiguration gracefully — sets isAdmin false', async () => {
       const event = { request: {}, response: {} };

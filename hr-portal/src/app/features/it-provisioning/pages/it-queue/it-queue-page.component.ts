@@ -6,6 +6,7 @@ import {
   signal,
   computed,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { RequirementType, ItTask, ItQueue, TaskSlaStatus } from '../../models/it-provisioning.models';
 import { ItProvisioningApiService } from '../../services/it-provisioning-api.service';
 import { ItProvisioningAuthService } from '../../services/it-provisioning-auth.service';
@@ -20,9 +21,10 @@ import { AuthService } from '../../../../core/services/auth.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItQueuePageComponent implements OnInit {
-  private readonly api       = inject(ItProvisioningApiService);
-  private readonly itAuth    = inject(ItProvisioningAuthService);
+  private readonly api        = inject(ItProvisioningApiService);
+  private readonly itAuth     = inject(ItProvisioningAuthService);
   private readonly nalekoAuth = inject(AuthService);
+  private readonly router     = inject(Router);
 
   protected readonly loading = signal<boolean>(true);
   protected readonly tasks   = signal<ItTask[]>([]);
@@ -84,19 +86,15 @@ export class ItQueuePageComponent implements OnInit {
 
   protected async claimTask(taskId: string): Promise<void> {
     this.actionPending.set(taskId);
-    await this.api.claimTask(taskId, this.specialistId());
-    // Refresh task list
+    const name = this.nalekoAuth.currentUser()?.givenName
+      ? `${this.nalekoAuth.currentUser()!.givenName} ${this.nalekoAuth.currentUser()!.familyName}`.trim()
+      : 'Tom Mokoena';
+    await this.api.claimTask(taskId, this.specialistId(), name, 'IT Specialist');
     const updated = await this.api.getMyTasks(this.specialistId());
     this.tasks.set(updated);
     this.actionPending.set(null);
-  }
-
-  protected async completeTask(taskId: string): Promise<void> {
-    this.actionPending.set(taskId);
-    await this.api.completeTask(taskId);
-    const updated = await this.api.getMyTasks(this.specialistId());
-    this.tasks.set(updated);
-    this.actionPending.set(null);
+    // Navigate to task detail after claiming
+    void this.router.navigate(['/platform/it-requests/task', taskId]);
   }
 
   // ── Template helpers ───────────────────────────────────────────────────────
@@ -126,9 +124,14 @@ export class ItQueuePageComponent implements OnInit {
     return 'cta--indigo';
   }
 
+  protected viewTask(taskId: string): void {
+    void this.router.navigate(['/platform/it-requests/task', taskId]);
+  }
+
   protected onCta(task: ItTask): void {
     if (task.taskStatus === 'CLAIMED' && task.claimedBy === this.specialistId()) {
-      void this.completeTask(task.id);
+      // Open task detail to work through checklist and complete
+      this.viewTask(task.id);
     } else {
       void this.claimTask(task.id);
     }

@@ -805,6 +805,139 @@ resource "aws_lambda_permission" "submit_vote_by_token_talent_flow_api" {
 }
 
 # ===========================================================================
+# Admin Workspace Routes (Admin-S1)
+# All five routes are JWT-secured via the existing Cognito authorizer.
+# ADMIN enforcement is done in-Lambda by checking the custom:roles JWT claim —
+# the gateway authorizer only validates token validity, not role membership.
+# Route prefix: /v1/admin/
+# ===========================================================================
+
+# ── Shared integration: adminGetDashboard ────────────────────────────────────
+
+resource "aws_apigatewayv2_integration" "admin_get_dashboard" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.admin_get_dashboard.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_admin_dashboard" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/admin/dashboard"
+  target             = "integrations/${aws_apigatewayv2_integration.admin_get_dashboard.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "admin_get_dashboard_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeAdminGetDashboard"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.admin_get_dashboard.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ── adminGetUsers ─────────────────────────────────────────────────────────────
+
+resource "aws_apigatewayv2_integration" "admin_get_users" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.admin_get_users.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_admin_users" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/admin/users"
+  target             = "integrations/${aws_apigatewayv2_integration.admin_get_users.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "admin_get_users_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeAdminGetUsers"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.admin_get_users.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ── adminCreateUser ───────────────────────────────────────────────────────────
+
+resource "aws_apigatewayv2_integration" "admin_create_user" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.admin_create_user.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "post_admin_users" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/admin/users"
+  target             = "integrations/${aws_apigatewayv2_integration.admin_create_user.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "admin_create_user_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeAdminCreateUser"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.admin_create_user.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ── adminUpdateUser ───────────────────────────────────────────────────────────
+
+resource "aws_apigatewayv2_integration" "admin_update_user" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.admin_update_user.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "put_admin_user" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "PUT /v1/admin/users/{userId}"
+  target             = "integrations/${aws_apigatewayv2_integration.admin_update_user.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "admin_update_user_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeAdminUpdateUser"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.admin_update_user.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ── adminDeactivateUser ───────────────────────────────────────────────────────
+
+resource "aws_apigatewayv2_integration" "admin_deactivate_user" {
+  api_id                 = aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.admin_deactivate_user.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "delete_admin_user" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "DELETE /v1/admin/users/{userId}"
+  target             = "integrations/${aws_apigatewayv2_integration.admin_deactivate_user.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_lambda_permission" "admin_deactivate_user_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeAdminDeactivateUser"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.admin_deactivate_user.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# ===========================================================================
 # OUTPUTS
 # ===========================================================================
 

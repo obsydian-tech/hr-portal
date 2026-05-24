@@ -14,6 +14,13 @@ export const itProvisioningRoutes: Routes = [
           ),
       },
       {
+        path: 'task/:id',
+        loadComponent: () =>
+          import('./pages/it-task-detail/it-task-detail-page.component').then(
+            (m) => m.ItTaskDetailPageComponent,
+          ),
+      },
+      {
         path: 'completed',
         loadComponent: () =>
           import('./pages/completed/it-completed-page.component').then(

@@ -16,6 +16,7 @@ import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-pan
 import { AddPanelMembersPayload, AdhocPanelMember, Candidate, CandidateEvent, EngagementSentiment, HiringStage, InterviewType, PanelMember, ScheduleInterviewPayload, ScoringWeights, DEFAULT_SCORING_WEIGHTS, PHASE_MAP } from '../../models/talent-flow.models';
 import { OfferTabComponent } from '../../components/offer-tab/offer-tab.component';
 import { CandidateEditDrawerComponent } from '../../components/candidate-edit-drawer/candidate-edit-drawer.component';
+import { ProvisioningTabComponent } from '../../components/provisioning-tab/provisioning-tab.component';
 
 /**
  * CandidateWorkspacePageComponent — FE-004 / NH-137
@@ -33,8 +34,8 @@ import { CandidateEditDrawerComponent } from '../../components/candidate-edit-dr
  *   via explicit action buttons, not drag → FE-005/006.
  */
 
-// D027: fixed 5 tabs in this order
-export type WorkspaceTab = 'overview' | 'interviews' | 'offer' | 'engagement' | 'notes';
+// D027: tabs — Overview | Interviews | Offer | Provisioning | Engagement | Notes
+export type WorkspaceTab = 'overview' | 'interviews' | 'offer' | 'provisioning' | 'engagement' | 'notes';
 
 /** All HiringStage values in workflow order */
 export const ALL_STAGES: HiringStage[] = Object.keys(STAGE_LABELS) as HiringStage[];
@@ -48,6 +49,7 @@ export const ALL_STAGES: HiringStage[] = Object.keys(STAGE_LABELS) as HiringStag
     AiChatPanelComponent,
     OfferTabComponent,
     CandidateEditDrawerComponent,
+    ProvisioningTabComponent,
   ],
   templateUrl: './candidate-workspace-page.component.html',
   styleUrl: './candidate-workspace-page.component.scss',
@@ -61,8 +63,9 @@ export class CandidateWorkspacePageComponent implements OnInit {
 
   protected readonly defaultWeights: ScoringWeights = DEFAULT_SCORING_WEIGHTS;
 
-  protected readonly activeTab        = signal<WorkspaceTab>('overview');
-  protected readonly candidateId      = signal<string | null>(null);
+  protected readonly activeTab              = signal<WorkspaceTab>('overview');
+  protected readonly candidateId            = signal<string | null>(null);
+  protected readonly provisioningBreachCount = signal<number>(0);
   protected readonly loading          = signal<boolean>(false);
   protected readonly fetchError       = signal<string | null>(null);
   protected readonly chatVisible      = signal<boolean>(false);
@@ -133,6 +136,11 @@ export class CandidateWorkspacePageComponent implements OnInit {
       const id = this.candidateId();
       if (id) this._loadEvents(id);
     }
+  }
+
+  /** Receives breach count from ProvisioningTabComponent for the tab badge. */
+  protected onProvisioningBreachCount(count: number): void {
+    this.provisioningBreachCount.set(count);
   }
 
   private _loadEvents(id: string): void {

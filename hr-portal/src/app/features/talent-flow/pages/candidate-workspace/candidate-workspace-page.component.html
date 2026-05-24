@@ -180,6 +180,14 @@
             (click)="setTab('offer')">
             <i class="pi pi-file-edit"></i> Offer
           </button>
+          <button class="tf-tab-btn tf-tab-btn--provisioning"
+            [class.tf-tab-btn--active]="activeTab() === 'provisioning'"
+            (click)="setTab('provisioning')">
+            <i class="pi pi-box"></i> Provisioning
+            @if (provisioningBreachCount() > 0) {
+              <span class="tf-tab-btn__badge">{{ provisioningBreachCount() }}</span>
+            }
+          </button>
           <button class="tf-tab-btn"
             [class.tf-tab-btn--active]="activeTab() === 'engagement'"
             (click)="setTab('engagement')">
@@ -660,6 +668,15 @@
             <tf-offer-tab
               [candidateId]="c.id"
               [candidate]="c" />
+          </div>
+        }
+
+        <!-- ── Provisioning tab — Screen 6 TA read-only view ───────────────── -->
+        @if (activeTab() === 'provisioning') {
+          <div class="tf-workspace__panel tf-workspace__panel--provisioning">
+            <tf-provisioning-tab
+              [candidateId]="c.id"
+              (breachCount)="onProvisioningBreachCount($event)" />
           </div>
         }
 
