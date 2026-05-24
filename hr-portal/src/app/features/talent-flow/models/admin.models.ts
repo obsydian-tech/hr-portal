@@ -9,10 +9,10 @@
  *   adminUpdateUser keeps both in sync on every write.
  *
  * Role → Naleko Cognito group mapping:
- *   ADMIN → naleko-talentflow-admin
- *   HM    → naleko-talentflow-hiringmanager
- *   IT    → naleko-it-provisioning
- *   TA    → naleko-talentflow-hr
+ *   ADMIN → TalentFlowAdmin
+ *   HM    → HiringManager
+ *   IT    → ITAdmin
+ *   TA    → HRDirector
  */
 
 // ─── Role ─────────────────────────────────────────────────────────────────────
