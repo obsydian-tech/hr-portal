@@ -1,0 +1,177 @@
+// ── Event Detail Drawer ───────────────────────────────────────────────────────
+
+// Force 420px width on the PrimeNG sidebar
+:host ::ng-deep .p-sidebar.tf-drawer {
+  width: 420px !important;
+
+  .p-sidebar-header {
+    padding: 0;
+    border-bottom: 1px solid var(--surface-border);
+  }
+
+  .p-sidebar-content {
+    padding: 0;
+    overflow-y: auto;
+  }
+}
+
+// ── Drawer header ─────────────────────────────────────────────────────────────
+
+.tf-drawer {
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    width: 100%;
+
+    &-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-color);
+
+      .pi { color: var(--primary-color); }
+    }
+  }
+
+  &__close {
+    flex-shrink: 0;
+  }
+
+  // ── Drawer body ────────────────────────────────────────────────────────────
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  &__section {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--surface-border);
+
+    &:last-child { border-bottom: none; }
+
+    &--technical {
+      background: var(--surface-ground);
+    }
+  }
+
+  &__section-title {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-color-secondary);
+  }
+
+  &__summary-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &__action-desc {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--text-color);
+    line-height: 1.5;
+  }
+
+  // ── Definition list ────────────────────────────────────────────────────────
+
+  &__dl {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    row-gap: 0.5rem;
+    column-gap: 0.75rem;
+    margin: 0;
+
+    dt {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-color-secondary);
+      align-self: center;
+    }
+
+    dd {
+      margin: 0;
+      font-size: 0.875rem;
+      color: var(--text-color);
+      word-break: break-all;
+      align-self: center;
+    }
+  }
+
+  &__mono {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.8125rem !important;
+  }
+
+  &__corr-id {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: help;
+  }
+
+  // ── Diff table ─────────────────────────────────────────────────────────────
+
+  &__diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+
+    th {
+      text-align: left;
+      padding: 0.35rem 0.5rem;
+      background: var(--surface-200);
+      border-bottom: 1px solid var(--surface-border);
+      font-weight: 600;
+      font-size: 0.75rem;
+      color: var(--text-color-secondary);
+    }
+
+    td {
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid var(--surface-border);
+      vertical-align: top;
+      word-break: break-word;
+    }
+
+    tr:last-child td { border-bottom: none; }
+  }
+
+  &__diff-key  { color: var(--text-color); font-weight: 600; width: 35%; }
+
+  &__diff-before {
+    color: #dc2626;
+    text-decoration: line-through;
+    font-family: 'Courier New', Courier, monospace;
+    background: rgba(220, 38, 38, 0.06);
+  }
+
+  &__diff-after {
+    color: #16a34a;
+    font-family: 'Courier New', Courier, monospace;
+    background: rgba(22, 163, 74, 0.06);
+  }
+
+  &__diff-type {
+    margin: 0.6rem 0 0 0;
+    font-size: 0.8125rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__empty-note {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+    font-style: italic;
+  }
+}

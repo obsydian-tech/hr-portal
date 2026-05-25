@@ -15,6 +15,9 @@ import {
   UpdateUserRolesPayload,
   TenantProfile,
   UpdateTenantProfileRequest,
+  AuditFilters,
+  AuditEventsResponse,
+  AuditStatsResponse,
 } from '../models/admin.models';
 
 const API_TIMEOUT_MS = 15_000;
@@ -155,6 +158,62 @@ export class AdminApiService {
         ),
       ),
       timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  // ── Audit & Compliance ─────────────────────────────────────────────────────
+
+  getAuditStats(): Observable<AuditStatsResponse> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<AuditStatsResponse>(`${this.baseUrl}/admin/audit/stats`, { headers }),
+      ),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  getAuditEvents(filters: AuditFilters): Observable<AuditEventsResponse> {
+    let params = new HttpParams();
+    if (filters.module)     params = params.set('module',    filters.module);
+    if (filters.role)       params = params.set('role',      filters.role);
+    if (filters.eventType)  params = params.set('eventType', filters.eventType);
+    if (filters.dateFrom)   params = params.set('dateFrom',  filters.dateFrom);
+    if (filters.dateTo)     params = params.set('dateTo',    filters.dateTo);
+    if (filters.search)     params = params.set('search',    filters.search);
+    if (filters.page)       params = params.set('page',      String(filters.page));
+    if (filters.pageSize)   params = params.set('pageSize',  String(filters.pageSize));
+    if (filters.sortOrder)  params = params.set('sortOrder', filters.sortOrder);
+
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<AuditEventsResponse>(`${this.baseUrl}/admin/audit/events`, { headers, params }),
+      ),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  exportAuditCsv(filters: AuditFilters, scope: 'all' | 'filtered'): Observable<Blob> {
+    let params = new HttpParams().set('scope', scope).set('format', 'csv');
+    if (scope === 'filtered') {
+      if (filters.module)    params = params.set('module',    filters.module!);
+      if (filters.role)      params = params.set('role',      filters.role!);
+      if (filters.eventType) params = params.set('eventType', filters.eventType!);
+      if (filters.dateFrom)  params = params.set('dateFrom',  filters.dateFrom!);
+      if (filters.dateTo)    params = params.set('dateTo',    filters.dateTo!);
+      if (filters.search)    params = params.set('search',    filters.search!);
+    }
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get(`${this.baseUrl}/admin/audit/export`, {
+          headers,
+          params,
+          responseType: 'blob',
+        }),
+      ),
+      timeout(60_000),
       catchError(this.handleError),
     );
   }
