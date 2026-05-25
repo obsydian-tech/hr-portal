@@ -1,0 +1,93 @@
+<div class="config-page">
+
+  <div class="config-page__header">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">SLA Thresholds</h2>
+      <p class="config-page__subtitle">Set the maximum hours allowed for each key milestone. Escalation alerts fire at the configured warning and critical percentages.</p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!loading()) {
+        <tf-config-version-badge [version]="configVersion()" [changedAt]="updatedAt()" />
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="config-page__skeleton">
+      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3,4,5]"></div>
+    </div>
+  } @else {
+
+    <!-- Threshold rows -->
+    <div class="config-card">
+      <div class="config-card__section-label">Milestone Thresholds</div>
+      @for (t of thresholds(); track t.key) {
+        <div class="config-row">
+          <div class="config-row__label">
+            <span class="config-row__label-main">{{ t.label }}</span>
+            <span class="config-row__label-desc">{{ t.description }}</span>
+          </div>
+          <div class="config-row__control config-row__control--compact">
+            <p-inputNumber
+              [ngModel]="t.hours"
+              (ngModelChange)="updateHours(t.key, $event)"
+              [min]="1" [max]="720" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              suffix=" hrs"
+              styleClass="config-input-number"
+            />
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Escalation levels -->
+    <div class="config-card">
+      <div class="config-card__section-label">Escalation Levels</div>
+      <div class="config-row">
+        <div class="config-row__label">
+          <span class="config-row__label-main">Warning threshold</span>
+          <span class="config-row__label-desc">Alert fires at this % of the SLA window elapsed</span>
+        </div>
+        <div class="config-row__control config-row__control--compact">
+          <p-inputNumber
+            [ngModel]="escalation().warningPct"
+            (ngModelChange)="updateEscalation('warningPct', $event)"
+            [min]="50" [max]="95" [showButtons]="true"
+            buttonLayout="horizontal"
+            incrementButtonIcon="pi pi-plus"
+            decrementButtonIcon="pi pi-minus"
+            suffix="%"
+            styleClass="config-input-number"
+          />
+        </div>
+      </div>
+      <div class="config-row">
+        <div class="config-row__label">
+          <span class="config-row__label-main">Critical threshold</span>
+          <span class="config-row__label-desc">Urgent alert fires at this % of the SLA window elapsed</span>
+        </div>
+        <div class="config-row__control config-row__control--compact">
+          <p-inputNumber
+            [ngModel]="escalation().criticalPct"
+            (ngModelChange)="updateEscalation('criticalPct', $event)"
+            [min]="escalation().warningPct + 1" [max]="100" [showButtons]="true"
+            buttonLayout="horizontal"
+            incrementButtonIcon="pi pi-plus"
+            decrementButtonIcon="pi pi-minus"
+            suffix="%"
+            styleClass="config-input-number"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="config-save-row">
+      <p-button label="Reset to Defaults" icon="pi pi-refresh" styleClass="p-button-text p-button-secondary" [disabled]="saving()" (onClick)="confirmReset()" />
+      <p-button label="Save Changes" icon="pi pi-check" [loading]="saving()" [disabled]="saving()" (onClick)="confirmSave()" />
+    </div>
+  }
+
+</div>

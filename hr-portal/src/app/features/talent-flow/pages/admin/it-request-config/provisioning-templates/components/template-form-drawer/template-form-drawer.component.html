@@ -1,0 +1,86 @@
+<p-sidebar
+  [visible]="visible()"
+  (visibleChange)="$event || close()"
+  position="right"
+  [style]="{ width: '560px' }"
+  [blockScroll]="true"
+>
+  <ng-template pTemplate="header">
+    <h3 class="drawer-title">{{ isEditMode() ? 'Edit Template' : 'New Template' }}</h3>
+  </ng-template>
+
+  <div class="drawer-body">
+
+    <!-- Name -->
+    <div class="form-field">
+      <label class="form-label" for="t-name">Template Name <span class="required">*</span></label>
+      <input pInputText id="t-name" type="text"
+        [ngModel]="form().name" (ngModelChange)="patchForm({ name: $event })"
+        placeholder="e.g. Senior Engineer Bundle"
+        class="form-input" />
+    </div>
+
+    <!-- Target Role -->
+    <div class="form-field">
+      <label class="form-label" for="t-role">Target Role <span class="required">*</span></label>
+      <input pInputText id="t-role" type="text"
+        [ngModel]="form().targetRole" (ngModelChange)="patchForm({ targetRole: $event })"
+        placeholder="e.g. Software Engineer"
+        class="form-input" />
+    </div>
+
+    <!-- Description -->
+    <div class="form-field">
+      <label class="form-label" for="t-desc">Description</label>
+      <textarea pInputTextarea id="t-desc" rows="2"
+        [ngModel]="form().description" (ngModelChange)="patchForm({ description: $event })"
+        placeholder="When is this template applied?"
+        class="form-input" [autoResize]="true"></textarea>
+    </div>
+
+    <!-- Requirements -->
+    <div class="form-field">
+      <div class="req-header">
+        <span class="form-label">Requirements</span>
+        <p-button label="Add item" icon="pi pi-plus" styleClass="p-button-text p-button-sm" (onClick)="addRequirement()" />
+      </div>
+
+      @if (form().requirements.length === 0) {
+        <div class="req-empty">No requirement items yet. Click "Add item" to start building the bundle.</div>
+      }
+
+      @for (req of form().requirements; track $index) {
+        <div class="req-row">
+          <input pInputText type="text"
+            [ngModel]="req.itemName" (ngModelChange)="updateRequirement($index, { itemName: $event })"
+            placeholder="Item name (e.g. MacBook Pro 14&quot;)"
+            class="req-name-input" />
+          <p-dropdown
+            [ngModel]="req.category" (ngModelChange)="updateRequirement($index, { category: $event })"
+            [options]="categoryOpts" optionLabel="label" optionValue="value"
+            styleClass="req-cat-dropdown" />
+          <label class="req-optional-label">
+            <p-checkbox
+              [ngModel]="req.optional" (ngModelChange)="updateRequirement($index, { optional: $event })"
+              [binary]="true" />
+            <span>Optional</span>
+          </label>
+          <p-button icon="pi pi-trash" styleClass="p-button-text p-button-sm p-button-danger" (onClick)="removeRequirement($index)" />
+        </div>
+      }
+    </div>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="drawer-footer">
+      <p-button label="Cancel" styleClass="p-button-text p-button-secondary" (onClick)="close()" />
+      <p-button
+        [label]="isEditMode() ? 'Save Changes' : 'Create Template'"
+        icon="pi pi-check"
+        [disabled]="!valid()"
+        (onClick)="submit()"
+      />
+    </div>
+  </ng-template>
+</p-sidebar>

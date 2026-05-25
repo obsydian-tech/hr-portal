@@ -1,0 +1,76 @@
+<div class="config-page">
+
+  <!-- Header -->
+  <div class="config-page__header">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">Scoring Weights</h2>
+      <p class="config-page__subtitle">Adjust the relative importance of each evaluation criterion. Weights must sum to 100.</p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!loading()) {
+        <tf-config-version-badge [version]="configVersion()" [changedAt]="updatedAt()" />
+      }
+    </div>
+  </div>
+
+  <!-- Loading skeleton -->
+  @if (loading()) {
+    <div class="config-page__skeleton">
+      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3,4]"></div>
+    </div>
+  } @else {
+
+    <!-- Criteria rows -->
+    <div class="config-card">
+      @for (c of criteria; track c.key) {
+        <div class="config-row">
+          <div class="config-row__label">
+            <i class="pi {{ c.icon }}"></i>
+            <span>{{ c.label }}</span>
+          </div>
+          <div class="config-row__control">
+            <p-inputNumber
+              [(ngModel)]="weights()[c.key]"
+              (ngModelChange)="updateWeight(c.key, $event)"
+              [min]="0" [max]="100" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              suffix="%"
+              styleClass="config-input-number"
+            />
+          </div>
+        </div>
+      }
+
+      <!-- Total indicator -->
+      <div class="config-total" [class.config-total--invalid]="!valid()">
+        <span>Total: {{ total() }}%</span>
+        @if (!valid()) {
+          <span class="config-total__remaining">
+            {{ remaining() > 0 ? remaining() + '% remaining' : (remaining() * -1) + '% over' }}
+          </span>
+        }
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="config-save-row">
+      <p-button
+        label="Reset to Defaults"
+        icon="pi pi-refresh"
+        styleClass="p-button-text p-button-secondary"
+        [disabled]="saving()"
+        (onClick)="confirmReset()"
+      />
+      <p-button
+        label="Save Changes"
+        icon="pi pi-check"
+        [loading]="saving()"
+        [disabled]="!valid() || saving()"
+        (onClick)="confirmSave()"
+      />
+    </div>
+  }
+
+</div>

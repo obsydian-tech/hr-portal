@@ -1,0 +1,86 @@
+<div class="config-page">
+
+  <div class="config-page__header">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">Sentiment Scales</h2>
+      <p class="config-page__subtitle">Configure display labels, numeric scores, and escalation behaviour for each candidate engagement sentiment level.</p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!loading()) {
+        <tf-config-version-badge [version]="configVersion()" [changedAt]="updatedAt()" />
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="config-page__skeleton">
+      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3,4,5]"></div>
+    </div>
+  } @else {
+
+    <div class="config-card">
+      <!-- Table header -->
+      <div class="sentiment-grid sentiment-grid--header">
+        <span>Sentiment</span>
+        <span>Display Label</span>
+        <span>Score (1–5)</span>
+        <span>Escalate?</span>
+        <span>Escalation Path</span>
+      </div>
+
+      @for (row of scales(); track row.key) {
+        <div class="sentiment-grid sentiment-grid--row">
+
+          <!-- Sentiment key badge -->
+          <span class="sentiment-key sentiment-key--{{ row.key | lowercase }}">{{ row.key }}</span>
+
+          <!-- Label -->
+          <input
+            pInputText
+            type="text"
+            [ngModel]="row.label"
+            (ngModelChange)="updateRow(row.key, { label: $event })"
+            class="config-text-input"
+          />
+
+          <!-- Score -->
+          <p-inputNumber
+            [ngModel]="row.score"
+            (ngModelChange)="updateRow(row.key, { score: $event })"
+            [min]="1" [max]="5" [showButtons]="true"
+            buttonLayout="horizontal"
+            incrementButtonIcon="pi pi-plus"
+            decrementButtonIcon="pi pi-minus"
+            styleClass="config-input-number config-input-number--small"
+          />
+
+          <!-- Escalate toggle -->
+          <p-toggleButton
+            [ngModel]="row.escalate"
+            (ngModelChange)="updateRow(row.key, { escalate: $event })"
+            onLabel="Yes" offLabel="No"
+            onIcon="pi pi-bell" offIcon="pi pi-bell-slash"
+            styleClass="config-toggle config-toggle--sm"
+          />
+
+          <!-- Escalation path dropdown -->
+          <p-dropdown
+            [ngModel]="row.escalationPath"
+            (ngModelChange)="updateRow(row.key, { escalationPath: $event })"
+            [options]="escalationPaths"
+            optionLabel="label"
+            optionValue="value"
+            [disabled]="!row.escalate"
+            styleClass="config-dropdown"
+          />
+        </div>
+      }
+    </div>
+
+    <div class="config-save-row">
+      <p-button label="Reset to Defaults" icon="pi pi-refresh" styleClass="p-button-text p-button-secondary" [disabled]="saving()" (onClick)="confirmReset()" />
+      <p-button label="Save Changes" icon="pi pi-check" [loading]="saving()" [disabled]="saving()" (onClick)="confirmSave()" />
+    </div>
+  }
+
+</div>
