@@ -254,3 +254,98 @@ export const DEFAULT_LOCALE_SETTINGS: LocaleSettingsConfig = {
   currency:       'ZAR',
   currencySymbol: 'R',
 };
+
+// ─── Audit & Compliance — Section 6 ─────────────────────────────────────────
+
+export type AuditModule = 'TalentFlow' | 'ITRequest' | 'Admin' | 'System';
+
+export type AuditRole = 'TA' | 'HM' | 'IT' | 'Admin' | 'System';
+
+export type AuditEventType =
+  | 'SLA_BREACH'
+  | 'CONFIG_CHANGE'
+  | 'CANDIDATE_ACTION'
+  | 'OFFER_ACTION'
+  | 'PROVISIONING'
+  | 'USER_MANAGEMENT';
+
+export type AuditOutcome = 'SUCCESS' | 'FAILURE' | 'PARTIAL';
+
+export const AUDIT_EVENT_TYPE_LABELS: Record<AuditEventType, string> = {
+  SLA_BREACH:       'SLA Breach',
+  CONFIG_CHANGE:    'Config Change',
+  CANDIDATE_ACTION: 'Candidate Action',
+  OFFER_ACTION:     'Offer Action',
+  PROVISIONING:     'Provisioning',
+  USER_MANAGEMENT:  'User Management',
+};
+
+export const AUDIT_MODULE_LABELS: Record<AuditModule, string> = {
+  TalentFlow: 'TalentFlow',
+  ITRequest:  'IT Request',
+  Admin:      'Admin',
+  System:     'System',
+};
+
+export const AUDIT_OUTCOME_SEVERITY: Record<AuditOutcome, 'success' | 'danger' | 'warn'> = {
+  SUCCESS: 'success',
+  FAILURE: 'danger',
+  PARTIAL: 'warn',
+};
+
+export interface AuditEvent {
+  eventId:       string;
+  timestamp:     string;         // ISO 8601 localised for display
+  timestampUtc:  string;         // UTC canonical
+  userId:        string;
+  userEmail:     string;
+  userFullName:  string;
+  role:          AuditRole;
+  action:        string;         // human-readable e.g. "Updated scoring weights"
+  entityType:    string;         // e.g. "Candidate" | "Config" | "User"
+  entityId:      string;
+  entityLabel:   string;         // display name for the entity
+  module:        AuditModule;
+  eventType:     AuditEventType;
+  outcome:       AuditOutcome;
+  ipAddress:     string;
+  correlationId: string;
+  // present for CONFIG_CHANGE events only
+  diff?: AuditDiff;
+  // present for non-config events
+  payload?: Record<string, unknown>;
+}
+
+export interface AuditDiff {
+  configType:  string;
+  before:      Record<string, unknown>;
+  after:       Record<string, unknown>;
+  changedKeys: string[];
+}
+
+export interface AuditStatsResponse {
+  totalEventsToday:    number;
+  configChangesToday:  number;
+  slaBreachesToday:    number;
+  userActionsToday:    number;
+}
+
+export interface AuditFilters {
+  module?:     AuditModule;
+  role?:       AuditRole;
+  eventType?:  AuditEventType;
+  dateFrom?:   string;   // ISO date YYYY-MM-DD
+  dateTo?:     string;
+  search?:     string;
+  page?:       number;
+  pageSize?:   number;
+  sortOrder?:  'asc' | 'desc';
+}
+
+export interface AuditEventsResponse {
+  events:       AuditEvent[];
+  totalCount:   number;
+  page:         number;
+  pageSize:     number;
+  totalPages:   number;
+}

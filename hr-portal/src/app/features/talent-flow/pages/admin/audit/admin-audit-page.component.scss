@@ -1,0 +1,288 @@
+// ── Admin Audit Page ──────────────────────────────────────────────────────────
+
+.tf-audit-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  &__header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--text-color);
+
+    .pi {
+      color: var(--primary-color);
+    }
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__header-actions {
+    flex-shrink: 0;
+  }
+}
+
+// ── KPI Strip ────────────────────────────────────────────────────────────────
+
+.tf-audit-kpi {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+
+  @media (max-width: 1024px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 600px)  { grid-template-columns: 1fr; }
+
+  &__card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: 0.75rem;
+    background: var(--surface-card);
+    border: 1px solid var(--surface-border);
+    border-left: 4px solid currentColor;
+  }
+
+  &__icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: color-mix(in srgb, currentColor 12%, transparent);
+
+    .pi { font-size: 1.25rem; }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  &__value {
+    font-size: 1.625rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text-color);
+  }
+
+  &__label {
+    font-size: 0.8125rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__skel {
+    display: inline-block;
+    width: 3rem;
+    height: 1.5rem;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--surface-200) 25%, var(--surface-300) 50%, var(--surface-200) 75%);
+    background-size: 200% 100%;
+    animation: tf-skel-shimmer 1.4s ease infinite;
+  }
+
+  // Colour variants
+  &__card--indigo { color: #6366f1; }
+  &__card--green  { color: #22c55e; }
+  &__card--amber  { color: #f59e0b; }
+  &__card--teal   { color: #14b8a6; }
+}
+
+@keyframes tf-skel-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// ── Filter Bar ───────────────────────────────────────────────────────────────
+
+.tf-audit-filters {
+  padding: 1rem 1.25rem !important;
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+  }
+
+  &__group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 160px;
+
+    &--search {
+      flex: 1 1 200px;
+    }
+
+    &--reset {
+      padding-bottom: 0;
+      align-self: flex-end;
+    }
+  }
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-color-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__dropdown { width: 100%; }
+
+  &__date {
+    width: 100%;
+    min-width: 140px;
+  }
+
+  &__search-wrap {
+    width: 100%;
+    input { width: 100%; }
+  }
+}
+
+// ── Results Bar ──────────────────────────────────────────────────────────────
+
+.tf-audit-results-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+
+  &__summary {
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__size-picker { width: 130px; }
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+
+.tf-audit-table-card {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.tf-audit-table {
+  &__row {
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover td {
+      background: var(--surface-hover) !important;
+    }
+  }
+
+  &__ts {
+    &-local {
+      font-size: 0.8125rem;
+      white-space: nowrap;
+      font-family: var(--font-family);
+    }
+  }
+
+  &__user {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+
+    &-name  { font-weight: 600; font-size: 0.875rem; }
+    &-email { font-size: 0.75rem; color: var(--text-color-secondary); }
+  }
+
+  &__action {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    &-text {
+      font-size: 0.8125rem;
+      color: var(--text-color-secondary);
+    }
+  }
+
+  &__type-tag { font-size: 0.7rem !important; }
+  &__role-tag { font-size: 0.75rem !important; }
+
+  &__entity {
+    font-size: 0.875rem;
+    cursor: help;
+  }
+
+  &__module {
+    font-size: 0.8125rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem;
+    color: var(--text-color-secondary);
+
+    .pi { font-size: 2rem; }
+    span { font-size: 0.9375rem; }
+  }
+}
+
+// ── Pagination ────────────────────────────────────────────────────────────────
+
+.tf-audit-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--surface-border);
+
+  &__ellipsis {
+    padding: 0 0.5rem;
+    color: var(--text-color-secondary);
+    user-select: none;
+  }
+
+  &__page--active {
+    background: var(--primary-color) !important;
+    color: #fff !important;
+    border-radius: 4px;
+  }
+}

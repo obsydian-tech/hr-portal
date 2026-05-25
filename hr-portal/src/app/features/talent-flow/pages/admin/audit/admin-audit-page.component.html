@@ -1,0 +1,293 @@
+<div class="tf-audit-page">
+
+  <!-- ── Page header ───────────────────────────────────────────────────────── -->
+  <div class="tf-audit-page__header">
+    <div class="tf-audit-page__header-left">
+      <h1 class="tf-audit-page__title">
+        <i class="pi pi-shield"></i>
+        Audit &amp; Compliance
+      </h1>
+      <p class="tf-audit-page__subtitle">
+        Event log, configuration changes, and SLA breach tracking across all modules.
+      </p>
+    </div>
+    <div class="tf-audit-page__header-actions">
+      <button
+        pButton
+        label="Export All"
+        icon="pi pi-download"
+        class="p-button-outlined p-button-secondary"
+        [loading]="exportingAll()"
+        (click)="exportAll()"
+        pTooltip="Download full audit log as CSV"
+        tooltipPosition="left">
+      </button>
+    </div>
+  </div>
+
+  <!-- ── KPI signal strip ──────────────────────────────────────────────────── -->
+  <div class="tf-audit-kpi">
+
+    <div class="tf-audit-kpi__card tf-audit-kpi__card--indigo">
+      <div class="tf-audit-kpi__icon"><i class="pi pi-list"></i></div>
+      <div class="tf-audit-kpi__body">
+        <span class="tf-audit-kpi__value">
+          <ng-container *ngIf="!loadingStats(); else statSkel">{{ stats().totalEventsToday | number }}</ng-container>
+        </span>
+        <span class="tf-audit-kpi__label">Total events today</span>
+      </div>
+    </div>
+
+    <div class="tf-audit-kpi__card tf-audit-kpi__card--green">
+      <div class="tf-audit-kpi__icon"><i class="pi pi-cog"></i></div>
+      <div class="tf-audit-kpi__body">
+        <span class="tf-audit-kpi__value">
+          <ng-container *ngIf="!loadingStats(); else statSkel">{{ stats().configChangesToday | number }}</ng-container>
+        </span>
+        <span class="tf-audit-kpi__label">Config changes</span>
+      </div>
+    </div>
+
+    <div class="tf-audit-kpi__card tf-audit-kpi__card--amber">
+      <div class="tf-audit-kpi__icon"><i class="pi pi-exclamation-triangle"></i></div>
+      <div class="tf-audit-kpi__body">
+        <span class="tf-audit-kpi__value">
+          <ng-container *ngIf="!loadingStats(); else statSkel">{{ stats().slaBreachesToday | number }}</ng-container>
+        </span>
+        <span class="tf-audit-kpi__label">SLA breaches</span>
+      </div>
+    </div>
+
+    <div class="tf-audit-kpi__card tf-audit-kpi__card--teal">
+      <div class="tf-audit-kpi__icon"><i class="pi pi-users"></i></div>
+      <div class="tf-audit-kpi__body">
+        <span class="tf-audit-kpi__value">
+          <ng-container *ngIf="!loadingStats(); else statSkel">{{ stats().userActionsToday | number }}</ng-container>
+        </span>
+        <span class="tf-audit-kpi__label">User actions</span>
+      </div>
+    </div>
+
+  </div>
+
+  <ng-template #statSkel><span class="tf-audit-kpi__skel"></span></ng-template>
+
+  <!-- ── Filter bar ────────────────────────────────────────────────────────── -->
+  <div class="tf-config-card tf-audit-filters">
+
+    <div class="tf-audit-filters__row">
+
+      <div class="tf-audit-filters__group">
+        <label class="tf-audit-filters__label">Module</label>
+        <p-dropdown
+          [options]="moduleOptions"
+          [(ngModel)]="filterModule.value"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="All Modules"
+          (onChange)="onModuleChange()"
+          styleClass="tf-audit-filters__dropdown">
+        </p-dropdown>
+      </div>
+
+      <div class="tf-audit-filters__group">
+        <label class="tf-audit-filters__label">Role</label>
+        <p-dropdown
+          [options]="roleOptions"
+          [(ngModel)]="filterRole.value"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="All Roles"
+          (onChange)="onRoleChange()"
+          styleClass="tf-audit-filters__dropdown">
+        </p-dropdown>
+      </div>
+
+      <div class="tf-audit-filters__group">
+        <label class="tf-audit-filters__label">Event Type</label>
+        <p-dropdown
+          [options]="eventTypeOptions"
+          [(ngModel)]="filterEventType.value"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="All Event Types"
+          (onChange)="onEventTypeChange()"
+          styleClass="tf-audit-filters__dropdown">
+        </p-dropdown>
+      </div>
+
+      <div class="tf-audit-filters__group">
+        <label class="tf-audit-filters__label">Date From</label>
+        <input
+          type="date"
+          pInputText
+          class="tf-audit-filters__date"
+          [ngModel]="filterDateFrom()"
+          (ngModelChange)="onDateFromChange($event)" />
+      </div>
+
+      <div class="tf-audit-filters__group">
+        <label class="tf-audit-filters__label">Date To</label>
+        <input
+          type="date"
+          pInputText
+          class="tf-audit-filters__date"
+          [ngModel]="filterDateTo()"
+          (ngModelChange)="onDateToChange($event)" />
+      </div>
+
+      <div class="tf-audit-filters__group tf-audit-filters__group--search">
+        <label class="tf-audit-filters__label">Search</label>
+        <span class="p-input-icon-left tf-audit-filters__search-wrap">
+          <i class="pi pi-search"></i>
+          <input
+            type="text"
+            pInputText
+            placeholder="User, entity or event type…"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="onSearchInput($event)" />
+        </span>
+      </div>
+
+      <div class="tf-audit-filters__group tf-audit-filters__group--reset">
+        <button
+          pButton
+          icon="pi pi-times"
+          label="Clear"
+          class="p-button-outlined p-button-secondary"
+          [disabled]="!hasActiveFilters()"
+          (click)="clearFilters()">
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Results bar ───────────────────────────────────────────────────────── -->
+  <div class="tf-audit-results-bar">
+    <span class="tf-audit-results-bar__summary">{{ resultSummary() }}</span>
+    <div class="tf-audit-results-bar__actions">
+      <p-dropdown
+        [options]="pageSizeOptions"
+        [(ngModel)]="pageSizeValue"
+        optionLabel="label"
+        optionValue="value"
+        (onChange)="onPageSizeChange()"
+        styleClass="tf-audit-results-bar__size-picker">
+      </p-dropdown>
+      <button
+        pButton
+        label="Export Filtered"
+        icon="pi pi-filter"
+        class="p-button-outlined"
+        [loading]="exportingFilter()"
+        (click)="exportFiltered()">
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Events table ───────────────────────────────────────────────────────── -->
+  <div class="tf-config-card tf-audit-table-card">
+    <p-table
+      [value]="events()"
+      [loading]="loadingEvents()"
+      responsiveLayout="scroll"
+      styleClass="p-datatable-sm tf-audit-table">
+
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:160px">Timestamp</th>
+          <th>User</th>
+          <th style="width:80px">Role</th>
+          <th>Action</th>
+          <th>Entity</th>
+          <th style="width:110px">Module</th>
+          <th style="width:100px">Outcome</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-event>
+        <tr class="tf-audit-table__row" (click)="openEvent(event)" pTooltip="Click for details" tooltipPosition="left" tooltipShowDelay="600">
+          <td class="tf-audit-table__ts">
+            <span class="tf-audit-table__ts-local">{{ event.timestamp | date:'dd MMM, HH:mm:ss' }}</span>
+          </td>
+          <td>
+            <div class="tf-audit-table__user">
+              <span class="tf-audit-table__user-name">{{ event.userFullName }}</span>
+              <span class="tf-audit-table__user-email">{{ event.userEmail }}</span>
+            </div>
+          </td>
+          <td>
+            <p-tag [value]="event.role" severity="secondary" styleClass="tf-audit-table__role-tag"></p-tag>
+          </td>
+          <td>
+            <div class="tf-audit-table__action">
+              <p-tag
+                [value]="getEventTypeLabel($any(event).eventType)"
+                [severity]="eventTypeSeverity(event.eventType)"
+                styleClass="tf-audit-table__type-tag">
+              </p-tag>
+              <span class="tf-audit-table__action-text">{{ event.action }}</span>
+            </div>
+          </td>
+          <td>
+            <span class="tf-audit-table__entity" [pTooltip]="event.entityId" tooltipPosition="top">
+              {{ event.entityLabel || event.entityType }}
+            </span>
+          </td>
+          <td>
+            <span class="tf-audit-table__module">{{ getModuleLabel($any(event).module) }}</span>
+          </td>
+          <td>
+            <p-tag
+              [value]="event.outcome"
+              [severity]="outcomeSev(event.outcome)">
+            </p-tag>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="7">
+            <div class="tf-audit-table__empty">
+              <i class="pi pi-inbox"></i>
+              <span>No events match the current filters.</span>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+    </p-table>
+
+    <!-- Pagination -->
+    <div class="tf-audit-pagination" *ngIf="totalPages() > 1">
+      <button pButton icon="pi pi-angle-double-left"  class="p-button-text" [disabled]="currentPage() === 1"             (click)="goToPage(1)"></button>
+      <button pButton icon="pi pi-angle-left"         class="p-button-text" [disabled]="currentPage() === 1"             (click)="goToPage(currentPage() - 1)"></button>
+
+      <ng-container *ngFor="let p of pagesArray(); let i = index">
+        <span *ngIf="i > 0 && pagesArray()[i] - pagesArray()[i-1] > 1" class="tf-audit-pagination__ellipsis">…</span>
+        <button
+          pButton
+          [label]="p.toString()"
+          class="p-button-text"
+          [class.tf-audit-pagination__page--active]="p === currentPage()"
+          (click)="goToPage(p)">
+        </button>
+      </ng-container>
+
+      <button pButton icon="pi pi-angle-right"        class="p-button-text" [disabled]="currentPage() === totalPages()" (click)="goToPage(currentPage() + 1)"></button>
+      <button pButton icon="pi pi-angle-double-right" class="p-button-text" [disabled]="currentPage() === totalPages()" (click)="goToPage(totalPages())"></button>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ── Event detail drawer ────────────────────────────────────────────────── -->
+<tf-event-detail-drawer
+  *ngIf="drawerVisible() && selectedEvent()"
+  [event]="selectedEvent()!"
+  [visible]="drawerVisible()"
+  (closed)="closeDrawer()">
+</tf-event-detail-drawer>
