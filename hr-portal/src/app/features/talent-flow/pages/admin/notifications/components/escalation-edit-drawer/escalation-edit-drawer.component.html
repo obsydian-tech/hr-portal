@@ -1,0 +1,82 @@
+<p-sidebar
+  [visible]="visible()"
+  position="right"
+  styleClass="tf-notif-drawer"
+  [blockScroll]="true"
+  (onHide)="close()">
+
+  <ng-template pTemplate="header">
+    <div class="tf-notif-drawer__header">
+      <div class="tf-notif-drawer__header-title">
+        <i class="pi pi-clock"></i>
+        <span>Edit Escalation Path</span>
+      </div>
+      <button pButton icon="pi pi-times" class="p-button-text p-button-rounded" (click)="close()"></button>
+    </div>
+  </ng-template>
+
+  <div class="tf-notif-drawer__body">
+
+    <!-- SLA info -->
+    <section class="tf-notif-drawer__section">
+      <h3 class="tf-notif-drawer__section-title">SLA Type</h3>
+      <p class="tf-notif-drawer__event-name">{{ escalation().slaType }}</p>
+      <p class="tf-notif-drawer__event-desc">{{ escalation().description }}</p>
+    </section>
+
+    <!-- 50% — locked -->
+    <section class="tf-notif-drawer__section tf-notif-drawer__section--locked">
+      <h3 class="tf-notif-drawer__section-title">
+        50% Threshold
+        <span class="tf-notif-drawer__locked-badge">
+          <i class="pi pi-lock"></i> Platform rule — silent
+        </span>
+      </h3>
+      <p class="tf-notif-drawer__hint">
+        The Universal Risk Timer golden rule: 50% elapsed is always silent. No notifications are sent. This is not configurable.
+      </p>
+    </section>
+
+    <!-- 75% — amber nudge -->
+    <section class="tf-notif-drawer__section">
+      <h3 class="tf-notif-drawer__section-title">75% Threshold <span class="tf-notif-drawer__tier-badge tf-notif-drawer__tier-badge--amber">Amber nudge</span></h3>
+      <p class="tf-notif-drawer__hint">Who receives a nudge notification when 75% of the SLA time has elapsed?</p>
+      <div class="tf-notif-drawer__role-list">
+        <div class="tf-notif-drawer__role-row" *ngFor="let role of allRoles">
+          <p-checkbox
+            [binary]="true"
+            [ngModel]="hasRole('75', role)"
+            (ngModelChange)="toggleRole('75', role)"
+            [inputId]="'esc75-' + role">
+          </p-checkbox>
+          <label [for]="'esc75-' + role" class="tf-notif-drawer__role-label">{{ roleLabels[role] }}</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- 100% — breach escalation -->
+    <section class="tf-notif-drawer__section">
+      <h3 class="tf-notif-drawer__section-title">100% Threshold <span class="tf-notif-drawer__tier-badge tf-notif-drawer__tier-badge--red">Breach escalation</span></h3>
+      <p class="tf-notif-drawer__hint">Who receives a breach escalation notification when the SLA is breached?</p>
+      <div class="tf-notif-drawer__role-list">
+        <div class="tf-notif-drawer__role-row" *ngFor="let role of allRoles">
+          <p-checkbox
+            [binary]="true"
+            [ngModel]="hasRole('100', role)"
+            (ngModelChange)="toggleRole('100', role)"
+            [inputId]="'esc100-' + role">
+          </p-checkbox>
+          <label [for]="'esc100-' + role" class="tf-notif-drawer__role-label">{{ roleLabels[role] }}</label>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="tf-notif-drawer__footer">
+      <button pButton label="Cancel" class="p-button-outlined p-button-secondary" (click)="close()"></button>
+      <button pButton label="Save" icon="pi pi-check" [loading]="saving()" (click)="save()"></button>
+    </div>
+  </ng-template>
+</p-sidebar>

@@ -1,0 +1,352 @@
+// ── Admin Notifications Page ──────────────────────────────────────────────────
+
+.tf-notif-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--text-color);
+    .pi { color: var(--primary-color); }
+  }
+
+  &__subtitle {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 4rem;
+    color: var(--text-color-secondary);
+    font-size: 0.9375rem;
+    .pi { font-size: 1.25rem; color: var(--primary-color); }
+  }
+}
+
+// ── Card headers ───────────────────────────────────────────────────────────
+
+.tf-notif-card {
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--surface-border);
+    flex-wrap: wrap;
+  }
+
+  &__title {
+    margin: 0 0 0.2rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-color);
+  }
+
+  &__desc {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__footer-note {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-color-secondary);
+    background: var(--surface-ground);
+    border-top: 1px solid var(--surface-border);
+    .pi { font-size: 0.75rem; }
+  }
+}
+
+// ── Golden rule banner ─────────────────────────────────────────────────────
+
+.tf-notif-golden-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.85rem 1.5rem;
+  background: rgba(99, 102, 241, 0.06);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.18);
+  font-size: 0.875rem;
+  color: var(--text-color);
+  line-height: 1.5;
+
+  .pi { color: #6366f1; flex-shrink: 0; margin-top: 0.15rem; }
+}
+
+// ── MVP badge ─────────────────────────────────────────────────────────────
+
+.tf-notif-mvp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 14px;
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary-color) 20%, transparent);
+  flex-shrink: 0;
+
+  .pi { font-size: 0.7rem; }
+}
+
+// ── Group header ───────────────────────────────────────────────────────────
+
+.tf-notif-group-header {
+  padding: 0.6rem 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-color-secondary);
+  background: var(--surface-ground);
+  border-top: 1px solid var(--surface-border);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+// ── Shared notification table ──────────────────────────────────────────────
+
+.tf-notif-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    text-align: left;
+    padding: 0.6rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-color-secondary);
+    background: var(--surface-50, var(--surface-ground));
+    border-bottom: 1px solid var(--surface-border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--surface-border);
+    vertical-align: middle;
+    font-size: 0.875rem;
+    color: var(--text-color);
+  }
+
+  &__row:last-child td {
+    border-bottom: none;
+  }
+
+  &__row:hover td {
+    background: var(--surface-hover);
+  }
+
+  &__name {
+    font-weight: 600;
+  }
+
+  &__desc {
+    color: var(--text-color-secondary);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  &__module {
+    font-size: 0.8125rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  &__role-tag {
+    font-size: 0.7rem !important;
+  }
+
+  &__no-recipients {
+    font-size: 0.8125rem;
+    color: var(--text-color-secondary);
+    font-style: italic;
+  }
+
+  &__toggle {
+    text-align: center;
+  }
+
+  &__actions {
+    text-align: right;
+  }
+
+  &__silent {
+    text-align: center;
+  }
+
+  &__no-action {
+    font-size: 0.8125rem;
+    color: var(--text-color-secondary);
+    font-style: italic;
+  }
+
+  // Escalation column headers
+  &__th--silent {
+    color: var(--text-color-secondary) !important;
+    opacity: 0.7;
+  }
+
+  &__th--amber th { background: rgba(245, 158, 11, 0.05) !important; }
+  &__th--red   th { background: rgba(220, 38, 38, 0.05) !important; }
+
+  &__th-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.3rem;
+    font-size: 0.65rem;
+    border-radius: 10px;
+    padding: 0.1rem 0.4rem;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+
+    &--locked {
+      background: var(--surface-200);
+      color: var(--text-color-secondary);
+    }
+
+    &--amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: #b45309;
+    }
+
+    &--red {
+      background: rgba(220, 38, 38, 0.12);
+      color: #dc2626;
+    }
+  }
+
+  &--escalation {
+    th, td { padding: 0.65rem 0.875rem; }
+  }
+}
+
+// ── Template cards ─────────────────────────────────────────────────────────
+
+.tf-notif-templates {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tf-notif-template-card {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--surface-border);
+
+  &:last-child { border-bottom: none; }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  &__event {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    color: var(--text-color);
+  }
+
+  &__subject {
+    font-size: 0.8125rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__body {
+    padding: 0.75rem;
+    background: var(--surface-ground);
+    border: 1px solid var(--surface-border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-color);
+    margin-bottom: 0.75rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  &__vars {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  &__vars-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-color-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 0.25rem;
+  }
+
+  &__var-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    background: rgba(99, 102, 241, 0.08);
+    color: #4f46e5;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.775rem;
+    font-weight: 600;
+  }
+}
+
+// ── Variable highlight (used in [innerHTML] binding) ──────────────────────
+
+::ng-deep .tf-notif-var {
+  display: inline;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.875em;
+  font-weight: 600;
+}

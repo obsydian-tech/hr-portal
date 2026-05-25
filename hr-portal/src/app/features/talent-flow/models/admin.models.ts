@@ -349,3 +349,80 @@ export interface AuditEventsResponse {
   pageSize:     number;
   totalPages:   number;
 }
+
+// ─── Notification Settings — Section 7 ───────────────────────────────────────
+
+export type NotifModule = 'TalentFlow' | 'ITRequest';
+export type NotifRecipientRole = 'TA' | 'HM' | 'IT' | 'ADMIN';
+
+export const NOTIF_MODULE_LABELS: Record<NotifModule, string> = {
+  TalentFlow: 'TalentFlow Hiring',
+  ITRequest:  'IT Request Provisioning',
+};
+
+export const NOTIF_ROLE_LABELS: Record<NotifRecipientRole, string> = {
+  TA:    'TA Specialist',
+  HM:    'Hiring Manager',
+  IT:    'IT Admin',
+  ADMIN: 'Admin',
+};
+
+export const ALL_NOTIF_ROLES: NotifRecipientRole[] = ['TA', 'HM', 'IT', 'ADMIN'];
+
+// ── Card 1: Notification Triggers ──────────────────────────────────────────
+
+export interface NotifTrigger {
+  triggerId:   string;
+  module:      NotifModule;
+  eventName:   string;
+  description: string;
+  recipients:  NotifRecipientRole[];
+  enabled:     boolean;
+}
+
+export interface UpdateNotifTriggerRequest {
+  triggerId:  string;
+  recipients: NotifRecipientRole[];
+  enabled:    boolean;
+}
+
+// ── Card 2: Escalation Paths ──────────────────────────────────────────────
+
+export interface EscalationPath {
+  slaId:        string;
+  module:       NotifModule;
+  slaType:      string;
+  description:  string;
+  threshold75:  NotifRecipientRole[];   // amber nudge — configurable
+  threshold100: NotifRecipientRole[];   // breach escalation — configurable
+  // threshold50 is always silent (golden rule — not configurable)
+}
+
+export interface UpdateEscalationPathRequest {
+  slaId:        string;
+  threshold75:  NotifRecipientRole[];
+  threshold100: NotifRecipientRole[];
+}
+
+// ── Card 3: Notification Templates ────────────────────────────────────────
+
+export interface NotifTemplate {
+  templateId:    string;
+  module:        NotifModule;
+  eventName:     string;
+  subject:       string;
+  body:          string;          // message text with {{variable}} placeholders
+  availableVars: string[];        // platform-defined — admin cannot add new ones
+  channel:       'in-app';       // MVP 1: in-app only; email is MVP 2
+}
+
+export interface UpdateNotifTemplateRequest {
+  templateId: string;
+  body:       string;
+}
+
+export interface NotifSettingsResponse {
+  triggers:    NotifTrigger[];
+  escalations: EscalationPath[];
+  templates:   NotifTemplate[];
+}

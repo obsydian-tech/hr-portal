@@ -25,12 +25,12 @@
       <span>Tenant Settings</span>
     </a>
 
-    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon"
-          (click)="showComingSoon('Notifications')">
+    <a class="tf-admin-sidebar__item"
+       routerLink="/platform/talentflow/admin/notifications"
+       routerLinkActive="tf-admin-sidebar__item--active">
       <i class="pi pi-bell"></i>
       <span>Notifications</span>
-      <span class="tf-admin-sidebar__soon-badge">Soon</span>
-    </span>
+    </a>
 
     <a class="tf-admin-sidebar__item"
        routerLink="/platform/talentflow/admin/audit"

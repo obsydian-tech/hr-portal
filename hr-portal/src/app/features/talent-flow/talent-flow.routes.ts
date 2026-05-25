@@ -123,6 +123,13 @@ export const talentFlowRoutes: Routes = [
           ),
       },
       {
+        path: 'notifications',
+        loadComponent: () =>
+          import('./pages/admin/notifications/admin-notifications-page.component').then(
+            (m) => m.AdminNotificationsPageComponent,
+          ),
+      },
+      {
         path: 'tenant',
         loadComponent: () =>
           import('./pages/admin/tenant-settings/admin-tenant-settings.component').then(
