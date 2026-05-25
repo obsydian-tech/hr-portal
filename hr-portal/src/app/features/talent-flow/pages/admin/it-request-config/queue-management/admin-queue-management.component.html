@@ -1,0 +1,106 @@
+<div class="config-page">
+
+  <div class="config-page__header">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">Queue Management</h2>
+      <p class="config-page__subtitle">
+        Manage IT fulfilment queues used to route provisioning requests. {{ activeCount() }} active queue(s).
+      </p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!loading()) {
+        <tf-config-version-badge [version]="configVersion()" [changedAt]="updatedAt()" />
+      }
+      <p-button label="Add Queue" icon="pi pi-plus" (onClick)="openCreateDrawer()" [disabled]="saving()" />
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="config-page__skeleton">
+      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+    </div>
+  } @else if (queues().length === 0) {
+
+    <div class="config-empty">
+      <i class="pi pi-list config-empty__icon"></i>
+      <p>No queues configured. Create your first queue to get started.</p>
+      <p-button label="Create First Queue" icon="pi pi-plus" styleClass="p-button-text" (onClick)="openCreateDrawer()" />
+    </div>
+
+  } @else {
+
+    <p-table [value]="queues()" [rowHover]="true" styleClass="p-datatable-sm">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Name</th>
+          <th>Category</th>
+          <th>SLA</th>
+          <th>Specialists</th>
+          <th>Status</th>
+          <th style="width: 120px; text-align: center">Actions</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-queue>
+        <tr>
+          <td>
+            <div class="queue-name">{{ queue.name }}</div>
+            @if (queue.description) {
+              <div class="queue-desc">{{ queue.description }}</div>
+            }
+          </td>
+          <td>
+            <p-tag [value]="queue.category" styleClass="queue-category-tag queue-category-tag--{{ queue.category | lowercase }}" />
+          </td>
+          <td>{{ queue.slaHours }}h</td>
+          <td>
+            <button
+              class="specialist-btn"
+              (click)="toggleSpecialists(queue.id)"
+              [attr.aria-expanded]="expandedRows().has(queue.id)"
+            >
+              <i class="pi pi-users"></i>
+              {{ queue.assignedSpecialists.length }} specialist(s)
+              <i class="pi" [class.pi-chevron-down]="!expandedRows().has(queue.id)" [class.pi-chevron-up]="expandedRows().has(queue.id)"></i>
+            </button>
+            @if (expandedRows().has(queue.id)) {
+              <div class="specialist-list">
+                @for (s of queue.assignedSpecialists; track s) {
+                  <span class="specialist-chip">{{ s }}</span>
+                }
+                @if (queue.assignedSpecialists.length === 0) {
+                  <span class="specialist-chip specialist-chip--empty">No specialists assigned</span>
+                }
+              </div>
+            }
+          </td>
+          <td>
+            <p-tag
+              [value]="queue.active ? 'Active' : 'Inactive'"
+              [severity]="queue.active ? 'success' : 'secondary'"
+            />
+          </td>
+          <td class="action-cell">
+            <p-button icon="pi pi-pencil" styleClass="p-button-text p-button-sm" pTooltip="Edit" (onClick)="openEditDrawer(queue)" />
+            <p-button
+              [icon]="queue.active ? 'pi pi-ban' : 'pi pi-check'"
+              styleClass="p-button-text p-button-sm"
+              [pTooltip]="queue.active ? 'Deactivate' : 'Activate'"
+              (onClick)="toggleActive(queue)"
+            />
+            <p-button icon="pi pi-trash" styleClass="p-button-text p-button-sm p-button-danger" pTooltip="Delete" (onClick)="confirmDelete(queue)" />
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+
+  }
+
+</div>
+
+<!-- Queue Form Drawer -->
+<tf-queue-form-drawer
+  [visible]="drawerVisible()"
+  [queue]="editingQueue()"
+  (saved)="saveQueue($event)"
+  (closed)="closeDrawer()"
+/>

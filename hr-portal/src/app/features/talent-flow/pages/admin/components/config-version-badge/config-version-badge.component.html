@@ -1,0 +1,14 @@
+@if (hasData()) {
+  <span class="tf-config-version-badge">
+    <i class="pi pi-history"></i>
+    <span class="tf-config-version-badge__version">{{ version() }}</span>
+    @if (changedBy()) {
+      <span class="tf-config-version-badge__sep">·</span>
+      <span class="tf-config-version-badge__by">{{ changedBy() }}</span>
+    }
+    @if (changedAt()) {
+      <span class="tf-config-version-badge__sep">·</span>
+      <span class="tf-config-version-badge__at">{{ changedAt() | date: 'd MMM yyyy, HH:mm' }}</span>
+    }
+  </span>
+}

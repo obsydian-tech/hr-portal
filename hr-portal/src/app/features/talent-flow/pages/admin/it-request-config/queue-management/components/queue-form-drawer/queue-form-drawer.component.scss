@@ -1,0 +1,53 @@
+.tf-queue-drawer {
+  // Overridden via pSidebar styleClass
+}
+
+.drawer-title {
+  font-size:   1rem;
+  font-weight: 700;
+  color:       var(--tf-color-text-default, #111827);
+  margin:      0;
+}
+
+.drawer-body {
+  padding:        1rem 1.25rem;
+  display:        flex;
+  flex-direction: column;
+  gap:            1.25rem;
+  overflow-y:     auto;
+}
+
+.form-field {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.375rem;
+}
+
+.form-label {
+  font-size:   0.8125rem;
+  font-weight: 600;
+  color:       var(--tf-color-text-default, #374151);
+}
+
+.required { color: var(--tf-color-danger, #ef4444); margin-left: 0.1rem; }
+
+.form-input,
+.form-dropdown,
+.form-chips {
+  width: 100%;
+}
+
+.form-input-number { width: 100%; }
+
+.form-hint {
+  font-size: 0.75rem;
+  color:     var(--tf-color-text-muted, #6b7280);
+}
+
+.drawer-footer {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             0.75rem;
+  padding:         1rem 1.25rem;
+  border-top:      1px solid var(--tf-color-border, #e5e7eb);
+}

@@ -1,0 +1,96 @@
+// Config-page layout
+
+.config-page {
+  padding: 1.5rem 2rem;
+
+  &__header {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     flex-start;
+    margin-bottom:   1.5rem;
+    gap:             1rem;
+  }
+
+  &__header-right {
+    display:     flex;
+    align-items: center;
+    gap:         0.75rem;
+    flex-shrink: 0;
+  }
+
+  &__title    { font-size: 1.25rem; font-weight: 700; color: var(--tf-color-text-default, #111827); margin: 0 0 0.25rem; }
+  &__subtitle { font-size: 0.875rem; color: var(--tf-color-text-muted, #6b7280); margin: 0; }
+  &__skeleton { display: flex; flex-direction: column; gap: 0.75rem; }
+}
+
+.config-skeleton-row {
+  height: 2.5rem; border-radius: 0.5rem;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.config-empty {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  padding:        4rem 1rem;
+  color:          var(--tf-color-text-muted, #6b7280);
+  gap:            0.75rem;
+
+  &__icon { font-size: 3rem; opacity: 0.3; }
+}
+
+// Table cells
+
+.queue-name  { font-weight: 600; font-size: 0.875rem; }
+.queue-desc  { font-size: 0.75rem; color: var(--tf-color-text-muted, #6b7280); margin-top: 0.125rem; }
+
+.queue-category-tag {
+  font-size: 0.7rem;
+
+  &--hardware { background: #dbeafe; color: #1d4ed8; }
+  &--software { background: #d1fae5; color: #065f46; }
+  &--access   { background: #fef3c7; color: #92400e; }
+  &--infra    { background: #f3e8ff; color: #6b21a8; }
+}
+
+.action-cell {
+  display:     flex;
+  gap:         0.25rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.specialist-btn {
+  all:         unset;
+  cursor:      pointer;
+  font-size:   0.8125rem;
+  color:       var(--tf-color-primary, #6366f1);
+  display:     inline-flex;
+  align-items: center;
+  gap:         0.375rem;
+}
+
+.specialist-list {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       0.375rem;
+  margin-top: 0.5rem;
+}
+
+.specialist-chip {
+  display:       inline-block;
+  padding:       0.15rem 0.5rem;
+  background:    var(--tf-color-surface-subtle, #f9fafb);
+  border:        1px solid var(--tf-color-border, #e5e7eb);
+  border-radius: 9999px;
+  font-size:     0.75rem;
+  color:         var(--tf-color-text-default, #374151);
+
+  &--empty { color: var(--tf-color-text-muted, #9ca3af); font-style: italic; }
+}

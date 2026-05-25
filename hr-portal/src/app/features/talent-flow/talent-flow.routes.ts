@@ -129,6 +129,57 @@ export const talentFlowRoutes: Routes = [
             (m) => m.AdminUsersPageComponent,
           ),
       },
+      // ── Section 4: TalentFlow Config ──────────────────────────────────
+      {
+        path: 'talentflow/scoring-weights',
+        loadComponent: () =>
+          import('./pages/admin/talentflow-config/scoring-weights/admin-scoring-weights.component').then(
+            (m) => m.AdminScoringWeightsComponent,
+          ),
+      },
+      {
+        path: 'talentflow/sla-thresholds',
+        loadComponent: () =>
+          import('./pages/admin/talentflow-config/sla-thresholds/admin-sla-thresholds.component').then(
+            (m) => m.AdminSlaThresholdsComponent,
+          ),
+      },
+      {
+        path: 'talentflow/panel-rules',
+        loadComponent: () =>
+          import('./pages/admin/talentflow-config/panel-rules/admin-panel-rules.component').then(
+            (m) => m.AdminPanelRulesComponent,
+          ),
+      },
+      {
+        path: 'talentflow/sentiment-scales',
+        loadComponent: () =>
+          import('./pages/admin/talentflow-config/sentiment-scales/admin-sentiment-scales.component').then(
+            (m) => m.AdminSentimentScalesComponent,
+          ),
+      },
+      // ── Section 5: IT Request Config ──────────────────────────────────
+      {
+        path: 'it-request/queues',
+        loadComponent: () =>
+          import('./pages/admin/it-request-config/queue-management/admin-queue-management.component').then(
+            (m) => m.AdminQueueManagementComponent,
+          ),
+      },
+      {
+        path: 'it-request/templates',
+        loadComponent: () =>
+          import('./pages/admin/it-request-config/provisioning-templates/admin-provisioning-templates.component').then(
+            (m) => m.AdminProvisioningTemplatesComponent,
+          ),
+      },
+      {
+        path: 'it-request/routing',
+        loadComponent: () =>
+          import('./pages/admin/it-request-config/routing-rules/admin-routing-rules.component').then(
+            (m) => m.AdminRoutingRulesComponent,
+          ),
+      },
     ],
   },
 ];
