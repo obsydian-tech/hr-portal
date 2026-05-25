@@ -1,0 +1,65 @@
+<p-sidebar
+  [visible]="visible()"
+  position="right"
+  styleClass="tf-notif-drawer"
+  [blockScroll]="true"
+  (onHide)="close()">
+
+  <ng-template pTemplate="header">
+    <div class="tf-notif-drawer__header">
+      <div class="tf-notif-drawer__header-title">
+        <i class="pi pi-bell"></i>
+        <span>Edit Notification Trigger</span>
+      </div>
+      <button pButton icon="pi pi-times" class="p-button-text p-button-rounded" (click)="close()"></button>
+    </div>
+  </ng-template>
+
+  <div class="tf-notif-drawer__body">
+
+    <!-- Event info -->
+    <section class="tf-notif-drawer__section">
+      <h3 class="tf-notif-drawer__section-title">Event</h3>
+      <p class="tf-notif-drawer__event-name">{{ trigger().eventName }}</p>
+      <p class="tf-notif-drawer__event-desc">{{ trigger().description }}</p>
+    </section>
+
+    <!-- Enabled toggle -->
+    <section class="tf-notif-drawer__section">
+      <h3 class="tf-notif-drawer__section-title">Notification Active</h3>
+      <div class="tf-notif-drawer__toggle-row">
+        <p-inputSwitch [(ngModel)]="editEnabled"></p-inputSwitch>
+        <span class="tf-notif-drawer__toggle-label" [class.tf-notif-drawer__toggle-label--on]="editEnabled">
+          {{ editEnabled ? 'On — notification will fire' : 'Off — no notification sent' }}
+        </span>
+      </div>
+    </section>
+
+    <!-- Recipients -->
+    <section class="tf-notif-drawer__section">
+      <h3 class="tf-notif-drawer__section-title">Recipients</h3>
+      <p class="tf-notif-drawer__hint">Select which roles receive this notification.</p>
+      <div class="tf-notif-drawer__role-list">
+        <div class="tf-notif-drawer__role-row" *ngFor="let role of allRoles">
+          <p-checkbox
+            [binary]="true"
+            [ngModel]="hasRole(role)"
+            (ngModelChange)="toggleRole(role)"
+            [inputId]="'trig-role-' + role">
+          </p-checkbox>
+          <label [for]="'trig-role-' + role" class="tf-notif-drawer__role-label">
+            {{ roleLabels[role] }}
+          </label>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="tf-notif-drawer__footer">
+      <button pButton label="Cancel" class="p-button-outlined p-button-secondary" (click)="close()"></button>
+      <button pButton label="Save" icon="pi pi-check" [loading]="saving()" (click)="save()"></button>
+    </div>
+  </ng-template>
+</p-sidebar>

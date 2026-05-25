@@ -1,0 +1,77 @@
+.tf-template-drawer {
+  &__mvp-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+    font-size: 0.775rem;
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+    border-radius: 6px;
+    padding: 0.25rem 0.6rem;
+
+    .pi { font-size: 0.7rem; }
+  }
+
+  &__editor {
+    width: 100%;
+    font-size: 0.875rem;
+    font-family: var(--font-family);
+    resize: vertical;
+  }
+
+  &__preview {
+    min-height: 3rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    background: var(--surface-ground);
+    border: 1px solid var(--surface-border);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-color);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  &__var {
+    display: inline;
+    background: rgba(99, 102, 241, 0.12);
+    color: #4f46e5;
+    border-radius: 4px;
+    padding: 0.1rem 0.3rem;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.875em;
+    font-weight: 600;
+  }
+
+  &__vars-section {
+    background: var(--surface-ground);
+  }
+
+  &__var-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+  }
+
+  &__var-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 14px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #4f46e5;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(99, 102, 241, 0.5);
+    }
+  }
+}

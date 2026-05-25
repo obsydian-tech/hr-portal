@@ -1,0 +1,77 @@
+<p-sidebar
+  [visible]="visible()"
+  position="right"
+  styleClass="tf-notif-drawer"
+  [blockScroll]="true"
+  (onHide)="close()">
+
+  <ng-template pTemplate="header">
+    <div class="tf-notif-drawer__header">
+      <div class="tf-notif-drawer__header-title">
+        <i class="pi pi-file-edit"></i>
+        <span>Edit Notification Template</span>
+      </div>
+      <button pButton icon="pi pi-times" class="p-button-text p-button-rounded" (click)="close()"></button>
+    </div>
+  </ng-template>
+
+  <div class="tf-notif-drawer__body">
+
+    <!-- Event info -->
+    <section class="tf-notif-drawer__section">
+      <h3 class="tf-notif-drawer__section-title">Event</h3>
+      <p class="tf-notif-drawer__event-name">{{ template().eventName }}</p>
+      <p class="tf-notif-drawer__event-desc">{{ template().subject }}</p>
+      <span class="tf-template-drawer__mvp-note">
+        <i class="pi pi-info-circle"></i>
+        In-app notification only — email templates are MVP 2.
+      </span>
+    </section>
+
+    <!-- Message editor -->
+    <section class="tf-notif-drawer__section">
+      <h3 class="tf-notif-drawer__section-title">Message Body</h3>
+      <p class="tf-notif-drawer__hint">Edit the message text. Use the variables below to insert dynamic values.</p>
+      <textarea
+        pTextarea
+        class="tf-template-drawer__editor"
+        rows="6"
+        placeholder="Enter notification message…"
+        [ngModel]="editBody()"
+        (ngModelChange)="onBodyChange($event)"
+        autoResize="true">
+      </textarea>
+    </section>
+
+    <!-- Live preview -->
+    <section class="tf-notif-drawer__section">
+      <h3 class="tf-notif-drawer__section-title">Preview</h3>
+      <div class="tf-template-drawer__preview" [innerHTML]="previewHtml()"></div>
+    </section>
+
+    <!-- Available variables -->
+    <section class="tf-notif-drawer__section tf-template-drawer__vars-section">
+      <h3 class="tf-notif-drawer__section-title">Available Variables</h3>
+      <p class="tf-notif-drawer__hint">Click a variable to append it to your message.</p>
+      <div class="tf-template-drawer__var-chips">
+        <button
+          *ngFor="let v of template().availableVars"
+          type="button"
+          class="tf-template-drawer__var-chip"
+          (click)="insertVar(v)"
+          [pTooltip]="'Click to insert {{' + v + '}}'"
+          tooltipPosition="top">
+          {{ '{{' + v + '}}' }}
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="tf-notif-drawer__footer">
+      <button pButton label="Cancel" class="p-button-outlined p-button-secondary" (click)="close()"></button>
+      <button pButton label="Save" icon="pi pi-check" [loading]="saving()" (click)="save()"></button>
+    </div>
+  </ng-template>
+</p-sidebar>

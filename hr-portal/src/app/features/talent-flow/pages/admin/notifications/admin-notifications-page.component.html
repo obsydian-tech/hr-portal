@@ -1,0 +1,258 @@
+<div class="tf-notif-page">
+
+  <!-- ── Page header ──────────────────────────────────────────────────────── -->
+  <div class="tf-notif-page__header">
+    <div>
+      <h1 class="tf-notif-page__title">
+        <i class="pi pi-bell"></i>
+        Notifications
+      </h1>
+      <p class="tf-notif-page__subtitle">
+        Configure notification triggers, escalation paths, and message templates for all platform events.
+      </p>
+    </div>
+  </div>
+
+  <ng-container *ngIf="loading(); else content">
+    <div class="tf-notif-page__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading notification settings…</span>
+    </div>
+  </ng-container>
+
+  <ng-template #content>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Card 1 — Notification Triggers                                      -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="tf-config-card">
+
+      <div class="tf-notif-card__header">
+        <div>
+          <h2 class="tf-notif-card__title">Notification Triggers</h2>
+          <p class="tf-notif-card__desc">
+            Control which platform events send in-app notifications and who receives them.
+          </p>
+        </div>
+      </div>
+
+      <ng-container *ngFor="let group of triggerGroups()">
+        <!-- Module group heading -->
+        <div class="tf-notif-group-header">{{ group.label }}</div>
+
+        <table class="tf-notif-table">
+          <thead>
+            <tr>
+              <th style="width:200px">Event</th>
+              <th>Description</th>
+              <th style="width:220px">Recipients</th>
+              <th style="width:90px; text-align:center">Active</th>
+              <th style="width:72px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of group.triggers" class="tf-notif-table__row">
+              <td class="tf-notif-table__name">{{ t.eventName }}</td>
+              <td class="tf-notif-table__desc">{{ t.description }}</td>
+              <td>
+                <div class="tf-notif-table__roles">
+                  <p-tag
+                    *ngFor="let r of t.recipients"
+                    [value]="roleLabels[r]"
+                    [severity]="roleSeverity(r)"
+                    styleClass="tf-notif-table__role-tag">
+                  </p-tag>
+                  <span *ngIf="t.recipients.length === 0" class="tf-notif-table__no-recipients">None</span>
+                </div>
+              </td>
+              <td class="tf-notif-table__toggle">
+                <p-inputSwitch
+                  [ngModel]="t.enabled"
+                  (ngModelChange)="quickToggleTrigger(t)"
+                  [disabled]="isSavingTrigger(t.triggerId)">
+                </p-inputSwitch>
+              </td>
+              <td class="tf-notif-table__actions">
+                <button
+                  pButton
+                  icon="pi pi-pencil"
+                  class="p-button-text p-button-sm"
+                  (click)="editTrigger(t)"
+                  pTooltip="Edit recipients"
+                  tooltipPosition="left">
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </ng-container>
+
+      <div class="tf-notif-card__footer-note">
+        <i class="pi pi-info-circle"></i>
+        Toggles save immediately. Use the edit button to change which roles receive each notification.
+      </div>
+
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Card 2 — Escalation Paths                                           -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="tf-config-card">
+
+      <div class="tf-notif-card__header">
+        <div>
+          <h2 class="tf-notif-card__title">Escalation Paths</h2>
+          <p class="tf-notif-card__desc">
+            Configure who gets notified at each Universal Risk Timer threshold for every SLA type.
+          </p>
+        </div>
+      </div>
+
+      <div class="tf-notif-golden-rule">
+        <i class="pi pi-lock"></i>
+        <span>
+          <strong>Platform golden rule:</strong> The 50% threshold is always silent — no notification, no action. This preserves the Universal Risk Timer principle and is not configurable.
+        </span>
+      </div>
+
+      <table class="tf-notif-table tf-notif-table--escalation">
+        <thead>
+          <tr>
+            <th style="width:180px">SLA Type</th>
+            <th style="width:130px">Module</th>
+            <th style="width:140px" class="tf-notif-table__th--silent">
+              50% <span class="tf-notif-table__th-badge tf-notif-table__th-badge--locked">Locked silent</span>
+            </th>
+            <th style="width:200px" class="tf-notif-table__th--amber">
+              75% <span class="tf-notif-table__th-badge tf-notif-table__th-badge--amber">Amber nudge</span>
+            </th>
+            <th style="width:200px" class="tf-notif-table__th--red">
+              100% <span class="tf-notif-table__th-badge tf-notif-table__th-badge--red">Breach</span>
+            </th>
+            <th style="width:72px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let esc of escalations()" class="tf-notif-table__row">
+            <td class="tf-notif-table__name">{{ esc.slaType }}</td>
+            <td class="tf-notif-table__module">{{ moduleLabels[esc.module] }}</td>
+            <td class="tf-notif-table__silent">
+              <span class="tf-notif-table__no-action">No action</span>
+            </td>
+            <td>
+              <div class="tf-notif-table__roles">
+                <p-tag *ngFor="let r of esc.threshold75" [value]="roleLabels[r]" [severity]="roleSeverity(r)" styleClass="tf-notif-table__role-tag"></p-tag>
+                <span *ngIf="esc.threshold75.length === 0" class="tf-notif-table__no-recipients">None</span>
+              </div>
+            </td>
+            <td>
+              <div class="tf-notif-table__roles">
+                <p-tag *ngFor="let r of esc.threshold100" [value]="roleLabels[r]" [severity]="roleSeverity(r)" styleClass="tf-notif-table__role-tag"></p-tag>
+                <span *ngIf="esc.threshold100.length === 0" class="tf-notif-table__no-recipients">None</span>
+              </div>
+            </td>
+            <td class="tf-notif-table__actions">
+              <button
+                pButton
+                icon="pi pi-pencil"
+                class="p-button-text p-button-sm"
+                [loading]="isSavingEscalation(esc.slaId)"
+                (click)="editEscalation(esc)"
+                pTooltip="Edit escalation recipients"
+                tooltipPosition="left">
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Card 3 — Notification Templates                                     -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="tf-config-card">
+
+      <div class="tf-notif-card__header">
+        <div>
+          <h2 class="tf-notif-card__title">Notification Templates</h2>
+          <p class="tf-notif-card__desc">
+            Edit the in-app message text for each notification type. Template variables are platform-defined.
+          </p>
+        </div>
+        <span class="tf-notif-mvp-badge">
+          <i class="pi pi-info-circle"></i>
+          In-app only — email templates are MVP 2
+        </span>
+      </div>
+
+      <div class="tf-notif-templates">
+
+        <div *ngFor="let tmpl of templates()" class="tf-notif-template-card">
+          <div class="tf-notif-template-card__header">
+            <div class="tf-notif-template-card__meta">
+              <span class="tf-notif-template-card__event">{{ tmpl.eventName }}</span>
+              <span class="tf-notif-template-card__subject">{{ tmpl.subject }}</span>
+            </div>
+            <button
+              pButton
+              icon="pi pi-pencil"
+              label="Edit"
+              class="p-button-outlined p-button-sm"
+              (click)="editTemplate(tmpl)">
+            </button>
+          </div>
+
+          <!-- Body preview with highlighted variables -->
+          <div class="tf-notif-template-card__body" [innerHTML]="highlightVars(tmpl.body)"></div>
+
+          <!-- Available vars footer -->
+          <div class="tf-notif-template-card__vars">
+            <span class="tf-notif-template-card__vars-label">Available variables:</span>
+            <span
+              *ngFor="let v of tmpl.availableVars"
+              class="tf-notif-template-card__var-chip">
+              {{ '{{' + v + '}}' }}
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </ng-template>
+
+</div>
+
+<!-- ── Trigger edit drawer ────────────────────────────────────────────────── -->
+<tf-trigger-edit-drawer
+  *ngIf="triggerDrawerVisible() && selectedTrigger()"
+  [trigger]="selectedTrigger()!"
+  [visible]="triggerDrawerVisible()"
+  [saving]="triggerSavingNow()"
+  (saved)="saveTrigger($event)"
+  (closed)="closeTriggerDrawer()">
+</tf-trigger-edit-drawer>
+
+<!-- ── Escalation edit drawer ─────────────────────────────────────────────── -->
+<tf-escalation-edit-drawer
+  *ngIf="escalationDrawerVisible() && selectedEscalation()"
+  [escalation]="selectedEscalation()!"
+  [visible]="escalationDrawerVisible()"
+  [saving]="escalSavingNow()"
+  (saved)="saveEscalation($event)"
+  (closed)="closeEscalationDrawer()">
+</tf-escalation-edit-drawer>
+
+<!-- ── Template edit drawer ───────────────────────────────────────────────── -->
+<tf-template-edit-drawer
+  *ngIf="templateDrawerVisible() && selectedTemplate()"
+  [template]="selectedTemplate()!"
+  [visible]="templateDrawerVisible()"
+  [saving]="templateSavingNow()"
+  (saved)="saveTemplate($event)"
+  (closed)="closeTemplateDrawer()">
+</tf-template-edit-drawer>
