@@ -116,6 +116,13 @@ export const talentFlowRoutes: Routes = [
     children: [
       { path: '', redirectTo: 'overview', pathMatch: 'full' },
       {
+        path: 'audit',
+        loadComponent: () =>
+          import('./pages/admin/audit/admin-audit-page.component').then(
+            (m) => m.AdminAuditPageComponent,
+          ),
+      },
+      {
         path: 'tenant',
         loadComponent: () =>
           import('./pages/admin/tenant-settings/admin-tenant-settings.component').then(

@@ -1,0 +1,130 @@
+<p-sidebar
+  [visible]="visible()"
+  position="right"
+  styleClass="tf-drawer"
+  [blockScroll]="true"
+  (onHide)="close()">
+
+  <!-- ── Drawer header ──────────────────────────────────────────────────── -->
+  <ng-template pTemplate="header">
+    <div class="tf-drawer__header">
+      <div class="tf-drawer__header-title">
+        <i class="pi pi-file-edit"></i>
+        <span>Event Detail</span>
+      </div>
+      <button pButton icon="pi pi-times" class="p-button-text p-button-rounded tf-drawer__close" (click)="close()"></button>
+    </div>
+  </ng-template>
+
+  <!-- ── Drawer body ──────────────────────────────────────────────────────── -->
+  <div class="tf-drawer__body">
+
+    <!-- Event summary -->
+    <section class="tf-drawer__section">
+      <h3 class="tf-drawer__section-title">Event Summary</h3>
+      <div class="tf-drawer__summary-tags">
+        <p-tag [value]="eventTypeLabels[event().eventType]" [severity]="eventTypeSeverity(event().eventType)"></p-tag>
+        <p-tag [value]="moduleLabels[event().module]" severity="secondary"></p-tag>
+        <p-tag [value]="event().outcome" [severity]="outcomeSev(event().outcome)"></p-tag>
+      </div>
+      <p class="tf-drawer__action-desc">{{ event().action }}</p>
+    </section>
+
+    <!-- Actor details -->
+    <section class="tf-drawer__section">
+      <h3 class="tf-drawer__section-title">Actor</h3>
+      <dl class="tf-drawer__dl">
+        <dt>Name</dt>
+        <dd>{{ event().userFullName }}</dd>
+        <dt>Email</dt>
+        <dd>{{ event().userEmail }}</dd>
+        <dt>Role</dt>
+        <dd>
+          <p-tag [value]="event().role" severity="secondary"></p-tag>
+        </dd>
+        <dt>User ID</dt>
+        <dd class="tf-drawer__mono">{{ event().userId }}</dd>
+      </dl>
+    </section>
+
+    <!-- Entity affected -->
+    <section class="tf-drawer__section">
+      <h3 class="tf-drawer__section-title">Entity Affected</h3>
+      <dl class="tf-drawer__dl">
+        <dt>Type</dt>
+        <dd>{{ event().entityType }}</dd>
+        <dt>Label</dt>
+        <dd>{{ event().entityLabel || '—' }}</dd>
+        <dt>ID</dt>
+        <dd class="tf-drawer__mono">{{ event().entityId }}</dd>
+      </dl>
+    </section>
+
+    <!-- ── What changed — CONFIG_CHANGE diff view ────────────────────── -->
+    <section class="tf-drawer__section" *ngIf="isConfigChange()">
+      <h3 class="tf-drawer__section-title">What Changed</h3>
+
+      <ng-container *ngIf="diffRows().length > 0; else noDiff">
+        <table class="tf-drawer__diff-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th class="tf-drawer__diff-col--before">Before</th>
+              <th class="tf-drawer__diff-col--after">After</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of diffRows()">
+              <td class="tf-drawer__diff-key">{{ row.key }}</td>
+              <td class="tf-drawer__diff-before">{{ row.before }}</td>
+              <td class="tf-drawer__diff-after">{{ row.after }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="tf-drawer__diff-type" *ngIf="event().diff?.configType">
+          Config type: <strong>{{ event().diff!.configType }}</strong>
+        </p>
+      </ng-container>
+
+      <ng-template #noDiff>
+        <p class="tf-drawer__empty-note">No field-level diff available for this event.</p>
+      </ng-template>
+    </section>
+
+    <!-- ── What changed — non-config payload ────────────────────────── -->
+    <section class="tf-drawer__section" *ngIf="!isConfigChange()">
+      <h3 class="tf-drawer__section-title">Action Details</h3>
+      <ng-container *ngIf="payloadEntries().length > 0; else noPayload">
+        <dl class="tf-drawer__dl">
+          <ng-container *ngFor="let entry of payloadEntries()">
+            <dt>{{ entry.key }}</dt>
+            <dd class="tf-drawer__mono">{{ entry.value }}</dd>
+          </ng-container>
+        </dl>
+      </ng-container>
+      <ng-template #noPayload>
+        <p class="tf-drawer__empty-note">No additional payload recorded.</p>
+      </ng-template>
+    </section>
+
+    <!-- Technical detail -->
+    <section class="tf-drawer__section tf-drawer__section--technical">
+      <h3 class="tf-drawer__section-title">Technical Detail</h3>
+      <dl class="tf-drawer__dl">
+        <dt>Localised</dt>
+        <dd>{{ event().timestamp | date:'dd MMM yyyy, HH:mm:ss' }}</dd>
+        <dt>UTC</dt>
+        <dd class="tf-drawer__mono">{{ event().timestampUtc }}</dd>
+        <dt>IP Address</dt>
+        <dd class="tf-drawer__mono">{{ event().ipAddress || '—' }}</dd>
+        <dt>Correlation ID</dt>
+        <dd class="tf-drawer__mono tf-drawer__corr-id" [pTooltip]="event().correlationId" tooltipPosition="top">
+          {{ event().correlationId || '—' }}
+        </dd>
+        <dt>Event ID</dt>
+        <dd class="tf-drawer__mono">{{ event().eventId }}</dd>
+      </dl>
+    </section>
+
+  </div>
+</p-sidebar>
