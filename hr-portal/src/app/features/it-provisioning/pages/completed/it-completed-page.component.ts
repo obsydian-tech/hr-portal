@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { ItTask } from '../../models/it-provisioning.models';
 import { ItProvisioningApiService } from '../../services/it-provisioning-api.service';
-import { ItProvisioningAuthService } from '../../services/it-provisioning-auth.service';
+import { TalentFlowAuthService } from '../../../talent-flow/services/talent-flow-auth.service';
 import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
@@ -57,18 +57,18 @@ import { AuthService } from '../../../../core/services/auth.service';
 })
 export class ItCompletedPageComponent implements OnInit {
   private readonly api        = inject(ItProvisioningApiService);
-  private readonly itAuth     = inject(ItProvisioningAuthService);
+  private readonly tfAuth     = inject(TalentFlowAuthService);
   private readonly nalekoAuth = inject(AuthService);
 
   protected readonly loading = signal(true);
   protected readonly tasks   = signal<ItTask[]>([]);
 
   private get specialistId(): string {
-    return this.itAuth.currentUser()?.sub ?? this.nalekoAuth.currentUser()?.staffId ?? 'specialist-001';
+    return this.tfAuth.currentUser()?.sub ?? this.nalekoAuth.currentUser()?.staffId ?? '';
   }
 
   async ngOnInit(): Promise<void> {
-    const list = await this.api.getCompletedTasks(this.specialistId);
+    const list = await this.api.getCompletedTasks();
     this.tasks.set(list);
     this.loading.set(false);
   }

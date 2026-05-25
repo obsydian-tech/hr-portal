@@ -9,14 +9,10 @@ export const environment = {
     region: 'af-south-1',
   },
   itProvisioning: {
-    // IT Provisioning Cognito User Pool — separate pool, mirrors TalentFlow pattern
-    // Fill userPoolId/clientId once Terraform provisions `it-provisioning-user-pool`
-    cognitoConfig: {
-      userPoolId: 'PLACEHOLDER_IT_POOL_ID',
-      clientId: 'PLACEHOLDER_IT_CLIENT_ID',
-      region: 'af-south-1',
-    },
-    apiUrl: '', // set when IT Provisioning API is deployed
+    // IT Provisioning routes live on the TalentFlow API Gateway (pool consolidation).
+    // No separate Cognito pool — ITAdmin / ITSpecialist groups are in the TF pool.
+    // apiUrl mirrors talentFlow.apiUrl; kept separate for future isolation.
+    apiUrl: 'https://57l0w7kk9h.execute-api.af-south-1.amazonaws.com/v1',
   },
   talentFlow: {
     // TalentFlow Human REST API (Cognito JWT auth) — talent-flow-api HTTP API v2
