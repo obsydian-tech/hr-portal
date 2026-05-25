@@ -1,0 +1,89 @@
+<div class="config-page">
+
+  <div class="config-page__header">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">Panel Rules</h2>
+      <p class="config-page__subtitle">Configure the minimum votes required for candidate advancement and additional veto/consensus rules per seniority level.</p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!loading()) {
+        <tf-config-version-badge [version]="configVersion()" [changedAt]="updatedAt()" />
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="config-page__skeleton">
+      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+    </div>
+  } @else {
+
+    <!-- Votes required -->
+    <div class="config-card">
+      <div class="config-card__section-label">Minimum Affirmative Votes to Advance</div>
+      @for (lvl of levels; track lvl.key) {
+        <div class="config-row">
+          <div class="config-row__label">
+            <i class="pi pi-user"></i>
+            <span>{{ lvl.label }}</span>
+          </div>
+          <div class="config-row__control config-row__control--compact">
+            <p-inputNumber
+              [ngModel]="rules().votesRequired[lvl.key]"
+              (ngModelChange)="updateVotes(lvl.key, $event)"
+              [min]="1" [max]="10" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus"
+              decrementButtonIcon="pi pi-minus"
+              suffix=" votes"
+              styleClass="config-input-number"
+            />
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Toggle rules -->
+    <div class="config-card">
+      <div class="config-card__section-label">Decision Rules</div>
+
+      <div class="config-row config-row--toggle">
+        <div class="config-row__label">
+          <span class="config-row__label-main">Strong-No Veto</span>
+          <span class="config-row__label-desc">A single "Strong No" vote from any panellist blocks candidate advancement, regardless of other votes.</span>
+        </div>
+        <div class="config-row__control">
+          <p-toggleButton
+            [ngModel]="rules().strongNoVeto"
+            (ngModelChange)="toggleFlag('strongNoVeto')"
+            onLabel="Enabled" offLabel="Disabled"
+            onIcon="pi pi-check" offIcon="pi pi-times"
+            styleClass="config-toggle"
+          />
+        </div>
+      </div>
+
+      <div class="config-row config-row--toggle">
+        <div class="config-row__label">
+          <span class="config-row__label-main">Unanimous for Senior</span>
+          <span class="config-row__label-desc">Require unanimous panel agreement (all votes positive) for Senior-level candidates.</span>
+        </div>
+        <div class="config-row__control">
+          <p-toggleButton
+            [ngModel]="rules().unanimousForSenior"
+            (ngModelChange)="toggleFlag('unanimousForSenior')"
+            onLabel="Required" offLabel="Not Required"
+            onIcon="pi pi-check" offIcon="pi pi-times"
+            styleClass="config-toggle"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="config-save-row">
+      <p-button label="Reset to Defaults" icon="pi pi-refresh" styleClass="p-button-text p-button-secondary" [disabled]="saving()" (onClick)="confirmReset()" />
+      <p-button label="Save Changes" icon="pi pi-check" [loading]="saving()" [disabled]="saving()" (onClick)="confirmSave()" />
+    </div>
+  }
+
+</div>

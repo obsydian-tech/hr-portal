@@ -1,0 +1,109 @@
+<div class="config-page">
+
+  <div class="config-page__header">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">Routing Rules</h2>
+      <p class="config-page__subtitle">Map request attributes to IT queues. Rules are evaluated by priority (lower = higher priority).</p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!loading()) {
+        <tf-config-version-badge [version]="configVersion()" [changedAt]="updatedAt()" />
+      }
+      <p-button label="Add Rule" icon="pi pi-plus" (onClick)="addRule()" [disabled]="saving()" />
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="config-page__skeleton">
+      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+    </div>
+  } @else if (rules().length === 0) {
+
+    <div class="config-empty">
+      <i class="pi pi-sitemap config-empty__icon"></i>
+      <p>No routing rules yet. Create rules to automatically route provisioning requests to the right queue.</p>
+      <p-button label="Add First Rule" icon="pi pi-plus" styleClass="p-button-text" (onClick)="addRule()" />
+    </div>
+
+  } @else {
+
+    <p-table [value]="rules()" [rowHover]="true" styleClass="p-datatable-sm">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Condition Field</th>
+          <th>Condition Value</th>
+          <th>Target Queue</th>
+          <th style="width: 90px">Priority</th>
+          <th style="width: 100px; text-align: center">Actions</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-rule>
+        @if (isEditing(rule.id)) {
+          <!-- Edit mode row -->
+          <tr class="editing-row">
+            <td>
+              <p-dropdown
+                [ngModel]="editingRows()[rule.id].conditionField"
+                (ngModelChange)="patchEditRow(rule.id, { conditionField: $event })"
+                [options]="conditionFields" optionLabel="label" optionValue="value"
+                styleClass="row-dropdown" />
+            </td>
+            <td>
+              <input pInputText type="text"
+                [ngModel]="editingRows()[rule.id].conditionValue"
+                (ngModelChange)="patchEditRow(rule.id, { conditionValue: $event })"
+                placeholder="e.g. Engineering"
+                class="row-input" />
+            </td>
+            <td>
+              <p-dropdown
+                [ngModel]="editingRows()[rule.id].targetQueueId"
+                (ngModelChange)="patchEditRow(rule.id, { targetQueueId: $event })"
+                [options]="queues()" optionLabel="label" optionValue="value"
+                placeholder="Select queue"
+                styleClass="row-dropdown" />
+            </td>
+            <td>
+              <p-inputNumber
+                [ngModel]="editingRows()[rule.id].priority"
+                (ngModelChange)="patchEditRow(rule.id, { priority: $event })"
+                [min]="1" [max]="9999" [showButtons]="false"
+                styleClass="row-priority-input" />
+            </td>
+            <td class="action-cell">
+              <p-button icon="pi pi-check" styleClass="p-button-text p-button-sm p-button-success" pTooltip="Save" (onClick)="saveRowEdit(rule.id)" />
+              <p-button icon="pi pi-times" styleClass="p-button-text p-button-sm" pTooltip="Cancel" (onClick)="cancelEdit(rule.id)" />
+            </td>
+          </tr>
+        } @else {
+          <!-- Display mode row -->
+          <tr [class.duplicate-row]="duplicateIds().has(rule.id)">
+            <td>
+              <span class="condition-field">{{ rule.conditionField }}</span>
+            </td>
+            <td>{{ rule.conditionValue }}</td>
+            <td>
+              <span class="queue-label">{{ getQueueLabel(rule.targetQueueId) }}</span>
+            </td>
+            <td>
+              <span class="priority-badge">{{ rule.priority }}</span>
+            </td>
+            <td class="action-cell">
+              <p-button icon="pi pi-pencil" styleClass="p-button-text p-button-sm" pTooltip="Edit" (onClick)="startEdit(rule)" />
+              <p-button icon="pi pi-trash" styleClass="p-button-text p-button-sm p-button-danger" pTooltip="Delete" (onClick)="confirmDelete(rule)" />
+            </td>
+          </tr>
+        }
+      </ng-template>
+    </p-table>
+
+    @if (duplicateIds().size > 0) {
+      <div class="duplicate-warning">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>{{ duplicateIds().size }} rule(s) have duplicate condition combinations. Each condition field + value must be unique.</span>
+      </div>
+    }
+
+  }
+
+</div>

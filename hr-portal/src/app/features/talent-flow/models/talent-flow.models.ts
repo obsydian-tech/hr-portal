@@ -60,13 +60,18 @@ export type ConfigType =
   | 'SLA_THRESHOLDS'
   | 'APPROVAL_RULES'
   | 'PANEL_CONFIG'
+  | 'PANEL_RULES'
   | 'EMAIL_TEMPLATES'
   | 'STAGE_CONFIG'
   | 'SENTIMENT_SCALE'
+  | 'SENTIMENT_SCALES'
   | 'INTERVIEW_TYPES'
   | 'REJECTION_RULES'
   | 'WORKFLOW_TEMPLATES'
-  | 'SENIORITY_PROFILES';
+  | 'SENIORITY_PROFILES'
+  | 'IT_QUEUES'
+  | 'PROVISIONING_TEMPLATES'
+  | 'ROUTING_RULES';
 
 // ─── Scoring Weights ──────────────────────────────────────────────────────────
 export interface ScoringWeights {

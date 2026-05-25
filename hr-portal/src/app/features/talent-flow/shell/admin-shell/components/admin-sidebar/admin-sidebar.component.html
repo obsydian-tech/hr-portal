@@ -1,8 +1,9 @@
 <nav class="tf-admin-sidebar" aria-label="Admin navigation">
+
+  <!-- ── Workspace ────────────────────────────────────────────────────── -->
   <div class="tf-admin-sidebar__section">
     <span class="tf-admin-sidebar__section-label">Workspace</span>
 
-    <!-- Section 1: Overview — active -->
     <a class="tf-admin-sidebar__item"
        routerLink="/platform/talentflow/admin/overview"
        routerLinkActive="tf-admin-sidebar__item--active">
@@ -10,7 +11,6 @@
       <span>Overview</span>
     </a>
 
-    <!-- Section 2: Users & Roles — active -->
     <a class="tf-admin-sidebar__item"
        routerLink="/platform/talentflow/admin/users"
        routerLinkActive="tf-admin-sidebar__item--active">
@@ -18,39 +18,85 @@
       <span>Users &amp; Roles</span>
     </a>
 
-    <!-- Section 3: Tenant Settings — coming soon -->
-    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
+    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon"
+          (click)="showComingSoon('Tenant Settings')">
       <i class="pi pi-cog"></i>
       <span>Tenant Settings</span>
       <span class="tf-admin-sidebar__soon-badge">Soon</span>
     </span>
 
-    <!-- Section 4: TalentFlow Config — coming soon -->
-    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
-      <i class="pi pi-sliders-h"></i>
-      <span>TalentFlow Config</span>
-      <span class="tf-admin-sidebar__soon-badge">Soon</span>
-    </span>
-
-    <!-- Section 5: IT Request Config — coming soon -->
-    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
-      <i class="pi pi-server"></i>
-      <span>IT Request Config</span>
-      <span class="tf-admin-sidebar__soon-badge">Soon</span>
-    </span>
-
-    <!-- Section 6: Audit & Compliance — coming soon -->
-    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
-      <i class="pi pi-shield"></i>
-      <span>Audit &amp; Compliance</span>
-      <span class="tf-admin-sidebar__soon-badge">Soon</span>
-    </span>
-
-    <!-- Section 7: Notifications — coming soon -->
-    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon">
+    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon"
+          (click)="showComingSoon('Notifications')">
       <i class="pi pi-bell"></i>
       <span>Notifications</span>
       <span class="tf-admin-sidebar__soon-badge">Soon</span>
     </span>
+
+    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon"
+          (click)="showComingSoon('Audit &amp; Compliance')">
+      <i class="pi pi-shield"></i>
+      <span>Audit &amp; Compliance</span>
+      <span class="tf-admin-sidebar__soon-badge">Soon</span>
+    </span>
   </div>
+
+  <!-- ── TalentFlow Config ─────────────────────────────────────────────── -->
+  <div class="tf-admin-sidebar__section">
+    <span class="tf-admin-sidebar__section-label">TalentFlow Config</span>
+
+    <a class="tf-admin-sidebar__item"
+       routerLink="/platform/talentflow/admin/talentflow/scoring-weights"
+       routerLinkActive="tf-admin-sidebar__item--active">
+      <i class="pi pi-percentage"></i>
+      <span>Scoring Weights</span>
+    </a>
+
+    <a class="tf-admin-sidebar__item"
+       routerLink="/platform/talentflow/admin/talentflow/sla-thresholds"
+       routerLinkActive="tf-admin-sidebar__item--active">
+      <i class="pi pi-clock"></i>
+      <span>SLA Thresholds</span>
+    </a>
+
+    <a class="tf-admin-sidebar__item"
+       routerLink="/platform/talentflow/admin/talentflow/panel-rules"
+       routerLinkActive="tf-admin-sidebar__item--active">
+      <i class="pi pi-check-square"></i>
+      <span>Panel Rules</span>
+    </a>
+
+    <a class="tf-admin-sidebar__item"
+       routerLink="/platform/talentflow/admin/talentflow/sentiment-scales"
+       routerLinkActive="tf-admin-sidebar__item--active">
+      <i class="pi pi-face-smile"></i>
+      <span>Sentiment Scales</span>
+    </a>
+  </div>
+
+  <!-- ── IT Request Config ─────────────────────────────────────────────── -->
+  <div class="tf-admin-sidebar__section">
+    <span class="tf-admin-sidebar__section-label">IT Request Config</span>
+
+    <a class="tf-admin-sidebar__item"
+       routerLink="/platform/talentflow/admin/it-request/queues"
+       routerLinkActive="tf-admin-sidebar__item--active">
+      <i class="pi pi-list"></i>
+      <span>Queue Management</span>
+    </a>
+
+    <a class="tf-admin-sidebar__item"
+       routerLink="/platform/talentflow/admin/it-request/templates"
+       routerLinkActive="tf-admin-sidebar__item--active">
+      <i class="pi pi-file"></i>
+      <span>Provisioning Templates</span>
+    </a>
+
+    <a class="tf-admin-sidebar__item"
+       routerLink="/platform/talentflow/admin/it-request/routing"
+       routerLinkActive="tf-admin-sidebar__item--active">
+      <i class="pi pi-sitemap"></i>
+      <span>Routing Rules</span>
+    </a>
+  </div>
+
 </nav>

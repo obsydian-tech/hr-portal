@@ -1,0 +1,81 @@
+<div class="config-page">
+
+  <div class="config-page__header">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">Provisioning Templates</h2>
+      <p class="config-page__subtitle">Define equipment and access bundles automatically applied for new hires by role.</p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!loading()) {
+        <tf-config-version-badge [version]="configVersion()" [changedAt]="updatedAt()" />
+      }
+      <p-button label="Add Template" icon="pi pi-plus" (onClick)="openCreateDrawer()" [disabled]="saving()" />
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="config-page__skeleton">
+      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+    </div>
+  } @else if (templates().length === 0) {
+
+    <div class="config-empty">
+      <i class="pi pi-file config-empty__icon"></i>
+      <p>No templates configured. Create your first provisioning template.</p>
+      <p-button label="Create First Template" icon="pi pi-plus" styleClass="p-button-text" (onClick)="openCreateDrawer()" />
+    </div>
+
+  } @else {
+
+    <p-table [value]="templates()" [rowHover]="true" styleClass="p-datatable-sm">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Name</th>
+          <th>Target Role</th>
+          <th>Requirements</th>
+          <th>Status</th>
+          <th style="width: 120px; text-align: center">Actions</th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-tmpl>
+        <tr>
+          <td>
+            <div class="tmpl-name">{{ tmpl.name }}</div>
+            @if (tmpl.description) {
+              <div class="tmpl-desc">{{ tmpl.description }}</div>
+            }
+          </td>
+          <td>
+            <span class="tmpl-role">{{ tmpl.targetRole }}</span>
+          </td>
+          <td>
+            <span class="req-count">{{ tmpl.requirements.length }} item(s)</span>
+          </td>
+          <td>
+            <p-tag [value]="tmpl.active ? 'Active' : 'Inactive'" [severity]="tmpl.active ? 'success' : 'secondary'" />
+          </td>
+          <td class="action-cell">
+            <p-button icon="pi pi-pencil" styleClass="p-button-text p-button-sm" pTooltip="Edit" (onClick)="openEditDrawer(tmpl)" />
+            <p-button
+              [icon]="tmpl.active ? 'pi pi-ban' : 'pi pi-check'"
+              styleClass="p-button-text p-button-sm"
+              [pTooltip]="tmpl.active ? 'Deactivate' : 'Activate'"
+              (onClick)="toggleActive(tmpl)"
+            />
+            <p-button icon="pi pi-trash" styleClass="p-button-text p-button-sm p-button-danger" pTooltip="Delete" (onClick)="confirmDelete(tmpl)" />
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+
+  }
+
+</div>
+
+<!-- Template Form Drawer -->
+<tf-template-form-drawer
+  [visible]="drawerVisible()"
+  [template]="editingTemplate()"
+  (saved)="saveTemplate($event)"
+  (closed)="closeDrawer()"
+/>
