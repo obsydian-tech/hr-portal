@@ -18,6 +18,10 @@ import {
   AuditFilters,
   AuditEventsResponse,
   AuditStatsResponse,
+  NotifSettingsResponse,
+  UpdateNotifTriggerRequest,
+  UpdateEscalationPathRequest,
+  UpdateNotifTemplateRequest,
 } from '../models/admin.models';
 
 const API_TIMEOUT_MS = 15_000;
@@ -214,6 +218,60 @@ export class AdminApiService {
         }),
       ),
       timeout(60_000),
+      catchError(this.handleError),
+    );
+  }
+
+  // ── Notification Settings — Section 7 ──────────────────────────────────────
+
+  getNotifSettings(): Observable<NotifSettingsResponse> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<NotifSettingsResponse>(`${this.baseUrl}/admin/notifications`, { headers }),
+      ),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  updateNotifTrigger(req: UpdateNotifTriggerRequest): Observable<NotifSettingsResponse> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.put<NotifSettingsResponse>(
+          `${this.baseUrl}/admin/notifications/triggers/${req.triggerId}`,
+          req,
+          { headers },
+        ),
+      ),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  updateEscalationPath(req: UpdateEscalationPathRequest): Observable<NotifSettingsResponse> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.put<NotifSettingsResponse>(
+          `${this.baseUrl}/admin/notifications/escalations/${req.slaId}`,
+          req,
+          { headers },
+        ),
+      ),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  updateNotifTemplate(req: UpdateNotifTemplateRequest): Observable<NotifSettingsResponse> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.put<NotifSettingsResponse>(
+          `${this.baseUrl}/admin/notifications/templates/${req.templateId}`,
+          req,
+          { headers },
+        ),
+      ),
+      timeout(API_TIMEOUT_MS),
       catchError(this.handleError),
     );
   }
