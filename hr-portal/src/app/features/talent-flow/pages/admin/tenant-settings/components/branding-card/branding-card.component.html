@@ -1,0 +1,101 @@
+<div class="tf-config-card">
+  <header class="tf-config-card__header">
+    <div class="tf-config-card__header-text">
+      <h2 class="tf-config-card__title">
+        <i class="pi pi-building"></i>
+        Branding &amp; Identity
+      </h2>
+      <p class="tf-config-card__desc">
+        Your organisation's display name, logo and classification shown across the platform.
+      </p>
+    </div>
+  </header>
+
+  <div class="tf-config-card__body" *ngIf="!loading(); else loadingTpl">
+    <!-- Logo -->
+    <div class="tf-branding__logo-row">
+      <div class="tf-branding__logo-preview">
+        <img *ngIf="logoPreview(); else logoPlaceholder"
+             [src]="logoPreview()"
+             alt="Company logo"
+             class="tf-branding__logo-img" />
+        <ng-template #logoPlaceholder>
+          <div class="tf-branding__logo-placeholder">
+            <i class="pi pi-image"></i>
+          </div>
+        </ng-template>
+      </div>
+
+      <div class="tf-branding__logo-actions">
+        <label class="tf-branding__upload-btn p-button p-button-outlined p-button-sm"
+               [class.p-disabled]="uploadingLogo()">
+          <i class="pi pi-upload"></i>
+          {{ uploadingLogo() ? 'Uploading…' : 'Upload Logo' }}
+          <input type="file"
+                 accept=".png,.svg"
+                 hidden
+                 (change)="onFileSelected($event)" />
+        </label>
+        <span class="tf-branding__logo-hint">PNG or SVG · max 2 MB</span>
+      </div>
+    </div>
+
+    <!-- Fields -->
+    <div class="tf-config-form__grid">
+      <div class="tf-config-form__field tf-config-form__field--full">
+        <label class="tf-config-form__label" for="companyName">Company Name <span class="required">*</span></label>
+        <input pInputText id="companyName"
+               [ngModel]="form().companyName"
+               (ngModelChange)="patchForm('companyName', $event)"
+               placeholder="e.g. Naleko Technologies (Pty) Ltd" />
+      </div>
+
+      <div class="tf-config-form__field tf-config-form__field--full">
+        <label class="tf-config-form__label" for="tradingName">Trading Name</label>
+        <input pInputText id="tradingName"
+               [ngModel]="form().tradingName"
+               (ngModelChange)="patchForm('tradingName', $event)"
+               placeholder="e.g. Naleko" />
+      </div>
+
+      <div class="tf-config-form__field">
+        <label class="tf-config-form__label" for="industry">Industry</label>
+        <p-dropdown id="industry"
+                    [options]="industries"
+                    [ngModel]="form().industry"
+                    (ngModelChange)="patchForm('industry', $event)"
+                    optionLabel="label"
+                    optionValue="value"
+                    [style]="{ width: '100%' }">
+        </p-dropdown>
+      </div>
+
+      <div class="tf-config-form__field">
+        <label class="tf-config-form__label" for="companySize">Company Size</label>
+        <p-dropdown id="companySize"
+                    [options]="companySizes"
+                    [ngModel]="form().companySize"
+                    (ngModelChange)="patchForm('companySize', $event)"
+                    optionLabel="label"
+                    optionValue="value"
+                    [style]="{ width: '100%' }">
+        </p-dropdown>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="tf-config-card__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading branding…</span>
+    </div>
+  </ng-template>
+
+  <footer class="tf-config-card__footer" *ngIf="!loading()">
+    <p-button label="Save Branding"
+              icon="pi pi-save"
+              [loading]="saving()"
+              [disabled]="!form().companyName.trim()"
+              (onClick)="save()" />
+  </footer>
+</div>

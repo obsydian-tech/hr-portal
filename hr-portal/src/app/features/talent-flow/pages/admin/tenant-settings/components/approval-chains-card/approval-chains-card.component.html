@@ -1,0 +1,101 @@
+<div class="tf-config-card">
+  <header class="tf-config-card__header">
+    <div class="tf-config-card__header-text">
+      <h2 class="tf-config-card__title">
+        <i class="pi pi-share-alt"></i>
+        Default Approval Chains
+      </h2>
+      <p class="tf-config-card__desc">
+        Approval sequences used for offer letters and IT provisioning by seniority tier.
+        Changes apply to all new requests.
+      </p>
+    </div>
+    <tf-config-version-badge
+      *ngIf="configVersion()"
+      [version]="configVersion()!"
+      [changedAt]="updatedAt()" />
+  </header>
+
+  <div class="tf-config-card__body" *ngIf="!loading(); else loadingTpl">
+    <div class="tf-chains__table">
+      <!-- Head -->
+      <div class="tf-chains__row tf-chains__row--head">
+        <span>Tier</span>
+        <span>Offer Chain</span>
+        <span>Provisioning Chain</span>
+        <span></span>
+      </div>
+
+      <!-- Data rows -->
+      <div *ngFor="let chain of chains()" class="tf-chains__row">
+        <!-- Tier -->
+        <div class="tf-chains__tier">
+          <span
+            class="tf-chains__tier-dot"
+            [style.background]="tierColours[chain.seniority]">
+          </span>
+          <span class="tf-chains__tier-label">{{ chain.seniority }}</span>
+        </div>
+
+        <!-- Offer chain steps -->
+        <div class="tf-chains__steps">
+          <p-tag
+            *ngFor="let step of chain.offerApprovalChain"
+            [severity]="tagColour(step.role)"
+            [value]="roleLabels[step.role] ?? step.role"
+            styleClass="tf-chains__step-tag" />
+        </div>
+
+        <!-- Provisioning chain steps -->
+        <div class="tf-chains__steps">
+          <p-tag
+            *ngFor="let step of chain.provisioningApprovalChain"
+            [severity]="tagColour(step.role)"
+            [value]="roleLabels[step.role] ?? step.role"
+            styleClass="tf-chains__step-tag" />
+        </div>
+
+        <!-- Edit -->
+        <div class="tf-chains__edit">
+          <p-button
+            icon="pi pi-pencil"
+            styleClass="p-button-outlined p-button-sm"
+            pTooltip="Edit approval chain"
+            tooltipPosition="top"
+            (onClick)="openDrawer(chain)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="tf-config-card__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading approval chains…</span>
+    </div>
+  </ng-template>
+
+  <footer class="tf-config-card__footer" *ngIf="!loading()">
+    <p-button label="Save All Chains"
+              icon="pi pi-save"
+              [loading]="saving()"
+              (onClick)="confirmSave()" />
+  </footer>
+</div>
+
+<!-- Approval chain drawer -->
+<p-sidebar
+  [visible]="drawerVisible()"
+  (visibleChange)="drawerVisible.set($event)"
+  position="right"
+  styleClass="tf-chains__sidebar"
+  [style]="{ width: '480px' }"
+  [showCloseIcon]="false">
+  <ng-template pTemplate="content">
+    <tf-approval-chain-drawer
+      *ngIf="editingChain()"
+      [chain]="editingChain()!"
+      (saved)="onDrawerSaved($event)"
+      (closed)="closeDrawer()" />
+  </ng-template>
+</p-sidebar>

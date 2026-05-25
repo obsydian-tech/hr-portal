@@ -1,0 +1,50 @@
+.tf-branding {
+  &__logo-row {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  &__logo-preview {
+    width: 80px;
+    height: 80px;
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-ground);
+    flex-shrink: 0;
+  }
+
+  &__logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  &__logo-placeholder {
+    color: var(--text-color-secondary);
+    font-size: 2rem;
+  }
+
+  &__logo-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  &__upload-btn {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__logo-hint {
+    font-size: 0.75rem;
+    color: var(--text-color-secondary);
+  }
+}

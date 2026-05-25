@@ -13,6 +13,8 @@ import {
   CreateUserPayload,
   DeactivateUserResponse,
   UpdateUserRolesPayload,
+  TenantProfile,
+  UpdateTenantProfileRequest,
 } from '../models/admin.models';
 
 const API_TIMEOUT_MS = 15_000;
@@ -106,6 +108,43 @@ export class AdminApiService {
       catchError(this.handleError),
     );
   }
+
+  // ── Tenant Profile ─────────────────────────────────────────────────────────
+
+  getTenantProfile(): Observable<TenantProfile> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<TenantProfile>(`${this.baseUrl}/admin/tenant/profile`, { headers }),
+      ),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  updateTenantProfile(request: UpdateTenantProfileRequest): Observable<TenantProfile> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.put<TenantProfile>(`${this.baseUrl}/admin/tenant/profile`, request, { headers }),
+      ),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  uploadTenantLogo(file: File): Observable<{ logoUrl: string }> {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return this.authHeaders().pipe(
+      switchMap((headers) => {
+        const uploadHeaders = new HttpHeaders({ Authorization: headers.get('Authorization') ?? '' });
+        return this.http.post<{ logoUrl: string }>(`${this.baseUrl}/admin/tenant/logo`, formData, { headers: uploadHeaders });
+      }),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  // ── Users ─────────────────────────────────────────────────────────────────
 
   deactivateUser(userId: string): Observable<DeactivateUserResponse> {
     return this.authHeaders().pipe(
