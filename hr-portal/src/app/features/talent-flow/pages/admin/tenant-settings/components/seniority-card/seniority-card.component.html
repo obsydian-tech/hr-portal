@@ -1,0 +1,76 @@
+<div class="tf-config-card">
+  <header class="tf-config-card__header">
+    <div class="tf-config-card__header-text">
+      <h2 class="tf-config-card__title">
+        <i class="pi pi-users"></i>
+        Seniority Level Definitions
+      </h2>
+      <p class="tf-config-card__desc">
+        Labels and experience guides used across scoring, offers and workflow stages.
+        Colours are fixed per level.
+      </p>
+    </div>
+    <tf-config-version-badge
+      *ngIf="configVersion()"
+      [version]="configVersion()!"
+      [changedAt]="updatedAt()" />
+  </header>
+
+  <div class="tf-config-card__body" *ngIf="!loading(); else loadingTpl">
+    <div class="tf-seniority__table">
+      <!-- Header row -->
+      <div class="tf-seniority__row tf-seniority__row--head">
+        <span>Level</span>
+        <span>Label</span>
+        <span>Description</span>
+        <span>Experience Guide</span>
+      </div>
+
+      <!-- Data rows -->
+      <div
+        *ngFor="let level of levels(); let i = index"
+        class="tf-seniority__row">
+        <!-- Level indicator (key + colour dot — not editable) -->
+        <div class="tf-seniority__level-cell">
+          <span class="tf-seniority__dot" [style.background]="level.colour"></span>
+          <span class="tf-seniority__key">{{ level.key }}</span>
+        </div>
+
+        <!-- Editable: label -->
+        <input pInputText
+               class="tf-seniority__input"
+               [ngModel]="level.label"
+               (ngModelChange)="patchLevel(i, 'label', $event)"
+               placeholder="Label" />
+
+        <!-- Editable: description -->
+        <input pInputText
+               class="tf-seniority__input"
+               [ngModel]="level.description"
+               (ngModelChange)="patchLevel(i, 'description', $event)"
+               placeholder="Description" />
+
+        <!-- Editable: experienceGuide -->
+        <input pInputText
+               class="tf-seniority__input"
+               [ngModel]="level.experienceGuide"
+               (ngModelChange)="patchLevel(i, 'experienceGuide', $event)"
+               placeholder="e.g. 0–3 years" />
+      </div>
+    </div>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="tf-config-card__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading definitions…</span>
+    </div>
+  </ng-template>
+
+  <footer class="tf-config-card__footer" *ngIf="!loading()">
+    <p-button label="Save Definitions"
+              icon="pi pi-save"
+              [loading]="saving()"
+              (onClick)="confirmSave()" />
+  </footer>
+</div>

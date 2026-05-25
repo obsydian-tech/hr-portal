@@ -107,3 +107,150 @@ export interface DeactivateUserResponse {
   userId:        string;
   deactivatedAt: string; // ISO 8601
 }
+
+// ─── Tenant Settings — Section 3 ─────────────────────────────────────────────
+
+export type TenantIndustry =
+  | 'TECHNOLOGY'
+  | 'FINANCIAL_SERVICES'
+  | 'GOVERNMENT'
+  | 'HEALTHCARE'
+  | 'EDUCATION'
+  | 'RETAIL'
+  | 'MANUFACTURING'
+  | 'OTHER';
+
+export type TenantCompanySize =
+  | 'MICRO'    // 1–50
+  | 'SMALL'    // 51–200
+  | 'MEDIUM'   // 201–500
+  | 'LARGE';   // 500+
+
+export interface TenantProfile {
+  tenantId:     string;
+  companyName:  string;
+  tradingName?: string;
+  industry:     TenantIndustry;
+  companySize:  TenantCompanySize;
+  logoUrl?:     string;
+  createdAt:    string;
+  updatedAt:    string;
+}
+
+export interface UpdateTenantProfileRequest {
+  companyName:  string;
+  tradingName?: string;
+  industry:     TenantIndustry;
+  companySize:  TenantCompanySize;
+  logoUrl?:     string;
+}
+
+// ─── Seniority Definitions — SENIORITY_DEFINITIONS ───────────────────────────
+
+export interface SeniorityDefinitionsConfig {
+  levels: SeniorityLevel[];
+}
+
+export interface SeniorityLevel {
+  key:              'JUNIOR' | 'MID' | 'SENIOR';
+  label:            string;
+  description:      string;
+  experienceGuide:  string;
+  colour:           string; // fixed per level — not editable
+}
+
+export const DEFAULT_SENIORITY_LEVELS: SeniorityLevel[] = [
+  { key: 'JUNIOR', label: 'Junior', description: 'Graduate · Entry level · Early career',       experienceGuide: '0–3 years', colour: '#2e7d32' },
+  { key: 'MID',    label: 'Mid',    description: 'Professional · Specialist · Independent',      experienceGuide: '3–7 years', colour: '#1565c0' },
+  { key: 'SENIOR', label: 'Senior', description: 'Manager · Director · Executive · Lead',        experienceGuide: '7+ years',  colour: '#4a3f8a' },
+];
+
+// ─── Workflow Templates — WORKFLOW_TEMPLATES ─────────────────────────────────
+
+export interface WorkflowTemplatesConfig {
+  templates: WorkflowTemplate[];
+}
+
+export interface WorkflowTemplate {
+  templateId:   string;
+  name:         string;
+  description:  string;
+  isDefault:    boolean;
+  isActive:     boolean;
+  stages:       string[];
+  createdAt:    string;
+  createdBy:    string;
+}
+
+export const DEFAULT_WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+  { templateId: 'tpl-standard-001', name: 'Standard',   isDefault: true,  isActive: true, description: 'Standard hiring workflow for most roles',   stages: ['Interview', 'Offer', 'Background Check', 'IT Setup'],                                                    createdAt: new Date().toISOString(), createdBy: 'system' },
+  { templateId: 'tpl-govt-001',     name: 'Government', isDefault: false, isActive: true, description: 'Extended workflow for government positions',  stages: ['Interview', 'Offer', 'Background', 'Character', 'Medical', 'Security Clearance', 'IT Setup'],          createdAt: new Date().toISOString(), createdBy: 'system' },
+  { templateId: 'tpl-banking-001',  name: 'Banking',    isDefault: false, isActive: true, description: 'Regulatory workflow for banking sector roles', stages: ['Interview', 'Offer', 'Background', 'Financial Check', 'Regulatory Approval', 'IT Setup'], createdAt: new Date().toISOString(), createdBy: 'system' },
+];
+
+// ─── Approval Chains — APPROVAL_CHAINS ───────────────────────────────────────
+
+export interface ApprovalChainsConfig {
+  chains: ApprovalChain[];
+}
+
+export interface ApprovalChain {
+  seniority:                  'JUNIOR' | 'MID' | 'SENIOR';
+  offerApprovalChain:         ApprovalStep[];
+  provisioningApprovalChain:  ApprovalStep[];
+}
+
+export interface ApprovalStep {
+  order:       number;
+  role:        'TA' | 'HM' | 'HR_DIRECTOR' | 'FINANCE';
+  label:       string;
+  isRequired:  boolean;
+}
+
+export const APPROVAL_ROLE_LABELS: Record<string, string> = {
+  TA:          'TA Specialist',
+  HM:          'Hiring Manager',
+  HR_DIRECTOR: 'HR Director',
+  FINANCE:     'Finance',
+};
+
+export const APPROVAL_ROLE_COLOURS: Record<string, string> = {
+  TA:          'secondary',
+  HM:          'info',
+  HR_DIRECTOR: 'primary',
+  FINANCE:     'warn',
+};
+
+export const DEFAULT_APPROVAL_CHAINS: ApprovalChain[] = [
+  {
+    seniority: 'JUNIOR',
+    offerApprovalChain:        [{ order: 1, role: 'TA', label: 'TA Specialist',  isRequired: true }, { order: 2, role: 'HM', label: 'Hiring Manager', isRequired: true }],
+    provisioningApprovalChain: [{ order: 1, role: 'HM', label: 'Hiring Manager', isRequired: true }],
+  },
+  {
+    seniority: 'MID',
+    offerApprovalChain:        [{ order: 1, role: 'TA', label: 'TA Specialist',  isRequired: true }, { order: 2, role: 'HM', label: 'Hiring Manager', isRequired: true }],
+    provisioningApprovalChain: [{ order: 1, role: 'HM', label: 'Hiring Manager', isRequired: true }],
+  },
+  {
+    seniority: 'SENIOR',
+    offerApprovalChain:        [{ order: 1, role: 'TA', label: 'TA Specialist',  isRequired: true }, { order: 2, role: 'HM', label: 'Hiring Manager', isRequired: true }, { order: 3, role: 'HR_DIRECTOR', label: 'HR Director', isRequired: true }],
+    provisioningApprovalChain: [{ order: 1, role: 'HM', label: 'Hiring Manager', isRequired: true }, { order: 2, role: 'HR_DIRECTOR', label: 'HR Director', isRequired: true }],
+  },
+];
+
+// ─── Locale Settings — LOCALE_SETTINGS ───────────────────────────────────────
+
+export interface LocaleSettingsConfig {
+  timezone:       string; // IANA e.g. "Africa/Johannesburg"
+  dateFormat:     string; // e.g. "DD MMM YYYY"
+  currency:       string; // ISO 4217 e.g. "ZAR"
+  currencySymbol: string; // e.g. "R"
+}
+
+export const DEFAULT_LOCALE_SETTINGS: LocaleSettingsConfig = {
+  timezone:       'Africa/Johannesburg',
+  dateFormat:     'DD MMM YYYY',
+  currency:       'ZAR',
+  currencySymbol: 'R',
+};
