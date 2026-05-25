@@ -1,0 +1,64 @@
+<div class="tf-config-card">
+  <header class="tf-config-card__header">
+    <div class="tf-config-card__header-text">
+      <h2 class="tf-config-card__title">
+        <i class="pi pi-sitemap"></i>
+        Workflow Templates
+      </h2>
+      <p class="tf-config-card__desc">
+        Pre-configured hiring workflows. Select a default template per vacancy when creating a job.
+      </p>
+    </div>
+  </header>
+
+  <div class="tf-config-card__body" *ngIf="!loading(); else loadingTpl">
+    <div class="tf-wf__grid">
+      <div *ngFor="let tpl of templates()" class="tf-wf__card">
+        <div class="tf-wf__card-header">
+          <span class="tf-wf__card-name">{{ tpl.name }}</span>
+          <p-tag [severity]="statusSeverity(tpl)" [value]="statusLabel(tpl)" />
+        </div>
+
+        <p class="tf-wf__card-desc">{{ tpl.description }}</p>
+
+        <div class="tf-wf__stage-count">
+          <i class="pi pi-list"></i>
+          <span>{{ tpl.stages.length }} stages</span>
+        </div>
+
+        <div class="tf-wf__card-actions">
+          <p-button label="View Stages"
+                    icon="pi pi-eye"
+                    styleClass="p-button-outlined p-button-sm"
+                    (onClick)="viewStages(tpl)" />
+          <p-button label="Edit"
+                    icon="pi pi-pencil"
+                    styleClass="p-button-text p-button-sm"
+                    (onClick)="editTemplate(tpl)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="tf-config-card__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading templates…</span>
+    </div>
+  </ng-template>
+
+  <!-- Stages dialog -->
+  <p-dialog
+    [header]="viewingTemplate()?.name + ' — Stages'"
+    [visible]="!!viewingTemplate()"
+    (onHide)="closeStagesDialog()"
+    [modal]="true"
+    [style]="{ width: '420px' }">
+    <ol class="tf-wf__stages-list" *ngIf="viewingTemplate()">
+      <li *ngFor="let stage of viewingTemplate()!.stages; let i = index">
+        <span class="tf-wf__stage-number">{{ i + 1 }}</span>
+        <span>{{ stage }}</span>
+      </li>
+    </ol>
+  </p-dialog>
+</div>

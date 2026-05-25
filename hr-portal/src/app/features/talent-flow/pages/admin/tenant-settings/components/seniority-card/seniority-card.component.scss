@@ -1,0 +1,51 @@
+.tf-seniority {
+  &__table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 120px 1fr 2fr 1fr;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--surface-border);
+
+    &--head {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-color-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__level-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &__key {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-color-secondary);
+  }
+
+  &__input {
+    width: 100%;
+  }
+}

@@ -1,0 +1,99 @@
+<div class="tf-config-card">
+  <header class="tf-config-card__header">
+    <div class="tf-config-card__header-text">
+      <h2 class="tf-config-card__title">
+        <i class="pi pi-globe"></i>
+        Locale &amp; Regional Settings
+      </h2>
+      <p class="tf-config-card__desc">
+        Timezone, date formatting and currency used across all SLA calculations, offers and reports.
+      </p>
+    </div>
+    <tf-config-version-badge
+      *ngIf="configVersion()"
+      [version]="configVersion()!"
+      [changedAt]="updatedAt()" />
+  </header>
+
+  <div class="tf-config-card__body" *ngIf="!loading(); else loadingTpl">
+    <div class="tf-config-form__grid">
+      <!-- Timezone -->
+      <div class="tf-config-form__field tf-config-form__field--full">
+        <label class="tf-config-form__label" for="timezone">
+          Timezone
+          <span class="tf-config-form__hint">Affects SLA breach times and all timestamp displays</span>
+        </label>
+        <p-dropdown
+          id="timezone"
+          [options]="timezones"
+          [ngModel]="form().timezone"
+          (ngModelChange)="patchForm('timezone', $event)"
+          optionLabel="label"
+          optionValue="value"
+          [filter]="true"
+          filterPlaceholder="Search timezone…"
+          [style]="{ width: '100%' }">
+        </p-dropdown>
+      </div>
+
+      <!-- Date Format -->
+      <div class="tf-config-form__field">
+        <label class="tf-config-form__label" for="dateFormat">Date Format</label>
+        <p-dropdown
+          id="dateFormat"
+          [options]="dateFormats"
+          [ngModel]="form().dateFormat"
+          (ngModelChange)="patchForm('dateFormat', $event)"
+          optionLabel="label"
+          optionValue="value"
+          [style]="{ width: '100%' }">
+        </p-dropdown>
+      </div>
+
+      <!-- Currency -->
+      <div class="tf-config-form__field">
+        <label class="tf-config-form__label" for="currency">
+          Currency
+          <span class="tf-config-form__hint">Used in offer letters and cost reporting</span>
+        </label>
+        <p-dropdown
+          id="currency"
+          [options]="currencies"
+          [ngModel]="form().currency"
+          (ngModelChange)="patchForm('currency', $event)"
+          optionLabel="label"
+          optionValue="value"
+          [style]="{ width: '100%' }">
+        </p-dropdown>
+      </div>
+    </div>
+
+    <!-- Preview row -->
+    <div class="tf-locale__preview">
+      <i class="pi pi-info-circle"></i>
+      <span>
+        Offers will display amounts as
+        <strong>{{ form().currencySymbol }} 120,000.00</strong>
+        and dates as
+        <strong>25 Jan 2025</strong>
+        in the
+        <strong>{{ form().timezone }}</strong>
+        timezone.
+      </span>
+    </div>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="tf-config-card__loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading locale settings…</span>
+    </div>
+  </ng-template>
+
+  <footer class="tf-config-card__footer" *ngIf="!loading()">
+    <p-button label="Save Locale Settings"
+              icon="pi pi-save"
+              [loading]="saving()"
+              (onClick)="confirmSave()" />
+  </footer>
+</div>

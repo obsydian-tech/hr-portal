@@ -1,0 +1,81 @@
+.tf-wf {
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+
+  &__card {
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: var(--surface-card);
+  }
+
+  &__card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  &__card-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-color);
+  }
+
+  &__card-desc {
+    font-size: 0.8rem;
+    color: var(--text-color-secondary);
+    margin: 0;
+    flex: 1;
+  }
+
+  &__stage-count {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-color-secondary);
+  }
+
+  &__card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  &__stages-list {
+    padding: 0 0 0 1.25rem;
+    margin: 0;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--surface-border);
+      font-size: 0.875rem;
+
+      &:last-child { border-bottom: none; }
+    }
+  }
+
+  &__stage-number {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--primary-50, #e3f2fd);
+    color: var(--primary-color);
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+}

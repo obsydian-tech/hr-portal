@@ -71,7 +71,10 @@ export type ConfigType =
   | 'SENIORITY_PROFILES'
   | 'IT_QUEUES'
   | 'PROVISIONING_TEMPLATES'
-  | 'ROUTING_RULES';
+  | 'ROUTING_RULES'
+  | 'SENIORITY_DEFINITIONS'
+  | 'APPROVAL_CHAINS'
+  | 'LOCALE_SETTINGS';
 
 // ─── Scoring Weights ──────────────────────────────────────────────────────────
 export interface ScoringWeights {

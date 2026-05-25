@@ -18,12 +18,12 @@
       <span>Users &amp; Roles</span>
     </a>
 
-    <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon"
-          (click)="showComingSoon('Tenant Settings')">
+    <a class="tf-admin-sidebar__item"
+       routerLink="/platform/talentflow/admin/tenant"
+       routerLinkActive="tf-admin-sidebar__item--active">
       <i class="pi pi-cog"></i>
       <span>Tenant Settings</span>
-      <span class="tf-admin-sidebar__soon-badge">Soon</span>
-    </span>
+    </a>
 
     <span class="tf-admin-sidebar__item tf-admin-sidebar__item--soon"
           (click)="showComingSoon('Notifications')">
