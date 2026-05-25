@@ -1,0 +1,16 @@
+{
+  "name": "admin-update-user-lambda",
+  "version": "1.0.0",
+  "description": "TalentFlow adminUpdateUser Lambda — dual-write role sync (Cognito + DynamoDB)",
+  "private": true,
+  "scripts": {
+    "test": "jest --no-coverage"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.0.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0",
+    "jest": "^29.0.0"
+  }
+}

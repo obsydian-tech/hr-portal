@@ -390,6 +390,74 @@ resource "aws_dynamodb_table" "talent_flow_idempotency_keys" {
 }
 
 # ---------------------------------------------------------------------------
+# 9. talent-flow-users
+#    Admin user registry (Option C architecture).
+#    Stores user profile + roles[] as a maintained copy of Cognito group membership.
+#    Cognito groups = runtime access authority; this table = fast admin query layer.
+#    adminGetUsers queries here instead of calling Cognito ListUsersInGroup N times.
+#    adminUpdateUser writes to BOTH Cognito groups AND this table atomically.
+#
+#    PK  = USER#{userId}  (Cognito sub — unique, stable across renames)
+#    SK  = PROFILE
+#    GSI1 (EmailIndex): GSI1PK = EMAIL#{email}, GSI1SK = USER#{userId}
+#      — used by adminCreateUser to prevent duplicate email registrations
+#
+#    No TTL — user records are persistent.
+#    Deactivated users are flagged by status = 'INACTIVE', not deleted.
+#    POPIA 7-year retention applies (same as state + config).
+# ---------------------------------------------------------------------------
+resource "aws_dynamodb_table" "talent_flow_users" {
+  name         = local.tf_table_users
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "PK"
+  range_key    = "SK"
+
+  attribute {
+    name = "PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "SK"
+    type = "S"
+  }
+
+  # GSI1 — email uniqueness check + email-based user lookup
+  attribute {
+    name = "GSI1PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "GSI1SK"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "EmailIndex"
+    hash_key        = "GSI1PK"
+    range_key       = "GSI1SK"
+    projection_type = "ALL"
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.talent_flow_state.arn
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  tags = merge(local.tf_tags, {
+    Purpose            = "AdminUserRegistry"
+    DataClassification = "Confidential"
+    RetentionYears     = "7"
+    Ticket             = "Admin-S1"
+  })
+}
+
+# ---------------------------------------------------------------------------
 # 8. talent-flow-notifications
 #    In-app notification inbox per user. PK=USER#{userId}, SK=NOTIF#{iso-timestamp}.
 #    GSI1 (UnreadIndex): sparse — only unread items have GSI1PK/GSI1SK attributes.

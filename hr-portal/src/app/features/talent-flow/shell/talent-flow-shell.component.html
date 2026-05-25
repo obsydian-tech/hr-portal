@@ -99,7 +99,41 @@
       [rounded]="true"
       [badge]="bellBadge()"
       badgeSeverity="danger"
+      (onClick)="toggleBell($event)"
     />
+
+    <!-- Bell popover: SLA breach list -->
+    <p-popover #bellPanel styleClass="tf-bell-panel">
+      <div class="tf-bell-panel__header">
+        <span class="tf-bell-panel__title">SLA Breaches</span>
+        @if (breachedCandidates().length > 0) {
+          <span class="tf-bell-panel__count">{{ breachedCandidates().length }}</span>
+        }
+      </div>
+
+      @if (breachedCandidates().length === 0) {
+        <div class="tf-bell-panel__empty">
+          <i class="pi pi-check-circle"></i>
+          <span>No active SLA breaches</span>
+        </div>
+      } @else {
+        <ul class="tf-bell-panel__list">
+          @for (c of breachedCandidates(); track c.id) {
+            <li class="tf-bell-panel__item" (click)="goToCandidate(c.id)">
+              <div class="tf-bell-panel__avatar">{{ (c.firstName[0] ?? '') + (c.lastName[0] ?? '') | uppercase }}</div>
+              <div class="tf-bell-panel__info">
+                <span class="tf-bell-panel__name">{{ c.firstName }} {{ c.lastName }}</span>
+                <span class="tf-bell-panel__meta">{{ c.role }} · {{ c.currentStage }}</span>
+              </div>
+              <i class="pi pi-chevron-right tf-bell-panel__arrow"></i>
+            </li>
+          }
+        </ul>
+        <div class="tf-bell-panel__footer">
+          <a routerLink="/platform/talentflow/pipeline" (click)="bellPanel.hide()" class="tf-bell-panel__view-all">View all in pipeline →</a>
+        </div>
+      }
+    </p-popover>
 
     <!-- Role pill -->
     @if (rolePill()) {

@@ -122,3 +122,10 @@ resource "aws_cognito_user_group" "talentflow_hr" {
   description  = "HR staff with access to the TalentFlow module"
   precedence   = 20
 }
+
+resource "aws_cognito_user_group" "it_provisioning" {
+  name         = "naleko-it-provisioning"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "IT Specialists with access to the IT Provisioning module"
+  precedence   = 30
+}

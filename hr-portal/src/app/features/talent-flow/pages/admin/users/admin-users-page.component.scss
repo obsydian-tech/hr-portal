@@ -1,0 +1,468 @@
+// Admin Users & Roles Page — Section 2
+// All class names prefixed tfad- (talent-flow admin)
+
+// ── Page wrapper ─────────────────────────────────────────────────────────────
+
+.tfad-users {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem;
+  max-width: 1200px;
+}
+
+// ── Page header ──────────────────────────────────────────────────────────────
+
+.tfad-users__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tfad-users__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tfad-users__title {
+  margin: 0;
+  font-family: 'Manrope', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+  letter-spacing: -0.02em;
+}
+
+.tfad-users__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  border-radius: var(--naleko-radius-pill);
+  background: var(--naleko-primary);
+  color: var(--naleko-on-primary, #fff);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
+
+.tfad-users__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+
+.tfad-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+}
+
+.tfad-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--naleko-muted);
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+
+.tfad-search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+  border: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.15));
+  border-radius: var(--naleko-radius-md);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  background: var(--naleko-surface-elevated, #fff);
+  color: var(--naleko-on-surface);
+  outline: none;
+  transition: border-color 0.15s ease;
+
+  &::placeholder { color: var(--naleko-muted); }
+
+  &:focus {
+    border-color: var(--naleko-primary);
+    box-shadow: 0 0 0 3px rgba(var(--naleko-primary-rgb, 36, 99, 235), 0.12);
+  }
+}
+
+// ── Status filter chips ───────────────────────────────────────────────────────
+
+.tfad-status-filter {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.tfad-filter-chip {
+  padding: 0.375rem 0.875rem;
+  border: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.15));
+  border-radius: var(--naleko-radius-pill);
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--naleko-muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+
+  &:hover {
+    border-color: var(--naleko-primary);
+    color: var(--naleko-primary);
+  }
+
+  &--active {
+    background: var(--naleko-primary);
+    border-color: var(--naleko-primary);
+    color: var(--naleko-on-primary, #fff);
+
+    &:hover {
+      color: var(--naleko-on-primary, #fff);
+      opacity: 0.9;
+    }
+  }
+}
+
+// ── State messages ────────────────────────────────────────────────────────────
+
+.tfad-state-msg {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  color: var(--naleko-muted);
+
+  .pi-spin { font-size: 1.25rem; color: var(--naleko-primary); }
+
+  &--error {
+    color: var(--naleko-danger, #dc3545);
+    .pi { font-size: 1.25rem; color: var(--naleko-danger, #dc3545); }
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+.tfad-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1.5rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  color: var(--naleko-muted);
+  border-radius: var(--naleko-radius-md);
+  border: 1px dashed var(--naleko-border, rgba(0, 0, 0, 0.12));
+
+  .pi { font-size: 1.25rem; }
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+
+.tfad-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--naleko-radius-md);
+  border: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.08));
+}
+
+.tfad-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+
+  thead tr { background: var(--naleko-surface-subtle, #f8f9fa); }
+
+  th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--naleko-muted);
+    border-bottom: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.08));
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.875rem 1rem;
+    color: var(--naleko-on-surface);
+    border-bottom: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.05));
+    vertical-align: middle;
+  }
+}
+
+.tfad-table__row {
+  transition: background 0.12s ease;
+
+  &:hover { background: var(--naleko-surface-subtle, #f8f9fa); }
+  &:last-child td { border-bottom: none; }
+
+  &--inactive {
+    opacity: 0.55;
+  }
+}
+
+// ── User cell ─────────────────────────────────────────────────────────────────
+
+.tfad-table__user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tfad-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--naleko-primary);
+  color: var(--naleko-on-primary, #fff);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  &--inactive {
+    background: var(--naleko-muted, #6c757d);
+  }
+}
+
+.tfad-table__user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.tfad-table__user-name {
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+}
+
+.tfad-table__user-email {
+  font-size: 0.75rem;
+  color: var(--naleko-muted);
+}
+
+// ── Roles cell ────────────────────────────────────────────────────────────────
+
+.tfad-table__roles {
+  font-size: 0.8rem;
+  color: var(--naleko-muted);
+  max-width: 220px;
+}
+
+// ── Role badge ────────────────────────────────────────────────────────────────
+
+.tfad-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--naleko-radius-pill);
+  background: rgba(var(--naleko-primary-rgb, 36, 99, 235), 0.1);
+  color: var(--naleko-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+// ── Status badge ──────────────────────────────────────────────────────────────
+
+.tfad-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--naleko-radius-pill);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  &--active {
+    background: rgba(40, 167, 69, 0.12);
+    color: var(--naleko-success, #28a745);
+  }
+
+  &--inactive {
+    background: rgba(108, 117, 125, 0.12);
+    color: var(--naleko-muted);
+  }
+}
+
+// ── Date cell ─────────────────────────────────────────────────────────────────
+
+.tfad-table__date {
+  font-size: 0.8rem;
+  color: var(--naleko-muted);
+  white-space: nowrap;
+}
+
+// ── Action buttons ────────────────────────────────────────────────────────────
+
+.tfad-table__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+:host ::ng-deep .tfad-action-btn.p-button {
+  color: var(--naleko-muted);
+  width: 2rem;
+  height: 2rem;
+
+  &:hover { color: var(--naleko-on-surface); background: var(--naleko-surface-subtle, #f0f0f0); }
+
+  &.tfad-action-btn--danger:hover {
+    color: var(--naleko-danger, #dc3545);
+    background: rgba(220, 53, 69, 0.08);
+  }
+}
+
+// ── Button overrides ──────────────────────────────────────────────────────────
+
+:host ::ng-deep .tfad-btn-add.p-button {
+  background: var(--naleko-primary);
+  border-color: var(--naleko-primary);
+  color: var(--naleko-on-primary, #fff);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.5rem 1.25rem;
+}
+
+:host ::ng-deep .tfad-btn-refresh.p-button { color: var(--naleko-muted); }
+:host ::ng-deep .tfad-btn-retry.p-button  { color: var(--naleko-danger, #dc3545); padding-left: 0; }
+
+// ── Drawer (p-dialog overrides) ───────────────────────────────────────────────
+
+:host ::ng-deep .tfad-drawer {
+  .p-dialog-header {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    border-bottom: 1px solid var(--naleko-border, rgba(0,0,0,0.08));
+  }
+
+  .p-dialog-content { padding: 1.5rem; }
+  .p-dialog-footer  { border-top: 1px solid var(--naleko-border, rgba(0,0,0,0.08)); padding: 1rem 1.5rem; }
+}
+
+// ── Drawer error ──────────────────────────────────────────────────────────────
+
+.tfad-drawer-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: var(--naleko-radius-md);
+  background: rgba(220, 53, 69, 0.08);
+  color: var(--naleko-danger, #dc3545);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+
+  .pi { flex-shrink: 0; }
+}
+
+// ── Form ──────────────────────────────────────────────────────────────────────
+
+.tfad-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.tfad-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.tfad-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.tfad-field__label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+}
+
+.tfad-field__hint {
+  font-weight: 400;
+  color: var(--naleko-muted);
+}
+
+.tfad-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.15));
+  border-radius: var(--naleko-radius-md);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  background: var(--naleko-surface-elevated, #fff);
+  color: var(--naleko-on-surface);
+  outline: none;
+  transition: border-color 0.15s ease;
+
+  &::placeholder { color: var(--naleko-muted); }
+
+  &:focus {
+    border-color: var(--naleko-primary);
+    box-shadow: 0 0 0 3px rgba(var(--naleko-primary-rgb, 36, 99, 235), 0.12);
+  }
+}
+
+// ── Role checklist ────────────────────────────────────────────────────────────
+
+.tfad-role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.1));
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface-subtle, #f8f9fa);
+}
+
+.tfad-role-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  color: var(--naleko-on-surface);
+  cursor: pointer;
+  user-select: none;
+}
+
+// ── Drawer footer ─────────────────────────────────────────────────────────────
+
+.tfad-drawer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}

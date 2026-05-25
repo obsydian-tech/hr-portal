@@ -56,6 +56,11 @@ ALL_TARGETS=(
   markNotificationRead
   captureSentiment
   getPanelMembers
+  adminGetDashboard
+  adminGetUsers
+  adminCreateUser
+  adminUpdateUser
+  adminDeactivateUser
 )
 
 # Lambdas that import from ../shared/config-reader (need patch+bundle)

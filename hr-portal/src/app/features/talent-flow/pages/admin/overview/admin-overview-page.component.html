@@ -1,0 +1,137 @@
+<!-- Admin Overview — Section 1 Global Dashboard -->
+<section class="tfad-overview">
+
+  <!-- ── Page header ──────────────────────────────────────────────────────── -->
+  <div class="tfad-overview__header">
+    <div class="tfad-overview__title-row">
+      <h1 class="tfad-overview__title">Overview</h1>
+      @if (!loading()) {
+        <span class="tfad-overview__refreshed">Updated {{ lastRefreshedLabel() }}</span>
+      }
+    </div>
+    <p-button
+      icon="pi pi-refresh"
+      styleClass="tfad-btn-refresh"
+      [text]="true"
+      [rounded]="true"
+      [loading]="loading()"
+      pTooltip="Refresh dashboard"
+      tooltipPosition="left"
+      (onClick)="refresh()"
+    />
+  </div>
+
+  <!-- ── Loading ──────────────────────────────────────────────────────────── -->
+  @if (loading()) {
+    <div class="tfad-state-msg">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Loading admin dashboard…</span>
+    </div>
+  }
+
+  <!-- ── Error ────────────────────────────────────────────────────────────── -->
+  @if (error()) {
+    <div class="tfad-state-msg tfad-state-msg--error">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>{{ error() }}</span>
+      <p-button label="Retry" styleClass="tfad-btn-retry" [text]="true" (onClick)="refresh()" />
+    </div>
+  }
+
+  @if (!loading() && !error() && kpis(); as k) {
+
+    <!-- ── KPI Cards ─────────────────────────────────────────────────────── -->
+    <div class="tfad-kpi-grid">
+
+      <div class="tfad-kpi-card tfad-kpi-card--primary">
+        <span class="tfad-kpi-card__eyebrow">Active Pipeline</span>
+        <span class="tfad-kpi-card__value">{{ k.activePipeline }}</span>
+        <span class="tfad-kpi-card__sub">Open candidates in SAGA</span>
+      </div>
+
+      <div class="tfad-kpi-card"
+           [class.tfad-kpi-card--danger]="k.slaBreached > 0"
+           [class.tfad-kpi-card--success]="k.slaBreached === 0">
+        <span class="tfad-kpi-card__eyebrow">SLA Breached</span>
+        <span class="tfad-kpi-card__value">{{ k.slaBreached }}</span>
+        <span class="tfad-kpi-card__sub">Past SLA threshold</span>
+      </div>
+
+      <div class="tfad-kpi-card tfad-kpi-card--neutral">
+        <span class="tfad-kpi-card__eyebrow">Active Users</span>
+        <span class="tfad-kpi-card__value">{{ k.activeUsers }}</span>
+        <span class="tfad-kpi-card__sub">TalentFlow staff accounts</span>
+      </div>
+
+      <div class="tfad-kpi-card"
+           [class.tfad-kpi-card--success]="k.slaBreached === 0"
+           [class.tfad-kpi-card--warning]="k.slaBreached > 0">
+        <span class="tfad-kpi-card__eyebrow">SLA Compliance</span>
+        <span class="tfad-kpi-card__value">{{ slaCompliancePct() }}</span>
+        <span class="tfad-kpi-card__sub">Pipeline meeting SLA</span>
+      </div>
+
+    </div>
+
+    <!-- ── SLA Breach Table ──────────────────────────────────────────────── -->
+    <div class="tfad-section">
+      <div class="tfad-section__head">
+        <h2 class="tfad-section__title">
+          <i class="pi pi-exclamation-circle"></i>
+          SLA Breaches
+          @if (breachedCandidates().length > 0) {
+            <span class="tfad-badge tfad-badge--danger">{{ breachedCandidates().length }}</span>
+          }
+        </h2>
+      </div>
+
+      @if (breachedCandidates().length === 0) {
+        <div class="tfad-empty">
+          <i class="pi pi-check-circle"></i>
+          <span>No active SLA breaches — all candidates are on track.</span>
+        </div>
+      } @else {
+        <div class="tfad-table-wrap">
+          <table class="tfad-table">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Role</th>
+                <th>Current Stage</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of breachedCandidates(); track c.candidateId) {
+                <tr class="tfad-table__row">
+                  <td class="tfad-table__name">
+                    <div class="tfad-table__avatar">
+                      {{ (c.firstName[0] ?? '') + (c.lastName[0] ?? '') }}
+                    </div>
+                    <span>{{ c.firstName }} {{ c.lastName }}</span>
+                  </td>
+                  <td class="tfad-table__role">{{ c.role }}</td>
+                  <td>
+                    <span class="tfad-table__stage">{{ stageLabel(c.currentStage) }}</span>
+                  </td>
+                  <td>
+                    <span class="tfad-badge tfad-badge--danger">Breached</span>
+                  </td>
+                  <td class="tfad-table__action">
+                    <a class="tfad-table__link"
+                       [routerLink]="['/platform/talentflow/candidates', c.candidateId]">
+                      View →
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+  }
+
+</section>

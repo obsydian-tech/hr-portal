@@ -1,0 +1,384 @@
+<!-- Screen 5 — IT Specialist Task Detail -->
+
+@if (loading()) {
+  <div class="td-loading" role="status">
+    <i class="pi pi-spin pi-spinner td-loading__icon"></i>
+    <span>Loading task…</span>
+  </div>
+} @else {
+@if (task(); as t) {
+
+<!-- ── Breadcrumb ─────────────────────────────────────────────────────────── -->
+<nav class="td-breadcrumb" aria-label="Breadcrumb">
+  <button class="td-breadcrumb__link" type="button" (click)="backToQueue()">My Queue</button>
+  <span class="td-breadcrumb__sep">›</span>
+  <span class="td-breadcrumb__link">{{ t.queue }} queue</span>
+  <span class="td-breadcrumb__sep">›</span>
+  <span class="td-breadcrumb__current">{{ t.title }}</span>
+</nav>
+
+<!-- ── Page header ───────────────────────────────────────────────────────── -->
+<div class="td-page-header">
+  <h1 class="td-page-header__title">Task detail</h1>
+  <p class="td-page-header__sub">
+    @if (isClaimedByMe()) { Claimed by you · Mark complete when fulfilled in your system }
+    @else { View task details }
+  </p>
+</div>
+
+<!-- ── Two-column layout ─────────────────────────────────────────────────── -->
+<div class="td-layout">
+
+  <!-- ── LEFT: main content ─────────────────────────────────────────────── -->
+  <div class="td-main">
+
+    <!-- TASK identity card -->
+    <section class="td-card" aria-label="Task identity">
+      <div class="td-card__header">
+        <span class="td-card__label">TASK</span>
+        @if (isClaimedByMe()) {
+          <span class="td-badge td-badge--claimed">CLAIMED BY YOU</span>
+        } @else {
+          <span class="td-badge td-badge--unassigned">UNASSIGNED</span>
+        }
+      </div>
+
+      <div class="td-task-title">
+        <div class="td-task-title__icon" aria-hidden="true">
+          <i class="pi pi-desktop"></i>
+        </div>
+        <div>
+          <h2 class="td-task-title__text">{{ t.title }}</h2>
+          <div class="td-task-title__badges">
+            <span class="td-pill td-pill--type">{{ t.requirementType | uppercase }}</span>
+            <span class="td-pill td-pill--queue">{{ t.queue | uppercase }} QUEUE</span>
+            <span
+              class="td-pill"
+              [class.td-pill--breached]="t.slaStatus === 'BREACHED'"
+              [class.td-pill--at-risk]="t.slaStatus === 'AT_RISK'"
+              [class.td-pill--on-track]="t.slaStatus === 'ON_TRACK'"
+            >{{ slaLabel(t.slaStatus) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail grid -->
+      <div class="td-detail-grid">
+        <div class="td-detail-cell">
+          <span class="td-detail-cell__label">REQUIREMENT TYPE</span>
+          <span class="td-detail-cell__value">{{ t.requirementType }}</span>
+        </div>
+        <div class="td-detail-cell">
+          <span class="td-detail-cell__label">SENIORITY SPEC</span>
+          <span class="td-detail-cell__value">{{ t.newHire.seniority }}</span>
+        </div>
+        <div class="td-detail-cell">
+          <span class="td-detail-cell__label">QUEUE</span>
+          <span class="td-detail-cell__value">{{ t.queue }}</span>
+        </div>
+        <div class="td-detail-cell">
+          <span class="td-detail-cell__label">REQUIRED BY</span>
+          <span class="td-detail-cell__value td-detail-cell__value--date"
+            [class.td-detail-cell__value--amber]="t.slaStatus === 'AT_RISK'"
+            [class.td-detail-cell__value--red]="t.slaStatus === 'BREACHED'"
+          >
+            {{ t.requiredBy }} · {{ t.newHire.daysRemaining }} days
+          </span>
+        </div>
+      </div>
+
+      <!-- SLA health bar -->
+      <div class="td-sla">
+        <span class="td-sla__label">SLA HEALTH</span>
+        <div class="td-sla__track" role="progressbar"
+          [attr.aria-valuenow]="t.slaProgress" aria-valuemin="0" aria-valuemax="100">
+          <div class="td-sla__fill" [class]="slaBarClass(t.slaStatus)" [style.width.%]="slaBarWidth()"></div>
+        </div>
+        <span class="td-sla__status"
+          [class.td-sla__status--breached]="t.slaStatus === 'BREACHED'"
+          [class.td-sla__status--at-risk]="t.slaStatus === 'AT_RISK'"
+        >{{ slaLabel(t.slaStatus) }}</span>
+      </div>
+    </section>
+
+    <!-- NEW HIRE CONTEXT card -->
+    <section class="td-card" aria-label="New hire context">
+      <div class="td-card__header">
+        <span class="td-card__label">NEW HIRE CONTEXT</span>
+      </div>
+
+      <div class="td-hire">
+        <div class="td-hire__avatar" aria-hidden="true">
+          {{ initials(t.newHire.name) }}
+        </div>
+        <div class="td-hire__info">
+          <div class="td-hire__top">
+            <strong class="td-hire__name">{{ t.newHire.name }}</strong>
+            <div class="td-hire__meta">
+              <span class="td-hire__badge td-hire__badge--seniority">{{ t.newHire.seniority | uppercase }}</span>
+              <span class="td-hire__badge td-hire__badge--role">{{ t.newHire.role | uppercase }}</span>
+              <span class="td-hire__dept">{{ t.newHire.department }}</span>
+            </div>
+          </div>
+          <div class="td-hire__dates">
+            <span class="td-hire__start">
+              <i class="pi pi-calendar" aria-hidden="true"></i>
+              Starts {{ t.newHire.startDate }}
+            </span>
+            <span class="td-hire__days" [class]="daysClass(t.newHire.daysRemaining)">
+              {{ t.newHire.daysRemaining }} days to start
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="td-delivery">
+        <i class="pi pi-map-marker td-delivery__icon" aria-hidden="true"></i>
+        <span class="td-delivery__location">{{ t.newHire.deliveryLocation }}</span>
+      </div>
+    </section>
+
+    <!-- HM NOTE card (conditional) -->
+    @if (t.hmNote) {
+      <section class="td-card" aria-label="Note from hiring manager">
+        <div class="td-card__header">
+          <span class="td-card__label">NOTE FROM HIRING MANAGER</span>
+        </div>
+        <div class="td-hm-note">
+          <div class="td-hm-note__attribution">
+            <div class="td-hm-note__avatar" aria-hidden="true">
+              <i class="pi pi-user"></i>
+            </div>
+            <span class="td-hm-note__author">{{ t.hmName }}
+              @if (t.hmRole) { <em class="td-hm-note__role">· {{ t.hmRole | uppercase }}</em> }
+            </span>
+          </div>
+          <p class="td-hm-note__text">{{ t.hmNote }}</p>
+        </div>
+      </section>
+    }
+
+    <!-- FULFILMENT CHECKLIST card -->
+    <section class="td-card" aria-label="Fulfilment checklist">
+      <div class="td-card__header">
+        <span class="td-card__label">FULFILMENT CHECKLIST</span>
+      </div>
+      <ul class="td-checklist" role="list">
+        @for (item of checklist(); track item.id) {
+          <li
+            class="td-checklist__item"
+            [class.td-checklist__item--done]="item.completed"
+            role="listitem"
+          >
+            <button
+              type="button"
+              class="td-checklist__checkbox"
+              [class.td-checklist__checkbox--checked]="item.completed"
+              [attr.aria-checked]="item.completed"
+              role="checkbox"
+              (click)="toggleChecklist(item.id)"
+              [attr.aria-label]="item.label"
+            >
+              @if (item.completed) { <i class="pi pi-check" aria-hidden="true"></i> }
+            </button>
+            <span class="td-checklist__label">{{ item.label }}</span>
+          </li>
+        }
+      </ul>
+      @if (!allChecked()) {
+        <p class="td-checklist__hint">
+          All checklist items must be ticked before marking complete.
+        </p>
+      }
+    </section>
+
+    <!-- FULFILMENT NOTES form card -->
+    <section class="td-card" aria-label="Fulfilment notes">
+      <div class="td-card__header">
+        <span class="td-card__label">FULFILMENT NOTES</span>
+      </div>
+
+      <div class="td-form">
+        <div class="td-form__group">
+          <label class="td-form__label" for="asset-ref">
+            ASSET REFERENCE <span class="td-form__required" aria-label="required">*</span>
+          </label>
+          <input
+            id="asset-ref"
+            type="text"
+            class="td-form__input"
+            placeholder="e.g. LT-2024-0934 · MacBook Air M2 · Silver"
+            [(ngModel)]="assetReference"
+            [attr.aria-required]="true"
+          />
+        </div>
+
+        <div class="td-form__group">
+          <label class="td-form__label" for="fulfilment-method">
+            FULFILMENT METHOD <span class="td-form__required" aria-label="required">*</span>
+          </label>
+          <select id="fulfilment-method" class="td-form__select" [(ngModel)]="fulfilmentMethod">
+            <option value="Delivered to desk">Delivered to desk</option>
+            <option value="Collected by employee">Collected by employee</option>
+            <option value="Shipped to remote address">Shipped to remote address</option>
+            <option value="Installed remotely">Installed remotely</option>
+            <option value="Configured and handed over">Configured and handed over</option>
+          </select>
+        </div>
+
+        <div class="td-form__group">
+          <label class="td-form__label" for="additional-notes">ADDITIONAL NOTES</label>
+          <textarea
+            id="additional-notes"
+            class="td-form__textarea"
+            rows="4"
+            placeholder="Any notes for the record — issues encountered, substitutions made, special configurations…"
+            [(ngModel)]="additionalNotes"
+          ></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- Release reason panel (inline, conditional) -->
+    @if (showRelease()) {
+      <section class="td-card td-card--release" aria-label="Release task">
+        <div class="td-card__header">
+          <span class="td-card__label">RELEASE REASON</span>
+        </div>
+        <p class="td-release__hint">
+          Provide a reason for releasing this task back to the queue. This will be logged to the audit trail.
+        </p>
+        <div class="td-form__group">
+          <label class="td-form__label" for="release-reason">
+            REASON <span class="td-form__required">*</span>
+          </label>
+          <textarea
+            id="release-reason"
+            class="td-form__textarea"
+            rows="3"
+            placeholder="e.g. Unable to source hardware — escalating to procurement team"
+            [(ngModel)]="releaseReason"
+          ></textarea>
+        </div>
+        <div class="td-release__actions">
+          <button type="button" class="td-btn td-btn--ghost" (click)="cancelRelease()">Cancel</button>
+          <button
+            type="button"
+            class="td-btn td-btn--danger"
+            [disabled]="!releaseReason.trim() || submitting()"
+            (click)="confirmRelease()"
+          >
+            @if (submitting()) { <i class="pi pi-spin pi-spinner" aria-hidden="true"></i> }
+            Confirm release
+          </button>
+        </div>
+      </section>
+    }
+
+    <!-- Footer CTAs -->
+    <div class="td-footer">
+      <button type="button" class="td-btn td-btn--ghost" (click)="backToQueue()">
+        <i class="pi pi-arrow-left" aria-hidden="true"></i>
+        Back to queue
+      </button>
+      <div class="td-footer__complete">
+        <button
+          type="button"
+          class="td-btn td-btn--complete"
+          [disabled]="!canComplete() || submitting()"
+          (click)="markComplete()"
+          [attr.aria-disabled]="!canComplete()"
+        >
+          @if (submitting()) {
+            <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+          } @else {
+            <i class="pi pi-check-circle" aria-hidden="true"></i>
+          }
+          Mark as complete
+        </button>
+        <span class="td-footer__note">Notifies HM and TA immediately</span>
+      </div>
+    </div>
+
+  </div><!-- /td-main -->
+
+  <!-- ── RIGHT: sidebar ─────────────────────────────────────────────────── -->
+  <aside class="td-sidebar" aria-label="Task sidebar">
+
+    <!-- CLAIMED BY panel -->
+    <section class="td-panel" aria-label="Claimed by">
+      <div class="td-panel__header">
+        <i class="pi pi-user td-panel__icon" aria-hidden="true"></i>
+        <span class="td-panel__title">CLAIMED BY</span>
+      </div>
+      @if (t.claimedByName) {
+        <div class="td-claimer">
+          <div class="td-claimer__avatar" aria-hidden="true">
+            {{ initials(t.claimedByName) }}
+          </div>
+          <div class="td-claimer__info">
+            <strong class="td-claimer__name">{{ t.claimedByName }}</strong>
+            <span class="td-claimer__role">{{ t.claimedByRole }} · Claimed {{ t.claimedAt }}</span>
+          </div>
+        </div>
+        @if (showRelease()) {
+          <!-- Release dialog open inline in footer -->
+        } @else {
+          <button type="button" class="td-release-link" (click)="openReleaseDialog()">
+            <i class="pi pi-times td-release-link__icon" aria-hidden="true"></i>
+            Release back to queue
+          </button>
+        }
+      } @else {
+        <p class="td-panel__empty">Task has not been claimed yet.</p>
+      }
+    </section>
+
+    <!-- ON COMPLETION panel -->
+    <section class="td-panel" aria-label="On completion">
+      <div class="td-panel__header">
+        <i class="pi pi-bolt td-panel__icon" aria-hidden="true"></i>
+        <span class="td-panel__title">ON COMPLETION</span>
+      </div>
+      <ul class="td-completion-list" role="list">
+        <li class="td-completion-list__item">
+          <span class="td-completion-list__dot td-completion-list__dot--green" aria-hidden="true"></span>
+          Task marked complete — <strong>bundle progress updates immediately</strong>
+        </li>
+        <li class="td-completion-list__item">
+          <span class="td-completion-list__dot td-completion-list__dot--green" aria-hidden="true"></span>
+          <strong>Hiring Manager and TA notified</strong> immediately via in-app notification
+        </li>
+        <li class="td-completion-list__item">
+          <span class="td-completion-list__dot td-completion-list__dot--green" aria-hidden="true"></span>
+          Fulfilment notes and asset reference <strong>locked to audit trail</strong>
+        </li>
+      </ul>
+    </section>
+
+    <!-- TASK ACTIVITY panel -->
+    <section class="td-panel" aria-label="Task activity">
+      <div class="td-panel__header">
+        <i class="pi pi-list td-panel__icon" aria-hidden="true"></i>
+        <span class="td-panel__title">TASK ACTIVITY</span>
+      </div>
+      <ol class="td-activity" role="list">
+        @for (event of t.activity; track $index) {
+          <li class="td-activity__event" role="listitem">
+            <div class="td-activity__icon-wrap" aria-hidden="true">
+              <i class="pi {{ activityIcon(event.type) }} td-activity__icon td-activity__icon--{{ event.type }}"></i>
+            </div>
+            <div class="td-activity__body">
+              <span class="td-activity__text">{{ event.text }}</span>
+              <span class="td-activity__meta">{{ event.timestamp }} · {{ event.subtext }}</span>
+            </div>
+          </li>
+        }
+      </ol>
+    </section>
+
+  </aside><!-- /td-sidebar -->
+</div><!-- /td-layout -->
+
+} <!-- end @if task -->
+} <!-- end @else -->

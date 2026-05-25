@@ -1,0 +1,335 @@
+// Admin Overview Page — Section 1 Global Dashboard
+// All class names prefixed tfad- (talent-flow admin)
+
+// ── Page wrapper ─────────────────────────────────────────────────────────────
+
+.tfad-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 1200px;
+}
+
+// ── Page header ──────────────────────────────────────────────────────────────
+
+.tfad-overview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tfad-overview__title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.tfad-overview__title {
+  margin: 0;
+  font-family: 'Manrope', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+  letter-spacing: -0.02em;
+}
+
+.tfad-overview__refreshed {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  color: var(--naleko-muted);
+}
+
+// ── State messages (loading / error) ─────────────────────────────────────────
+
+.tfad-state-msg {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  color: var(--naleko-muted);
+
+  .pi-spin {
+    font-size: 1.25rem;
+    color: var(--naleko-primary);
+  }
+
+  &--error {
+    color: var(--naleko-danger, #dc3545);
+
+    .pi {
+      font-size: 1.25rem;
+      color: var(--naleko-danger, #dc3545);
+    }
+  }
+}
+
+// ── KPI grid ─────────────────────────────────────────────────────────────────
+
+.tfad-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.tfad-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface-elevated, #fff);
+  border: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.08));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  // ── Colour variants ───────────────────────────────────────────────────────
+
+  &--primary {
+    border-left: 4px solid var(--naleko-primary);
+
+    .tfad-kpi-card__value { color: var(--naleko-primary); }
+  }
+
+  &--success {
+    border-left: 4px solid var(--naleko-success, #28a745);
+
+    .tfad-kpi-card__value { color: var(--naleko-success, #28a745); }
+  }
+
+  &--danger {
+    border-left: 4px solid var(--naleko-danger, #dc3545);
+
+    .tfad-kpi-card__value { color: var(--naleko-danger, #dc3545); }
+  }
+
+  &--warning {
+    border-left: 4px solid var(--naleko-warning, #fd7e14);
+
+    .tfad-kpi-card__value { color: var(--naleko-warning, #fd7e14); }
+  }
+
+  &--neutral {
+    border-left: 4px solid var(--naleko-muted, #6c757d);
+
+    .tfad-kpi-card__value { color: var(--naleko-on-surface); }
+  }
+}
+
+.tfad-kpi-card__eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--naleko-muted);
+}
+
+.tfad-kpi-card__value {
+  font-family: 'Manrope', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.tfad-kpi-card__sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  color: var(--naleko-muted);
+}
+
+// ── Section wrapper ───────────────────────────────────────────────────────────
+
+.tfad-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tfad-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tfad-section__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-family: 'Manrope', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+
+  .pi {
+    font-size: 1rem;
+    color: var(--naleko-danger, #dc3545);
+  }
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────────────
+
+.tfad-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--naleko-radius-pill);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  &--danger {
+    background: rgba(220, 53, 69, 0.12);
+    color: var(--naleko-danger, #dc3545);
+  }
+
+  &--success {
+    background: rgba(40, 167, 69, 0.12);
+    color: var(--naleko-success, #28a745);
+  }
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+
+.tfad-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--naleko-radius-md);
+  border: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.08));
+}
+
+.tfad-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+
+  thead tr {
+    background: var(--naleko-surface-subtle, #f8f9fa);
+  }
+
+  th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--naleko-muted);
+    border-bottom: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.08));
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.875rem 1rem;
+    color: var(--naleko-on-surface);
+    border-bottom: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.05));
+    vertical-align: middle;
+  }
+}
+
+.tfad-table__row {
+  transition: background 0.12s ease;
+
+  &:hover {
+    background: var(--naleko-surface-subtle, #f8f9fa);
+  }
+
+  &:last-child td {
+    border-bottom: none;
+  }
+}
+
+.tfad-table__name {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+}
+
+.tfad-table__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--naleko-primary);
+  color: var(--naleko-on-primary, #fff);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tfad-table__role {
+  color: var(--naleko-muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tfad-table__stage {
+  font-size: 0.8rem;
+  color: var(--naleko-on-surface);
+}
+
+.tfad-table__action {
+  text-align: right;
+}
+
+.tfad-table__link {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--naleko-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.12s ease;
+
+  &:hover { opacity: 0.75; }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+.tfad-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1.5rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  color: var(--naleko-muted);
+  border-radius: var(--naleko-radius-md);
+  border: 1px dashed var(--naleko-border, rgba(0, 0, 0, 0.12));
+
+  .pi {
+    font-size: 1.25rem;
+    color: var(--naleko-success, #28a745);
+  }
+}
+
+// ── Refresh button override ────────────────────────────────────────────────────
+
+:host ::ng-deep .tfad-btn-refresh.p-button {
+  color: var(--naleko-muted);
+
+  &:hover { color: var(--naleko-on-surface); }
+}
+
+:host ::ng-deep .tfad-btn-retry.p-button {
+  color: var(--naleko-danger, #dc3545);
+  padding-left: 0;
+
+  &:hover { opacity: 0.7; }
+}

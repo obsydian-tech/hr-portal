@@ -1,0 +1,177 @@
+<!-- Screen 6 — TA Candidate Record · Provisioning Tab (read-only) -->
+
+@if (loading()) {
+  <div class="pt-loading" role="status">
+    <i class="pi pi-spin pi-spinner pt-loading__icon"></i>
+    <span>Loading provisioning status…</span>
+  </div>
+} @else {
+@if (bundle(); as b) {
+
+  <div class="pt-layout">
+
+    <!-- ── LEFT MAIN ─────────────────────────────────────────────────────── -->
+    <div class="pt-main">
+
+      <!-- Readiness strip -->
+      <div class="pt-readiness-strip">
+        <div class="pt-readiness-strip__stat pt-readiness-strip__stat--complete">
+          <span class="pt-readiness-strip__value">{{ completeCount() }}</span>
+          <span class="pt-readiness-strip__label">COMPLETE</span>
+        </div>
+        <div class="pt-readiness-strip__stat pt-readiness-strip__stat--breached">
+          <span class="pt-readiness-strip__value">{{ breachedCount() }}</span>
+          <span class="pt-readiness-strip__label">BREACHED</span>
+        </div>
+        <div class="pt-readiness-strip__stat pt-readiness-strip__stat--ready">
+          <span class="pt-readiness-strip__value">{{ readyPct() }}%</span>
+          <span class="pt-readiness-strip__label">READY</span>
+        </div>
+      </div>
+
+      <!-- Readiness bar -->
+      <div class="pt-readiness-bar">
+        <span class="pt-readiness-bar__label"
+          [class.pt-readiness-bar__label--risk]="hasActiveBreach()">
+          Provisioning readiness
+        </span>
+        <span class="pt-readiness-bar__pct"
+          [class.pt-readiness-bar__pct--risk]="hasActiveBreach()">
+          {{ readinessLabel() }}
+        </span>
+        <div class="pt-readiness-bar__track">
+          <div class="pt-readiness-bar__fill"
+            [class.pt-readiness-bar__fill--risk]="hasActiveBreach()"
+            [style.width.%]="readyPct()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Signal Intelligence (only shown when breach active) -->
+      @if (hasActiveBreach()) {
+        <div class="pt-intel-box pt-intel-box--breach">
+          <div class="pt-intel-box__header">
+            <i class="pi pi-exclamation-triangle pt-intel-box__icon"></i>
+            <span class="pt-intel-box__label">SIGNAL INTELLIGENCE</span>
+          </div>
+          <p class="pt-intel-box__text">
+            System access is <strong>breached and unassigned</strong> in the Software queue.
+            {{ b.candidateName.split(' ')[0] }} starts soon.
+            The Hiring Manager has been notified and has escalated.
+            Monitor for resolution.
+          </p>
+        </div>
+      }
+
+      <!-- Provisioning Bundle -->
+      <div class="pt-bundle">
+        <div class="pt-bundle__header">
+          <div class="pt-bundle__meta-left">
+            <i class="pi pi-list pt-bundle__icon"></i>
+            <div>
+              <span class="pt-bundle__heading">PROVISIONING BUNDLE</span>
+              <span class="pt-bundle__sub">{{ b.items.length }} REQUIREMENTS</span>
+            </div>
+          </div>
+          <span class="pt-bundle__approved">APPROVED BY {{ (b.approvedAt ? 'MARCUS K.' : '—') }}</span>
+        </div>
+
+        <div class="pt-bundle__items">
+          @for (item of b.items; track item.id) {
+            <div class="pt-item"
+              [class.pt-item--complete]="item.status === 'COMPLETE'"
+              [class.pt-item--breached]="item.status === 'BREACHED'">
+
+              <!-- Status icon -->
+              <div class="pt-item__icon-wrap">
+                @if (item.status === 'COMPLETE') {
+                  <i class="pi pi-check pt-item__icon pt-item__icon--complete"></i>
+                } @else if (item.status === 'BREACHED') {
+                  <i class="pi pi-exclamation-circle pt-item__icon pt-item__icon--breach"></i>
+                } @else {
+                  <i class="pi pi-circle pt-item__icon pt-item__icon--pending"></i>
+                }
+              </div>
+
+              <!-- Label + meta -->
+              <div class="pt-item__body">
+                <span class="pt-item__label">{{ item.label }}</span>
+                <div class="pt-item__meta">
+                  <span class="pt-item__type" [ngClass]="itemTypeClass(item)">
+                    {{ itemTypeLabel(item) }}
+                  </span>
+                  <i class="pi pi-arrow-right pt-item__arrow"></i>
+                  <span class="pt-item__queue">{{ item.queue }}</span>
+                  @if (item.specialistName) {
+                    <span class="pt-item__specialist-wrap">
+                      <span class="pt-item__avatar">{{ item.specialistInitials }}</span>
+                      <span class="pt-item__specialist">{{ item.specialistName }}</span>
+                    </span>
+                  } @else if (item.status === 'BREACHED') {
+                    <span class="pt-item__unassigned">
+                      <i class="pi pi-minus-circle"></i> Unassigned
+                    </span>
+                  }
+                </div>
+              </div>
+
+              <!-- Status badge -->
+              <span class="pt-item__status"
+                [class.pt-item__status--complete]="item.status === 'COMPLETE'"
+                [class.pt-item__status--breached]="item.status === 'BREACHED'"
+                [class.pt-item__status--pending]="item.status === 'PENDING' || item.status === 'IN_PROGRESS'">
+                {{ item.status === 'IN_PROGRESS' ? 'IN PROGRESS' : item.status }}
+              </span>
+
+            </div>
+          }
+        </div>
+
+        <!-- Read-only note -->
+        <div class="pt-bundle__readonly-note">
+          <i class="pi pi-eye pt-bundle__readonly-note-icon"></i>
+          <span>You have visibility only — provisioning is managed by the Hiring Manager and IT specialists.
+            The HM has been notified and has escalated.</span>
+        </div>
+      </div>
+
+    </div><!-- /pt-main -->
+
+    <!-- ── RIGHT SIDEBAR ─────────────────────────────────────────────────── -->
+    <aside class="pt-sidebar">
+
+      <div class="pt-panel">
+        <div class="pt-panel__header">
+          <i class="pi pi-list-check pt-panel__icon"></i>
+          <span class="pt-panel__title">PROVISIONING ACTIVITY</span>
+        </div>
+
+        <ol class="pt-act">
+          @for (entry of b.activityLog; track entry.id) {
+            <li class="pt-act__event">
+              <div class="pt-act__icon-wrap">
+                <i class="pi {{ activityIcon(entry) }} pt-act__icon {{ activityIconClass(entry) }}"></i>
+              </div>
+              <div class="pt-act__body">
+                <span class="pt-act__message">{{ entry.message }}</span>
+                <span class="pt-act__detail">{{ entry.detail }}</span>
+              </div>
+            </li>
+          }
+        </ol>
+
+      </div>
+
+    </aside>
+
+  </div><!-- /pt-layout -->
+
+} @else {
+  <!-- No bundle found -->
+  <div class="pt-empty">
+    <i class="pi pi-box pt-empty__icon"></i>
+    <p class="pt-empty__title">No provisioning bundle yet</p>
+    <p class="pt-empty__sub">A bundle will appear here once the offer is accepted and provisioning is initiated.</p>
+  </div>
+}
+} <!-- end @else (not loading) -->
