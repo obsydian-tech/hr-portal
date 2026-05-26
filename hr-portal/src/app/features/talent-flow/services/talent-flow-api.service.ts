@@ -349,9 +349,7 @@ export class TalentFlowApiService {
       switchMap((res) =>
         of(
           res.users
-            .filter((u) =>
-              u.groups?.some((g) => ['ITAdmin', 'ITSpecialist', 'naleko-it-specialist', 'naleko-it-admin'].includes(g)),
-            )
+            .filter((u) => (u as any).status === 'ACTIVE')
             .map((u) => ({ id: u.userId, label: `${u.givenName} ${u.familyName}`, email: u.email })),
         ),
       ),
