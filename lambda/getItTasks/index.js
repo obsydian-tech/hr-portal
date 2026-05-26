@@ -10,19 +10,22 @@
  *   tenantId  — required
  *   status    — comma-separated, default "UNASSIGNED,CLAIMED"
  *               allowed: UNASSIGNED | CLAIMED | COMPLETED
- *   queue     — optional filter: Hardware | Access & Identity | Software | Facilities
+ *   queue     — optional filter: queue name (overrides role-scoping for admins)
  *   nextToken — optional pagination cursor
  *
- * Access pattern:
- *   GSI1 (byTenantStatus) — PK=tenantId, SK=taskStatus
- *   One DynamoDB Query per requested status value, results merged.
+ * Role-scoping:
+ *   ITAdmin / TalentFlowAdmin → see ALL tasks.
+ *   ITSpecialist              → see only tasks whose queue.assignedSpecialists
+ *                               includes their Cognito sub.
  *
  * Env vars:
- *   IT_TASKS_TABLE — it-tasks DynamoDB table name
+ *   IT_TASKS_TABLE    — it-tasks DynamoDB table name
+ *   CONFIG_TABLE_NAME — talent-flow-config DynamoDB table name
  */
 
 const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
+const { getConfig } = require('../shared/config-reader');
 
 const client = new DynamoDBClient({});
 const TABLE  = process.env.IT_TASKS_TABLE;
@@ -58,17 +61,20 @@ function parseGroups(rawGroups) {
 exports.handler = async (event) => {
   const claims   = extractClaims(event);
   const groups   = parseGroups(claims['cognito:groups']);
+  const userSub  = claims.sub;
   // DEBUG — remove once auth is confirmed working
-  console.log('[getItTasks] sub:', claims.sub, 'groups_raw:', claims['cognito:groups'], 'parsed:', JSON.stringify(groups));
-  const isITUser = groups.some(g => ['ITAdmin', 'ITSpecialist'].includes(g));
-  const isAdmin  = claims['custom:isAdmin'] === 'true' || groups.includes('TalentFlowAdmin');
+  console.log('[getItTasks] sub:', userSub, 'groups_raw:', claims['cognito:groups'], 'parsed:', JSON.stringify(groups));
 
-  if (!isITUser && !isAdmin) {
+  const isITSpecialist = groups.includes('ITSpecialist') && !groups.includes('ITAdmin');
+  const isITAdmin      = groups.includes('ITAdmin');
+  const isAdmin        = claims['custom:isAdmin'] === 'true' || groups.includes('TalentFlowAdmin') || isITAdmin;
+
+  if (!isITSpecialist && !isAdmin) {
     return respond(403, { message: 'Forbidden: IT Admin or IT Specialist group required.' });
   }
 
-  const qs        = event.queryStringParameters ?? {};
-  const tenantId  = qs.tenantId;
+  const qs          = event.queryStringParameters ?? {};
+  const tenantId    = qs.tenantId;
   const queueFilter = qs.queue ?? null;
 
   if (!tenantId) {
@@ -82,6 +88,29 @@ exports.handler = async (event) => {
 
   if (statuses.length === 0) {
     return respond(400, { message: `Invalid status values: ${rawStatus}` });
+  }
+
+  // ── Determine which queue names this user is allowed to see ──────────────
+  // ITSpecialists only see queues where their sub is in assignedSpecialists.
+  // ITAdmin / TalentFlowAdmin see all queues (allowedQueues = null = unlimited).
+  let allowedQueues = null; // null → no queue restriction
+  if (isITSpecialist && !isAdmin) {
+    try {
+      const queuesConfig = await getConfig(tenantId, 'IT_QUEUES');
+      const queues = queuesConfig.queues ?? [];
+      allowedQueues = queues
+        .filter(q => q.active && Array.isArray(q.assignedSpecialists) && q.assignedSpecialists.includes(userSub))
+        .map(q => q.name);
+      console.log('[getItTasks] specialist queue scope:', JSON.stringify(allowedQueues));
+      if (allowedQueues.length === 0) {
+        // Assigned to no queues — return empty legitimately
+        return respond(200, { tasks: [] });
+      }
+    } catch (err) {
+      // Config read failure — fail open (show all tasks) so specialists aren't locked out during a config outage
+      console.warn('[getItTasks] IT_QUEUES config read failed, falling back to unscoped query:', err.message);
+      allowedQueues = null;
+    }
   }
 
   try {
@@ -110,7 +139,12 @@ exports.handler = async (event) => {
       }),
     );
 
-    // Optional queue filter
+    // Apply role-based queue scope (ITSpecialists only see their queues)
+    if (allowedQueues !== null) {
+      tasks = tasks.filter(t => allowedQueues.includes(t.queue));
+    }
+
+    // Apply optional explicit queue filter (works for admins browsing by queue)
     if (queueFilter) {
       tasks = tasks.filter(t => t.queue === queueFilter);
     }

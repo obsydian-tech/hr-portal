@@ -69,16 +69,22 @@
 
     <!-- Assigned Specialists -->
     <div class="form-field">
-      <label class="form-label" for="q-spec">Assigned Specialists (emails)</label>
-      <p-chips
+      <label class="form-label" for="q-spec">Assigned Specialists</label>
+      <p-multiSelect
         inputId="q-spec"
         [ngModel]="form().assignedSpecialists"
         (ngModelChange)="patchForm({ assignedSpecialists: $event })"
-        separator=","
-        placeholder="Type email + Enter"
-        styleClass="form-chips"
+        [options]="availableSpecialists()"
+        optionLabel="label"
+        optionValue="id"
+        [filter]="true"
+        filterBy="label,email"
+        placeholder="Select IT specialists…"
+        [loading]="specialistsLoading()"
+        styleClass="form-multiselect"
+        display="chip"
       />
-      <span class="form-hint">Press Enter or comma after each email address.</span>
+      <span class="form-hint">Only users in the ITSpecialist or ITAdmin group are listed.</span>
     </div>
 
   </div>

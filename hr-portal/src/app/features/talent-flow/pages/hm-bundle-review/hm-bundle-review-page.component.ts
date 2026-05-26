@@ -180,15 +180,19 @@ export class HmBundleReviewPageComponent implements OnInit {
     const b = this._bundle();
     if (!b || this.approving()) return;
     this.approving.set(true);
-    // TODO: wire POST /v1/provisioning/bundles/:id/approve with { items: this.items() }
-    // Simulate async
-    setTimeout(() => {
-      this.approving.set(false);
-      this.approved.set(true);
-      setTimeout(() => {
-        void this.router.navigate(['/platform/talentflow/hm-provisioning']);
-      }, 1200);
-    }, 800);
+    this.api.approveProvisioningBundle(b.id).subscribe({
+      next: () => {
+        this.approving.set(false);
+        this.approved.set(true);
+        setTimeout(() => {
+          void this.router.navigate(['/platform/talentflow/hm-provisioning']);
+        }, 1200);
+      },
+      error: (err) => {
+        this.error.set(err.userMessage ?? 'Failed to approve bundle. Please try again.');
+        this.approving.set(false);
+      },
+    });
   }
 
   protected goBack(): void {

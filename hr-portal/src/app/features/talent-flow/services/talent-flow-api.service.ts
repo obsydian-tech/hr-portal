@@ -324,6 +324,34 @@ export class TalentFlowApiService {
     );
   }
 
+  /**
+   * Returns active users who are IT specialists (ITAdmin or ITSpecialist group).
+   * Calls GET /v1/admin/users?status=ACTIVE via the adminGetUsers Lambda.
+   * Falls back to [] on any error so the drawer still opens.
+   */
+  getItSpecialists(): Observable<Array<{ id: string; label: string; email: string }>> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<{
+          users: Array<{ userId: string; givenName: string; familyName: string; email: string; groups: string[] }>;
+        }>(`${this.baseUrl}/admin/users`, {
+          headers,
+          params: new HttpParams().set('status', 'ACTIVE'),
+        }),
+      ),
+      switchMap((res) =>
+        of(
+          res.users
+            .filter((u) =>
+              u.groups?.some((g) => ['ITAdmin', 'ITSpecialist', 'naleko-it-specialist', 'naleko-it-admin'].includes(g)),
+            )
+            .map((u) => ({ id: u.userId, label: `${u.givenName} ${u.familyName}`, email: u.email })),
+        ),
+      ),
+      catchError(() => of([])),
+    );
+  }
+
   // Offer (Phase D)
 
   getOffer(candidateId: string): Observable<Offer> {
@@ -372,203 +400,87 @@ export class TalentFlowApiService {
 
   // IT Provisioning
 
-  /**
-   * TODO: wire to GET /v1/provisioning/bundles once Lambda is deployed.
-   * Returns bundles for the requesting HM (userId from JWT, scoped server-side).
-   */
-  getProvisioningBundles(): Observable<ProvisioningBundle[]> {
-    // ── MOCK DATA — replace with real HTTP call after Lambda is deployed ──
-    // TODO: wire to GET /v1/provisioning/bundles (scoped to HM userId from JWT)
-    const now = new Date();
-    const iso = (d: Date) => d.toISOString().split('T')[0];
-    const inDays = (n: number) => { const d = new Date(now); d.setDate(d.getDate() + n); return iso(d); };
-    const mock: ProvisioningBundle[] = [
-      {
-        id: 'bundle-001', candidateId: 'cand-sm', candidateName: 'Sarah Mitchell',
-        candidateRole: 'Product Manager', seniority: 'Senior', department: 'Product Team',
-        startDate: inDays(39), slaStatus: 'BREACHED', templateName: 'Senior PM template',
-        bundleStatus: 'PENDING_REVIEW',
-        items: [
-          { id: 'i1', type: 'HARDWARE', label: 'Laptop',        queue: 'Hardware queue',    status: 'PENDING', fromTemplate: true,  specNote: 'Senior level — high performance spec required' },
-          { id: 'i2', type: 'ACCESS',   label: 'Email account', queue: 'Access & Identity', status: 'PENDING', fromTemplate: true  },
-          { id: 'i3', type: 'ACCESS',   label: 'Access card',   queue: 'Facilities queue',  status: 'PENDING', fromTemplate: true  },
-          { id: 'i4', type: 'SOFTWARE', label: 'System access', queue: 'Software queue',    status: 'PENDING', fromTemplate: true,  specNote: 'Product management tools — Jira, Confluence, Figma, Analytics suite' },
-        ],
-      },
-      {
-        id: 'bundle-002', candidateId: 'cand-jk', candidateName: 'James Kowalski',
-        candidateRole: 'Engineering Lead', seniority: 'Senior', department: 'Engineering',
-        startDate: inDays(53), slaStatus: 'AT_RISK', templateName: 'Senior Engineer template',
-        bundleStatus: 'PENDING_REVIEW',
-        items: [
-          { id: 'i5', type: 'HARDWARE', label: 'Laptop',          queue: 'Hardware queue',    status: 'PENDING', fromTemplate: true,  specNote: 'Senior level — high performance spec required' },
-          { id: 'i6', type: 'HARDWARE', label: 'Mobile phone',    queue: 'Hardware queue',    status: 'PENDING', fromTemplate: true  },
-          { id: 'i7', type: 'ACCESS',   label: 'Email account',   queue: 'Access & Identity', status: 'PENDING', fromTemplate: true  },
-          { id: 'i8', type: 'SOFTWARE', label: 'Dev environment', queue: 'Software queue',    status: 'PENDING', fromTemplate: true,  specNote: 'Full dev stack — GitHub, AWS console, CI/CD access' },
-        ],
-      },
-      {
-        id: 'bundle-003', candidateId: 'cand-pn', candidateName: 'Priya Naidoo',
-        candidateRole: 'Data Analyst', seniority: 'Mid', department: 'Analytics',
-        startDate: inDays(10), slaStatus: 'AT_RISK', templateName: 'Mid Analyst template',
-        bundleStatus: 'IN_FULFILMENT', approvedAt: new Date(now.getTime() - 86400000 * 3).toISOString(),
-        items: [
-          { id: 'i9',  type: 'HARDWARE', label: 'Laptop',        queue: 'Hardware queue',    status: 'COMPLETE',  fromTemplate: true },
-          { id: 'i10', type: 'ACCESS',   label: 'Email account', queue: 'Access & Identity', status: 'COMPLETE',  fromTemplate: true },
-          { id: 'i11', type: 'ACCESS',   label: 'Access card',   queue: 'Facilities queue',  status: 'COMPLETE',  fromTemplate: true },
-          { id: 'i12', type: 'SOFTWARE', label: 'System access', queue: 'Software queue',    status: 'BREACHED',  fromTemplate: true },
-        ],
-      },
-      {
-        id: 'bundle-004', candidateId: 'cand-lb', candidateName: 'Liam Brooks',
-        candidateRole: 'UX Designer', seniority: 'Mid', department: 'Design',
-        startDate: inDays(21), slaStatus: 'ON_TRACK', templateName: 'Mid Designer template',
-        bundleStatus: 'IN_FULFILMENT', approvedAt: new Date(now.getTime() - 86400000 * 2).toISOString(),
-        items: [
-          { id: 'i13', type: 'HARDWARE', label: 'Laptop',       queue: 'Hardware queue',    status: 'COMPLETE',    fromTemplate: true },
-          { id: 'i14', type: 'SOFTWARE', label: 'Design tools', queue: 'Software queue',    status: 'IN_PROGRESS', fromTemplate: true, specNote: 'Figma, Adobe CC, Zeplin' },
-          { id: 'i15', type: 'ACCESS',   label: 'Email account',queue: 'Access & Identity', status: 'IN_PROGRESS', fromTemplate: true },
-        ],
-      },
-      {
-        id: 'bundle-005', candidateId: 'cand-tm', candidateName: 'Thabo Molefe',
-        candidateRole: 'Finance Analyst', seniority: 'Senior', department: 'Finance',
-        startDate: inDays(30), slaStatus: 'ON_TRACK', templateName: 'Senior Finance template',
-        bundleStatus: 'IN_FULFILMENT', approvedAt: new Date(now.getTime() - 86400000).toISOString(),
-        items: [
-          { id: 'i16', type: 'HARDWARE', label: 'Laptop',        queue: 'Hardware queue',    status: 'IN_PROGRESS', fromTemplate: true },
-          { id: 'i17', type: 'ACCESS',   label: 'Email account', queue: 'Access & Identity', status: 'PENDING',     fromTemplate: true },
-          { id: 'i18', type: 'SOFTWARE', label: 'Finance suite', queue: 'Software queue',    status: 'PENDING',     fromTemplate: true, specNote: 'SAP, PowerBI, Excel 365' },
-        ],
-      },
-      {
-        id: 'bundle-006', candidateId: 'cand-nv', candidateName: 'Naledi van Wyk',
-        candidateRole: 'HR Business Partner', seniority: 'Senior', department: 'Human Resources',
-        startDate: inDays(14), slaStatus: 'ON_TRACK', templateName: 'Senior HR template',
-        bundleStatus: 'READY',
-        items: [
-          { id: 'i19', type: 'HARDWARE', label: 'Laptop',       queue: 'Hardware queue',    status: 'COMPLETE', fromTemplate: true },
-          { id: 'i20', type: 'ACCESS',   label: 'Email account',queue: 'Access & Identity', status: 'COMPLETE', fromTemplate: true },
-          { id: 'i21', type: 'ACCESS',   label: 'Access card',  queue: 'Facilities queue',  status: 'COMPLETE', fromTemplate: true },
-          { id: 'i22', type: 'SOFTWARE', label: 'HRIS access',  queue: 'Software queue',    status: 'COMPLETE', fromTemplate: true },
-        ],
-      },
-    ];
-    return of(mock);
+  getProvisioningBundles(statusFilter?: string): Observable<ProvisioningBundle[]> {
+    return this.authHeaders().pipe(
+      switchMap((headers) => {
+        let params = new HttpParams();
+        if (statusFilter) params = params.set('status', statusFilter);
+        return this.http.get<{ bundles: ProvisioningBundle[] }>(
+          `${this.baseUrl}/provisioning/bundles`, { headers, params },
+        );
+      }),
+      map((res) => res.bundles ?? []),
+      timeout(API_TIMEOUT_MS),
+      catchError(() => of([])),
+    );
   }
 
-  /**
-   * TODO: wire to GET /v1/provisioning/bundles/:id once Lambda is deployed.
-   * Returns single bundle by id from the mock dataset.
-   */
   getProvisioningBundle(id: string): Observable<ProvisioningBundle | undefined> {
-    return new Observable((observer) => {
-      this.getProvisioningBundles().subscribe((bundles) => {
-        observer.next(bundles.find((b) => b.id === id));
-        observer.complete();
-      });
-    });
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<{ bundle: ProvisioningBundle }>(
+          `${this.baseUrl}/provisioning/bundles/${id}`, { headers },
+        ),
+      ),
+      map((res) => res.bundle),
+      timeout(API_TIMEOUT_MS),
+      catchError(() => of(undefined)),
+    );
   }
 
-  /**
-   * TODO: wire to GET /v1/provisioning/bundles/:id/progress once Lambda is deployed.
-   * Returns full bundle progress view — items with specialist data + activity log.
-   */
   getProvisioningBundleProgress(id: string): Observable<ProvisioningBundleProgress | undefined> {
-    const now = new Date();
-    const iso = (d: Date) => d.toISOString().split('T')[0];
-    const inDays = (n: number) => { const d = new Date(now); d.setDate(d.getDate() + n); return iso(d); };
-    const daysAgo = (n: number) => new Date(now.getTime() - 86400000 * n).toISOString();
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<{ progress: ProvisioningBundleProgress }>(
+          `${this.baseUrl}/provisioning/bundles/${id}/progress`, { headers },
+        ),
+      ),
+      map((res) => res.progress),
+      timeout(API_TIMEOUT_MS),
+      catchError(() => of(undefined)),
+    );
+  }
 
-    // ── Rich mock for Priya Naidoo (bundle-003) — matches Screen 3 design ──
-    const progressMocks: Record<string, ProvisioningBundleProgress> = {
-      'bundle-003': {
-        id: 'bundle-003', candidateId: 'cand-pn', candidateName: 'Priya Naidoo',
-        candidateRole: 'Data Analyst', seniority: 'Mid', department: 'Analytics Team',
-        startDate: inDays(10), slaStatus: 'BREACHED', templateName: 'Mid Analyst template',
-        bundleStatus: 'IN_FULFILMENT', approvedAt: daysAgo(5),
-        items: [
-          {
-            id: 'i9', type: 'HARDWARE', label: 'Laptop', queue: 'Hardware queue',
-            status: 'COMPLETE', fromTemplate: true,
-            specialistName: 'Tom M.', specialistInitials: 'TM',
-            completedAt: daysAgo(3), taskSlaStatus: 'ON_TRACK',
-          },
-          {
-            id: 'i10', type: 'ACCESS', label: 'Email account', queue: 'Access & Identity queue',
-            status: 'COMPLETE', fromTemplate: true,
-            specialistName: 'Kim L.', specialistInitials: 'KL',
-            completedAt: daysAgo(2), taskSlaStatus: 'ON_TRACK',
-          },
-          {
-            id: 'i11', type: 'FACILITIES', label: 'Access card', queue: 'Facilities queue',
-            status: 'COMPLETE', fromTemplate: true,
-            specialistName: 'Nomsa Z.', specialistInitials: 'NZ',
-            completedAt: daysAgo(1), taskSlaStatus: 'ON_TRACK',
-          },
-          {
-            id: 'i12', type: 'SOFTWARE', label: 'System access', queue: 'Software queue',
-            status: 'BREACHED', fromTemplate: true,
-            notes: 'Analytics suite access required — Tableau, BigQuery, dbt, Looker. Priya cannot start without this.',
-            taskSlaStatus: 'BREACHED',
-            // no specialistName/Initials — Unassigned
-          },
-        ] as ProvisioningItemProgress[],
-        activityLog: [
-          {
-            id: 'log-1', type: 'BREACH',
-            message: 'System access SLA breached — task unassigned in Software queue',
-            detail: 'Today · TA and HM notified',
-          },
-          {
-            id: 'log-2', type: 'COMPLETE',
-            message: 'Access card complete — marked ready by Nomsa Z.',
-            detail: 'Yesterday · Facilities queue',
-          },
-          {
-            id: 'log-3', type: 'COMPLETE',
-            message: 'Email account complete — marked ready by Kim L.',
-            detail: '2 days ago · Access & Identity queue',
-          },
-          {
-            id: 'log-4', type: 'COMPLETE',
-            message: 'Laptop complete — marked ready by Tom M.',
-            detail: '3 days ago · Hardware queue',
-          },
-          {
-            id: 'log-5', type: 'APPROVAL',
-            message: 'Bundle approved by Marcus Khumalo — tasks routed to queues',
-            detail: '5 days ago',
-          },
-        ] as ActivityLogEntry[],
-      },
-    };
+  createProvisioningBundle(payload: {
+    candidateId: string; candidateName: string; candidateRole: string;
+    seniority?: string; department?: string; startDate: string; templateId?: string;
+  }): Observable<ProvisioningBundle> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.post<{ bundle: ProvisioningBundle }>(
+          `${this.baseUrl}/provisioning/bundles`, payload, { headers },
+        ),
+      ),
+      map((res) => res.bundle),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
 
-    // For any other in-fulfilment bundle id not in the detailed mock map,
-    // synthesise a basic progress view from the base mock.
-    return new Observable((observer) => {
-      if (progressMocks[id]) {
-        observer.next(progressMocks[id]);
-        observer.complete();
-        return;
-      }
-      this.getProvisioningBundles().subscribe((bundles) => {
-        const base = bundles.find((b) => b.id === id);
-        if (!base) { observer.next(undefined); observer.complete(); return; }
-        const progress: ProvisioningBundleProgress = {
-          ...base,
-          items: base.items.map((item) => ({
-            ...item,
-            taskSlaStatus: item.status === 'BREACHED' ? 'BREACHED' : 'ON_TRACK',
-          } as ProvisioningItemProgress)),
-          activityLog: [
-            { id: 'log-a', type: 'APPROVAL', message: `Bundle approved — tasks routed to queues`, detail: 'Recently' },
-          ],
-        };
-        observer.next(progress);
-        observer.complete();
-      });
-    });
+  approveProvisioningBundle(bundleId: string): Observable<ProvisioningBundle> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.post<{ bundle: ProvisioningBundle }>(
+          `${this.baseUrl}/provisioning/bundles/${bundleId}/approve`, {}, { headers },
+        ),
+      ),
+      map((res) => res.bundle),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  updateProvisioningBundle(bundleId: string, patch: Partial<ProvisioningBundle>): Observable<ProvisioningBundle> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.patch<{ bundle: ProvisioningBundle }>(
+          `${this.baseUrl}/provisioning/bundles/${bundleId}`, patch, { headers },
+        ),
+      ),
+      map((res) => res.bundle),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
   }
 
   // Error Handling
