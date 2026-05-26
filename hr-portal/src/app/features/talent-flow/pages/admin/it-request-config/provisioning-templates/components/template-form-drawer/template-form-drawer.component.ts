@@ -6,6 +6,7 @@ import {
   signal,
   effect,
   computed,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -69,16 +70,19 @@ export class TemplateFormDrawerComponent {
   });
 
   constructor() {
+    // allowSignalWrites required to avoid NG0600 when syncing input → form signal
     effect(() => {
       const t = this.template();
-      if (t) {
-        this.form.set({ ...t, requirements: t.requirements.map((r) => ({ ...r })) });
-        this.isEditMode.set(true);
-      } else {
-        this.form.set(EMPTY_TEMPLATE());
-        this.isEditMode.set(false);
-      }
-    });
+      untracked(() => {
+        if (t) {
+          this.form.set({ ...t, requirements: t.requirements.map((r) => ({ ...r })) });
+          this.isEditMode.set(true);
+        } else {
+          this.form.set(EMPTY_TEMPLATE());
+          this.isEditMode.set(false);
+        }
+      });
+    }, { allowSignalWrites: true });
   }
 
   patchForm(patch: Partial<ProvisioningTemplate>): void {

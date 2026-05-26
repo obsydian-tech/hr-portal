@@ -7,6 +7,7 @@ import {
   effect,
   inject,
   OnInit,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -73,17 +74,19 @@ export class QueueFormDrawerComponent implements OnInit {
   readonly specialistsLoading  = signal(false);
 
   constructor() {
-    // Sync form when inputs change
+    // Sync form when queue input changes — allowSignalWrites required (NG0600)
     effect(() => {
       const q = this.queue();
-      if (q) {
-        this.form.set({ ...q, assignedSpecialists: [...q.assignedSpecialists] });
-        this.isEditMode.set(true);
-      } else {
-        this.form.set(EMPTY_QUEUE());
-        this.isEditMode.set(false);
-      }
-    });
+      untracked(() => {
+        if (q) {
+          this.form.set({ ...q, assignedSpecialists: [...q.assignedSpecialists] });
+          this.isEditMode.set(true);
+        } else {
+          this.form.set(EMPTY_QUEUE());
+          this.isEditMode.set(false);
+        }
+      });
+    }, { allowSignalWrites: true });
   }
 
   ngOnInit(): void {
