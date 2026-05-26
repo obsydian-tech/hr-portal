@@ -9,8 +9,10 @@ import {
 import { Router } from '@angular/router';
 import { RequirementType, ItTask, ItQueue, TaskSlaStatus } from '../../models/it-provisioning.models';
 import { ItProvisioningApiService } from '../../services/it-provisioning-api.service';
-import { ItProvisioningAuthService } from '../../services/it-provisioning-auth.service';
+import { TalentFlowAuthService } from '../../../talent-flow/services/talent-flow-auth.service';
+import { TalentFlowApiService } from '../../../talent-flow/services/talent-flow-api.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ITQueue } from '../../../talent-flow/pages/admin/it-request-config/it-request.models';
 
 @Component({
   selector: 'ip-it-queue-page',
@@ -22,7 +24,8 @@ import { AuthService } from '../../../../core/services/auth.service';
 })
 export class ItQueuePageComponent implements OnInit {
   private readonly api        = inject(ItProvisioningApiService);
-  private readonly itAuth     = inject(ItProvisioningAuthService);
+  private readonly tfAuth     = inject(TalentFlowAuthService);
+  private readonly tfApi      = inject(TalentFlowApiService);
   private readonly nalekoAuth = inject(AuthService);
   private readonly router     = inject(Router);
 
@@ -61,22 +64,40 @@ export class ItQueuePageComponent implements OnInit {
     });
   });
 
-  protected readonly specialistId = computed<string>(() => {
-    // Use Naleko sub as stable ID when IT pool is not authenticated
-    return this.itAuth.currentUser()?.sub ?? this.nalekoAuth.currentUser()?.staffId ?? 'specialist-001';
-  });
+  /**
+   * Specialist sub — used to compare task.claimedBy with current user.
+   * Prefer TF pool sub (ITAdmin / ITSpecialist groups); fall back to Naleko staffId.
+   */
+  protected readonly specialistId = computed<string>(() =>
+    this.tfAuth.currentUser()?.sub ?? this.nalekoAuth.currentUser()?.staffId ?? '',
+  );
 
   async ngOnInit(): Promise<void> {
-    const [taskList, itUser, nalekoUser] = await Promise.all([
-      this.api.getMyTasks(this.specialistId()),
-      Promise.resolve(this.itAuth.currentUser()),
-      Promise.resolve(this.nalekoAuth.currentUser()),
+    // 1. Fetch tasks and IT_QUEUES config in parallel.
+    const [taskList, configRes] = await Promise.all([
+      this.api.getMyTasks(),
+      this.tfApi.getConfig('IT_QUEUES').toPromise().catch(() => null),
     ]);
+
     this.tasks.set(taskList);
 
-    // Derive assigned queues from IT pool (preferred) or default to all
-    const assigned: string[] = itUser?.assignedQueues ?? ['Hardware', 'Access & Identity', 'Software', 'Facilities'];
-    this.queues.set(this.api.getQueues(assigned));
+    // 2. Derive queue tabs from admin config, filtered to queues where the
+    //    specialist's email appears in assignedSpecialists (or show all if
+    //    no config is available yet / user is ITAdmin).
+    const userEmail   = this.tfAuth.currentUser()?.email ?? this.nalekoAuth.currentUser()?.email ?? '';
+    const isAdmin     = this.tfAuth.isAdmin() || this.tfAuth.hasGroup('ITAdmin');
+    const allQueues   = (configRes?.data as { queues?: ITQueue[] })?.queues ?? [];
+    const activeQueues = allQueues.filter((q) => q.active);
+
+    const assigned: string[] = isAdmin
+      ? activeQueues.map((q) => q.name)  // ITAdmin sees all active queues
+      : activeQueues
+          .filter((q) => q.assignedSpecialists.includes(userEmail))
+          .map((q) => q.name);
+
+    const fallback = ['Hardware', 'Access & Identity', 'Software', 'Facilities'];
+    const queueNames = assigned.length ? assigned : fallback;
+    this.queues.set(this.api.buildQueues(taskList, queueNames as any));
     this.loading.set(false);
   }
 
@@ -89,8 +110,8 @@ export class ItQueuePageComponent implements OnInit {
     const name = this.nalekoAuth.currentUser()?.givenName
       ? `${this.nalekoAuth.currentUser()!.givenName} ${this.nalekoAuth.currentUser()!.familyName}`.trim()
       : 'Tom Mokoena';
-    await this.api.claimTask(taskId, this.specialistId(), name, 'IT Specialist');
-    const updated = await this.api.getMyTasks(this.specialistId());
+    await this.api.claimTask(taskId);
+    const updated = await this.api.getMyTasks();
     this.tasks.set(updated);
     this.actionPending.set(null);
     // Navigate to task detail after claiming

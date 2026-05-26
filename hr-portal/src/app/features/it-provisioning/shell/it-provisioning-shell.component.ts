@@ -8,7 +8,7 @@ import {
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
-import { ItProvisioningAuthService } from '../services/it-provisioning-auth.service';
+import { TalentFlowAuthService } from '../../talent-flow/services/talent-flow-auth.service';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -20,8 +20,9 @@ import { AuthService } from '../../../core/services/auth.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItProvisioningShellComponent implements OnInit {
-  private readonly router  = inject(Router);
-  protected readonly itAuth     = inject(ItProvisioningAuthService);
+  private readonly router      = inject(Router);
+  /** TalentFlow pool auth — ITAdmin / ITSpecialist groups live here. */
+  protected readonly tfAuth     = inject(TalentFlowAuthService);
   protected readonly nalekoAuth = inject(AuthService);
 
   /** Initials derived from the Naleko pool user (they logged in via main login). */
@@ -38,13 +39,13 @@ export class ItProvisioningShellComponent implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
-    // Restore IT Provisioning Cognito session if the user previously logged into the IT pool.
-    // Works alongside Naleko session — both are needed for full IT module access.
-    await this.itAuth.checkSession();
+    // Restore the TalentFlow Cognito session so isItSpecialist() is accurate.
+    // ITAdmin / ITSpecialist groups are in the TF pool; no separate IT pool.
+    await this.tfAuth.checkSession();
   }
 
   protected onLogout(): void {
-    this.itAuth.logout();
+    this.tfAuth.logout();
     void this.router.navigate(['/platform/home']);
   }
 }
