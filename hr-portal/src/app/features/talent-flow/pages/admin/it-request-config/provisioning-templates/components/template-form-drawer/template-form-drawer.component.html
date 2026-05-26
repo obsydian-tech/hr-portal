@@ -58,7 +58,7 @@
           <p-select
             [ngModel]="req.category" (ngModelChange)="updateRequirement($index, { category: $event })"
             [options]="categoryOpts" optionLabel="label" optionValue="value"
-            styleClass="req-cat-dropdown" />
+            styleClass="req-cat-dropdown" appendTo="body" />
           <label class="req-optional-label">
             <p-checkbox
               [ngModel]="req.optional" (ngModelChange)="updateRequirement($index, { optional: $event })"
