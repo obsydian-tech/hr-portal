@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { TooltipModule } from 'primeng/tooltip';
@@ -39,7 +39,7 @@ const CONDITION_FIELDS: Array<{ label: string; value: ConditionField }> = [
 @Component({
   selector: 'tf-admin-routing-rules',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, TableModule, DropdownModule,
+  imports: [CommonModule, FormsModule, ButtonModule, TableModule, SelectModule,
             InputTextModule, InputNumberModule, TooltipModule, ConfigVersionBadgeComponent],
   templateUrl: './admin-routing-rules.component.html',
   styleUrl:    './admin-routing-rules.component.scss',

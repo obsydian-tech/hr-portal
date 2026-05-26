@@ -12,11 +12,11 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import { InputTextModule } from 'primeng/inputtext';
-import { Textarea } from 'primeng/inputtextarea';
+import { Textarea } from 'primeng/textarea';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { ITQueue, QueueCategory } from '../../../it-request.models';
 import { TalentFlowApiService } from '../../../../../../services/talent-flow-api.service';
@@ -52,8 +52,8 @@ const EMPTY_QUEUE = (): ITQueue => ({
 @Component({
   selector: 'tf-queue-form-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, SidebarModule, InputTextModule,
-            Textarea, InputNumberModule, DropdownModule, MultiSelectModule],
+  imports: [CommonModule, FormsModule, ButtonModule, DrawerModule, InputTextModule,
+            Textarea, InputNumberModule, SelectModule, MultiSelectModule],
   templateUrl: './queue-form-drawer.component.html',
   styleUrl:    './queue-form-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -74,7 +74,7 @@ export class QueueFormDrawerComponent implements OnInit {
   readonly specialistsLoading  = signal(false);
 
   constructor() {
-    // Sync form when queue input changes — allowSignalWrites required (NG0600)
+    // Sync form when queue input changes
     effect(() => {
       const q = this.queue();
       untracked(() => {
@@ -86,7 +86,7 @@ export class QueueFormDrawerComponent implements OnInit {
           this.isEditMode.set(false);
         }
       });
-    }, { allowSignalWrites: true });
+    });
   }
 
   ngOnInit(): void {

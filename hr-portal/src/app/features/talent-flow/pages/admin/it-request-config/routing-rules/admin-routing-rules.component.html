@@ -42,7 +42,7 @@
           <!-- Edit mode row -->
           <tr class="editing-row">
             <td>
-              <p-dropdown
+              <p-select
                 [ngModel]="editingRows()[rule.id].conditionField"
                 (ngModelChange)="patchEditRow(rule.id, { conditionField: $event })"
                 [options]="conditionFields" optionLabel="label" optionValue="value"
@@ -56,7 +56,7 @@
                 class="row-input" />
             </td>
             <td>
-              <p-dropdown
+              <p-select
                 [ngModel]="editingRows()[rule.id].targetQueueId"
                 (ngModelChange)="patchEditRow(rule.id, { targetQueueId: $event })"
                 [options]="queues()" optionLabel="label" optionValue="value"

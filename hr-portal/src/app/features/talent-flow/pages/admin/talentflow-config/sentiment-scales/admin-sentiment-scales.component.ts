@@ -11,7 +11,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { ToggleButtonModule } from 'primeng/togglebutton';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { TalentFlowApiService } from '../../../../services/talent-flow-api.service';
 import { ConfigResponse } from '../../../../models/talent-flow.models';
@@ -56,7 +56,7 @@ const DEFAULT_SCALES: SentimentScaleRow[] = [
 @Component({
   selector: 'tf-admin-sentiment-scales',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputNumberModule, InputTextModule, ToggleButtonModule, DropdownModule, ConfigVersionBadgeComponent],
+  imports: [CommonModule, FormsModule, ButtonModule, InputNumberModule, InputTextModule, ToggleButtonModule, SelectModule, ConfigVersionBadgeComponent],
   templateUrl: './admin-sentiment-scales.component.html',
   styleUrl:    './admin-sentiment-scales.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

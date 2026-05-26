@@ -11,10 +11,10 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import { InputTextModule } from 'primeng/inputtext';
-import { Textarea } from 'primeng/inputtextarea';
-import { DropdownModule } from 'primeng/dropdown';
+import { Textarea } from 'primeng/textarea';
+import { SelectModule } from 'primeng/select';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ProvisioningTemplate, TemplateRequirement, RequirementCategory } from '../../../it-request.models';
 
@@ -47,8 +47,8 @@ const EMPTY_REQ = (): TemplateRequirement => ({
 @Component({
   selector: 'tf-template-form-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, SidebarModule, InputTextModule,
-            Textarea, DropdownModule, CheckboxModule],
+  imports: [CommonModule, FormsModule, ButtonModule, DrawerModule, InputTextModule,
+            Textarea, SelectModule, CheckboxModule],
   templateUrl: './template-form-drawer.component.html',
   styleUrl:    './template-form-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -70,7 +70,7 @@ export class TemplateFormDrawerComponent {
   });
 
   constructor() {
-    // allowSignalWrites required to avoid NG0600 when syncing input → form signal
+    // Sync form when template input changes
     effect(() => {
       const t = this.template();
       untracked(() => {
@@ -82,7 +82,7 @@ export class TemplateFormDrawerComponent {
           this.isEditMode.set(false);
         }
       });
-    }, { allowSignalWrites: true });
+    });
   }
 
   patchForm(patch: Partial<ProvisioningTemplate>): void {

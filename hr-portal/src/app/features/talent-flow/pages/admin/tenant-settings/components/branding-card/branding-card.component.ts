@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { MessageService } from 'primeng/api';
 import { AdminApiService } from '../../../../../services/admin-api.service';
 import {
@@ -46,7 +46,7 @@ const COMPANY_SIZE_OPTIONS: { label: string; value: TenantCompanySize }[] = [
     FormsModule,
     ButtonModule,
     InputTextModule,
-    DropdownModule,
+    SelectModule,
   ],
   templateUrl: './branding-card.component.html',
   styleUrl:    './branding-card.component.scss',

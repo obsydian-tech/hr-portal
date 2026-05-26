@@ -1,4 +1,4 @@
-<p-sidebar
+<p-drawer
   [visible]="visible()"
   (visibleChange)="$event || close()"
   position="right"
@@ -28,7 +28,7 @@
     <div class="form-field">
       <label class="form-label" for="q-desc">Description</label>
       <textarea
-        pInputTextarea id="q-desc" rows="3"
+        pTextarea id="q-desc" rows="3"
         [ngModel]="form().description"
         (ngModelChange)="patchForm({ description: $event })"
         placeholder="What does this queue handle?"
@@ -40,7 +40,7 @@
     <!-- Category -->
     <div class="form-field">
       <label class="form-label" for="q-cat">Category <span class="required">*</span></label>
-      <p-dropdown
+      <p-select
         inputId="q-cat"
         [ngModel]="form().category"
         (ngModelChange)="patchForm({ category: $event })"
@@ -100,4 +100,4 @@
       />
     </div>
   </ng-template>
-</p-sidebar>
+</p-drawer>

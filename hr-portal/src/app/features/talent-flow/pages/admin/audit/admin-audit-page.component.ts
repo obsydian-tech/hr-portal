@@ -13,7 +13,7 @@ import { Router } from '@angular/router';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
@@ -83,7 +83,7 @@ const PAGE_SIZE_OPTIONS = [
     FormsModule,
     ButtonModule,
     TableModule,
-    DropdownModule,
+    SelectModule,
     InputTextModule,
     TagModule,
     TooltipModule,

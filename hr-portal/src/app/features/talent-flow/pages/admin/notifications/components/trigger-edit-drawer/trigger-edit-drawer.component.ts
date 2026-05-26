@@ -13,7 +13,7 @@ import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { CheckboxModule } from 'primeng/checkbox';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import {
   NotifTrigger,
   NotifRecipientRole,
@@ -25,7 +25,7 @@ import {
 @Component({
   selector: 'tf-trigger-edit-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, TagModule, InputSwitchModule, CheckboxModule, SidebarModule],
+  imports: [CommonModule, FormsModule, ButtonModule, TagModule, InputSwitchModule, CheckboxModule, DrawerModule],
   templateUrl: './trigger-edit-drawer.component.html',
   styleUrl:    './trigger-edit-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
