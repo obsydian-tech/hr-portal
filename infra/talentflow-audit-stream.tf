@@ -39,8 +39,9 @@ locals {
 }
 
 # TalentFlow KMS key — used to encrypt the events table at rest.
+# The alias/talent-flow does not exist; look up by key ID directly.
 data "aws_kms_key" "talent_flow" {
-  key_id = "alias/talent-flow"
+  key_id = "87842eae-1ee4-43d1-8bf8-9dd92415ea68"
 }
 
 # ─── DynamoDB: talent-flow-events ─────────────────────────────────────────────

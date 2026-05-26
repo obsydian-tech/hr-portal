@@ -182,33 +182,35 @@ import {
 }
 
 # ── Feature 4: advanceCandidateStage (2026-05-19) ────────────────────────────
+# TODO: resource blocks for advanceCandidateStage have not been written yet.
+#       Imports commented out until talentflow-advance-candidate-stage.tf is added.
 
-import {
-  id = "talent-flow-role-advanceCandidateStage"
-  to = aws_iam_role.advance_candidate_stage
-}
-
-import {
-  id = "talent-flow-role-advanceCandidateStage:talent-flow-policy-advanceCandidateStage"
-  to = aws_iam_role_policy.advance_candidate_stage
-}
-
-import {
-  id = "advanceCandidateStage"
-  to = aws_lambda_function.advance_candidate_stage
-}
-
-import {
-  id = "57l0w7kk9h/t1ug192"
-  to = aws_apigatewayv2_integration.advance_candidate_stage
-}
-
-import {
-  id = "57l0w7kk9h/0y9pxoi"
-  to = aws_apigatewayv2_route.advance_candidate_stage
-}
-
-import {
-  id = "advanceCandidateStage/AllowTalentFlowAPIInvokeAdvanceCandidateStage"
-  to = aws_lambda_permission.advance_candidate_stage_api
-}
+# import {
+#   id = "talent-flow-role-advanceCandidateStage"
+#   to = aws_iam_role.advance_candidate_stage
+# }
+#
+# import {
+#   id = "talent-flow-role-advanceCandidateStage:talent-flow-policy-advanceCandidateStage"
+#   to = aws_iam_role_policy.advance_candidate_stage
+# }
+#
+# import {
+#   id = "advanceCandidateStage"
+#   to = aws_lambda_function.advance_candidate_stage
+# }
+#
+# import {
+#   id = "57l0w7kk9h/t1ug192"
+#   to = aws_apigatewayv2_integration.advance_candidate_stage
+# }
+#
+# import {
+#   id = "57l0w7kk9h/0y9pxoi"
+#   to = aws_apigatewayv2_route.advance_candidate_stage
+# }
+#
+# import {
+#   id = "advanceCandidateStage/AllowTalentFlowAPIInvokeAdvanceCandidateStage"
+#   to = aws_lambda_permission.advance_candidate_stage_api
+# }
