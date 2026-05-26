@@ -56,8 +56,23 @@ export class AdminProvisioningTemplatesComponent implements OnInit {
     this.loading.set(true);
     this.api.getConfig('PROVISIONING_TEMPLATES').subscribe({
       next: (cfg: ConfigResponse) => {
-        const d = cfg.data as { templates?: ProvisioningTemplate[] };
-        this.templates.set(Array.isArray(d.templates) ? d.templates : []);
+        const d = cfg.data as { templates?: Partial<ProvisioningTemplate>[] };
+        // Normalize: ensure every template has id and active (backward-compat with older saved data)
+        const normalized: ProvisioningTemplate[] = Array.isArray(d.templates)
+          ? d.templates.map((t) => ({
+              id: t.id ?? crypto.randomUUID(),
+              name: t.name ?? '',
+              description: t.description ?? '',
+              targetRole: t.targetRole ?? '',
+              requirements: Array.isArray(t.requirements) ? t.requirements.map((r) => ({
+                itemName: r.itemName ?? '',
+                category: r.category ?? 'HARDWARE',
+                optional: r.optional ?? false,
+              })) : [],
+              active: t.active !== false,
+            }))
+          : [];
+        this.templates.set(normalized);
         this.configVersion.set(cfg.version);
         this.updatedAt.set(cfg.updatedAt);
         this.loading.set(false);

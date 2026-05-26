@@ -17,7 +17,9 @@
 
   @if (loading()) {
     <div class="config-page__skeleton">
-      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+      @for (_ of [1,2,3]; track $index) {
+        <div class="config-skeleton-row"></div>
+      }
     </div>
   } @else if (queues().length === 0) {
 
