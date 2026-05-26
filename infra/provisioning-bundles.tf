@@ -132,7 +132,10 @@ resource "aws_lambda_function" "create_provisioning_bundle" {
     }
   }
   tracing_config { mode = "Active" }
-  logging_config { log_format = "JSON"; log_group = "/aws/lambda/createProvisioningBundle" }
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/createProvisioningBundle"
+  }
   tags = { Component = "ITProvisioning", Ticket = "IT-003" }
   lifecycle { ignore_changes = [filename, source_code_hash] }
 }
@@ -173,7 +176,10 @@ resource "aws_lambda_function" "get_provisioning_bundles" {
   architectures = ["x86_64"]
   environment   { variables = { BUNDLES_TABLE = local.bundles_table_name } }
   tracing_config { mode = "Active" }
-  logging_config { log_format = "JSON"; log_group = "/aws/lambda/getProvisioningBundles" }
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getProvisioningBundles"
+  }
   tags = { Component = "ITProvisioning", Ticket = "IT-003" }
   lifecycle { ignore_changes = [filename, source_code_hash] }
 }
@@ -214,7 +220,10 @@ resource "aws_lambda_function" "get_provisioning_bundle" {
   architectures = ["x86_64"]
   environment   { variables = { BUNDLES_TABLE = local.bundles_table_name } }
   tracing_config { mode = "Active" }
-  logging_config { log_format = "JSON"; log_group = "/aws/lambda/getProvisioningBundle" }
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getProvisioningBundle"
+  }
   tags = { Component = "ITProvisioning", Ticket = "IT-003" }
   lifecycle { ignore_changes = [filename, source_code_hash] }
 }
@@ -261,7 +270,10 @@ resource "aws_lambda_function" "approve_provisioning_bundle" {
     }
   }
   tracing_config { mode = "Active" }
-  logging_config { log_format = "JSON"; log_group = "/aws/lambda/approveProvisioningBundle" }
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/approveProvisioningBundle"
+  }
   tags = { Component = "ITProvisioning", Ticket = "IT-003" }
   lifecycle { ignore_changes = [filename, source_code_hash] }
 }
@@ -302,7 +314,10 @@ resource "aws_lambda_function" "update_provisioning_bundle" {
   architectures = ["x86_64"]
   environment   { variables = { BUNDLES_TABLE = local.bundles_table_name } }
   tracing_config { mode = "Active" }
-  logging_config { log_format = "JSON"; log_group = "/aws/lambda/updateProvisioningBundle" }
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/updateProvisioningBundle"
+  }
   tags = { Component = "ITProvisioning", Ticket = "IT-003" }
   lifecycle { ignore_changes = [filename, source_code_hash] }
 }
@@ -349,7 +364,10 @@ resource "aws_lambda_function" "get_provisioning_bundle_progress" {
     }
   }
   tracing_config { mode = "Active" }
-  logging_config { log_format = "JSON"; log_group = "/aws/lambda/getProvisioningBundleProgress" }
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getProvisioningBundleProgress"
+  }
   tags = { Component = "ITProvisioning", Ticket = "IT-003" }
   lifecycle { ignore_changes = [filename, source_code_hash] }
 }
@@ -357,93 +375,129 @@ resource "aws_lambda_function" "get_provisioning_bundle_progress" {
 # ─── API Gateway integrations ─────────────────────────────────────────────────
 
 resource "aws_apigatewayv2_integration" "create_provisioning_bundle" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; integration_type = "AWS_PROXY"
-  integration_uri = aws_lambda_function.create_provisioning_bundle.invoke_arn; payload_format_version = "2.0"
+  api_id                 = data.aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.create_provisioning_bundle.invoke_arn
+  payload_format_version = "2.0"
 }
 resource "aws_apigatewayv2_integration" "get_provisioning_bundles" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; integration_type = "AWS_PROXY"
-  integration_uri = aws_lambda_function.get_provisioning_bundles.invoke_arn; payload_format_version = "2.0"
+  api_id                 = data.aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_provisioning_bundles.invoke_arn
+  payload_format_version = "2.0"
 }
 resource "aws_apigatewayv2_integration" "get_provisioning_bundle" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; integration_type = "AWS_PROXY"
-  integration_uri = aws_lambda_function.get_provisioning_bundle.invoke_arn; payload_format_version = "2.0"
+  api_id                 = data.aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_provisioning_bundle.invoke_arn
+  payload_format_version = "2.0"
 }
 resource "aws_apigatewayv2_integration" "approve_provisioning_bundle" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; integration_type = "AWS_PROXY"
-  integration_uri = aws_lambda_function.approve_provisioning_bundle.invoke_arn; payload_format_version = "2.0"
+  api_id                 = data.aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.approve_provisioning_bundle.invoke_arn
+  payload_format_version = "2.0"
 }
 resource "aws_apigatewayv2_integration" "update_provisioning_bundle" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; integration_type = "AWS_PROXY"
-  integration_uri = aws_lambda_function.update_provisioning_bundle.invoke_arn; payload_format_version = "2.0"
+  api_id                 = data.aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.update_provisioning_bundle.invoke_arn
+  payload_format_version = "2.0"
 }
 resource "aws_apigatewayv2_integration" "get_provisioning_bundle_progress" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; integration_type = "AWS_PROXY"
-  integration_uri = aws_lambda_function.get_provisioning_bundle_progress.invoke_arn; payload_format_version = "2.0"
+  api_id                 = data.aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_provisioning_bundle_progress.invoke_arn
+  payload_format_version = "2.0"
 }
 
 # ─── API Gateway routes ───────────────────────────────────────────────────────
 
 resource "aws_apigatewayv2_route" "create_provisioning_bundle" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; route_key = "POST /v1/provisioning/bundles"
-  target = "integrations/${aws_apigatewayv2_integration.create_provisioning_bundle.id}"
-  authorization_type = "JWT"; authorizer_id = local.talent_flow_cognito_authorizer_id
+  api_id             = data.aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/provisioning/bundles"
+  target             = "integrations/${aws_apigatewayv2_integration.create_provisioning_bundle.id}"
+  authorization_type = "JWT"
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 resource "aws_apigatewayv2_route" "get_provisioning_bundles" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; route_key = "GET /v1/provisioning/bundles"
-  target = "integrations/${aws_apigatewayv2_integration.get_provisioning_bundles.id}"
-  authorization_type = "JWT"; authorizer_id = local.talent_flow_cognito_authorizer_id
+  api_id             = data.aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/provisioning/bundles"
+  target             = "integrations/${aws_apigatewayv2_integration.get_provisioning_bundles.id}"
+  authorization_type = "JWT"
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 resource "aws_apigatewayv2_route" "get_provisioning_bundle" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; route_key = "GET /v1/provisioning/bundles/{bundleId}"
-  target = "integrations/${aws_apigatewayv2_integration.get_provisioning_bundle.id}"
-  authorization_type = "JWT"; authorizer_id = local.talent_flow_cognito_authorizer_id
+  api_id             = data.aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/provisioning/bundles/{bundleId}"
+  target             = "integrations/${aws_apigatewayv2_integration.get_provisioning_bundle.id}"
+  authorization_type = "JWT"
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 resource "aws_apigatewayv2_route" "approve_provisioning_bundle" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; route_key = "POST /v1/provisioning/bundles/{bundleId}/approve"
-  target = "integrations/${aws_apigatewayv2_integration.approve_provisioning_bundle.id}"
-  authorization_type = "JWT"; authorizer_id = local.talent_flow_cognito_authorizer_id
+  api_id             = data.aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/provisioning/bundles/{bundleId}/approve"
+  target             = "integrations/${aws_apigatewayv2_integration.approve_provisioning_bundle.id}"
+  authorization_type = "JWT"
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 resource "aws_apigatewayv2_route" "update_provisioning_bundle" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; route_key = "PATCH /v1/provisioning/bundles/{bundleId}"
-  target = "integrations/${aws_apigatewayv2_integration.update_provisioning_bundle.id}"
-  authorization_type = "JWT"; authorizer_id = local.talent_flow_cognito_authorizer_id
+  api_id             = data.aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "PATCH /v1/provisioning/bundles/{bundleId}"
+  target             = "integrations/${aws_apigatewayv2_integration.update_provisioning_bundle.id}"
+  authorization_type = "JWT"
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 resource "aws_apigatewayv2_route" "get_provisioning_bundle_progress" {
-  api_id = data.aws_apigatewayv2_api.talent_flow_api.id; route_key = "GET /v1/provisioning/bundles/{bundleId}/progress"
-  target = "integrations/${aws_apigatewayv2_integration.get_provisioning_bundle_progress.id}"
-  authorization_type = "JWT"; authorizer_id = local.talent_flow_cognito_authorizer_id
+  api_id             = data.aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/provisioning/bundles/{bundleId}/progress"
+  target             = "integrations/${aws_apigatewayv2_integration.get_provisioning_bundle_progress.id}"
+  authorization_type = "JWT"
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
 }
 
 # ─── Lambda permissions (API GW invoke) ──────────────────────────────────────
 
 resource "aws_lambda_permission" "apigw_create_provisioning_bundle" {
-  statement_id  = "AllowTFAPIInvokeCreateBundle"; action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.create_provisioning_bundle.function_name; principal = "apigateway.amazonaws.com"
+  statement_id  = "AllowTFAPIInvokeCreateBundle"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.create_provisioning_bundle.function_name
+  principal     = "apigateway.amazonaws.com"
   source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/provisioning/bundles"
 }
 resource "aws_lambda_permission" "apigw_get_provisioning_bundles" {
-  statement_id  = "AllowTFAPIInvokeGetBundles"; action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.get_provisioning_bundles.function_name; principal = "apigateway.amazonaws.com"
+  statement_id  = "AllowTFAPIInvokeGetBundles"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_provisioning_bundles.function_name
+  principal     = "apigateway.amazonaws.com"
   source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/provisioning/bundles"
 }
 resource "aws_lambda_permission" "apigw_get_provisioning_bundle" {
-  statement_id  = "AllowTFAPIInvokeGetBundle"; action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.get_provisioning_bundle.function_name; principal = "apigateway.amazonaws.com"
+  statement_id  = "AllowTFAPIInvokeGetBundle"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_provisioning_bundle.function_name
+  principal     = "apigateway.amazonaws.com"
   source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/provisioning/bundles/*"
 }
 resource "aws_lambda_permission" "apigw_approve_provisioning_bundle" {
-  statement_id  = "AllowTFAPIInvokeApproveBundle"; action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.approve_provisioning_bundle.function_name; principal = "apigateway.amazonaws.com"
+  statement_id  = "AllowTFAPIInvokeApproveBundle"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.approve_provisioning_bundle.function_name
+  principal     = "apigateway.amazonaws.com"
   source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/provisioning/bundles/*/approve"
 }
 resource "aws_lambda_permission" "apigw_update_provisioning_bundle" {
-  statement_id  = "AllowTFAPIInvokeUpdateBundle"; action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.update_provisioning_bundle.function_name; principal = "apigateway.amazonaws.com"
+  statement_id  = "AllowTFAPIInvokeUpdateBundle"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.update_provisioning_bundle.function_name
+  principal     = "apigateway.amazonaws.com"
   source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/provisioning/bundles/*"
 }
 resource "aws_lambda_permission" "apigw_get_provisioning_bundle_progress" {
-  statement_id  = "AllowTFAPIInvokeGetBundleProgress"; action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.get_provisioning_bundle_progress.function_name; principal = "apigateway.amazonaws.com"
+  statement_id  = "AllowTFAPIInvokeGetBundleProgress"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_provisioning_bundle_progress.function_name
+  principal     = "apigateway.amazonaws.com"
   source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/provisioning/bundles/*/progress"
 }
 

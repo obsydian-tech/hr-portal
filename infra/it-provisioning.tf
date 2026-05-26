@@ -804,7 +804,7 @@ resource "aws_lambda_function" "admin_get_users" {
   filename      = local.placeholder_zip
   memory_size   = 128
   timeout       = 15
-  architectures = ["x86_64"]
+  architectures = ["arm64"]
 
   environment {
     variables = {
@@ -820,7 +820,7 @@ resource "aws_lambda_function" "admin_get_users" {
 
   tags = { Component = "ITProvisioning", Ticket = "IT-002" }
 
-  lifecycle { ignore_changes = [filename, source_code_hash] }
+  lifecycle { ignore_changes = [filename, source_code_hash, architectures] }
 }
 
 resource "aws_apigatewayv2_integration" "admin_get_users" {
