@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, catchError, from, of, switchMap, throwError, timeout } from 'rxjs';
+import { Observable, catchError, from, map, of, switchMap, throwError, timeout } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 // Pool consolidation (Epic 5): TF API Gateway authorizer now validates against
 // the Naleko pool. Naleko AuthService token is used for all TF API calls.

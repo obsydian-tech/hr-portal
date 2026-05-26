@@ -188,8 +188,8 @@ export class HmBundleReviewPageComponent implements OnInit {
           void this.router.navigate(['/platform/talentflow/hm-provisioning']);
         }, 1200);
       },
-      error: (err) => {
-        this.error.set(err.userMessage ?? 'Failed to approve bundle. Please try again.');
+      error: (err: { userMessage?: string }) => {
+        this.loadError.set(err.userMessage ?? 'Failed to approve bundle. Please try again.');
         this.approving.set(false);
       },
     });

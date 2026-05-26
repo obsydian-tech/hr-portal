@@ -19,7 +19,7 @@ export class TalentFlowProvisioningService {
     const bundles = await firstValueFrom(this.api.getProvisioningBundles());
     const bundle = bundles.find(b => b.candidateId === candidateId);
     if (!bundle) return null;
-    return firstValueFrom(this.api.getProvisioningBundleProgress(bundle.id));
+    return firstValueFrom(this.api.getProvisioningBundleProgress(bundle.id)).then(p => p ?? null);
   }
 }
 
