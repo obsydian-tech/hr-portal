@@ -87,7 +87,7 @@ resource "aws_lambda_function" "manage_talent_flow_config" {
   role          = aws_iam_role.manage_talent_flow_config.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  filename      = "${path.module}/../lambda/manageTalentFlowConfig/function.zip"
+  filename      = local.placeholder_zip
 
   environment {
     variables = {

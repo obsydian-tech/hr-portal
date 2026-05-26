@@ -81,9 +81,19 @@ export class TalentFlowAuthService {
   readonly isComplianceOfficer = computed(() => this.hasGroup('ComplianceOfficer'));
 
   /**
+   * True when the user can work IT provisioning tasks.
+   * ITAdmin   = full admin + queue management access in IT module.
+   * ITSpecialist = queue worker scoped to assigned queues.
+   * Both groups live in the TalentFlow Cognito pool.
+   */
+  readonly isItSpecialist = computed(
+    () => this.hasGroup('ITAdmin') || this.hasGroup('ITSpecialist'),
+  );
+
+  /**
    * Returns true if the authenticated user belongs to the given TF Cognito group.
    * Groups: TalentFlowAdmin | HiringManager | PanelMember | ComplianceOfficer |
-   *         ITAdmin | FinanceLead | HRDirector
+   *         ITAdmin | ITSpecialist | FinanceLead | HRDirector
    */
   readonly hasGroup = (group: string): boolean =>
     (this.currentUser()?.groups ?? []).includes(group);
