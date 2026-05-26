@@ -53,10 +53,20 @@ export class AdminQueueManagementComponent implements OnInit {
   // Specialist expand
   readonly expandedRows = signal<Set<string>>(new Set());
 
+  // Specialist id → display name lookup
+  readonly specialistsMap = signal<Map<string, string>>(new Map());
+
   readonly activeCount   = computed(() => this.queues().filter((q) => q.active !== false).length);
 
   ngOnInit(): void {
     this.loadConfig();
+    this.api.getItSpecialists().subscribe((list) => {
+      this.specialistsMap.set(new Map(list.map((s) => [s.id, s.label])));
+    });
+  }
+
+  specialistLabel(id: string): string {
+    return this.specialistsMap().get(id) ?? id;
   }
 
   private loadConfig(): void {

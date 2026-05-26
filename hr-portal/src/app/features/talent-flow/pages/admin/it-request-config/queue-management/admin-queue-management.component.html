@@ -67,7 +67,7 @@
             @if (expandedRows().has(queue.id)) {
               <div class="specialist-list">
                 @for (s of queue.assignedSpecialists; track s) {
-                  <span class="specialist-chip">{{ s }}</span>
+                  <span class="specialist-chip">{{ specialistLabel(s) }}</span>
                 }
                 @if (queue.assignedSpecialists.length === 0) {
                   <span class="specialist-chip specialist-chip--empty">No specialists assigned</span>
