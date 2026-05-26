@@ -176,10 +176,8 @@ import {
   to = aws_apigatewayv2_route.post_config
 }
 
-import {
-  id = "manageTalentFlowConfig/AllowTalentFlowAPIInvokeManageConfig"
-  to = aws_lambda_permission.manage_talent_flow_config_apigw
-}
+# manage_talent_flow_config_apigw permission was destroyed+recreated by apply
+# (source_arn tightened to /v1/config* during first apply run) — no import needed.
 
 # ── Feature 4: advanceCandidateStage (2026-05-19) ────────────────────────────
 # TODO: resource blocks for advanceCandidateStage have not been written yet.
@@ -214,3 +212,43 @@ import {
 #   id = "advanceCandidateStage/AllowTalentFlowAPIInvokeAdvanceCandidateStage"
 #   to = aws_lambda_permission.advance_candidate_stage_api
 # }
+# ── talentflow-audit-stream pre-existing resources (2026-05-26) ──────────────
+
+import {
+  id = "talent-flow-events"
+  to = aws_dynamodb_table.talent_flow_events
+}
+
+import {
+  id = "naleko-talentFlowAuditStream-role"
+  to = aws_iam_role.talent_flow_audit_stream
+}
+
+import {
+  id = "naleko-getCandidateEvents-role"
+  to = aws_iam_role.get_candidate_events
+}
+import {
+  id = "talentFlowAuditStream"
+  to = aws_lambda_function.talent_flow_audit_stream
+}
+
+import {
+  id = "getCandidateEvents"
+  to = aws_lambda_function.get_candidate_events
+}
+
+import {
+  id = "talentFlowAuditStream/AllowEventBridgeInvokeTalentFlowAuditStream"
+  to = aws_lambda_permission.talent_flow_audit_stream_eventbridge
+}
+
+import {
+  id = "getCandidateEvents/AllowAPIGatewayInvokeGetCandidateEvents"
+  to = aws_lambda_permission.get_candidate_events_apigw
+}
+
+import {
+  id = "57l0w7kk9h/2qvk439"
+  to = aws_apigatewayv2_route.get_candidate_events
+}

@@ -178,7 +178,7 @@ resource "aws_lambda_function" "get_it_tasks" {
   role          = aws_iam_role.get_it_tasks.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  filename      = "${path.module}/../lambda/getItTasks/index.js"
+  filename      = local.placeholder_zip
   memory_size   = 128
   timeout       = 15
   architectures = ["x86_64"]
@@ -252,7 +252,7 @@ resource "aws_lambda_function" "get_it_task" {
   role          = aws_iam_role.get_it_task.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  filename      = "${path.module}/../lambda/getItTask/index.js"
+  filename      = local.placeholder_zip
   memory_size   = 128
   timeout       = 10
   architectures = ["x86_64"]
@@ -326,7 +326,7 @@ resource "aws_lambda_function" "claim_it_task" {
   role          = aws_iam_role.claim_it_task.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  filename      = "${path.module}/../lambda/claimItTask/index.js"
+  filename      = local.placeholder_zip
   memory_size   = 128
   timeout       = 10
   architectures = ["x86_64"]
@@ -400,7 +400,7 @@ resource "aws_lambda_function" "release_it_task" {
   role          = aws_iam_role.release_it_task.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  filename      = "${path.module}/../lambda/releaseItTask/index.js"
+  filename      = local.placeholder_zip
   memory_size   = 128
   timeout       = 10
   architectures = ["x86_64"]
@@ -474,7 +474,7 @@ resource "aws_lambda_function" "complete_it_task" {
   role          = aws_iam_role.complete_it_task.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  filename      = "${path.module}/../lambda/completeItTask/index.js"
+  filename      = local.placeholder_zip
   memory_size   = 128
   timeout       = 10
   architectures = ["x86_64"]
@@ -560,7 +560,7 @@ resource "aws_lambda_function" "create_it_task" {
   role          = aws_iam_role.create_it_task.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  filename      = "${path.module}/../lambda/createItTask/index.js"
+  filename      = local.placeholder_zip
   memory_size   = 256
   timeout       = 30
   architectures = ["x86_64"]
