@@ -69,7 +69,10 @@ exports.handler = async (event) => {
       return respond(404, { message: `Task ${taskId} not found.` });
     }
 
-    return respond(200, unmarshall(res.Item));
+    const task = unmarshall(res.Item);
+    // Normalize: DynamoDB PK is `taskId`; Angular model expects `id`
+    if (!task.id) task.id = task.taskId;
+    return respond(200, task);
 
   } catch (err) {
     console.error('getItTask error', err);

@@ -58,6 +58,8 @@ function parseGroups(rawGroups) {
 exports.handler = async (event) => {
   const claims   = extractClaims(event);
   const groups   = parseGroups(claims['cognito:groups']);
+  // DEBUG — remove once auth is confirmed working
+  console.log('[getItTasks] sub:', claims.sub, 'groups_raw:', claims['cognito:groups'], 'parsed:', JSON.stringify(groups));
   const isITUser = groups.some(g => ['ITAdmin', 'ITSpecialist'].includes(g));
   const isAdmin  = claims['custom:isAdmin'] === 'true' || groups.includes('TalentFlowAdmin');
 
@@ -99,7 +101,14 @@ exports.handler = async (event) => {
       ),
     );
 
-    let tasks = results.flatMap(r => (r.Items ?? []).map(unmarshall));
+    // Normalize: DynamoDB PK is `taskId`; Angular model expects `id`
+    let tasks = results.flatMap(r =>
+      (r.Items ?? []).map(item => {
+        const t = unmarshall(item);
+        if (!t.id) t.id = t.taskId;
+        return t;
+      }),
+    );
 
     // Optional queue filter
     if (queueFilter) {
