@@ -79,18 +79,18 @@ resource "aws_dynamodb_table" "it_tasks" {
 
   # GSI1 — used by getItTasks: list all tasks for a tenant by status
   global_secondary_index {
-    name               = "byTenantStatus"
-    hash_key           = "tenantId"
-    range_key          = "taskStatus"
-    projection_type    = "ALL"
+    name            = "byTenantStatus"
+    hash_key        = "tenantId"
+    range_key       = "taskStatus"
+    projection_type = "ALL"
   }
 
   # GSI2 — used by createItTask audit / orchestration lookup
   global_secondary_index {
-    name               = "byCandidateId"
-    hash_key           = "candidateId"
-    range_key          = "createdAt"
-    projection_type    = "ALL"
+    name            = "byCandidateId"
+    hash_key        = "candidateId"
+    range_key       = "createdAt"
+    projection_type = "ALL"
   }
 
   point_in_time_recovery {
@@ -232,9 +232,9 @@ resource "aws_iam_role_policy" "get_it_task" {
         Resource = "*"
       },
       {
-        Sid    = "DynamoDBGet"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem"]
+        Sid      = "DynamoDBGet"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
         Resource = local.it_tasks_table_arn
       },
       {
@@ -306,9 +306,9 @@ resource "aws_iam_role_policy" "claim_it_task" {
         Resource = "*"
       },
       {
-        Sid    = "DynamoDBReadWrite"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Sid      = "DynamoDBReadWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = local.it_tasks_table_arn
       },
       {
@@ -380,9 +380,9 @@ resource "aws_iam_role_policy" "release_it_task" {
         Resource = "*"
       },
       {
-        Sid    = "DynamoDBReadWrite"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Sid      = "DynamoDBReadWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = local.it_tasks_table_arn
       },
       {
@@ -454,9 +454,9 @@ resource "aws_iam_role_policy" "complete_it_task" {
         Resource = "*"
       },
       {
-        Sid    = "DynamoDBReadWrite"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Sid      = "DynamoDBReadWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
         Resource = local.it_tasks_table_arn
       },
       {
@@ -530,9 +530,9 @@ resource "aws_iam_role_policy" "create_it_task" {
         Resource = "*"
       },
       {
-        Sid    = "WriteItTasksTable"
-        Effect = "Allow"
-        Action = ["dynamodb:PutItem", "dynamodb:GetItem"]
+        Sid      = "WriteItTasksTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem"]
         Resource = local.it_tasks_table_arn
       },
       {
