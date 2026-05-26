@@ -125,7 +125,17 @@ async function handleGet(event) {
 
   if (activeOnly) {
     const item = await getActiveItem(tenantId, configType);
-    if (!item) return respond(404, { error: `No active config found for configType=${configType}` });
+    // Return empty config (200) instead of 404 — the admin UI treats missing config as
+    // "not yet configured" and shows an empty state, not an error.
+    if (!item) return respond(200, {
+      configType,
+      tenantId,
+      version: null,
+      isActive: false,
+      data: {},
+      createdAt: null,
+      updatedAt: null,
+    });
     return respond(200, item);
   }
 

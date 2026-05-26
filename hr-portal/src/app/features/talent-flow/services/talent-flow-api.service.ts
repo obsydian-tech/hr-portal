@@ -308,7 +308,14 @@ export class TalentFlowApiService {
         this.http.get<ConfigResponse>(`${this.baseUrl}/config`, { headers, params }),
       ),
       timeout(API_TIMEOUT_MS),
-      catchError(this.handleError),
+      // 404 means "not yet configured" — treat as empty config rather than an error
+      catchError((err: { status?: number }) => {
+        if (err?.status === 404) {
+          return of({ configType, tenantId: environment.talentFlow.tenantId, version: null as unknown as string,
+            isActive: false, data: {}, createdAt: '', updatedAt: '' } as ConfigResponse);
+        }
+        return this.handleError(err);
+      }),
     );
   }
 
