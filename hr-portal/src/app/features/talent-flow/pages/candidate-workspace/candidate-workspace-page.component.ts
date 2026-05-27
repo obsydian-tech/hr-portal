@@ -257,18 +257,22 @@ export class CandidateWorkspacePageComponent implements OnInit {
       next: (res) => {
         this.advancingStage.set(false);
         this.advanceSuccess.set(res.newStage);
-        // Refresh candidate to update stage stepper
+        // Refresh candidate to update stage stepper + SLA display
         this.api.getCandidate(candidateId).subscribe({
           next: (c) => {
+            // Patch pipeline signal first — activeCandidate() is derived from it
+            // and takes priority in the candidate computed. Without this,
+            // slaStatus and currentStage remain stale after stage advance.
+            this.state.patchCandidate(c);
+            // Also keep _directCandidate in sync (used as fallback)
             this._directCandidate.set(c);
-            // Also update pipeline cache
-            const idx = this.state.pipeline().findIndex((p) => p.id === candidateId);
-            if (idx >= 0) {
-              const updated = [...this.state.pipeline()];
-              updated[idx] = c;
-            }
+            // Auto-clear the success banner after 4 s
+            setTimeout(() => this.advanceSuccess.set(null), 4000);
           },
-          error: () => { /* non-fatal */ },
+          error: () => {
+            // Refresh failed — still clear success banner gracefully
+            setTimeout(() => this.advanceSuccess.set(null), 4000);
+          },
         });
       },
       error: (err) => {
@@ -418,7 +422,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
         this.sentimentSuccess.set(res.interviewSentiment);
         // Refresh candidate so header sentiment pill updates
         this.api.getCandidate(candidateId).subscribe({
-          next: (c) => this._directCandidate.set(c),
+          next: (c) => { this.state.patchCandidate(c); this._directCandidate.set(c); },
           error: () => { /* non-fatal */ },
         });
       },
@@ -588,7 +592,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
         this.showAdhocForm.set(false);
         this.adhocForm.set({ name: '', email: '', role: '' });
         this.api.getCandidate(candidateId).subscribe({
-          next: (c) => this._directCandidate.set(c),
+          next: (c) => { this.state.patchCandidate(c); this._directCandidate.set(c); },
           error: () => { /* non-fatal */ },
         });
       },
