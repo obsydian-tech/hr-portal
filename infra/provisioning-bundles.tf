@@ -83,9 +83,9 @@ resource "aws_dynamodb_table" "provisioning_bundles" {
 # ─── Shared bundle policy fragments ──────────────────────────────────────────
 
 locals {
-  bundle_logs_base      = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda"
-  bundle_kms_arn        = data.aws_kms_key.talent_flow.arn
-  bundle_assume_role    = local.it_lambda_assume_role
+  bundle_logs_base   = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda"
+  bundle_kms_arn     = data.aws_kms_key.talent_flow.arn
+  bundle_assume_role = local.it_lambda_assume_role
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -105,12 +105,12 @@ resource "aws_iam_role_policy" "create_provisioning_bundle" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/createProvisioningBundle:*" },
-      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments","xray:PutTelemetryRecords"], Resource = "*" },
+      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/createProvisioningBundle:*" },
+      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Sid = "DynamoDBPut", Effect = "Allow", Action = ["dynamodb:PutItem"], Resource = local.bundles_table_arn },
-      { Sid = "ConfigRead", Effect = "Allow", Action = ["dynamodb:GetItem","dynamodb:Query"], Resource = [local.tf_config_table_arn,"${local.tf_config_table_arn}/index/*"] },
+      { Sid = "ConfigRead", Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:Query"], Resource = [local.tf_config_table_arn, "${local.tf_config_table_arn}/index/*"] },
       { Sid = "EventBridge", Effect = "Allow", Action = ["events:PutEvents"], Resource = local.eb_bus_arn },
-      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt","kms:GenerateDataKey","kms:DescribeKey"], Resource = local.bundle_kms_arn },
+      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"], Resource = local.bundle_kms_arn },
     ]
   })
 }
@@ -157,10 +157,10 @@ resource "aws_iam_role_policy" "get_provisioning_bundles" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/getProvisioningBundles:*" },
-      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments","xray:PutTelemetryRecords"], Resource = "*" },
-      { Sid = "DynamoDBRead", Effect = "Allow", Action = ["dynamodb:Query","dynamodb:Scan"], Resource = [local.bundles_table_arn,"${local.bundles_table_arn}/index/*"] },
-      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt","kms:GenerateDataKey","kms:DescribeKey"], Resource = local.bundle_kms_arn },
+      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/getProvisioningBundles:*" },
+      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Sid = "DynamoDBRead", Effect = "Allow", Action = ["dynamodb:Query", "dynamodb:Scan"], Resource = [local.bundles_table_arn, "${local.bundles_table_arn}/index/*"] },
+      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"], Resource = local.bundle_kms_arn },
     ]
   })
 }
@@ -174,7 +174,7 @@ resource "aws_lambda_function" "get_provisioning_bundles" {
   memory_size   = 128
   timeout       = 15
   architectures = ["x86_64"]
-  environment   { variables = { BUNDLES_TABLE = local.bundles_table_name } }
+  environment { variables = { BUNDLES_TABLE = local.bundles_table_name } }
   tracing_config { mode = "Active" }
   logging_config {
     log_format = "JSON"
@@ -201,10 +201,10 @@ resource "aws_iam_role_policy" "get_provisioning_bundle" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/getProvisioningBundle:*" },
-      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments","xray:PutTelemetryRecords"], Resource = "*" },
+      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/getProvisioningBundle:*" },
+      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Sid = "DynamoDBGet", Effect = "Allow", Action = ["dynamodb:GetItem"], Resource = local.bundles_table_arn },
-      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt","kms:GenerateDataKey","kms:DescribeKey"], Resource = local.bundle_kms_arn },
+      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"], Resource = local.bundle_kms_arn },
     ]
   })
 }
@@ -218,7 +218,7 @@ resource "aws_lambda_function" "get_provisioning_bundle" {
   memory_size   = 128
   timeout       = 15
   architectures = ["x86_64"]
-  environment   { variables = { BUNDLES_TABLE = local.bundles_table_name } }
+  environment { variables = { BUNDLES_TABLE = local.bundles_table_name } }
   tracing_config { mode = "Active" }
   logging_config {
     log_format = "JSON"
@@ -245,11 +245,11 @@ resource "aws_iam_role_policy" "approve_provisioning_bundle" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/approveProvisioningBundle:*" },
-      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments","xray:PutTelemetryRecords"], Resource = "*" },
-      { Sid = "DynamoDB", Effect = "Allow", Action = ["dynamodb:GetItem","dynamodb:UpdateItem"], Resource = local.bundles_table_arn },
+      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/approveProvisioningBundle:*" },
+      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Sid = "DynamoDB", Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"], Resource = local.bundles_table_arn },
       { Sid = "EventBridge", Effect = "Allow", Action = ["events:PutEvents"], Resource = local.eb_bus_arn },
-      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt","kms:GenerateDataKey","kms:DescribeKey"], Resource = local.bundle_kms_arn },
+      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"], Resource = local.bundle_kms_arn },
     ]
   })
 }
@@ -295,10 +295,10 @@ resource "aws_iam_role_policy" "update_provisioning_bundle" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/updateProvisioningBundle:*" },
-      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments","xray:PutTelemetryRecords"], Resource = "*" },
-      { Sid = "DynamoDB", Effect = "Allow", Action = ["dynamodb:GetItem","dynamodb:UpdateItem"], Resource = local.bundles_table_arn },
-      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt","kms:GenerateDataKey","kms:DescribeKey"], Resource = local.bundle_kms_arn },
+      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/updateProvisioningBundle:*" },
+      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
+      { Sid = "DynamoDB", Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"], Resource = local.bundles_table_arn },
+      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"], Resource = local.bundle_kms_arn },
     ]
   })
 }
@@ -312,7 +312,7 @@ resource "aws_lambda_function" "update_provisioning_bundle" {
   memory_size   = 128
   timeout       = 15
   architectures = ["x86_64"]
-  environment   { variables = { BUNDLES_TABLE = local.bundles_table_name } }
+  environment { variables = { BUNDLES_TABLE = local.bundles_table_name } }
   tracing_config { mode = "Active" }
   logging_config {
     log_format = "JSON"
@@ -339,11 +339,11 @@ resource "aws_iam_role_policy" "get_provisioning_bundle_progress" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/getProvisioningBundleProgress:*" },
-      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments","xray:PutTelemetryRecords"], Resource = "*" },
+      { Sid = "Logs", Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${local.bundle_logs_base}/getProvisioningBundleProgress:*" },
+      { Sid = "XRay", Effect = "Allow", Action = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"], Resource = "*" },
       { Sid = "DynamoDBBundle", Effect = "Allow", Action = ["dynamodb:GetItem"], Resource = local.bundles_table_arn },
-      { Sid = "DynamoDBItTasks", Effect = "Allow", Action = ["dynamodb:Query"], Resource = [local.it_tasks_table_arn,"${local.it_tasks_table_arn}/index/byCandidateId"] },
-      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt","kms:GenerateDataKey","kms:DescribeKey"], Resource = local.bundle_kms_arn },
+      { Sid = "DynamoDBItTasks", Effect = "Allow", Action = ["dynamodb:Query"], Resource = [local.it_tasks_table_arn, "${local.it_tasks_table_arn}/index/byCandidateId"] },
+      { Sid = "KMS", Effect = "Allow", Action = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"], Resource = local.bundle_kms_arn },
     ]
   })
 }

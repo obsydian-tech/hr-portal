@@ -123,7 +123,7 @@ resource "aws_cloudwatch_event_rule" "bundle_approved_create_it_tasks" {
   event_bus_name = aws_cloudwatch_event_bus.naleko_onboarding.name
 
   event_pattern = jsonencode({
-    source      = ["naleko.talentflow.provisioning"]
+    source        = ["naleko.talentflow.provisioning"]
     "detail-type" = ["BundleApproved"]
   })
 
@@ -151,7 +151,7 @@ resource "aws_cloudwatch_event_rule" "offer_accepted_notify_hm_provisioning" {
   event_bus_name = aws_cloudwatch_event_bus.naleko_onboarding.name
 
   event_pattern = jsonencode({
-    source      = [{ prefix = "naleko." }]
+    source        = [{ prefix = "naleko." }]
     "detail-type" = ["OfferAccepted"]
   })
 
