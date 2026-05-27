@@ -142,5 +142,5 @@ resource "aws_lambda_permission" "advance_candidate_stage_api" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.advance_candidate_stage.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.arn}/*/*"
+  source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
 }
