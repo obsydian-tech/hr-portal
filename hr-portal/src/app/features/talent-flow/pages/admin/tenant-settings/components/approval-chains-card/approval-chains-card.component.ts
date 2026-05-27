@@ -8,7 +8,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { TalentFlowApiService } from '../../../../../services/talent-flow-api.service';
 import { ConfigResponse } from '../../../../../models/talent-flow.models';
@@ -36,7 +36,7 @@ const SENIORITY_COLOURS: Record<string, string> = {
     CommonModule,
     ButtonModule,
     TagModule,
-    SidebarModule,
+    DrawerModule,
     ConfigVersionBadgeComponent,
     ApprovalChainDrawerComponent,
   ],

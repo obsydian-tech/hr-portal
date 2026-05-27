@@ -45,7 +45,7 @@
               }
 
               @if (slot.type === 'dropdown') {
-                <p-dropdown
+                <p-select
                   [inputId]="slot.key"
                   [options]="slotOptions(slot.options)"
                   [ngModel]="getSlot(slot.key)"

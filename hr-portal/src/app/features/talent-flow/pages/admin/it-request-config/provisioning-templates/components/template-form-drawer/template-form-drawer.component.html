@@ -1,4 +1,4 @@
-<p-sidebar
+<p-drawer
   [visible]="visible()"
   (visibleChange)="$event || close()"
   position="right"
@@ -32,7 +32,7 @@
     <!-- Description -->
     <div class="form-field">
       <label class="form-label" for="t-desc">Description</label>
-      <textarea pInputTextarea id="t-desc" rows="2"
+      <textarea pTextarea id="t-desc" rows="2"
         [ngModel]="form().description" (ngModelChange)="patchForm({ description: $event })"
         placeholder="When is this template applied?"
         class="form-input" [autoResize]="true"></textarea>
@@ -55,10 +55,10 @@
             [ngModel]="req.itemName" (ngModelChange)="updateRequirement($index, { itemName: $event })"
             placeholder="Item name (e.g. MacBook Pro 14&quot;)"
             class="req-name-input" />
-          <p-dropdown
+          <p-select
             [ngModel]="req.category" (ngModelChange)="updateRequirement($index, { category: $event })"
             [options]="categoryOpts" optionLabel="label" optionValue="value"
-            styleClass="req-cat-dropdown" />
+            styleClass="req-cat-dropdown" appendTo="body" />
           <label class="req-optional-label">
             <p-checkbox
               [ngModel]="req.optional" (ngModelChange)="updateRequirement($index, { optional: $event })"
@@ -83,4 +83,4 @@
       />
     </div>
   </ng-template>
-</p-sidebar>
+</p-drawer>

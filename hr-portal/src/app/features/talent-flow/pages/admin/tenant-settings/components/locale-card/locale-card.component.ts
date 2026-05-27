@@ -8,7 +8,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { TalentFlowApiService } from '../../../../../services/talent-flow-api.service';
 import { ConfigResponse } from '../../../../../models/talent-flow.models';
@@ -61,7 +61,7 @@ const CURRENCY_OPTIONS = [
     CommonModule,
     FormsModule,
     ButtonModule,
-    DropdownModule,
+    SelectModule,
     ConfigVersionBadgeComponent,
   ],
   templateUrl: './locale-card.component.html',

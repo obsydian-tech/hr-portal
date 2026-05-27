@@ -676,6 +676,11 @@
           <div class="tf-workspace__panel tf-workspace__panel--provisioning">
             <tf-provisioning-tab
               [candidateId]="c.id"
+              [candidateName]="c.firstName + ' ' + c.lastName"
+              [candidateRole]="c.role"
+              [candidateStage]="c.currentStage"
+              [seniority]="c.positionLevel"
+              [department]="c.department ?? ''"
               (breachCount)="onProvisioningBreachCount($event)" />
           </div>
         }

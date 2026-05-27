@@ -61,6 +61,14 @@ ALL_TARGETS=(
   adminCreateUser
   adminUpdateUser
   adminDeactivateUser
+  createProvisioningBundle
+  getProvisioningBundles
+  getProvisioningBundle
+  approveProvisioningBundle
+  updateProvisioningBundle
+  getProvisioningBundleProgress
+  getItTasks
+  createItTask
 )
 
 # Lambdas that import from ../shared/config-reader (need patch+bundle)
@@ -71,6 +79,9 @@ NEEDS_SHARED=(
   completeEvaluation
   sendTalentFlowNotification
   monitorTalentFlowSLAs
+  createProvisioningBundle
+  getItTasks
+  createItTask
 )
 
 needs_shared() {
@@ -120,17 +131,21 @@ for LAMBDA in "${TARGETS[@]}"; do
 
   rm -rf "$BUILD" && mkdir -p "$BUILD"
 
-  # Install prod deps
-  echo "   npm ci --omit=dev"
-  (cd "$SRC" && npm ci --omit=dev --silent)
-  ok "deps ready"
+  # Install prod deps (only if package.json exists)
+  if [[ -f "$SRC/package.json" ]]; then
+    echo "   npm ci --omit=dev"
+    (cd "$SRC" && npm ci --omit=dev --silent)
+    ok "deps ready"
+  else
+    echo "   no package.json — uses runtime SDK only"
+  fi
 
   # Copy source into build dir
   cp "$SRC/$ENTRY_FILE" "$BUILD/"
   # Copy sibling .mjs modules (e.g. tool-resolver.mjs, cache.mjs, intent-classifier.mjs, pii-sanitiser.mjs)
   find "$SRC" -maxdepth 1 -name '*.mjs' ! -name "$ENTRY_FILE" -exec cp {} "$BUILD/" \;
-  cp "$SRC/package.json" "$BUILD/"
-  cp -r "$SRC/node_modules" "$BUILD/"
+  [[ -f "$SRC/package.json" ]] && cp "$SRC/package.json" "$BUILD/"
+  [[ -d "$SRC/node_modules" ]] && cp -r "$SRC/node_modules" "$BUILD/"
 
   # Bundle shared module and patch require path if needed
   if needs_shared "$LAMBDA"; then

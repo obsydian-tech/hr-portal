@@ -64,7 +64,7 @@
           />
 
           <!-- Escalation path dropdown -->
-          <p-dropdown
+          <p-select
             [ngModel]="row.escalationPath"
             (ngModelChange)="updateRow(row.key, { escalationPath: $event })"
             [options]="escalationPaths"

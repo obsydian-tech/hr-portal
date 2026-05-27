@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import { AuditEvent, AUDIT_EVENT_TYPE_LABELS, AUDIT_MODULE_LABELS, AUDIT_OUTCOME_SEVERITY } from '../../../../../models/admin.models';
 
 /**
@@ -22,7 +22,7 @@ import { AuditEvent, AUDIT_EVENT_TYPE_LABELS, AUDIT_MODULE_LABELS, AUDIT_OUTCOME
 @Component({
   selector: 'tf-event-detail-drawer',
   standalone: true,
-  imports: [CommonModule, ButtonModule, TagModule, TooltipModule, SidebarModule],
+  imports: [CommonModule, ButtonModule, TagModule, TooltipModule, DrawerModule],
   templateUrl: './event-detail-drawer.component.html',
   styleUrl:    './event-detail-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

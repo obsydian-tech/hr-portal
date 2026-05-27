@@ -15,7 +15,7 @@ import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { InputTextModule } from 'primeng/inputtext';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { TextareaModule } from 'primeng/textarea';
 import { AiModeService } from '../../services/ai-mode.service';
@@ -34,7 +34,7 @@ import { AiTemplate } from '../../models/ai-chat.model';
     BadgeModule,
     ProgressSpinnerModule,
     InputTextModule,
-    DropdownModule,
+    SelectModule,
     SelectButtonModule,
     TextareaModule,
     AiTemplateGalleryComponent,

@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { TooltipModule } from 'primeng/tooltip';
@@ -39,7 +39,7 @@ const CONDITION_FIELDS: Array<{ label: string; value: ConditionField }> = [
 @Component({
   selector: 'tf-admin-routing-rules',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, TableModule, DropdownModule,
+  imports: [CommonModule, FormsModule, ButtonModule, TableModule, SelectModule,
             InputTextModule, InputNumberModule, TooltipModule, ConfigVersionBadgeComponent],
   templateUrl: './admin-routing-rules.component.html',
   styleUrl:    './admin-routing-rules.component.scss',
@@ -98,12 +98,14 @@ export class AdminRoutingRulesComponent implements OnInit {
   private loadQueues(): void {
     this.api.getConfig('IT_QUEUES').subscribe({
       next: (cfg: ConfigResponse) => {
-        const d = cfg.data as { queues?: Array<{ id: string; name: string; active: boolean }> };
+        const d = cfg.data as { queues?: Array<{ id?: string; name: string; active?: boolean }> };
         if (Array.isArray(d.queues)) {
           this.queues.set(
             d.queues
-              .filter((q) => q.active)
-              .map((q) => ({ label: q.name, value: q.id })),
+              // treat missing active field as active (backward-compat with older saved data)
+              .filter((q) => q.active !== false)
+              // fall back to name as value if id is missing (older saved data)
+              .map((q) => ({ label: q.name, value: q.id ?? q.name })),
           );
         }
       },

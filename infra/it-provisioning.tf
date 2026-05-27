@@ -164,6 +164,15 @@ resource "aws_iam_role_policy" "get_it_tasks" {
         ]
       },
       {
+        Sid    = "ConfigRead"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query"]
+        Resource = [
+          local.tf_config_table_arn,
+          "${local.tf_config_table_arn}/index/*",
+        ]
+      },
+      {
         Sid      = "KMS"
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
@@ -185,7 +194,8 @@ resource "aws_lambda_function" "get_it_tasks" {
 
   environment {
     variables = {
-      IT_TASKS_TABLE = local.it_tasks_table_name
+      IT_TASKS_TABLE    = local.it_tasks_table_name
+      CONFIG_TABLE_NAME = "talent-flow-config"
     }
   }
 
@@ -734,6 +744,106 @@ resource "aws_iam_role_policy" "orchestrate_can_create_it_task" {
       }
     ]
   })
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# adminGetUsers  — GET /v1/admin/users
+# Returns paginated list of users from talent-flow-users table (admin-only).
+# Used by the Queue Management UI to populate the IT specialist multi-select.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+resource "aws_iam_role" "admin_get_users" {
+  name               = "talent-flow-role-adminGetUsers"
+  path               = "/talent-flow/"
+  assume_role_policy = local.it_lambda_assume_role
+
+  tags = { Component = "ITProvisioning", Ticket = "IT-002" }
+}
+
+resource "aws_iam_role_policy" "admin_get_users" {
+  name = "talent-flow-policy-adminGetUsers"
+  role = aws_iam_role.admin_get_users.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/adminGetUsers:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "DynamoDBScan"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Scan", "dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/talent-flow-users"
+      },
+      {
+        Sid      = "KMS"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
+        Resource = data.aws_kms_key.talent_flow.arn
+      },
+    ]
+  })
+}
+
+resource "aws_lambda_function" "admin_get_users" {
+  function_name = "adminGetUsers"
+  role          = aws_iam_role.admin_get_users.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 15
+  architectures = ["arm64"]
+
+  environment {
+    variables = {
+      USERS_TABLE_NAME = "talent-flow-users"
+    }
+  }
+
+  tracing_config { mode = "Active" }
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/adminGetUsers"
+  }
+
+  tags = { Component = "ITProvisioning", Ticket = "IT-002" }
+
+  lifecycle { ignore_changes = [filename, source_code_hash, architectures] }
+}
+
+resource "aws_apigatewayv2_integration" "admin_get_users" {
+  api_id                 = data.aws_apigatewayv2_api.talent_flow_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.admin_get_users.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "admin_get_users" {
+  api_id             = data.aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/admin/users"
+  target             = "integrations/${aws_apigatewayv2_integration.admin_get_users.id}"
+  authorization_type = "JWT"
+  authorizer_id      = local.talent_flow_cognito_authorizer_id
+}
+
+resource "aws_lambda_permission" "apigw_admin_get_users" {
+  statement_id  = "AllowTalentFlowAPIInvokeAdminGetUsers"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.admin_get_users.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/admin/users"
 }
 
 # ─── Outputs ──────────────────────────────────────────────────────────────────

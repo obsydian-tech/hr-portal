@@ -53,18 +53,40 @@ export class AdminQueueManagementComponent implements OnInit {
   // Specialist expand
   readonly expandedRows = signal<Set<string>>(new Set());
 
-  readonly activeCount   = computed(() => this.queues().filter((q) => q.active).length);
+  // Specialist id → display name lookup
+  readonly specialistsMap = signal<Map<string, string>>(new Map());
+
+  readonly activeCount   = computed(() => this.queues().filter((q) => q.active !== false).length);
 
   ngOnInit(): void {
     this.loadConfig();
+    this.api.getItSpecialists().subscribe((list) => {
+      this.specialistsMap.set(new Map(list.map((s) => [s.id, s.label])));
+    });
+  }
+
+  specialistLabel(id: string): string {
+    return this.specialistsMap().get(id) ?? id;
   }
 
   private loadConfig(): void {
     this.loading.set(true);
     this.api.getConfig('IT_QUEUES').subscribe({
       next: (cfg: ConfigResponse) => {
-        const d = cfg.data as { queues?: ITQueue[] };
-        this.queues.set(Array.isArray(d.queues) ? d.queues : []);
+        const d = cfg.data as { queues?: Partial<ITQueue>[] };
+        // Normalize: ensure every queue has id and active (backward-compat with older saved data)
+        const normalized: ITQueue[] = Array.isArray(d.queues)
+          ? d.queues.map((q) => ({
+              id: q.id ?? crypto.randomUUID(),
+              name: q.name ?? '',
+              description: q.description ?? '',
+              category: q.category ?? 'HARDWARE',
+              slaHours: q.slaHours ?? 48,
+              assignedSpecialists: q.assignedSpecialists ?? [],
+              active: q.active !== false,
+            }))
+          : [];
+        this.queues.set(normalized);
         this.configVersion.set(cfg.version);
         this.updatedAt.set(cfg.updatedAt);
         this.loading.set(false);

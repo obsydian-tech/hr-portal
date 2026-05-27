@@ -1,4 +1,4 @@
-<p-sidebar
+<p-drawer
   [visible]="visible()"
   (visibleChange)="$event || close()"
   position="right"
@@ -28,7 +28,7 @@
     <div class="form-field">
       <label class="form-label" for="q-desc">Description</label>
       <textarea
-        pInputTextarea id="q-desc" rows="3"
+        pTextarea id="q-desc" rows="3"
         [ngModel]="form().description"
         (ngModelChange)="patchForm({ description: $event })"
         placeholder="What does this queue handle?"
@@ -40,7 +40,7 @@
     <!-- Category -->
     <div class="form-field">
       <label class="form-label" for="q-cat">Category <span class="required">*</span></label>
-      <p-dropdown
+      <p-select
         inputId="q-cat"
         [ngModel]="form().category"
         (ngModelChange)="patchForm({ category: $event })"
@@ -48,6 +48,7 @@
         optionLabel="label"
         optionValue="value"
         styleClass="form-dropdown"
+        appendTo="body"
       />
     </div>
 
@@ -69,16 +70,23 @@
 
     <!-- Assigned Specialists -->
     <div class="form-field">
-      <label class="form-label" for="q-spec">Assigned Specialists (emails)</label>
-      <p-chips
+      <label class="form-label" for="q-spec">Assigned Specialists</label>
+      <p-multiSelect
         inputId="q-spec"
         [ngModel]="form().assignedSpecialists"
         (ngModelChange)="patchForm({ assignedSpecialists: $event })"
-        separator=","
-        placeholder="Type email + Enter"
-        styleClass="form-chips"
+        [options]="availableSpecialists()"
+        optionLabel="label"
+        optionValue="id"
+        [filter]="true"
+        filterBy="label,email"
+        placeholder="Select IT specialists…"
+        [loading]="specialistsLoading()"
+        styleClass="form-multiselect"
+        display="chip"
+        appendTo="body"
       />
-      <span class="form-hint">Press Enter or comma after each email address.</span>
+      <span class="form-hint">All active users are listed. Assign users who will handle this queue.</span>
     </div>
 
   </div>
@@ -94,4 +102,4 @@
       />
     </div>
   </ng-template>
-</p-sidebar>
+</p-drawer>

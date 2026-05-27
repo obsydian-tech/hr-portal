@@ -10,7 +10,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { TextareaModule } from 'primeng/textarea';
@@ -19,7 +19,7 @@ import { NotifTemplate, UpdateNotifTemplateRequest } from '../../../../../models
 @Component({
   selector: 'tf-template-edit-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, SidebarModule, TagModule, TooltipModule, TextareaModule],
+  imports: [CommonModule, FormsModule, ButtonModule, DrawerModule, TagModule, TooltipModule, TextareaModule],
   templateUrl: './template-edit-drawer.component.html',
   styleUrl:    './template-edit-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

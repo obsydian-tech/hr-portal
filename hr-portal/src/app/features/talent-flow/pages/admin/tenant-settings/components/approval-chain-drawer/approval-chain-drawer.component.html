@@ -27,7 +27,7 @@
       <div *ngFor="let step of offerSteps(); let i = index" class="tf-chain-step">
         <span class="tf-chain-step__order">{{ step.order }}</span>
 
-        <p-dropdown
+        <p-select
           [options]="roleOptions"
           [ngModel]="step.role"
           (ngModelChange)="patchOfferStep(i, 'role', $event)"
@@ -87,7 +87,7 @@
       <div *ngFor="let step of provisioningSteps(); let i = index" class="tf-chain-step">
         <span class="tf-chain-step__order">{{ step.order }}</span>
 
-        <p-dropdown
+        <p-select
           [options]="roleOptions"
           [ngModel]="step.role"
           (ngModelChange)="patchProvisioningStep(i, 'role', $event)"
