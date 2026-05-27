@@ -142,5 +142,8 @@ resource "aws_lambda_permission" "advance_candidate_stage_api" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.advance_candidate_stage.function_name
   principal     = "apigateway.amazonaws.com"
+  # ⚠️  ADR-006: MUST use .execution_arn (arn:aws:execute-api:…), NOT .arn (arn:aws:apigateway:…).
+  # APIGW v2 sends execute-api ARNs as the caller context; using .arn causes
+  # AccessDeniedException → silent HTTP 500 with Lambda never invoked.
   source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
 }

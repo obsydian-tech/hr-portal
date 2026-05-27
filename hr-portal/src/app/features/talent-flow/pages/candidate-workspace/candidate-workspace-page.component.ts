@@ -216,7 +216,9 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   protected initials(c: Candidate): string {
-    return (c.firstName[0] + c.lastName[0]).toUpperCase();
+    const f = c?.firstName?.[0] ?? '';
+    const l = c?.lastName?.[0] ?? '';
+    return (f + l).toUpperCase() || '?';
   }
 
   protected workflowLabel(id: string): string {
