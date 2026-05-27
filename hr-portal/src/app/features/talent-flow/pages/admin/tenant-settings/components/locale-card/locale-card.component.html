@@ -23,7 +23,7 @@
           Timezone
           <span class="tf-config-form__hint">Affects SLA breach times and all timestamp displays</span>
         </label>
-        <p-dropdown
+        <p-select
           id="timezone"
           [options]="timezones"
           [ngModel]="form().timezone"
@@ -33,13 +33,13 @@
           [filter]="true"
           filterPlaceholder="Search timezone…"
           [style]="{ width: '100%' }">
-        </p-dropdown>
+        </p-select>
       </div>
 
       <!-- Date Format -->
       <div class="tf-config-form__field">
         <label class="tf-config-form__label" for="dateFormat">Date Format</label>
-        <p-dropdown
+        <p-select
           id="dateFormat"
           [options]="dateFormats"
           [ngModel]="form().dateFormat"
@@ -47,7 +47,7 @@
           optionLabel="label"
           optionValue="value"
           [style]="{ width: '100%' }">
-        </p-dropdown>
+        </p-select>
       </div>
 
       <!-- Currency -->
@@ -56,7 +56,7 @@
           Currency
           <span class="tf-config-form__hint">Used in offer letters and cost reporting</span>
         </label>
-        <p-dropdown
+        <p-select
           id="currency"
           [options]="currencies"
           [ngModel]="form().currency"
@@ -64,7 +64,7 @@
           optionLabel="label"
           optionValue="value"
           [style]="{ width: '100%' }">
-        </p-dropdown>
+        </p-select>
       </div>
     </div>
 

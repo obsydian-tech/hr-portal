@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import {
@@ -23,7 +23,7 @@ import {
 @Component({
   selector: 'tf-escalation-edit-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, CheckboxModule, SidebarModule, TagModule, TooltipModule],
+  imports: [CommonModule, FormsModule, ButtonModule, CheckboxModule, DrawerModule, TagModule, TooltipModule],
   templateUrl: './escalation-edit-drawer.component.html',
   styleUrl:    './escalation-edit-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

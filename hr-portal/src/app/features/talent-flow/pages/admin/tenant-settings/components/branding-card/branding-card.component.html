@@ -60,26 +60,26 @@
 
       <div class="tf-config-form__field">
         <label class="tf-config-form__label" for="industry">Industry</label>
-        <p-dropdown id="industry"
+        <p-select id="industry"
                     [options]="industries"
                     [ngModel]="form().industry"
                     (ngModelChange)="patchForm('industry', $event)"
                     optionLabel="label"
                     optionValue="value"
                     [style]="{ width: '100%' }">
-        </p-dropdown>
+        </p-select>
       </div>
 
       <div class="tf-config-form__field">
         <label class="tf-config-form__label" for="companySize">Company Size</label>
-        <p-dropdown id="companySize"
+        <p-select id="companySize"
                     [options]="companySizes"
                     [ngModel]="form().companySize"
                     (ngModelChange)="patchForm('companySize', $event)"
                     optionLabel="label"
                     optionValue="value"
                     [style]="{ width: '100%' }">
-        </p-dropdown>
+        </p-select>
       </div>
     </div>
   </div>

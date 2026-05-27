@@ -84,7 +84,7 @@
 </div>
 
 <!-- Approval chain drawer -->
-<p-sidebar
+<p-drawer
   [visible]="drawerVisible()"
   (visibleChange)="drawerVisible.set($event)"
   position="right"
@@ -98,4 +98,4 @@
       (saved)="onDrawerSaved($event)"
       (closed)="closeDrawer()" />
   </ng-template>
-</p-sidebar>
+</p-drawer>

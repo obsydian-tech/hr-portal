@@ -61,6 +61,7 @@ hr-portal/typings/
 !scripts/**/*.md
 !docs/**/*.md
 !mcp/**/*.md
+!Latest Skill/**/*.md
 
 # ─── OS ────────────────────────────────────────────────────
 .DS_Store

@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { CheckboxModule } from 'primeng/checkbox';
 import { FormsModule } from '@angular/forms';
 import {
@@ -33,7 +33,7 @@ const ROLE_OPTIONS = [
 @Component({
   selector: 'tf-approval-chain-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, TagModule, TooltipModule, DropdownModule, CheckboxModule],
+  imports: [CommonModule, FormsModule, ButtonModule, TagModule, TooltipModule, SelectModule, CheckboxModule],
   templateUrl: './approval-chain-drawer.component.html',
   styleUrl:    './approval-chain-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

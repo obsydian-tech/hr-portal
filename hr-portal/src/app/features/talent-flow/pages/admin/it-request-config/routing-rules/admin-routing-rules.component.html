@@ -15,7 +15,9 @@
 
   @if (loading()) {
     <div class="config-page__skeleton">
-      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+      @for (_ of [1,2,3]; track $index) {
+        <div class="config-skeleton-row"></div>
+      }
     </div>
   } @else if (rules().length === 0) {
 
@@ -42,11 +44,11 @@
           <!-- Edit mode row -->
           <tr class="editing-row">
             <td>
-              <p-dropdown
+              <p-select
                 [ngModel]="editingRows()[rule.id].conditionField"
                 (ngModelChange)="patchEditRow(rule.id, { conditionField: $event })"
                 [options]="conditionFields" optionLabel="label" optionValue="value"
-                styleClass="row-dropdown" />
+                styleClass="row-dropdown" appendTo="body" />
             </td>
             <td>
               <input pInputText type="text"
@@ -56,12 +58,12 @@
                 class="row-input" />
             </td>
             <td>
-              <p-dropdown
+              <p-select
                 [ngModel]="editingRows()[rule.id].targetQueueId"
                 (ngModelChange)="patchEditRow(rule.id, { targetQueueId: $event })"
                 [options]="queues()" optionLabel="label" optionValue="value"
                 placeholder="Select queue"
-                styleClass="row-dropdown" />
+                styleClass="row-dropdown" appendTo="body" />
             </td>
             <td>
               <p-inputNumber

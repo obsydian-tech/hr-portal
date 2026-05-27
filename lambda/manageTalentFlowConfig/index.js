@@ -125,7 +125,17 @@ async function handleGet(event) {
 
   if (activeOnly) {
     const item = await getActiveItem(tenantId, configType);
-    if (!item) return respond(404, { error: `No active config found for configType=${configType}` });
+    // Return empty config (200) instead of 404 — the admin UI treats missing config as
+    // "not yet configured" and shows an empty state, not an error.
+    if (!item) return respond(200, {
+      configType,
+      tenantId,
+      version: null,
+      isActive: false,
+      data: {},
+      createdAt: null,
+      updatedAt: null,
+    });
     return respond(200, item);
   }
 
@@ -202,12 +212,28 @@ async function handlePut(event) {
     return respond(400, { error: 'configType and data are required' });
   }
 
-  // Get current active version N
+  // Get current active version N — if none exists, bootstrap v1 (upsert semantics)
   const activeItem = await getActiveItem(tenantId, configType);
   if (!activeItem) {
-    return respond(404, {
-      error: `No active config found for configType=${configType}. Use POST to create the first version.`
-    });
+    const now = new Date().toISOString();
+    await client.send(new PutItemCommand({
+      TableName: TABLE,
+      Item: marshall({
+        PK: `TENANT#${tenantId}`,
+        SK: `CONFIG#${configType}#v1`,
+        GSI1PK: `TENANT#${tenantId}#ACTIVE`,
+        GSI1SK: `CONFIG#${configType}`,
+        tenantId,
+        configType,
+        version: 1,
+        isActive: true,
+        data,
+        createdAt: now,
+      }),
+      ConditionExpression: 'attribute_not_exists(PK)',
+    }));
+    console.info(`CONFIG_CREATED_VIA_PUT tenantId=${tenantId} configType=${configType} version=1`);
+    return respond(200, { tenantId, configType, version: 1, data, updatedAt: now });
   }
 
   const oldVersion = activeItem.version;

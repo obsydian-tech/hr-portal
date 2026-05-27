@@ -79,7 +79,7 @@
 
       <div class="tf-audit-filters__group">
         <label class="tf-audit-filters__label">Module</label>
-        <p-dropdown
+        <p-select
           [options]="moduleOptions"
           [(ngModel)]="filterModule.value"
           optionLabel="label"
@@ -87,12 +87,12 @@
           placeholder="All Modules"
           (onChange)="onModuleChange()"
           styleClass="tf-audit-filters__dropdown">
-        </p-dropdown>
+        </p-select>
       </div>
 
       <div class="tf-audit-filters__group">
         <label class="tf-audit-filters__label">Role</label>
-        <p-dropdown
+        <p-select
           [options]="roleOptions"
           [(ngModel)]="filterRole.value"
           optionLabel="label"
@@ -100,12 +100,12 @@
           placeholder="All Roles"
           (onChange)="onRoleChange()"
           styleClass="tf-audit-filters__dropdown">
-        </p-dropdown>
+        </p-select>
       </div>
 
       <div class="tf-audit-filters__group">
         <label class="tf-audit-filters__label">Event Type</label>
-        <p-dropdown
+        <p-select
           [options]="eventTypeOptions"
           [(ngModel)]="filterEventType.value"
           optionLabel="label"
@@ -113,7 +113,7 @@
           placeholder="All Event Types"
           (onChange)="onEventTypeChange()"
           styleClass="tf-audit-filters__dropdown">
-        </p-dropdown>
+        </p-select>
       </div>
 
       <div class="tf-audit-filters__group">
@@ -167,14 +167,14 @@
   <div class="tf-audit-results-bar">
     <span class="tf-audit-results-bar__summary">{{ resultSummary() }}</span>
     <div class="tf-audit-results-bar__actions">
-      <p-dropdown
+      <p-select
         [options]="pageSizeOptions"
         [(ngModel)]="pageSizeValue"
         optionLabel="label"
         optionValue="value"
         (onChange)="onPageSizeChange()"
         styleClass="tf-audit-results-bar__size-picker">
-      </p-dropdown>
+      </p-select>
       <button
         pButton
         label="Export Filtered"

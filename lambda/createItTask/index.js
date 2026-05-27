@@ -138,6 +138,34 @@ function resolveChecklist(requirement, templates, newHire) {
 }
 
 exports.handler = async (payload) => {
+  // Support both direct invocation and EventBridge envelope
+  let detail = payload;
+  if (payload['detail-type'] && payload.detail) {
+    // EventBridge event — unwrap
+    detail = typeof payload.detail === 'string' ? JSON.parse(payload.detail) : payload.detail;
+    console.info(`[createItTask] invoked from EventBridge: detail-type=${payload['detail-type']}`);
+  }
+
+  // Map BundleApproved EB event to createItTask payload
+  // EB event shape: { bundleId, candidateId, candidateName, candidateRole, seniority, department, startDate, tenantId, items[], approvedBy }
+  if (detail.items && !detail.requirements) {
+    // Convert bundle items → requirements
+    detail.requirements = (detail.items ?? []).map(item => ({
+      itemName: item.label ?? item.type,
+      category: item.type ?? 'OTHER',
+      queueName: item.queue ?? null,
+    }));
+    detail.newHire = detail.newHire ?? {
+      name:       detail.candidateName ?? '',
+      role:       detail.candidateRole ?? '',
+      seniority:  detail.seniority     ?? '',
+      department: detail.department    ?? '',
+      startDate:  detail.startDate     ?? '',
+    };
+    const startMs = new Date(detail.startDate ?? Date.now()).getTime();
+    detail.daysRemaining = Math.ceil((startMs - Date.now()) / (1000 * 60 * 60 * 24));
+  }
+
   const {
     candidateId,
     tenantId,
@@ -147,7 +175,7 @@ exports.handler = async (payload) => {
     daysRemaining,
     newHire,
     requirements = [],
-  } = payload;
+  } = detail;
 
   if (!candidateId || !tenantId || requirements.length === 0) {
     throw new Error(`createItTask: missing required fields. candidateId=${candidateId} tenantId=${tenantId} requirements=${requirements.length}`);

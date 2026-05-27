@@ -208,7 +208,8 @@
             type="text"
             class="td-form__input"
             placeholder="e.g. LT-2024-0934 · MacBook Air M2 · Silver"
-            [(ngModel)]="assetReference"
+            [ngModel]="assetReference()"
+            (ngModelChange)="assetReference.set($event)"
             [attr.aria-required]="true"
           />
         </div>

@@ -5,17 +5,21 @@ import {
   output,
   signal,
   effect,
+  inject,
+  OnInit,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { SidebarModule } from 'primeng/sidebar';
+import { DrawerModule } from 'primeng/drawer';
 import { InputTextModule } from 'primeng/inputtext';
-import { Textarea } from 'primeng/inputtextarea';
+import { Textarea } from 'primeng/textarea';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { DropdownModule } from 'primeng/dropdown';
-import { ChipsModule } from 'primeng/chips';
+import { SelectModule } from 'primeng/select';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { ITQueue, QueueCategory } from '../../../it-request.models';
+import { TalentFlowApiService } from '../../../../../../services/talent-flow-api.service';
 
 const CATEGORY_OPTIONS: Array<{ label: string; value: QueueCategory }> = [
   { label: 'Hardware',        value: 'HARDWARE' },
@@ -48,34 +52,51 @@ const EMPTY_QUEUE = (): ITQueue => ({
 @Component({
   selector: 'tf-queue-form-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, SidebarModule, InputTextModule,
-            Textarea, InputNumberModule, DropdownModule, ChipsModule],
+  imports: [CommonModule, FormsModule, ButtonModule, DrawerModule, InputTextModule,
+            Textarea, InputNumberModule, SelectModule, MultiSelectModule],
   templateUrl: './queue-form-drawer.component.html',
   styleUrl:    './queue-form-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class QueueFormDrawerComponent {
+export class QueueFormDrawerComponent implements OnInit {
+  private readonly api = inject(TalentFlowApiService);
+
   readonly visible = input<boolean>(false);
   readonly queue   = input<ITQueue | null>(null);
 
   readonly saved  = output<ITQueue>();
   readonly closed = output<void>();
 
-  readonly form          = signal<ITQueue>(EMPTY_QUEUE());
-  readonly categoryOpts  = CATEGORY_OPTIONS;
-  readonly isEditMode    = signal(false);
+  readonly form                = signal<ITQueue>(EMPTY_QUEUE());
+  readonly categoryOpts        = CATEGORY_OPTIONS;
+  readonly isEditMode          = signal(false);
+  readonly availableSpecialists = signal<Array<{ id: string; label: string; email: string }>>([]);
+  readonly specialistsLoading  = signal(false);
 
   constructor() {
-    // Sync form when inputs change
+    // Sync form when queue input changes
     effect(() => {
       const q = this.queue();
-      if (q) {
-        this.form.set({ ...q, assignedSpecialists: [...q.assignedSpecialists] });
-        this.isEditMode.set(true);
-      } else {
-        this.form.set(EMPTY_QUEUE());
-        this.isEditMode.set(false);
-      }
+      untracked(() => {
+        if (q) {
+          this.form.set({ ...q, assignedSpecialists: [...q.assignedSpecialists] });
+          this.isEditMode.set(true);
+        } else {
+          this.form.set(EMPTY_QUEUE());
+          this.isEditMode.set(false);
+        }
+      });
+    });
+  }
+
+  ngOnInit(): void {
+    this.specialistsLoading.set(true);
+    this.api.getItSpecialists().subscribe({
+      next: (specialists) => {
+        this.availableSpecialists.set(specialists);
+        this.specialistsLoading.set(false);
+      },
+      error: () => this.specialistsLoading.set(false),
     });
   }
 

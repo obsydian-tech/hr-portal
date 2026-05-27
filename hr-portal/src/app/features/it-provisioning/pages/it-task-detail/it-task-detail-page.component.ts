@@ -37,7 +37,7 @@ export class ItTaskDetailPageComponent implements OnInit {
   protected readonly checklist = signal<ChecklistItem[]>([]);
 
   // Fulfilment form
-  protected assetReference   = '';
+  protected readonly assetReference   = signal('');
   protected fulfilmentMethod = 'Delivered to desk';
   protected additionalNotes  = '';
 
@@ -50,7 +50,7 @@ export class ItTaskDetailPageComponent implements OnInit {
   );
 
   protected readonly canComplete = computed(() =>
-    this.allChecked() && this.assetReference.trim().length > 0
+    this.allChecked() && this.assetReference().trim().length > 0
   );
 
   protected readonly isClaimedByMe = computed(() => {
@@ -96,7 +96,7 @@ export class ItTaskDetailPageComponent implements OnInit {
     if (!this.canComplete() || this.submitting()) return;
     this.submitting.set(true);
     const data: FulfilmentData = {
-      assetReference:   this.assetReference.trim(),
+      assetReference:   this.assetReference().trim(),
       fulfilmentMethod: this.fulfilmentMethod,
       additionalNotes:  this.additionalNotes.trim(),
     };

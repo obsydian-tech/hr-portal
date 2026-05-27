@@ -168,10 +168,28 @@
 
 } @else {
   <!-- No bundle found -->
-  <div class="pt-empty">
-    <i class="pi pi-box pt-empty__icon"></i>
-    <p class="pt-empty__title">No provisioning bundle yet</p>
-    <p class="pt-empty__sub">A bundle will appear here once the offer is accepted and provisioning is initiated.</p>
-  </div>
+  @if (showCreateCta()) {
+    <div class="pt-empty pt-empty--cta">
+      <i class="pi pi-box pt-empty__icon"></i>
+      <p class="pt-empty__title">No IT provisioning pack yet</p>
+      <p class="pt-empty__sub">
+        This candidate is at the Contract Signing stage. Create an IT provisioning pack to initiate equipment and access setup.
+      </p>
+      @if (createErr()) {
+        <p class="pt-empty__error">{{ createErr() }}</p>
+      }
+      <p-button
+        label="Create IT Provisioning Pack"
+        icon="pi pi-plus"
+        [loading]="creating()"
+        (onClick)="createBundle()" />
+    </div>
+  } @else {
+    <div class="pt-empty">
+      <i class="pi pi-box pt-empty__icon"></i>
+      <p class="pt-empty__title">No provisioning bundle yet</p>
+      <p class="pt-empty__sub">A bundle will appear here once the offer is accepted and provisioning is initiated.</p>
+    </div>
+  }
 }
 } <!-- end @else (not loading) -->
