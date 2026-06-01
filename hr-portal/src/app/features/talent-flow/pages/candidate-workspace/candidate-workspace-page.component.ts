@@ -12,6 +12,7 @@ import { ButtonModule } from 'primeng/button';
 import { TalentFlowStateService } from '../../services/talent-flow-state.service';
 import { TalentFlowApiService } from '../../services/talent-flow-api.service';
 import { TalentFlowAuthService } from '../../services/talent-flow-auth.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.component';
 import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
 import {
@@ -60,11 +61,16 @@ export class CandidateWorkspacePageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly tfAuth = inject(TalentFlowAuthService);
+  private readonly nalekoAuth = inject(AuthService);
 
-  // True for TAs (admins) and false for HMs — gates TA-only actions in template
-  protected readonly isTA = computed(
-    () => this.tfAuth.isAdmin() || !this.tfAuth.isHiringManager(),
-  );
+  // True for TAs — false for HMs.
+  // Uses Naleko pool groups because tfAuth.currentUser() is always null
+  // (pool consolidation: everyone logs in via the Naleko pool).
+  protected readonly isTA = computed(() => {
+    const user = this.nalekoAuth.currentUser();
+    if (!user) return false; // not logged in → show nothing sensitive
+    return !user.groups.includes('naleko-talentflow-hiringmanager');
+  });
 
   protected readonly defaultWeights: ScoringWeights = DEFAULT_SCORING_WEIGHTS;
 
