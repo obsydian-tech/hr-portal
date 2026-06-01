@@ -13,28 +13,31 @@ import { TalentFlowStateService } from '../../services/talent-flow-state.service
 import { TalentFlowApiService } from '../../services/talent-flow-api.service';
 import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.component';
 import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
-import {
-  AddPanelMembersPayload,
-  AdhocPanelMember,
-  Candidate,
-  CandidateEvent,
-  EngagementSentiment,
-  HiringStage,
-  Interview,
-  InterviewType,
-  PanelMember,
-  ScheduleInterviewPayload,
-  ScoringWeights,
-  DEFAULT_SCORING_WEIGHTS,
-  PHASE_MAP,
-} from '../../models/talent-flow.models';
+import { AddPanelMembersPayload, AdhocPanelMember, Candidate, CandidateEvent, EngagementSentiment, HiringStage, InterviewType, PanelMember, ScheduleInterviewPayload, ScoringWeights, DEFAULT_SCORING_WEIGHTS, PHASE_MAP } from '../../models/talent-flow.models';
 import { OfferTabComponent } from '../../components/offer-tab/offer-tab.component';
 import { CandidateEditDrawerComponent } from '../../components/candidate-edit-drawer/candidate-edit-drawer.component';
 import { ProvisioningTabComponent } from '../../components/provisioning-tab/provisioning-tab.component';
 
-// D027: tabs — Overview | Interviews | Offer | Provisioning | Notes
-export type WorkspaceTab = 'overview' | 'interviews' | 'offer' | 'provisioning' | 'notes';
+/**
+ * CandidateWorkspacePageComponent — FE-004 / NH-137
+ *
+ * Design source: EmployeeDetail.jsx master-detail layout
+ *   - Left rail: avatar header + identity + stage stepper
+ *   - Right panel: tabbed detail (Overview, Timeline, Votes)
+ *
+ * Route: /talent-flow/candidates/:id
+ *
+ * On init: reads route param → loads candidate if not in pipeline cache →
+ *   sets activeCandidateId on TalentFlowStateService.
+ *
+ * StageSelector: rendered readonly — hiring managers progress stage
+ *   via explicit action buttons, not drag → FE-005/006.
+ */
 
+// D027: tabs — Overview | Interviews | Offer | Provisioning | Engagement | Notes
+export type WorkspaceTab = 'overview' | 'interviews' | 'offer' | 'provisioning' | 'engagement' | 'notes';
+
+/** All HiringStage values in workflow order */
 export const ALL_STAGES: HiringStage[] = Object.keys(STAGE_LABELS) as HiringStage[];
 
 @Component({
@@ -60,57 +63,32 @@ export class CandidateWorkspacePageComponent implements OnInit {
 
   protected readonly defaultWeights: ScoringWeights = DEFAULT_SCORING_WEIGHTS;
 
-  protected readonly activeTab               = signal<WorkspaceTab>('overview');
-  protected readonly candidateId             = signal<string | null>(null);
+  protected readonly activeTab              = signal<WorkspaceTab>('overview');
+  protected readonly candidateId            = signal<string | null>(null);
   protected readonly provisioningBreachCount = signal<number>(0);
-  protected readonly loading                 = signal<boolean>(false);
-  protected readonly fetchError              = signal<string | null>(null);
-  protected readonly chatVisible             = signal<boolean>(false);
-  protected readonly editDrawerVisible       = signal<boolean>(false);
+  protected readonly loading          = signal<boolean>(false);
+  protected readonly fetchError       = signal<string | null>(null);
+  protected readonly chatVisible      = signal<boolean>(false);
+  protected readonly editDrawerVisible = signal<boolean>(false);
 
-  // Events (activity log)
+  // FE-006: event timeline
   protected readonly eventsLoading = signal<boolean>(false);
   protected readonly eventsError   = signal<string | null>(null);
-  protected readonly events        = signal<CandidateEvent[]>([]);
-  private _eventsLoaded            = false;
+  protected readonly events         = signal<CandidateEvent[]>([]);
+  private _eventsLoaded             = false;
 
+  /** All stages shown for the stepper */
   protected readonly allStages = ALL_STAGES;
 
+  /**
+   * Candidate record: prefer pipeline cache (populated when coming from pipeline
+   * page), fall back to direct fetch result (when navigating directly via URL).
+   */
   private readonly _directCandidate = signal<Candidate | undefined>(undefined);
 
   protected readonly candidate = computed<Candidate | undefined>(
     () => this.state.activeCandidate() ?? this._directCandidate(),
   );
-
-  // ── Interview loop ────────────────────────────────────────────────────────
-  protected readonly interviews        = signal<Interview[]>([]);
-  protected readonly interviewsLoading = signal<boolean>(false);
-  protected readonly interviewsError   = signal<string | null>(null);
-  private _interviewsLoaded            = false;
-
-  // Required interview types from PANEL_CONFIG for this candidate's positionLevel
-  protected readonly requiredTypes     = signal<string[]>([]);
-  protected readonly panelConfigLoaded = signal<boolean>(false);
-
-  // Which interview the add-panel inline form targets
-  protected readonly addPanelTargetId = signal<string | null>(null);
-  // Which interview the complete inline form targets
-  protected readonly completeTargetId = signal<string | null>(null);
-  protected readonly completeOutcome  = signal<'PASS' | 'DEFER' | 'FAIL'>('PASS');
-
-  protected readonly completedTypeSet = computed(() =>
-    new Set(
-      this.interviews()
-        .filter((i) => i.status === 'COMPLETED')
-        .map((i) => i.interviewType),
-    ),
-  );
-
-  protected readonly loopProgress = computed(() => {
-    const required = this.requiredTypes();
-    const done = required.filter((t) => this.completedTypeSet().has(t)).length;
-    return { done, total: required.length };
-  });
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -120,16 +98,19 @@ export class CandidateWorkspacePageComponent implements OnInit {
     }
     this.candidateId.set(id);
 
+    // If candidate already in pipeline cache (e.g. came from pipeline page), use it
     const inCache = this.state.pipeline().find((c) => c.id === id);
     if (inCache) {
       this.state.setActiveCandidate(id);
       if (inCache.interviewSentiment) {
-        this.engagementSentiment.set(inCache.interviewSentiment as EngagementSentiment);
+        const s = inCache.interviewSentiment as EngagementSentiment;
+        this.engagementSentiment.set(s);
       }
       this._loadEvents(id);
       return;
     }
 
+    // Not in cache — fetch directly to avoid race condition with pipeline load
     this.loading.set(true);
     this.state.setActiveCandidate(id);
     this.api.getCandidate(id).subscribe({
@@ -150,17 +131,14 @@ export class CandidateWorkspacePageComponent implements OnInit {
 
   protected setTab(tab: WorkspaceTab): void {
     this.activeTab.set(tab);
-    if (tab === 'interviews') {
+    // lazy-load event history when switching to Engagement tab
+    if (tab === 'engagement' && !this._eventsLoaded) {
       const id = this.candidateId();
-      if (id && !this._interviewsLoaded) this._loadInterviews(id);
-      if (this.panelMembers().length === 0) this._loadPanelMembers();
-      const c = this.candidate();
-      if (c?.currentStage === 'INTERVIEWING' && !this.panelConfigLoaded()) {
-        this._loadPanelConfig(c.positionLevel);
-      }
+      if (id) this._loadEvents(id);
     }
   }
 
+  /** Receives breach count from ProvisioningTabComponent for the tab badge. */
   protected onProvisioningBreachCount(count: number): void {
     this.provisioningBreachCount.set(count);
   }
@@ -181,40 +159,6 @@ export class CandidateWorkspacePageComponent implements OnInit {
     });
   }
 
-  private _loadInterviews(id: string): void {
-    this._interviewsLoaded = true;
-    this.interviewsLoading.set(true);
-    this.interviewsError.set(null);
-    this.api.getInterviews(id).subscribe({
-      next: (list) => { this.interviews.set(list); this.interviewsLoading.set(false); },
-      error: () => {
-        this.interviewsError.set('Could not load interviews.');
-        this.interviewsLoading.set(false);
-      },
-    });
-  }
-
-  private _refreshInterviews(): void {
-    const id = this.candidateId();
-    if (!id) return;
-    this._interviewsLoaded = false;
-    this._loadInterviews(id);
-  }
-
-  private _loadPanelConfig(positionLevel: string): void {
-    this.api.getConfig('PANEL_CONFIG').subscribe({
-      next: (cfg) => {
-        const reqs = (cfg.data as Record<string, unknown>)?.['interviewRequirements'] as
-          Record<string, Array<{ type: string; required?: boolean }>> | undefined;
-        const levelReqs = reqs?.[positionLevel] ?? [];
-        const required = levelReqs.filter((r) => r.required !== false).map((r) => r.type);
-        this.requiredTypes.set(required);
-        this.panelConfigLoaded.set(true);
-      },
-      error: () => { this.panelConfigLoaded.set(true); },
-    });
-  }
-
   protected goBack(): void {
     void this.router.navigate(['/platform/talentflow/pipeline']);
   }
@@ -229,13 +173,19 @@ export class CandidateWorkspacePageComponent implements OnInit {
     this.chatVisible.update((v) => !v);
   }
 
+  protected goToEvaluate(candidateId: string): void {
+    // Evaluation route removed (D048 — inline scoring in HM dashboard).
+    // Navigate to the candidate workspace so TA can review submitted panel votes.
+    void this.router.navigate(['/platform/talentflow/candidates', candidateId]);
+  }
+
   protected toDate(iso: string): Date {
     return new Date(iso);
   }
 
   protected readonly defaultThreshold = 72;
 
-  // ── Phase stepper (D029) ─────────────────────────────────────────────────
+  // ── Phase stepper (D029) ──────────────────────────────────────────────────
   protected readonly PHASES = [
     { phase: 1, label: 'Interview & Evaluation', desc: 'Screen, evaluate, decide' },
     { phase: 2, label: 'Offer & Acceptance',      desc: 'Create, approve, convert' },
@@ -285,7 +235,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
     return 'tf-ws-avatar tf-ws-avatar--healthy';
   }
 
-  // ── Advance Stage ─────────────────────────────────────────────────────────
+  // ── Advance Stage ─────────────────────────────────────────────────────
   protected readonly advancingStage  = signal<boolean>(false);
   protected readonly advanceError    = signal<string | null>(null);
   protected readonly advanceSuccess  = signal<string | null>(null);
@@ -309,13 +259,22 @@ export class CandidateWorkspacePageComponent implements OnInit {
       next: (res) => {
         this.advancingStage.set(false);
         this.advanceSuccess.set(res.newStage);
+        // Refresh candidate to update stage stepper + SLA display
         this.api.getCandidate(candidateId).subscribe({
           next: (c) => {
+            // Patch pipeline signal first — activeCandidate() is derived from it
+            // and takes priority in the candidate computed. Without this,
+            // slaStatus and currentStage remain stale after stage advance.
             this.state.patchCandidate(c);
+            // Also keep _directCandidate in sync (used as fallback)
             this._directCandidate.set(c);
+            // Auto-clear the success banner after 4 s
             setTimeout(() => this.advanceSuccess.set(null), 4000);
           },
-          error: () => { setTimeout(() => this.advanceSuccess.set(null), 4000); },
+          error: () => {
+            // Refresh failed — still clear success banner gracefully
+            setTimeout(() => this.advanceSuccess.set(null), 4000);
+          },
         });
       },
       error: (err) => {
@@ -325,22 +284,23 @@ export class CandidateWorkspacePageComponent implements OnInit {
       },
     });
   }
-
-  // ── Schedule Interview ────────────────────────────────────────────────────
   protected readonly showScheduleForm    = signal<boolean>(false);
   protected readonly scheduleSubmitting  = signal<boolean>(false);
   protected readonly scheduleSuccess     = signal<string | null>(null);
   protected readonly scheduleError       = signal<string | null>(null);
 
+  // D005/D041: dynamic panel member directory
   protected readonly panelMembers        = signal<PanelMember[]>([]);
   protected readonly panelMembersLoading = signal<boolean>(false);
   protected readonly panelMembersError   = signal<string | null>(null);
 
+  // D041: ad hoc member inline form
   protected readonly showAdhocForm = signal<boolean>(false);
   protected readonly adhocForm     = signal<{ name: string; email: string; role: string }>({
     name: '', email: '', role: '',
   });
 
+  /** Mutable form model for the schedule interview panel */
   protected readonly scheduleForm = signal<{
     interviewType:     InterviewType;
     scheduledAt:       string;
@@ -364,7 +324,10 @@ export class CandidateWorkspacePageComponent implements OnInit {
     this.panelMembersLoading.set(true);
     this.panelMembersError.set(null);
     this.api.getPanelMembers().subscribe({
-      next: (members) => { this.panelMembers.set(members); this.panelMembersLoading.set(false); },
+      next: (members) => {
+        this.panelMembers.set(members);
+        this.panelMembersLoading.set(false);
+      },
       error: () => {
         this.panelMembersError.set('Could not load panel directory.');
         this.panelMembersLoading.set(false);
@@ -413,6 +376,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   protected setScheduledAt(event: Event): void {
+    // Store raw datetime-local value (yyyy-MM-ddThh:mm) — Z suffix added on submit
     const value = (event.target as HTMLInputElement).value;
     this.scheduleForm.update((f) => ({ ...f, scheduledAt: value }));
   }
@@ -425,45 +389,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
     this.scheduleForm.set({ ...current, panelMemberIds: ids });
   }
 
-  protected submitScheduleInterview(candidateId: string): void {
-    const form = this.scheduleForm();
-    const hasPanel = form.panelMemberIds.length > 0 || form.adhocPanelMembers.length > 0;
-    if (!form.scheduledAt || !hasPanel) return;
-
-    this.scheduleSubmitting.set(true);
-    this.scheduleError.set(null);
-    this.scheduleSuccess.set(null);
-
-    const payload: ScheduleInterviewPayload = {
-      interviewType:     form.interviewType,
-      scheduledAt:       form.scheduledAt.length === 16 ? form.scheduledAt + ':00Z' : form.scheduledAt,
-      panelMemberIds:    form.panelMemberIds,
-      adhocPanelMembers: form.adhocPanelMembers.length > 0 ? form.adhocPanelMembers : undefined,
-    };
-
-    this.api.scheduleInterview(candidateId, payload).subscribe({
-      next: (res) => {
-        this.scheduleSubmitting.set(false);
-        this.scheduleSuccess.set(res.interviewId);
-        this.showScheduleForm.set(false);
-        this.scheduleForm.set({ interviewType: 'PHONE_SCREEN', scheduledAt: '', panelMemberIds: [], adhocPanelMembers: [] });
-        this.showAdhocForm.set(false);
-        this.adhocForm.set({ name: '', email: '', role: '' });
-        this._refreshInterviews();
-        this.api.getCandidate(candidateId).subscribe({
-          next: (c) => { this.state.patchCandidate(c); this._directCandidate.set(c); },
-          error: () => { /* non-fatal */ },
-        });
-      },
-      error: (err) => {
-        this.scheduleSubmitting.set(false);
-        const msg = err?.error?.error ?? err?.message ?? 'Failed to schedule interview';
-        this.scheduleError.set(msg);
-      },
-    });
-  }
-
-  // ── Engagement Sentiment ──────────────────────────────────────────────────
+  // ── Engagement Sentiment (v2 5-option selector) ───────────────────────────
   protected readonly engagementSentiment = signal<EngagementSentiment | null>(null);
 
   protected readonly ENGAGEMENT_OPTIONS: { value: EngagementSentiment; label: string; dotClass: string }[] = [
@@ -496,6 +422,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
       next: (res) => {
         this.sentimentSubmitting.set(false);
         this.sentimentSuccess.set(res.interviewSentiment);
+        // Refresh candidate so header sentiment pill updates
         this.api.getCandidate(candidateId).subscribe({
           next: (c) => { this.state.patchCandidate(c); this._directCandidate.set(c); },
           error: () => { /* non-fatal */ },
@@ -508,7 +435,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
     });
   }
 
-  // ── Activity Log ─────────────────────────────────────────────────────────
+  // ── Activity Log panel (D035) ─────────────────────────────────────────────
   protected readonly activityFilter = signal<'all' | 'interviews' | 'scores' | 'sentiment'>('all');
 
   protected readonly filteredEvents = computed(() => {
@@ -528,12 +455,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
     return 'tf-act-dot--grey';
   }
 
-  // Split camelCase event types into spaced words: "StageAdvanced" → "Stage Advanced"
-  protected formatEventType(raw: string): string {
-    return raw.replace(/([A-Z])/g, ' $1').trim();
-  }
-
-  // ── Signal Intelligence ───────────────────────────────────────────────────
+  // ── Signal Intelligence (contextual message) ──────────────────────────────
   protected intelMessage(c: Candidate): string {
     if (c.slaStatus === 'BREACHED') {
       return `SLA is breached. Immediate action required — progress the workflow or escalate now.`;
@@ -545,12 +467,12 @@ export class CandidateWorkspacePageComponent implements OnInit {
       return `SLA is at risk. Consider advancing the stage or scheduling the next interview to stay on track.`;
     }
     if (c.interviewSentiment === 'HESITANT') {
-      return `Candidate sentiment is Hesitant. Avoid unnecessary delays and keep the candidate engaged.`;
+      return `Candidate sentiment is Hesitant. Avoid unnecessary delays and keep the candidate engaged through the process.`;
     }
     return `Candidate is progressing on track. Current stage: ${STAGE_LABELS[c.currentStage] ?? c.currentStage}.`;
   }
 
-  // ── Add Panel Members ────────────────────────────────────────────────────
+  // ── Add Panel Members to existing interview ───────────────────────────────
   protected readonly addingPanelMember  = signal<boolean>(false);
   protected readonly addPanelSubmitting = signal<boolean>(false);
   protected readonly addPanelSuccess    = signal<boolean>(false);
@@ -566,8 +488,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
     name: '', email: '', role: '',
   });
 
-  protected openAddPanel(interviewId: string): void {
-    this.addPanelTargetId.set(interviewId);
+  protected openAddPanel(): void {
     this.addingPanelMember.set(true);
     this.addPanelSuccess.set(false);
     this.addPanelError.set(null);
@@ -575,12 +496,6 @@ export class CandidateWorkspacePageComponent implements OnInit {
     this.showAdhocFormAdd.set(false);
     this.adhocFormAdd.set({ name: '', email: '', role: '' });
     this._loadPanelMembers();
-  }
-
-  protected closeAddPanel(): void {
-    this.addingPanelMember.set(false);
-    this.addPanelTargetId.set(null);
-    this.addPanelError.set(null);
   }
 
   protected toggleAddPanelMember(memberId: string): void {
@@ -626,9 +541,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
     }));
   }
 
-  protected submitAddPanelMembers(candidateId: string): void {
-    const interviewId = this.addPanelTargetId();
-    if (!interviewId) return;
+  protected submitAddPanelMembers(candidateId: string, interviewId: string): void {
     const form = this.addPanelForm();
     if (form.panelMemberIds.length === 0 && form.adhocPanelMembers.length === 0) return;
 
@@ -646,9 +559,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
         this.addPanelSubmitting.set(false);
         this.addPanelSuccess.set(true);
         this.addingPanelMember.set(false);
-        this.addPanelTargetId.set(null);
         this.addPanelForm.set({ panelMemberIds: [], adhocPanelMembers: [] });
-        this._refreshInterviews();
       },
       error: (err) => {
         this.addPanelSubmitting.set(false);
@@ -658,79 +569,40 @@ export class CandidateWorkspacePageComponent implements OnInit {
     });
   }
 
-  // ── Complete Interview ────────────────────────────────────────────────────
-  protected readonly completeInterviewSubmitting = signal<boolean>(false);
-  protected readonly completeInterviewSuccess    = signal<string | null>(null);
-  protected readonly completeInterviewError      = signal<string | null>(null);
+  protected submitScheduleInterview(candidateId: string): void {
+    const form = this.scheduleForm();
+    const hasPanel = form.panelMemberIds.length > 0 || form.adhocPanelMembers.length > 0;
+    if (!form.scheduledAt || !hasPanel) return;
 
-  protected openCompleteForm(interviewId: string): void {
-    this.completeTargetId.set(interviewId);
-    this.completeOutcome.set('PASS');
-    this.completeInterviewError.set(null);
-  }
+    this.scheduleSubmitting.set(true);
+    this.scheduleError.set(null);
+    this.scheduleSuccess.set(null);
 
-  protected closeCompleteForm(): void {
-    this.completeTargetId.set(null);
-    this.completeInterviewError.set(null);
-  }
+    const payload: ScheduleInterviewPayload = {
+      interviewType:     form.interviewType,
+      scheduledAt:       form.scheduledAt.length === 16 ? form.scheduledAt + ':00Z' : form.scheduledAt,
+      panelMemberIds:    form.panelMemberIds,
+      adhocPanelMembers: form.adhocPanelMembers.length > 0 ? form.adhocPanelMembers : undefined,
+    };
 
-  protected submitCompleteInterview(candidateId: string): void {
-    const interviewId = this.completeTargetId();
-    if (!interviewId) return;
-
-    this.completeInterviewSubmitting.set(true);
-    this.completeInterviewSuccess.set(null);
-    this.completeInterviewError.set(null);
-
-    this.api.completeInterview(candidateId, interviewId, this.completeOutcome()).subscribe({
+    this.api.scheduleInterview(candidateId, payload).subscribe({
       next: (res) => {
-        this.completeInterviewSubmitting.set(false);
-        this.completeInterviewSuccess.set(res.interviewId);
-        this.completeTargetId.set(null);
-        this._refreshInterviews();
+        this.scheduleSubmitting.set(false);
+        this.scheduleSuccess.set(res.interviewId);
+        this.showScheduleForm.set(false);
+        this.scheduleForm.set({ interviewType: 'PHONE_SCREEN', scheduledAt: '', panelMemberIds: [], adhocPanelMembers: [] });
+        this.showAdhocForm.set(false);
+        this.adhocForm.set({ name: '', email: '', role: '' });
         this.api.getCandidate(candidateId).subscribe({
           next: (c) => { this.state.patchCandidate(c); this._directCandidate.set(c); },
           error: () => { /* non-fatal */ },
         });
-        setTimeout(() => this.completeInterviewSuccess.set(null), 4000);
       },
       error: (err) => {
-        this.completeInterviewSubmitting.set(false);
-        const msg = err?.error?.error ?? err?.message ?? 'Failed to complete interview';
-        this.completeInterviewError.set(msg);
+        this.scheduleSubmitting.set(false);
+        const msg = err?.error?.error ?? err?.message ?? 'Failed to schedule interview';
+        this.scheduleError.set(msg);
       },
     });
-  }
-
-  // ── Panel member name resolution ─────────────────────────────────────────
-  protected panelMemberName(id: string): string {
-    const member = this.panelMembers().find((m) => m.id === id);
-    return member?.name ?? id;
-  }
-
-  // ── Interview type labels ────────────────────────────────────────────────
-  protected readonly INTERVIEW_TYPE_LABELS: Record<string, string> = {
-    PHONE_SCREEN: 'Phone Screen',
-    TECHNICAL:    'Technical',
-    BEHAVIORAL:   'Behavioral',
-    CULTURE_FIT:  'Culture Fit',
-    FINAL:        'Final Round',
-  };
-
-  protected interviewTypeLabel(type: string): string {
-    return this.INTERVIEW_TYPE_LABELS[type] ?? type;
-  }
-
-  // ── Interview status helpers ─────────────────────────────────────────────
-  protected interviewStatusForType(type: string): 'COMPLETED' | 'SCHEDULED' | 'PENDING' {
-    const matching = this.interviews().filter((i) => i.interviewType === type);
-    if (matching.some((i) => i.status === 'COMPLETED')) return 'COMPLETED';
-    if (matching.some((i) => i.status === 'SCHEDULED')) return 'SCHEDULED';
-    return 'PENDING';
-  }
-
-  protected experienceLabel(years: number | undefined | null): string {
-    if (years == null) return '—';
-    return years === 1 ? '1 year' : `${years} years`;
   }
 }
