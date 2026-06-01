@@ -17,18 +17,16 @@ import { HiringStage } from '../../models/talent-flow.models';
 
 /** Human-readable labels for HiringStage values (plan §2.5) */
 export const STAGE_LABELS: Record<HiringStage, string> = {
-  APPLICATION_REVIEW:  'Application Review',
-  PHONE_SCREENING:     'Phone Screening',
-  TECHNICAL_INTERVIEW: 'Technical Interview',
-  PANEL_INTERVIEW:     'Panel Interview',
-  EVALUATION:          'Evaluation',
-  BACKGROUND_CHECK:    'Background Check',
-  OFFER_PREPARATION:   'Offer Preparation',
-  OFFER_APPROVAL:      'Offer Approval',
-  OFFER_DELIVERY:      'Offer Delivery',
-  CONTRACT_SIGNING:    'Contract Signing',
-  PRE_BOARDING:        'Pre-Boarding',
-  ONBOARDING:          'Onboarding',
+  APPLICATION_REVIEW: 'Application Review',
+  INTERVIEWING:       'Interviewing',
+  EVALUATION:         'Evaluation',
+  BACKGROUND_CHECK:   'Background Check',
+  OFFER_PREPARATION:  'Offer Preparation',
+  OFFER_APPROVAL:     'Offer Approval',
+  OFFER_DELIVERY:     'Offer Delivery',
+  CONTRACT_SIGNING:   'Contract Signing',
+  PRE_BOARDING:       'Pre-Boarding',
+  ONBOARDING:         'Onboarding',
 };
 
 export type StageState = 'completed' | 'current' | 'pending';

@@ -41,18 +41,16 @@ const CRITERIA: WeightCriterion[] = [
 // ─── SLA Thresholds ──────────────────────────────────────────────────────────
 
 const DEFAULT_THRESHOLDS: Record<HiringStage, number> = {
-  APPLICATION_REVIEW:  48,
-  PHONE_SCREENING:     72,
-  TECHNICAL_INTERVIEW: 120,
-  PANEL_INTERVIEW:     120,
-  EVALUATION:          48,
-  BACKGROUND_CHECK:    72,
-  OFFER_PREPARATION:   72,
-  OFFER_APPROVAL:      48,
-  OFFER_DELIVERY:      24,
-  CONTRACT_SIGNING:    72,
-  PRE_BOARDING:        168,
-  ONBOARDING:          240,
+  APPLICATION_REVIEW: 48,
+  INTERVIEWING:       240,
+  EVALUATION:         48,
+  BACKGROUND_CHECK:   72,
+  OFFER_PREPARATION:  72,
+  OFFER_APPROVAL:     48,
+  OFFER_DELIVERY:     24,
+  CONTRACT_SIGNING:   72,
+  PRE_BOARDING:       168,
+  ONBOARDING:         240,
 };
 
 // ─── Panel Rules ─────────────────────────────────────────────────────────────
@@ -90,10 +88,9 @@ const DEFAULT_APPROVAL_RULES: ApprovalRulesData = {
 // ─── Stage Config (V6) ───────────────────────────────────────────────────────
 
 const ALL_STAGES_ORDERED: HiringStage[] = [
-  'APPLICATION_REVIEW', 'PHONE_SCREENING', 'TECHNICAL_INTERVIEW',
-  'PANEL_INTERVIEW', 'EVALUATION', 'OFFER_PREPARATION',
-  'OFFER_APPROVAL', 'OFFER_DELIVERY', 'CONTRACT_SIGNING',
-  'PRE_BOARDING', 'ONBOARDING',
+  'APPLICATION_REVIEW', 'INTERVIEWING', 'EVALUATION',
+  'BACKGROUND_CHECK', 'OFFER_PREPARATION', 'OFFER_APPROVAL',
+  'OFFER_DELIVERY', 'CONTRACT_SIGNING', 'PRE_BOARDING', 'ONBOARDING',
 ];
 
 export interface StageConfigData {

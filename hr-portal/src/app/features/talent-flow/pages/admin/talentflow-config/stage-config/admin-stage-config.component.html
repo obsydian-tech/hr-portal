@@ -1,0 +1,49 @@
+<div class="config-page">
+
+  <div class="config-page__header">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">Stage Configuration</h2>
+      <p class="config-page__subtitle">Enable or disable hiring pipeline stages. Disabled stages are skipped in the pipeline — candidates advance directly to the next enabled stage.</p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!loading()) {
+        <tf-config-version-badge [version]="configVersion()" [changedAt]="updatedAt()" />
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="config-page__skeleton">
+      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3,4,5,6,7,8,9,10]"></div>
+    </div>
+  } @else {
+
+    <div class="config-card">
+      <div class="config-card__section-label">Pipeline Stages</div>
+
+      @for (stage of allStages; track stage) {
+        <div class="config-row config-row--toggle">
+          <div class="config-row__label">
+            <span class="config-row__label-main">{{ stageLabels[stage] }}</span>
+            <span class="config-row__label-desc">{{ stagePhase[stage] }}</span>
+          </div>
+          <div class="config-row__control">
+            <p-toggleButton
+              [ngModel]="isEnabled(stage)"
+              (ngModelChange)="toggle(stage, $event)"
+              onLabel="Enabled" offLabel="Disabled"
+              onIcon="pi pi-check" offIcon="pi pi-times"
+              styleClass="config-toggle"
+            />
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="config-save-row">
+      <p-button label="Reset to Defaults" icon="pi pi-refresh" styleClass="p-button-text p-button-secondary" [disabled]="saving()" (onClick)="confirmReset()" />
+      <p-button label="Save Changes" icon="pi pi-check" [loading]="saving()" [disabled]="saving()" (onClick)="confirmSave()" />
+    </div>
+  }
+
+</div>

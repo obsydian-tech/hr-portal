@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs kill -9)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(t\\) for t in d['TableNames']]\")",
+      "Bash(aws stepfunctions *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(sm['name'], sm['stateMachineArn']\\) for sm in d['stateMachines']]\")",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('Item',{}\\), indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\('TalentFlowAdmin:', next\\(\\(a['Value'] for a in u['Attributes'] if a['Name']=='email'\\),'?'\\)\\) for u in d.get\\('Users',[]\\)]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\('HiringManager:', next\\(\\(a['Value'] for a in u['Attributes'] if a['Name']=='email'\\),'?'\\)\\) for u in d.get\\('Users',[]\\)]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\('Group:', g['GroupName']\\) for g in d.get\\('Groups',[]\\)]\")",
+      "Bash(aws iam *)",
+      "Bash(ls E2E-TESTING-GUIDE.md)",
+      "Bash(ls docs/)",
+      "Bash(git commit -m ' *)",
+      "Bash(bash scripts/deploy-talentflow-lambdas.sh createCandidate orchestrateTalentFlowWorkflow)",
+      "Bash(echo \"WATCHING createCandidate logs PID=$!\")",
+      "Bash(echo '{\"detail\":{\"candidateId\":\"CAND-01KT14TFD46JSEB5MNA68WN3NC\",\"tenantId\":\"NALEKO\",\"positionLevel\":\"JUNIOR\"}}' > /tmp/orchestrate-payload.json && aws lambda invoke \\\\ *)",
+      "Bash(bash scripts/deploy-talentflow-lambdas.sh advanceCandidateStage scheduleInterview completeEvaluation submitVote)",
+      "Bash(cat /Users/iggie/.npm/_logs/2026-06-01T09_02_52_817Z-debug-0.log | tail -20)",
+      "Read(//Users/iggie/.npm/_logs/**)",
+      "Bash(bash \"/Users/iggie/Documents/Obsydian Projects/HR Portal Naleko/scripts/deploy-talentflow-lambdas.sh\" advanceCandidateStage)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
+    ]
+  }
+}

@@ -24,18 +24,16 @@ import { STAGE_LABELS } from '../../../components/stage-selector/stage-selector.
  */
 
 const DEFAULT_THRESHOLDS: Record<HiringStage, number> = {
-  APPLICATION_REVIEW:  48,
-  PHONE_SCREENING:     72,
-  TECHNICAL_INTERVIEW: 120,
-  PANEL_INTERVIEW:     120,
-  EVALUATION:          48,
-  BACKGROUND_CHECK:    72,
-  OFFER_PREPARATION:   72,
-  OFFER_APPROVAL:      48,
-  OFFER_DELIVERY:      24,
-  CONTRACT_SIGNING:    72,
-  PRE_BOARDING:        168,
-  ONBOARDING:          240,
+  APPLICATION_REVIEW: 48,
+  INTERVIEWING:       240,
+  EVALUATION:         48,
+  BACKGROUND_CHECK:   72,
+  OFFER_PREPARATION:  72,
+  OFFER_APPROVAL:     48,
+  OFFER_DELIVERY:     24,
+  CONTRACT_SIGNING:   72,
+  PRE_BOARDING:       168,
+  ONBOARDING:         240,
 };
 
 @Component({

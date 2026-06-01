@@ -7,32 +7,39 @@
  *
  * Steps:
  *   1. Parse candidateId from path, newStage + tenantId from body
- *   2. GetItem SAGA → currentStage
+ *   2. GetItem SAGA → currentStage, positionLevel
  *   3. Validate forward-only transition (STAGE_ORDER)
- *   4. UpdateItem SAGA: currentStage=newStage, stageEnteredAt=now
- *   5. Publish StageAdvanced to EventBridge talent-flow-bus
+ *   4. If advancing FROM INTERVIEWING: gate check — all required interview
+ *      types must have status=COMPLETED (per PANEL_CONFIG.interviewRequirements
+ *      for this candidate's positionLevel). Returns 409 if any are pending.
+ *   5. UpdateItem SAGA: currentStage=newStage, stageEnteredAt=now
+ *   6. Publish StageAdvanced to EventBridge talent-flow-bus
  *
  * Env vars:
- *   STATE_TABLE_NAME   — talent-flow-state
+ *   STATE_TABLE_NAME     — talent-flow-state
+ *   CONFIG_TABLE_NAME    — talent-flow-config
  *   EVENTBRIDGE_BUS_NAME — talent-flow-bus
  */
 
-const { DynamoDBClient, GetItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, GetItemCommand, UpdateItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
+const { getConfig } = require('../shared/config-reader');
 
 const dynamo = new DynamoDBClient({});
 const eb     = new EventBridgeClient({});
 
-const STATE_TABLE = process.env.STATE_TABLE_NAME  || 'talent-flow-state';
+const STATE_TABLE = process.env.STATE_TABLE_NAME    || 'talent-flow-state';
 const EB_BUS      = process.env.EVENTBRIDGE_BUS_NAME || 'talent-flow-bus';
 
-/** Ordered list of hiring stages — index determines allowed forward movement */
+/**
+ * 10-stage pipeline. PHONE_SCREENING, TECHNICAL_INTERVIEW, PANEL_INTERVIEW
+ * are replaced by a single INTERVIEWING stage with a configurable sub-loop.
+ * The interview types required per positionLevel are defined in PANEL_CONFIG.
+ */
 const STAGE_ORDER = [
   'APPLICATION_REVIEW',
-  'PHONE_SCREENING',
-  'TECHNICAL_INTERVIEW',
-  'PANEL_INTERVIEW',
+  'INTERVIEWING',
   'EVALUATION',
   'BACKGROUND_CHECK',
   'OFFER_PREPARATION',
@@ -50,13 +57,81 @@ function notFound(msg)     { return { statusCode: 404, body: JSON.stringify({ er
 function conflict(msg)     { return { statusCode: 409, body: JSON.stringify({ error: msg }) }; }
 function serverError(msg)  { return { statusCode: 500, body: JSON.stringify({ error: msg }) }; }
 
+// ── Interview loop gate ───────────────────────────────────────────────────────
+/**
+ * When leaving INTERVIEWING, verify every required interview type
+ * (per PANEL_CONFIG.interviewRequirements[positionLevel]) has at least
+ * one INTERVIEW# record with status=COMPLETED.
+ *
+ * Returns null if the gate passes, or a 409 response if it does not.
+ */
+async function checkInterviewLoopComplete(candidateId, tenantId, positionLevel) {
+  // Read active PANEL_CONFIG — always use active version for gate checks (Invariant #3)
+  let panelConfig;
+  try {
+    panelConfig = await getConfig(tenantId, 'PANEL_CONFIG');
+  } catch (err) {
+    console.error('interviewLoopGate: failed to read PANEL_CONFIG', { tenantId, error: err.message });
+    return serverError('Failed to read panel configuration');
+  }
+
+  const requirements = panelConfig && panelConfig.interviewRequirements && panelConfig.interviewRequirements[positionLevel];
+  if (!requirements || requirements.length === 0) {
+    // No requirements configured — gate passes (graceful degradation)
+    console.warn('interviewLoopGate: no interviewRequirements for positionLevel — gate skipped', { positionLevel });
+    return null;
+  }
+
+  const requiredTypes = requirements
+    .filter((r) => r.required !== false)
+    .map((r) => r.type);
+
+  if (requiredTypes.length === 0) return null;
+
+  // Query all INTERVIEW# records for this candidate
+  let interviews = [];
+  try {
+    const result = await dynamo.send(new QueryCommand({
+      TableName: STATE_TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+      ExpressionAttributeValues: marshall({
+        ':pk':     `CANDIDATE#${candidateId}`,
+        ':prefix': 'INTERVIEW#',
+      }),
+      ProjectionExpression: 'interviewType, #s',
+      ExpressionAttributeNames: { '#s': 'status' },
+    }));
+    interviews = (result.Items || []).map((i) => unmarshall(i));
+  } catch (err) {
+    console.error('interviewLoopGate: failed to query INTERVIEW records', { candidateId, error: err.message });
+    return serverError('Failed to verify interview completion');
+  }
+
+  // Build a set of completed interview types
+  const completedTypes = new Set(
+    interviews
+      .filter((i) => i.status === 'COMPLETED')
+      .map((i) => i.interviewType)
+  );
+
+  const pending = requiredTypes.filter((t) => !completedTypes.has(t));
+
+  if (pending.length > 0) {
+    const fmt = (t) => t.split('_').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ');
+    const pendingLabels = pending.map(fmt).join(', ');
+    return conflict(
+      `To advance to Evaluation, the following required interviews must be completed first: ${pendingLabels}.`
+    );
+  }
+
+  return null; // gate passed
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
-  // Parse candidateId from path parameter
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return badRequest('Missing candidateId path parameter');
 
-  // Parse body
   let body;
   try {
     body = event.body
@@ -81,16 +156,15 @@ exports.handler = async (event) => {
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
     }));
-    if (!result.Item) {
-      return notFound(`Candidate ${candidateId} not found`);
-    }
+    if (!result.Item) return notFound(`Candidate ${candidateId} not found`);
     saga = unmarshall(result.Item);
   } catch (err) {
     console.error('Failed to read SAGA', { candidateId, error: err.message });
     return serverError('Failed to read candidate record');
   }
 
-  const currentStage = saga.currentStage;
+  const currentStage  = saga.currentStage;
+  const positionLevel = saga.positionLevel;
 
   // ── Step 3: Validate forward-only transition ────────────────────────────────
   const currentIdx = STAGE_ORDER.indexOf(currentStage);
@@ -105,9 +179,15 @@ exports.handler = async (event) => {
     );
   }
 
+  // ── Step 4: Interview loop gate (only when leaving INTERVIEWING) ───────────
+  if (currentStage === 'INTERVIEWING') {
+    const gateError = await checkInterviewLoopComplete(candidateId, tenantId, positionLevel);
+    if (gateError) return gateError;
+  }
+
   const now = new Date().toISOString();
 
-  // ── Step 4: Update SAGA ────────────────────────────────────────────────────
+  // ── Step 5: Update SAGA ────────────────────────────────────────────────────
   try {
     await dynamo.send(new UpdateItemCommand({
       TableName: STATE_TABLE,
@@ -120,7 +200,7 @@ exports.handler = async (event) => {
     return serverError('Failed to advance candidate stage');
   }
 
-  // ── Step 5: Publish StageAdvanced event ────────────────────────────────────
+  // ── Step 6: Publish StageAdvanced event ────────────────────────────────────
   try {
     await eb.send(new PutEventsCommand({
       Entries: [{
@@ -137,7 +217,6 @@ exports.handler = async (event) => {
       }],
     }));
   } catch (err) {
-    // Non-fatal: SAGA already updated — log and continue
     console.error('Failed to publish StageAdvanced event', { candidateId, newStage, error: err.message });
   }
 

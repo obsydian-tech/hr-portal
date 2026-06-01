@@ -13,6 +13,7 @@ import {
   UpdateCandidatePayload,
   EngagementSentiment,
   HiringStage,
+  Interview,
   InteractionOutcome,
   InteractionType,
   Offer,
@@ -213,6 +214,40 @@ export class TalentFlowApiService {
     );
   }
 
+  completeInterview(
+    candidateId: string,
+    interviewId: string,
+    outcome?: 'PASS' | 'DEFER' | 'FAIL',
+  ): Observable<{ interviewId: string; candidateId: string; status: string; completedAt: string }> {
+    const body: Record<string, string> = { action: 'complete' };
+    if (outcome) body['outcome'] = outcome;
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.patch<{ interviewId: string; candidateId: string; status: string; completedAt: string }>(
+          `${this.baseUrl}/candidates/${candidateId}/interviews/${interviewId}`,
+          body,
+          { headers },
+        ),
+      ),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  getInterviews(candidateId: string): Observable<Interview[]> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<{ interviews: Interview[] }>(
+          `${this.baseUrl}/candidates/${candidateId}/interviews`,
+          { headers },
+        ),
+      ),
+      map((res) => res.interviews ?? []),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
   // Votes
 
   submitVote(candidateId: string, payload: VotePayload): Observable<{ voteId: string }> {
@@ -262,8 +297,7 @@ export class TalentFlowApiService {
 
   /** Ordered stages used for forward-only validation (mirrors Lambda STAGE_ORDER) */
   static readonly STAGE_ORDER: HiringStage[] = [
-    'APPLICATION_REVIEW', 'PHONE_SCREENING', 'TECHNICAL_INTERVIEW',
-    'PANEL_INTERVIEW', 'EVALUATION', 'BACKGROUND_CHECK',
+    'APPLICATION_REVIEW', 'INTERVIEWING', 'EVALUATION', 'BACKGROUND_CHECK',
     'OFFER_PREPARATION', 'OFFER_APPROVAL', 'OFFER_DELIVERY',
     'CONTRACT_SIGNING', 'PRE_BOARDING', 'ONBOARDING',
   ];

@@ -210,25 +210,15 @@ exports.handler = async (event) => {
     return serverError('Failed to update vote counter');
   }
 
-  // ── Quorum check: read votesRequired from interview record ────────────────
+  // ── Quorum check: votesRequired comes from PANEL_CONFIG (versioned) ─────────
+  // Previously read from the first INTERVIEW# record which is fragile when a
+  // candidate has multiple interviews (INTERVIEWING stage loop). Reading from
+  // PANEL_CONFIG with the candidate's locked configVersion is authoritative.
   let votesRequired = null;
   try {
-    const interviewQuery = await dynamo.send(new QueryCommand({
-      TableName: STATE_TABLE,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
-      ExpressionAttributeValues: marshall({
-        ':pk':     `CANDIDATE#${candidateId}`,
-        ':prefix': 'INTERVIEW#',
-      }),
-      ProjectionExpression: 'votesRequired',
-      Limit: 1,
-    }));
-    if (interviewQuery.Items && interviewQuery.Items.length > 0) {
-      votesRequired = unmarshall(interviewQuery.Items[0]).votesRequired;
-    }
+    votesRequired = panelConfig?.rules?.votesRequired?.[saga.positionLevel] ?? null;
   } catch (err) {
-    console.error('Failed to query interview record for votesRequired', { candidateId, error: err.message });
-    // Non-fatal for the vote record — but we cannot check quorum
+    console.error('Failed to resolve votesRequired from PANEL_CONFIG', { candidateId, error: err.message });
   }
 
   // ── Publish VotingCompleted if quorum met ─────────────────────────────────
