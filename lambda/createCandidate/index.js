@@ -148,8 +148,10 @@ exports.handler = async (event) => {
   const candidateId = `CAND-${ulid()}`;
 
   // ── Step 6: Write SAGA record to talent-flow-state ────────────────────────
-  // configVersion is intentionally null here — orchestrateTalentFlowWorkflow sets it
-  // when it reads active config after consuming the CandidateCreated event.
+  // configVersion is intentionally OMITTED — orchestrateTalentFlowWorkflow sets it
+  // via attribute_not_exists(configVersion) condition. Writing null would create a
+  // DynamoDB NULL-type attribute that satisfies attribute_exists, causing orchestrate
+  // to skip with "already locked" on every invocation.
   const now = new Date().toISOString();
   const sagaRecord = {
     PK: `CANDIDATE#${candidateId}`,
@@ -167,7 +169,7 @@ exports.handler = async (event) => {
     stageEnteredAt: now,
     status: 'ACTIVE',
     slaStatus: 'ON_TRACK',
-    configVersion: null,  // set by orchestrateTalentFlowWorkflow
+    configVersion: undefined,  // omitted — orchestrateTalentFlowWorkflow sets it via attribute_not_exists condition
     createdAt: now,
   };
 
