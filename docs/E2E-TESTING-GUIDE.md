@@ -1,7 +1,7 @@
 # TalentFlow E2E Testing & Troubleshooting Guide
 
 **Living document — updated as we test and fix.**
-Last updated: 2026-06-01 (Phase 5)
+Last updated: 2026-06-01 (Phase 6)
 
 ---
 
@@ -33,13 +33,29 @@ This is a running log of every bug found, confirmed, and fixed during end-to-end
 
 ## Platform Users & Roles (NALEKO tenant)
 
-### TalentFlow Cognito Pool (`af-south-1_C8TTlQxY7`)
+### Cognito Pool Architecture — IMPORTANT (updated Phase 6 — pool consolidation)
 
-| User | Email | Groups | Notes |
+There are **two separate Cognito pools**. Everyone logs in via the **Naleko pool** — the TF pool has no login page and `TalentFlowAuthService.currentUser()` is always `null`.
+
+| Pool | ID | Used for |
+|---|---|---|
+| **Naleko pool** | `af-south-1_2LdAGFnw2` | Login, API JWT auth, HM group membership |
+| TF pool (legacy) | `af-south-1_C8TTlQxY7` | Exists but no active login — do not use for group/sub lookups |
+
+The TF API Gateway authorizer (`ko4zam`) validates tokens against the **Naleko pool**.
+
+### Naleko Pool (`af-south-1_2LdAGFnw2`) — TalentFlow users
+
+| User | Email | Naleko Sub | Naleko Groups | Notes |
+|---|---|---|---|---|
+| Ignecious M | iggytanakamush@gmail.com | _(admin)_ | `naleko-talentflow-hr` | Primary test TA/admin |
+| Tshepo Mashego | joworesources@gmail.com | `b10ca268-a071-70ca-78ce-9dbe8733466d` | `naleko-talentflow-hiringmanager`, `naleko-talentflow-hr`, `employee` | HM for interview flow |
+
+### TalentFlow Cognito Pool (`af-south-1_C8TTlQxY7`) — legacy reference only
+
+| User | Email | Old TF Sub | Notes |
 |---|---|---|---|
-| Ignecious M | iggytanakamush@gmail.com | TalentFlowAdmin | Primary test admin |
-| Ignecious M | ignecious@obsydiantechnologies.com | TalentFlowAdmin | Secondary admin |
-| Tshepo Mashego | joworesources@gmail.com | HiringManager | HM for interview flow |
+| Tshepo Mashego | joworesources@gmail.com | `81cce2a8-6031-70d2-0245-a94444b38552` | **Superseded** — Naleko sub `b10ca268...` now used as `hiringManagerId` in DynamoDB |
 
 ### Groups with no users assigned ⚠️
 
@@ -632,6 +648,181 @@ bash scripts/deploy-talentflow-lambdas.sh
 
 ---
 
+### BUG-016 — HM Dashboard: `NG0203 toObservable()` called outside injection context
+
+| Field | Detail |
+|---|---|
+| **Severity** | High (runtime crash) |
+| **Status** | ✅ Fixed — `hm-dashboard-page.component.ts` 2026-06-01 |
+| **Discovered** | 2026-06-01 — HM Dashboard would not load; Angular error thrown on navigation |
+| **Affects** | Any navigation to `/platform/talentflow/hm-dashboard` |
+
+**Symptom:** Navigating to the HM Dashboard throws a runtime Angular error. Component never renders.
+
+**Browser console error:**
+```
+NG0203: toObservable() can only be used within an injection context
+```
+
+**Root cause:** `toObservable()` was called inside `ngOnInit()`, which is not an Angular injection context. It must be called in the constructor (where `inject()` is valid) or at field-initialisation time.
+
+**Fix:** Moved the `toObservable()` call from `ngOnInit` to the constructor. Subsequently refactored to remove `toObservable` entirely — `loadCandidates()` is now called directly in the constructor after the Naleko session is confirmed available.
+
+---
+
+### BUG-017 — HM Dashboard loads all candidates instead of HM-filtered ones (pool consolidation)
+
+| Field | Detail |
+|---|---|
+| **Severity** | Critical (data leak) |
+| **Status** | ✅ Fixed — `auth.service.ts`, `hm-dashboard-page.component.ts` 2026-06-01 |
+| **Discovered** | 2026-06-01 — Tshepo saw every candidate in the system, not just his own |
+| **Affects** | HM Dashboard — My Candidates, My Tasks, Decisions tabs |
+
+**Symptom:** After logging in as an HM, all candidates in the tenant are displayed instead of only those assigned to that HM.
+
+**Root cause (multi-layer):**
+1. `TalentFlowAuthService.currentUser()` is always `null` — there is no TF-specific login page; everyone authenticates via the Naleko pool, but `TalentFlowAuthService` pointed to the TF pool (`af-south-1_C8TTlQxY7`) which had no active session.
+2. `hmId` was derived from `tfAuth.currentUser()?.email ?? ''` — always `''`.
+3. `getCandidates` Lambda: when `hiringManagerId` is an empty string it skips the DynamoDB filter expression entirely and returns **all** candidates for the tenant.
+4. `APP_INITIALIZER` only calls `nalekoAuth.checkSession()` — `tfAuth.checkSession()` was never called, so even if the TF pool had a user it would never be restored.
+
+**Fix:**
+- Added `sub: string` field to `AuthUser` interface in `auth.service.ts`, extracted from `payload['sub']`.
+- `loadCandidates()` now reads `nalekoAuth.currentUser()?.sub` (Naleko pool sub = the value stored as `hiringManagerId` in DynamoDB after pool consolidation).
+- Hard guard added: if `hmId` is empty, shows error message and does NOT call the API.
+- Removed `tfAuth.checkSession()` wrapper — `loadCandidates()` called directly in constructor (Naleko session is already restored by `APP_INITIALIZER`).
+
+---
+
+### BUG-018 — DynamoDB `hiringManagerId` values are email strings or old TF pool sub
+
+| Field | Detail |
+|---|---|
+| **Severity** | Critical (data) |
+| **Status** | ✅ Fixed — 8 DynamoDB SAGA records backfilled 2026-06-01 |
+| **Discovered** | 2026-06-01 — even after BUG-017 fix, `getCandidates` returned 0 results for Tshepo |
+| **Affects** | All SAGA records created before pool consolidation |
+
+**Symptom:** After fixing BUG-017, the API is called with the correct Naleko sub (`b10ca268...`) but still returns 0 candidates for Tshepo.
+
+**Root cause:** Existing SAGA records had `hiringManagerId` set to either:
+- `joworesources@gmail.com` (email string — from early TA test data entry)
+- `81cce2a8-6031-70d2-0245-a94444b38552` (old TF pool sub — from when `createCandidate` was using the TF pool token)
+
+Neither value matches Tshepo's Naleko pool sub `b10ca268-a071-70ca-78ce-9dbe8733466d`.
+
+**Fix:** Backfilled all 8 Tshepo SAGA records via AWS CLI:
+```bash
+# Scan for stale values
+aws dynamodb scan --table-name talent-flow-state \
+  --filter-expression "hiringManagerId IN (:email, :oldSub)" \
+  --expression-attribute-values '{
+    ":email":{"S":"joworesources@gmail.com"},
+    ":oldSub":{"S":"81cce2a8-6031-70d2-0245-a94444b38552"}
+  }' \
+  --projection-expression "PK,SK" --region af-south-1
+
+# For each CANDIDATE#<id> / SAGA record found:
+aws dynamodb update-item --table-name talent-flow-state \
+  --key '{"PK":{"S":"CANDIDATE#<id>"},"SK":{"S":"SAGA"}}' \
+  --update-expression "SET hiringManagerId = :newSub" \
+  --expression-attribute-values '{ ":newSub":{"S":"b10ca268-a071-70ca-78ce-9dbe8733466d"} }' \
+  --region af-south-1
+```
+
+**Going forward:** `createCandidate` receives `hiringManagerId` from the TA's HM dropdown, which now comes from `getHiringManagers` — which returns Naleko pool subs (see BUG-019).
+
+---
+
+### BUG-019 — `getHiringManagers` Lambda using TF Cognito pool — returns wrong sub for HMs
+
+| Field | Detail |
+|---|---|
+| **Severity** | High |
+| **Status** | ✅ Fixed — Lambda updated + deployed, Terraform applied 2026-06-01 |
+| **Discovered** | 2026-06-01 — HM dropdown showed correct names but `createCandidate` saved TF-pool sub as `hiringManagerId` |
+| **Affects** | All new candidates created via Create Candidate form |
+
+**Symptom:** TA creates a candidate and assigns Tshepo as HM. Candidate is saved with `hiringManagerId = 81cce2a8...` (old TF pool sub). Tshepo's HM Dashboard never finds the candidate.
+
+**Root cause:** `getHiringManagers/index.js` called `ListUsersInGroupCommand` against the TF pool (`af-south-1_C8TTlQxY7`) with group name `HiringManager`. The sub it returned was the user's TF-pool sub — completely different from their Naleko-pool sub.
+
+**Fix:**
+- `lambda/getHiringManagers/index.js` — changed to use Naleko pool (`af-south-1_2LdAGFnw2`) and group `naleko-talentflow-hiringmanager`
+- `infra/talentflow-hiring-managers.tf` — IAM resource ARN updated to Naleko pool; env vars renamed: `TF_COGNITO_POOL_ID` → `HM_COGNITO_POOL_ID`; added `HM_GROUP_NAME = "naleko-talentflow-hiringmanager"`
+- `terraform apply` — 2 resources changed (IAM policy + Lambda env vars)
+- Lambda redeployed via `npm install && zip` + `aws lambda update-function-code`
+
+**Verification:**
+```bash
+aws lambda invoke --function-name getHiringManagers \
+  --payload '{"queryStringParameters":{"tenantId":"NALEKO"}}' \
+  --region af-south-1 /tmp/out.json && cat /tmp/out.json
+# Expected: [{ sub: 'b10ca268-...', name: 'Tshepo Mashego' }]
+```
+
+---
+
+### BUG-020 — HM nav links "My Candidates" / "Decisions" navigate to wrong route
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium (UX) |
+| **Status** | ✅ Fixed — `talent-flow-shell.component.html` 2026-06-01 |
+| **Discovered** | 2026-06-01 — clicking "My Candidates" in HM topbar navigated to `/candidates` (TA pipeline view) |
+| **Affects** | HM topbar navigation — My Candidates and Decisions links |
+
+**Symptom:** Clicking "My Candidates" in the HM topbar navigated to the TA candidate pipeline page (`/platform/talentflow/candidates`) instead of the HM dashboard candidates tab.
+
+**Root cause:** Nav links used `routerLink="/platform/talentflow/candidates"` — the TA pipeline route. No tab-switching mechanism existed for the HM dashboard.
+
+**Fix:**
+- Links changed to `routerLink="/platform/talentflow/hm-dashboard"` with `[queryParams]="{ tab: 'candidates' }"` (and `decisions` respectively).
+- `hm-dashboard-page.component.ts` constructor reads `route.snapshot.queryParamMap.get('tab')` and calls `activeTab.set(tabParam)` on init.
+
+---
+
+### BUG-021 — `isTA()` always returns `true` — HMs see all TA-only actions (Edit / Reject / Advance / Schedule)
+
+| Field | Detail |
+|---|---|
+| **Severity** | Critical (access control) |
+| **Status** | ✅ Fixed — `candidate-workspace-page.component.ts` 2026-06-01 |
+| **Discovered** | 2026-06-01 — logged in as Tshepo (HM), opened candidate workspace — Edit Details, Reject Candidate, Schedule Interview, and Advance Stage all visible |
+| **Affects** | Every user — all HMs have full TA UI access |
+
+**Symptom:** An HM opening a candidate workspace sees Edit Details, Reject Candidate, Schedule Interview, and Advance Stage — all actions that should be TA-only.
+
+**Root cause:**
+```typescript
+// BEFORE — broken
+protected readonly isTA = computed(
+  () => this.tfAuth.isAdmin() || !this.tfAuth.isHiringManager(),
+);
+// tfAuth.currentUser() is always null (pool consolidation — no TF login page)
+// → isAdmin() = false, isHiringManager() = false
+// → isTA = false || !false = TRUE for every user
+```
+
+**Fix:**
+```typescript
+// AFTER — correct
+private readonly nalekoAuth = inject(AuthService); // Naleko pool
+
+protected readonly isTA = computed(() => {
+  const user = this.nalekoAuth.currentUser();
+  if (!user) return false;
+  return !user.groups.includes('naleko-talentflow-hiringmanager');
+});
+```
+Tshepo has `naleko-talentflow-hiringmanager` in his Naleko JWT → `isTA() = false` → all TA buttons hidden.
+TA users (not in that group) → `isTA() = true` → all buttons visible.
+
+**Note:** `AuthService` (Naleko pool) is already initialized by `APP_INITIALIZER` before any routing — `currentUser()` is reliably populated when the workspace renders.
+
+---
+
 ## Interview Loop — E2E Test Checklist
 
 Use a fresh candidate for this test. Existing stale candidates (at `PHONE_SCREENING`, `ONBOARDING`, etc.) should be discarded.
@@ -726,6 +917,12 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 | `votesSubmitted` growing beyond `votesRequired` | SAGA-level counter not cleared between interviews — `submitVote` should target `INTERVIEW#` record (BUG-013) |
 | Candidate fields empty despite being entered | Created before BUG-009 fix, or `createCandidate` not redeployed — check Lambda version date |
 | SLA breach not detected | CloudWatch `/aws/lambda/monitorTalentFlowSLAs` |
+| HM Dashboard shows all candidates / no candidates | `nalekoAuth.currentUser()?.sub` empty, or DynamoDB `hiringManagerId` not backfilled — compare sub to SAGA records (BUG-017/018) |
+| HM Dashboard infinite loading / NG0203 error | `toObservable()` called outside injection context — must be in constructor (BUG-016) |
+| `getHiringManagers` returns wrong subs | Lambda still pointing at TF pool — check `HM_COGNITO_POOL_ID` env var = `af-south-1_2LdAGFnw2` (BUG-019) |
+| HM nav link opens TA pipeline view | Shell nav link missing `?tab=` query param — check `routerLink` + `[queryParams]` in `talent-flow-shell.component.html` (BUG-020) |
+| HM sees Edit / Reject / Advance / Schedule buttons | `isTA()` using broken `tfAuth` — must use `nalekoAuth` Naleko group check (BUG-021) |
+| New candidate `hiringManagerId` is email or old TF sub | `getHiringManagers` was using TF pool — redeploy Lambda + backfill DynamoDB (BUG-018/019) |
 
 ---
 
@@ -783,3 +980,13 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 - [x] BUG-015: Manual Lambda zip skipped `require` path patch — broke cold start with `ImportModuleError` — must always use `deploy-talentflow-lambdas.sh`
 - [x] Both Lambdas redeployed via `deploy-talentflow-lambdas.sh`
 - [x] Phase 5 reference candidate `CAND-01KT1Q9A6RRY8TEMA7TS5B8P2E` — full interview loop + advance to EVALUATION confirmed clean in CloudWatch
+
+### Phase 6 — HM Dashboard pool consolidation fixes (completed 2026-06-01)
+- [x] BUG-016: `NG0203 toObservable()` outside injection context — moved to constructor; replaced with direct `loadCandidates()` call
+- [x] BUG-017: HM Dashboard showing all candidates — switched from `tfAuth.currentUser()?.email` to `nalekoAuth.currentUser()?.sub`
+- [x] `AuthUser` interface: added `sub: string` field extracted from JWT `payload['sub']`
+- [x] BUG-018: DynamoDB `hiringManagerId` backfilled — 8 SAGA records updated from email/TF-sub to `b10ca268-a071-70ca-78ce-9dbe8733466d` (Tshepo's Naleko sub)
+- [x] BUG-019: `getHiringManagers` Lambda updated to Naleko pool (`af-south-1_2LdAGFnw2`) + group `naleko-talentflow-hiringmanager`; `terraform apply` (2 resources changed); Lambda redeployed
+- [x] BUG-020: HM nav links fixed — `routerLink="/platform/talentflow/hm-dashboard"` + `[queryParams]="{ tab: 'candidates' | 'decisions' }"`
+- [x] BUG-021: `isTA()` rewritten — uses `nalekoAuth.currentUser()?.groups.includes('naleko-talentflow-hiringmanager')`; commit `f846051`
+- [x] All changes committed + pushed → `feat/candidate-workspace-interview-flow-fix` (commits `beff9e3`, `f846051`)
