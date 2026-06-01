@@ -296,6 +296,18 @@
   }
 }
 
+.tf-ws-voted-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--naleko-radius-pill);
+  background: color-mix(in srgb, var(--naleko-success, #22c55e) 12%, transparent);
+  color: var(--naleko-success, #22c55e);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 // ── Body (tab content wrapper) ────────────────────────────────────────────────
 .tf-workspace__body {
   display: flex;

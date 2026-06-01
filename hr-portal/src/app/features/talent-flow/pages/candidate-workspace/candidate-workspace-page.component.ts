@@ -148,6 +148,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
         this.engagementSentiment.set(inCache.interviewSentiment as EngagementSentiment);
       }
       this._loadEvents(id);
+      this._loadPanelConfig(inCache.positionLevel);
       return;
     }
 
@@ -161,6 +162,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
           this.engagementSentiment.set(c.interviewSentiment as EngagementSentiment);
         }
         this._loadEvents(id);
+        this._loadPanelConfig(c.positionLevel);
       },
       error: () => {
         this.fetchError.set('Could not load candidate.');
@@ -175,10 +177,6 @@ export class CandidateWorkspacePageComponent implements OnInit {
       const id = this.candidateId();
       if (id && !this._interviewsLoaded) this._loadInterviews(id);
       if (this.panelMembers().length === 0) this._loadPanelMembers();
-      const c = this.candidate();
-      if (c?.currentStage === 'INTERVIEWING' && !this.panelConfigLoaded()) {
-        this._loadPanelConfig(c.positionLevel);
-      }
     }
   }
 
@@ -781,6 +779,9 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   // ── Per-interview Vote Form ───────────────────────────────────────────────
+  // Tracks which interviews have received a vote this session — hides the vote button after submission
+  protected readonly votedInterviewIds = signal<ReadonlySet<string>>(new Set<string>());
+
   protected readonly voteTargetId   = signal<string | null>(null);
   protected readonly voteDecision   = signal<'STRONG_NO' | 'NO' | 'YES' | 'STRONG_YES'>('YES');
   protected readonly voteNotes      = signal<string>('');
@@ -842,7 +843,8 @@ export class CandidateWorkspacePageComponent implements OnInit {
     this.api.submitVote(candidateId, payload).subscribe({
       next: (res) => {
         this.voteSubmitting.set(false);
-        this.voteSuccess.set(res.voteId);
+        this.voteSuccess.set(res.voteId ?? interviewId);
+        this.votedInterviewIds.update((prev) => new Set([...prev, interviewId]));
         this.voteTargetId.set(null);
         setTimeout(() => this.voteSuccess.set(null), 4000);
       },

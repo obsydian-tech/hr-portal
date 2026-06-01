@@ -37,12 +37,30 @@
 const { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
 const { getConfig } = require('../shared/config-reader');
 
 const VALID_POSITION_LEVELS = ['JUNIOR', 'MID', 'SENIOR'];
 
 const dynamo = new DynamoDBClient({});
 const sqs    = new SQSClient({});
+const eb     = new EventBridgeClient({});
+
+async function publishEvent(detailType, detail) {
+  try {
+    await eb.send(new PutEventsCommand({
+      Entries: [{
+        EventBusName: process.env.EVENTBRIDGE_BUS_NAME,
+        Source:       'talent-flow.interviews',
+        DetailType:   detailType,
+        Detail:       JSON.stringify({ ...detail, actor: 'HUMAN' }),
+      }],
+    }));
+  } catch (err) {
+    // Non-fatal — interview record already written; EB failure only affects activity log
+    console.error('EventBridge publish failed (non-fatal)', { detailType, error: err.message });
+  }
+}
 
 function badRequest(message) { return { statusCode: 400, body: JSON.stringify({ error: message }) }; }
 function notFound(message)   { return { statusCode: 404, body: JSON.stringify({ error: message }) }; }
@@ -80,6 +98,8 @@ async function handleCompleteInterview(event) {
     console.error('handleCompleteInterview: UpdateItem failed', { interviewId, error: err.message });
     return serverError('Failed to mark interview as completed');
   }
+
+  await publishEvent('InterviewCompleted', { candidateId, interviewId, outcome: outcome ?? null });
 
   console.info('Interview marked COMPLETED', { candidateId, interviewId, outcome: outcome ?? 'not set' });
   return ok({ interviewId, candidateId, status: 'COMPLETED', completedAt: now });
@@ -228,6 +248,44 @@ exports.handler = async (event) => {
     );
   }
 
+  // ── Guard: no concurrent SCHEDULED interview (sequential rule) ───────────
+  // ── Guard: no duplicate COMPLETED type (each type runs once) ────────────
+  let existingInterviews = [];
+  try {
+    const existingResult = await dynamo.send(new QueryCommand({
+      TableName: process.env.STATE_TABLE_NAME,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+      ExpressionAttributeValues: marshall({
+        ':pk':     `CANDIDATE#${candidateId}`,
+        ':prefix': 'INTERVIEW#',
+      }),
+      ProjectionExpression: 'interviewType, #s',
+      ExpressionAttributeNames: { '#s': 'status' },
+    }));
+    existingInterviews = (existingResult.Items || []).map((i) => unmarshall(i));
+  } catch (err) {
+    console.error('Failed to query existing interviews', { candidateId, error: err.message });
+    return serverError('Failed to validate interview scheduling');
+  }
+
+  const scheduledOne = existingInterviews.find((i) => i.status === 'SCHEDULED');
+  if (scheduledOne) {
+    return conflict(
+      `Cannot schedule a new interview while ${scheduledOne.interviewType.replace(/_/g, ' ')} ` +
+      `is still in SCHEDULED state. Mark it as COMPLETED first.`
+    );
+  }
+
+  const alreadyCompleted = existingInterviews.find(
+    (i) => i.interviewType === interviewType && i.status === 'COMPLETED',
+  );
+  if (alreadyCompleted) {
+    return conflict(
+      `A ${interviewType.replace(/_/g, ' ')} interview has already been COMPLETED for this candidate. ` +
+      `Each interview type can only be completed once.`
+    );
+  }
+
   const positionLevel = saga.positionLevel;
   if (!VALID_POSITION_LEVELS.includes(positionLevel)) {
     return badRequest(`positionLevel must be one of: ${VALID_POSITION_LEVELS.join(', ')} — got: ${positionLevel}`);
@@ -333,6 +391,11 @@ exports.handler = async (event) => {
       console.error('Failed to enqueue notification', { recipientId, interviewId, error: err.message });
     }
   }
+
+  await publishEvent('InterviewScheduled', {
+    candidateId, interviewId, tenantId, interviewType, scheduledAt,
+    positionLevel, panelMemberIds: systemIds,
+  });
 
   console.info('Interview scheduled', {
     interviewId, candidateId, tenantId, interviewType, positionLevel, votesRequired,

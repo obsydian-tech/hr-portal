@@ -435,11 +435,15 @@
                   <!-- Vote button + form for COMPLETED interviews -->
                   @if (iv.status === 'COMPLETED') {
                     <div class="tf-interview-card__actions">
-                      <button class="tf-ws-ghost-btn"
-                        (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
-                        <i class="pi pi-star"></i>
-                        {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote / Score' }}
-                      </button>
+                      @if (votedInterviewIds().has(iv.interviewId)) {
+                        <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> Voted</span>
+                      } @else {
+                        <button class="tf-ws-ghost-btn"
+                          (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
+                          <i class="pi pi-star"></i>
+                          {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote / Score' }}
+                        </button>
+                      }
                     </div>
                     @if (voteTargetId() === iv.interviewId) {
                       <div class="tf-ws-vote-form">
@@ -523,11 +527,15 @@
                         <i class="pi pi-check"></i>
                         {{ completeTargetId() === iv.interviewId ? 'Cancel' : 'Mark Complete' }}
                       </button>
-                      <button class="tf-ws-ghost-btn"
-                        (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
-                        <i class="pi pi-star"></i>
-                        {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote' }}
-                      </button>
+                      @if (votedInterviewIds().has(iv.interviewId)) {
+                        <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> Voted</span>
+                      } @else {
+                        <button class="tf-ws-ghost-btn"
+                          (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
+                          <i class="pi pi-star"></i>
+                          {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote' }}
+                        </button>
+                      }
                     </div>
 
                     <!-- Add panel inline form -->
