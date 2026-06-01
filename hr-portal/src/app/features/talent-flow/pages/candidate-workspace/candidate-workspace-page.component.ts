@@ -569,6 +569,33 @@ export class CandidateWorkspacePageComponent implements OnInit {
     });
   }
 
+  // ── Complete Interview ────────────────────────────────────────────────────
+  protected readonly completeInterviewSubmitting = signal<boolean>(false);
+  protected readonly completeInterviewSuccess    = signal<string | null>(null);
+  protected readonly completeInterviewError      = signal<string | null>(null);
+
+  protected submitCompleteInterview(candidateId: string, interviewId: string, outcome?: 'PASS' | 'DEFER' | 'FAIL'): void {
+    this.completeInterviewSubmitting.set(true);
+    this.completeInterviewSuccess.set(null);
+    this.completeInterviewError.set(null);
+
+    this.api.completeInterview(candidateId, interviewId, outcome).subscribe({
+      next: (res) => {
+        this.completeInterviewSubmitting.set(false);
+        this.completeInterviewSuccess.set(res.interviewId);
+        this.api.getCandidate(candidateId).subscribe({
+          next: (c) => { this.state.patchCandidate(c); this._directCandidate.set(c); },
+          error: () => { /* non-fatal */ },
+        });
+      },
+      error: (err) => {
+        this.completeInterviewSubmitting.set(false);
+        const msg = err?.error?.error ?? err?.message ?? 'Failed to complete interview';
+        this.completeInterviewError.set(msg);
+      },
+    });
+  }
+
   protected submitScheduleInterview(candidateId: string): void {
     const form = this.scheduleForm();
     const hasPanel = form.panelMemberIds.length > 0 || form.adhocPanelMembers.length > 0;

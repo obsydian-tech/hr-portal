@@ -74,6 +74,7 @@ ALL_TARGETS=(
 # Lambdas that import from ../shared/config-reader (need patch+bundle)
 NEEDS_SHARED=(
   orchestrateTalentFlowWorkflow
+  advanceCandidateStage
   scheduleInterview
   submitVote
   completeEvaluation

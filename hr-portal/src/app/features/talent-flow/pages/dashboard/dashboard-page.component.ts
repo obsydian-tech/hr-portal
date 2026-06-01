@@ -18,22 +18,20 @@ import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.com
  */
 
 const STAGE_CONTEXT: Record<HiringStage, string> = {
-  APPLICATION_REVIEW:  'Application under review',
-  PHONE_SCREENING:     'Phone screen in progress',
-  TECHNICAL_INTERVIEW: 'Technical interview stage',
-  PANEL_INTERVIEW:     'Panel interview stage',
-  EVALUATION:          'Evaluation in progress',
-  BACKGROUND_CHECK:    'Background check pending',
-  OFFER_PREPARATION:   'Offer being prepared',
-  OFFER_APPROVAL:      'Offer awaiting approval',
-  OFFER_DELIVERY:      'Offer sent to candidate',
-  CONTRACT_SIGNING:    'Contract signing stage',
-  PRE_BOARDING:        'Pre-boarding preparation',
-  ONBOARDING:          'Onboarding in progress',
+  APPLICATION_REVIEW: 'Application under review',
+  INTERVIEWING:       'Interview loop in progress',
+  EVALUATION:         'Evaluation in progress',
+  BACKGROUND_CHECK:   'Background check pending',
+  OFFER_PREPARATION:  'Offer being prepared',
+  OFFER_APPROVAL:     'Offer awaiting approval',
+  OFFER_DELIVERY:     'Offer sent to candidate',
+  CONTRACT_SIGNING:   'Contract signing stage',
+  PRE_BOARDING:       'Pre-boarding preparation',
+  ONBOARDING:         'Onboarding in progress',
 };
 
 const PHASE_STAGES: Record<number, HiringStage[]> = {
-  1: ['APPLICATION_REVIEW', 'PHONE_SCREENING', 'TECHNICAL_INTERVIEW', 'PANEL_INTERVIEW', 'EVALUATION'],
+  1: ['APPLICATION_REVIEW', 'INTERVIEWING', 'EVALUATION'],
   2: ['BACKGROUND_CHECK', 'OFFER_PREPARATION', 'OFFER_APPROVAL', 'OFFER_DELIVERY', 'CONTRACT_SIGNING'],
   3: ['PRE_BOARDING'],
   4: ['ONBOARDING'],

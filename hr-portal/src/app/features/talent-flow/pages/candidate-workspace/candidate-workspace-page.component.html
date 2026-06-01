@@ -131,7 +131,7 @@
          GHOST ACTIONS BAR (D030) — contextual quick actions
     ══════════════════════════════════════════════════════════════════════════ -->
     <div class="tf-ws-actions-bar">
-      @if (c.currentStage === 'APPLICATION_REVIEW' || c.currentStage === 'PHONE_SCREENING' || c.currentStage === 'TECHNICAL_INTERVIEW') {
+      @if (c.currentStage === 'INTERVIEWING') {
         <button class="tf-ws-ghost-btn" (click)="showScheduleForm.set(true); setTab('overview')">
           <i class="pi pi-calendar-plus"></i> Schedule Interview
         </button>
@@ -425,7 +425,7 @@
                 <p class="tf-ws-empty-hint" style="margin-top:0.5rem">
                   Schedule an interview to begin the evaluation round.
                 </p>
-                @if (c.currentStage === 'APPLICATION_REVIEW' || c.currentStage === 'PHONE_SCREENING' || c.currentStage === 'TECHNICAL_INTERVIEW') {
+                @if (c.currentStage === 'INTERVIEWING') {
                   <div style="margin-top:0.75rem">
                     <button class="tf-ws-ghost-btn" (click)="showScheduleForm.set(true); setTab('overview')">
                       <i class="pi pi-calendar-plus"></i> Schedule Interview
@@ -494,7 +494,7 @@
             </div>
 
             <!-- Schedule Interview card -->
-            @if (c.currentStage === 'APPLICATION_REVIEW' || c.currentStage === 'PHONE_SCREENING' || c.currentStage === 'TECHNICAL_INTERVIEW') {
+            @if (c.currentStage === 'INTERVIEWING') {
               <div class="tf-ws-card tf-ws-card--action">
                 <div class="tf-ws-card__title-row">
                   <h3 class="tf-ws-card__title">

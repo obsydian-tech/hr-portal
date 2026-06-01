@@ -16,11 +16,9 @@ import { Candidate, VotePayload } from '../../models/talent-flow.models';
 type VoteDecision = 'STRONG_NO' | 'NO' | 'YES' | 'STRONG_YES';
 
 const STAGE_LABELS: Record<string, string> = {
-  APPLICATION_REVIEW:  'Application Review',
-  PHONE_SCREENING:     'Phone Screening',
-  TECHNICAL_INTERVIEW: 'Technical Interview',
-  PANEL_INTERVIEW:     'Panel Interview',
-  EVALUATION:          'Evaluation',
+  APPLICATION_REVIEW: 'Application Review',
+  INTERVIEWING:       'Interviewing',
+  EVALUATION:         'Evaluation',
 };
 
 const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
