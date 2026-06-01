@@ -34,7 +34,7 @@
  *   EVENTBRIDGE_BUS_NAME   — talent-flow-bus
  */
 
-const { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 const { getConfig } = require('../shared/config-reader');
@@ -151,6 +151,26 @@ async function handleAddPanelMembers(event) {
 
 exports.handler = async (event) => {
   const method = event.requestContext?.http?.method;
+
+  // ── GET: list all interviews for a candidate ──────────────────────────────
+  if (method === 'GET') {
+    const candidateId = event.pathParameters?.id;
+    if (!candidateId) return badRequest('Missing candidateId');
+    try {
+      const result = await dynamo.send(new QueryCommand({
+        TableName: process.env.STATE_TABLE_NAME,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+        ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${candidateId}`, ':prefix': 'INTERVIEW#' }),
+      }));
+      const interviews = (result.Items || [])
+        .map((i) => { const { PK, SK, ...rest } = unmarshall(i); return rest; })
+        .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+      return ok({ interviews });
+    } catch (err) {
+      console.error('GET interviews: query failed', { candidateId, error: err.message });
+      return serverError('Failed to fetch interviews');
+    }
+  }
 
   if (method === 'PATCH') {
     const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event.body || {});

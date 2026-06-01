@@ -158,16 +158,16 @@ export interface Candidate {
 }
 
 export interface Interview {
-  id:              string;
+  interviewId:     string;   // DynamoDB SK suffix, used as the primary key
   candidateId:     string;
-  round:           number;  // configurable rounds (not capped at 2)
-  interviewType?:  string;
-  scheduledAt:     string;  // ISO 8601
-  location?:       string;
+  interviewType:   string;
+  scheduledAt:     string;   // ISO 8601
   panelMemberIds:  string[];
+  adhocPanelMembers?: AdhocPanelMember[];
   votesRequired:   number;
   status:          'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
   completedAt?:    string;
+  outcome?:        'PASS' | 'DEFER' | 'FAIL';
 }
 
 export interface Vote {

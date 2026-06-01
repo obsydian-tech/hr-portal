@@ -117,9 +117,10 @@ async function checkInterviewLoopComplete(candidateId, tenantId, positionLevel) 
   const pending = requiredTypes.filter((t) => !completedTypes.has(t));
 
   if (pending.length > 0) {
+    const fmt = (t) => t.split('_').map((w) => w[0] + w.slice(1).toLowerCase()).join(' ');
+    const pendingLabels = pending.map(fmt).join(', ');
     return conflict(
-      `Cannot advance from INTERVIEWING — the following required interview types are not yet completed: ${pending.join(', ')}. ` +
-      `Complete all required interviews before advancing to EVALUATION.`
+      `To advance to Evaluation, the following required interviews must be completed first: ${pendingLabels}.`
     );
   }
 

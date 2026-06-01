@@ -13,6 +13,7 @@ import {
   UpdateCandidatePayload,
   EngagementSentiment,
   HiringStage,
+  Interview,
   InteractionOutcome,
   InteractionType,
   Offer,
@@ -228,6 +229,20 @@ export class TalentFlowApiService {
           { headers },
         ),
       ),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  getInterviews(candidateId: string): Observable<Interview[]> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<{ interviews: Interview[] }>(
+          `${this.baseUrl}/candidates/${candidateId}/interviews`,
+          { headers },
+        ),
+      ),
+      map((res) => res.interviews ?? []),
       timeout(API_TIMEOUT_MS),
       catchError(this.handleError),
     );

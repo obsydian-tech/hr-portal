@@ -1,6 +1,6 @@
 <section class="tf-workspace">
 
-  <!-- ── Loading ─────────────────────────────────────────────────────────── -->
+  <!-- ── Loading ────────────────────────────────────────────────────────────── -->
   @if (loading() || state.isLoading()) {
     <div class="tf-workspace__loading">
       <i class="pi pi-spin pi-spinner"></i>
@@ -8,7 +8,7 @@
     </div>
   }
 
-  <!-- ── Candidate not found ─────────────────────────────────────────────── -->
+  <!-- ── Candidate not found ──────────────────────────────────────────────── -->
   @if (!loading() && !state.isLoading() && !candidate()) {
     <div class="tf-workspace__not-found">
       <i class="pi pi-user"></i>
@@ -20,9 +20,9 @@
 
   @if (candidate(); as c) {
 
-    <!-- ══════════════════════════════════════════════════════════════════════
-         PERSISTENT HEADER (D027) — avatar · name · pills · health · SLA bar
-    ══════════════════════════════════════════════════════════════════════════ -->
+    <!-- ════════════════════════════════════════════════════════════════════════
+         PERSISTENT HEADER — avatar · name · role · pills · SLA
+    ════════════════════════════════════════════════════════════════════════════ -->
     <header class="tf-ws-header">
 
       <div class="tf-ws-header__left">
@@ -34,8 +34,8 @@
 
         <div class="tf-ws-header__identity">
           <h1 class="tf-ws-header__name">{{ c.firstName }} {{ c.lastName }}</h1>
+          <p class="tf-ws-header__role">{{ c.role || '—' }}</p>
           <div class="tf-ws-header__pills">
-            <span class="tf-pill tf-pill--role">{{ c.role }}</span>
             <span class="tf-pill tf-pill--seniority">{{ c.positionLevel | titlecase }}</span>
             <span [class]="healthPillClass(c)">{{ healthLabel(c) }}</span>
             @if (c.interviewSentiment) {
@@ -68,18 +68,17 @@
             </div>
           </div>
         </div>
-        <!-- Ask AI is topbar-only (D023) — no per-page button -->
       </div>
 
     </header>
 
-    <!-- ══════════════════════════════════════════════════════════════════════
-         5-COLUMN DETAILS STRIP (D028)
-    ══════════════════════════════════════════════════════════════════════════ -->
+    <!-- ════════════════════════════════════════════════════════════════════════
+         5-COLUMN DETAILS STRIP — Role · Department · Location · Applied · Experience
+    ════════════════════════════════════════════════════════════════════════════ -->
     <div class="tf-ws-details-strip">
       <div class="tf-ws-detail">
-        <span class="tf-ws-detail__label">Applied</span>
-        <span class="tf-ws-detail__value">{{ c.appliedDate | date:'d MMM yyyy' }}</span>
+        <span class="tf-ws-detail__label">Role</span>
+        <span class="tf-ws-detail__value">{{ c.role || '—' }}</span>
       </div>
       <div class="tf-ws-detail">
         <span class="tf-ws-detail__label">Department</span>
@@ -90,18 +89,18 @@
         <span class="tf-ws-detail__value">{{ c.location || '—' }}</span>
       </div>
       <div class="tf-ws-detail">
-        <span class="tf-ws-detail__label">Workflow</span>
-        <span class="tf-ws-detail__value">{{ workflowLabel(c.workflowTemplateId) }}</span>
+        <span class="tf-ws-detail__label">Applied</span>
+        <span class="tf-ws-detail__value">{{ c.appliedDate ? (c.appliedDate | date:'d MMM yyyy') : '—' }}</span>
       </div>
       <div class="tf-ws-detail">
-        <span class="tf-ws-detail__label">Seniority</span>
-        <span class="tf-ws-detail__value">{{ c.positionLevel | titlecase }}</span>
+        <span class="tf-ws-detail__label">Experience</span>
+        <span class="tf-ws-detail__value">{{ experienceLabel(c.experienceYears) }}</span>
       </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════════════════
-         4-PHASE HORIZONTAL STEPPER (D029)
-    ══════════════════════════════════════════════════════════════════════════ -->
+    <!-- ════════════════════════════════════════════════════════════════════════
+         4-PHASE HORIZONTAL STEPPER
+    ════════════════════════════════════════════════════════════════════════════ -->
     <div class="tf-ws-phase-stepper">
       @for (p of PHASES; track p.phase) {
         <div class="tf-ws-phase"
@@ -127,21 +126,15 @@
       }
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════════════════
-         GHOST ACTIONS BAR (D030) — contextual quick actions
-    ══════════════════════════════════════════════════════════════════════════ -->
+    <!-- ════════════════════════════════════════════════════════════════════════
+         ACTIONS BAR — 2 contextual buttons only
+    ════════════════════════════════════════════════════════════════════════════ -->
     <div class="tf-ws-actions-bar">
       @if (c.currentStage === 'INTERVIEWING') {
-        <button class="tf-ws-ghost-btn" (click)="showScheduleForm.set(true); setTab('overview')">
+        <button class="tf-ws-ghost-btn" (click)="setTab('interviews')">
           <i class="pi pi-calendar-plus"></i> Schedule Interview
         </button>
       }
-      <button class="tf-ws-ghost-btn" (click)="setTab('interviews')">
-        <i class="pi pi-face-smile"></i> Update Sentiment
-      </button>
-      <button class="tf-ws-ghost-btn" (click)="goToEvaluate(c.id)">
-        <i class="pi pi-file-edit"></i> Log Panel Score
-      </button>
       @if (nextStageFor(c.currentStage); as next) {
         <button class="tf-ws-ghost-btn tf-ws-ghost-btn--primary"
           [disabled]="advancingStage()"
@@ -149,21 +142,15 @@
           <i class="pi pi-forward"></i> Advance to {{ stageLabels[next] }}
         </button>
       }
-      <button class="tf-ws-ghost-btn" (click)="setTab('interviews')">
-        <i class="pi pi-users"></i> Panel Votes
-      </button>
-      <button class="tf-ws-ghost-btn" (click)="setTab('engagement')">
-        <i class="pi pi-history"></i> Engagement Log
-      </button>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════════════════
+    <!-- ════════════════════════════════════════════════════════════════════════
          TAB BAR + CONTENT
-    ══════════════════════════════════════════════════════════════════════════ -->
+    ════════════════════════════════════════════════════════════════════════════ -->
     <div class="tf-ws-content-area">
       <div class="tf-workspace__main">
 
-        <!-- D027: fixed 5 tabs — Overview | Interviews | Offer | Engagement | Notes -->
+        <!-- 5 tabs — Overview | Interviews | Offer | Provisioning | Notes -->
         <nav class="tf-workspace__tabs">
           <button class="tf-tab-btn"
             [class.tf-tab-btn--active]="activeTab() === 'overview'"
@@ -189,22 +176,113 @@
             }
           </button>
           <button class="tf-tab-btn"
-            [class.tf-tab-btn--active]="activeTab() === 'engagement'"
-            (click)="setTab('engagement')">
-            <i class="pi pi-chart-line"></i> Engagement
-          </button>
-          <button class="tf-tab-btn"
             [class.tf-tab-btn--active]="activeTab() === 'notes'"
             (click)="setTab('notes')">
             <i class="pi pi-pencil"></i> Notes
           </button>
         </nav>
 
-        <!-- ── Interviews tab ─────────────────────────────────────────────── -->
+        <!-- ─────────────────────────────────────────────────────────────────
+             OVERVIEW TAB
+        ──────────────────────────────────────────────────────────────────── -->
+        @if (activeTab() === 'overview') {
+          <div class="tf-workspace__panel tf-workspace__panel--overview">
+
+            <div class="tf-ws-card">
+              <h3 class="tf-ws-card__title">
+                <i class="pi pi-info-circle"></i> Candidate Details
+              </h3>
+              <dl class="tf-ws-dl">
+                <dt>Full Name</dt>
+                <dd>{{ c.firstName }} {{ c.lastName }}</dd>
+                <dt>Email</dt>
+                <dd class="tf-ws-mono">{{ c.email }}</dd>
+                @if (c.phone) {
+                  <dt>Phone</dt>
+                  <dd class="tf-ws-mono">{{ c.phone }}</dd>
+                }
+                <dt>Role</dt>
+                <dd>{{ c.role || '—' }}</dd>
+                <dt>Level</dt>
+                <dd>{{ c.positionLevel | titlecase }}</dd>
+                <dt>Experience</dt>
+                <dd>{{ experienceLabel(c.experienceYears) }}</dd>
+                <dt>Applied</dt>
+                <dd>{{ c.appliedDate ? (c.appliedDate | date:'d MMM yyyy') : '—' }}</dd>
+                <dt>Department</dt>
+                <dd>{{ c.department || '—' }}</dd>
+                <dt>Location</dt>
+                <dd>{{ c.location || '—' }}</dd>
+                @if (c.source) {
+                  <dt>Source</dt>
+                  <dd>{{ c.source }}</dd>
+                }
+              </dl>
+            </div>
+
+            <div class="tf-ws-meta-row">
+              <span><i class="pi pi-refresh"></i> Updated {{ c.updatedAt | date:'d MMM yyyy HH:mm' }}</span>
+              <span class="tf-ws-mono"><i class="pi pi-tag"></i> Config {{ c.configVersion }}</span>
+              <span><i class="pi pi-sitemap"></i> {{ workflowLabel(c.workflowTemplateId) }} workflow</span>
+            </div>
+
+            <!-- Advance Stage card -->
+            @if (nextStageFor(c.currentStage); as next) {
+              <div class="tf-ws-card tf-ws-card--action tf-ws-card--advance">
+
+                @if (advanceSuccess()) {
+                  <div class="tf-ws-alert tf-ws-alert--success">
+                    <i class="pi pi-check-circle"></i>
+                    Stage advanced to <strong>{{ stageLabelFor(advanceSuccess()) }}</strong>. Refreshing…
+                  </div>
+                }
+
+                <!-- Gate error — shown prominently with link to Interviews tab -->
+                @if (advanceError()) {
+                  <div class="tf-ws-gate-error">
+                    <i class="pi pi-exclamation-triangle"></i>
+                    <div>
+                      <strong>Cannot advance yet</strong>
+                      <p>{{ advanceError() }}</p>
+                      @if (c.currentStage === 'INTERVIEWING') {
+                        <span class="tf-ws-gate-link" (click)="advanceError.set(null); setTab('interviews')">
+                          Go to Interviews tab →
+                        </span>
+                      }
+                    </div>
+                  </div>
+                }
+
+                <div class="tf-ws-advance-row">
+                  <div class="tf-ws-advance-info">
+                    <span class="tf-ws-advance-label">Current Stage</span>
+                    <span class="tf-ws-advance-stage">{{ stageLabels[c.currentStage] }}</span>
+                  </div>
+                  <i class="pi pi-arrow-right tf-ws-advance-arrow"></i>
+                  <div class="tf-ws-advance-info">
+                    <span class="tf-ws-advance-label">Next Stage</span>
+                    <span class="tf-ws-advance-stage tf-ws-advance-stage--next">{{ stageLabels[next] }}</span>
+                  </div>
+                  <button pButton class="p-button-sm" icon="pi pi-forward"
+                    [label]="'Advance to ' + stageLabels[next]"
+                    [disabled]="advancingStage()" [loading]="advancingStage()"
+                    (click)="advanceStage(c.id, next)">
+                  </button>
+                </div>
+
+              </div>
+            }
+
+          </div>
+        }
+
+        <!-- ─────────────────────────────────────────────────────────────────
+             INTERVIEWS TAB
+        ──────────────────────────────────────────────────────────────────── -->
         @if (activeTab() === 'interviews') {
           <div class="tf-workspace__panel tf-workspace__panel--interviews">
 
-            <!-- Signal Intelligence Box -->
+            <!-- Signal Intelligence -->
             <div class="tf-intel-box">
               <div class="tf-intel-ico"><i class="pi pi-info-circle"></i></div>
               <div class="tf-intel-body">
@@ -213,8 +291,366 @@
               </div>
             </div>
 
-            <!-- Engagement Sentiment Selector -->
-            <p class="tf-ws-section-label"><i class="pi pi-face-smile"></i> Candidate Engagement Sentiment</p>
+            <!-- ── Interview Loop Progress Tracker ──────────────────────── -->
+            @if (c.currentStage === 'INTERVIEWING' && requiredTypes().length > 0) {
+              <div class="tf-loop-tracker">
+                <div class="tf-loop-summary">
+                  <strong>Interview Loop Progress</strong>
+                  &nbsp;·&nbsp;
+                  {{ loopProgress().done }} of {{ loopProgress().total }} required interviews complete
+                </div>
+                <div class="tf-loop-steps">
+                  @for (type of requiredTypes(); track type; let last = $last) {
+                    <div class="tf-loop-step">
+                      @if (!last) {
+                        <div class="tf-loop-step__connector"
+                          [class.tf-loop-step__connector--done]="interviewStatusForType(type) === 'COMPLETED'">
+                        </div>
+                      }
+                      <div class="tf-loop-step__dot"
+                        [class.tf-loop-step__dot--done]="interviewStatusForType(type) === 'COMPLETED'"
+                        [class.tf-loop-step__dot--scheduled]="interviewStatusForType(type) === 'SCHEDULED'"
+                        [class.tf-loop-step__dot--pending]="interviewStatusForType(type) === 'PENDING'">
+                        @if (interviewStatusForType(type) === 'COMPLETED') {
+                          <i class="pi pi-check"></i>
+                        } @else if (interviewStatusForType(type) === 'SCHEDULED') {
+                          <i class="pi pi-clock"></i>
+                        } @else {
+                          <i class="pi pi-circle"></i>
+                        }
+                      </div>
+                      <div class="tf-loop-step__label">{{ interviewTypeLabel(type) }}</div>
+                      <div class="tf-loop-step__status">
+                        @if (interviewStatusForType(type) === 'COMPLETED') { Complete }
+                        @else if (interviewStatusForType(type) === 'SCHEDULED') { Scheduled }
+                        @else { Pending }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- ── Complete Interview success banner ────────────────────── -->
+            @if (completeInterviewSuccess()) {
+              <div class="tf-ws-alert tf-ws-alert--success">
+                <i class="pi pi-check-circle"></i> Interview marked complete successfully.
+              </div>
+            }
+            @if (completeInterviewError()) {
+              <div class="tf-ws-alert tf-ws-alert--error">
+                <i class="pi pi-exclamation-triangle"></i> {{ completeInterviewError() }}
+              </div>
+            }
+
+            <!-- ── Schedule success banner ───────────────────────────────── -->
+            @if (scheduleSuccess()) {
+              <div class="tf-ws-alert tf-ws-alert--success">
+                <i class="pi pi-check-circle"></i> Interview scheduled. ID: <code>{{ scheduleSuccess() }}</code>
+              </div>
+            }
+
+            <!-- ── Interview Records ─────────────────────────────────────── -->
+            <p class="tf-ws-section-label">
+              <i class="pi pi-video"></i> Interview Records
+            </p>
+
+            @if (interviewsLoading()) {
+              <div class="tf-ws-timeline-loader">
+                <i class="pi pi-spin pi-spinner"></i> Loading interviews…
+              </div>
+            } @else if (interviewsError()) {
+              <div class="tf-ws-alert tf-ws-alert--error">
+                <i class="pi pi-exclamation-circle"></i> {{ interviewsError() }}
+              </div>
+            } @else if (interviews().length === 0) {
+              <div class="tf-ws-empty-interviews">
+                <i class="pi pi-calendar"></i>
+                <p>No interviews scheduled yet.</p>
+                <p class="tf-ws-hint">Use the button below to schedule the first interview in this loop.</p>
+              </div>
+            } @else {
+              @for (iv of interviews(); track iv.interviewId) {
+                <div class="tf-interview-card"
+                  [class.tf-interview-card--completed]="iv.status === 'COMPLETED'"
+                  [class.tf-interview-card--scheduled]="iv.status === 'SCHEDULED'"
+                  [class.tf-interview-card--cancelled]="iv.status === 'CANCELLED'">
+
+                  <div class="tf-interview-card__header">
+                    <div class="tf-interview-card__title">
+                      @if (iv.status === 'COMPLETED') {
+                        <i class="pi pi-check-circle" style="color:var(--naleko-success,#22c55e)"></i>
+                      } @else if (iv.status === 'SCHEDULED') {
+                        <i class="pi pi-clock" style="color:var(--naleko-warning,#f59e0b)"></i>
+                      } @else {
+                        <i class="pi pi-times-circle" style="color:var(--naleko-on-surface-variant)"></i>
+                      }
+                      {{ interviewTypeLabel(iv.interviewType) }}
+                    </div>
+                    <span class="tf-interview-card__status-badge"
+                      [class.tf-interview-card__status-badge--completed]="iv.status === 'COMPLETED'"
+                      [class.tf-interview-card__status-badge--scheduled]="iv.status === 'SCHEDULED'"
+                      [class.tf-interview-card__status-badge--cancelled]="iv.status === 'CANCELLED'">
+                      {{ iv.status | titlecase }}
+                    </span>
+                  </div>
+
+                  <div class="tf-interview-card__meta">
+                    <span><i class="pi pi-calendar" style="font-size:0.75rem"></i>
+                      {{ iv.scheduledAt | date:'EEE d MMM yyyy · HH:mm' }}
+                    </span>
+
+                    @if (iv.panelMemberIds.length > 0 || (iv.adhocPanelMembers?.length ?? 0) > 0) {
+                      <div class="tf-interview-card__panel">
+                        <span style="font-size:0.75rem;color:var(--naleko-on-surface-variant)">Panel:</span>
+                        @for (id of iv.panelMemberIds; track id) {
+                          <span class="tf-interview-card__panel-name">{{ panelMemberName(id) }}</span>
+                        }
+                        @for (adhoc of (iv.adhocPanelMembers ?? []); track adhoc.email) {
+                          <span class="tf-interview-card__panel-name">{{ adhoc.name }}</span>
+                        }
+                      </div>
+                    }
+
+                    @if (iv.status === 'COMPLETED' && iv.outcome) {
+                      <span class="tf-interview-card__outcome"
+                        [class.tf-interview-card__outcome--pass]="iv.outcome === 'PASS'"
+                        [class.tf-interview-card__outcome--defer]="iv.outcome === 'DEFER'"
+                        [class.tf-interview-card__outcome--fail]="iv.outcome === 'FAIL'">
+                        @if (iv.outcome === 'PASS') { <i class="pi pi-check-circle"></i> }
+                        @else if (iv.outcome === 'FAIL') { <i class="pi pi-times-circle"></i> }
+                        @else { <i class="pi pi-minus-circle"></i> }
+                        Outcome: {{ iv.outcome | titlecase }}
+                      </span>
+                    }
+                  </div>
+
+                  <!-- Actions for SCHEDULED interviews -->
+                  @if (iv.status === 'SCHEDULED') {
+                    <div class="tf-interview-card__actions">
+                      <button class="tf-ws-ghost-btn" (click)="openAddPanel(iv.interviewId)">
+                        <i class="pi pi-user-plus"></i> Add Panel Member
+                      </button>
+                      <button class="tf-ws-ghost-btn"
+                        (click)="completeTargetId() === iv.interviewId ? closeCompleteForm() : openCompleteForm(iv.interviewId)">
+                        <i class="pi pi-check"></i>
+                        {{ completeTargetId() === iv.interviewId ? 'Cancel' : 'Mark Complete' }}
+                      </button>
+                    </div>
+
+                    <!-- Add panel inline form -->
+                    @if (addingPanelMember() && addPanelTargetId() === iv.interviewId) {
+                      <div class="tf-ws-add-panel-form">
+                        <p class="tf-ws-section-label" style="margin-top:0.75rem">
+                          <i class="pi pi-user-plus"></i> Add Members to This Interview
+                        </p>
+
+                        @if (addPanelSuccess()) {
+                          <div class="tf-ws-alert tf-ws-alert--success">
+                            <i class="pi pi-check-circle"></i> Panel members added.
+                          </div>
+                        }
+                        @if (addPanelError()) {
+                          <div class="tf-ws-alert tf-ws-alert--error">
+                            <i class="pi pi-exclamation-triangle"></i> {{ addPanelError() }}
+                          </div>
+                        }
+
+                        @if (panelMembersLoading()) {
+                          <p class="tf-ws-panel-loading"><i class="pi pi-spin pi-spinner"></i> Loading directory…</p>
+                        } @else if (panelMembersError()) {
+                          <p class="tf-ws-panel-error"><i class="pi pi-exclamation-triangle"></i> {{ panelMembersError() }}</p>
+                        } @else {
+                          <div class="tf-ws-panel-roster">
+                            @for (member of panelMembers(); track member.id) {
+                              <label class="tf-ws-panel-member"
+                                [class.tf-ws-panel-member--selected]="addPanelForm().panelMemberIds.includes(member.id)">
+                                <input type="checkbox"
+                                  [checked]="addPanelForm().panelMemberIds.includes(member.id)"
+                                  (change)="toggleAddPanelMember(member.id)" />
+                                <span class="tf-ws-panel-member__name">{{ member.name }}</span>
+                                <span class="tf-ws-panel-badge tf-ws-panel-badge--system">System user</span>
+                              </label>
+                            }
+                          </div>
+                        }
+
+                        @for (adhoc of addPanelForm().adhocPanelMembers; track adhoc.email) {
+                          <div class="tf-ws-panel-member tf-ws-panel-member--adhoc">
+                            <span class="tf-ws-panel-member__name">{{ adhoc.name }}</span>
+                            <span class="tf-ws-panel-member__email">{{ adhoc.email }}</span>
+                            @if (adhoc.role) { <span class="tf-ws-panel-member__role">{{ adhoc.role }}</span> }
+                            <span class="tf-ws-panel-badge tf-ws-panel-badge--link">Scoring link</span>
+                            <button type="button" class="tf-ws-panel-remove" (click)="removeAdhocFromPanel(adhoc.email)">
+                              <i class="pi pi-times"></i>
+                            </button>
+                          </div>
+                        }
+
+                        @if (!showAdhocFormAdd()) {
+                          <button type="button" class="tf-ws-adhoc-toggle" (click)="showAdhocFormAdd.set(true)">
+                            <i class="pi pi-plus"></i> Add someone not in the directory
+                          </button>
+                        } @else {
+                          <div class="tf-ws-adhoc-form">
+                            <input class="tf-ws-form-input tf-ws-form-input--sm" type="text"
+                              placeholder="Full name *" [value]="adhocFormAdd().name" (input)="setAddAdhocName($event)" />
+                            <input class="tf-ws-form-input tf-ws-form-input--sm" type="email"
+                              placeholder="Email *" [value]="adhocFormAdd().email" (input)="setAddAdhocEmail($event)" />
+                            <input class="tf-ws-form-input tf-ws-form-input--sm" type="text"
+                              placeholder="Role / title" [value]="adhocFormAdd().role" (input)="setAddAdhocRole($event)" />
+                            <div class="tf-ws-adhoc-actions">
+                              <button type="button" class="tf-ws-adhoc-add"
+                                [disabled]="!adhocFormAdd().name.trim() || !adhocFormAdd().email.trim()"
+                                (click)="addAdhocToPanel()">Add to Panel</button>
+                              <button type="button" class="tf-ws-adhoc-cancel"
+                                (click)="showAdhocFormAdd.set(false)">Cancel</button>
+                            </div>
+                          </div>
+                        }
+
+                        <div class="tf-ws-form-actions" style="margin-top:0.75rem">
+                          <button pButton type="button" class="p-button-sm" icon="pi pi-save" label="Save Panel Members"
+                            [disabled]="addPanelSubmitting() || (addPanelForm().panelMemberIds.length === 0 && addPanelForm().adhocPanelMembers.length === 0)"
+                            [loading]="addPanelSubmitting()"
+                            (click)="submitAddPanelMembers(c.id)">
+                          </button>
+                          <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
+                            (click)="closeAddPanel()">
+                          </button>
+                        </div>
+                      </div>
+                    }
+
+                    <!-- Mark Complete inline form -->
+                    @if (completeTargetId() === iv.interviewId) {
+                      <div class="tf-interview-card__complete-form">
+                        <span class="tf-interview-card__complete-label">Outcome:</span>
+                        @for (opt of ['PASS', 'DEFER', 'FAIL']; track opt) {
+                          <button type="button" class="tf-interview-card__outcome-btn"
+                            [class.tf-interview-card__outcome-btn--selected]="completeOutcome() === opt"
+                            (click)="completeOutcome.set($any(opt))">
+                            {{ opt | titlecase }}
+                          </button>
+                        }
+                        <button pButton type="button" class="p-button-sm" icon="pi pi-check" label="Confirm"
+                          [loading]="completeInterviewSubmitting()"
+                          [disabled]="completeInterviewSubmitting()"
+                          (click)="submitCompleteInterview(c.id)">
+                        </button>
+                      </div>
+                    }
+                  }
+
+                </div>
+              }
+            }
+
+            <!-- ── Schedule New Interview trigger ────────────────────────── -->
+            @if (c.currentStage === 'INTERVIEWING') {
+              <button class="tf-ws-schedule-trigger" (click)="toggleScheduleForm()">
+                <i class="pi pi-calendar-plus"></i>
+                {{ showScheduleForm() ? 'Cancel Scheduling' : 'Schedule New Interview' }}
+              </button>
+
+              @if (scheduleError()) {
+                <div class="tf-ws-alert tf-ws-alert--error">
+                  <i class="pi pi-exclamation-triangle"></i> {{ scheduleError() }}
+                </div>
+              }
+
+              @if (showScheduleForm()) {
+                <form class="tf-ws-schedule-form" (submit)="$event.preventDefault(); submitScheduleInterview(c.id)">
+                  <div class="tf-ws-form-field">
+                    <label class="tf-ws-form-label">Interview Type</label>
+                    <select class="tf-ws-form-select" [value]="scheduleForm().interviewType" (change)="setInterviewType($event)">
+                      <option value="PHONE_SCREEN">Phone Screen</option>
+                      <option value="TECHNICAL">Technical</option>
+                      <option value="BEHAVIORAL">Behavioral</option>
+                      <option value="CULTURE_FIT">Culture Fit</option>
+                      <option value="FINAL">Final Round</option>
+                    </select>
+                  </div>
+                  <div class="tf-ws-form-field">
+                    <label class="tf-ws-form-label">Scheduled At</label>
+                    <input class="tf-ws-form-input" type="datetime-local"
+                      [value]="scheduleForm().scheduledAt.slice(0, 16)"
+                      (change)="setScheduledAt($event)" />
+                  </div>
+                  <div class="tf-ws-form-field">
+                    <label class="tf-ws-form-label">Panel Members (select at least one)</label>
+
+                    @if (panelMembersLoading()) {
+                      <p class="tf-ws-panel-loading"><i class="pi pi-spin pi-spinner"></i> Loading directory…</p>
+                    } @else if (panelMembersError()) {
+                      <p class="tf-ws-panel-error"><i class="pi pi-exclamation-triangle"></i> {{ panelMembersError() }}</p>
+                    } @else {
+                      <div class="tf-ws-panel-roster">
+                        @for (member of panelMembers(); track member.id) {
+                          <label class="tf-ws-panel-member"
+                            [class.tf-ws-panel-member--selected]="scheduleForm().panelMemberIds.includes(member.id)">
+                            <input type="checkbox"
+                              [checked]="scheduleForm().panelMemberIds.includes(member.id)"
+                              (change)="togglePanelMember(member.id)" />
+                            <span class="tf-ws-panel-member__name">{{ member.name }}</span>
+                            <span class="tf-ws-panel-badge tf-ws-panel-badge--system">System user</span>
+                          </label>
+                        }
+                      </div>
+                    }
+
+                    @for (adhoc of scheduleForm().adhocPanelMembers; track adhoc.email) {
+                      <div class="tf-ws-panel-member tf-ws-panel-member--adhoc">
+                        <span class="tf-ws-panel-member__name">{{ adhoc.name }}</span>
+                        <span class="tf-ws-panel-member__email">{{ adhoc.email }}</span>
+                        @if (adhoc.role) { <span class="tf-ws-panel-member__role">{{ adhoc.role }}</span> }
+                        <span class="tf-ws-panel-badge tf-ws-panel-badge--link">Scoring link</span>
+                        <button type="button" class="tf-ws-panel-remove" (click)="removeAdhocMember(adhoc.email)">
+                          <i class="pi pi-times"></i>
+                        </button>
+                      </div>
+                    }
+
+                    @if (!showAdhocForm()) {
+                      <button type="button" class="tf-ws-adhoc-toggle" (click)="showAdhocForm.set(true)">
+                        <i class="pi pi-plus"></i> Add someone not in the directory
+                      </button>
+                    } @else {
+                      <div class="tf-ws-adhoc-form">
+                        <input class="tf-ws-form-input tf-ws-form-input--sm" type="text"
+                          placeholder="Full name *" [value]="adhocForm().name" (input)="setAdhocName($event)" />
+                        <input class="tf-ws-form-input tf-ws-form-input--sm" type="email"
+                          placeholder="Email *" [value]="adhocForm().email" (input)="setAdhocEmail($event)" />
+                        <input class="tf-ws-form-input tf-ws-form-input--sm" type="text"
+                          placeholder="Role / title" [value]="adhocForm().role" (input)="setAdhocRole($event)" />
+                        <div class="tf-ws-adhoc-actions">
+                          <button type="button" class="tf-ws-adhoc-add"
+                            [disabled]="!adhocForm().name.trim() || !adhocForm().email.trim()"
+                            (click)="addAdhocMember()">Add to Panel</button>
+                          <button type="button" class="tf-ws-adhoc-cancel"
+                            (click)="showAdhocForm.set(false)">Cancel</button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+
+                  <div class="tf-ws-form-actions">
+                    <button pButton type="submit" class="p-button-sm" icon="pi pi-send" label="Schedule Interview"
+                      [disabled]="scheduleSubmitting() || !scheduleForm().scheduledAt || (scheduleForm().panelMemberIds.length === 0 && scheduleForm().adhocPanelMembers.length === 0)"
+                      [loading]="scheduleSubmitting()">
+                    </button>
+                    <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
+                      (click)="showScheduleForm.set(false); scheduleError.set(null)">
+                    </button>
+                  </div>
+                </form>
+              }
+            }
+
+            <!-- ── Candidate Engagement Sentiment ────────────────────────── -->
+            <p class="tf-ws-section-label" style="margin-top:1.5rem">
+              <i class="pi pi-face-smile"></i> Candidate Engagement Sentiment
+            </p>
             <div class="tf-sent-card">
               <div class="tf-sent-header">
                 <span class="tf-sent-title">How engaged is this candidate?</span>
@@ -255,423 +691,21 @@
               </div>
             </div>
 
-            <!-- Interview Rounds -->
-            <p class="tf-ws-section-label"><i class="pi pi-video"></i> Interview Rounds</p>
-
-            @if (eventsLoading()) {
-              <div class="tf-ws-timeline-loader">
-                <i class="pi pi-spin pi-spinner"></i> Loading interview data…
-              </div>
-            } @else if (c.evaluationResult) {
-              <!-- Evaluation has been completed — show result, no further action needed -->
-              <div class="tf-round-card" [class.tf-round-card--passed]="c.evaluationResult === 'PASSED'" [class.tf-round-card--failed]="c.evaluationResult === 'FAILED'">
-                <div class="tf-round-header">
-                  <div class="tf-round-title">
-                    <i class="pi" [class.pi-check-circle]="c.evaluationResult === 'PASSED'" [class.pi-times-circle]="c.evaluationResult === 'FAILED'"
-                       [style.color]="c.evaluationResult === 'PASSED' ? 'var(--naleko-success, #22c55e)' : 'var(--naleko-danger, #ef4444)'"
-                       style="font-size:0.9rem"></i>
-                    Evaluation Completed
-                  </div>
-                  <span class="tf-round-status" [class.tf-round-status--passed]="c.evaluationResult === 'PASSED'" [class.tf-round-status--failed]="c.evaluationResult === 'FAILED'">
-                    {{ c.evaluationResult }}
-                  </span>
-                </div>
-                <div class="tf-round-meta" style="margin-top:0.5rem; display:flex; gap:1.25rem; flex-wrap:wrap">
-                  @if (c.finalScore != null) {
-                    <span>Panel Score: <strong>{{ c.finalScore | number:'1.1-2' }} / 10</strong></span>
-                  }
-                  <span>Stage: <strong>{{ stageLabels[c.currentStage] }}</strong></span>
-                </div>
-                @if (c.evaluationResult === 'FAILED') {
-                  <p style="margin-top:0.5rem; font-size:0.8rem; color:var(--naleko-text-muted,#94a3b8)">
-                    Candidate did not meet the minimum pass score. No offer will be created.
-                  </p>
-                } @else {
-                  <p style="margin-top:0.5rem; font-size:0.8rem; color:var(--naleko-text-muted,#94a3b8)">
-                    Offer creation has been triggered automatically.
-                  </p>
-                }
-              </div>
-            } @else if (c.currentInterviewId) {
-              <div class="tf-round-card tf-round-card--active">
-                <div class="tf-round-header">
-                  <div class="tf-round-title">
-                    <i class="pi pi-spin pi-spinner" style="color:var(--naleko-secondary);font-size:0.8rem"></i>
-                    Active Interview Round
-                  </div>
-                  <span class="tf-round-status tf-round-status--active">In Progress</span>
-                </div>
-                <div class="tf-round-meta">
-                  <span>Stage: <strong>{{ stageLabels[c.currentStage] }}</strong></span>
-                </div>
-                <div class="tf-round-actions">
-                  <button class="tf-ws-ghost-btn" (click)="openAddPanel()">
-                    <i class="pi pi-user-plus"></i> Add Panel Member
-                  </button>
-                  <button class="tf-ws-ghost-btn" (click)="goToEvaluate(c.id)">
-                    <i class="pi pi-file-edit"></i> Enter Score
-                  </button>
-                </div>
-
-                <!-- Inline Add Panel Member form -->
-                @if (addingPanelMember()) {
-                  <div class="tf-ws-add-panel-form">
-                    <p class="tf-ws-section-label" style="margin-top:0.75rem">
-                      <i class="pi pi-user-plus"></i> Add Members to This Interview
-                    </p>
-
-                    @if (addPanelSuccess()) {
-                      <div class="tf-ws-alert tf-ws-alert--success">
-                        <i class="pi pi-check-circle"></i> Panel members added successfully.
-                      </div>
-                    }
-                    @if (addPanelError()) {
-                      <div class="tf-ws-alert tf-ws-alert--error">
-                        <i class="pi pi-exclamation-triangle"></i> {{ addPanelError() }}
-                      </div>
-                    }
-
-                    <!-- System users -->
-                    @if (panelMembersLoading()) {
-                      <p class="tf-ws-panel-loading">
-                        <i class="pi pi-spin pi-spinner"></i> Loading directory…
-                      </p>
-                    } @else if (panelMembersError()) {
-                      <p class="tf-ws-panel-error">
-                        <i class="pi pi-exclamation-triangle"></i> {{ panelMembersError() }}
-                      </p>
-                    } @else {
-                      <div class="tf-ws-panel-roster">
-                        @for (member of panelMembers(); track member.id) {
-                          <label class="tf-ws-panel-member"
-                            [class.tf-ws-panel-member--selected]="addPanelForm().panelMemberIds.includes(member.id)">
-                            <input type="checkbox"
-                              [checked]="addPanelForm().panelMemberIds.includes(member.id)"
-                              (change)="toggleAddPanelMember(member.id)" />
-                            <span class="tf-ws-panel-member__name">{{ member.name }}</span>
-                            <span class="tf-ws-panel-badge tf-ws-panel-badge--system">System user</span>
-                          </label>
-                        }
-                      </div>
-                    }
-
-                    <!-- Ad hoc members already staged -->
-                    @for (adhoc of addPanelForm().adhocPanelMembers; track adhoc.email) {
-                      <div class="tf-ws-panel-member tf-ws-panel-member--adhoc">
-                        <span class="tf-ws-panel-member__name">{{ adhoc.name }}</span>
-                        <span class="tf-ws-panel-member__email">{{ adhoc.email }}</span>
-                        @if (adhoc.role) {
-                          <span class="tf-ws-panel-member__role">{{ adhoc.role }}</span>
-                        }
-                        <span class="tf-ws-panel-badge tf-ws-panel-badge--link">Scoring link</span>
-                        <button type="button" class="tf-ws-panel-remove"
-                          (click)="removeAdhocFromPanel(adhoc.email)">
-                          <i class="pi pi-times"></i>
-                        </button>
-                      </div>
-                    }
-
-                    <!-- Ad hoc toggle / inline form -->
-                    @if (!showAdhocFormAdd()) {
-                      <button type="button" class="tf-ws-adhoc-toggle"
-                        (click)="showAdhocFormAdd.set(true)">
-                        <i class="pi pi-plus"></i> Add someone not in the directory
-                      </button>
-                    } @else {
-                      <div class="tf-ws-adhoc-form">
-                        <input class="tf-ws-form-input tf-ws-form-input--sm" type="text"
-                          placeholder="Full name *"
-                          [value]="adhocFormAdd().name"
-                          (input)="setAddAdhocName($event)" />
-                        <input class="tf-ws-form-input tf-ws-form-input--sm" type="email"
-                          placeholder="Email *"
-                          [value]="adhocFormAdd().email"
-                          (input)="setAddAdhocEmail($event)" />
-                        <input class="tf-ws-form-input tf-ws-form-input--sm" type="text"
-                          placeholder="Role / title"
-                          [value]="adhocFormAdd().role"
-                          (input)="setAddAdhocRole($event)" />
-                        <div class="tf-ws-adhoc-actions">
-                          <button type="button" class="tf-ws-adhoc-add"
-                            [disabled]="!adhocFormAdd().name.trim() || !adhocFormAdd().email.trim()"
-                            (click)="addAdhocToPanel()">Add to Panel</button>
-                          <button type="button" class="tf-ws-adhoc-cancel"
-                            (click)="showAdhocFormAdd.set(false)">Cancel</button>
-                        </div>
-                      </div>
-                    }
-
-                    <div class="tf-ws-form-actions" style="margin-top:0.75rem">
-                      <button pButton type="button" class="p-button-sm" icon="pi pi-save" label="Save Panel Members"
-                        [disabled]="addPanelSubmitting() || (addPanelForm().panelMemberIds.length === 0 && addPanelForm().adhocPanelMembers.length === 0)"
-                        [loading]="addPanelSubmitting()"
-                        (click)="submitAddPanelMembers(c.id, c.currentInterviewId!)">
-                      </button>
-                      <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
-                        (click)="addingPanelMember.set(false); addPanelError.set(null)">
-                      </button>
-                    </div>
-                  </div>
-                }
-              </div>
-            } @else {
-              <div class="tf-round-card">
-                <div class="tf-round-header">
-                  <div class="tf-round-title">
-                    <i class="pi pi-calendar" style="color:var(--naleko-on-surface-variant);font-size:0.8rem"></i>
-                    No Active Interview
-                  </div>
-                </div>
-                <p class="tf-ws-empty-hint" style="margin-top:0.5rem">
-                  Schedule an interview to begin the evaluation round.
-                </p>
-                @if (c.currentStage === 'INTERVIEWING') {
-                  <div style="margin-top:0.75rem">
-                    <button class="tf-ws-ghost-btn" (click)="showScheduleForm.set(true); setTab('overview')">
-                      <i class="pi pi-calendar-plus"></i> Schedule Interview
-                    </button>
-                  </div>
-                }
-              </div>
-            }
-
           </div>
         }
 
-        <!-- ── Overview tab ───────────────────────────────────────────────── -->
-        @if (activeTab() === 'overview') {
-          <div class="tf-workspace__panel tf-workspace__panel--overview">
-
-            <div class="tf-ws-grid">
-
-              <div class="tf-ws-card">
-                <h3 class="tf-ws-card__title">
-                  <i class="pi pi-info-circle"></i> Candidate Details
-                </h3>
-                <dl class="tf-ws-dl">
-                  <dt>Full Name</dt>
-                  <dd>{{ c.firstName }} {{ c.lastName }}</dd>
-                  <dt>Email</dt>
-                  <dd class="tf-ws-mono">{{ c.email }}</dd>
-                  @if (c.phone) {
-                    <dt>Phone</dt>
-                    <dd class="tf-ws-mono">{{ c.phone }}</dd>
-                  }
-                  <dt>Role</dt>
-                  <dd>{{ c.role }}</dd>
-                  <dt>Level</dt>
-                  <dd>{{ c.positionLevel }}</dd>
-                  <dt>Experience</dt>
-                  <dd>{{ c.experienceYears }} year{{ c.experienceYears !== 1 ? 's' : '' }}</dd>
-                  @if (c.source) {
-                    <dt>Source</dt>
-                    <dd>{{ c.source }}</dd>
-                  }
-                </dl>
-              </div>
-
-              <div class="tf-ws-card">
-                <h3 class="tf-ws-card__title">
-                  <i class="pi pi-chart-bar"></i> Readiness Scores
-                </h3>
-                <p class="tf-ws-empty-hint">Readiness score available in Phase 3 onboarding.</p>
-                @if (c.acceptanceSentiment) {
-                  <div class="tf-ws-sentiment">
-                    <span class="tf-ws-sentiment__label">Acceptance Sentiment</span>
-                    <span class="tf-ws-sentiment__chip tf-ws-sentiment__chip--{{ c.acceptanceSentiment | lowercase }}">
-                      {{ c.acceptanceSentiment }}
-                    </span>
-                  </div>
-                }
-              </div>
-
-            </div>
-
-            <div class="tf-ws-meta-row">
-              <span><i class="pi pi-calendar"></i> Applied {{ c.appliedDate | date:'d MMM yyyy' }}</span>
-              <span><i class="pi pi-refresh"></i> Updated {{ c.updatedAt | date:'d MMM yyyy HH:mm' }}</span>
-              <span class="tf-ws-mono"><i class="pi pi-tag"></i> Config {{ c.configVersion }}</span>
-            </div>
-
-            <!-- Schedule Interview card -->
-            @if (c.currentStage === 'INTERVIEWING') {
-              <div class="tf-ws-card tf-ws-card--action">
-                <div class="tf-ws-card__title-row">
-                  <h3 class="tf-ws-card__title">
-                    <i class="pi pi-calendar-plus"></i> Schedule Interview
-                  </h3>
-                  <button pButton class="p-button-text p-button-sm"
-                    [icon]="showScheduleForm() ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
-                    [label]="showScheduleForm() ? 'Collapse' : 'Open Form'"
-                    (click)="toggleScheduleForm()">
-                  </button>
-                </div>
-
-                @if (scheduleSuccess()) {
-                  <div class="tf-ws-alert tf-ws-alert--success">
-                    <i class="pi pi-check-circle"></i>
-                    Interview scheduled successfully. ID: <code>{{ scheduleSuccess() }}</code>
-                  </div>
-                }
-                @if (scheduleError()) {
-                  <div class="tf-ws-alert tf-ws-alert--error">
-                    <i class="pi pi-exclamation-triangle"></i> {{ scheduleError() }}
-                  </div>
-                }
-
-                @if (showScheduleForm()) {
-                  <form class="tf-ws-schedule-form" (submit)="$event.preventDefault(); submitScheduleInterview(c.id)">
-                    <div class="tf-ws-form-field">
-                      <label class="tf-ws-form-label">Interview Type</label>
-                      <select class="tf-ws-form-select" [value]="scheduleForm().interviewType" (change)="setInterviewType($event)">
-                        <option value="PHONE_SCREEN">Phone Screen</option>
-                        <option value="TECHNICAL">Technical</option>
-                        <option value="BEHAVIORAL">Behavioral</option>
-                        <option value="CULTURE_FIT">Culture Fit</option>
-                        <option value="FINAL">Final Round</option>
-                      </select>
-                    </div>
-                    <div class="tf-ws-form-field">
-                      <label class="tf-ws-form-label">Scheduled At</label>
-                      <input class="tf-ws-form-input" type="datetime-local"
-                        [value]="scheduleForm().scheduledAt.slice(0, 16)"
-                        (change)="setScheduledAt($event)" />
-                    </div>
-                    <!-- Panel Members — D005/D041 -->
-                    <div class="tf-ws-form-field">
-                      <label class="tf-ws-form-label">Panel Members (select at least one)</label>
-
-                      <!-- System users from internal directory -->
-                      @if (panelMembersLoading()) {
-                        <p class="tf-ws-panel-loading">
-                          <i class="pi pi-spin pi-spinner"></i> Loading directory…
-                        </p>
-                      } @else if (panelMembersError()) {
-                        <p class="tf-ws-panel-error">
-                          <i class="pi pi-exclamation-triangle"></i> {{ panelMembersError() }}
-                        </p>
-                      } @else {
-                        <div class="tf-ws-panel-roster">
-                          @for (member of panelMembers(); track member.id) {
-                            <label class="tf-ws-panel-member"
-                              [class.tf-ws-panel-member--selected]="scheduleForm().panelMemberIds.includes(member.id)">
-                              <input type="checkbox"
-                                [checked]="scheduleForm().panelMemberIds.includes(member.id)"
-                                (change)="togglePanelMember(member.id)" />
-                              <span class="tf-ws-panel-member__name">{{ member.name }}</span>
-                              <span class="tf-ws-panel-badge tf-ws-panel-badge--system">System user</span>
-                            </label>
-                          }
-                        </div>
-                      }
-
-                      <!-- Ad hoc members already added to this panel -->
-                      @for (adhoc of scheduleForm().adhocPanelMembers; track adhoc.email) {
-                        <div class="tf-ws-panel-member tf-ws-panel-member--adhoc">
-                          <span class="tf-ws-panel-member__name">{{ adhoc.name }}</span>
-                          <span class="tf-ws-panel-member__email">{{ adhoc.email }}</span>
-                          @if (adhoc.role) {
-                            <span class="tf-ws-panel-member__role">{{ adhoc.role }}</span>
-                          }
-                          <span class="tf-ws-panel-badge tf-ws-panel-badge--link">Scoring link</span>
-                          <button type="button" class="tf-ws-panel-remove"
-                            (click)="removeAdhocMember(adhoc.email)">
-                            <i class="pi pi-times"></i>
-                          </button>
-                        </div>
-                      }
-
-                      <!-- Ad hoc toggle / inline form -->
-                      @if (!showAdhocForm()) {
-                        <button type="button" class="tf-ws-adhoc-toggle"
-                          (click)="showAdhocForm.set(true)">
-                          <i class="pi pi-plus"></i> Add someone not in the directory
-                        </button>
-                      } @else {
-                        <div class="tf-ws-adhoc-form">
-                          <input class="tf-ws-form-input tf-ws-form-input--sm" type="text"
-                            placeholder="Full name *"
-                            [value]="adhocForm().name"
-                            (input)="setAdhocName($event)" />
-                          <input class="tf-ws-form-input tf-ws-form-input--sm" type="email"
-                            placeholder="Email *"
-                            [value]="adhocForm().email"
-                            (input)="setAdhocEmail($event)" />
-                          <input class="tf-ws-form-input tf-ws-form-input--sm" type="text"
-                            placeholder="Role / title"
-                            [value]="adhocForm().role"
-                            (input)="setAdhocRole($event)" />
-                          <div class="tf-ws-adhoc-actions">
-                            <button type="button" class="tf-ws-adhoc-add"
-                              [disabled]="!adhocForm().name.trim() || !adhocForm().email.trim()"
-                              (click)="addAdhocMember()">Add to Panel</button>
-                            <button type="button" class="tf-ws-adhoc-cancel"
-                              (click)="showAdhocForm.set(false)">Cancel</button>
-                          </div>
-                        </div>
-                      }
-                    </div>
-
-                    <div class="tf-ws-form-actions">
-                      <button pButton type="submit" class="p-button-sm" icon="pi pi-send" label="Schedule Interview"
-                        [disabled]="scheduleSubmitting() || !scheduleForm().scheduledAt || (scheduleForm().panelMemberIds.length === 0 && scheduleForm().adhocPanelMembers.length === 0)"
-                        [loading]="scheduleSubmitting()">
-                      </button>
-                      <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
-                        (click)="showScheduleForm.set(false); scheduleError.set(null)">
-                      </button>
-                    </div>
-                  </form>
-                }
-              </div>
-            }
-
-            <!-- Advance Stage card -->
-            @if (nextStageFor(c.currentStage); as next) {
-              <div class="tf-ws-card tf-ws-card--action tf-ws-card--advance">
-                @if (advanceSuccess()) {
-                  <div class="tf-ws-alert tf-ws-alert--success">
-                    <i class="pi pi-check-circle"></i>
-                    Stage advanced to <strong>{{ stageLabelFor(advanceSuccess()) }}</strong>. Refreshing…
-                  </div>
-                }
-                @if (advanceError()) {
-                  <div class="tf-ws-alert tf-ws-alert--error">
-                    <i class="pi pi-exclamation-triangle"></i> {{ advanceError() }}
-                  </div>
-                }
-                <div class="tf-ws-advance-row">
-                  <div class="tf-ws-advance-info">
-                    <span class="tf-ws-advance-label">Current Stage</span>
-                    <span class="tf-ws-advance-stage">{{ stageLabels[c.currentStage] }}</span>
-                  </div>
-                  <i class="pi pi-arrow-right tf-ws-advance-arrow"></i>
-                  <div class="tf-ws-advance-info">
-                    <span class="tf-ws-advance-label">Next Stage</span>
-                    <span class="tf-ws-advance-stage tf-ws-advance-stage--next">{{ stageLabels[next] }}</span>
-                  </div>
-                  <button pButton class="p-button-sm" icon="pi pi-forward"
-                    [label]="'Advance to ' + stageLabels[next]"
-                    [disabled]="advancingStage()" [loading]="advancingStage()"
-                    (click)="advanceStage(c.id, next)">
-                  </button>
-                </div>
-              </div>
-            }
-
-          </div>
-        }
-
-        <!-- ── Offer tab (D064–D071) ─────────────────────────────────────────── -->
+        <!-- ─────────────────────────────────────────────────────────────────
+             OFFER TAB
+        ──────────────────────────────────────────────────────────────────── -->
         @if (activeTab() === 'offer') {
           <div class="tf-workspace__panel tf-workspace__panel--offer">
-            <tf-offer-tab
-              [candidateId]="c.id"
-              [candidate]="c" />
+            <tf-offer-tab [candidateId]="c.id" [candidate]="c" />
           </div>
         }
 
-        <!-- ── Provisioning tab — Screen 6 TA read-only view ───────────────── -->
+        <!-- ─────────────────────────────────────────────────────────────────
+             PROVISIONING TAB
+        ──────────────────────────────────────────────────────────────────── -->
         @if (activeTab() === 'provisioning') {
           <div class="tf-workspace__panel tf-workspace__panel--provisioning">
             <tf-provisioning-tab
@@ -685,75 +719,9 @@
           </div>
         }
 
-        <!-- ── Engagement tab — sentiment signals + event timeline (D007/D035) ── -->
-        @if (activeTab() === 'engagement') {
-          <div class="tf-workspace__panel tf-workspace__panel--engagement">
-
-            <!-- Sentiment summary -->
-            <div class="tf-engage-section">
-              <p class="tf-engage-section__title">Sentiment Signals</p>
-              <div class="tf-engage-sentiments">
-                @if (c.interviewSentiment) {
-                  <div class="tf-engage-chip tf-engage-chip--interview">
-                    <span class="tf-engage-chip__label">Interview</span>
-                    <span class="tf-engage-chip__value">{{ c.interviewSentiment | titlecase }}</span>
-                  </div>
-                }
-                @if (c.acceptanceSentiment) {
-                  <div class="tf-engage-chip tf-engage-chip--acceptance">
-                    <span class="tf-engage-chip__label">Acceptance</span>
-                    <span class="tf-engage-chip__value">{{ c.acceptanceSentiment | titlecase }}</span>
-                  </div>
-                }
-                @if (!c.interviewSentiment && !c.acceptanceSentiment) {
-                  <p class="tf-ws-empty-hint">No sentiment signals recorded yet.</p>
-                }
-              </div>
-            </div>
-
-            <!-- Event timeline -->
-            <div class="tf-engage-section">
-              <p class="tf-engage-section__title">Event Timeline</p>
-              @if (eventsLoading()) {
-                <div class="tf-ws-timeline-loader"><i class="pi pi-spin pi-spinner"></i> Loading…</div>
-              } @else if (eventsError()) {
-                <div class="tf-ws-timeline-error"><i class="pi pi-exclamation-circle"></i> {{ eventsError() }}</div>
-              } @else {
-                <div class="tf-ws-timeline">
-                  <div class="tf-ws-timeline__event tf-ws-timeline__event--first">
-                    <div class="tf-ws-timeline__dot tf-ws-timeline__dot--system"></div>
-                    <div class="tf-ws-timeline__content">
-                      <div class="tf-ws-timeline__title">Candidate Created</div>
-                      <div class="tf-ws-timeline__time">{{ c.createdAt | date:'d MMM yyyy HH:mm' }}</div>
-                      <div class="tf-ws-timeline__meta">SYSTEM</div>
-                    </div>
-                  </div>
-                  @for (ev of events(); track ev.eventId) {
-                    <div class="tf-ws-timeline__event"
-                      [class.tf-ws-timeline__event--breach]="ev.eventType === 'SLABreached'"
-                      [class.tf-ws-timeline__event--stage]="ev.eventType === 'StageAdvanced' || ev.eventType === 'WorkflowStarted'">
-                      <div class="tf-ws-timeline__dot"
-                        [class.tf-ws-timeline__dot--breach]="ev.eventType === 'SLABreached'"
-                        [class.tf-ws-timeline__dot--stage]="ev.eventType === 'StageAdvanced' || ev.eventType === 'WorkflowStarted'">
-                      </div>
-                      <div class="tf-ws-timeline__content">
-                        <div class="tf-ws-timeline__title">{{ ev.eventType | titlecase }}</div>
-                        <div class="tf-ws-timeline__time">{{ ev.timestamp | date:'d MMM yyyy HH:mm' }}</div>
-                        <div class="tf-ws-timeline__meta">{{ ev.actor }}</div>
-                      </div>
-                    </div>
-                  }
-                  @if (events().length === 0) {
-                    <p class="tf-ws-empty-hint">No events recorded yet.</p>
-                  }
-                </div>
-              }
-            </div>
-
-          </div>
-        }
-
-        <!-- ── Notes tab (placeholder) ────────────────────────────────────── -->
+        <!-- ─────────────────────────────────────────────────────────────────
+             NOTES TAB
+        ──────────────────────────────────────────────────────────────────── -->
         @if (activeTab() === 'notes') {
           <div class="tf-workspace__panel tf-workspace__panel--notes">
             <div class="tf-ws-placeholder">
@@ -766,7 +734,7 @@
 
       </div>
 
-      <!-- ── Activity Log Panel (D035 — 280px right, only place timestamps appear) ── -->
+      <!-- ── Activity Log Sidebar ─────────────────────────────────────────── -->
       <aside class="tf-ws-activity-panel">
         <div class="tf-act-hdr">Activity Log</div>
         <div class="tf-act-filters">
@@ -786,13 +754,13 @@
                   @if (!last) { <div class="tf-act-line"></div> }
                 </div>
                 <div class="tf-act-body">
-                  <div class="tf-act-what">{{ ev.eventType | titlecase }}</div>
+                  <div class="tf-act-what">{{ formatEventType(ev.eventType) }}</div>
                   <div class="tf-act-who">{{ ev.actor }}</div>
                   <div class="tf-act-when">{{ ev.timestamp | date:'d MMM · HH:mm' }}</div>
                 </div>
               </div>
             }
-            <!-- Seed: candidate created -->
+            <!-- Seed entry: candidate created -->
             <div class="tf-act-item">
               <div class="tf-act-dot-col">
                 <div class="tf-act-dot tf-act-dot--grey"></div>
@@ -814,7 +782,7 @@
 
   }
 
-  <!-- ── AI Chat Panel ──────────────────────────────────────────────────────── -->
+  <!-- ── AI Chat Panel ─────────────────────────────────────────────────────── -->
   @if (candidate(); as c) {
     <tf-ai-chat-panel
       [candidateId]="c.id"
@@ -823,7 +791,7 @@
       (closePanel)="chatVisible.set(false)" />
   }
 
-  <!-- ── Edit Details Drawer ───────────────────────────────────────────────── -->
+  <!-- ── Edit Details Drawer ──────────────────────────────────────────────── -->
   @if (candidate(); as c) {
     <tf-candidate-edit-drawer
       [candidate]="c"
