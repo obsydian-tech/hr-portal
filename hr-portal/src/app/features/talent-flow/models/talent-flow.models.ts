@@ -4,13 +4,13 @@
  */
 
 // ─── Hiring Pipeline Stages ───────────────────────────────────────────────────
-// 12 stages across 4 phases. MVP 1 = Phases 1–2. MVP 2 = Phases 3–4.
+// 10 stages across 4 phases. PHONE_SCREENING, TECHNICAL_INTERVIEW, PANEL_INTERVIEW
+// replaced by a single INTERVIEWING stage with a configurable sub-loop.
+// MVP 1 = Phases 1–2. MVP 2 = Phases 3–4.
 export type HiringStage =
   // Phase 1 — Interview & Evaluation (MVP 1)
   | 'APPLICATION_REVIEW'
-  | 'PHONE_SCREENING'
-  | 'TECHNICAL_INTERVIEW'
-  | 'PANEL_INTERVIEW'
+  | 'INTERVIEWING'
   | 'EVALUATION'
   // Phase 2 — Offer & Acceptance (MVP 1)
   | 'BACKGROUND_CHECK'
@@ -25,18 +25,16 @@ export type HiringStage =
 
 /** Maps each stage to its phase (1–4). Drives the phase indicator on Candidate Record. */
 export const PHASE_MAP: Record<HiringStage, 1 | 2 | 3 | 4> = {
-  APPLICATION_REVIEW:  1,
-  PHONE_SCREENING:     1,
-  TECHNICAL_INTERVIEW: 1,
-  PANEL_INTERVIEW:     1,
-  EVALUATION:          1,
-  BACKGROUND_CHECK:    2,
-  OFFER_PREPARATION:   2,
-  OFFER_APPROVAL:      2,
-  OFFER_DELIVERY:      2,
-  CONTRACT_SIGNING:    2,
-  PRE_BOARDING:        3,
-  ONBOARDING:          4,
+  APPLICATION_REVIEW: 1,
+  INTERVIEWING:       1,
+  EVALUATION:         1,
+  BACKGROUND_CHECK:   2,
+  OFFER_PREPARATION:  2,
+  OFFER_APPROVAL:     2,
+  OFFER_DELIVERY:     2,
+  CONTRACT_SIGNING:   2,
+  PRE_BOARDING:       3,
+  ONBOARDING:         4,
 };
 
 // ─── Evaluation States ────────────────────────────────────────────────────────
@@ -160,16 +158,16 @@ export interface Candidate {
 }
 
 export interface Interview {
-  id:              string;
+  interviewId:     string;   // DynamoDB SK suffix, used as the primary key
   candidateId:     string;
-  round:           number;  // configurable rounds (not capped at 2)
-  interviewType?:  string;
-  scheduledAt:     string;  // ISO 8601
-  location?:       string;
+  interviewType:   string;
+  scheduledAt:     string;   // ISO 8601
   panelMemberIds:  string[];
+  adhocPanelMembers?: AdhocPanelMember[];
   votesRequired:   number;
   status:          'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
   completedAt?:    string;
+  outcome?:        'PASS' | 'DEFER' | 'FAIL';
 }
 
 export interface Vote {
@@ -277,7 +275,7 @@ export interface UpdateCandidatePayload {
   experienceYears?: number;
   source?:         string;
   hiringManagerId?: string;
-  positionLevel?:  PositionLevel; // locked if stage >= PANEL_INTERVIEW
+  positionLevel?:  PositionLevel; // locked once EVALUATION is reached
 }
 
 export type InterviewType = 'PHONE_SCREEN' | 'TECHNICAL' | 'BEHAVIORAL' | 'CULTURE_FIT' | 'FINAL';

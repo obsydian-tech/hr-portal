@@ -33,7 +33,7 @@ export const KANBAN_PHASES: KanbanPhase[] = [
     id:     1,
     label:  'Interview & Evaluation',
     sub:    'Screen, evaluate, decide',
-    stages: ['APPLICATION_REVIEW', 'PHONE_SCREENING', 'TECHNICAL_INTERVIEW', 'PANEL_INTERVIEW', 'EVALUATION'],
+    stages: ['APPLICATION_REVIEW', 'INTERVIEWING', 'EVALUATION'],
   },
   {
     id:     2,

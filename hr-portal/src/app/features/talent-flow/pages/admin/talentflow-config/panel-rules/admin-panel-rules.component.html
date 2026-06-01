@@ -1,5 +1,7 @@
 <div class="config-page">
 
+  <!-- ── Panel Rules section ────────────────────────────────────────────────── -->
+
   <div class="config-page__header">
     <div class="config-page__header-left">
       <h2 class="config-page__title">Panel Rules</h2>
@@ -83,6 +85,72 @@
     <div class="config-save-row">
       <p-button label="Reset to Defaults" icon="pi pi-refresh" styleClass="p-button-text p-button-secondary" [disabled]="saving()" (onClick)="confirmReset()" />
       <p-button label="Save Changes" icon="pi pi-check" [loading]="saving()" [disabled]="saving()" (onClick)="confirmSave()" />
+    </div>
+  }
+
+  <!-- ── Interview Requirements section ────────────────────────────────────── -->
+
+  <div class="config-page__header config-page__header--section">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">Interview Requirements</h2>
+      <p class="config-page__subtitle">Define which interview types must be completed (per position level) before a candidate can advance out of the INTERVIEWING stage.</p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!irLoading()) {
+        <tf-config-version-badge [version]="irVersion()" [changedAt]="irUpdatedAt()" />
+      }
+    </div>
+  </div>
+
+  @if (irLoading()) {
+    <div class="config-page__skeleton">
+      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3,4,5]"></div>
+    </div>
+  } @else {
+
+    <div class="config-card">
+      <div class="config-card__section-label">Required Interview Types per Position Level</div>
+
+      <!-- Matrix header -->
+      <div class="ir-matrix__row ir-matrix__row--header">
+        <div class="ir-matrix__cell ir-matrix__cell--label">Interview Type</div>
+        @for (lvl of interviewLevels; track lvl) {
+          <div class="ir-matrix__cell ir-matrix__cell--level">{{ lvl | titlecase }}</div>
+        }
+      </div>
+
+      <!-- Matrix rows -->
+      @for (type of interviewTypes; track type) {
+        <div class="ir-matrix__row">
+          <div class="ir-matrix__cell ir-matrix__cell--label">
+            <span class="ir-matrix__type-label">{{ interviewTypeLabels[type] }}</span>
+          </div>
+          @for (lvl of interviewLevels; track lvl) {
+            <div class="ir-matrix__cell ir-matrix__cell--check">
+              <label class="ir-matrix__check-label">
+                <p-checkbox
+                  [binary]="true"
+                  [ngModel]="isReqChecked(lvl, type)"
+                  (ngModelChange)="toggleInterviewReq(lvl, type, $event)"
+                />
+                <span [class.ir-matrix__req-text--active]="isReqChecked(lvl, type)">
+                  {{ isReqChecked(lvl, type) ? 'Required' : 'Optional' }}
+                </span>
+              </label>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="config-save-row">
+      <p-button
+        label="Save Interview Requirements"
+        icon="pi pi-check"
+        [loading]="irSaving()"
+        [disabled]="irSaving()"
+        (onClick)="confirmSaveInterviewReqs()"
+      />
     </div>
   }
 

@@ -179,6 +179,13 @@ export const talentFlowRoutes: Routes = [
             (m) => m.AdminSentimentScalesComponent,
           ),
       },
+      {
+        path: 'talentflow/stage-config',
+        loadComponent: () =>
+          import('./pages/admin/talentflow-config/stage-config/admin-stage-config.component').then(
+            (m) => m.AdminStageConfigComponent,
+          ),
+      },
       // ── Section 5: IT Request Config ──────────────────────────────────
       {
         path: 'it-request/queues',

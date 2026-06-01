@@ -240,7 +240,7 @@ export class HmDashboardPageComponent implements OnInit {
     this.candidates().filter((c) =>
       // Option E: remove from queue once evaluationResult is written by completeEvaluation
       !c.evaluationResult &&
-      ['TECHNICAL_INTERVIEW', 'PANEL_INTERVIEW', 'EVALUATION'].includes(c.currentStage),
+      ['INTERVIEWING', 'EVALUATION'].includes(c.currentStage),
     ),
   );
   protected readonly allCandidates     = this.candidates.asReadonly();
@@ -262,13 +262,11 @@ export class HmDashboardPageComponent implements OnInit {
 
   protected stageLabel(stage: string): string {
     const labels: Record<string, string> = {
-      APPLICATION_REVIEW:  'Application Review',
-      PHONE_SCREENING:     'Phone Screening',
-      TECHNICAL_INTERVIEW: 'Technical Interview',
-      PANEL_INTERVIEW:     'Panel Interview',
-      EVALUATION:          'Evaluation',
-      BACKGROUND_CHECK:    'Background Check',
-      OFFER_PREPARATION:   'Offer Preparation',
+      APPLICATION_REVIEW: 'Application Review',
+      INTERVIEWING:       'Interviewing',
+      EVALUATION:         'Evaluation',
+      BACKGROUND_CHECK:   'Background Check',
+      OFFER_PREPARATION:  'Offer Preparation',
     };
     return labels[stage] ?? stage;
   }

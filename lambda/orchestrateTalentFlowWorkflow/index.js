@@ -23,7 +23,7 @@
  *   EVENTBRIDGE_BUS_NAME    — talent-flow-bus
  *
  * DO NOT hardcode table names or bus name.
- * DO NOT create a new SAGA record — createCandidate already wrote it with configVersion=null.
+ * DO NOT create a new SAGA record — createCandidate already wrote it with configVersion omitted.
  */
 
 const { DynamoDBClient, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');

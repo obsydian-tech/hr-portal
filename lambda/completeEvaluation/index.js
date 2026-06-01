@@ -129,7 +129,7 @@ exports.handler = async (event) => {
         ':res':   outcome,
         ':fs':    averageScore ?? null,
         ':at':    now,
-        ':stage': 'OFFER_PREPARATION',
+        ':stage': 'BACKGROUND_CHECK',
         ':cv':    configVersion,
       }
     : {

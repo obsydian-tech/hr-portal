@@ -14,7 +14,7 @@ import { Candidate, PositionLevel, UpdateCandidatePayload } from '../../models/t
 
 // Stages at which positionLevel becomes immutable (evaluation scores already cast)
 const LEVEL_LOCKED_STAGES = new Set([
-  'PANEL_INTERVIEW', 'EVALUATION', 'BACKGROUND_CHECK',
+  'EVALUATION', 'BACKGROUND_CHECK',
   'OFFER_PREPARATION', 'OFFER_APPROVAL', 'OFFER_DELIVERY',
   'CONTRACT_SIGNING', 'PRE_BOARDING', 'ONBOARDING',
 ]);
