@@ -77,6 +77,13 @@ export class TalentFlowApiService {
       switchMap((headers) =>
         this.http.get<PipelineResponse>(`${this.baseUrl}/candidates`, { headers, params }),
       ),
+      map((res) => ({
+        ...res,
+        candidates: (res.candidates ?? []).map((c: Candidate & { positionTitle?: string }) => ({
+          ...c,
+          role: c.role || c.positionTitle || '',
+        })),
+      })),
       timeout(API_TIMEOUT_MS),
       catchError(this.handleError),
     );
@@ -85,8 +92,11 @@ export class TalentFlowApiService {
   getCandidate(id: string): Observable<Candidate> {
     return this.authHeaders().pipe(
       switchMap((headers) =>
-        this.http.get<Candidate>(`${this.baseUrl}/candidates/${id}`, { headers }),
+        this.http.get<Candidate & { positionTitle?: string }>(
+          `${this.baseUrl}/candidates/${id}`, { headers },
+        ),
       ),
+      map((c) => ({ ...c, role: c.role || c.positionTitle || '' } as Candidate)),
       timeout(API_TIMEOUT_MS),
       catchError(this.handleError),
     );
@@ -256,6 +266,7 @@ export class TalentFlowApiService {
       candidateId,
       tenantId: environment.talentFlow.tenantId,
       voterId: this.authService.currentUser()?.email ?? 'unknown',
+      interviewId: payload.interviewId,
       scores: payload.scores,
       rating: payload.decision,
       notes: payload.notes,

@@ -120,7 +120,7 @@
         <ul class="tf-bell-panel__list">
           @for (c of breachedCandidates(); track c.id) {
             <li class="tf-bell-panel__item" (click)="goToCandidate(c.id)">
-              <div class="tf-bell-panel__avatar">{{ (c.firstName[0] ?? '') + (c.lastName[0] ?? '') | uppercase }}</div>
+              <div class="tf-bell-panel__avatar">{{ (c.firstName[0] + c.lastName[0]) | uppercase }}</div>
               <div class="tf-bell-panel__info">
                 <span class="tf-bell-panel__name">{{ c.firstName }} {{ c.lastName }}</span>
                 <span class="tf-bell-panel__meta">{{ c.role }} · {{ c.currentStage }}</span>
