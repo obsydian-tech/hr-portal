@@ -140,6 +140,13 @@ exports.handler = async (event) => {
 
   const { firstName, lastName, email, positionTitle, positionLevel, tenantId } = body;
 
+  // Optional fields — stored when provided, omitted when absent (removeUndefinedValues handles this)
+  const phone           = body.phone           || undefined;
+  const department      = body.department      || undefined;
+  const location        = body.location        || undefined;
+  const source          = body.source          || undefined;
+  const experienceYears = body.experienceYears != null ? body.experienceYears : undefined;
+
   if (!VALID_POSITION_LEVELS.includes(positionLevel)) {
     return badRequest(`positionLevel must be one of: ${VALID_POSITION_LEVELS.join(', ')}`);
   }
@@ -163,8 +170,14 @@ exports.handler = async (event) => {
     firstName,
     lastName,
     email,
+    phone,
     positionTitle,
     positionLevel,
+    department,
+    location,
+    experienceYears,
+    source,
+    appliedDate: now,  // date the candidate was added to the system
     currentStage: 'APPLICATION_REVIEW',
     stageEnteredAt: now,
     status: 'ACTIVE',

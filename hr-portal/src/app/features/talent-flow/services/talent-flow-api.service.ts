@@ -152,6 +152,8 @@ export class TalentFlowApiService {
       positionTitle:   payload.role,          // form field 'role' maps to Lambda 'positionTitle'
       positionLevel:   payload.positionLevel,
       experienceYears: payload.experienceYears,
+      department:      payload.department,
+      location:        payload.location,
       source:          payload.source,
       tenantId:        environment.talentFlow.tenantId,
     };
