@@ -571,9 +571,20 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 - [x] `dynamodb:PutItem` + `Query` on `talent-flow-state` added to `scheduleInterview` (BUG-008)
 - [x] `advanceCandidateStage` redeployed — gate message now shows readable interview type names
 
-### Phase 3 — Interview loop E2E verification (pending)
+### Phase 3 — Interview GET route + full deploy (completed 2026-06-01)
+- [x] PR #233 (`feature/interviewing-stage-loop` → `develop`) merged — 19 files, interview loop UI + Lambda GET handler
+- [x] PR #234 (`develop` → `main`) merge conflicts resolved — `docs/E2E-TESTING-GUIDE.md` and `infra/iam-patches.tf` add/add conflicts kept develop's version
+- [x] `terraform apply` — 3 new resources: `aws_lambda_permission.apigw_get_interviews`, `aws_apigatewayv2_integration.get_candidate_interviews`, `aws_apigatewayv2_route.get_candidate_interviews`
+- [x] API GW route `GET /v1/candidates/{id}/interviews` live (JWT-protected, route ID `vdkqhg2`)
+- [x] All 33 TalentFlow Lambdas redeployed via `deploy-talentflow-lambdas.sh`
+- [x] Lambda invoked directly — returned real interview record (`BEHAVIORAL`, `SCHEDULED`, panel member attached) for `CAND-01KS5H7TKYCP8KYQSAFXQHZAME`
+
+### Phase 4 — Interview loop E2E verification (pending)
 - [ ] Fresh candidate created (JUNIOR)
 - [ ] Gate blocks advance at INTERVIEWING → EVALUATION before interviews done (step 3)
 - [ ] All 3 required interview types scheduled and completed (steps 4–8)
 - [ ] Gate passes — advance to EVALUATION succeeds (step 9)
 - [ ] CloudWatch confirms clean gate log with no "gate skipped" WARN
+- [ ] Angular workspace UI — Interview tab shows scheduled interviews fetched from `GET /v1/candidates/{id}/interviews`
+- [ ] "Complete Interview" form submits PATCH and updates status in UI
+- [ ] "Add Panel Member" form submits PATCH and updates panelMemberIds in UI
