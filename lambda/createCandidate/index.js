@@ -145,7 +145,8 @@ exports.handler = async (event) => {
   const department      = body.department      || undefined;
   const location        = body.location        || undefined;
   const source          = body.source          || undefined;
-  const experienceYears = body.experienceYears != null ? body.experienceYears : undefined;
+  const experienceYears   = body.experienceYears != null ? body.experienceYears : undefined;
+  const hiringManagerId   = body.hiringManagerId   || undefined;
 
   if (!VALID_POSITION_LEVELS.includes(positionLevel)) {
     return badRequest(`positionLevel must be one of: ${VALID_POSITION_LEVELS.join(', ')}`);
@@ -177,6 +178,7 @@ exports.handler = async (event) => {
     location,
     experienceYears,
     source,
+    hiringManagerId,
     appliedDate: now,  // date the candidate was added to the system
     currentStage: 'APPLICATION_REVIEW',
     stageEnteredAt: now,

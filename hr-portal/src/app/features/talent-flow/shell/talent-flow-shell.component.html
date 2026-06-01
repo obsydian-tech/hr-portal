@@ -20,14 +20,15 @@
           My Tasks
         </a>
         <a class="tf-nav__item"
-           routerLink="/platform/talentflow/candidates"
+           routerLink="/platform/talentflow/hm-dashboard"
+           [queryParams]="{ tab: 'candidates' }"
            routerLinkActive="tf-nav__item--active">
           My Candidates
         </a>
         <a class="tf-nav__item"
            routerLink="/platform/talentflow/hm-dashboard"
-           routerLinkActive="tf-nav__item--active"
-           fragment="decisions">
+           [queryParams]="{ tab: 'decisions' }"
+           routerLinkActive="tf-nav__item--active">
           Decisions
         </a>
         <a class="tf-nav__item"

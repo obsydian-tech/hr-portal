@@ -4,8 +4,9 @@ import {
   inject,
   signal,
   computed,
-  OnInit,
 } from '@angular/core';
+import { RouterModule, ActivatedRoute } from '@angular/router';
+
 import { Tabs, TabList, Tab, TabPanels, TabPanel } from 'primeng/tabs';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TalentFlowApiService } from '../../services/talent-flow-api.service';
@@ -22,7 +23,7 @@ import { Candidate } from '../../models/talent-flow.models';
 @Component({
   selector: 'tf-hm-dashboard-page',
   standalone: true,
-  imports: [Tabs, TabList, Tab, TabPanels, TabPanel, ProgressSpinnerModule, HmTaskCardComponent],
+  imports: [Tabs, TabList, Tab, TabPanels, TabPanel, ProgressSpinnerModule, HmTaskCardComponent, RouterModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="hm-dashboard">
@@ -85,7 +86,8 @@ import { Candidate } from '../../models/talent-flow.models';
             } @else {
               <div class="hm-candidate-list">
                 @for (c of allCandidates(); track c.id) {
-                  <div class="hm-candidate-row">
+                  <div class="hm-candidate-row hm-candidate-row--clickable"
+                    [routerLink]="['/platform/talentflow/candidates', c.id]">
                     <div class="hm-candidate-row__info">
                       <span class="hm-candidate-row__name">{{ c.firstName }} {{ c.lastName }}</span>
                       <span class="hm-candidate-row__role">{{ c.role }}</span>
@@ -108,7 +110,8 @@ import { Candidate } from '../../models/talent-flow.models';
             } @else {
               <div class="hm-candidate-list">
                 @for (c of decisionCandidates(); track c.id) {
-                  <div class="hm-candidate-row">
+                  <div class="hm-candidate-row hm-candidate-row--clickable"
+                    [routerLink]="['/platform/talentflow/candidates', c.id]">
                     <div class="hm-candidate-row__info">
                       <span class="hm-candidate-row__name">{{ c.firstName }} {{ c.lastName }}</span>
                       <span class="hm-candidate-row__role">{{ c.role }}</span>
@@ -217,21 +220,33 @@ import { Candidate } from '../../models/talent-flow.models';
       font-weight: 600;
     }
 
+    .hm-candidate-row--clickable { cursor: pointer; text-decoration: none; }
+    .hm-candidate-row--clickable:hover { background: var(--naleko-surface-container-low, #f8fafc); }
+
     .hm-candidate-row__sla { font-size: 0.625rem; }
     .hm-candidate-row__sla--ON_TRACK { color: var(--naleko-success, #22c55e); }
     .hm-candidate-row__sla--AT_RISK  { color: var(--naleko-warning, #f59e0b); }
     .hm-candidate-row__sla--BREACHED { color: var(--naleko-danger, #ef4444); }
   `],
 })
-export class HmDashboardPageComponent implements OnInit {
+export class HmDashboardPageComponent {
   private readonly api        = inject(TalentFlowApiService);
   protected readonly tfAuth   = inject(TalentFlowAuthService);
   private readonly nalekoAuth = inject(AuthService);
+  private readonly route      = inject(ActivatedRoute);
 
   protected readonly activeTab  = signal<string>('tasks');
   protected readonly loading    = signal(true);
   protected readonly loadError  = signal('');
   private readonly candidates   = signal<Candidate[]>([]);
+
+  constructor() {
+    // Read ?tab= query param to activate correct tab on direct navigation
+    const tabParam = this.route.snapshot.queryParamMap.get('tab');
+    if (tabParam) this.activeTab.set(tabParam);
+    // nalekoAuth.checkSession() already ran via APP_INITIALIZER before routing
+    this.loadCandidates();
+  }
 
   protected readonly currentUser = computed(() =>
     this.tfAuth.currentUser() ?? (this.nalekoAuth.currentUser() as any),
@@ -247,10 +262,6 @@ export class HmDashboardPageComponent implements OnInit {
   protected readonly decisionCandidates = computed(() =>
     this.candidates().filter((c) => c.currentStage === 'EVALUATION'),
   );
-
-  ngOnInit(): void {
-    this.loadCandidates();
-  }
 
   protected setActiveTab(val: string | number): void {
     this.activeTab.set(String(val));
@@ -274,10 +285,15 @@ export class HmDashboardPageComponent implements OnInit {
   private loadCandidates(): void {
     this.loading.set(true);
     this.loadError.set('');
-    const tfUser     = this.tfAuth.currentUser();
     const nalekoUser = this.nalekoAuth.currentUser();
-    // Prefer TF pool sub (exact DynamoDB key), fall back to email (cross-pool safe)
-    const hmId = tfUser?.sub ?? tfUser?.email ?? nalekoUser?.email ?? '';
+    // After pool consolidation, the DynamoDB hiringManagerId is the Naleko Cognito sub.
+    // TalentFlowAuthService is a separate pool no longer used for API auth.
+    const hmId = nalekoUser?.sub ?? '';
+    if (!hmId) {
+      this.loadError.set('Could not identify your account. Please sign in again.');
+      this.loading.set(false);
+      return;
+    }
     this.api.getCandidates({ hiringManagerId: hmId }).subscribe({
       next: (res) => {
         this.candidates.set(res.candidates);

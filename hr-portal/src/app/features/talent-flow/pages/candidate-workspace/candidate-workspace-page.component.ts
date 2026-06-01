@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { TalentFlowStateService } from '../../services/talent-flow-state.service';
 import { TalentFlowApiService } from '../../services/talent-flow-api.service';
+import { TalentFlowAuthService } from '../../services/talent-flow-auth.service';
 import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.component';
 import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
 import {
@@ -58,6 +59,12 @@ export class CandidateWorkspacePageComponent implements OnInit {
   private readonly api = inject(TalentFlowApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly tfAuth = inject(TalentFlowAuthService);
+
+  // True for TAs (admins) and false for HMs — gates TA-only actions in template
+  protected readonly isTA = computed(
+    () => this.tfAuth.isAdmin() || !this.tfAuth.isHiringManager(),
+  );
 
   protected readonly defaultWeights: ScoringWeights = DEFAULT_SCORING_WEIGHTS;
 

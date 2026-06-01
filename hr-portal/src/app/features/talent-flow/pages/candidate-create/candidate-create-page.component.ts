@@ -6,6 +6,7 @@ import {
   output,
   signal,
   computed,
+  OnInit,
 } from '@angular/core';
 import {
   FormBuilder,
@@ -19,7 +20,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { TalentFlowApiService } from '../../services/talent-flow-api.service';
-import { PositionLevel } from '../../models/talent-flow.models';
+import { HiringManager, PositionLevel } from '../../models/talent-flow.models';
 
 /**
  * CandidateCreatePageComponent — Phase B rebuild (D036–D043)
@@ -61,7 +62,7 @@ const WORKFLOW_CARDS = [
   styleUrl:    './candidate-create-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CandidateCreatePageComponent {
+export class CandidateCreatePageComponent implements OnInit {
   private readonly fb  = inject(FormBuilder);
   private readonly api = inject(TalentFlowApiService);
 
@@ -70,13 +71,14 @@ export class CandidateCreatePageComponent {
   readonly cancelled = output<void>();
   readonly created   = output<string>();
 
-  readonly seniorityCards = SENIORITY_CARDS;
-  readonly workflowCards  = WORKFLOW_CARDS;
-  readonly sourceOptions  = SOURCE_OPTIONS;
+  readonly seniorityCards  = SENIORITY_CARDS;
+  readonly workflowCards   = WORKFLOW_CARDS;
+  readonly sourceOptions   = SOURCE_OPTIONS;
 
-  readonly saving         = signal(false);
-  readonly saveError      = signal<string | null>(null);
-  readonly showInterview  = signal(false);
+  readonly saving          = signal(false);
+  readonly saveError       = signal<string | null>(null);
+  readonly showInterview   = signal(false);
+  readonly hiringManagers  = signal<HiringManager[]>([]);
 
   readonly form = this.fb.group({
     firstName:          ['', [Validators.required, Validators.minLength(2)]],
@@ -90,7 +92,15 @@ export class CandidateCreatePageComponent {
     workflowTemplateId: ['standard-v1', Validators.required],
     experienceYears:    [0, [Validators.required, Validators.min(0), Validators.max(50)]],
     source:             [null as string | null],
+    hiringManagerId:    [null as string | null],
   });
+
+  ngOnInit(): void {
+    this.api.getHiringManagers().subscribe({
+      next: (list) => this.hiringManagers.set(list),
+      error: () => {},
+    });
+  }
 
   // ── Completeness bar (D037) ──────────────────────────────────────────────
   readonly completeness = computed<number>(() => {
@@ -143,6 +153,7 @@ export class CandidateCreatePageComponent {
       experienceYears:    v.experienceYears ?? 0,
       source:             v.source || undefined,
       workflowTemplateId: v.workflowTemplateId || undefined,
+      hiringManagerId:    v.hiringManagerId   || undefined,
     }).subscribe({
       next: ({ candidateId }) => this.created.emit(candidateId),
       error: (err: { userMessage?: string }) => {

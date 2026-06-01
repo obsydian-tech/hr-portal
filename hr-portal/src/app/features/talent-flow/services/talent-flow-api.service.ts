@@ -12,6 +12,7 @@ import {
   CreateCandidatePayload,
   UpdateCandidatePayload,
   EngagementSentiment,
+  HiringManager,
   HiringStage,
   Interview,
   InteractionOutcome,
@@ -177,6 +178,20 @@ export class TalentFlowApiService {
         ),
       ),
       switchMap((res) => [res.members ?? []]),
+      timeout(API_TIMEOUT_MS),
+      catchError(this.handleError),
+    );
+  }
+
+  getHiringManagers(): Observable<HiringManager[]> {
+    return this.authHeaders().pipe(
+      switchMap((headers) =>
+        this.http.get<{ hiringManagers: HiringManager[] }>(
+          `${this.baseUrl}/hiring-managers`,
+          { headers },
+        ),
+      ),
+      map((res) => res.hiringManagers ?? []),
       timeout(API_TIMEOUT_MS),
       catchError(this.handleError),
     );
