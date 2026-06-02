@@ -13,7 +13,13 @@
  *   3.  GetItem SAGA → extract configVersion
  *   4.  getConfig(tenantId, 'APPROVAL_RULES', configVersion) — VERSIONED (invariant #2)
  *   5.  averageScore >= config.minimumPassScore (default 6.0) → PASSED else FAILED
- *   6.  UpdateItem SAGA + publish EvaluationCompleted
+ *   6.  UpdateItem SAGA (scores + result only — stage stays at EVALUATION)
+ *
+ * Option B design: EvaluationCompleted is published by advanceCandidateStage
+ * when the TA deliberately advances EVALUATION → BACKGROUND_CHECK. This Lambda
+ * only records the computed score/result; the TA decides when to act on it.
+ * Exception: FAILED path still sets status=REJECTED immediately — a vote veto
+ * or score below threshold requires no TA decision.
  *
  * Notification: EventBridge Rule 5 routes EvaluationCompleted →
  *   sendTalentFlowNotification automatically. No direct SQS send from this
@@ -22,8 +28,6 @@
  * Compliance invariant #2 (non-negotiable):
  *   getConfig MUST use candidate.configVersion — NEVER active version.
  *   Pass threshold decisions are POPIA-auditable and must be version-locked.
- *
- * EventBridge publish source: talent-flow.workflow (Hard-Won Lesson 7a)
  */
 
 const {
@@ -32,17 +36,11 @@ const {
   UpdateItemCommand,
 } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
-const {
-  EventBridgeClient,
-  PutEventsCommand,
-} = require('@aws-sdk/client-eventbridge');
 const { getConfig } = require('../shared/config-reader');
 
 const dynamo = new DynamoDBClient({});
-const eb     = new EventBridgeClient({});
 
 const STATE_TABLE = process.env.STATE_TABLE_NAME;
-const EB_BUS      = process.env.EVENTBRIDGE_BUS_NAME;
 
 const DEFAULT_MINIMUM_PASS_SCORE = 6.0;
 
@@ -117,26 +115,26 @@ exports.handler = async (event) => {
     });
   }
 
-  // ── Step 6a: UpdateItem SAGA ────────────────────────────────────────────
+  // ── Step 6a: UpdateItem SAGA (scores + result only; stage unchanged) ─────
+  // PASSED: stage stays at EVALUATION — TA advances via advanceCandidateStage.
+  // FAILED: status=REJECTED — vote quorum decided; no TA action needed.
   const now = new Date().toISOString();
 
   const updateExpression = outcome === 'PASSED'
-    ? 'SET evaluationResult = :res, finalScore = :fs, evaluationCompletedAt = :at, currentStage = :stage, configVersionUsedForEval = :cv'
-    : 'SET evaluationResult = :res, finalScore = :fs, evaluationCompletedAt = :at, currentStage = :stage, #st = :rejected, configVersionUsedForEval = :cv';
+    ? 'SET evaluationResult = :res, finalScore = :fs, evaluationCompletedAt = :at, configVersionUsedForEval = :cv'
+    : 'SET evaluationResult = :res, finalScore = :fs, evaluationCompletedAt = :at, #st = :rejected, configVersionUsedForEval = :cv';
 
   const expressionAttributeValues = outcome === 'PASSED'
     ? {
-        ':res':   outcome,
-        ':fs':    averageScore ?? null,
-        ':at':    now,
-        ':stage': 'BACKGROUND_CHECK',
-        ':cv':    configVersion,
+        ':res': outcome,
+        ':fs':  averageScore ?? null,
+        ':at':  now,
+        ':cv':  configVersion,
       }
     : {
         ':res':      outcome,
         ':fs':       averageScore ?? null,
         ':at':       now,
-        ':stage':    'EVALUATION',
         ':rejected': 'REJECTED',
         ':cv':       configVersion,
       };
@@ -173,47 +171,14 @@ exports.handler = async (event) => {
         ExpressionAttributeValues: marshall({ ':completed': 'COMPLETED', ':at': now }),
       }));
     } catch (err) {
-      // Non-fatal — SAGA and event already written; log and continue
+      // Non-fatal — SAGA already updated; log and continue
       console.warn('Failed to mark INTERVIEW record as COMPLETED', {
         candidateId, interviewId: saga.currentInterviewId, error: err.message,
       });
     }
   }
 
-  // ── Step 6c: Publish EvaluationCompleted ─────────────────────────────────
-  await publishEvaluationCompleted({
-    candidateId,
-    tenantId,
-    outcome,
-    finalScore:    averageScore ?? null,
-    configVersion,
-  });
-
-  console.info('Evaluation completed', { candidateId, outcome, configVersion, finalScore: averageScore ?? null });
+  console.info('Evaluation scores recorded', { candidateId, outcome, configVersion, finalScore: averageScore ?? null });
 
   return ok({ candidateId, tenantId, outcome, finalScore: averageScore ?? null, configVersion });
 };
-
-// ── EventBridge publish helper ────────────────────────────────────────────────
-async function publishEvaluationCompleted({ candidateId, tenantId, outcome, finalScore, configVersion }) {
-  try {
-    await eb.send(new PutEventsCommand({
-      Entries: [{
-        EventBusName: EB_BUS,
-        Source:       'talent-flow.workflow',
-        DetailType:   'EvaluationCompleted',
-        Detail:       JSON.stringify({
-          candidateId,
-          tenantId,
-          outcome,
-          finalScore,
-          configVersion,
-          timestamp: new Date().toISOString(),
-        }),
-      }],
-    }));
-  } catch (err) {
-    // Non-fatal: SAGA already updated; downstream notification will reconcile
-    console.error('Failed to publish EvaluationCompleted', { candidateId, outcome, error: err.message });
-  }
-}

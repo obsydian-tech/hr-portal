@@ -14,6 +14,8 @@
  *      for this candidate's positionLevel). Returns 409 if any are pending.
  *   5. UpdateItem SAGA: currentStage=newStage, stageEnteredAt=now
  *   6. Publish StageAdvanced to EventBridge talent-flow-bus
+ *      If advancing EVALUATION → BACKGROUND_CHECK: also publish EvaluationCompleted
+ *      (Option B — deliberate TA decision triggers createOffer downstream)
  *
  * Env vars:
  *   STATE_TABLE_NAME     — talent-flow-state
@@ -218,6 +220,30 @@ exports.handler = async (event) => {
     }));
   } catch (err) {
     console.error('Failed to publish StageAdvanced event', { candidateId, newStage, error: err.message });
+  }
+
+  // ── Step 6b: Publish EvaluationCompleted when TA advances EVALUATION → BACKGROUND_CHECK
+  // This is the Option B trigger: the stage advance IS the evaluation decision.
+  // createOffer listens to EvaluationCompleted on talent-flow-bus and auto-creates the offer.
+  if (currentStage === 'EVALUATION' && newStage === 'BACKGROUND_CHECK') {
+    try {
+      await eb.send(new PutEventsCommand({
+        Entries: [{
+          EventBusName: EB_BUS,
+          Source:       'talent-flow.workflow',
+          DetailType:   'EvaluationCompleted',
+          Detail:       JSON.stringify({
+            candidateId,
+            tenantId,
+            outcome:       'PASSED',
+            configVersion: saga.configVersion,
+            timestamp:     now,
+          }),
+        }],
+      }));
+    } catch (err) {
+      console.error('Failed to publish EvaluationCompleted event', { candidateId, error: err.message });
+    }
   }
 
   console.info('Stage advanced', { candidateId, previousStage: currentStage, newStage });
