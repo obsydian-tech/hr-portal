@@ -74,12 +74,13 @@ function mapCognitoUser(cognitoUser) {
   for (const a of (cognitoUser.Attributes || [])) {
     attrs[a.Name] = a.Value;
   }
+  const sub        = attrs['sub']         || cognitoUser.Username;
   const email      = attrs['email']       || cognitoUser.Username;
   const givenName  = attrs['given_name']  || '';
   const familyName = attrs['family_name'] || '';
   const name       = [givenName, familyName].filter(Boolean).join(' ') || email;
   return {
-    id:          email,
+    id:          sub,    // sub — matches panelMemberIds in INTERVIEW# records
     name,
     email,
     role:        'System User',

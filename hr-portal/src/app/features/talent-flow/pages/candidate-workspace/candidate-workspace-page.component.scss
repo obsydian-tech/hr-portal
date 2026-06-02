@@ -1626,6 +1626,102 @@
   &--defer { color: var(--naleko-warning, #f59e0b); }
   &--fail  { color: var(--naleko-error,   #ef4444); }
 }
+// ── Panel votes summary (inside interview card) ───────────────────────────────
+.tf-panel-votes {
+  margin-top: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--naleko-border-subtle, #e2e8f0);
+}
+
+.tf-panel-votes__header {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant, #64748b);
+  margin-bottom: 0.5rem;
+}
+
+.tf-panel-votes__tally {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--naleko-on-surface-variant, #94a3b8);
+}
+
+.tf-panel-vote-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3125rem 0;
+  font-size: 0.8125rem;
+
+  &__name   { flex: 1; color: var(--naleko-text-primary, #1e293b); font-weight: 500; }
+  &__score  { color: var(--naleko-text-secondary, #475569); font-size: 0.75rem; }
+  &__proxy  { font-size: 0.6875rem; color: var(--naleko-text-muted, #94a3b8); }
+
+  &__decision {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.1875rem 0.5rem;
+    border-radius: 4px;
+
+    &--positive { background: var(--naleko-success-muted, #f0fdf4); color: var(--naleko-success, #16a34a); }
+    &--negative { background: var(--naleko-danger-muted, #fef2f2);  color: var(--naleko-danger, #ef4444);  }
+  }
+
+  &__pending {
+    font-size: 0.6875rem;
+    color: var(--naleko-text-muted, #94a3b8);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+}
+
+// ── TA proxy vote form selectors ──────────────────────────────────────────────
+.tf-proxy-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tf-proxy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--naleko-border-subtle, #e2e8f0);
+  border-radius: var(--naleko-radius-md, 8px);
+  background: var(--naleko-surface-secondary, #f8fafc);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &--selected {
+    border-color: var(--naleko-brand-indigo, #6366f1);
+    background: var(--naleko-brand-indigo-muted, #eef2ff);
+    color: var(--naleko-brand-indigo, #6366f1);
+    font-weight: 600;
+  }
+}
+
+.tf-proxy-context {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--naleko-text-secondary, #475569);
+  background: var(--naleko-surface-secondary, #f8fafc);
+  border: 1px solid var(--naleko-border-subtle, #e2e8f0);
+  border-radius: var(--naleko-radius-md, 8px);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+
+  strong { color: var(--naleko-brand-indigo, #6366f1); }
+}
+
 .tf-interview-card__actions {
   display: flex;
   align-items: center;

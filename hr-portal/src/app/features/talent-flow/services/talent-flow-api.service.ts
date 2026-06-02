@@ -28,6 +28,7 @@ import {
   ProvisioningBundleProgress,
   ProvisioningItemProgress,
   ActivityLogEntry,
+  InterviewVoteRecord,
 } from '../models/talent-flow.models';
 
 export interface PipelineResponse {
@@ -156,6 +157,7 @@ export class TalentFlowApiService {
       department:      payload.department,
       location:        payload.location,
       source:          payload.source,
+      hiringManagerId: payload.hiringManagerId,
       tenantId:        environment.talentFlow.tenantId,
     };
     return this.authHeaders().pipe(
@@ -277,16 +279,30 @@ export class TalentFlowApiService {
 
   // Votes
 
-  submitVote(candidateId: string, payload: VotePayload): Observable<{ voteId: string }> {
-    // VotePayload.decision now matches Lambda VALID_RATINGS directly (D050: STRONG_NO | NO | YES | STRONG_YES)
+  /**
+   * Submit a vote for an interview.
+   * voterIdOverride: when a TA captures a vote on behalf of a panel member,
+   *   pass the panel member's sub here. submittedByTA is set automatically.
+   */
+  submitVote(
+    candidateId: string,
+    payload: VotePayload,
+    voterIdOverride?: string,
+  ): Observable<{ voteId: string }> {
+    const currentUser = this.authService.currentUser();
+    // Use Cognito sub as voterId so it matches panelMemberIds (which store subs).
+    // Falls back to email for old records that used email-based IDs.
+    const selfId = currentUser?.sub ?? currentUser?.email ?? 'unknown';
     const body = {
       candidateId,
-      tenantId: environment.talentFlow.tenantId,
-      voterId: this.authService.currentUser()?.email ?? 'unknown',
-      interviewId: payload.interviewId,
-      scores: payload.scores,
-      rating: payload.decision,
-      notes: payload.notes,
+      tenantId:     environment.talentFlow.tenantId,
+      voterId:      voterIdOverride ?? selfId,
+      interviewId:  payload.interviewId,
+      scores:       payload.scores,
+      rating:       payload.decision,
+      notes:        payload.notes,
+      // Audit trail — who captured the vote on behalf
+      ...(voterIdOverride ? { submittedByTA: selfId } : {}),
     };
     return this.authHeaders().pipe(
       switchMap((headers) =>

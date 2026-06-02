@@ -24,6 +24,7 @@ import {
   HiringStage,
   Interview,
   InterviewType,
+  InterviewVoteRecord,
   PanelMember,
   ScheduleInterviewPayload,
   ScoringWeights,
@@ -751,9 +752,9 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   // ── Panel member name resolution ─────────────────────────────────────────
+  // Legacy alias kept for template references that still pass IDs directly
   protected panelMemberName(id: string): string {
-    const member = this.panelMembers().find((m) => m.id === id);
-    return member?.name ?? id;
+    return this.panelMemberNameById(id);
   }
 
   // ── Interview type labels ────────────────────────────────────────────────
@@ -792,8 +793,8 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   // ── Per-interview Vote Form ───────────────────────────────────────────────
-  // Tracks which interviews have received a vote this session — hides the vote button after submission
-  protected readonly votedInterviewIds = signal<ReadonlySet<string>>(new Set<string>());
+  // taProxyMemberId: when set, TA is capturing a vote on behalf of this panel member (sub)
+  protected readonly taProxyMemberId = signal<string | null>(null);
 
   protected readonly voteTargetId   = signal<string | null>(null);
   protected readonly voteDecision   = signal<'STRONG_NO' | 'NO' | 'YES' | 'STRONG_YES'>('YES');
@@ -812,17 +813,79 @@ export class CandidateWorkspacePageComponent implements OnInit {
     { value: 'STRONG_YES'as const,  label: 'Strong Yes' },
   ];
 
-  protected openVoteForm(interviewId: string): void {
+  // ── Vote helpers ─────────────────────────────────────────────────────────
+
+  /** Find a vote record for a specific panel member in an interview */
+  protected voteForMember(iv: Interview, memberId: string): InterviewVoteRecord | undefined {
+    return (iv.votes ?? []).find((v) => v.voterId === memberId);
+  }
+
+  /** True if the current HM has already voted on this interview */
+  protected hasCurrentUserVoted(iv: Interview): boolean {
+    const user = this.nalekoAuth.currentUser();
+    if (!user || !iv.votes?.length) return false;
+    return iv.votes.some((v) => v.voterId === user.sub || v.voterId === user.email);
+  }
+
+  /**
+   * Panel members in this interview who have not yet voted — used by TA proxy selector.
+   * Includes both system users (panelMemberIds, matched by sub OR email for legacy records)
+   * and adhoc members (not in Cognito — identified by email, normalised to PanelMember shape).
+   */
+  protected unvotedPanelMembers(iv: Interview): PanelMember[] {
+    const votedIds = new Set((iv.votes ?? []).map((v) => v.voterId));
+
+    // System users — match by sub (current) or email (pre-BUG-022 legacy records)
+    const systemUnvoted = this.panelMembers().filter((m) => {
+      const inPanel = iv.panelMemberIds.includes(m.id) || iv.panelMemberIds.includes(m.email);
+      const hasVoted = votedIds.has(m.id) || votedIds.has(m.email);
+      return inPanel && !hasVoted;
+    });
+
+    // Adhoc members (email is their canonical identifier; no Cognito sub)
+    const adhocUnvoted = (iv.adhocPanelMembers ?? [])
+      .filter((a) => !votedIds.has(a.email))
+      .map((a) => ({ id: a.email, email: a.email, name: a.name } as PanelMember));
+
+    return [...systemUnvoted, ...adhocUnvoted];
+  }
+
+  /** Panel member name lookup — handles both sub-based (new) and email-based (legacy) IDs */
+  protected panelMemberNameById(id: string): string {
+    const member = this.panelMembers().find((m) => m.id === id || m.email === id);
+    return member?.name ?? id;
+  }
+
+  protected ratingLabel(rating: string): string {
+    const labels: Record<string, string> = {
+      STRONG_YES: 'Strong Yes',
+      YES:        'Yes',
+      NO:         'No',
+      STRONG_NO:  'Strong No',
+    };
+    return labels[rating] ?? rating;
+  }
+
+  protected ratingClass(rating: string): string {
+    if (rating === 'STRONG_YES' || rating === 'YES') return 'positive';
+    return 'negative';
+  }
+
+  protected openVoteForm(interviewId: string, proxyMemberId?: string): void {
     this.voteTargetId.set(interviewId);
+    this.taProxyMemberId.set(proxyMemberId ?? null);
     this.voteDecision.set('YES');
     this.voteNotes.set('');
     this.voteScores.set({ technical: 5, communication: 5, culturalFit: 5, problemSolving: 5 });
     this.voteError.set(null);
     this.voteSuccess.set(null);
+    // Ensure panel members are loaded so the proxy label resolves
+    if (this.panelMembers().length === 0) this._loadPanelMembers();
   }
 
   protected closeVoteForm(): void {
     this.voteTargetId.set(null);
+    this.taProxyMemberId.set(null);
     this.voteError.set(null);
   }
 
@@ -840,7 +903,8 @@ export class CandidateWorkspacePageComponent implements OnInit {
   }
 
   protected submitVoteForInterview(candidateId: string): void {
-    const interviewId = this.voteTargetId();
+    const interviewId   = this.voteTargetId();
+    const proxyMemberId = this.taProxyMemberId();
     if (!interviewId) return;
 
     this.voteSubmitting.set(true);
@@ -853,12 +917,14 @@ export class CandidateWorkspacePageComponent implements OnInit {
       notes:    this.voteNotes() || undefined,
     };
 
-    this.api.submitVote(candidateId, payload).subscribe({
+    this.api.submitVote(candidateId, payload, proxyMemberId ?? undefined).subscribe({
       next: (res) => {
         this.voteSubmitting.set(false);
         this.voteSuccess.set(res.voteId ?? interviewId);
-        this.votedInterviewIds.update((prev) => new Set([...prev, interviewId]));
         this.voteTargetId.set(null);
+        this.taProxyMemberId.set(null);
+        // Refresh interviews so the new vote appears in interview.votes
+        this._refreshInterviews();
         setTimeout(() => this.voteSuccess.set(null), 4000);
       },
       error: (err) => {

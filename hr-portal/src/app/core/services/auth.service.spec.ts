@@ -18,6 +18,7 @@ function mockSession(payload: Record<string, any>) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const HR_PAYLOAD: Record<string, any> = {
+  sub: 'hr-test-sub-001',
   email: 'thabo@naleko.co.za', given_name: 'Thabo', family_name: 'Molefe',
   'custom:staff_id': 'AS00001', 'custom:employee_id': '',
   'custom:role': 'hr_staff', 'cognito:groups': ['hr_staff'],
@@ -25,6 +26,7 @@ const HR_PAYLOAD: Record<string, any> = {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const EMP_PAYLOAD: Record<string, any> = {
+  sub: 'emp-test-sub-001',
   email: 'sarah@example.com', given_name: 'Sarah', family_name: 'Dlamini',
   'custom:staff_id': '', 'custom:employee_id': 'EMP-0000014',
   'custom:role': 'employee', 'cognito:groups': ['employee'],
@@ -57,30 +59,30 @@ describe('AuthService', () => {
   it('displayName computed is empty initially', () => expect(svc.displayName()).toBe(''));
 
   it('isHrStaff is true when role is hr_staff', () => {
-    svc.currentUser.set({ email: 'a@b.com', givenName: 'A', familyName: 'B', fullName: 'A B', staffId: 'AS00001', employeeId: '', role: 'hr_staff', groups: [], modules: [] });
+    svc.currentUser.set({ sub: 'test-sub', email: 'a@b.com', givenName: 'A', familyName: 'B', fullName: 'A B', staffId: 'AS00001', employeeId: '', role: 'hr_staff', groups: [], modules: [] });
     expect(svc.isHrStaff()).toBeTrue();
     expect(svc.isEmployee()).toBeFalse();
   });
 
   it('isEmployee is true when role is employee', () => {
-    svc.currentUser.set({ email: 'a@b.com', givenName: 'A', familyName: 'B', fullName: 'A B', staffId: '', employeeId: 'EMP-001', role: 'employee', groups: [], modules: [] });
+    svc.currentUser.set({ sub: 'test-sub', email: 'a@b.com', givenName: 'A', familyName: 'B', fullName: 'A B', staffId: '', employeeId: 'EMP-001', role: 'employee', groups: [], modules: [] });
     expect(svc.isEmployee()).toBeTrue();
     expect(svc.isHrStaff()).toBeFalse();
   });
 
   it('displayName reflects currentUser fullName', () => {
-    svc.currentUser.set({ email: 'a@b.com', givenName: 'Thabo', familyName: 'Molefe', fullName: 'Thabo Molefe', staffId: 'AS00001', employeeId: '', role: 'hr_staff', groups: [], modules: [] });
+    svc.currentUser.set({ sub: 'test-sub', email: 'a@b.com', givenName: 'Thabo', familyName: 'Molefe', fullName: 'Thabo Molefe', staffId: 'AS00001', employeeId: '', role: 'hr_staff', groups: [], modules: [] });
     expect(svc.displayName()).toBe('Thabo Molefe');
   });
 
   it('staffId reflects currentUser staffId', () => {
-    svc.currentUser.set({ email: 'a@b.com', givenName: 'A', familyName: 'B', fullName: 'A B', staffId: 'AS00042', employeeId: '', role: 'hr_staff', groups: [], modules: [] });
+    svc.currentUser.set({ sub: 'test-sub', email: 'a@b.com', givenName: 'A', familyName: 'B', fullName: 'A B', staffId: 'AS00042', employeeId: '', role: 'hr_staff', groups: [], modules: [] });
     expect(svc.staffId()).toBe('AS00042');
   });
 
   it('logout clears isAuthenticated and currentUser', () => {
     svc.isAuthenticated.set(true);
-    svc.currentUser.set({ email: 'a@b.com', givenName: 'A', familyName: 'B', fullName: 'A B', staffId: 'AS00001', employeeId: '', role: 'hr_staff', groups: [], modules: [] });
+    svc.currentUser.set({ sub: 'test-sub', email: 'a@b.com', givenName: 'A', familyName: 'B', fullName: 'A B', staffId: 'AS00001', employeeId: '', role: 'hr_staff', groups: [], modules: [] });
     const signOutSpy = jasmine.createSpy('signOut');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (svc as any).userPool = { getCurrentUser: () => ({ signOut: signOutSpy }) };
