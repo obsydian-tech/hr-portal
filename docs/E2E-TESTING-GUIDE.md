@@ -1,7 +1,7 @@
 # TalentFlow E2E Testing & Troubleshooting Guide
 
 **Living document — updated as we test and fix.**
-Last updated: 2026-06-01
+Last updated: 2026-06-01 (Phase 6)
 
 ---
 
@@ -24,20 +24,38 @@ This is a running log of every bug found, confirmed, and fixed during end-to-end
 | `CAND-01KT14TFD46JSEB5MNA68WN3NC` | _(test)_ | — | 2026-06-01 | `APPLICATION_REVIEW` | Stale SAGA patched (BUG-004 manual fix) — discard |
 | `CAND-01KT1558317GRG3Y1DSFQP1CSB` | _(test)_ | — | 2026-06-01 | `PHONE_SCREENING` | Stage no longer valid in 10-stage pipeline — discard |
 | `CAND-01KT190NKFS4BMWSMH06W015WP` | _(test)_ | JUNIOR | 2026-06-01T09:42Z | `ONBOARDING` | Raced through all stages — BUG-005 era, gate was skipped — discard |
+| `CAND-01KT1N9BQ9AH8ATEPJYAP2HYDY` | Ryan Giggs | JUNIOR | 2026-06-01T13:17Z | `EVALUATION` | Phase 4 pre-fix test — department/location empty (created before BUG-009 fix), interview loop completed manually |
+| `CAND-01KT1Q9A6RRY8TEMA7TS5B8P2E` | _(Phase 5 test)_ | JUNIOR | 2026-06-01T13:52Z | `EVALUATION` | ✅ **Primary Phase 5 reference candidate** — all 3 interviews (Phone Screen → Behavioral → Final) completed with PASS, advanced to EVALUATION cleanly |
 
-> **Active test:** Create a fresh candidate after confirming BUG-005 is fixed. Advance to INTERVIEWING, then immediately try advancing to EVALUATION — expect a `409` listing pending interview types.
+> **Active test candidate:** `CAND-01KT1Q9A6RRY8TEMA7TS5B8P2E` — Phase 5 complete. Create a fresh candidate for any future regression tests.
 
 ---
 
 ## Platform Users & Roles (NALEKO tenant)
 
-### TalentFlow Cognito Pool (`af-south-1_C8TTlQxY7`)
+### Cognito Pool Architecture — IMPORTANT (updated Phase 6 — pool consolidation)
 
-| User | Email | Groups | Notes |
+There are **two separate Cognito pools**. Everyone logs in via the **Naleko pool** — the TF pool has no login page and `TalentFlowAuthService.currentUser()` is always `null`.
+
+| Pool | ID | Used for |
+|---|---|---|
+| **Naleko pool** | `af-south-1_2LdAGFnw2` | Login, API JWT auth, HM group membership |
+| TF pool (legacy) | `af-south-1_C8TTlQxY7` | Exists but no active login — do not use for group/sub lookups |
+
+The TF API Gateway authorizer (`ko4zam`) validates tokens against the **Naleko pool**.
+
+### Naleko Pool (`af-south-1_2LdAGFnw2`) — TalentFlow users
+
+| User | Email | Naleko Sub | Naleko Groups | Notes |
+|---|---|---|---|---|
+| Ignecious M | iggytanakamush@gmail.com | _(admin)_ | `naleko-talentflow-hr` | Primary test TA/admin |
+| Tshepo Mashego | joworesources@gmail.com | `b10ca268-a071-70ca-78ce-9dbe8733466d` | `naleko-talentflow-hiringmanager`, `naleko-talentflow-hr`, `employee` | HM for interview flow |
+
+### TalentFlow Cognito Pool (`af-south-1_C8TTlQxY7`) — legacy reference only
+
+| User | Email | Old TF Sub | Notes |
 |---|---|---|---|
-| Ignecious M | iggytanakamush@gmail.com | TalentFlowAdmin | Primary test admin |
-| Ignecious M | ignecious@obsydiantechnologies.com | TalentFlowAdmin | Secondary admin |
-| Tshepo Mashego | joworesources@gmail.com | HiringManager | HM for interview flow |
+| Tshepo Mashego | joworesources@gmail.com | `81cce2a8-6031-70d2-0245-a94444b38552` | **Superseded** — Naleko sub `b10ca268...` now used as `hiringManagerId` in DynamoDB |
 
 ### Groups with no users assigned ⚠️
 
@@ -460,6 +478,351 @@ ERROR Failed to write interview record {
 
 ---
 
+---
+
+### BUG-009 — `createCandidate` optional fields not persisted to DynamoDB
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium |
+| **Status** | ✅ Fixed — Lambda redeployed + API service updated 2026-06-01 |
+| **Discovered** | 2026-06-01 — department, location, experience all showing `—` on workspace after creating candidate with those fields filled in |
+| **Affects** | Every candidate created — optional field data silently lost |
+
+**Symptom:** Create Candidate form accepts department, location, experience years, phone, source. After creation the candidate workspace shows `—` for all those fields. DynamoDB SAGA record confirms they are absent.
+
+**Two-layer bug:**
+
+1. **Lambda** — `createCandidate/index.js` extracted the optional fields from `body` but never included them in the `sagaRecord` object passed to `PutItemCommand`.
+2. **API service** — `talent-flow-api.service.ts` `createCandidate()` was building the request body with only the required fields — `department` and `location` were never forwarded to the Lambda even if the frontend had them.
+
+**Fix:**
+- `createCandidate/index.js` — added `phone`, `department`, `location`, `experienceYears`, `source`, `appliedDate` to `sagaRecord`; uses `removeUndefinedValues: true` on marshall so absent optional fields are cleanly omitted
+- `talent-flow-api.service.ts` — added `department` and `location` to the HTTP request body in `createCandidate()`
+
+**Note:** Candidates created before this fix will have empty optional fields permanently (the SAGA record was written without them). Create a new candidate to verify.
+
+---
+
+### BUG-010 — PANEL_CONFIG race condition — interview type dropdown not guided on Interviews tab open
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium |
+| **Status** | ✅ Fixed — PANEL_CONFIG now loaded on page init 2026-06-01 |
+| **Discovered** | 2026-06-01 — schedule form showed all interview types as a free dropdown instead of locking to the next required type |
+| **Affects** | Any user navigating directly to the Interviews tab |
+
+**Symptom:** Opening the Interviews tab and clicking "Schedule New Interview" shows a free dropdown with all interview types (PHONE_SCREEN, TECHNICAL, BEHAVIORAL, etc.) instead of being locked to the next required type in PANEL_CONFIG order.
+
+**Root cause:** `_loadPanelConfig()` was only called inside `setTab('interviews')` — after the tab rendered. The `nextScheduleableType` computed signal read `requiredTypes()` which was still an empty array because the async config call hadn't resolved yet. The form opened before the signal populated.
+
+**Fix:** Call `_loadPanelConfig(candidate.positionLevel)` in `ngOnInit()` immediately after the candidate resolves (both the pipeline-cache path and the API-fetch path). By the time the user clicks the Interviews tab, the config is already loaded.
+
+---
+
+### BUG-011 — No backend guard: could schedule duplicate interview types or concurrent interviews
+
+| Field | Detail |
+|---|---|
+| **Severity** | High |
+| **Status** | ✅ Fixed — backend guards added to `scheduleInterview` Lambda 2026-06-01 |
+| **Discovered** | 2026-06-01 — was able to schedule Phone Screen twice; could schedule while another was SCHEDULED |
+| **Affects** | Any candidate in INTERVIEWING stage — data integrity of the interview loop |
+
+**Symptom:** Two issues in one:
+1. Could schedule a new interview while another interview was still in `SCHEDULED` state (sequential rule violated)
+2. Could schedule the same interview type (e.g. Phone Screen) again after it was already `COMPLETED`
+
+**Root cause:** The `scheduleInterview` POST handler had no pre-write checks on existing `INTERVIEW#` records. It just wrote the new record unconditionally.
+
+**Fix:** Added a guard block after the stage check in the POST handler that:
+1. Queries all existing `INTERVIEW#` records for the candidate
+2. Returns `409` if any interview is currently `SCHEDULED` — "Cannot schedule a new interview while Phone Screen is still in SCHEDULED state. Mark it as COMPLETED first."
+3. Returns `409` if the requested `interviewType` already has a `COMPLETED` record — "A Phone Screen interview has already been COMPLETED for this candidate. Each interview type can only be completed once."
+
+---
+
+### BUG-012 — Vote button reappears after submission
+
+| Field | Detail |
+|---|---|
+| **Severity** | Low |
+| **Status** | ✅ Fixed — session vote tracking added 2026-06-01 |
+| **Discovered** | 2026-06-01 — after submitting a vote the "Submit Vote / Score" button was still visible |
+| **Affects** | Vote UX — no data impact, button was effectively inert after vote submitted |
+
+**Symptom:** After submitting a vote for an interview, the "Submit Vote / Score" button was still visible. Clicking it again would open the form and allow a second vote submission.
+
+**Root cause:** No client-side tracking of which interviews had been voted on. The `voteSuccess` signal was set on submission but immediately cleared; `voteTargetId` was nulled; but nothing prevented the button from re-rendering.
+
+**Fix:** Added `votedInterviewIds = signal<ReadonlySet<string>>(new Set())` to the workspace component. On vote success, the interview ID is added to the set via `votedInterviewIds.update(prev => new Set([...prev, interviewId]))`. The template checks `votedInterviewIds().has(iv.interviewId)` — if true, renders a green **✓ Voted** badge instead of the vote button.
+
+**Note:** This is session-scoped — refreshing the page will show the button again. Server-side "already voted" state (checking existing VOTE# records on load) is not yet implemented.
+
+---
+
+### BUG-013 — `votesSubmitted` incremented on SAGA record instead of INTERVIEW# record
+
+| Field | Detail |
+|---|---|
+| **Severity** | High |
+| **Status** | ✅ Fixed — `submitVote` Lambda updated 2026-06-01 |
+| **Discovered** | 2026-06-01 — vote counter on SAGA grew across interviews; per-interview quorum check was unreliable |
+| **Affects** | Voting quorum logic — `VotingCompleted` event could fire at wrong time |
+
+**Symptom:** The `votesSubmitted` counter on the SAGA record accumulated across ALL interviews for the candidate. A second interview's vote could push SAGA `votesSubmitted` past `votesRequired` and prematurely publish `VotingCompleted`.
+
+**Root cause:** `submitVote` Lambda step 8 was calling `UpdateItem` on `PK=CANDIDATE#<id>, SK=SAGA` (`ADD votesSubmitted :1`). Each interview has its own `votesRequired` value and the quorum should be checked per-interview, not globally.
+
+**Fix:**
+- `submitVote` now extracts `interviewId` from the request body
+- Stores `interviewId` on the `VOTE#` record for traceability
+- Increments `votesSubmitted` on `INTERVIEW#${interviewId}` (not SAGA) and reads back both `votesSubmitted` and `votesRequired` from the same `ALL_NEW` response
+- Quorum check now compares per-interview counts
+- Fallback to SAGA increment preserved for calls without `interviewId` (backward compat, logs a WARN)
+
+---
+
+### BUG-014 — Activity log sidebar never shows interview events
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium |
+| **Status** | ✅ Fixed — EventBridge publish added to `scheduleInterview` Lambda 2026-06-01 |
+| **Discovered** | 2026-06-01 — scheduling and completing interviews had no effect on the activity log sidebar |
+| **Affects** | Activity log for the entire interview loop — all interview events invisible |
+
+**Symptom:** After scheduling an interview or marking one complete, the activity log sidebar on the candidate workspace shows no interview-related events. Events like "Interview Scheduled" and "Interview Completed" never appear.
+
+**Root cause — how the activity log works:**
+- Activity log reads from `talent-flow-events` table
+- `talent-flow-events` is populated by the `talentFlowAuditStream` Lambda
+- `talentFlowAuditStream` is triggered by EventBridge rules on `talent-flow-bus`
+- `scheduleInterview` Lambda **already had** `EventBridgeClient` imported and `EVENTBRIDGE_BUS_NAME` env var set, and even had the `publishEvent()` helper function declared — but `publishEvent()` was never actually called anywhere in the handler
+
+**Fix:** Added two `publishEvent()` calls:
+1. After `PutItem` succeeds for a new `INTERVIEW#` record (POST handler): `publishEvent('InterviewScheduled', { candidateId, interviewId, tenantId, interviewType, scheduledAt, positionLevel, panelMemberIds })`
+2. After `UpdateItem` succeeds in `handleCompleteInterview`: `publishEvent('InterviewCompleted', { candidateId, interviewId, outcome })`
+
+Both calls are non-fatal — interview record is already written before the EB call, so a publish failure only affects the activity log.
+
+---
+
+### BUG-015 — Manual Lambda zip skipped `require` path patch — `ImportModuleError` on cold start
+
+| Field | Detail |
+|---|---|
+| **Severity** | Critical (deployment blocker) |
+| **Status** | ✅ Fixed — always use `deploy-talentflow-lambdas.sh` 2026-06-01 |
+| **Discovered** | 2026-06-01 — immediately after first manual zip deploy, all Lambda calls returned 500 |
+| **Affects** | Any Lambda in `NEEDS_SHARED` in the deploy script if deployed manually |
+
+**Symptom:** After manually zipping and deploying `scheduleInterview`, every request returned 500. The GET interviews endpoint (new feature) and the existing POST/PATCH also broke.
+
+**CloudWatch error:**
+```
+ImportModuleError: Error: Cannot find module '../shared/config-reader'
+Require stack:
+- /var/task/index.js
+- /var/runtime/index.mjs
+```
+
+**Root cause:** The source code uses `require('../shared/config-reader')` because in the local repo structure, `index.js` is at `lambda/scheduleInterview/index.js` and `config-reader.js` is at `lambda/shared/config-reader.js`. In the Lambda zip, both are at the same directory level (`/var/task/`), so the path should be `require('./shared/config-reader')`.
+
+The official deploy script `scripts/deploy-talentflow-lambdas.sh` handles this automatically:
+```bash
+sed -i '' \
+  "s|require('../shared/config-reader')|require('./shared/config-reader')|g" \
+  "$BUILD/$ENTRY_FILE"
+```
+
+A manual zip does not apply this patch. The Lambda loads, cannot resolve `../shared/config-reader`, and throws `ImportModuleError` before any handler logic runs.
+
+**Rule:** **Never manually zip and deploy Lambdas in `NEEDS_SHARED`.** Always use:
+```bash
+bash scripts/deploy-talentflow-lambdas.sh scheduleInterview submitVote
+# or for all:
+bash scripts/deploy-talentflow-lambdas.sh
+```
+
+---
+
+### BUG-016 — HM Dashboard: `NG0203 toObservable()` called outside injection context
+
+| Field | Detail |
+|---|---|
+| **Severity** | High (runtime crash) |
+| **Status** | ✅ Fixed — `hm-dashboard-page.component.ts` 2026-06-01 |
+| **Discovered** | 2026-06-01 — HM Dashboard would not load; Angular error thrown on navigation |
+| **Affects** | Any navigation to `/platform/talentflow/hm-dashboard` |
+
+**Symptom:** Navigating to the HM Dashboard throws a runtime Angular error. Component never renders.
+
+**Browser console error:**
+```
+NG0203: toObservable() can only be used within an injection context
+```
+
+**Root cause:** `toObservable()` was called inside `ngOnInit()`, which is not an Angular injection context. It must be called in the constructor (where `inject()` is valid) or at field-initialisation time.
+
+**Fix:** Moved the `toObservable()` call from `ngOnInit` to the constructor. Subsequently refactored to remove `toObservable` entirely — `loadCandidates()` is now called directly in the constructor after the Naleko session is confirmed available.
+
+---
+
+### BUG-017 — HM Dashboard loads all candidates instead of HM-filtered ones (pool consolidation)
+
+| Field | Detail |
+|---|---|
+| **Severity** | Critical (data leak) |
+| **Status** | ✅ Fixed — `auth.service.ts`, `hm-dashboard-page.component.ts` 2026-06-01 |
+| **Discovered** | 2026-06-01 — Tshepo saw every candidate in the system, not just his own |
+| **Affects** | HM Dashboard — My Candidates, My Tasks, Decisions tabs |
+
+**Symptom:** After logging in as an HM, all candidates in the tenant are displayed instead of only those assigned to that HM.
+
+**Root cause (multi-layer):**
+1. `TalentFlowAuthService.currentUser()` is always `null` — there is no TF-specific login page; everyone authenticates via the Naleko pool, but `TalentFlowAuthService` pointed to the TF pool (`af-south-1_C8TTlQxY7`) which had no active session.
+2. `hmId` was derived from `tfAuth.currentUser()?.email ?? ''` — always `''`.
+3. `getCandidates` Lambda: when `hiringManagerId` is an empty string it skips the DynamoDB filter expression entirely and returns **all** candidates for the tenant.
+4. `APP_INITIALIZER` only calls `nalekoAuth.checkSession()` — `tfAuth.checkSession()` was never called, so even if the TF pool had a user it would never be restored.
+
+**Fix:**
+- Added `sub: string` field to `AuthUser` interface in `auth.service.ts`, extracted from `payload['sub']`.
+- `loadCandidates()` now reads `nalekoAuth.currentUser()?.sub` (Naleko pool sub = the value stored as `hiringManagerId` in DynamoDB after pool consolidation).
+- Hard guard added: if `hmId` is empty, shows error message and does NOT call the API.
+- Removed `tfAuth.checkSession()` wrapper — `loadCandidates()` called directly in constructor (Naleko session is already restored by `APP_INITIALIZER`).
+
+---
+
+### BUG-018 — DynamoDB `hiringManagerId` values are email strings or old TF pool sub
+
+| Field | Detail |
+|---|---|
+| **Severity** | Critical (data) |
+| **Status** | ✅ Fixed — 8 DynamoDB SAGA records backfilled 2026-06-01 |
+| **Discovered** | 2026-06-01 — even after BUG-017 fix, `getCandidates` returned 0 results for Tshepo |
+| **Affects** | All SAGA records created before pool consolidation |
+
+**Symptom:** After fixing BUG-017, the API is called with the correct Naleko sub (`b10ca268...`) but still returns 0 candidates for Tshepo.
+
+**Root cause:** Existing SAGA records had `hiringManagerId` set to either:
+- `joworesources@gmail.com` (email string — from early TA test data entry)
+- `81cce2a8-6031-70d2-0245-a94444b38552` (old TF pool sub — from when `createCandidate` was using the TF pool token)
+
+Neither value matches Tshepo's Naleko pool sub `b10ca268-a071-70ca-78ce-9dbe8733466d`.
+
+**Fix:** Backfilled all 8 Tshepo SAGA records via AWS CLI:
+```bash
+# Scan for stale values
+aws dynamodb scan --table-name talent-flow-state \
+  --filter-expression "hiringManagerId IN (:email, :oldSub)" \
+  --expression-attribute-values '{
+    ":email":{"S":"joworesources@gmail.com"},
+    ":oldSub":{"S":"81cce2a8-6031-70d2-0245-a94444b38552"}
+  }' \
+  --projection-expression "PK,SK" --region af-south-1
+
+# For each CANDIDATE#<id> / SAGA record found:
+aws dynamodb update-item --table-name talent-flow-state \
+  --key '{"PK":{"S":"CANDIDATE#<id>"},"SK":{"S":"SAGA"}}' \
+  --update-expression "SET hiringManagerId = :newSub" \
+  --expression-attribute-values '{ ":newSub":{"S":"b10ca268-a071-70ca-78ce-9dbe8733466d"} }' \
+  --region af-south-1
+```
+
+**Going forward:** `createCandidate` receives `hiringManagerId` from the TA's HM dropdown, which now comes from `getHiringManagers` — which returns Naleko pool subs (see BUG-019).
+
+---
+
+### BUG-019 — `getHiringManagers` Lambda using TF Cognito pool — returns wrong sub for HMs
+
+| Field | Detail |
+|---|---|
+| **Severity** | High |
+| **Status** | ✅ Fixed — Lambda updated + deployed, Terraform applied 2026-06-01 |
+| **Discovered** | 2026-06-01 — HM dropdown showed correct names but `createCandidate` saved TF-pool sub as `hiringManagerId` |
+| **Affects** | All new candidates created via Create Candidate form |
+
+**Symptom:** TA creates a candidate and assigns Tshepo as HM. Candidate is saved with `hiringManagerId = 81cce2a8...` (old TF pool sub). Tshepo's HM Dashboard never finds the candidate.
+
+**Root cause:** `getHiringManagers/index.js` called `ListUsersInGroupCommand` against the TF pool (`af-south-1_C8TTlQxY7`) with group name `HiringManager`. The sub it returned was the user's TF-pool sub — completely different from their Naleko-pool sub.
+
+**Fix:**
+- `lambda/getHiringManagers/index.js` — changed to use Naleko pool (`af-south-1_2LdAGFnw2`) and group `naleko-talentflow-hiringmanager`
+- `infra/talentflow-hiring-managers.tf` — IAM resource ARN updated to Naleko pool; env vars renamed: `TF_COGNITO_POOL_ID` → `HM_COGNITO_POOL_ID`; added `HM_GROUP_NAME = "naleko-talentflow-hiringmanager"`
+- `terraform apply` — 2 resources changed (IAM policy + Lambda env vars)
+- Lambda redeployed via `npm install && zip` + `aws lambda update-function-code`
+
+**Verification:**
+```bash
+aws lambda invoke --function-name getHiringManagers \
+  --payload '{"queryStringParameters":{"tenantId":"NALEKO"}}' \
+  --region af-south-1 /tmp/out.json && cat /tmp/out.json
+# Expected: [{ sub: 'b10ca268-...', name: 'Tshepo Mashego' }]
+```
+
+---
+
+### BUG-020 — HM nav links "My Candidates" / "Decisions" navigate to wrong route
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium (UX) |
+| **Status** | ✅ Fixed — `talent-flow-shell.component.html` 2026-06-01 |
+| **Discovered** | 2026-06-01 — clicking "My Candidates" in HM topbar navigated to `/candidates` (TA pipeline view) |
+| **Affects** | HM topbar navigation — My Candidates and Decisions links |
+
+**Symptom:** Clicking "My Candidates" in the HM topbar navigated to the TA candidate pipeline page (`/platform/talentflow/candidates`) instead of the HM dashboard candidates tab.
+
+**Root cause:** Nav links used `routerLink="/platform/talentflow/candidates"` — the TA pipeline route. No tab-switching mechanism existed for the HM dashboard.
+
+**Fix:**
+- Links changed to `routerLink="/platform/talentflow/hm-dashboard"` with `[queryParams]="{ tab: 'candidates' }"` (and `decisions` respectively).
+- `hm-dashboard-page.component.ts` constructor reads `route.snapshot.queryParamMap.get('tab')` and calls `activeTab.set(tabParam)` on init.
+
+---
+
+### BUG-021 — `isTA()` always returns `true` — HMs see all TA-only actions (Edit / Reject / Advance / Schedule)
+
+| Field | Detail |
+|---|---|
+| **Severity** | Critical (access control) |
+| **Status** | ✅ Fixed — `candidate-workspace-page.component.ts` 2026-06-01 |
+| **Discovered** | 2026-06-01 — logged in as Tshepo (HM), opened candidate workspace — Edit Details, Reject Candidate, Schedule Interview, and Advance Stage all visible |
+| **Affects** | Every user — all HMs have full TA UI access |
+
+**Symptom:** An HM opening a candidate workspace sees Edit Details, Reject Candidate, Schedule Interview, and Advance Stage — all actions that should be TA-only.
+
+**Root cause:**
+```typescript
+// BEFORE — broken
+protected readonly isTA = computed(
+  () => this.tfAuth.isAdmin() || !this.tfAuth.isHiringManager(),
+);
+// tfAuth.currentUser() is always null (pool consolidation — no TF login page)
+// → isAdmin() = false, isHiringManager() = false
+// → isTA = false || !false = TRUE for every user
+```
+
+**Fix:**
+```typescript
+// AFTER — correct
+private readonly nalekoAuth = inject(AuthService); // Naleko pool
+
+protected readonly isTA = computed(() => {
+  const user = this.nalekoAuth.currentUser();
+  if (!user) return false;
+  return !user.groups.includes('naleko-talentflow-hiringmanager');
+});
+```
+Tshepo has `naleko-talentflow-hiringmanager` in his Naleko JWT → `isTA() = false` → all TA buttons hidden.
+TA users (not in that group) → `isTA() = true` → all buttons visible.
+
+**Note:** `AuthService` (Naleko pool) is already initialized by `APP_INITIALIZER` before any routing — `currentUser()` is reliably populated when the workspace renders.
+
+---
+
 ## Interview Loop — E2E Test Checklist
 
 Use a fresh candidate for this test. Existing stale candidates (at `PHONE_SCREENING`, `ONBOARDING`, etc.) should be discarded.
@@ -505,15 +868,20 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 
 ## Workflow Stages — Current Status
 
-| Stage | Status | Blocker |
+| Stage | Status | Notes |
 |---|---|---|
-| Candidate Created | ✅ Working | — |
-| `APPLICATION_REVIEW` | ✅ Working | — |
-| `INTERVIEWING` (advance in) | ✅ Working | — |
-| `INTERVIEWING` gate (block until interviews done) | 🔲 Verify with fresh candidate | BUG-005 just fixed — needs confirmation |
-| Schedule interview within INTERVIEWING | 🔲 Not tested | — |
-| Complete interview (mark COMPLETED) | 🔲 Not tested | — |
-| `EVALUATION` (advance out of INTERVIEWING) | 🔲 Pending gate test | Step 9 of interview loop checklist |
+| Candidate Created | ✅ Verified | All optional fields (department, location, experience) now persisted — BUG-009 fixed |
+| `APPLICATION_REVIEW` | ✅ Verified | — |
+| `INTERVIEWING` (advance in) | ✅ Verified | — |
+| `INTERVIEWING` gate (block until interviews done) | ✅ Verified | Gate fires correctly — 409 with pending type list |
+| Schedule interview — sequential enforcement | ✅ Verified | Type locked to next in PANEL_CONFIG order; backend 409 if another SCHEDULED exists |
+| Schedule interview — duplicate type guard | ✅ Verified | Backend 409 if same type already COMPLETED |
+| Complete interview (Mark Complete inline form) | ✅ Verified | PATCH updates status + outcome; list refreshes |
+| Add Panel Member to interview | ✅ Verified | PATCH merges panel member IDs; list refreshes |
+| Submit vote per interview | ✅ Verified | Vote form per card; "✓ Voted" badge replaces button after submission |
+| Activity log — interview events | ✅ Verified | InterviewScheduled + InterviewCompleted now published to EventBridge → audit stream |
+| Interview loop progress tracker | ✅ Verified | Loop stepper shows PENDING / SCHEDULED / COMPLETED per required type |
+| `EVALUATION` (advance out of INTERVIEWING) | ✅ Verified | Gate passes when all 3 required types COMPLETED — CloudWatch confirmed clean |
 | `BACKGROUND_CHECK` | 🔲 Not tested | — |
 | `OFFER_PREPARATION` | 🔲 Not tested | — |
 | `OFFER_APPROVAL` | 🔲 Not tested | Needs FinanceLead in Cognito |
@@ -542,7 +910,19 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 | IT tasks not created | CloudWatch `/aws/lambda/createItTask` + DynamoDB `it-tasks` table |
 | Provisioning bundle missing | DynamoDB `provisioning-bundles` + CloudWatch `/aws/lambda/createProvisioningBundle` |
 | Audit log missing | CloudWatch `/aws/lambda/talentFlowAuditStream` + DynamoDB `talent-flow-events` |
+| Interview events missing from activity log | `scheduleInterview` Lambda not publishing to EventBridge (BUG-014 pattern) — check `publishEvent` calls exist |
+| Interview scheduled 500 immediately after deploy | Manual zip used instead of deploy script — `ImportModuleError` for `../shared/config-reader` (BUG-015) — use `deploy-talentflow-lambdas.sh` |
+| Same interview type schedulable twice | Backend guard missing — check `scheduleInterview` has duplicate-type 409 guard (BUG-011) |
+| Vote button reappears after submission | `votedInterviewIds` signal not tracking this interviewId — check `submitVoteForInterview` success handler |
+| `votesSubmitted` growing beyond `votesRequired` | SAGA-level counter not cleared between interviews — `submitVote` should target `INTERVIEW#` record (BUG-013) |
+| Candidate fields empty despite being entered | Created before BUG-009 fix, or `createCandidate` not redeployed — check Lambda version date |
 | SLA breach not detected | CloudWatch `/aws/lambda/monitorTalentFlowSLAs` |
+| HM Dashboard shows all candidates / no candidates | `nalekoAuth.currentUser()?.sub` empty, or DynamoDB `hiringManagerId` not backfilled — compare sub to SAGA records (BUG-017/018) |
+| HM Dashboard infinite loading / NG0203 error | `toObservable()` called outside injection context — must be in constructor (BUG-016) |
+| `getHiringManagers` returns wrong subs | Lambda still pointing at TF pool — check `HM_COGNITO_POOL_ID` env var = `af-south-1_2LdAGFnw2` (BUG-019) |
+| HM nav link opens TA pipeline view | Shell nav link missing `?tab=` query param — check `routerLink` + `[queryParams]` in `talent-flow-shell.component.html` (BUG-020) |
+| HM sees Edit / Reject / Advance / Schedule buttons | `isTA()` using broken `tfAuth` — must use `nalekoAuth` Naleko group check (BUG-021) |
+| New candidate `hiringManagerId` is email or old TF sub | `getHiringManagers` was using TF pool — redeploy Lambda + backfill DynamoDB (BUG-018/019) |
 
 ---
 
@@ -579,12 +959,34 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 - [x] All 33 TalentFlow Lambdas redeployed via `deploy-talentflow-lambdas.sh`
 - [x] Lambda invoked directly — returned real interview record (`BEHAVIORAL`, `SCHEDULED`, panel member attached) for `CAND-01KS5H7TKYCP8KYQSAFXQHZAME`
 
-### Phase 4 — Interview loop E2E verification (pending)
-- [ ] Fresh candidate created (JUNIOR)
-- [ ] Gate blocks advance at INTERVIEWING → EVALUATION before interviews done (step 3)
-- [ ] All 3 required interview types scheduled and completed (steps 4–8)
-- [ ] Gate passes — advance to EVALUATION succeeds (step 9)
-- [ ] CloudWatch confirms clean gate log with no "gate skipped" WARN
-- [ ] Angular workspace UI — Interview tab shows scheduled interviews fetched from `GET /v1/candidates/{id}/interviews`
-- [ ] "Complete Interview" form submits PATCH and updates status in UI
-- [ ] "Add Panel Member" form submits PATCH and updates panelMemberIds in UI
+### Phase 4 — Interview loop E2E verification (completed 2026-06-01)
+- [x] Fresh candidate created (JUNIOR) — `CAND-01KT1N9BQ9AH8ATEPJYAP2HYDY` (Ryan Giggs)
+- [x] Gate blocks advance at INTERVIEWING → EVALUATION before interviews done
+- [x] All 3 required interview types scheduled and completed (Phone Screen → Behavioral → Final)
+- [x] Gate passes — advance to EVALUATION succeeds
+- [x] CloudWatch confirms clean gate log with no "gate skipped" WARN
+- [x] Angular workspace UI — Interview tab loads scheduled interviews from `GET /v1/candidates/{id}/interviews`
+- [x] "Complete Interview" form submits PATCH and updates status in UI
+- [x] "Add Panel Member" form submits PATCH and updates panelMemberIds in UI
+- [x] Several UX and data bugs discovered in this phase → fixed in Phase 5
+
+### Phase 5 — Interview UX hardening + activity log (completed 2026-06-01)
+- [x] BUG-009: `createCandidate` optional fields not persisted — fixed Lambda + API service
+- [x] BUG-010: PANEL_CONFIG race condition — `nextScheduleableType` empty on Interviews tab open — fixed load-on-init
+- [x] BUG-011: No backend guard for duplicate/concurrent interviews — added 409 guards in `scheduleInterview`
+- [x] BUG-012: Vote button stays after submission — added `votedInterviewIds` session tracking, replaced with "✓ Voted" badge
+- [x] BUG-013: `votesSubmitted` incremented on SAGA not INTERVIEW# record — fixed `submitVote` Lambda
+- [x] BUG-014: Activity log never showed interview events — `scheduleInterview` never published to EventBridge — fixed
+- [x] BUG-015: Manual Lambda zip skipped `require` path patch — broke cold start with `ImportModuleError` — must always use `deploy-talentflow-lambdas.sh`
+- [x] Both Lambdas redeployed via `deploy-talentflow-lambdas.sh`
+- [x] Phase 5 reference candidate `CAND-01KT1Q9A6RRY8TEMA7TS5B8P2E` — full interview loop + advance to EVALUATION confirmed clean in CloudWatch
+
+### Phase 6 — HM Dashboard pool consolidation fixes (completed 2026-06-01)
+- [x] BUG-016: `NG0203 toObservable()` outside injection context — moved to constructor; replaced with direct `loadCandidates()` call
+- [x] BUG-017: HM Dashboard showing all candidates — switched from `tfAuth.currentUser()?.email` to `nalekoAuth.currentUser()?.sub`
+- [x] `AuthUser` interface: added `sub: string` field extracted from JWT `payload['sub']`
+- [x] BUG-018: DynamoDB `hiringManagerId` backfilled — 8 SAGA records updated from email/TF-sub to `b10ca268-a071-70ca-78ce-9dbe8733466d` (Tshepo's Naleko sub)
+- [x] BUG-019: `getHiringManagers` Lambda updated to Naleko pool (`af-south-1_2LdAGFnw2`) + group `naleko-talentflow-hiringmanager`; `terraform apply` (2 resources changed); Lambda redeployed
+- [x] BUG-020: HM nav links fixed — `routerLink="/platform/talentflow/hm-dashboard"` + `[queryParams]="{ tab: 'candidates' | 'decisions' }"`
+- [x] BUG-021: `isTA()` rewritten — uses `nalekoAuth.currentUser()?.groups.includes('naleko-talentflow-hiringmanager')`; commit `f846051`
+- [x] All changes committed + pushed → `feat/candidate-workspace-interview-flow-fix` (commits `beff9e3`, `f846051`)

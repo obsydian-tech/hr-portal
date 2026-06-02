@@ -136,6 +136,27 @@
       </div>
     </div>
 
+    <!-- ── Section 2c: Hiring Manager assignment ───────────────────────── -->
+    <div class="tf-create__section">
+      <p class="tf-create__section-label">Hiring Manager <span class="tf-fld__optional">(optional)</span></p>
+
+      <div class="tf-form-row">
+        <div class="tf-fld tf-fld--full">
+          <label class="tf-fld__label" for="cr-hm">Assign Hiring Manager</label>
+          <p-select
+            inputId="cr-hm"
+            formControlName="hiringManagerId"
+            [options]="hiringManagers()"
+            optionLabel="name"
+            optionValue="sub"
+            placeholder="Select a Hiring Manager"
+            [showClear]="true"
+            styleClass="tf-fld__p-input">
+          </p-select>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Section 3: Seniority — visual 3-card selector (D038) ─────────── -->
     <div class="tf-create__section">
       <p class="tf-create__section-label">

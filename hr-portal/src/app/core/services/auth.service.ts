@@ -14,6 +14,8 @@ import { firstValueFrom } from 'rxjs';
 // ─── Types ───────────────────────────────────────────────
 
 export interface AuthUser {
+  /** Cognito subject UUID — used as hiringManagerId on Candidate records. */
+  sub: string;
   email: string;
   givenName: string;
   familyName: string;
@@ -240,6 +242,7 @@ export class AuthService {
     const groups: string[] = payload['cognito:groups'] ?? [];
 
     return {
+      sub: payload['sub'] ?? '',
       email: payload['email'] ?? '',
       givenName,
       familyName,

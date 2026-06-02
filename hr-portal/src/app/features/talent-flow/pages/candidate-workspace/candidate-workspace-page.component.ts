@@ -11,6 +11,8 @@ import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 import { TalentFlowStateService } from '../../services/talent-flow-state.service';
 import { TalentFlowApiService } from '../../services/talent-flow-api.service';
+import { TalentFlowAuthService } from '../../services/talent-flow-auth.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.component';
 import { AiChatPanelComponent } from '../../components/ai-chat-panel/ai-chat-panel.component';
 import {
@@ -27,6 +29,7 @@ import {
   ScoringWeights,
   DEFAULT_SCORING_WEIGHTS,
   PHASE_MAP,
+  VotePayload,
 } from '../../models/talent-flow.models';
 import { OfferTabComponent } from '../../components/offer-tab/offer-tab.component';
 import { CandidateEditDrawerComponent } from '../../components/candidate-edit-drawer/candidate-edit-drawer.component';
@@ -57,6 +60,17 @@ export class CandidateWorkspacePageComponent implements OnInit {
   private readonly api = inject(TalentFlowApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly tfAuth = inject(TalentFlowAuthService);
+  private readonly nalekoAuth = inject(AuthService);
+
+  // True for TAs — false for HMs.
+  // Uses Naleko pool groups because tfAuth.currentUser() is always null
+  // (pool consolidation: everyone logs in via the Naleko pool).
+  protected readonly isTA = computed(() => {
+    const user = this.nalekoAuth.currentUser();
+    if (!user) return false; // not logged in → show nothing sensitive
+    return !user.groups.includes('naleko-talentflow-hiringmanager');
+  });
 
   protected readonly defaultWeights: ScoringWeights = DEFAULT_SCORING_WEIGHTS;
 
@@ -112,6 +126,26 @@ export class CandidateWorkspacePageComponent implements OnInit {
     return { done, total: required.length };
   });
 
+  // True when any interview is currently in SCHEDULED state — blocks new scheduling
+  protected readonly hasScheduledInterview = computed(() =>
+    this.interviews().some((i) => i.status === 'SCHEDULED'),
+  );
+
+  // First required type in PANEL_CONFIG order that is not yet SCHEDULED or COMPLETED
+  protected readonly nextScheduleableType = computed<string | null>(() => {
+    const required = this.requiredTypes();
+    if (required.length === 0) return null;
+    const existing = this.interviews();
+    return (
+      required.find(
+        (type) =>
+          !existing.some(
+            (i) => i.interviewType === type && (i.status === 'SCHEDULED' || i.status === 'COMPLETED'),
+          ),
+      ) ?? null
+    );
+  });
+
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
@@ -127,6 +161,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
         this.engagementSentiment.set(inCache.interviewSentiment as EngagementSentiment);
       }
       this._loadEvents(id);
+      this._loadPanelConfig(inCache.positionLevel);
       return;
     }
 
@@ -140,6 +175,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
           this.engagementSentiment.set(c.interviewSentiment as EngagementSentiment);
         }
         this._loadEvents(id);
+        this._loadPanelConfig(c.positionLevel);
       },
       error: () => {
         this.fetchError.set('Could not load candidate.');
@@ -154,10 +190,6 @@ export class CandidateWorkspacePageComponent implements OnInit {
       const id = this.candidateId();
       if (id && !this._interviewsLoaded) this._loadInterviews(id);
       if (this.panelMembers().length === 0) this._loadPanelMembers();
-      const c = this.candidate();
-      if (c?.currentStage === 'INTERVIEWING' && !this.panelConfigLoaded()) {
-        this._loadPanelConfig(c.positionLevel);
-      }
     }
   }
 
@@ -365,7 +397,13 @@ export class CandidateWorkspacePageComponent implements OnInit {
   protected toggleScheduleForm(): void {
     const opening = !this.showScheduleForm();
     this.showScheduleForm.set(opening);
-    if (opening) this._loadPanelMembers();
+    if (opening) {
+      this._loadPanelMembers();
+      const next = this.nextScheduleableType();
+      if (next) {
+        this.scheduleForm.update((f) => ({ ...f, interviewType: next as InterviewType }));
+      }
+    }
   }
 
   private _loadPanelMembers(): void {
@@ -505,6 +543,7 @@ export class CandidateWorkspacePageComponent implements OnInit {
       next: (res) => {
         this.sentimentSubmitting.set(false);
         this.sentimentSuccess.set(res.interviewSentiment);
+        this.engagementSentiment.set(null); // clear selection — button stays disabled until new pick
         this.api.getCandidate(candidateId).subscribe({
           next: (c) => { this.state.patchCandidate(c); this._directCandidate.set(c); },
           error: () => { /* non-fatal */ },
@@ -741,5 +780,92 @@ export class CandidateWorkspacePageComponent implements OnInit {
   protected experienceLabel(years: number | undefined | null): string {
     if (years == null) return '—';
     return years === 1 ? '1 year' : `${years} years`;
+  }
+
+  // Converts VERY_INTERESTED → "Very Interested" (titlecase doesn't handle underscores)
+  protected sentimentLabel(v: string | null | undefined): string {
+    if (!v) return '';
+    return v
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (ch) => ch.toUpperCase());
+  }
+
+  // ── Per-interview Vote Form ───────────────────────────────────────────────
+  // Tracks which interviews have received a vote this session — hides the vote button after submission
+  protected readonly votedInterviewIds = signal<ReadonlySet<string>>(new Set<string>());
+
+  protected readonly voteTargetId   = signal<string | null>(null);
+  protected readonly voteDecision   = signal<'STRONG_NO' | 'NO' | 'YES' | 'STRONG_YES'>('YES');
+  protected readonly voteNotes      = signal<string>('');
+  protected readonly voteScores     = signal<{
+    technical: number; communication: number; culturalFit: number; problemSolving: number;
+  }>({ technical: 5, communication: 5, culturalFit: 5, problemSolving: 5 });
+  protected readonly voteSubmitting = signal<boolean>(false);
+  protected readonly voteSuccess    = signal<string | null>(null);
+  protected readonly voteError      = signal<string | null>(null);
+
+  protected readonly VOTE_OPTIONS = [
+    { value: 'STRONG_NO' as const,  label: 'Strong No' },
+    { value: 'NO'        as const,  label: 'No' },
+    { value: 'YES'       as const,  label: 'Yes' },
+    { value: 'STRONG_YES'as const,  label: 'Strong Yes' },
+  ];
+
+  protected openVoteForm(interviewId: string): void {
+    this.voteTargetId.set(interviewId);
+    this.voteDecision.set('YES');
+    this.voteNotes.set('');
+    this.voteScores.set({ technical: 5, communication: 5, culturalFit: 5, problemSolving: 5 });
+    this.voteError.set(null);
+    this.voteSuccess.set(null);
+  }
+
+  protected closeVoteForm(): void {
+    this.voteTargetId.set(null);
+    this.voteError.set(null);
+  }
+
+  protected setVoteScore(
+    key: 'technical' | 'communication' | 'culturalFit' | 'problemSolving',
+    event: Event,
+  ): void {
+    const raw = parseInt((event.target as HTMLInputElement).value, 10);
+    const value = isNaN(raw) ? 0 : Math.min(10, Math.max(0, raw));
+    this.voteScores.update((s) => ({ ...s, [key]: value }));
+  }
+
+  protected setVoteNotes(event: Event): void {
+    this.voteNotes.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  protected submitVoteForInterview(candidateId: string): void {
+    const interviewId = this.voteTargetId();
+    if (!interviewId) return;
+
+    this.voteSubmitting.set(true);
+    this.voteError.set(null);
+
+    const payload: VotePayload = {
+      interviewId,
+      decision: this.voteDecision(),
+      scores:   this.voteScores(),
+      notes:    this.voteNotes() || undefined,
+    };
+
+    this.api.submitVote(candidateId, payload).subscribe({
+      next: (res) => {
+        this.voteSubmitting.set(false);
+        this.voteSuccess.set(res.voteId ?? interviewId);
+        this.votedInterviewIds.update((prev) => new Set([...prev, interviewId]));
+        this.voteTargetId.set(null);
+        setTimeout(() => this.voteSuccess.set(null), 4000);
+      },
+      error: (err) => {
+        this.voteSubmitting.set(false);
+        const msg = err?.error?.error ?? err?.userMessage ?? 'Failed to submit vote';
+        this.voteError.set(msg);
+      },
+    });
   }
 }
