@@ -119,6 +119,14 @@ export interface PanelMember {
   scoringLinkToken?: string; // present only for EMAIL_LINK members (Phase E)
 }
 
+export interface HiringManager {
+  sub:        string;
+  email:      string;
+  givenName:  string;
+  familyName: string;
+  name:       string;
+}
+
 // ─── Core Entities ────────────────────────────────────────────────────────────
 
 export interface Candidate {
@@ -256,12 +264,13 @@ export interface CreateCandidatePayload {
   email:               string;
   phone?:              string;
   role:                string;
-  department?:         string; // D029: details strip column
-  location?:           string; // D029: details strip column
+  department?:         string;
+  location?:           string;
   positionLevel:       PositionLevel;
   experienceYears:     number;
   source?:             string;
   workflowTemplateId?: string;
+  hiringManagerId?:    string;
 }
 
 // All fields are optional — PATCH semantics (only send what changed)

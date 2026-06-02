@@ -20,14 +20,15 @@
           My Tasks
         </a>
         <a class="tf-nav__item"
-           routerLink="/platform/talentflow/candidates"
+           routerLink="/platform/talentflow/hm-dashboard"
+           [queryParams]="{ tab: 'candidates' }"
            routerLinkActive="tf-nav__item--active">
           My Candidates
         </a>
         <a class="tf-nav__item"
            routerLink="/platform/talentflow/hm-dashboard"
-           routerLinkActive="tf-nav__item--active"
-           fragment="decisions">
+           [queryParams]="{ tab: 'decisions' }"
+           routerLinkActive="tf-nav__item--active">
           Decisions
         </a>
         <a class="tf-nav__item"
@@ -120,7 +121,7 @@
         <ul class="tf-bell-panel__list">
           @for (c of breachedCandidates(); track c.id) {
             <li class="tf-bell-panel__item" (click)="goToCandidate(c.id)">
-              <div class="tf-bell-panel__avatar">{{ (c.firstName[0] ?? '') + (c.lastName[0] ?? '') | uppercase }}</div>
+              <div class="tf-bell-panel__avatar">{{ (c.firstName[0] + c.lastName[0]) | uppercase }}</div>
               <div class="tf-bell-panel__info">
                 <span class="tf-bell-panel__name">{{ c.firstName }} {{ c.lastName }}</span>
                 <span class="tf-bell-panel__meta">{{ c.role }} · {{ c.currentStage }}</span>

@@ -40,7 +40,7 @@
             <span [class]="healthPillClass(c)">{{ healthLabel(c) }}</span>
             @if (c.interviewSentiment) {
               <span class="tf-pill tf-pill--sentiment tf-pill--sentiment-{{ c.interviewSentiment | lowercase }}">
-                {{ c.interviewSentiment | titlecase }}
+                {{ sentimentLabel(c.interviewSentiment) }}
               </span>
             }
             @if (c.source) {
@@ -51,12 +51,14 @@
       </div>
 
       <div class="tf-ws-header__right">
-        <button class="tf-ws-edit-btn" (click)="editDrawerVisible.set(true)">
-          <i class="pi pi-pencil"></i> Edit Details
-        </button>
-        <button class="tf-ws-reject-btn">
-          <i class="pi pi-ban"></i> Reject Candidate
-        </button>
+        @if (isTA()) {
+          <button class="tf-ws-edit-btn" (click)="editDrawerVisible.set(true)">
+            <i class="pi pi-pencil"></i> Edit Details
+          </button>
+          <button class="tf-ws-reject-btn">
+            <i class="pi pi-ban"></i> Reject Candidate
+          </button>
+        }
         <div class="tf-ws-header__sla">
           <span class="tf-ws-header__sla-label">SLA</span>
           <div class="tf-sla-bar" role="progressbar"
@@ -129,20 +131,22 @@
     <!-- ════════════════════════════════════════════════════════════════════════
          ACTIONS BAR — 2 contextual buttons only
     ════════════════════════════════════════════════════════════════════════════ -->
-    <div class="tf-ws-actions-bar">
-      @if (c.currentStage === 'INTERVIEWING') {
-        <button class="tf-ws-ghost-btn" (click)="setTab('interviews')">
-          <i class="pi pi-calendar-plus"></i> Schedule Interview
-        </button>
-      }
-      @if (nextStageFor(c.currentStage); as next) {
-        <button class="tf-ws-ghost-btn tf-ws-ghost-btn--primary"
-          [disabled]="advancingStage()"
-          (click)="advanceStage(c.id, next)">
-          <i class="pi pi-forward"></i> Advance to {{ stageLabels[next] }}
-        </button>
-      }
-    </div>
+    @if (isTA()) {
+      <div class="tf-ws-actions-bar">
+        @if (c.currentStage === 'INTERVIEWING') {
+          <button class="tf-ws-ghost-btn" (click)="setTab('interviews')">
+            <i class="pi pi-calendar-plus"></i> Schedule Interview
+          </button>
+        }
+        @if (nextStageFor(c.currentStage); as next) {
+          <button class="tf-ws-ghost-btn tf-ws-ghost-btn--primary"
+            [disabled]="advancingStage()"
+            (click)="advanceStage(c.id, next)">
+            <i class="pi pi-forward"></i> Advance to {{ stageLabels[next] }}
+          </button>
+        }
+      </div>
+    }
 
     <!-- ════════════════════════════════════════════════════════════════════════
          TAB BAR + CONTENT
@@ -226,7 +230,8 @@
               <span><i class="pi pi-sitemap"></i> {{ workflowLabel(c.workflowTemplateId) }} workflow</span>
             </div>
 
-            <!-- Advance Stage card -->
+            <!-- Advance Stage card — TA only -->
+            @if (isTA()) {
             @if (nextStageFor(c.currentStage); as next) {
               <div class="tf-ws-card tf-ws-card--action tf-ws-card--advance">
 
@@ -272,6 +277,7 @@
 
               </div>
             }
+            } <!-- /isTA -->
 
           </div>
         }
@@ -346,7 +352,14 @@
             <!-- ── Schedule success banner ───────────────────────────────── -->
             @if (scheduleSuccess()) {
               <div class="tf-ws-alert tf-ws-alert--success">
-                <i class="pi pi-check-circle"></i> Interview scheduled. ID: <code>{{ scheduleSuccess() }}</code>
+                <i class="pi pi-check-circle"></i> Interview scheduled successfully.
+              </div>
+            }
+
+            <!-- ── Vote success banner ───────────────────────────────────── -->
+            @if (voteSuccess()) {
+              <div class="tf-ws-alert tf-ws-alert--success">
+                <i class="pi pi-check-circle"></i> Vote submitted successfully.
               </div>
             }
 
@@ -425,6 +438,90 @@
                     }
                   </div>
 
+                  <!-- Vote button + form for COMPLETED interviews -->
+                  @if (iv.status === 'COMPLETED') {
+                    <div class="tf-interview-card__actions">
+                      @if (votedInterviewIds().has(iv.interviewId)) {
+                        <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> Voted</span>
+                      } @else {
+                        <button class="tf-ws-ghost-btn"
+                          (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
+                          <i class="pi pi-star"></i>
+                          {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote / Score' }}
+                        </button>
+                      }
+                    </div>
+                    @if (voteTargetId() === iv.interviewId) {
+                      <div class="tf-ws-vote-form">
+                        <p class="tf-ws-section-label" style="margin-top:0.75rem;margin-bottom:0.5rem">
+                          <i class="pi pi-star"></i> Submit Your Vote
+                        </p>
+                        @if (voteError()) {
+                          <div class="tf-ws-alert tf-ws-alert--error" style="margin-bottom:0.5rem">
+                            <i class="pi pi-exclamation-triangle"></i> {{ voteError() }}
+                          </div>
+                        }
+                        <div class="tf-ws-vote-form__decision">
+                          <span class="tf-ws-vote-form__label">Decision:</span>
+                          @for (opt of VOTE_OPTIONS; track opt.value) {
+                            <button type="button" class="tf-ws-vote-decision-btn"
+                              [class.tf-ws-vote-decision-btn--selected]="voteDecision() === opt.value"
+                              [class.tf-ws-vote-decision-btn--yes]="opt.value === 'YES' || opt.value === 'STRONG_YES'"
+                              [class.tf-ws-vote-decision-btn--no]="opt.value === 'NO' || opt.value === 'STRONG_NO'"
+                              (click)="voteDecision.set(opt.value)">
+                              {{ opt.label }}
+                            </button>
+                          }
+                        </div>
+                        <div class="tf-ws-vote-form__scores">
+                          <span class="tf-ws-vote-form__label">Scores (0–10):</span>
+                          <div class="tf-ws-vote-form__score-grid">
+                            <label class="tf-ws-vote-form__score-field">
+                              <span>Technical</span>
+                              <input type="number" min="0" max="10"
+                                [value]="voteScores().technical"
+                                (input)="setVoteScore('technical', $event)" />
+                            </label>
+                            <label class="tf-ws-vote-form__score-field">
+                              <span>Communication</span>
+                              <input type="number" min="0" max="10"
+                                [value]="voteScores().communication"
+                                (input)="setVoteScore('communication', $event)" />
+                            </label>
+                            <label class="tf-ws-vote-form__score-field">
+                              <span>Cultural Fit</span>
+                              <input type="number" min="0" max="10"
+                                [value]="voteScores().culturalFit"
+                                (input)="setVoteScore('culturalFit', $event)" />
+                            </label>
+                            <label class="tf-ws-vote-form__score-field">
+                              <span>Problem Solving</span>
+                              <input type="number" min="0" max="10"
+                                [value]="voteScores().problemSolving"
+                                (input)="setVoteScore('problemSolving', $event)" />
+                            </label>
+                          </div>
+                        </div>
+                        <div class="tf-ws-vote-form__notes">
+                          <textarea class="tf-ws-form-input" rows="2"
+                            placeholder="Notes (optional)"
+                            [value]="voteNotes()"
+                            (input)="setVoteNotes($event)"></textarea>
+                        </div>
+                        <div class="tf-ws-form-actions" style="margin-top:0.5rem">
+                          <button pButton type="button" class="p-button-sm" icon="pi pi-send" label="Submit Vote"
+                            [loading]="voteSubmitting()"
+                            [disabled]="voteSubmitting()"
+                            (click)="submitVoteForInterview(c.id)">
+                          </button>
+                          <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
+                            (click)="closeVoteForm()">
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  }
+
                   <!-- Actions for SCHEDULED interviews -->
                   @if (iv.status === 'SCHEDULED') {
                     <div class="tf-interview-card__actions">
@@ -436,6 +533,15 @@
                         <i class="pi pi-check"></i>
                         {{ completeTargetId() === iv.interviewId ? 'Cancel' : 'Mark Complete' }}
                       </button>
+                      @if (votedInterviewIds().has(iv.interviewId)) {
+                        <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> Voted</span>
+                      } @else {
+                        <button class="tf-ws-ghost-btn"
+                          (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
+                          <i class="pi pi-star"></i>
+                          {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote' }}
+                        </button>
+                      }
                     </div>
 
                     <!-- Add panel inline form -->
@@ -540,18 +646,98 @@
                         </button>
                       </div>
                     }
+
+                    <!-- Submit Vote inline form -->
+                    @if (voteTargetId() === iv.interviewId) {
+                      <div class="tf-ws-vote-form">
+                        <p class="tf-ws-section-label" style="margin-top:0.75rem;margin-bottom:0.5rem">
+                          <i class="pi pi-star"></i> Submit Your Vote
+                        </p>
+                        @if (voteError()) {
+                          <div class="tf-ws-alert tf-ws-alert--error" style="margin-bottom:0.5rem">
+                            <i class="pi pi-exclamation-triangle"></i> {{ voteError() }}
+                          </div>
+                        }
+                        <div class="tf-ws-vote-form__decision">
+                          <span class="tf-ws-vote-form__label">Decision:</span>
+                          @for (opt of VOTE_OPTIONS; track opt.value) {
+                            <button type="button" class="tf-ws-vote-decision-btn"
+                              [class.tf-ws-vote-decision-btn--selected]="voteDecision() === opt.value"
+                              [class.tf-ws-vote-decision-btn--yes]="opt.value === 'YES' || opt.value === 'STRONG_YES'"
+                              [class.tf-ws-vote-decision-btn--no]="opt.value === 'NO' || opt.value === 'STRONG_NO'"
+                              (click)="voteDecision.set(opt.value)">
+                              {{ opt.label }}
+                            </button>
+                          }
+                        </div>
+                        <div class="tf-ws-vote-form__scores">
+                          <span class="tf-ws-vote-form__label">Scores (0–10):</span>
+                          <div class="tf-ws-vote-form__score-grid">
+                            <label class="tf-ws-vote-form__score-field">
+                              <span>Technical</span>
+                              <input type="number" min="0" max="10"
+                                [value]="voteScores().technical"
+                                (input)="setVoteScore('technical', $event)" />
+                            </label>
+                            <label class="tf-ws-vote-form__score-field">
+                              <span>Communication</span>
+                              <input type="number" min="0" max="10"
+                                [value]="voteScores().communication"
+                                (input)="setVoteScore('communication', $event)" />
+                            </label>
+                            <label class="tf-ws-vote-form__score-field">
+                              <span>Cultural Fit</span>
+                              <input type="number" min="0" max="10"
+                                [value]="voteScores().culturalFit"
+                                (input)="setVoteScore('culturalFit', $event)" />
+                            </label>
+                            <label class="tf-ws-vote-form__score-field">
+                              <span>Problem Solving</span>
+                              <input type="number" min="0" max="10"
+                                [value]="voteScores().problemSolving"
+                                (input)="setVoteScore('problemSolving', $event)" />
+                            </label>
+                          </div>
+                        </div>
+                        <div class="tf-ws-vote-form__notes">
+                          <textarea class="tf-ws-form-input" rows="2"
+                            placeholder="Notes (optional)"
+                            [value]="voteNotes()"
+                            (input)="setVoteNotes($event)"></textarea>
+                        </div>
+                        <div class="tf-ws-form-actions" style="margin-top:0.5rem">
+                          <button pButton type="button" class="p-button-sm" icon="pi pi-send" label="Submit Vote"
+                            [loading]="voteSubmitting()"
+                            [disabled]="voteSubmitting()"
+                            (click)="submitVoteForInterview(c.id)">
+                          </button>
+                          <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
+                            (click)="closeVoteForm()">
+                          </button>
+                        </div>
+                      </div>
+                    }
                   }
 
                 </div>
               }
             }
 
-            <!-- ── Schedule New Interview trigger ────────────────────────── -->
-            @if (c.currentStage === 'INTERVIEWING') {
-              <button class="tf-ws-schedule-trigger" (click)="toggleScheduleForm()">
-                <i class="pi pi-calendar-plus"></i>
-                {{ showScheduleForm() ? 'Cancel Scheduling' : 'Schedule New Interview' }}
-              </button>
+            <!-- ── Schedule New Interview trigger — TA only ─────────────── -->
+            @if (isTA() && c.currentStage === 'INTERVIEWING') {
+              @if (hasScheduledInterview()) {
+                <div class="tf-ws-sequential-gate">
+                  <i class="pi pi-info-circle"></i>
+                  <span>
+                    Complete the currently scheduled interview before scheduling the next one.
+                  </span>
+                </div>
+              } @else {
+                <button class="tf-ws-schedule-trigger" (click)="toggleScheduleForm()">
+                  <i class="pi pi-calendar-plus"></i>
+                  {{ showScheduleForm() ? 'Cancel Scheduling' : 'Schedule New Interview' }}
+                </button>
+              }
 
               @if (scheduleError()) {
                 <div class="tf-ws-alert tf-ws-alert--error">
@@ -559,17 +745,24 @@
                 </div>
               }
 
-              @if (showScheduleForm()) {
+              @if (!hasScheduledInterview() && showScheduleForm()) {
                 <form class="tf-ws-schedule-form" (submit)="$event.preventDefault(); submitScheduleInterview(c.id)">
                   <div class="tf-ws-form-field">
                     <label class="tf-ws-form-label">Interview Type</label>
-                    <select class="tf-ws-form-select" [value]="scheduleForm().interviewType" (change)="setInterviewType($event)">
-                      <option value="PHONE_SCREEN">Phone Screen</option>
-                      <option value="TECHNICAL">Technical</option>
-                      <option value="BEHAVIORAL">Behavioral</option>
-                      <option value="CULTURE_FIT">Culture Fit</option>
-                      <option value="FINAL">Final Round</option>
-                    </select>
+                    @if (nextScheduleableType()) {
+                      <div class="tf-ws-form-locked-value">
+                        {{ interviewTypeLabel(nextScheduleableType()!) }}
+                        <span class="tf-ws-form-locked-hint">(next in loop order)</span>
+                      </div>
+                    } @else {
+                      <select class="tf-ws-form-select" [value]="scheduleForm().interviewType" (change)="setInterviewType($event)">
+                        <option value="PHONE_SCREEN">Phone Screen</option>
+                        <option value="TECHNICAL">Technical</option>
+                        <option value="BEHAVIORAL">Behavioral</option>
+                        <option value="CULTURE_FIT">Culture Fit</option>
+                        <option value="FINAL">Final Round</option>
+                      </select>
+                    }
                   </div>
                   <div class="tf-ws-form-field">
                     <label class="tf-ws-form-label">Scheduled At</label>
@@ -655,7 +848,7 @@
               <div class="tf-sent-header">
                 <span class="tf-sent-title">How engaged is this candidate?</span>
                 @if (c.interviewSentiment) {
-                  <span class="tf-sent-updated">Baseline: {{ c.interviewSentiment | titlecase }}</span>
+                  <span class="tf-sent-updated">Baseline: {{ sentimentLabel(c.interviewSentiment) }}</span>
                 }
               </div>
               <div class="tf-sent-options">

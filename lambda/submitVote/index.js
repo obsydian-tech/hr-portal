@@ -82,7 +82,7 @@ exports.handler = async (event) => {
     ? (event.detail || (typeof event.body === 'string' ? JSON.parse(event.body) : event.body))
     : event;
 
-  const { candidateId, tenantId, voterId, scores, rating } = detail || {};
+  const { candidateId, tenantId, voterId, scores, rating, interviewId } = detail || {};
 
   // ── Step 1: Validate required fields ─────────────────────────────────────
   if (!candidateId) return badRequest('Missing required field: candidateId');
@@ -175,12 +175,13 @@ exports.handler = async (event) => {
         voterId,
         candidateId,
         tenantId,
+        interviewId:      interviewId || null,
         rating,
         scores,
         weightedScore,
         configVersionUsed: configVersion,
         createdAt:        timestamp,
-      }),
+      }, { removeUndefinedValues: true }),
       ConditionExpression: 'attribute_not_exists(SK)',
     }));
   } catch (err) {
@@ -193,32 +194,49 @@ exports.handler = async (event) => {
   }
 
   // ── Step 8: Atomic counter increment + quorum check ───────────────────────
-  let newVotesSubmitted;
-  try {
-    const updateResult = await dynamo.send(new UpdateItemCommand({
-      TableName: STATE_TABLE,
-      Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-      UpdateExpression: 'ADD votesSubmitted :inc',
-      ExpressionAttributeValues: marshall({ ':inc': 1 }),
-      ReturnValues: 'UPDATED_NEW',
-    }));
-    newVotesSubmitted = updateResult.Attributes
-      ? unmarshall(updateResult.Attributes).votesSubmitted
-      : null;
-  } catch (err) {
-    console.error('Failed to increment votesSubmitted', { candidateId, error: err.message });
-    return serverError('Failed to update vote counter');
-  }
-
-  // ── Quorum check: votesRequired comes from PANEL_CONFIG (versioned) ─────────
-  // Previously read from the first INTERVIEW# record which is fragile when a
-  // candidate has multiple interviews (INTERVIEWING stage loop). Reading from
-  // PANEL_CONFIG with the candidate's locked configVersion is authoritative.
+  // Increment votesSubmitted on the specific INTERVIEW# record so each interview
+  // tracks its own vote count independently. votesRequired is read back from the
+  // same record (stored at scheduling time from active PANEL_CONFIG).
+  let newVotesSubmitted = null;
   let votesRequired = null;
-  try {
+
+  if (interviewId) {
+    try {
+      const updateResult = await dynamo.send(new UpdateItemCommand({
+        TableName: STATE_TABLE,
+        Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
+        UpdateExpression: 'ADD votesSubmitted :inc',
+        ExpressionAttributeValues: marshall({ ':inc': 1 }),
+        ReturnValues: 'ALL_NEW',
+      }));
+      if (updateResult.Attributes) {
+        const updated = unmarshall(updateResult.Attributes);
+        newVotesSubmitted = updated.votesSubmitted;
+        votesRequired = updated.votesRequired ?? null;
+      }
+    } catch (err) {
+      console.error('Failed to increment votesSubmitted on INTERVIEW#', { candidateId, interviewId, error: err.message });
+      return serverError('Failed to update vote counter');
+    }
+  } else {
+    // Fallback: no interviewId provided — increment on SAGA (deprecated path)
+    console.warn('submitVote called without interviewId — falling back to SAGA counter', { candidateId });
+    try {
+      const updateResult = await dynamo.send(new UpdateItemCommand({
+        TableName: STATE_TABLE,
+        Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
+        UpdateExpression: 'ADD votesSubmitted :inc',
+        ExpressionAttributeValues: marshall({ ':inc': 1 }),
+        ReturnValues: 'UPDATED_NEW',
+      }));
+      newVotesSubmitted = updateResult.Attributes
+        ? unmarshall(updateResult.Attributes).votesSubmitted
+        : null;
+    } catch (err) {
+      console.error('Failed to increment votesSubmitted on SAGA', { candidateId, error: err.message });
+      return serverError('Failed to update vote counter');
+    }
     votesRequired = panelConfig?.rules?.votesRequired?.[saga.positionLevel] ?? null;
-  } catch (err) {
-    console.error('Failed to resolve votesRequired from PANEL_CONFIG', { candidateId, error: err.message });
   }
 
   // ── Publish VotingCompleted if quorum met ─────────────────────────────────
