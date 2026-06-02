@@ -69,6 +69,8 @@ ALL_TARGETS=(
   getProvisioningBundleProgress
   getItTasks
   createItTask
+  getHiringManagers
+  advanceCandidateStage
 )
 
 # Lambdas that import from ../shared/config-reader (need patch+bundle)
