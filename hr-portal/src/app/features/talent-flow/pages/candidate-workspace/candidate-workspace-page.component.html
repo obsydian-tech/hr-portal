@@ -380,7 +380,9 @@
               <div class="tf-ws-empty-interviews">
                 <i class="pi pi-calendar"></i>
                 <p>No interviews scheduled yet.</p>
-                <p class="tf-ws-hint">Use the button below to schedule the first interview in this loop.</p>
+                @if (isTA()) {
+                  <p class="tf-ws-hint">Use the button below to schedule the first interview in this loop.</p>
+                }
               </div>
             } @else {
               @for (iv of interviews(); track iv.interviewId) {
@@ -525,14 +527,16 @@
                   <!-- Actions for SCHEDULED interviews -->
                   @if (iv.status === 'SCHEDULED') {
                     <div class="tf-interview-card__actions">
-                      <button class="tf-ws-ghost-btn" (click)="openAddPanel(iv.interviewId)">
-                        <i class="pi pi-user-plus"></i> Add Panel Member
-                      </button>
-                      <button class="tf-ws-ghost-btn"
-                        (click)="completeTargetId() === iv.interviewId ? closeCompleteForm() : openCompleteForm(iv.interviewId)">
-                        <i class="pi pi-check"></i>
-                        {{ completeTargetId() === iv.interviewId ? 'Cancel' : 'Mark Complete' }}
-                      </button>
+                      @if (isTA()) {
+                        <button class="tf-ws-ghost-btn" (click)="openAddPanel(iv.interviewId)">
+                          <i class="pi pi-user-plus"></i> Add Panel Member
+                        </button>
+                        <button class="tf-ws-ghost-btn"
+                          (click)="completeTargetId() === iv.interviewId ? closeCompleteForm() : openCompleteForm(iv.interviewId)">
+                          <i class="pi pi-check"></i>
+                          {{ completeTargetId() === iv.interviewId ? 'Cancel' : 'Mark Complete' }}
+                        </button>
+                      }
                       @if (votedInterviewIds().has(iv.interviewId)) {
                         <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> Voted</span>
                       } @else {

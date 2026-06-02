@@ -156,6 +156,7 @@ export class TalentFlowApiService {
       department:      payload.department,
       location:        payload.location,
       source:          payload.source,
+      hiringManagerId: payload.hiringManagerId,
       tenantId:        environment.talentFlow.tenantId,
     };
     return this.authHeaders().pipe(
