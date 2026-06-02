@@ -345,6 +345,105 @@ resource "aws_lambda_permission" "get_candidate_events_apigw" {
   source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/candidates/*/events"
 }
 
+# ─── EventBridge: EvaluationCompleted → createOffer (NH-130) ─────────────────
+#
+# Option B: EvaluationCompleted is published by advanceCandidateStage when the TA
+# deliberately advances EVALUATION → BACKGROUND_CHECK. createOffer listens here and
+# auto-creates the draft offer. The outcome filter ensures FAILED events are ignored.
+#
+# createOffer Lambda — deployed outside this Terraform workspace; referenced by data source.
+
+data "aws_lambda_function" "create_offer" {
+  function_name = "createOffer"
+}
+
+resource "aws_cloudwatch_event_rule" "evaluation_completed_create_offer" {
+  name           = "talent-flow-evaluation-completed-create-offer"
+  description    = "EvaluationCompleted (outcome=PASSED) on talent-flow-bus → createOffer Lambda"
+  event_bus_name = data.aws_cloudwatch_event_bus.talent_flow_bus.name
+
+  event_pattern = jsonencode({
+    source        = ["talent-flow.workflow"]
+    "detail-type" = ["EvaluationCompleted"]
+    detail = {
+      outcome = ["PASSED"]
+    }
+  })
+
+  state = "ENABLED"
+
+  tags = { Ticket = "NH-130", Component = "TalentFlow" }
+}
+
+resource "aws_cloudwatch_event_target" "evaluation_completed_create_offer" {
+  rule           = aws_cloudwatch_event_rule.evaluation_completed_create_offer.name
+  event_bus_name = data.aws_cloudwatch_event_bus.talent_flow_bus.name
+  target_id      = "createOffer-onEvaluationCompleted"
+  arn            = data.aws_lambda_function.create_offer.arn
+}
+
+resource "aws_lambda_permission" "create_offer_evaluation_completed" {
+  statement_id  = "AllowEventBridgeInvokeCreateOfferOnEvalCompleted"
+  action        = "lambda:InvokeFunction"
+  function_name = data.aws_lambda_function.create_offer.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.evaluation_completed_create_offer.arn
+}
+
+# ─── EventBridge: OfferAccepted (talent-flow-bus) → sendNotificationEmail ────
+#
+# Cross-bus fix: advanceOfferState publishes OfferAccepted to talent-flow-bus but
+# the existing rule in eventbridge.tf listens on naleko-onboarding — it never fires.
+# This adds the equivalent rule on the correct bus. The old rule is left untouched
+# (additive change) in case advanceOfferState ever publishes to naleko-onboarding.
+
+resource "aws_cloudwatch_event_rule" "offer_accepted_notify_hm_tf_bus" {
+  name           = "talent-flow-offer-accepted-notify-hm-provisioning"
+  description    = "OfferAccepted on talent-flow-bus → notify HM to create IT provisioning bundle"
+  event_bus_name = data.aws_cloudwatch_event_bus.talent_flow_bus.name
+
+  event_pattern = jsonencode({
+    source        = ["talent-flow.workflow"]
+    "detail-type" = ["OfferAccepted"]
+  })
+
+  state = "ENABLED"
+
+  tags = { Ticket = "NH-132", Component = "TalentFlow" }
+}
+
+resource "aws_cloudwatch_event_target" "offer_accepted_notify_hm_tf_bus" {
+  rule           = aws_cloudwatch_event_rule.offer_accepted_notify_hm_tf_bus.name
+  event_bus_name = data.aws_cloudwatch_event_bus.talent_flow_bus.name
+  target_id      = "sendNotificationEmail-offerAccepted-tfBus"
+  arn            = aws_lambda_function.send_notification_email.arn
+
+  input_transformer {
+    input_paths = {
+      candidateName = "$.detail.candidateName"
+      hmEmail       = "$.detail.hmEmail"
+      candidateId   = "$.detail.candidateId"
+    }
+    input_template = <<-EOT
+      {
+        "notificationType": "HM_PROVISIONING_REMINDER",
+        "recipientEmail": "<hmEmail>",
+        "subject": "Action required: Set up IT provisioning for <candidateName>",
+        "body": "The offer for <candidateName> has been accepted. Please create their IT provisioning bundle at your earliest convenience.",
+        "candidateId": "<candidateId>"
+      }
+    EOT
+  }
+}
+
+resource "aws_lambda_permission" "send_notification_email_offer_accepted_tf_bus" {
+  statement_id  = "AllowTFBusInvokeNotifyHMProvisioningOfferAccepted"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.send_notification_email.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.offer_accepted_notify_hm_tf_bus.arn
+}
+
 # ─── Outputs ──────────────────────────────────────────────────────────────────
 
 output "talent_flow_events_table_name" {
