@@ -172,20 +172,48 @@ async function handleAddPanelMembers(event) {
 exports.handler = async (event) => {
   const method = event.requestContext?.http?.method;
 
-  // ── GET: list all interviews for a candidate ──────────────────────────────
+  // ── GET: list all interviews + votes for a candidate ─────────────────────
   if (method === 'GET') {
     const candidateId = event.pathParameters?.id;
     if (!candidateId) return badRequest('Missing candidateId');
     try {
-      const result = await dynamo.send(new QueryCommand({
+      // Fetch INTERVIEW# records
+      const interviewResult = await dynamo.send(new QueryCommand({
         TableName: process.env.STATE_TABLE_NAME,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
         ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${candidateId}`, ':prefix': 'INTERVIEW#' }),
       }));
-      const interviews = (result.Items || [])
+      const interviews = (interviewResult.Items || [])
         .map((i) => { const { PK, SK, ...rest } = unmarshall(i); return rest; })
         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
-      return ok({ interviews });
+
+      // Fetch all VOTE# records for this candidate and attach per interview
+      const voteResult = await dynamo.send(new QueryCommand({
+        TableName: process.env.STATE_TABLE_NAME,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+        ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${candidateId}`, ':prefix': 'VOTE#' }),
+        ProjectionExpression: 'voterId, rating, weightedScore, interviewId, createdAt, submittedByTA, scores',
+      }));
+      const allVotes = (voteResult.Items || []).map((i) => {
+        const v = unmarshall(i);
+        return {
+          voterId:       v.voterId      ?? null,
+          rating:        v.rating       ?? null,
+          weightedScore: v.weightedScore ?? null,
+          interviewId:   v.interviewId  ?? null,
+          submittedAt:   v.createdAt    ?? null,
+          submittedByTA: v.submittedByTA ?? null,
+          scores:        v.scores       ?? null,
+        };
+      });
+
+      // Attach votes array to each interview record
+      const interviewsWithVotes = interviews.map((iv) => ({
+        ...iv,
+        votes: allVotes.filter((v) => v.interviewId === iv.interviewId),
+      }));
+
+      return ok({ interviews: interviewsWithVotes });
     } catch (err) {
       console.error('GET interviews: query failed', { candidateId, error: err.message });
       return serverError('Failed to fetch interviews');

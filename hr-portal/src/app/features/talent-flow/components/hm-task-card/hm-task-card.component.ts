@@ -56,13 +56,19 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
           </div>
         </div>
 
-        <p-button
-          [label]="panelOpen() ? 'Close' : 'Evaluate'"
-          [icon]="panelOpen() ? 'pi pi-times' : 'pi pi-file-edit'"
-          styleClass="hm-card__eval-btn"
-          [outlined]="!panelOpen()"
-          (onClick)="togglePanel()"
-        />
+        @if (voted()) {
+          <span class="hm-card__voted-badge">
+            <i class="pi pi-check-circle"></i> Voted
+          </span>
+        } @else {
+          <p-button
+            [label]="panelOpen() ? 'Close' : 'Evaluate'"
+            [icon]="panelOpen() ? 'pi pi-times' : 'pi pi-file-edit'"
+            styleClass="hm-card__eval-btn"
+            [outlined]="!panelOpen()"
+            (onClick)="togglePanel()"
+          />
+        }
       </div>
 
       <!-- ── Inline scoring panel (D048 — NOT a modal/drawer) ───────────── -->
@@ -149,7 +155,7 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
           }
 
           <p-button
-            label="Submit Evaluation"
+            label="Submit Vote"
             icon="pi pi-check"
             styleClass="hm-submit-btn"
             [loading]="submitting()"
@@ -309,6 +315,20 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
       margin-top: 0.375rem;
     }
 
+    .hm-card__voted-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--naleko-success, #22c55e);
+      background: var(--naleko-success-muted, #f0fdf4);
+      border: 1px solid var(--naleko-success, #22c55e);
+      border-radius: var(--naleko-radius-md, 8px);
+      padding: 0.375rem 0.75rem;
+      white-space: nowrap;
+    }
+
     :host ::ng-deep .hm-slider { width: 100%; }
     :host ::ng-deep .hm-submit-btn { width: 100%; justify-content: center; }
     :host ::ng-deep .hm-card__eval-btn { white-space: nowrap; }
@@ -319,7 +339,8 @@ export class HmTaskCardComponent {
 
   // ── Inputs / Outputs ──────────────────────────────────────────────────────
   readonly candidate     = input.required<Candidate>();
-  readonly voteSubmitted = output<void>();
+  readonly voted         = input<boolean>(false);
+  readonly voteSubmitted = output<string>(); // emits candidate ID
 
   // ── State ─────────────────────────────────────────────────────────────────
   protected readonly panelOpen  = signal(false);
@@ -375,6 +396,7 @@ export class HmTaskCardComponent {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   protected togglePanel(): void {
+    if (this.voted()) return;
     this.panelOpen.update((v) => !v);
     this.errorMsg.set('');
   }
@@ -406,7 +428,7 @@ export class HmTaskCardComponent {
       next: () => {
         this.submitting.set(false);
         this.panelOpen.set(false);
-        this.voteSubmitted.emit();
+        this.voteSubmitted.emit(c.id);
         // Reset sliders for next use
         this.techScore    = 5;
         this.commScore    = 5;

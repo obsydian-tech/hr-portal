@@ -67,7 +67,8 @@ import { Candidate } from '../../models/talent-flow.models';
                 @for (c of taskCandidates(); track c.id) {
                   <tf-hm-task-card
                     [candidate]="c"
-                    (voteSubmitted)="onVoteSubmitted()"
+                    [voted]="evaluatedCandidateIds().has(c.id)"
+                    (voteSubmitted)="onVoteSubmitted($event)"
                   />
                 }
               </div>
@@ -105,7 +106,8 @@ import { Candidate } from '../../models/talent-flow.models';
             @if (decisionCandidates().length === 0) {
               <div class="hm-empty">
                 <i class="pi pi-check-circle"></i>
-                <p>No candidates awaiting a hire / reject decision.</p>
+                <p>No evaluation results yet.</p>
+                <p style="font-size:0.8125rem;margin-top:0.25rem">Completed evaluations will appear here once all votes are in.</p>
               </div>
             } @else {
               <div class="hm-candidate-list">
@@ -116,7 +118,11 @@ import { Candidate } from '../../models/talent-flow.models';
                       <span class="hm-candidate-row__name">{{ c.firstName }} {{ c.lastName }}</span>
                       <span class="hm-candidate-row__role">{{ c.role }}</span>
                     </div>
-                    <span class="hm-candidate-row__stage hm-candidate-row__stage--decision">Awaiting Decision</span>
+                    <span class="hm-candidate-row__result"
+                      [class.hm-candidate-row__result--passed]="isResultPassed(c.evaluationResult!)"
+                      [class.hm-candidate-row__result--failed]="!isResultPassed(c.evaluationResult!)">
+                      {{ resultLabel(c.evaluationResult!) }}
+                    </span>
                   </div>
                 }
               </div>
@@ -215,9 +221,21 @@ import { Candidate } from '../../models/talent-flow.models';
       color: var(--naleko-text-muted, #94a3b8);
     }
 
-    .hm-candidate-row__stage--decision {
-      color: var(--naleko-warning, #f59e0b);
+    .hm-candidate-row__result {
+      font-size: 0.75rem;
       font-weight: 600;
+      padding: 0.25rem 0.625rem;
+      border-radius: var(--naleko-radius-sm, 4px);
+    }
+
+    .hm-candidate-row__result--passed {
+      background: var(--naleko-success-muted, #f0fdf4);
+      color: var(--naleko-success, #16a34a);
+    }
+
+    .hm-candidate-row__result--failed {
+      background: var(--naleko-danger-muted, #fef2f2);
+      color: var(--naleko-danger, #ef4444);
     }
 
     .hm-candidate-row--clickable { cursor: pointer; text-decoration: none; }
@@ -235,10 +253,12 @@ export class HmDashboardPageComponent {
   private readonly nalekoAuth = inject(AuthService);
   private readonly route      = inject(ActivatedRoute);
 
-  protected readonly activeTab  = signal<string>('tasks');
-  protected readonly loading    = signal(true);
-  protected readonly loadError  = signal('');
-  private readonly candidates   = signal<Candidate[]>([]);
+  protected readonly activeTab            = signal<string>('tasks');
+  protected readonly loading              = signal(true);
+  protected readonly loadError            = signal('');
+  private readonly candidates             = signal<Candidate[]>([]);
+  // Tracks candidate IDs the HM has voted on this session — prevents re-evaluation
+  protected readonly evaluatedCandidateIds  = signal<Set<string>>(new Set());
 
   constructor() {
     // Read ?tab= query param to activate correct tab on direct navigation
@@ -259,16 +279,38 @@ export class HmDashboardPageComponent {
     ),
   );
   protected readonly allCandidates     = this.candidates.asReadonly();
+  // Show candidates where evaluation has completed — HM can see the outcome
   protected readonly decisionCandidates = computed(() =>
-    this.candidates().filter((c) => c.currentStage === 'EVALUATION'),
+    this.candidates().filter((c) => !!c.evaluationResult),
   );
 
   protected setActiveTab(val: string | number): void {
     this.activeTab.set(String(val));
   }
 
-  protected onVoteSubmitted(): void {
-    this.loadCandidates();
+  protected onVoteSubmitted(candidateId: string): void {
+    // Mark as voted in this session immediately so the badge shows
+    this.evaluatedCandidateIds.update(set => {
+      const next = new Set(set);
+      next.add(candidateId);
+      return next;
+    });
+    // Delay refresh to give completeEvaluation Lambda time to propagate
+    setTimeout(() => this.loadCandidates(), 2500);
+  }
+
+  protected resultLabel(result: string): string {
+    const labels: Record<string, string> = {
+      PASSED:            'Evaluation Passed',
+      FAILED:            'Evaluation Failed',
+      STRONG_NO_VETO:    'Strong No — Vetoed',
+      EVALUATION_FAILED: 'Evaluation Failed',
+    };
+    return labels[result] ?? result;
+  }
+
+  protected isResultPassed(result: string): boolean {
+    return result === 'PASSED';
   }
 
   protected stageLabel(stage: string): string {

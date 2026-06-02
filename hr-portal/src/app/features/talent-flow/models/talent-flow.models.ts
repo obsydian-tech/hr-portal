@@ -165,6 +165,22 @@ export interface Candidate {
   finalScore?:         number;
 }
 
+// Vote record as returned by GET /interviews (VOTE# items from talent-flow-state)
+export interface InterviewVoteRecord {
+  voterId:       string;
+  rating:        'STRONG_NO' | 'NO' | 'YES' | 'STRONG_YES';
+  weightedScore: number | null;
+  interviewId:   string | null;
+  submittedAt:   string | null;
+  submittedByTA: string | null; // TA email when vote captured on behalf of panel member
+  scores: {
+    technical:      number;
+    communication:  number;
+    culturalFit:    number;
+    problemSolving: number;
+  } | null;
+}
+
 export interface Interview {
   interviewId:     string;   // DynamoDB SK suffix, used as the primary key
   candidateId:     string;
@@ -173,9 +189,11 @@ export interface Interview {
   panelMemberIds:  string[];
   adhocPanelMembers?: AdhocPanelMember[];
   votesRequired:   number;
+  votesSubmitted?: number;
   status:          'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
   completedAt?:    string;
   outcome?:        'PASS' | 'DEFER' | 'FAIL';
+  votes?:          InterviewVoteRecord[]; // attached by GET /interviews
 }
 
 export interface Vote {

@@ -440,86 +440,184 @@
                     }
                   </div>
 
-                  <!-- Vote button + form for COMPLETED interviews -->
-                  @if (iv.status === 'COMPLETED') {
-                    <div class="tf-interview-card__actions">
-                      @if (votedInterviewIds().has(iv.interviewId)) {
-                        <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> Voted</span>
-                      } @else {
-                        <button class="tf-ws-ghost-btn"
-                          (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
-                          <i class="pi pi-star"></i>
-                          {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote / Score' }}
-                        </button>
+                  <!-- ── Panel Votes Summary (all interviews) ──────────── -->
+                  @if (iv.panelMemberIds.length > 0 || (iv.adhocPanelMembers?.length ?? 0) > 0) {
+                    <div class="tf-panel-votes">
+                      <div class="tf-panel-votes__header">
+                        <i class="pi pi-users"></i>
+                        Panel Votes
+                        <span class="tf-panel-votes__tally">
+                          {{ (iv.votes?.length ?? 0) }} / {{ iv.votesRequired }} received
+                        </span>
+                      </div>
+                      @for (memberId of iv.panelMemberIds; track memberId) {
+                        @if (voteForMember(iv, memberId); as v) {
+                          <div class="tf-panel-vote-row tf-panel-vote-row--voted">
+                            <span class="tf-panel-vote-row__name">{{ panelMemberNameById(memberId) }}</span>
+                            <span class="tf-panel-vote-row__decision tf-panel-vote-row__decision--{{ ratingClass(v.rating) }}">
+                              {{ ratingLabel(v.rating) }}
+                            </span>
+                            <span class="tf-panel-vote-row__score">{{ v.weightedScore?.toFixed(1) }}/10</span>
+                            @if (v.submittedByTA) {
+                              <span class="tf-panel-vote-row__proxy" title="Captured by TA on behalf of panel member">
+                                <i class="pi pi-pencil"></i> via TA
+                              </span>
+                            }
+                          </div>
+                        } @else {
+                          <div class="tf-panel-vote-row tf-panel-vote-row--pending">
+                            <span class="tf-panel-vote-row__name">{{ panelMemberNameById(memberId) }}</span>
+                            <span class="tf-panel-vote-row__pending">
+                              <i class="pi pi-clock"></i> Pending
+                            </span>
+                          </div>
+                        }
+                      }
+                      <!-- Adhoc panel members (no Cognito account — captured via TA proxy) -->
+                      @for (adhoc of (iv.adhocPanelMembers ?? []); track adhoc.email) {
+                        @if (voteForMember(iv, adhoc.email); as v) {
+                          <div class="tf-panel-vote-row tf-panel-vote-row--voted">
+                            <span class="tf-panel-vote-row__name">{{ adhoc.name }}</span>
+                            <span class="tf-panel-vote-row__decision tf-panel-vote-row__decision--{{ ratingClass(v.rating) }}">
+                              {{ ratingLabel(v.rating) }}
+                            </span>
+                            <span class="tf-panel-vote-row__score">{{ v.weightedScore?.toFixed(1) }}/10</span>
+                            <span class="tf-panel-vote-row__proxy" title="Captured by TA on behalf of adhoc panel member">
+                              <i class="pi pi-pencil"></i> via TA
+                            </span>
+                          </div>
+                        } @else {
+                          <div class="tf-panel-vote-row tf-panel-vote-row--pending">
+                            <span class="tf-panel-vote-row__name">{{ adhoc.name }}</span>
+                            <span class="tf-panel-vote-row__pending">
+                              <i class="pi pi-clock"></i> Pending
+                            </span>
+                          </div>
+                        }
                       }
                     </div>
+                  }
+
+                  <!-- Actions for COMPLETED interviews -->
+                  @if (iv.status === 'COMPLETED') {
+                    <div class="tf-interview-card__actions">
+                      @if (isTA()) {
+                        <!-- TA: capture on behalf of unvoted panel members -->
+                        @if (unvotedPanelMembers(iv).length > 0) {
+                          <button class="tf-ws-ghost-btn"
+                            (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
+                            <i class="pi pi-pencil"></i>
+                            {{ voteTargetId() === iv.interviewId ? 'Cancel' : 'Capture Panel Vote' }}
+                          </button>
+                        } @else if ((iv.votes?.length ?? 0) > 0) {
+                          <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> All votes captured</span>
+                        }
+                      } @else {
+                        <!-- HM / Panel member: vote as themselves -->
+                        @if (hasCurrentUserVoted(iv)) {
+                          <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> Voted</span>
+                        } @else {
+                          <button class="tf-ws-ghost-btn"
+                            (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
+                            <i class="pi pi-star"></i>
+                            {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote / Score' }}
+                          </button>
+                        }
+                      }
+                    </div>
+                    <!-- Vote form (shared by TA proxy + HM direct) -->
                     @if (voteTargetId() === iv.interviewId) {
                       <div class="tf-ws-vote-form">
-                        <p class="tf-ws-section-label" style="margin-top:0.75rem;margin-bottom:0.5rem">
-                          <i class="pi pi-star"></i> Submit Your Vote
-                        </p>
+                        @if (isTA()) {
+                          <!-- TA: select which panel member's vote to capture -->
+                          <p class="tf-ws-section-label" style="margin-top:0.75rem;margin-bottom:0.75rem">
+                            <i class="pi pi-pencil"></i> Capture Panel Vote on Behalf Of
+                          </p>
+                          <div class="tf-proxy-selector">
+                            @for (m of unvotedPanelMembers(iv); track m.id) {
+                              <button type="button" class="tf-proxy-btn"
+                                [class.tf-proxy-btn--selected]="taProxyMemberId() === m.id"
+                                (click)="taProxyMemberId.set(m.id)">
+                                <i class="pi pi-user"></i> {{ m.name }}
+                              </button>
+                            }
+                          </div>
+                          @if (taProxyMemberId()) {
+                            <div class="tf-proxy-context">
+                              <i class="pi pi-info-circle"></i>
+                              Scoring on behalf of <strong>{{ panelMemberNameById(taProxyMemberId()!) }}</strong>
+                            </div>
+                          }
+                        } @else {
+                          <p class="tf-ws-section-label" style="margin-top:0.75rem;margin-bottom:0.5rem">
+                            <i class="pi pi-star"></i> Submit Your Vote
+                          </p>
+                        }
                         @if (voteError()) {
                           <div class="tf-ws-alert tf-ws-alert--error" style="margin-bottom:0.5rem">
                             <i class="pi pi-exclamation-triangle"></i> {{ voteError() }}
                           </div>
                         }
-                        <div class="tf-ws-vote-form__decision">
-                          <span class="tf-ws-vote-form__label">Decision:</span>
-                          @for (opt of VOTE_OPTIONS; track opt.value) {
-                            <button type="button" class="tf-ws-vote-decision-btn"
-                              [class.tf-ws-vote-decision-btn--selected]="voteDecision() === opt.value"
-                              [class.tf-ws-vote-decision-btn--yes]="opt.value === 'YES' || opt.value === 'STRONG_YES'"
-                              [class.tf-ws-vote-decision-btn--no]="opt.value === 'NO' || opt.value === 'STRONG_NO'"
-                              (click)="voteDecision.set(opt.value)">
-                              {{ opt.label }}
-                            </button>
-                          }
-                        </div>
-                        <div class="tf-ws-vote-form__scores">
-                          <span class="tf-ws-vote-form__label">Scores (0–10):</span>
-                          <div class="tf-ws-vote-form__score-grid">
-                            <label class="tf-ws-vote-form__score-field">
-                              <span>Technical</span>
-                              <input type="number" min="0" max="10"
-                                [value]="voteScores().technical"
-                                (input)="setVoteScore('technical', $event)" />
-                            </label>
-                            <label class="tf-ws-vote-form__score-field">
-                              <span>Communication</span>
-                              <input type="number" min="0" max="10"
-                                [value]="voteScores().communication"
-                                (input)="setVoteScore('communication', $event)" />
-                            </label>
-                            <label class="tf-ws-vote-form__score-field">
-                              <span>Cultural Fit</span>
-                              <input type="number" min="0" max="10"
-                                [value]="voteScores().culturalFit"
-                                (input)="setVoteScore('culturalFit', $event)" />
-                            </label>
-                            <label class="tf-ws-vote-form__score-field">
-                              <span>Problem Solving</span>
-                              <input type="number" min="0" max="10"
-                                [value]="voteScores().problemSolving"
-                                (input)="setVoteScore('problemSolving', $event)" />
-                            </label>
+                        <!-- Score + decision form — shown to HM always, to TA only once proxy selected -->
+                        @if (!isTA() || taProxyMemberId()) {
+                          <div class="tf-ws-vote-form__decision">
+                            <span class="tf-ws-vote-form__label">Decision:</span>
+                            @for (opt of VOTE_OPTIONS; track opt.value) {
+                              <button type="button" class="tf-ws-vote-decision-btn"
+                                [class.tf-ws-vote-decision-btn--selected]="voteDecision() === opt.value"
+                                [class.tf-ws-vote-decision-btn--yes]="opt.value === 'YES' || opt.value === 'STRONG_YES'"
+                                [class.tf-ws-vote-decision-btn--no]="opt.value === 'NO' || opt.value === 'STRONG_NO'"
+                                (click)="voteDecision.set(opt.value)">
+                                {{ opt.label }}
+                              </button>
+                            }
                           </div>
-                        </div>
-                        <div class="tf-ws-vote-form__notes">
-                          <textarea class="tf-ws-form-input" rows="2"
-                            placeholder="Notes (optional)"
-                            [value]="voteNotes()"
-                            (input)="setVoteNotes($event)"></textarea>
-                        </div>
-                        <div class="tf-ws-form-actions" style="margin-top:0.5rem">
-                          <button pButton type="button" class="p-button-sm" icon="pi pi-send" label="Submit Vote"
-                            [loading]="voteSubmitting()"
-                            [disabled]="voteSubmitting()"
-                            (click)="submitVoteForInterview(c.id)">
-                          </button>
-                          <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
-                            (click)="closeVoteForm()">
-                          </button>
-                        </div>
+                          <div class="tf-ws-vote-form__scores">
+                            <span class="tf-ws-vote-form__label">Scores (0–10):</span>
+                            <div class="tf-ws-vote-form__score-grid">
+                              <label class="tf-ws-vote-form__score-field">
+                                <span>Technical</span>
+                                <input type="number" min="0" max="10"
+                                  [value]="voteScores().technical"
+                                  (input)="setVoteScore('technical', $event)" />
+                              </label>
+                              <label class="tf-ws-vote-form__score-field">
+                                <span>Communication</span>
+                                <input type="number" min="0" max="10"
+                                  [value]="voteScores().communication"
+                                  (input)="setVoteScore('communication', $event)" />
+                              </label>
+                              <label class="tf-ws-vote-form__score-field">
+                                <span>Cultural Fit</span>
+                                <input type="number" min="0" max="10"
+                                  [value]="voteScores().culturalFit"
+                                  (input)="setVoteScore('culturalFit', $event)" />
+                              </label>
+                              <label class="tf-ws-vote-form__score-field">
+                                <span>Problem Solving</span>
+                                <input type="number" min="0" max="10"
+                                  [value]="voteScores().problemSolving"
+                                  (input)="setVoteScore('problemSolving', $event)" />
+                              </label>
+                            </div>
+                          </div>
+                          <div class="tf-ws-vote-form__notes">
+                            <textarea class="tf-ws-form-input" rows="2"
+                              placeholder="Notes (optional)"
+                              [value]="voteNotes()"
+                              (input)="setVoteNotes($event)"></textarea>
+                          </div>
+                          <div class="tf-ws-form-actions" style="margin-top:0.5rem">
+                            <button pButton type="button" class="p-button-sm" icon="pi pi-send" label="Submit Vote"
+                              [loading]="voteSubmitting()"
+                              [disabled]="voteSubmitting()"
+                              (click)="submitVoteForInterview(c.id)">
+                            </button>
+                            <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
+                              (click)="closeVoteForm()">
+                            </button>
+                          </div>
+                        }
                       </div>
                     }
                   }
@@ -536,15 +634,26 @@
                           <i class="pi pi-check"></i>
                           {{ completeTargetId() === iv.interviewId ? 'Cancel' : 'Mark Complete' }}
                         </button>
+                        @if (unvotedPanelMembers(iv).length > 0) {
+                          <button class="tf-ws-ghost-btn"
+                            (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
+                            <i class="pi pi-pencil"></i>
+                            {{ voteTargetId() === iv.interviewId ? 'Cancel' : 'Capture Panel Vote' }}
+                          </button>
+                        } @else if (unvotedPanelMembers(iv).length === 0 && (iv.votes?.length ?? 0) > 0) {
+                          <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> All votes captured</span>
+                        }
                       }
-                      @if (votedInterviewIds().has(iv.interviewId)) {
-                        <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> Voted</span>
-                      } @else {
-                        <button class="tf-ws-ghost-btn"
-                          (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
-                          <i class="pi pi-star"></i>
-                          {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote' }}
-                        </button>
+                      @if (!isTA()) {
+                        @if (hasCurrentUserVoted(iv)) {
+                          <span class="tf-ws-voted-badge"><i class="pi pi-check-circle"></i> Voted</span>
+                        } @else {
+                          <button class="tf-ws-ghost-btn"
+                            (click)="voteTargetId() === iv.interviewId ? closeVoteForm() : openVoteForm(iv.interviewId)">
+                            <i class="pi pi-star"></i>
+                            {{ voteTargetId() === iv.interviewId ? 'Cancel Vote' : 'Submit Vote' }}
+                          </button>
+                        }
                       }
                     </div>
 
@@ -651,76 +760,100 @@
                       </div>
                     }
 
-                    <!-- Submit Vote inline form -->
+                    <!-- Vote form (TA proxy capture + HM direct vote on SCHEDULED interview) -->
                     @if (voteTargetId() === iv.interviewId) {
                       <div class="tf-ws-vote-form">
-                        <p class="tf-ws-section-label" style="margin-top:0.75rem;margin-bottom:0.5rem">
-                          <i class="pi pi-star"></i> Submit Your Vote
-                        </p>
+                        @if (isTA()) {
+                          <p class="tf-ws-section-label" style="margin-top:0.75rem;margin-bottom:0.75rem">
+                            <i class="pi pi-pencil"></i> Capture Panel Vote on Behalf Of
+                          </p>
+                          <div class="tf-proxy-selector">
+                            @for (m of unvotedPanelMembers(iv); track m.id) {
+                              <button type="button" class="tf-proxy-btn"
+                                [class.tf-proxy-btn--selected]="taProxyMemberId() === m.id"
+                                (click)="taProxyMemberId.set(m.id)">
+                                <i class="pi pi-user"></i> {{ m.name }}
+                              </button>
+                            }
+                          </div>
+                          @if (taProxyMemberId()) {
+                            <div class="tf-proxy-context">
+                              <i class="pi pi-info-circle"></i>
+                              Scoring on behalf of <strong>{{ panelMemberNameById(taProxyMemberId()!) }}</strong>
+                            </div>
+                          }
+                        } @else {
+                          <p class="tf-ws-section-label" style="margin-top:0.75rem;margin-bottom:0.5rem">
+                            <i class="pi pi-star"></i> Submit Your Vote
+                          </p>
+                        }
                         @if (voteError()) {
                           <div class="tf-ws-alert tf-ws-alert--error" style="margin-bottom:0.5rem">
                             <i class="pi pi-exclamation-triangle"></i> {{ voteError() }}
                           </div>
                         }
-                        <div class="tf-ws-vote-form__decision">
-                          <span class="tf-ws-vote-form__label">Decision:</span>
-                          @for (opt of VOTE_OPTIONS; track opt.value) {
-                            <button type="button" class="tf-ws-vote-decision-btn"
-                              [class.tf-ws-vote-decision-btn--selected]="voteDecision() === opt.value"
-                              [class.tf-ws-vote-decision-btn--yes]="opt.value === 'YES' || opt.value === 'STRONG_YES'"
-                              [class.tf-ws-vote-decision-btn--no]="opt.value === 'NO' || opt.value === 'STRONG_NO'"
-                              (click)="voteDecision.set(opt.value)">
-                              {{ opt.label }}
-                            </button>
-                          }
-                        </div>
-                        <div class="tf-ws-vote-form__scores">
-                          <span class="tf-ws-vote-form__label">Scores (0–10):</span>
-                          <div class="tf-ws-vote-form__score-grid">
-                            <label class="tf-ws-vote-form__score-field">
-                              <span>Technical</span>
-                              <input type="number" min="0" max="10"
-                                [value]="voteScores().technical"
-                                (input)="setVoteScore('technical', $event)" />
-                            </label>
-                            <label class="tf-ws-vote-form__score-field">
-                              <span>Communication</span>
-                              <input type="number" min="0" max="10"
-                                [value]="voteScores().communication"
-                                (input)="setVoteScore('communication', $event)" />
-                            </label>
-                            <label class="tf-ws-vote-form__score-field">
-                              <span>Cultural Fit</span>
-                              <input type="number" min="0" max="10"
-                                [value]="voteScores().culturalFit"
-                                (input)="setVoteScore('culturalFit', $event)" />
-                            </label>
-                            <label class="tf-ws-vote-form__score-field">
-                              <span>Problem Solving</span>
-                              <input type="number" min="0" max="10"
-                                [value]="voteScores().problemSolving"
-                                (input)="setVoteScore('problemSolving', $event)" />
-                            </label>
+                        @if (!isTA() || taProxyMemberId()) {
+                          <div class="tf-ws-vote-form__decision">
+                            <span class="tf-ws-vote-form__label">Decision:</span>
+                            @for (opt of VOTE_OPTIONS; track opt.value) {
+                              <button type="button" class="tf-ws-vote-decision-btn"
+                                [class.tf-ws-vote-decision-btn--selected]="voteDecision() === opt.value"
+                                [class.tf-ws-vote-decision-btn--yes]="opt.value === 'YES' || opt.value === 'STRONG_YES'"
+                                [class.tf-ws-vote-decision-btn--no]="opt.value === 'NO' || opt.value === 'STRONG_NO'"
+                                (click)="voteDecision.set(opt.value)">
+                                {{ opt.label }}
+                              </button>
+                            }
                           </div>
-                        </div>
-                        <div class="tf-ws-vote-form__notes">
-                          <textarea class="tf-ws-form-input" rows="2"
-                            placeholder="Notes (optional)"
-                            [value]="voteNotes()"
-                            (input)="setVoteNotes($event)"></textarea>
-                        </div>
-                        <div class="tf-ws-form-actions" style="margin-top:0.5rem">
-                          <button pButton type="button" class="p-button-sm" icon="pi pi-send" label="Submit Vote"
-                            [loading]="voteSubmitting()"
-                            [disabled]="voteSubmitting()"
-                            (click)="submitVoteForInterview(c.id)">
-                          </button>
-                          <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
-                            (click)="closeVoteForm()">
-                          </button>
-                        </div>
+                          <div class="tf-ws-vote-form__scores">
+                            <span class="tf-ws-vote-form__label">Scores (0–10):</span>
+                            <div class="tf-ws-vote-form__score-grid">
+                              <label class="tf-ws-vote-form__score-field">
+                                <span>Technical</span>
+                                <input type="number" min="0" max="10"
+                                  [value]="voteScores().technical"
+                                  (input)="setVoteScore('technical', $event)" />
+                              </label>
+                              <label class="tf-ws-vote-form__score-field">
+                                <span>Communication</span>
+                                <input type="number" min="0" max="10"
+                                  [value]="voteScores().communication"
+                                  (input)="setVoteScore('communication', $event)" />
+                              </label>
+                              <label class="tf-ws-vote-form__score-field">
+                                <span>Cultural Fit</span>
+                                <input type="number" min="0" max="10"
+                                  [value]="voteScores().culturalFit"
+                                  (input)="setVoteScore('culturalFit', $event)" />
+                              </label>
+                              <label class="tf-ws-vote-form__score-field">
+                                <span>Problem Solving</span>
+                                <input type="number" min="0" max="10"
+                                  [value]="voteScores().problemSolving"
+                                  (input)="setVoteScore('problemSolving', $event)" />
+                              </label>
+                            </div>
+                          </div>
+                          <div class="tf-ws-vote-form__notes">
+                            <textarea class="tf-ws-form-input" rows="2"
+                              placeholder="Notes (optional)"
+                              [value]="voteNotes()"
+                              (input)="setVoteNotes($event)"></textarea>
+                          </div>
+                          <div class="tf-ws-form-actions" style="margin-top:0.5rem">
+                            <button pButton type="button" class="p-button-sm" icon="pi pi-send" label="Submit Vote"
+                              [loading]="voteSubmitting()"
+                              [disabled]="voteSubmitting()"
+                              (click)="submitVoteForInterview(c.id)">
+                            </button>
+                            <button pButton type="button" class="p-button-text p-button-sm p-button-secondary" label="Cancel"
+                              (click)="closeVoteForm()">
+                            </button>
+                          </div>
+                        }
                       </div>
                     }
+
                   }
 
                 </div>
@@ -865,27 +998,29 @@
                   </button>
                 }
               </div>
-              <div class="tf-sent-footer">
-                <button class="tf-ws-ghost-btn tf-ws-ghost-btn--primary"
-                  [disabled]="!engagementSentiment() || sentimentSubmitting()"
-                  (click)="submitSentiment(c.id)">
-                  @if (sentimentSubmitting()) {
-                    <i class="pi pi-spin pi-spinner"></i> Saving…
-                  } @else {
-                    <i class="pi pi-check"></i> Save Sentiment
+              @if (isTA()) {
+                <div class="tf-sent-footer">
+                  <button class="tf-ws-ghost-btn tf-ws-ghost-btn--primary"
+                    [disabled]="!engagementSentiment() || sentimentSubmitting()"
+                    (click)="submitSentiment(c.id)">
+                    @if (sentimentSubmitting()) {
+                      <i class="pi pi-spin pi-spinner"></i> Saving…
+                    } @else {
+                      <i class="pi pi-check"></i> Save Sentiment
+                    }
+                  </button>
+                  @if (sentimentSuccess()) {
+                    <span class="tf-sent-feedback tf-sent-feedback--ok">
+                      <i class="pi pi-check-circle"></i> Saved
+                    </span>
                   }
-                </button>
-                @if (sentimentSuccess()) {
-                  <span class="tf-sent-feedback tf-sent-feedback--ok">
-                    <i class="pi pi-check-circle"></i> Saved
-                  </span>
-                }
-                @if (sentimentError()) {
-                  <span class="tf-sent-feedback tf-sent-feedback--err">
-                    <i class="pi pi-exclamation-circle"></i> {{ sentimentError() }}
-                  </span>
-                }
-              </div>
+                  @if (sentimentError()) {
+                    <span class="tf-sent-feedback tf-sent-feedback--err">
+                      <i class="pi pi-exclamation-circle"></i> {{ sentimentError() }}
+                    </span>
+                  }
+                </div>
+              }
             </div>
 
           </div>

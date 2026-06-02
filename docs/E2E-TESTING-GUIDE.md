@@ -1,7 +1,7 @@
 # TalentFlow E2E Testing & Troubleshooting Guide
 
 **Living document — updated as we test and fix.**
-Last updated: 2026-06-01 (Phase 6)
+Last updated: 2026-06-02 (Phase 7.1)
 
 ---
 
@@ -26,8 +26,11 @@ This is a running log of every bug found, confirmed, and fixed during end-to-end
 | `CAND-01KT190NKFS4BMWSMH06W015WP` | _(test)_ | JUNIOR | 2026-06-01T09:42Z | `ONBOARDING` | Raced through all stages — BUG-005 era, gate was skipped — discard |
 | `CAND-01KT1N9BQ9AH8ATEPJYAP2HYDY` | Ryan Giggs | JUNIOR | 2026-06-01T13:17Z | `EVALUATION` | Phase 4 pre-fix test — department/location empty (created before BUG-009 fix), interview loop completed manually |
 | `CAND-01KT1Q9A6RRY8TEMA7TS5B8P2E` | _(Phase 5 test)_ | JUNIOR | 2026-06-01T13:52Z | `EVALUATION` | ✅ **Primary Phase 5 reference candidate** — all 3 interviews (Phone Screen → Behavioral → Final) completed with PASS, advanced to EVALUATION cleanly |
+| `CAND-01KT3T202MG6EY83VDRRAGRP68` | _(Phase 7 test)_ | JUNIOR | 2026-06-02 | `INTERVIEWING` | Phase 7 initial vote testing — used to verify panel member sub fix (BUG-022) |
+| `CAND-01KT3Y068RZVX3HHG1CA3PG87T` | _(Phase 7 vote)_ | JUNIOR | 2026-06-02 | `EVALUATION` | **Primary Phase 7 reference candidate** — vote display, TA proxy capture, HM voting, and duplicate guard all confirmed on this candidate |
+| `CAND-01KT4005Z7NRHBQK68AQW8SM54` | _(Phase 7.1 adhoc)_ | JUNIOR | 2026-06-02 | `INTERVIEWING` | Phase 7.1 — adhoc panel member fix candidate; `panelMemberIds=['b10ca268-...']` (Tshepo, already voted), `adhocPanelMembers=[test panel, Another member, nso]`, `votesRequired=4`, `votesSubmitted=1` |
 
-> **Active test candidate:** `CAND-01KT1Q9A6RRY8TEMA7TS5B8P2E` — Phase 5 complete. Create a fresh candidate for any future regression tests.
+> **Active test candidate:** `CAND-01KT4005Z7NRHBQK68AQW8SM54` — Phase 7.1 in progress. Create a fresh candidate for any future regression tests.
 
 ---
 
@@ -823,6 +826,321 @@ TA users (not in that group) → `isTA() = true` → all buttons visible.
 
 ---
 
+---
+
+### BUG-022 — `getPanelMembers` returned email as `id` — `panelMemberIds` stored emails instead of Cognito subs
+
+| Field | Detail |
+|---|---|
+| **Severity** | High (data corruption) |
+| **Status** | ✅ Fixed — `lambda/getPanelMembers/index.js` redeployed 2026-06-02 |
+| **Discovered** | 2026-06-02 — vote display showed "Unknown" for all panel members; panel member lookup always fell through |
+| **Affects** | All INTERVIEW# records where panel members were added before this fix |
+
+**Symptom:** Panel member names show as "Unknown" in the vote summary. Duplicate vote prevention misses because the stored `panelMemberIds` values (emails) don't match the voter's `sub` used in `VOTE#` records.
+
+**Root cause:** `getPanelMembers/index.js` — `mapCognitoUser()` extracted the user's `sub` attribute but then returned `id: email` instead of `id: sub`. Any `PATCH /v1/candidates/{id}/interviews` call to add a panel member stored the user's email as the ID in the `panelMemberIds` array on the `INTERVIEW#` record.
+
+```js
+// BEFORE — broken
+function mapCognitoUser(cognitoUser) {
+  const attrs = Object.fromEntries((cognitoUser.Attributes ?? []).map(x => [x.Name, x.Value]));
+  return {
+    id: attrs['email'],   // ← wrong — email stored as the identity key
+    email: attrs['email'],
+    ...
+  };
+}
+
+// AFTER — correct
+function mapCognitoUser(cognitoUser) {
+  const attrs = Object.fromEntries((cognitoUser.Attributes ?? []).map(x => [x.Name, x.Value]));
+  const sub = attrs['sub'] || cognitoUser.Username;
+  return {
+    id: sub,              // ← sub is now the canonical identity key
+    email: attrs['email'],
+    ...
+  };
+}
+```
+
+**Backward compatibility:** `panelMemberNameById()` in the frontend resolves by `m.id === id || m.email === id` — both old email-based IDs and new sub-based IDs resolve correctly. No DynamoDB backfill needed (old records still display, they just don't match vote lookups — create a fresh candidate to test the fixed flow end-to-end).
+
+**Deployed via:**
+```bash
+bash scripts/deploy-talentflow-lambdas.sh getPanelMembers
+```
+
+---
+
+### BUG-023 — TA could vote as themselves — should only capture votes on behalf of panel members
+
+| Field | Detail |
+|---|---|
+| **Severity** | High (access control / data integrity) |
+|  **Status** | ✅ Fixed — `candidate-workspace-page.component.ts/.html` 2026-06-02 |
+| **Discovered** | 2026-06-02 — TA logged in, opened candidate workspace, saw standard vote/score form identical to HM's — could submit vote under their own identity |
+| **Affects** | All TA users — any interview in any candidate workspace |
+
+**Symptom:** A TA opening an interview card sees the same "Submit Vote / Score" button and form as an HM. Submitting it records a `VOTE#` with `voterId = TA's sub` — a vote from someone who is not on the interview panel.
+
+**Root cause:** The vote form had no role-gating. `isTA()` was used to hide the Advance Stage button but was not applied to the vote form. The `submitVote` API call used `authService.currentUser()?.email` as `voterId` regardless of who was calling.
+
+**Fix — two-layer:**
+
+1. **UI (Angular workspace component):** TAs see a "Capture Panel Vote" entry-point that renders a **proxy selector** — a row of buttons, one per unvoted panel member. Selecting a panel member then shows a context banner ("Capturing vote on behalf of [Name]") followed by the score/decision form. The form is disabled until a proxy target is chosen.
+   - `taProxyMemberId = signal<string | null>(null)` tracks the selected target
+   - `unvotedPanelMembers(iv)` filters to members who have no `VOTE#` record yet (prevents capturing a duplicate)
+   - HMs see the standard "Submit Vote" button with no proxy selector
+
+2. **API service:** `submitVote(candidateId, payload, voterIdOverride?)` — when `voterIdOverride` is set, the `voterId` field in the request body is `voterIdOverride` (the panel member's sub), and `submittedByTA` is set to the TA's own sub for audit. When not set (HM direct vote), `voterId = currentUser.sub ?? currentUser.email`.
+
+3. **Lambda (`submitVote`):** Persists `submittedByTA` to the `VOTE#` record. If `submittedByTA` is present, the vote display shows a "via TA" indicator.
+
+**Test:** Log in as TA → open candidate workspace → find an interview card with at least one panel member → confirm only "Capture Panel Vote" is shown (not a self-vote button) → select a panel member → fill in score → submit → verify `VOTE#` record in DynamoDB has `voterId = panelMember.sub` and `submittedByTA = TA.sub`.
+
+---
+
+### BUG-024 — Interview cards showed no vote data — `GET /v1/candidates/{id}/interviews` did not return VOTE# records
+
+| Field | Detail |
+|---|---|
+| **Severity** | High (visibility) |
+| **Status** | ✅ Fixed — `lambda/scheduleInterview/index.js` redeployed 2026-06-02 |
+| **Discovered** | 2026-06-02 — interview cards rendered with panel member names but no vote rows, no tally, no "✓ Voted" indication based on server state |
+| **Affects** | All users — vote results invisible to both TAs and HMs |
+
+**Symptom:** After an HM (or TA via proxy) submits a vote, reopening the candidate workspace shows the panel vote summary with every member still marked "Pending". `VOTE#` records exist in DynamoDB but are never returned by the GET endpoint.
+
+**Root cause:** The `scheduleInterview` Lambda's GET handler returned raw `INTERVIEW#` records but never queried `VOTE#` records. The `votes` field on each interview was always `undefined` on the client.
+
+**Fix:** Extended the GET handler to:
+1. Query all `VOTE#` records for the candidate in a single `QueryCommand` (`begins_with(SK, 'VOTE#')`)
+2. Map each vote to `{ voterId, rating, weightedScore, interviewId, submittedAt, submittedByTA, scores }`
+3. Attach the filtered subset (`votes.filter(v => v.interviewId === iv.interviewId)`) to each interview object before returning
+
+**Frontend model updated:** Added `InterviewVoteRecord` interface to `talent-flow.models.ts`; `Interview` extended with `votes?: InterviewVoteRecord[]`. `voteForMember(iv, memberId)` helper looks up the vote record for each panel member row.
+
+**Deployed via:**
+```bash
+bash scripts/deploy-talentflow-lambdas.sh scheduleInterview
+```
+
+---
+
+### BUG-025 — No backend duplicate vote guard — same voter could submit multiple votes per interview
+
+| Field | Detail |
+|---|---|
+| **Severity** | High (data integrity) |
+| **Status** | ✅ Fixed — `lambda/submitVote/index.js` redeployed 2026-06-02 |
+| **Discovered** | 2026-06-02 — page refresh cleared session vote tracking (BUG-012 was session-only) — TA could re-open vote form and submit again for the same interview |
+| **Affects** | All voters — any interview — quorum logic broken if multiple votes per voter accepted |
+
+**Symptom:** Refreshing the candidate workspace page (clearing the Angular `votedInterviewIds` session signal) allowed re-submitting a vote for an interview that already had one from the same voter. Multiple `VOTE#` records with the same `voterId` and `interviewId` accumulated in DynamoDB, inflating `votesSubmitted` past `votesRequired` and producing incorrect evaluation results.
+
+**Root cause:** `submitVote` Lambda wrote the `VOTE#` record unconditionally. The SK pattern `VOTE#${voterId}#${timestamp}` is unique per submission, so DynamoDB's `ConditionExpression` on the key could not detect duplicates.
+
+**Fix:** Added a pre-write duplicate check in `submitVote`:
+```js
+// Query for existing votes by this voter for this interview
+const existingVotes = await dynamo.send(new QueryCommand({
+  TableName: STATE_TABLE,
+  KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+  FilterExpression: 'interviewId = :iid',
+  ExpressionAttributeValues: marshall({
+    ':pk': `CANDIDATE#${candidateId}`,
+    ':prefix': `VOTE#${voterId}#`,
+    ':iid': interviewId,
+  }),
+  Limit: 1,
+}));
+if (existingVotes.Count > 0) {
+  return respond(409, { error: 'You have already submitted a vote for this interview.' });
+}
+```
+
+**409 is handled on the frontend** — the submit button disables and an error toast is shown.
+
+**Note:** The Angular `unvotedPanelMembers(iv)` helper already hides the proxy button for panel members who have a `VOTE#` record (server-sourced via the BUG-024 fix). This provides UI-level prevention; BUG-025 is the backend safety net.
+
+**`minimumPassScore` note:** `completeEvaluation` Lambda uses `minimumPassScore = 6` (confirmed in CloudWatch logs). Use `weightedScore > 5` (i.e., ratings that produce scores ≥ 6) in real test runs — default scores of exactly 5 will produce a `FAILED` evaluation result.
+
+**Deployed via:**
+```bash
+bash scripts/deploy-talentflow-lambdas.sh submitVote
+```
+
+---
+
+### BUG-026 — "Capture Panel Vote" button missing for SCHEDULED interviews — TA had no way to record panel votes until interview was marked complete
+
+| Field | Detail |
+|---|---|
+| **Severity** | High (workflow blocker) |
+| **Status** | ✅ Fixed — `candidate-workspace-page.component.html` 2026-06-02 |
+| **Discovered** | 2026-06-02 — TA opened a SCHEDULED interview with 4 panel members (1 already voted) and saw only "Add Panel Member" + "Mark Complete"; no way to capture remaining 3 votes |
+| **Affects** | All TAs trying to capture proxy votes on any interview still in SCHEDULED state |
+
+**Symptom:** With an interview in `SCHEDULED` state, the TA action row shows only "Add Panel Member" and "Mark Complete". There is no "Capture Panel Vote" button. TAs were forced to mark the interview complete before they could record panel feedback, which distorted the workflow.
+
+**Root cause:** The proxy capture button and vote form were only rendered inside `@if (iv.status === 'COMPLETED')`. The SCHEDULED block had a completely separate action row with no vote capture affordance for TAs.
+
+```html
+<!-- BEFORE — SCHEDULED section (TA side) -->
+@if (isTA()) {
+  <button>Add Panel Member</button>
+  <button>Mark Complete</button>
+  <!-- no Capture Panel Vote here -->
+}
+```
+
+**Fix:** Added the full proxy capture flow to the SCHEDULED block:
+1. A "Capture Panel Vote" button gated on `unvotedPanelMembers(iv).length > 0`
+2. An "All votes captured" badge gated on `unvotedPanelMembers(iv).length === 0 && iv.votes?.length > 0`
+3. The complete vote form (proxy selector → context banner → score form) as a third inline form beneath the existing Add Panel and Mark Complete forms — identical to the COMPLETED version
+
+Panel members can now vote (or have their vote captured) at any point after the interview is scheduled, without requiring the TA to first mark it complete.
+
+---
+
+### BUG-027 — `unvotedPanelMembers()` ignored adhoc panel members — "All votes captured" shown when only system user had voted
+
+| Field | Detail |
+|---|---|
+| **Severity** | High (data integrity / UX) |
+| **Status** | ✅ Fixed — `candidate-workspace-page.component.ts/.html` 2026-06-02 |
+| **Discovered** | 2026-06-02 — candidate `CAND-01KT4005Z7NRHBQK68AQW8SM54` had 1 system panel member (Tshepo, already voted) + 3 adhoc members; after BUG-026 fix, "All votes captured" badge appeared instead of the proxy selector |
+| **Affects** | Any interview with a mix of system users and adhoc panel members where system users have already voted |
+
+**Symptom:** After BUG-026 fix, the "Capture Panel Vote" button still did not appear for a SCHEDULED interview with votes outstanding. Instead, "All votes captured" was shown despite the tally reading "1 / 4 received". The Panel Votes Summary only showed one row (Tshepo) — the 3 adhoc members were entirely invisible.
+
+**Root cause (two layers):**
+
+1. **`unvotedPanelMembers()` only searched `panelMembers()` (Cognito system users) against `panelMemberIds`.**
+   Adhoc panel members (stored in `iv.adhocPanelMembers`) have no Cognito account and are not returned by `getPanelMembers` API. They were never considered. Since Tshepo (the only system user in `panelMemberIds`) had already voted, `unvotedPanelMembers()` returned `[]`.
+
+2. **"All votes captured" badge condition was `(iv.votes?.length ?? 0) > 0 && iv.panelMemberIds.length > 0`.**
+   This fired as soon as any vote existed and any system panel member was attached — it had no concept of adhoc members at all.
+
+3. **Panel Votes Summary only iterated `iv.panelMemberIds`** — adhoc members never rendered a row.
+
+**Interview record confirmed via DynamoDB:**
+```json
+"panelMemberIds": ["b10ca268-a071-70ca-78ce-9dbe8733466d"],
+"adhocPanelMembers": [
+  { "name": "test panel",     "email": "testPanel@gmail.com",  "role": "Director" },
+  { "name": "Another member", "email": "another@gmail.com",    "role": "Director" },
+  { "name": "nso",            "email": "nso@gmail.com",        "role": "Director" }
+],
+"votesRequired": 4,
+"votesSubmitted": 1
+```
+
+**Fix — three changes:**
+
+1. **`unvotedPanelMembers(iv: Interview): PanelMember[]`** now returns two combined groups:
+   ```ts
+   // System users — match by sub OR email for backward compat (pre-BUG-022 records)
+   const systemUnvoted = this.panelMembers().filter((m) => {
+     const inPanel = iv.panelMemberIds.includes(m.id) || iv.panelMemberIds.includes(m.email);
+     const hasVoted = votedIds.has(m.id) || votedIds.has(m.email);
+     return inPanel && !hasVoted;
+   });
+   // Adhoc members — normalised to PanelMember shape; email is their canonical identifier
+   const adhocUnvoted = (iv.adhocPanelMembers ?? [])
+     .filter((a) => !votedIds.has(a.email))
+     .map((a) => ({ id: a.email, email: a.email, name: a.name } as PanelMember));
+   return [...systemUnvoted, ...adhocUnvoted];
+   ```
+   When a TA selects an adhoc member and submits, `voterIdOverride = adhoc.email` → stored as `voterId` in the `VOTE#` record. The duplicate guard, vote display lookup, and proxy selector removal all key on this email and work correctly.
+
+2. **Panel Votes Summary HTML** — added a second `@for` loop over `iv.adhocPanelMembers` using `voteForMember(iv, adhoc.email)` to show voted/pending state. All adhoc rows display "via TA" on the vote row (since adhoc members can only vote through TA proxy capture).
+
+3. **"All votes captured" badge condition** — changed to `unvotedPanelMembers(iv).length === 0 && (iv.votes?.length ?? 0) > 0`. This now correctly accounts for both system and adhoc members and only fires when the combined list is exhausted.
+
+**Key invariant:** `votesRequired` on the `INTERVIEW#` record should equal `panelMemberIds.length + adhocPanelMembers.length`. The `scheduleInterview` Lambda sets `votesRequired` from PANEL_CONFIG, not from the panel size — if these diverge, the tally may show a mismatch. Create interviews with panel sizes matching the configured `votesRequired` for clean quorum tracking.
+
+---
+
+## Interview Voting Flow — E2E Test Checklist (Phase 7)
+
+### Pre-conditions
+
+- [ ] A candidate is at `INTERVIEWING` stage with at least one interview (SCHEDULED or COMPLETED) that has panel members attached
+- [ ] Panel members were added **after** BUG-022 fix (so `panelMemberIds` stores subs, not emails)
+- [ ] `getHiringManagers` returns Tshepo Mashego with Naleko sub `b10ca268...`
+- [ ] Dev server running on `:4200`
+- [ ] To test adhoc member proxy capture: interview must have at least one entry in `adhocPanelMembers` (add via "Add someone not in the directory" in the Schedule form)
+
+### HM voting flow (from Task Card)
+
+| Step | Action | Expected result | Status |
+|---|---|---|---|
+| 1 | Log in as HM (joworesources@gmail.com) | HM Dashboard loads; My Tasks tab shows candidates in INTERVIEWING/EVALUATION | 🔲 |
+| 2 | Find a candidate with at least one completed interview on My Tasks tab | Task card shows "Evaluate" button | 🔲 |
+| 3 | Click "Evaluate" on task card | Panel expands with interview score form | 🔲 |
+| 4 | Submit score (use values that produce weightedScore > 5 to avoid FAILED result) | Green "✓ Voted" badge replaces Evaluate button | 🔲 |
+| 5 | Decisions tab after 2.5s | Candidate appears in Decisions with PASSED / FAILED result badge | 🔲 |
+| 6 | Attempt to re-open the vote form on the same card | "✓ Voted" badge shown — panel locked (no re-vote in session) | 🔲 |
+| 7 | Refresh page, navigate back to HM Dashboard | Backend 409 prevents duplicate if vote form is somehow reached | 🔲 |
+
+### HM voting flow (from Candidate Workspace)
+
+| Step | Action | Expected result | Status |
+|---|---|---|---|
+| 1 | Log in as HM, click a candidate row in My Candidates | Navigates to candidate workspace | 🔲 |
+| 2 | Open Interviews tab | Interview cards visible; TA-only actions (Advance Stage, Schedule Interview, Edit Details, Reject) hidden | 🔲 |
+| 3 | Locate COMPLETED interview card | Panel Votes Summary shows each panel member as "Pending" (initially) | 🔲 |
+| 4 | Click "Submit Vote" button | Vote/score form opens | 🔲 |
+| 5 | Submit vote | "✓ Voted" badge appears; panel vote row shows rating + score | 🔲 |
+| 6 | Refresh page | Panel vote row still shows HM vote (server-sourced — BUG-024 fix) | 🔲 |
+
+### TA proxy capture flow — system panel members (COMPLETED interview)
+
+| Step | Action | Expected result | Status |
+|---|---|---|---|
+| 1 | Log in as TA | Candidate workspace accessible with all TA actions visible |🔲 |
+| 2 | Navigate to a candidate with a COMPLETED interview + ≥1 unvoted system panel member | Interviews tab shows interview card |🔲 |
+| 3 | Verify TA does NOT see standard "Submit Vote" button | Only "Capture Panel Vote" is shown (TA cannot vote as themselves) | 🔲 |
+| 4 | Click "Capture Panel Vote" | Proxy selector renders — one button per unvoted panel member by name | 🔲 |
+| 5 | Select a system panel member | Context banner shows "Capturing vote on behalf of [Name]"; score form appears | 🔲 |
+| 6 | Submit score | Vote submitted; panel vote row shows "via TA" indicator; `VOTE#` in DynamoDB has `voterId = panelMember.sub`, `submittedByTA = TA.sub` | 🔲 |
+| 7 | Proxy-captured member removed from selector | `unvotedPanelMembers()` no longer includes that member | 🔲 |
+| 8 | Attempt to capture a second vote for same member | Backend returns 409 — "already submitted a vote for this interview" | 🔲 |
+
+### TA proxy capture flow — SCHEDULED interview (BUG-026 fix)
+
+| Step | Action | Expected result | Status |
+|---|---|---|---|
+| 1 | Navigate to a candidate with a SCHEDULED interview with ≥1 panel member | Interview card shows SCHEDULED badge | 🔲 |
+| 2 | Verify "Capture Panel Vote" button is visible alongside Add Panel Member + Mark Complete | All three buttons visible for TA (BUG-026 fixed) | 🔲 |
+| 3 | Click "Capture Panel Vote" | Proxy selector opens below the action row | 🔲 |
+| 4 | Select an unvoted panel member, fill score, submit | Vote stored; panel vote row updates; proxy selector removes that member | 🔲 |
+| 5 | Interview is still SCHEDULED after vote submission | Status unchanged — vote capture does not auto-complete the interview | 🔲 |
+
+### TA proxy capture flow — adhoc panel members (BUG-027 fix)
+
+| Step | Action | Expected result | Status |
+|---|---|---|---|
+| 1 | Navigate to an interview that has adhoc panel members (added via "not in the directory") | Panel chips show their names alongside system users | 🔲 |
+| 2 | Open "Capture Panel Vote" | Proxy selector shows both system AND adhoc members who haven't voted | 🔲 |
+| 3 | Select an adhoc member | Context banner shows their name; score form appears | 🔲 |
+| 4 | Submit score | Panel Votes Summary updates — adhoc row shows rating + score + "via TA"; `VOTE#` record has `voterId = adhoc.email` | 🔲 |
+| 5 | Adhoc member removed from proxy selector after vote | `unvotedPanelMembers()` excludes them (checks `votedIds.has(adhoc.email)`) | 🔲 |
+| 6 | All members voted (system + adhoc) | "All votes captured" badge appears; proxy selector hidden | 🔲 |
+
+### Panel Vote Summary verification
+
+| Step | Action | Expected result | Status |
+|---|---|---|---|
+| 1 | Open interview card (any role) | Panel Votes section shows tally "N / M received" and a row per panel member | 🔲 |
+| 2 | Voted member row | Shows name, rating label (Strongly Recommend / Recommend / Do Not Recommend), weighted score, and "via TA" if applicable | 🔲 |
+| 3 | Unvoted member row | Shows name + clock icon + "Pending" | 🔲 |
+| 4 | After all panel members vote | Tally shows "M / M received"; `completeEvaluation` Lambda fires; `EVALUATION` result set on SAGA | 🔲 |
+
+---
+
 ## Interview Loop — E2E Test Checklist
 
 Use a fresh candidate for this test. Existing stale candidates (at `PHONE_SCREENING`, `ONBOARDING`, etc.) should be discarded.
@@ -878,7 +1196,13 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 | Schedule interview — duplicate type guard | ✅ Verified | Backend 409 if same type already COMPLETED |
 | Complete interview (Mark Complete inline form) | ✅ Verified | PATCH updates status + outcome; list refreshes |
 | Add Panel Member to interview | ✅ Verified | PATCH merges panel member IDs; list refreshes |
-| Submit vote per interview | ✅ Verified | Vote form per card; "✓ Voted" badge replaces button after submission |
+| Submit vote per interview (HM direct) | ✅ Verified | HM vote from task card or workspace; "✓ Voted" badge replaces button; 2.5s delay before re-fetch |
+| Submit vote on behalf of system panel member (TA proxy) | ✅ Verified | TA selects unvoted system user from proxy selector; `submittedByTA` audit field stored; "via TA" shown in vote row |
+| Submit vote on behalf of adhoc panel member (TA proxy) | ✅ Verified | Adhoc members (not in Cognito) normalised to `PanelMember` with email as id; vote stored with `voterId = adhoc.email`; Panel Votes Summary shows their row with "via TA" |
+| Capture Panel Vote on SCHEDULED interview | ✅ Verified | "Capture Panel Vote" button available on SCHEDULED interviews alongside Add Panel + Mark Complete (BUG-026 fix) |
+| Vote display per interview card | ✅ Verified | Panel Votes Summary shows per-member voted/pending state from server (BUG-024 fix) |
+| Duplicate vote prevention (backend) | ✅ Verified | `submitVote` returns 409 if same `voterId` + `interviewId` already in DynamoDB (BUG-025) |
+| Panel member name resolution (sub + email backward compat) | ✅ Verified | `panelMemberNameById()` matches `m.id === id \|\| m.email === id` — old email-keyed records still display |
 | Activity log — interview events | ✅ Verified | InterviewScheduled + InterviewCompleted now published to EventBridge → audit stream |
 | Interview loop progress tracker | ✅ Verified | Loop stepper shows PENDING / SCHEDULED / COMPLETED per required type |
 | `EVALUATION` (advance out of INTERVIEWING) | ✅ Verified | Gate passes when all 3 required types COMPLETED — CloudWatch confirmed clean |
@@ -923,6 +1247,17 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 | HM nav link opens TA pipeline view | Shell nav link missing `?tab=` query param — check `routerLink` + `[queryParams]` in `talent-flow-shell.component.html` (BUG-020) |
 | HM sees Edit / Reject / Advance / Schedule buttons | `isTA()` using broken `tfAuth` — must use `nalekoAuth` Naleko group check (BUG-021) |
 | New candidate `hiringManagerId` is email or old TF sub | `getHiringManagers` was using TF pool — redeploy Lambda + backfill DynamoDB (BUG-018/019) |
+| Panel member names show as "Unknown" in vote summary | `getPanelMembers` returning email as `id` — panelMemberIds stored emails not subs (BUG-022) — redeploy `getPanelMembers`, create fresh candidate |
+| TA vote form shows self-vote instead of proxy selector | `isTA()` not gating vote form — check workspace HTML renders "Capture Panel Vote" + proxy selector for TAs (BUG-023) |
+| Vote rows all show "Pending" even after votes submitted | `GET /v1/candidates/{id}/interviews` not returning `votes` — check `scheduleInterview` Lambda GET handler queries `VOTE#` records (BUG-024) |
+| Voter can submit a second vote after page refresh | Backend duplicate guard missing — check `submitVote` Lambda has pre-write `QueryCommand` returning 409 on match (BUG-025) |
+| Evaluation result is FAILED with seemingly good scores | `minimumPassScore = 6` in `completeEvaluation` — ensure submitted scores produce `weightedScore > 5` |
+| "via TA" not showing on proxy-captured vote | `submittedByTA` not persisted — check `submitVote` Lambda stores the field + `scheduleInterview` GET returns it in projection |
+| "Capture Panel Vote" button missing on SCHEDULED interview | Vote form was COMPLETED-only — check workspace HTML has proxy button + vote form inside SCHEDULED block (BUG-026) |
+| "All votes captured" shown when adhoc members still pending | `unvotedPanelMembers()` not including adhoc — check it returns `[...systemUnvoted, ...adhocUnvoted]` (BUG-027) |
+| Adhoc panel members show no vote row in Panel Votes Summary | HTML only iterating `panelMemberIds` — check second `@for (adhoc of iv.adhocPanelMembers)` loop exists in template (BUG-027) |
+| Proxy selector empty even though panel members exist | Mix of system + adhoc members, system have all voted — `unvotedPanelMembers` must include adhoc; verify `iv.adhocPanelMembers` is populated in DynamoDB INTERVIEW# record |
+| `votesRequired` tally doesn't match panel size | `scheduleInterview` sets `votesRequired` from PANEL_CONFIG (role-based), not panel size — create interviews with panel counts matching the configured required votes |
 
 ---
 
@@ -990,3 +1325,29 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 - [x] BUG-020: HM nav links fixed — `routerLink="/platform/talentflow/hm-dashboard"` + `[queryParams]="{ tab: 'candidates' | 'decisions' }"`
 - [x] BUG-021: `isTA()` rewritten — uses `nalekoAuth.currentUser()?.groups.includes('naleko-talentflow-hiringmanager')`; commit `f846051`
 - [x] All changes committed + pushed → `feat/candidate-workspace-interview-flow-fix` (commits `beff9e3`, `f846051`)
+
+### Phase 7 — Interview voting UX + data integrity (completed 2026-06-02)
+
+#### Backend fixes (Lambdas deployed)
+- [x] BUG-022: `getPanelMembers` returning `id: email` — fixed to `id: sub`; `getPanelMembers` redeployed via `deploy-talentflow-lambdas.sh`
+- [x] BUG-024: `scheduleInterview` GET never returned `VOTE#` records — added single `QueryCommand` for all `VOTE#` under the candidate; each interview now includes `votes: InterviewVoteRecord[]`; redeployed via `deploy-talentflow-lambdas.sh`
+- [x] BUG-025: No backend duplicate vote guard — added pre-write `QueryCommand` in `submitVote` Lambda returning 409 if `voterId + interviewId` already exists; `submittedByTA` field now persisted to `VOTE#` record; redeployed via `deploy-talentflow-lambdas.sh`
+
+#### Frontend fixes (Angular)
+- [x] BUG-023: TA vote form allowed self-voting — replaced with "Capture Panel Vote" proxy selector; `taProxyMemberId` signal gates the score form; `unvotedPanelMembers(iv)` helper hides already-voted members from proxy list
+- [x] `submitVote()` API signature extended: `submitVote(candidateId, payload, voterIdOverride?)` — `voterIdOverride` sets `voterId` to proxy sub; `submittedByTA` set to self when override used
+- [x] `voterId` in API service updated to use `currentUser.sub ?? currentUser.email` (was email-only)
+- [x] `InterviewVoteRecord` interface added to `talent-flow.models.ts`; `Interview` extended with `votes?: InterviewVoteRecord[]`
+- [x] Panel Votes Summary section added to each interview card in workspace HTML — per-member voted/pending rows with rating label, weighted score, "via TA" indicator
+- [x] `voteForMember(iv, memberId)`, `panelMemberNameById(id)`, `ratingLabel(rating)`, `ratingClass(rating)`, `hasCurrentUserVoted(iv)` helpers added to workspace component
+- [x] HM task card: `voted = input<boolean>(false)` input; "Submit Evaluation" → "Submit Vote"; "✓ Voted" badge shown when `voted()` is true; `voteSubmitted = output<string>()` emits `candidateId`
+- [x] HM Dashboard: `evaluatedCandidateIds = signal<Set<string>>(new Set())`; `onVoteSubmitted(candidateId)` adds to set + triggers `loadCandidates()` after 2.5s delay; Decisions tab shows evaluation result badges (PASSED green / FAILED red)
+- [x] Sentiment "Save" button wrapped with `@if (isTA())` — HMs read sentiment but cannot edit
+
+### Phase 7.1 — TA proxy capture on SCHEDULED interviews + adhoc panel member votes (completed 2026-06-02)
+
+- [x] BUG-026: "Capture Panel Vote" absent from SCHEDULED interview actions — added proxy button + vote form to SCHEDULED block; no backend change required
+- [x] BUG-027: `unvotedPanelMembers()` returned empty when system users all voted, hiding adhoc members from proxy selector — fixed to union system (sub/email backward compat) + adhoc (email as id) unvoted lists
+- [x] "All votes captured" badge condition tightened — now `unvotedPanelMembers(iv).length === 0 && iv.votes?.length > 0` (was `iv.votes?.length > 0 && iv.panelMemberIds.length > 0`)
+- [x] Panel Votes Summary HTML extended — second `@for` loop over `iv.adhocPanelMembers` renders voted/pending rows for each; all adhoc voted rows show "via TA" indicator
+- [x] Verified on `CAND-01KT4005Z7NRHBQK68AQW8SM54`: Tshepo (system user) already voted; "test panel", "Another member", "nso" (adhoc) now appear in proxy selector and Panel Votes Summary as Pending

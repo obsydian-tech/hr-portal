@@ -82,7 +82,7 @@ exports.handler = async (event) => {
     ? (event.detail || (typeof event.body === 'string' ? JSON.parse(event.body) : event.body))
     : event;
 
-  const { candidateId, tenantId, voterId, scores, rating, interviewId } = detail || {};
+  const { candidateId, tenantId, voterId, scores, rating, interviewId, submittedByTA } = detail || {};
 
   // ── Step 1: Validate required fields ─────────────────────────────────────
   if (!candidateId) return badRequest('Missing required field: candidateId');
@@ -162,6 +162,32 @@ exports.handler = async (event) => {
   const weights = scoringWeights;
   const weightedScore = calculateWeightedScore(scores, weights);
 
+  // ── Duplicate vote check (per voter per interview) ────────────────────────
+  // Prevents the same panelist from submitting multiple votes on the same interview.
+  if (interviewId) {
+    try {
+      const existing = await dynamo.send(new QueryCommand({
+        TableName: STATE_TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :votePrefix)',
+        FilterExpression:       'interviewId = :iid',
+        ExpressionAttributeValues: marshall({
+          ':pk':         `CANDIDATE#${candidateId}`,
+          ':votePrefix': `VOTE#${voterId}#`,
+          ':iid':        interviewId,
+        }),
+        ProjectionExpression: 'SK',
+        Limit: 1,
+      }));
+      if ((existing.Items?.length ?? 0) > 0) {
+        console.info('Duplicate vote rejected', { candidateId, voterId, interviewId });
+        return { statusCode: 409, body: JSON.stringify({ error: 'You have already submitted a vote for this interview.' }) };
+      }
+    } catch (err) {
+      console.error('Duplicate vote check failed', { candidateId, voterId, interviewId, error: err.message });
+      return serverError('Failed to validate vote submission');
+    }
+  }
+
   // ── Step 7: Write vote record ─────────────────────────────────────────────
   const timestamp = new Date().toISOString();
   const voteSK = `VOTE#${voterId}#${timestamp}`;
@@ -175,12 +201,13 @@ exports.handler = async (event) => {
         voterId,
         candidateId,
         tenantId,
-        interviewId:      interviewId || null,
+        interviewId:      interviewId  || null,
         rating,
         scores,
         weightedScore,
         configVersionUsed: configVersion,
         createdAt:        timestamp,
+        submittedByTA:    submittedByTA || null,
       }, { removeUndefinedValues: true }),
       ConditionExpression: 'attribute_not_exists(SK)',
     }));
