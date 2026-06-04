@@ -53,16 +53,17 @@
             <i class="pi {{ c.icon }}"></i>
             {{ c.label }}
           </div>
-          <div class="tf-sw-row__slider">
-            <p-slider
-              [ngModel]="weights()[c.key]"
-              (ngModelChange)="updateWeight(c.key, $event)"
-              [min]="0"
-              [max]="100"
-              [step]="1">
-            </p-slider>
-          </div>
-          <div class="tf-sw-row__value">{{ weights()[c.key] }} pts</div>
+          <p-inputNumber
+            [ngModel]="weights()[c.key]"
+            (ngModelChange)="updateWeight(c.key, $event)"
+            [min]="0"
+            [max]="100"
+            [showButtons]="true"
+            buttonLayout="horizontal"
+            [fluid]="false"
+            [style]="{ width: '11rem' }"
+            suffix="%">
+          </p-inputNumber>
         </div>
       }
 
