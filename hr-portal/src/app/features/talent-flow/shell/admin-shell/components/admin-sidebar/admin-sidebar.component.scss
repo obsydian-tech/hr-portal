@@ -9,8 +9,8 @@
   left: 0;
   bottom: 0;
   width: 220px;
-  background: var(--naleko-surface-container, #f4f4f8);
-  border-right: 1px solid var(--naleko-outline-variant, rgba(0, 0, 0, 0.08));
+  background: var(--naleko-surface-container-low);
+  border-right: 1px solid rgba(200, 197, 205, 0.2);
   padding: 1rem 0;
   overflow-y: auto;
   z-index: 100;
@@ -52,16 +52,16 @@
   }
 
   &:hover {
-    background: var(--naleko-surface-container-high, rgba(0, 0, 0, 0.06));
+    background: var(--naleko-surface-container);
     color: var(--naleko-on-surface);
   }
 
   &--active {
-    background: color-mix(in srgb, var(--naleko-primary) 12%, transparent);
-    color: var(--naleko-primary);
+    background: color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
+    color: var(--naleko-secondary);
     font-weight: 600;
 
-    i { color: var(--naleko-primary); }
+    i { color: var(--naleko-secondary); }
   }
 
   &--soon {

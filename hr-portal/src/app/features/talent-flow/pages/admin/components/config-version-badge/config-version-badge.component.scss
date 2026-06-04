@@ -3,11 +3,11 @@
   align-items:  center;
   gap:          0.375rem;
   font-size:    0.75rem;
-  color:        var(--tf-color-text-muted, #6b7280);
-  background:   var(--tf-color-surface-subtle, #f3f4f6);
+  color:        var(--naleko-on-surface-variant);
+  background:   var(--naleko-surface-container-low);
   padding:      0.25rem 0.625rem;
   border-radius: 9999px;
-  border:       1px solid var(--tf-color-border, #e5e7eb);
+  border:       1px solid rgba(200, 197, 205, 0.2);
 
   i {
     font-size: 0.7rem;
@@ -15,7 +15,7 @@
 
   &__version {
     font-weight: 600;
-    color:       var(--tf-color-text-default, #374151);
+    color:       var(--naleko-on-surface);
   }
 
   &__sep {

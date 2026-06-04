@@ -7,16 +7,13 @@
 // Ref: https://primeng.org/theming
 
 :root {
-  // ─── Primary (navy → indigo CTA) ────────────────────────────────────────
-  --p-primary-color:              var(--naleko-primary);
-  --p-primary-contrast-color:     var(--naleko-on-primary);
-  --p-primary-hover-color:        var(--naleko-secondary);
-  --p-primary-active-color:       var(--naleko-secondary);
+  // ─── Primary palette: set via NalekoPreset (definePreset) in app.config.ts.
+  // Do NOT re-declare --p-primary-color here — it would override the preset.
 
   // ─── Highlight / focus ring ──────────────────────────────────────────────
-  --p-focus-ring-color:           var(--naleko-tertiary);
-  --p-highlight-background:       var(--naleko-secondary-container);
-  --p-highlight-color:            var(--naleko-primary);
+  --p-focus-ring-color:           var(--naleko-secondary);
+  --p-highlight-background:       color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
+  --p-highlight-color:            var(--naleko-secondary);
 
   // ─── Surfaces ────────────────────────────────────────────────────────────
   --p-surface-0:                  var(--naleko-surface-container-lowest);
@@ -54,7 +51,7 @@
   --p-form-field-filled-background: var(--naleko-surface-container-low);
   --p-form-field-border-color:    var(--naleko-outline-variant);
   --p-form-field-hover-border-color: var(--naleko-outline);
-  --p-form-field-focus-border-color: var(--naleko-tertiary);
+  --p-form-field-focus-border-color: var(--naleko-secondary);
   --p-form-field-color:           var(--naleko-on-surface);
   --p-form-field-placeholder-color: var(--naleko-on-surface-variant);
 

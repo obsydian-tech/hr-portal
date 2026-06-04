@@ -5,8 +5,8 @@
     gap: 0.3rem;
     margin-top: 0.5rem;
     font-size: 0.775rem;
-    color: var(--primary-color);
-    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+    color: var(--naleko-secondary);
+    background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
     border-radius: 6px;
     padding: 0.25rem 0.6rem;
 
@@ -24,11 +24,11 @@
     min-height: 3rem;
     padding: 0.75rem;
     border-radius: 6px;
-    background: var(--surface-ground);
-    border: 1px solid var(--surface-border);
+    background: var(--naleko-surface-container-low);
+    border: 1px solid rgba(200, 197, 205, 0.2);
     font-size: 0.9rem;
     line-height: 1.6;
-    color: var(--text-color);
+    color: var(--naleko-on-surface);
     white-space: pre-wrap;
     word-break: break-word;
   }
@@ -45,7 +45,7 @@
   }
 
   &__vars-section {
-    background: var(--surface-ground);
+    background: var(--naleko-surface-container-low);
   }
 
   &__var-chips {

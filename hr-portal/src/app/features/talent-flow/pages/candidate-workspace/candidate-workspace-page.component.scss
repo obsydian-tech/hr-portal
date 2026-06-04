@@ -20,8 +20,9 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.875rem 1.25rem;
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: none;
+  box-shadow: var(--naleko-shadow-card);
   border-radius: var(--naleko-radius-xl);
   flex-wrap: wrap;
 }
@@ -95,7 +96,8 @@
 }
 .tf-ws-header__pills {
   display: flex;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 .tf-ws-header__sla {
@@ -123,8 +125,8 @@
   white-space: nowrap;
 
   &--role {
-    background: color-mix(in srgb, var(--naleko-primary) 10%, transparent);
-    color: var(--naleko-primary);
+    background: color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
+    color: var(--naleko-secondary);
   }
   &--seniority {
     background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
@@ -167,8 +169,9 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 0;
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: none;
+  box-shadow: var(--naleko-shadow-card);
   border-radius: var(--naleko-radius-lg);
   overflow: hidden;
 
@@ -200,60 +203,87 @@
 // ── 4-Phase Horizontal Stepper (D029) ────────────────────────────────────────
 .tf-ws-phase-stepper {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0;
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: none;
+  box-shadow: var(--naleko-shadow-card);
   border-radius: var(--naleko-radius-lg);
-  padding: 0.875rem 1.25rem;
+  padding: 1.25rem 1.5rem;
   overflow-x: auto;
 }
 .tf-ws-phase {
+  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
+  position: relative;
+  min-width: 80px;
 }
 .tf-ws-phase__dot {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 700;
   border: 2px solid var(--naleko-outline-variant);
-  background: var(--naleko-surface);
+  background: var(--naleko-surface-container-lowest);
   color: var(--naleko-on-surface-variant);
   flex-shrink: 0;
-  transition: all 0.15s;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0.625rem;
+  transition: all 0.2s ease;
+}
+.tf-ws-phase__text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  text-align: center;
+  max-width: 110px;
 }
 .tf-ws-phase__label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--naleko-on-surface-variant);
   white-space: nowrap;
   transition: color 0.15s;
 }
+.tf-ws-phase__desc {
+  font-size: 0.62rem;
+  color: var(--naleko-on-surface-variant);
+  font-style: italic;
+  text-align: center;
+  line-height: 1.35;
+  opacity: 0.75;
+  white-space: nowrap;
+}
 .tf-ws-phase__connector {
+  position: absolute;
+  top: 1.125rem;
+  left: calc(50% + 1.125rem);
+  right: calc(-50% + 1.125rem);
   height: 2px;
-  width: 2.5rem;
   background: var(--naleko-outline-variant);
-  margin: 0 0.5rem;
   border-radius: 1px;
-  flex-shrink: 0;
-  transition: background 0.15s;
+  z-index: 0;
+  transition: background 0.2s;
 
   &--done { background: var(--naleko-success); }
 }
 .tf-ws-phase--active {
   .tf-ws-phase__dot {
-    border-color: var(--naleko-primary);
-    background: var(--naleko-primary);
+    border-color: var(--naleko-secondary);
+    background: var(--naleko-secondary);
     color: var(--naleko-on-primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--naleko-secondary) 18%, transparent);
   }
-  .tf-ws-phase__label { color: var(--naleko-primary); font-weight: 700; }
+  .tf-ws-phase__label { color: var(--naleko-secondary); font-weight: 700; }
+  .tf-ws-phase__desc  { color: var(--naleko-secondary); }
 }
 .tf-ws-phase--done {
   .tf-ws-phase__dot {
@@ -262,6 +292,7 @@
     color: #fff;
   }
   .tf-ws-phase__label { color: var(--naleko-success); }
+  .tf-ws-phase__desc  { color: var(--naleko-success); }
 }
 
 // ── Ghost Actions Bar (D030) ──────────────────────────────────────────────────
@@ -285,11 +316,11 @@
   cursor: pointer;
   transition: all 0.12s;
 
-  &:hover { background: var(--naleko-surface-container); color: var(--naleko-on-surface); border-color: var(--naleko-primary); }
+  &:hover { background: var(--naleko-surface-container); color: var(--naleko-on-surface); border-color: var(--naleko-secondary); }
 
   &--primary {
-    background: var(--naleko-primary);
-    border-color: var(--naleko-primary);
+    background: var(--naleko-secondary);
+    border-color: var(--naleko-secondary);
     color: var(--naleko-on-primary);
     &:hover { opacity: 0.9; }
     &:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -409,8 +440,9 @@
 }
 
 .tf-workspace__stepper {
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: none;
+  box-shadow: var(--naleko-shadow-card);
   border-radius: var(--naleko-radius-xl);
   padding: 1rem;
 }
@@ -426,8 +458,9 @@
 
 // ── Right main panel ──────────────────────────────────────────────────────────
 .tf-workspace__main {
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: none;
+  box-shadow: var(--naleko-shadow-card);
   border-radius: var(--naleko-radius-xl);
   overflow: hidden;
   min-height: 480px;
@@ -437,8 +470,8 @@
 .tf-workspace__tabs {
   display: flex;
   gap: 0;
-  border-bottom: 2px solid var(--naleko-outline-variant);
-  background: var(--naleko-surface-container);
+  border-bottom: 1px solid rgba(200, 197, 205, 0.25);
+  background: var(--naleko-surface-container-lowest);
 }
 
 .tf-tab-btn {
@@ -457,13 +490,13 @@
   transition: all 0.12s ease;
 
   &:hover {
-    color: var(--naleko-primary);
-    background: color-mix(in srgb, var(--naleko-primary) 6%, transparent);
+    color: var(--naleko-secondary);
+    background: color-mix(in srgb, var(--naleko-secondary) 6%, transparent);
   }
 
   &--active {
-    color: var(--naleko-primary);
-    border-bottom-color: var(--naleko-primary);
+    color: var(--naleko-secondary);
+    border-bottom-color: var(--naleko-secondary);
   }
 
   &__badge {
@@ -474,7 +507,7 @@
     height: 1.125rem;
     padding: 0 0.3rem;
     border-radius: 9999px;
-    background: #dc2626;
+    background: var(--naleko-error);
     color: #fff;
     font-size: 0.625rem;
     font-weight: 700;
@@ -500,8 +533,8 @@
 }
 
 .tf-ws-card {
-  background: var(--naleko-surface-container);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: 1px solid rgba(200, 197, 205, 0.18);
   border-radius: var(--naleko-radius-lg);
   padding: 1.1rem 1.25rem;
 }
@@ -517,7 +550,7 @@
   gap: 0.4rem;
 
   i {
-    color: var(--naleko-primary);
+    color: var(--naleko-secondary);
     font-size: 0.85rem;
   }
 }
@@ -614,7 +647,7 @@
   text-transform: uppercase;
 
   &--positive { background: color-mix(in srgb, var(--naleko-success) 15%, transparent); color: var(--naleko-success); }
-  &--neutral  { background: color-mix(in srgb, var(--naleko-primary) 10%, transparent); color: var(--naleko-primary); }
+  &--neutral  { background: color-mix(in srgb, var(--naleko-secondary) 10%, transparent); color: var(--naleko-secondary); }
   &--hesitant { background: color-mix(in srgb, var(--naleko-warning) 18%, transparent); color: var(--naleko-warning); }
   &--at_risk  { background: color-mix(in srgb, var(--naleko-error) 15%, transparent);   color: var(--naleko-error); }
 }
@@ -690,9 +723,9 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--naleko-primary);
+  background: var(--naleko-secondary);
   border: 2px solid var(--naleko-surface-container-low);
-  box-shadow: 0 0 0 2px var(--naleko-primary);
+  box-shadow: 0 0 0 2px var(--naleko-secondary);
 }
 
 .tf-ws-timeline__title {
@@ -719,10 +752,10 @@
 
 // Dot colour variants
 .tf-ws-timeline__dot--system  { background: var(--naleko-on-surface-variant); box-shadow: none; }
-.tf-ws-timeline__dot--current { background: var(--naleko-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-primary) 20%, transparent); }
+.tf-ws-timeline__dot--current { background: var(--naleko-secondary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-secondary) 20%, transparent); }
 .tf-ws-timeline__dot--breach  { background: var(--naleko-error); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-error) 20%, transparent); }
-.tf-ws-timeline__dot--offer   { background: #22c55e; box-shadow: 0 0 0 3px color-mix(in srgb, #22c55e 20%, transparent); }
-.tf-ws-timeline__dot--vote    { background: #f59e0b; box-shadow: 0 0 0 3px color-mix(in srgb, #f59e0b 20%, transparent); }
+.tf-ws-timeline__dot--offer   { background: var(--naleko-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-success) 20%, transparent); }
+.tf-ws-timeline__dot--vote    { background: var(--naleko-warning); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-warning) 20%, transparent); }
 .tf-ws-timeline__dot--stage   { background: var(--naleko-secondary); }
 
 // Timeline loading / error states
@@ -797,15 +830,15 @@
   gap: 0.5rem;
 
   &--success {
-    background: #d1fae5;
-    color: #065f46;
-    border: 1px solid #6ee7b7;
+    background: color-mix(in srgb, var(--naleko-success) 12%, transparent);
+    color: color-mix(in srgb, var(--naleko-success) 80%, #000);
+    border: 1px solid color-mix(in srgb, var(--naleko-success) 30%, transparent);
   }
 
   &--error {
-    background: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fca5a5;
+    background: color-mix(in srgb, var(--naleko-error) 10%, transparent);
+    color: color-mix(in srgb, var(--naleko-error) 80%, #000);
+    border: 1px solid color-mix(in srgb, var(--naleko-error) 25%, transparent);
   }
 }
 
@@ -839,7 +872,7 @@
   outline: none;
 
   &:focus {
-    border-color: var(--naleko-primary);
+    border-color: var(--naleko-secondary);
   }
 }
 
@@ -861,14 +894,14 @@
   transition: background 0.15s, border-color 0.15s;
 
   &--selected {
-    border-color: var(--naleko-primary);
-    background: color-mix(in srgb, var(--naleko-primary) 12%, transparent);
-    color: var(--naleko-primary);
+    border-color: var(--naleko-secondary);
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
     font-weight: 600;
   }
 
   input[type='checkbox'] {
-    accent-color: var(--naleko-primary);
+    accent-color: var(--naleko-secondary);
     cursor: pointer;
   }
 }
@@ -900,13 +933,13 @@
   letter-spacing: 0.04em;
 
   &--system {
-    background: color-mix(in srgb, var(--naleko-primary) 12%, transparent);
-    color: var(--naleko-primary);
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
   }
 
   &--link {
-    background: color-mix(in srgb, #22c55e 15%, transparent);
-    color: #15803d;
+    background: color-mix(in srgb, var(--naleko-success) 15%, transparent);
+    color: var(--naleko-success);
   }
 }
 
@@ -937,7 +970,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--naleko-primary);
+  color: var(--naleko-secondary);
   font-size: 0.8rem;
   font-weight: 500;
   padding: 0.3rem 0;
@@ -983,9 +1016,9 @@
 }
 
 .tf-ws-adhoc-add {
-  background: var(--naleko-primary);
+  background: var(--naleko-secondary);
   color: var(--naleko-on-primary);
-  border-color: var(--naleko-primary);
+  border-color: var(--naleko-secondary);
 }
 
 .tf-ws-adhoc-cancel {
@@ -1032,7 +1065,7 @@
   color: var(--naleko-on-surface);
 
   &--next {
-    color: var(--naleko-primary);
+    color: var(--naleko-secondary);
   }
 }
 
@@ -1084,9 +1117,11 @@
 
 // ── Header sentiment + source pills ──────────────────────────────────────────
 .tf-pill--sentiment {
-  &-positive { background: color-mix(in srgb, var(--naleko-success) 15%, transparent); color: var(--naleko-success); }
-  &-neutral  { background: color-mix(in srgb, var(--naleko-primary) 10%, transparent); color: var(--naleko-primary); }
-  &-hesitant { background: color-mix(in srgb, var(--naleko-warning) 18%, transparent); color: var(--naleko-warning-dark, var(--naleko-warning)); }
+  &-excited   { background: color-mix(in srgb, var(--naleko-success) 15%, transparent); color: var(--naleko-success); }
+  &-positive  { background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent); color: var(--naleko-secondary); }
+  &-neutral   { background: color-mix(in srgb, var(--naleko-on-surface-variant) 12%, transparent); color: var(--naleko-on-surface-variant); }
+  &-hesitant  { background: color-mix(in srgb, var(--naleko-warning) 18%, transparent); color: var(--naleko-warning-dark, var(--naleko-warning)); }
+  &-reluctant { background: color-mix(in srgb, var(--naleko-error) 12%, transparent); color: var(--naleko-error); }
 }
 .tf-pill--source {
   background: var(--naleko-surface-container);
@@ -1176,8 +1211,8 @@
 
 // ── Sentiment selector card ───────────────────────────────────────────────────
 .tf-sent-card {
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: 1px solid rgba(200, 197, 205, 0.18);
   border-radius: var(--naleko-radius-lg);
   padding: 0.875rem 1rem;
   margin-bottom: 0.25rem;
@@ -1228,7 +1263,7 @@
   flex-shrink: 0;
 
   &--excited  { background: var(--naleko-success); }
-  &--positive { background: #1565c0; }
+  &--positive { background: var(--naleko-secondary); }
   &--neutral  { background: var(--naleko-on-surface-variant); }
   &--hesitant { background: var(--naleko-warning); }
   &--reluctant { background: var(--naleko-error); }
@@ -1262,8 +1297,8 @@
 
 // ── Interview Round card ──────────────────────────────────────────────────────
 .tf-round-card {
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: 1px solid rgba(200, 197, 205, 0.18);
   border-radius: var(--naleko-radius-lg);
   padding: 0.875rem 1rem;
   margin-bottom: 0.5rem;
@@ -1336,8 +1371,9 @@
 
 // ── Activity Log Panel (D035 — 280px right rail) ──────────────────────────────
 .tf-ws-activity-panel {
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: none;
+  box-shadow: var(--naleko-shadow-card);
   border-radius: var(--naleko-radius-xl);
   padding: 1rem;
   display: flex;
@@ -1450,18 +1486,35 @@
   padding: 1rem 0;
 }
 
-// ── Header role subtitle ─────────────────────────────────────────────────────
-.tf-ws-header__role {
-  font-size: 0.8rem;
+// ── Header subtitle: role · seniority on one plain-text line ─────────────────
+.tf-ws-header__subtitle {
+  font-size: 0.82rem;
   color: var(--naleko-on-surface-variant);
-  margin: 0.1rem 0 0;
+  margin: 0.1rem 0 0.35rem;
   font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.tf-ws-header__sep {
+  color: var(--naleko-outline-variant);
+  font-weight: 300;
+  line-height: 1;
+}
+.tf-ws-header__source {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--naleko-on-surface-variant);
+  opacity: 0.6;
 }
 
 // ── Interview Loop Progress Tracker ─────────────────────────────────────────
 .tf-loop-tracker {
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: none;
+  box-shadow: var(--naleko-shadow-card);
   border-radius: var(--naleko-radius-lg);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1rem;
@@ -1548,12 +1601,12 @@
 
 // ── Interview Cards ──────────────────────────────────────────────────────────
 .tf-interview-card {
-  border: 1px solid var(--naleko-outline-variant);
-  border-left: 3px solid var(--naleko-outline-variant);
+  border: 1px solid rgba(200, 197, 205, 0.18);
+  border-left: 3px solid rgba(200, 197, 205, 0.3);
   border-radius: var(--naleko-radius-lg);
   padding: 1rem 1.25rem;
   margin-bottom: 0.75rem;
-  background: var(--naleko-surface);
+  background: var(--naleko-surface-container-lowest);
 
   &--completed { border-left-color: var(--naleko-success, #22c55e); }
   &--scheduled { border-left-color: var(--naleko-warning, #f59e0b); }
@@ -1630,7 +1683,7 @@
 .tf-panel-votes {
   margin-top: 0.875rem;
   padding-top: 0.75rem;
-  border-top: 1px dashed var(--naleko-border-subtle, #e2e8f0);
+  border-top: 1px dashed var(--naleko-outline-variant);
 }
 
 .tf-panel-votes__header {
@@ -1639,14 +1692,14 @@
   gap: 0.375rem;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--naleko-on-surface-variant, #64748b);
+  color: var(--naleko-on-surface-variant);
   margin-bottom: 0.5rem;
 }
 
 .tf-panel-votes__tally {
   margin-left: auto;
   font-weight: 400;
-  color: var(--naleko-on-surface-variant, #94a3b8);
+  color: var(--naleko-on-surface-variant);
 }
 
 .tf-panel-vote-row {
@@ -1656,9 +1709,9 @@
   padding: 0.3125rem 0;
   font-size: 0.8125rem;
 
-  &__name   { flex: 1; color: var(--naleko-text-primary, #1e293b); font-weight: 500; }
-  &__score  { color: var(--naleko-text-secondary, #475569); font-size: 0.75rem; }
-  &__proxy  { font-size: 0.6875rem; color: var(--naleko-text-muted, #94a3b8); }
+  &__name   { flex: 1; color: var(--naleko-on-surface); font-weight: 500; }
+  &__score  { color: var(--naleko-on-surface-variant); font-size: 0.75rem; }
+  &__proxy  { font-size: 0.6875rem; color: var(--naleko-on-surface-variant); opacity: 0.7; }
 
   &__decision {
     font-size: 0.6875rem;
@@ -1666,13 +1719,13 @@
     padding: 0.1875rem 0.5rem;
     border-radius: 4px;
 
-    &--positive { background: var(--naleko-success-muted, #f0fdf4); color: var(--naleko-success, #16a34a); }
-    &--negative { background: var(--naleko-danger-muted, #fef2f2);  color: var(--naleko-danger, #ef4444);  }
+    &--positive { background: color-mix(in srgb, var(--naleko-success) 12%, transparent); color: var(--naleko-success); }
+    &--negative { background: color-mix(in srgb, var(--naleko-error) 10%, transparent);   color: var(--naleko-error); }
   }
 
   &__pending {
     font-size: 0.6875rem;
-    color: var(--naleko-text-muted, #94a3b8);
+    color: var(--naleko-on-surface-variant);
     display: flex;
     align-items: center;
     gap: 0.25rem;
@@ -1692,17 +1745,17 @@
   align-items: center;
   gap: 0.375rem;
   padding: 0.375rem 0.75rem;
-  border: 1px solid var(--naleko-border-subtle, #e2e8f0);
-  border-radius: var(--naleko-radius-md, 8px);
-  background: var(--naleko-surface-secondary, #f8fafc);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface-container);
   font-size: 0.8125rem;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 
   &--selected {
-    border-color: var(--naleko-brand-indigo, #6366f1);
-    background: var(--naleko-brand-indigo-muted, #eef2ff);
-    color: var(--naleko-brand-indigo, #6366f1);
+    border-color: var(--naleko-secondary);
+    background: color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
+    color: var(--naleko-secondary);
     font-weight: 600;
   }
 }
@@ -1712,14 +1765,14 @@
   align-items: center;
   gap: 0.375rem;
   font-size: 0.8125rem;
-  color: var(--naleko-text-secondary, #475569);
-  background: var(--naleko-surface-secondary, #f8fafc);
-  border: 1px solid var(--naleko-border-subtle, #e2e8f0);
-  border-radius: var(--naleko-radius-md, 8px);
+  color: var(--naleko-on-surface-variant);
+  background: var(--naleko-surface-container);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
   padding: 0.5rem 0.75rem;
   margin-bottom: 0.75rem;
 
-  strong { color: var(--naleko-brand-indigo, #6366f1); }
+  strong { color: var(--naleko-secondary); }
 }
 
 .tf-interview-card__actions {
@@ -1736,7 +1789,7 @@
   flex-wrap: wrap;
   margin-top: 0.75rem;
   padding: 0.75rem;
-  background: var(--naleko-surface-container-low);
+  background: var(--naleko-surface-container);
   border-radius: var(--naleko-radius-md);
 }
 .tf-interview-card__complete-label {
@@ -1755,9 +1808,9 @@
   transition: border-color 0.12s, background 0.12s;
 
   &--selected {
-    border-color: var(--naleko-primary);
-    background: color-mix(in srgb, var(--naleko-primary) 12%, transparent);
-    color: var(--naleko-primary);
+    border-color: var(--naleko-secondary);
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
     font-weight: 600;
   }
   &:hover:not(.tf-interview-card__outcome-btn--selected) {
@@ -1795,9 +1848,9 @@
   transition: border-color 0.12s, color 0.12s, background 0.12s;
 
   &:hover {
-    border-color: var(--naleko-primary);
-    color: var(--naleko-primary);
-    background: color-mix(in srgb, var(--naleko-primary) 5%, transparent);
+    border-color: var(--naleko-secondary);
+    color: var(--naleko-secondary);
+    background: color-mix(in srgb, var(--naleko-secondary) 5%, transparent);
   }
 }
 
@@ -1818,7 +1871,7 @@
   p { margin: 0; color: var(--naleko-on-surface); line-height: 1.5; }
 }
 .tf-ws-gate-link {
-  color: var(--naleko-primary);
+  color: var(--naleko-secondary);
   cursor: pointer;
   font-size: 0.8rem;
   margin-top: 0.375rem;
@@ -1833,14 +1886,14 @@
   align-items: center;
   gap: 0.625rem;
   padding: 0.75rem 1rem;
-  background: color-mix(in srgb, var(--naleko-primary, #6366f1) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--naleko-primary, #6366f1) 25%, transparent);
+  background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--naleko-secondary) 25%, transparent);
   border-radius: var(--naleko-radius-md);
   font-size: 0.85rem;
   color: var(--naleko-on-surface);
   margin: 0.75rem 0;
 
-  i { color: var(--naleko-primary, #6366f1); flex-shrink: 0; }
+  i { color: var(--naleko-secondary); flex-shrink: 0; }
 }
 
 // ── Locked interview type display ────────────────────────────────────────────
@@ -1866,8 +1919,8 @@
 .tf-ws-vote-form {
   margin-top: 0.75rem;
   padding: 1rem 1.25rem;
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container);
+  border: 1px solid rgba(200, 197, 205, 0.18);
   border-radius: var(--naleko-radius-md);
 }
 .tf-ws-vote-form__label {
@@ -1895,9 +1948,9 @@
   transition: border-color 0.1s, background 0.1s;
 
   &--selected {
-    border-color: var(--naleko-primary);
-    background: color-mix(in srgb, var(--naleko-primary) 12%, transparent);
-    color: var(--naleko-primary);
+    border-color: var(--naleko-secondary);
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
   }
   &--yes:hover:not(.tf-ws-vote-decision-btn--selected) {
     border-color: var(--naleko-success, #22c55e);
@@ -1940,7 +1993,7 @@
 
     &:focus {
       outline: none;
-      border-color: var(--naleko-primary);
+      border-color: var(--naleko-secondary);
     }
   }
 }

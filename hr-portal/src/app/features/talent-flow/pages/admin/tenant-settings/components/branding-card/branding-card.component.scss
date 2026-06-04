@@ -9,13 +9,13 @@
   &__logo-preview {
     width: 80px;
     height: 80px;
-    border: 1px solid var(--surface-border);
+    border: 1.5px solid rgba(200, 197, 205, 0.2);
     border-radius: 8px;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--surface-ground);
+    background: var(--naleko-surface-container-low);
     flex-shrink: 0;
   }
 
@@ -26,7 +26,7 @@
   }
 
   &__logo-placeholder {
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     font-size: 2rem;
   }
 
@@ -45,6 +45,6 @@
 
   &__logo-hint {
     font-size: 0.75rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 }

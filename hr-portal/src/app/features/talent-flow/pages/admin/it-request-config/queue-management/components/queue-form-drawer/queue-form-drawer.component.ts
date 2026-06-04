@@ -9,12 +9,8 @@ import {
   OnInit,
   untracked,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
 import { DrawerModule } from 'primeng/drawer';
-import { InputTextModule } from 'primeng/inputtext';
-import { Textarea } from 'primeng/textarea';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -52,8 +48,7 @@ const EMPTY_QUEUE = (): ITQueue => ({
 @Component({
   selector: 'tf-queue-form-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, DrawerModule, InputTextModule,
-            Textarea, InputNumberModule, SelectModule, MultiSelectModule],
+  imports: [FormsModule, DrawerModule, InputNumberModule, SelectModule, MultiSelectModule],
   templateUrl: './queue-form-drawer.component.html',
   styleUrl:    './queue-form-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

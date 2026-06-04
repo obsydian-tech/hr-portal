@@ -2,85 +2,106 @@
   [visible]="visible()"
   (visibleChange)="$event || close()"
   position="right"
-  [style]="{ width: '560px' }"
+  [style]="{ width: '50vw', minWidth: '560px' }"
+  [showCloseIcon]="false"
   [blockScroll]="true"
 >
-  <ng-template pTemplate="header">
-    <h3 class="drawer-title">{{ isEditMode() ? 'Edit Template' : 'New Template' }}</h3>
-  </ng-template>
+  <ng-template pTemplate="content">
+    <div class="tfd-drawer">
 
-  <div class="drawer-body">
-
-    <!-- Name -->
-    <div class="form-field">
-      <label class="form-label" for="t-name">Template Name <span class="required">*</span></label>
-      <input pInputText id="t-name" type="text"
-        [ngModel]="form().name" (ngModelChange)="patchForm({ name: $event })"
-        placeholder="e.g. Senior Engineer Bundle"
-        class="form-input" />
-    </div>
-
-    <!-- Target Role -->
-    <div class="form-field">
-      <label class="form-label" for="t-role">Target Role <span class="required">*</span></label>
-      <input pInputText id="t-role" type="text"
-        [ngModel]="form().targetRole" (ngModelChange)="patchForm({ targetRole: $event })"
-        placeholder="e.g. Software Engineer"
-        class="form-input" />
-    </div>
-
-    <!-- Description -->
-    <div class="form-field">
-      <label class="form-label" for="t-desc">Description</label>
-      <textarea pTextarea id="t-desc" rows="2"
-        [ngModel]="form().description" (ngModelChange)="patchForm({ description: $event })"
-        placeholder="When is this template applied?"
-        class="form-input" [autoResize]="true"></textarea>
-    </div>
-
-    <!-- Requirements -->
-    <div class="form-field">
-      <div class="req-header">
-        <span class="form-label">Requirements</span>
-        <p-button label="Add item" icon="pi pi-plus" styleClass="p-button-text p-button-sm" (onClick)="addRequirement()" />
+      <!-- ── Header ──────────────────────────────────────────────────────────── -->
+      <div class="tfd-drawer__header">
+        <div class="tfd-drawer__header-icon">
+          <i class="pi pi-list-check"></i>
+        </div>
+        <div class="tfd-drawer__header-text">
+          <h3 class="tfd-drawer__title">{{ isEditMode() ? 'Edit Template' : 'New Template' }}</h3>
+          <p class="tfd-drawer__subtitle">Provisioning requirements bundle</p>
+        </div>
+        <button class="tfd-drawer__close" (click)="close()" aria-label="Close">
+          <i class="pi pi-times"></i>
+        </button>
       </div>
 
-      @if (form().requirements.length === 0) {
-        <div class="req-empty">No requirement items yet. Click "Add item" to start building the bundle.</div>
-      }
+      <!-- ── Body ────────────────────────────────────────────────────────────── -->
+      <div class="tfd-drawer__body">
 
-      @for (req of form().requirements; track $index) {
-        <div class="req-row">
-          <input pInputText type="text"
-            [ngModel]="req.itemName" (ngModelChange)="updateRequirement($index, { itemName: $event })"
-            placeholder="Item name (e.g. MacBook Pro 14&quot;)"
-            class="req-name-input" />
-          <p-select
-            [ngModel]="req.category" (ngModelChange)="updateRequirement($index, { category: $event })"
-            [options]="categoryOpts" optionLabel="label" optionValue="value"
-            styleClass="req-cat-dropdown" appendTo="body" />
-          <label class="req-optional-label">
-            <p-checkbox
-              [ngModel]="req.optional" (ngModelChange)="updateRequirement($index, { optional: $event })"
-              [binary]="true" />
-            <span>Optional</span>
-          </label>
-          <p-button icon="pi pi-trash" styleClass="p-button-text p-button-sm p-button-danger" (onClick)="removeRequirement($index)" />
+        <!-- Template Name -->
+        <div class="tfd-fld">
+          <label class="tfd-fld__label" for="t-name">TEMPLATE NAME <span class="tfd-fld__req">*</span></label>
+          <input id="t-name" type="text" class="tfd-fld__input"
+            [ngModel]="form().name" (ngModelChange)="patchForm({ name: $event })"
+            placeholder="e.g. Senior Engineer Bundle" />
         </div>
-      }
-    </div>
 
-  </div>
+        <!-- Target Role -->
+        <div class="tfd-fld">
+          <label class="tfd-fld__label" for="t-role">TARGET ROLE <span class="tfd-fld__req">*</span></label>
+          <input id="t-role" type="text" class="tfd-fld__input"
+            [ngModel]="form().targetRole" (ngModelChange)="patchForm({ targetRole: $event })"
+            placeholder="e.g. Software Engineer" />
+        </div>
 
-  <ng-template pTemplate="footer">
-    <div class="drawer-footer">
-      <p-button label="Cancel" styleClass="p-button-text p-button-secondary" (onClick)="close()" />
-      <p-button
-        [label]="isEditMode() ? 'Save Changes' : 'Create Template'"
-        icon="pi pi-check"
-        [disabled]="!valid()"
-        (onClick)="submit()"
-      />
+        <!-- Description -->
+        <div class="tfd-fld">
+          <label class="tfd-fld__label" for="t-desc">DESCRIPTION</label>
+          <textarea id="t-desc" class="tfd-fld__input tfd-fld__input--textarea"
+            [ngModel]="form().description" (ngModelChange)="patchForm({ description: $event })"
+            placeholder="When is this template applied?" rows="2"></textarea>
+        </div>
+
+        <!-- Requirements -->
+        <div class="tfd-fld">
+          <div class="tfd-reqs__header">
+            <span class="tfd-fld__label">REQUIREMENTS</span>
+            <button type="button" class="tfd-add-btn" (click)="addRequirement()">
+              <i class="pi pi-plus"></i> Add item
+            </button>
+          </div>
+
+          @if (form().requirements.length === 0) {
+            <div class="tfd-reqs__empty">
+              No requirement items yet. Click "Add item" to start building the bundle.
+            </div>
+          }
+
+          @for (req of form().requirements; track $index) {
+            <div class="tfd-req-row">
+              <input type="text" class="tfd-fld__input tfd-req-row__name"
+                [ngModel]="req.itemName" (ngModelChange)="updateRequirement($index, { itemName: $event })"
+                placeholder="Item name (e.g. MacBook Pro 14&quot;)" />
+              <p-select
+                [ngModel]="req.category" (ngModelChange)="updateRequirement($index, { category: $event })"
+                [options]="categoryOpts" optionLabel="label" optionValue="value"
+                styleClass="tfd-cat-select" appendTo="body" />
+              <label class="tfd-req-row__optional">
+                <input
+                  type="checkbox"
+                  class="tfd-checkbox"
+                  [checked]="req.optional"
+                  (change)="updateRequirement($index, { optional: $any($event.target).checked })"
+                />
+                <span>Optional</span>
+              </label>
+              <button type="button" class="tfd-icon-btn tfd-icon-btn--delete"
+                (click)="removeRequirement($index)" title="Remove item">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+          }
+        </div>
+
+      </div>
+
+      <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+      <footer class="tfd-drawer__footer">
+        <button type="button" class="tfd-btn-cancel" (click)="close()">Cancel</button>
+        <button type="button" class="tfd-btn-submit" [disabled]="!valid()" (click)="submit()">
+          <i class="pi pi-check"></i>
+          {{ isEditMode() ? 'Save Changes' : 'Create Template' }}
+        </button>
+      </footer>
+
     </div>
   </ng-template>
 </p-drawer>

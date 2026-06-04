@@ -1,7 +1,7 @@
 # TalentFlow E2E Testing & Troubleshooting Guide
 
 **Living document — updated as we test and fix.**
-Last updated: 2026-06-02 (Phase 7.1)
+Last updated: 2026-06-04 (Phase 9 — Admin Workspace Naleko Alignment + Drawer Consistency + Config Pages Sweep)
 
 ---
 
@@ -158,6 +158,196 @@ isActive = true
 The `shared/config-reader` queries `GSI1-active-configs` with both `GSI1PK` and `GSI1SK` to find the current active version. When a new version is saved, the old version has its `GSI1PK` and `GSI1SK` removed (REMOVE expression) so it drops out of the GSI.
 
 **To confirm a config is active:** DynamoDB → `talent-flow-config` table → scan → look for your configType item with `GSI1PK` attribute present.
+
+---
+
+## TalentFlow UI — Naleko Design System Standards
+
+> **Reusable reference for all TalentFlow page and component work.** Every screen — TA Dashboard, HM Dashboard, Candidate Workspace, Pipeline, Offers, Reports, Admin — must conform to these rules before merging. Use the compliance checklist at the bottom of this section when reviewing or building any TalentFlow UI.
+
+---
+
+### The Eight Non-Negotiable Rules
+
+#### Rule 1 — White cards on a grey page
+Page background is `--naleko-surface` (`#f8f9fa`). Every card surface — KPI card, zone container, candidate card, month card — must use:
+```scss
+background: var(--naleko-surface-container-lowest); // #ffffff
+```
+Never use coloured tinted backgrounds on card bodies (e.g. `color-mix(in srgb, var(--naleko-error) 10%, var(--naleko-surface))`).
+
+#### Rule 2 — No-Line Rule
+No `border: 1px solid var(--naleko-outline-variant)` on zone containers or card wrappers. Use `box-shadow: var(--naleko-shadow-card)` and the surface hierarchy (`surface` → `surface-container-lowest`) to create visual separation. A very subtle `border: 1px solid rgba(200, 197, 205, 0.18)` is acceptable on inner elements (candidate cards, month cards) only when needed for definition — not on zone wrappers.
+
+#### Rule 3 — Naleko tokens only
+All colour, shadow, radius, and font values must use `--naleko-*` CSS custom properties from `hr-portal/src/styles/naleko-tokens.css`. Never hardcode hex, RGB, or HSL. The only exception: `rgba()` alpha fallbacks when no `--naleko-*-rgb` token exists (e.g. `rgba(200, 197, 205, 0.18)`).
+
+#### Rule 4 — Semantic colour lives in text / icons / borders — never in card backgrounds
+When a card conveys urgency (breached, at-risk, success, warning), use:
+
+| Element | How |
+|---|---|
+| Value text | `.tf-kpi__value { color: var(--naleko-error); }` |
+| Top accent border | `border-top: 3px solid var(--naleko-error)` |
+| Left accent border | `border-left: 3px solid var(--naleko-error)` |
+| Icon box background | `background: color-mix(in srgb, var(--naleko-error) 14%, transparent)` |
+| Badge / pill | `background: color-mix(in srgb, var(--naleko-error) 15%, transparent); color: var(--naleko-error)` |
+
+Never express urgency as a card background tint.
+
+#### Rule 5 — Use `<p-card>` for zone containers
+Replace raw `<div class="tf-zone-X">` wrappers with `<p-card styleClass="tf-zone-X">`. Always add the `::ng-deep` padding reset shown below, or inner content double-pads.
+
+```html
+<!-- HTML -->
+<p-card styleClass="tf-zone-X">
+  <!-- inner content unchanged -->
+</p-card>
+```
+
+```scss
+// SCSS — outer zone class handles radius + padding; p-card handles white + shadow
+.tf-zone-X {
+  border-radius: var(--naleko-radius-xl);
+  padding: 1.25rem 1.5rem;
+}
+
+::ng-deep {
+  .tf-zone-X {
+    &.p-card {
+      background: var(--naleko-surface-container-lowest) !important;
+      border: none !important;
+      box-shadow: var(--naleko-shadow-card) !important;
+    }
+    .p-card-body    { padding: 0 !important; }
+    .p-card-content { padding: 0 !important; }
+  }
+}
+```
+
+```ts
+// TS — add CardModule to component imports array
+import { CardModule } from 'primeng/card';
+imports: [CommonModule, CardModule, ...],
+```
+
+#### Rule 6 — KPI / stat cards must have icon boxes
+Every KPI or stat card must have an icon box matching the HR Portal `stat-card` pattern in `hr-portal/src/app/features/hr-dashboard/components/stat-card/`:
+
+```html
+<div class="tf-kpi-card tf-kpi-card--breached">
+  <div class="tf-kpi-card__icon"><i class="pi pi-exclamation-triangle"></i></div>
+  <p class="tf-kpi-card__eyebrow">SLA Breaches</p>
+  <p class="tf-kpi-card__value">{{ count() }}</p>
+  <p class="tf-kpi-card__sub">Candidates past SLA threshold</p>
+</div>
+```
+
+```scss
+.tf-kpi-card__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+.tf-kpi-card--breached .tf-kpi-card__icon {
+  background: color-mix(in srgb, var(--naleko-error) 14%, transparent);
+  color: var(--naleko-error);
+}
+// --at-risk → --naleko-warning, --success → --naleko-success, --primary → --naleko-secondary
+```
+
+#### Rule 7 — Typography standards
+
+| Element | Value |
+|---|---|
+| Page greeting / title | `font-size: 1.5rem; font-weight: 600; letter-spacing: -0.015em; font-family: var(--naleko-font-display)` |
+| Section header (`.tf-section-head__title`) | `font-size: 1.125rem; font-weight: 700; font-family: var(--naleko-font-display)` |
+| KPI value | `font-size: 2.25rem; font-weight: 800; font-family: var(--naleko-font-display)` |
+| Eyebrow / label | `font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase` |
+
+#### Rule 8 — TalentFlowAuthService.currentUser() is always null — use Naleko auth
+All users (TAs, HMs, Admins) authenticate via the **Naleko pool** (`af-south-1_2LdAGFnw2`). `TalentFlowAuthService.currentUser()` is always `null`. For any user identity need (name, groups, `sub`) always use the Naleko `AuthService`:
+
+```ts
+import { AuthService } from '../../../../core/services/auth.service'; // adjust depth
+
+private readonly nalekoAuth = inject(AuthService);
+
+// Greeting name — always falls back to Naleko auth
+protected readonly greetingName = computed(() =>
+  this.tfAuth.currentUser()?.givenName ||
+  this.nalekoAuth.currentUser()?.givenName ||
+  'there',
+);
+
+// Time-of-day greeting
+protected readonly timeOfDay = computed<string>(() => {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
+});
+```
+
+For role checks (isTA, isHM) use the Naleko groups:
+```ts
+// TA = NOT in HM group
+protected readonly isTA = computed(() =>
+  !(this.nalekoAuth.currentUser()?.groups.includes('naleko-talentflow-hiringmanager') ?? false),
+);
+```
+
+---
+
+### Greeting / Page Header Pattern
+
+Every TalentFlow page should open with a contextual greeting or page title. Copy this pattern:
+
+```html
+<div class="tf-page__greeting">
+  <h1 class="tf-page__greeting-title">
+    Good {{ timeOfDay() }}, {{ greetingName() }} — context phrase here.
+  </h1>
+</div>
+```
+
+```scss
+.tf-page__greeting { padding: 0.75rem 0 0.5rem; }
+.tf-page__greeting-title {
+  font-family: var(--naleko-font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+  margin: 0;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+```
+
+---
+
+### Design Compliance Checklist (paste into every PR that touches TalentFlow UI)
+
+```
+TalentFlow Design System Compliance:
+- [ ] All zone containers use <p-card> (not raw <div>) — Rule 5
+- [ ] All card surfaces: background: var(--naleko-surface-container-lowest) — Rule 1
+- [ ] No border: 1px solid var(--naleko-outline-variant) on zone wrappers — Rule 2
+- [ ] No coloured tinted backgrounds on cards — Rule 4
+- [ ] Urgency colour via text/icon/accent-border only — Rule 4
+- [ ] All CSS uses --naleko-* tokens — Rule 3
+- [ ] Section headers: font-size: 1.125rem / font-weight: 700 — Rule 7
+- [ ] KPI/stat cards have icon boxes (2.75rem, 0.625rem radius) — Rule 6
+- [ ] User identity via nalekoAuth.currentUser() — not tfAuth — Rule 8
+- [ ] Page has a greeting or contextual title — Rule 7
+- [ ] ::ng-deep p-card padding reset added for every p-card zone — Rule 5
+- [ ] No regression: all TalentFlow routes navigated, pipeline loads, SLA dots render
+```
 
 ---
 
@@ -1217,6 +1407,156 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 
 ---
 
+### BUG-028 — Zone containers using grey background + 1px border (No-Line Rule violation)
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — visual/design regression |
+| **Status** | ✅ Fixed — `dashboard-page.component.html` + `.scss`, branch `feature/tf-dashboard-naleko-redesign` 2026-06-02 |
+| **Affects** | TA Dashboard zones 2, 3, 4, 5 |
+| **Rule violated** | Rule 1 (white cards) + Rule 2 (No-Line Rule) |
+
+**Symptom:** Zones 2/3/4/5 had `background: var(--naleko-surface-container-low)` (grey) and `border: 1px solid var(--naleko-outline-variant)` (visible line). Cards looked flat and out-of-family with the HR Portal dashboard.
+
+**Root cause:** Zone containers were raw `<div>` elements with manually-applied grey surface background. The HR Portal uses `p-card` PrimeNG components which provide white background + shadow — this pattern was never applied to TalentFlow zones.
+
+**Fix:**
+1. Replaced `<div class="tf-dash__zone-X">` with `<p-card styleClass="tf-dash__zone-X">` in HTML
+2. Removed `background` + `border` from zone SCSS rules
+3. Added `::ng-deep` block to force `p-card` to white (`--naleko-surface-container-lowest`), `--naleko-shadow-card`, `border: none`, and zero internal padding
+4. Added `CardModule` to component imports
+
+**Pattern to apply to all future TalentFlow zone containers** — see Rule 5 in the Design System Standards section above.
+
+---
+
+### BUG-029 — KPI signal cards (Zone 1) had coloured tinted backgrounds
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — design non-conformance |
+| **Status** | ✅ Fixed — `dashboard-page.component.scss` 2026-06-02 |
+| **Affects** | TA Dashboard Zone 1 (SLA Breaches, At Risk, Acceptance Rate, Active Pipeline cards) |
+| **Rule violated** | Rule 1 (white cards) + Rule 4 (semantic colour = text/icons/borders) |
+
+**Symptom:** Each KPI card variant used a coloured tinted background: `color-mix(in srgb, var(--naleko-error) 10%, var(--naleko-surface))`. The HR Portal stat-cards are all white.
+
+**Root cause:** Urgency/state was being expressed via background colour instead of accent borders and text colour.
+
+**Fix:** Removed all coloured backgrounds from card variants. Added:
+- `background: var(--naleko-surface-container-lowest)` + `box-shadow: var(--naleko-shadow-card)` on the base class
+- `border-top: 3px solid var(--naleko-error/warning/success/secondary)` per variant (colour accent without tinting the card body)
+- Coloured value text (`.tf-signal-card__value`) retained per variant
+
+---
+
+### BUG-030 — Candidate cards in Zone 2 had coloured tinted backgrounds
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — design non-conformance |
+| **Status** | ✅ Fixed — `dashboard-page.component.scss` 2026-06-02 |
+| **Affects** | TA Dashboard Zone 2 candidate cards (breached + at-risk variants) |
+| **Rule violated** | Rule 1 (white cards) + Rule 4 (semantic colour = text/icons/borders) |
+
+**Symptom:** `.tf-cand-card--breached` had `background: color-mix(in srgb, var(--naleko-error) 4%, var(--naleko-surface))`. Cards had a pink/red wash.
+
+**Fix:** Changed base `.tf-cand-card` to `background: var(--naleko-surface-container-lowest)`. Replaced thick coloured border with a `border-left: 3px solid var(--naleko-error/warning)` left accent. The red "BREACHED" badge and SLA bar still communicate urgency — no information is lost.
+
+---
+
+### BUG-031 — "This month" cards in Zone 5 had coloured tinted backgrounds
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — design non-conformance |
+| **Status** | ✅ Fixed — `dashboard-page.component.scss` 2026-06-02 |
+| **Affects** | TA Dashboard Zone 5 (Acceptance Rate card = green tint; Hesitant Signals card = amber tint) |
+| **Rule violated** | Rule 1 (white cards) + Rule 4 (semantic colour = text/icons/borders) |
+
+**Symptom:** `.tf-month-card--success` and `.tf-month-card--warning` used `color-mix(success/warning 6%, surface)` as background. The base `.tf-month-card` used `--naleko-surface` (page grey, not white).
+
+**Fix:** All month card variants set to `background: var(--naleko-surface-container-lowest)`. Added `box-shadow: var(--naleko-shadow-card)`. Removed tinted background overrides on success/warning variants — coloured value text retained. Base border changed from `1.5px solid --naleko-outline-variant` to `1px solid rgba(200, 197, 205, 0.18)` (very subtle, not a visible line).
+
+---
+
+### BUG-032 — TA Dashboard missing welcome greeting section
+
+| Field | Detail |
+|---|---|
+| **Severity** | Low — missing feature / UX gap |
+| **Status** | ✅ Fixed — `dashboard-page.component.html` + `.scss` + `.ts` 2026-06-02 |
+| **Affects** | TA Dashboard (all TAs) |
+| **Rule violated** | Rule 7 (page should have a greeting or contextual title) |
+
+**Symptom:** The TA Dashboard opened directly into KPI cards with no personalised greeting. The HR Portal HR Dashboard and Employee Dashboard both have a "Good morning, [Name]" greeting. TalentFlow felt disconnected.
+
+**Fix:** Added `<div class="tf-dash__greeting">` above Zone 1 with computed `timeOfDay()` (morning/afternoon/evening) and `greetingName()`. See the Greeting Pattern in the Design System Standards section above.
+
+---
+
+### BUG-033 — KPI signal cards missing icon boxes
+
+| Field | Detail |
+|---|---|
+| **Severity** | Low — design gap vs HR Portal pattern |
+| **Status** | ✅ Fixed — `dashboard-page.component.html` + `.scss` 2026-06-02 |
+| **Affects** | TA Dashboard Zone 1 — all 4 KPI cards |
+| **Rule violated** | Rule 6 (KPI cards must have icon boxes) |
+
+**Symptom:** Zone 1 signal cards showed eyebrow label → large value → sub text with no icon. The HR Portal stat-cards always have a coloured icon box as the first element.
+
+**Fix:** Added `<div class="tf-signal-card__icon"><i class="pi pi-*"></i></div>` as the first child of each signal card. Icons chosen: `pi-exclamation-triangle` (breached), `pi-clock` (at risk), `pi-percentage` (acceptance rate), `pi-users` (active pipeline). Icon box styled at 2.75rem × 2.75rem with coloured tinted background matching the card's accent colour.
+
+---
+
+### BUG-034 — Section headers too small (1rem vs design standard 1.125rem)
+
+| Field | Detail |
+|---|---|
+| **Severity** | Low — visual polish |
+| **Status** | ✅ Fixed — `dashboard-page.component.scss` 2026-06-02 |
+| **Affects** | All section headers on TA Dashboard (`Candidates at risk`, `My actions today`, `Pipeline`, `This month`) |
+| **Rule violated** | Rule 7 (section headers: 1.125rem / 700) |
+
+**Symptom:** `.tf-section-head__title` was `font-size: 1rem` — visually undersized compared to the HR Portal's section headers.
+
+**Fix:** Updated to `font-size: 1.125rem`. Weight was already `700` — no change needed.
+
+---
+
+### BUG-035 — Dashboard greeting showing "there" — TalentFlowAuthService always null
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — user identity broken for any TF component that uses tfAuth for display |
+| **Status** | ✅ Fixed — `dashboard-page.component.ts` 2026-06-02 |
+| **Affects** | All TalentFlow components that call `tfAuth.currentUser()` for the user's name or identity |
+| **Rule violated** | Rule 8 (always use nalekoAuth for user identity) |
+
+**Symptom:** Greeting showed "Good evening, there — here's your pipeline today." despite being logged in. The `greetingName` computed returned the fallback `'there'` because `tfAuth.currentUser()?.givenName` was `undefined`.
+
+**Root cause:** `TalentFlowAuthService.currentUser()` is always `null`. All users (TAs, HMs, Admins) authenticate via the **Naleko Cognito pool** (`af-south-1_2LdAGFnw2`) — the TF pool (`af-south-1_C8TTlQxY7`) has no login page and is not used for authentication. The TF API Gateway authorizer (`ko4zam`) validates tokens from the Naleko pool. This is documented in the Cognito Pool Architecture section above.
+
+This same bug affects the shell's `initials()` computed (shows `?` instead of user initials) — the shell handles it correctly via `tfAuth.currentUser() ?? nalekoAuth.currentUser()` chain, but any new TalentFlow component that naively calls `tfAuth.currentUser()` will silently get `null`.
+
+**Fix:** Added `AuthService` (Naleko) injection to the dashboard component. Updated `greetingName`:
+```ts
+import { AuthService } from '../../../../core/services/auth.service';
+// ...
+private readonly nalekoAuth = inject(AuthService);
+
+protected readonly greetingName = computed(() =>
+  this.tfAuth.currentUser()?.givenName ||
+  this.nalekoAuth.currentUser()?.givenName ||
+  'there',
+);
+```
+
+**Future prevention:** See Rule 8 in the Design System Standards section. Always use `nalekoAuth.currentUser()` in TalentFlow components. The `tfAuth` call is kept as a forward-compat stub in case the pool architecture changes.
+
+---
+
 ## Where to Investigate What
 
 | Symptom | Where to look |
@@ -1258,6 +1598,13 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 | Adhoc panel members show no vote row in Panel Votes Summary | HTML only iterating `panelMemberIds` — check second `@for (adhoc of iv.adhocPanelMembers)` loop exists in template (BUG-027) |
 | Proxy selector empty even though panel members exist | Mix of system + adhoc members, system have all voted — `unvotedPanelMembers` must include adhoc; verify `iv.adhocPanelMembers` is populated in DynamoDB INTERVIEW# record |
 | `votesRequired` tally doesn't match panel size | `scheduleInterview` sets `votesRequired` from PANEL_CONFIG (role-based), not panel size — create interviews with panel counts matching the configured required votes |
+| TalentFlow card background is grey/tinted instead of white | Zone div not wrapped in `<p-card>` or card uses `--naleko-surface-container-low` — see Rule 1 + Rule 5, BUG-028/029/030/031 |
+| TalentFlow card has a visible 1px border line | Zone container has `border: 1px solid --naleko-outline-variant` — remove it, use `box-shadow: --naleko-shadow-card` instead — see Rule 2, BUG-028 |
+| `<p-card>` zone has double padding (content indented too far) | Missing `::ng-deep` padding reset for `.p-card-body` and `.p-card-content` — add `padding: 0 !important` — see Rule 5 |
+| KPI card has no icon | Signal/stat card missing `<div class="...__icon"><i class="pi pi-*"></i></div>` — see Rule 6, BUG-033 |
+| TalentFlow page shows "there" in greeting or "?" initials | `tfAuth.currentUser()` is always null — must use `nalekoAuth.currentUser()?.givenName` from `AuthService` — see Rule 8, BUG-035 |
+| Section headers look too small compared to HR Portal | `.tf-section-head__title` font-size is below 1.125rem — update to `font-size: 1.125rem; font-weight: 700` — see Rule 7, BUG-034 |
+| Hardcoded hex colour in TalentFlow SCSS | Replace with the correct `--naleko-*` token from `hr-portal/src/styles/naleko-tokens.css` — see Rule 3 |
 
 ---
 
@@ -1351,3 +1698,380 @@ INFO Stage advanced { candidateId: '...', previousStage: 'INTERVIEWING', newStag
 - [x] "All votes captured" badge condition tightened — now `unvotedPanelMembers(iv).length === 0 && iv.votes?.length > 0` (was `iv.votes?.length > 0 && iv.panelMemberIds.length > 0`)
 - [x] Panel Votes Summary HTML extended — second `@for` loop over `iv.adhocPanelMembers` renders voted/pending rows for each; all adhoc voted rows show "via TA" indicator
 - [x] Verified on `CAND-01KT4005Z7NRHBQK68AQW8SM54`: Tshepo (system user) already voted; "test panel", "Another member", "nso" (adhoc) now appear in proxy selector and Panel Votes Summary as Pending
+
+### Phase 8 — TA Dashboard Naleko Design System Alignment (completed 2026-06-02)
+
+**Branch:** `feature/tf-dashboard-naleko-redesign` — frontend only, no Lambda or Terraform changes.
+
+- [x] BUG-028: Zone containers (Zones 2/3/4/5) replaced raw `<div>` with `<p-card styleClass="...">` — white background + shadow-card, border removed
+- [x] BUG-029: Zone 1 KPI signal cards — removed coloured tinted backgrounds; added `background: --naleko-surface-container-lowest` + `box-shadow: --naleko-shadow-card`; urgency now expressed via `border-top: 3px solid` accent + coloured value text
+- [x] BUG-030: Zone 2 candidate cards — removed red/amber tinted backgrounds; white background; urgency via `border-left: 3px solid --naleko-error/warning` accent
+- [x] BUG-031: Zone 5 month cards — removed green/amber tinted backgrounds; white background + shadow; coloured value text retained
+- [x] BUG-032: Added welcome greeting section — `Good {{ timeOfDay() }}, {{ greetingName() }} — here's your pipeline today.` — above Zone 1
+- [x] BUG-033: Added icon boxes to all 4 Zone 1 KPI cards — `pi-exclamation-triangle`, `pi-clock`, `pi-percentage`, `pi-users` — coloured tinted backgrounds via `color-mix`
+- [x] BUG-034: Section headers updated — `font-size: 1rem → 1.125rem` on `.tf-section-head__title`
+- [x] BUG-035: Greeting name fallback fixed — `tfAuth.currentUser()?.givenName || nalekoAuth.currentUser()?.givenName || 'there'` — `AuthService` (Naleko) injected as fallback
+- [x] `::ng-deep` padding reset added for all p-card zone containers (`.p-card-body`, `.p-card-content` → `padding: 0`)
+- [x] `CardModule` added to `dashboard-page.component.ts` imports
+- [x] TalentFlow UI Design System Standards documented in this guide — reusable reference + compliance checklist for all future TalentFlow page/component work
+- [x] No regression: build clean, `ng serve` hot-reload confirmed, pipeline data loads, navigation works
+
+### Phase 9 — Admin Workspace Naleko Alignment + Drawer Consistency (2026-06-04)
+
+**Branch:** `fix/it-provisioning-taskid-normalization` — frontend only, no Lambda or Terraform changes.
+
+- [x] BUG-036: Audit KPI cards had `border-left: 4px solid currentColor` (coloured strips violating Rule 4) — removed
+- [x] BUG-037: Workflow template cards missing `box-shadow`; stage-number badge used stale `var(--primary-50)` — fixed to naleko tokens
+- [x] BUG-038: PrimeNG Aura emerald palette overriding all button colour overrides globally — fixed via `definePreset`
+- [x] BUG-039: Multiple admin SCSS files using stale PrimeNG tokens (`var(--surface-ground)`, etc.) — swept and replaced
+- [x] BUG-040: Add User form was a `p-dialog` modal — converted to `p-drawer` matching candidate-create experience
+- [x] BUG-041: Edit Roles form was a `p-dialog` modal — converted to `p-drawer` matching candidate-create experience
+- [x] BUG-042: Add User drawer used PrimeNG `pInputText` / `p-button` / `p-checkbox` — replaced with raw inputs and custom buttons matching candidate-create design language
+- [x] BUG-043: Edit Roles drawer used PrimeNG `p-checkbox` role cards and `p-button` footer — converted to button-card pattern with `pi-check-circle`/`pi-circle` icons
+- [x] BUG-044: Edit Approval Chains drawer used PrimeNG `p-button`, `p-checkbox`, `CommonModule` `*ngIf`/`*ngFor`, stale SCSS tokens — fully modernised
+- [x] BUG-045: Queue Form Drawer (`queue-form-drawer`) used PrimeNG `ButtonModule`, `InputTextModule`, `Textarea`, `CommonModule` — fully modernised to naleko pattern, width `50vw`
+- [x] BUG-046: Template Form Drawer (`template-form-drawer`) used PrimeNG `ButtonModule`, `InputTextModule`, `CheckboxModule`, `Textarea`, `CommonModule` — fully modernised, native checkbox + custom buttons
+- [x] BUG-047: Six admin config pages (SLA, Scoring, Sentiment, Panel, Stage, Routing) had `max-width` constraint, stale `rgba()` borders, `p-button` footers, `CommonModule`/`ButtonModule`, legacy `*ngFor` in skeletons — swept and fixed
+- [x] BUG-048: Sentiment Scales escalation path `p-select` dropdown clipped/unfocusable — root cause was missing `appendTo="body"` inside a card with `overflow: hidden`
+- [x] BUG-049: `p-inputNumber` increment (`+`) button cropped on SLA Thresholds and Panel Rules pages — root cause was `overflow: hidden` on `.config-card`; fixed by removing overflow clip and adding `border-radius` to section-label header rows
+- [x] BUG-050: Scoring Weights and Routing Rules SCSS used `--naleko-danger` (undefined token) instead of `--naleko-error` — replaced globally
+
+---
+
+### BUG-036 — Audit KPI cards had `border-left: 4px solid currentColor` (coloured strips)
+
+| Field | Detail |
+|---|---|
+| **Severity** | Low — visual / Rule 4 violation |
+| **Status** | ✅ Fixed — `admin-audit-page.component.scss` 2026-06-04 |
+| **Affects** | Admin → Audit & Compliance KPI strip |
+| **Rule violated** | Rule 4 — semantic colour in text/icons/borders only; never as a thick left stripe on a white card body |
+
+**Symptom:** Each KPI card (Total Events, Critical, Failed, etc.) rendered a thick coloured left stripe via `border-left: 4px solid currentColor`. The colour was inherited from the card's text colour, producing garish stripes that violated the design language used everywhere else in the portal.
+
+**Root cause:** The audit KPI cards were built with a quick `border-left` shortcut for urgency indication. While a left accent is valid in some contexts, `currentColor` is unpredictable across dark/light modes and colour schemes.
+
+**Fix:** Removed `border-left: 4px solid currentColor` from `.tf-audit-kpi__card`. Cards already use `box-shadow: var(--naleko-shadow-card)` and coloured value text for semantic expression — no information is lost.
+
+---
+
+### BUG-037 — Workflow template cards missing shadow; stage-number badge used stale token
+
+| Field | Detail |
+|---|---|
+| **Severity** | Low — visual polish |
+| **Status** | ✅ Fixed — `workflow-templates-card.component.scss` 2026-06-04 |
+| **Affects** | Admin → Tenant Settings → Workflow Templates |
+
+**Symptom:** Workflow template cards had no `box-shadow`, making them visually flat compared to every other card in the portal. The stage-number badge used `background: var(--primary-50, #e3f2fd)` — a PrimeNG/Material blue fallback that rendered as light blue instead of indigo.
+
+**Fix:**
+- Added `box-shadow: var(--naleko-shadow-card)` to `.tf-wf__card`
+- Stage-number badge `background` changed from `var(--primary-50, #e3f2fd)` → `color-mix(in srgb, var(--naleko-secondary) 10%, transparent)` (consistent with all other numbered badges in the admin workspace)
+
+---
+
+### BUG-038 — PrimeNG Aura emerald palette rendered all buttons teal regardless of CSS token overrides
+
+| Field | Detail |
+|---|---|
+| **Severity** | High — platform-wide visual inconsistency |
+| **Status** | ✅ Fixed — `app.config.ts` 2026-06-04 |
+| **Affects** | Every `<p-button>` across the entire TalentFlow + Admin workspace |
+
+**Symptom:** All PrimeNG buttons (Save, Cancel, Submit, Add Step, Apply Changes, etc.) rendered in teal/emerald green instead of the Naleko indigo (`--naleko-secondary` = `#4a3f8a`). This was visible across the admin workspace, user management drawers, workflow templates, and notifications pages.
+
+**Root cause:** PrimeNG 19's Aura preset generates its CSS variable values **at runtime via JavaScript** using the `{emerald.*}` palette as the default primary. Any `:root` level CSS variable overrides (`--p-primary-color`, etc.) in `primeng-naleko.scss` are written to the stylesheet *before* Aura's runtime injection, so Aura's values win. There is no way to override PrimeNG's generated primary palette purely through CSS.
+
+**Fix:** Used `definePreset` from `@primeuix/styled` in `app.config.ts` to replace Aura's primary palette before PrimeNG generates its CSS:
+
+```typescript
+import { definePreset } from '@primeuix/styled';
+
+const NalekoPreset = definePreset(Aura, {
+  semantic: {
+    primary: {
+      // Indigo scale matching --naleko-secondary = #4a3f8a (shade 600)
+      50: '#f2f0ff', 100: '#e5deff', 200: '#c8bfff', 300: '#b7acff',
+      400: '#8577cc', 500: '#6655b0', 600: '#4a3f8a',
+      700: '#3a3070', 800: '#2a2256', 900: '#1a153c', 950: '#0d0a1e',
+    },
+    colorScheme: {
+      light: {
+        primary: {
+          color: '{primary.600}',
+          contrastColor: '#ffffff',
+          hoverColor: '{primary.700}',
+          activeColor: '{primary.800}',
+        },
+        highlight: {
+          background: '{primary.50}',
+          focusBackground: '{primary.100}',
+          color: '{primary.600}',
+          focusColor: '{primary.700}',
+        },
+      },
+    },
+  },
+});
+
+// In providers:
+providePrimeNG({
+  theme: {
+    preset: NalekoPreset,
+    options: { darkModeSelector: '.dark-mode' },
+  },
+})
+```
+
+Also removed the conflicting `--p-primary-color: var(--naleko-primary)` override from `primeng-naleko.scss` (was setting buttons to dark navy) and updated focus-ring and highlight tokens to reference `--naleko-secondary`.
+
+**Lesson:** PrimeNG 19 theming requires `definePreset` at the TypeScript level. CSS-only overrides of `--p-primary-*` do not reliably win against Aura's runtime-injected stylesheet. Any palette change must go through `definePreset`.
+
+---
+
+### BUG-039 — Multiple admin SCSS files using stale PrimeNG tokens
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — visual inconsistency across admin workspace |
+| **Status** | ✅ Fixed — 6 admin SCSS files updated 2026-06-04 |
+| **Affects** | Admin audit event detail drawer, notifications page + drawers, branding card, template edit drawer, escalation edit drawer, approval chain drawer |
+
+**Symptom:** Several admin workspace components had grey/off-colour backgrounds on certain sections because they used PrimeNG legacy tokens that no longer resolve correctly after the Naleko token migration:
+
+| Token found | Replacement |
+|---|---|
+| `var(--surface-ground)` | `var(--naleko-surface-container-low)` |
+| `var(--surface-hover)` | `var(--naleko-surface-container)` |
+| `rgba(200, 197, 205, 0.2)` (hardcoded border) | `var(--naleko-outline-variant)` |
+| `var(--primary-100, #e3f2fd)` | `color-mix(in srgb, var(--naleko-secondary) 10%, transparent)` |
+
+**Files fixed:**
+- `admin-audit-page.component.scss` — KPI card border-left removed (BUG-036)
+- `event-detail-drawer.component.scss` — `__technical` block background
+- `admin-notifications-page.component.scss` — footer note, golden rule card, group headers, table headers/hover, locked badges, template card body
+- `template-edit-drawer.component.scss` — preview + vars-section backgrounds
+- `escalation-edit-drawer.component.scss` — locked section background, locked badge
+- `branding-card.component.scss` — logo preview background
+- `approval-chain-drawer.component.scss` — all borders and backgrounds (full rewrite)
+
+---
+
+### BUG-040 & BUG-041 — Add User and Edit Roles forms were `p-dialog` modals instead of side drawers
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — UX inconsistency |
+| **Status** | ✅ Fixed — both components rewritten 2026-06-04 |
+| **Affects** | Admin → Users & Roles → Add User / Edit Roles actions |
+
+**Symptom:** Clicking "Add User" and "Edit Roles" opened centred modal dialogs. Every other form in the TalentFlow platform (Create Candidate, candidate workspace panels, config drawers) uses a right-side `p-drawer`. The modals blocked the full page and felt inconsistent.
+
+**Fix:** Both components converted from `<p-dialog>` to `<p-drawer position="right">`:
+- Add User: `width: 50vw; minWidth: 560px`
+- Edit Roles: `width: 50vw; minWidth: 480px`
+
+`DialogModule` removed from both component `imports` arrays.
+
+---
+
+### BUG-042 — Add User drawer used PrimeNG form inputs and buttons (inconsistent with candidate-create)
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — design language inconsistency |
+| **Status** | ✅ Fixed — `add-user-drawer.component.html/.scss/.ts` 2026-06-04 |
+| **Affects** | Admin → Users & Roles → Add User drawer |
+
+**Symptom:** After converting to `p-drawer` (BUG-040), the Add User drawer still used PrimeNG form elements:
+- `<input pInputText>` — PrimeNG-styled inputs (rounded borders, PrimeNG focus ring in teal)
+- `<p-button>` for Cancel and Submit — rendered teal until BUG-038 fix, then indigo but with PrimeNG padding/typography
+- `<p-checkbox>` for role selection — did not match the role card pattern used in candidate workflows
+
+**Fix:**
+- Replaced `<input pInputText>` with raw `<input class="au-fld__input">` styled identically to `tf-fld__input` from the candidate-create form
+- Labels: `font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase`
+- Role selection: `<p-checkbox>` + `<label>` → `<button class="au-role-card">` with `pi-check-circle`/`pi-circle` icons
+- Footer: `<p-button>` → `<button class="au__btn-cancel">` (outline) + `<button class="au__btn-submit">` (indigo gradient)
+- Removed `ButtonModule`, `InputTextModule`, `CheckboxModule` from TS imports — `imports: [FormsModule, DrawerModule]` only
+
+---
+
+### BUG-043 — Edit Roles drawer used PrimeNG checkbox role cards and `p-button` footer
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — design language inconsistency |
+| **Status** | ✅ Fixed — `edit-roles-drawer.component.html/.scss/.ts` 2026-06-04 |
+| **Affects** | Admin → Users & Roles → Edit Roles drawer |
+
+**Symptom:** The Edit Roles drawer (after BUG-041 drawer conversion) still rendered role selection as `<label>` + `<p-checkbox>` rows. Footer used `<p-button>`. Neither matched the button-card pattern established in the Add User drawer or candidate workflows.
+
+**Fix:**
+- Role cards: `<label>` + `<p-checkbox>` → `<button class="er-role-card">` with `pi-check-circle`/`pi-circle` check icons and `toggleRole()` on click
+- Footer: `<p-button label="Cancel">` + `<p-button label="Save Roles">` → `<button class="er-btn-cancel">` + `<button class="er-btn-submit">` (gradient)
+- Footer background updated to `var(--naleko-surface-container-low)` with `var(--naleko-outline-variant)` border
+- Role card border: `1.5px solid rgba(200,197,205,0.25)` → `2px solid var(--naleko-outline-variant)` with secondary ring on selected state
+- Removed `ButtonModule`, `CheckboxModule` from TS imports — `imports: [FormsModule, DrawerModule]` only
+
+---
+
+### BUG-044 — Edit Approval Chains drawer used PrimeNG buttons, checkbox, CommonModule, and stale SCSS tokens
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — design language inconsistency + stale code patterns |
+| **Status** | ✅ Fixed — `approval-chain-drawer.component.html/.scss/.ts` + parent width 2026-06-04 |
+| **Affects** | Admin → Tenant Settings → Default Approval Chains → Edit (pencil icon) |
+
+**Symptom:** The Edit Approval Chains drawer used:
+- `*ngIf` / `*ngFor` (Angular CommonModule legacy control flow — requires `CommonModule` import)
+- `<p-button icon="pi pi-plus" label="Add Step">` for chain step buttons — teal/indigo depending on BUG-038 status
+- `<p-checkbox>` for the "Required" toggle per approval step
+- `<p-button label="Cancel">` + `<p-button label="Apply Changes">` in the footer
+- `var(--surface-overlay)`, `rgba(200, 197, 205, 0.2)` — stale PrimeNG tokens throughout SCSS
+- `var(--primary-100)` for the tier badge background
+- Header had no icon box or Manrope display font — did not match Add User / Edit Roles header pattern
+- Parent `p-drawer` width hardcoded to `480px`
+
+**Fix:**
+
+*TS:* Removed `CommonModule`, `ButtonModule`, `TagModule`, `CheckboxModule` from imports. Kept `FormsModule`, `TooltipModule`, `SelectModule`. `imports: [FormsModule, TooltipModule, SelectModule]` only.
+
+*HTML:*
+- `*ngIf` → `@if`; `*ngFor="let step of ...; let i = index"` → `@for (step of ...; track step.order; let i = $index)`
+- Header rebuilt with icon box (`pi-share-alt` in secondary-tinted circle), Manrope `font-weight: 800` title, tier pill badge, subtitle
+- `<p-button icon="pi pi-plus" label="Add Step">` → `<button class="acd-add-btn">` (indigo outline ghost button)
+- `<p-checkbox>` Required toggle → native `<input type="checkbox" class="acd-checkbox">` with custom CSS checkmark
+- Footer `<p-button>` → `<button class="acd-btn-cancel">` (outline) + `<button class="acd-btn-submit">` (gradient), identical to Add User / Edit Roles
+- `p-select` (role dropdown) retained — complex enough to keep PrimeNG
+
+*SCSS:* Full rewrite — all borders use `var(--naleko-outline-variant)`, `var(--surface-overlay)` → `var(--naleko-surface)`, tier badge uses `color-mix(in srgb, var(--naleko-secondary) 10%, transparent)`, delete button uses `var(--naleko-error)`, native checkbox uses `var(--naleko-secondary)` checked state, footer uses `var(--naleko-surface-container-low)` background
+
+*Parent:* `[style]="{ width: '480px' }"` → `[style]="{ width: '50vw', minWidth: '520px' }"`
+
+---
+
+### BUG-045 — Queue Form Drawer used PrimeNG form inputs, buttons, and CommonModule
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — design language inconsistency |
+| **Status** | ✅ Fixed — `queue-form-drawer.component.html/.scss/.ts` 2026-06-04 |
+| **Affects** | Admin → IT Queues → New Queue / Edit Queue drawer |
+
+**Symptom:** The Queue Form Drawer used `pInputText` on the name input, `pTextarea` on description, `<p-button>` for Cancel/Submit in the footer, and imported `CommonModule`, `ButtonModule`, `InputTextModule`, `Textarea`. Width was `480px`. Header was a plain `ng-template pTemplate="header"` with no icon or Manrope styling.
+
+**Fix:**
+
+*TS:* Removed `CommonModule`, `ButtonModule`, `InputTextModule`, `Textarea`. `imports: [FormsModule, DrawerModule, InputNumberModule, SelectModule, MultiSelectModule]`.
+
+*HTML:* Converted to `ng-template pTemplate="content"` with full custom `<div class="qfd-drawer">` structure — icon header (`pi-server`), raw `<input class="qfd-fld__input">` for name, raw `<textarea>` for description, kept `p-select appendTo="body"` for category, `p-inputNumber` for SLA, `p-multiSelect appendTo="body"` for specialists, custom `qfd-btn-cancel` / `qfd-btn-submit` footer. Width: `50vw / minWidth: 520px`.
+
+*SCSS:* Full naleko drawer styles — header icon box, body padding, naleko outline-variant borders, gradient submit button.
+
+---
+
+### BUG-046 — Template Form Drawer used PrimeNG form inputs, checkbox, and CommonModule
+
+| Field | Detail |
+|---|---|
+| **Severity** | Medium — design language inconsistency |
+| **Status** | ✅ Fixed — `template-form-drawer.component.html/.scss/.ts` 2026-06-04 |
+| **Affects** | Admin → Provisioning Templates → New Template / Edit Template drawer |
+
+**Symptom:** Template Form Drawer used `pInputText` on name/role inputs, `pTextarea`, `<p-checkbox [binary]>` for the Optional flag per requirement item, `<p-button>` for Add item and footer buttons. Imported `CommonModule`, `ButtonModule`, `InputTextModule`, `CheckboxModule`, `Textarea`. Width was `560px`.
+
+**Fix:**
+
+*TS:* Removed `CommonModule`, `ButtonModule`, `InputTextModule`, `CheckboxModule`, `Textarea`. `imports: [FormsModule, DrawerModule, SelectModule]`.
+
+*HTML:* `ng-template pTemplate="content"` with full custom structure — icon header (`pi-list-check`), raw `<input>` fields, raw `<textarea>`, native `<input type="checkbox" class="tfd-checkbox">` for Optional toggle, `<button class="tfd-add-btn">` for Add item, `<button class="tfd-icon-btn--delete">` for trash, `tfd-btn-cancel` / `tfd-btn-submit` footer. Width: `50vw / minWidth: 560px`.
+
+*SCSS:* Full naleko drawer styles matching the established pattern (icon box, outline-variant borders, gradient footer).
+
+---
+
+### BUG-047 — Six admin config pages had max-width, stale SCSS tokens, p-button footers, and CommonModule
+
+| Field | Detail |
+|---|---|
+| **Severity** | High — visual inconsistency + broken functionality (`CommonModule` usage, stale tokens) |
+| **Status** | ✅ Fixed — all 6 config page component trios 2026-06-04 |
+| **Affects** | SLA Thresholds, Scoring Weights, Sentiment Scales, Panel Rules, Stage Config, Routing Rules |
+
+**Symptom:** All six pages shared the same set of issues:
+- `max-width: 860px` (or `1000px` for sentiment-scales) on `.config-page` — caused the "chopped off" appearance reported by user
+- `rgba(200, 197, 205, 0.2)` and `rgba(200, 197, 205, 0.15)` stale PrimeNG border tokens throughout SCSS
+- `p-button label="Reset to Defaults"` + `p-button label="Save Changes"` in footer — required `ButtonModule` import
+- `CommonModule` imported for `*ngFor` in skeleton loading rows and (where applicable) pipes like `lowercase`, `titlecase`
+- `*ngFor="let _ of [1,2,3]"` in skeleton divs — incompatible once `CommonModule` removed
+- `pInputText` directive on inline inputs (sentiment-scales, routing-rules)
+- `p-checkbox` in Panel Rules interview requirements matrix
+
+**Fix per page:**
+
+All pages: removed `max-width`, replaced `rgba()` tokens with `var(--naleko-outline-variant)`, removed `CommonModule` + `ButtonModule` from TS imports and decorator array, replaced `p-button` footer rows with custom `cfg-btn-reset` (outline) + `cfg-btn-save` (gradient) buttons, replaced `*ngFor` skeleton with `@for`.
+
+Additional per-page:
+- **Sentiment Scales**: added `LowerCasePipe` import (replaces `CommonModule` for `| lowercase` pipe)
+- **Panel Rules**: added `TitleCasePipe` import (replaces `CommonModule` for `| titlecase` pipe); `p-checkbox` in IR matrix → native `<input type="checkbox" class="ir-matrix__checkbox">` with custom CSS
+- **Routing Rules**: removed `InputTextModule`; removed `pInputText` directive from inline edit input; replaced all `p-button` elements (Add Rule header button, table row Save/Cancel/Edit/Delete) with custom `cfg-btn-save` and `cfg-icon-btn` elements
+
+---
+
+### BUG-048 — Sentiment Scales escalation path dropdown clipped and unfocusable
+
+| Field | Detail |
+|---|---|
+| **Severity** | High — functional breakage, users could not change escalation path |
+| **Status** | ✅ Fixed — `admin-sentiment-scales.component.html` 2026-06-04 |
+| **Affects** | Admin → TalentFlow Config → Sentiment Scales → Escalation Path column |
+| **Root cause** | Same pattern as all other clipped dropdowns — `overflow: hidden` on parent card |
+
+**Symptom:** The Escalation Path `p-select` dropdown panel was either invisible or clipped to the card boundary. Clicking the dropdown opened a panel that was immediately cut off and couldn't be interacted with.
+
+**Root cause:** `.config-card` had `overflow: hidden`. PrimeNG `p-select` renders its dropdown panel as a sibling overlay — it tries to position absolutely within the nearest scrolling ancestor. When the card has `overflow: hidden`, the panel is clipped. The `appendTo="body"` attribute was already present on every other `p-select` in the admin workspace but was missing from this one field.
+
+**Fix:** Added `appendTo="body"` to the `p-select` for `escalationPath` in `admin-sentiment-scales.component.html`. This moves the dropdown overlay to `document.body`, outside the clipping parent.
+
+---
+
+### BUG-049 — p-inputNumber increment (+) button cropped on config pages
+
+| Field | Detail |
+|---|---|
+| **Severity** | High — functional breakage, users could not increment values using the `+` button |
+| **Status** | ✅ Fixed — 5 config page SCSS files 2026-06-04 |
+| **Affects** | SLA Thresholds, Scoring Weights (if inputNumber present), Sentiment Scales, Panel Rules, Stage Config |
+| **Root cause** | `overflow: hidden` on `.config-card` |
+
+**Symptom:** The `+` (increment) button of `p-inputNumber` with `buttonLayout="horizontal"` was visually cut off at the right edge of the card. The button was not interactive because it was outside the visible and clippable area.
+
+**Root cause:** Every `.config-card` had `overflow: hidden` set for border-radius visual consistency (to clip child backgrounds to rounded corners). The PrimeNG `p-inputNumber` component with horizontal buttons renders its increment button as a flex child that can extend to the very edge of its container. When `overflow: hidden` clips the card, the rightmost button is clipped.
+
+**Fix:** Removed `overflow: hidden` from `.config-card` in all 5 SCSS files. Added `border-radius: var(--naleko-radius-xl) var(--naleko-radius-xl) 0 0` to any element that has its own background colour and appears at the top of a card (`.config-card__section-label`, `.sentiment-grid--header`, `.ir-matrix__row--header`). This preserves the rounded-corner appearance for header rows without requiring the parent to clip its children.
+
+**Files changed:**
+- `admin-sla-thresholds.component.scss`
+- `admin-scoring-weights.component.scss`
+- `admin-sentiment-scales.component.scss`
+- `admin-panel-rules.component.scss`
+- `admin-stage-config.component.scss`
+
+---
+
+### BUG-050 — Scoring Weights and Routing Rules SCSS used undefined `--naleko-danger` token
+
+| Field | Detail |
+|---|---|
+| **Severity** | Low — visual (token resolves to nothing, colour disappears) |
+| **Status** | ✅ Fixed — `admin-scoring-weights.component.scss`, `admin-routing-rules.component.scss` 2026-06-04 |
+| **Affects** | Scoring Weights "Total invalid" state colour; Routing Rules duplicate-row left border colour |
+
+**Symptom:** When scoring weights did not sum to 100%, the "Total" indicator was supposed to turn red. It rendered with no colour (token `--naleko-danger` is not defined in the naleko design system). Similarly, duplicate routing rule rows had no visible left-border indicator.
+
+**Root cause:** The correct token is `--naleko-error`. The `--naleko-danger` token does not exist in the naleko token set and resolves to `unset`/transparent.
+
+**Fix:** Replaced all occurrences of `var(--naleko-danger)` with `var(--naleko-error)` in both files. Also fixed `admin-routing-rules.component.scss` skeleton shimmer which used hardcoded `#f3f4f6`/`#e5e7eb` instead of naleko surface tokens.

@@ -2,104 +2,118 @@
   [visible]="visible()"
   (visibleChange)="$event || close()"
   position="right"
-  styleClass="tf-queue-drawer"
-  [style]="{ width: '480px' }"
+  [style]="{ width: '50vw', minWidth: '520px' }"
+  [showCloseIcon]="false"
   [blockScroll]="true"
 >
-  <ng-template pTemplate="header">
-    <h3 class="drawer-title">{{ isEditMode() ? 'Edit Queue' : 'New Queue' }}</h3>
-  </ng-template>
+  <ng-template pTemplate="content">
+    <div class="qfd-drawer">
 
-  <div class="drawer-body">
+      <!-- ── Header ──────────────────────────────────────────────────────────── -->
+      <div class="qfd-drawer__header">
+        <div class="qfd-drawer__header-icon">
+          <i class="pi pi-server"></i>
+        </div>
+        <div class="qfd-drawer__header-text">
+          <h3 class="qfd-drawer__title">{{ isEditMode() ? 'Edit Queue' : 'New Queue' }}</h3>
+          <p class="qfd-drawer__subtitle">IT request routing queue</p>
+        </div>
+        <button class="qfd-drawer__close" (click)="close()" aria-label="Close">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
 
-    <!-- Name -->
-    <div class="form-field">
-      <label class="form-label" for="q-name">Queue Name <span class="required">*</span></label>
-      <input
-        pInputText id="q-name" type="text"
-        [ngModel]="form().name"
-        (ngModelChange)="patchForm({ name: $event })"
-        placeholder="e.g. Hardware Setup"
-        class="form-input"
-      />
-    </div>
+      <!-- ── Body ────────────────────────────────────────────────────────────── -->
+      <div class="qfd-drawer__body">
 
-    <!-- Description -->
-    <div class="form-field">
-      <label class="form-label" for="q-desc">Description</label>
-      <textarea
-        pTextarea id="q-desc" rows="3"
-        [ngModel]="form().description"
-        (ngModelChange)="patchForm({ description: $event })"
-        placeholder="What does this queue handle?"
-        class="form-input"
-        [autoResize]="true"
-      ></textarea>
-    </div>
+        <!-- Name -->
+        <div class="qfd-fld">
+          <label class="qfd-fld__label" for="q-name">QUEUE NAME <span class="qfd-fld__req">*</span></label>
+          <input
+            id="q-name" type="text"
+            class="qfd-fld__input"
+            [ngModel]="form().name"
+            (ngModelChange)="patchForm({ name: $event })"
+            placeholder="e.g. Hardware Setup"
+          />
+        </div>
 
-    <!-- Category -->
-    <div class="form-field">
-      <label class="form-label" for="q-cat">Category <span class="required">*</span></label>
-      <p-select
-        inputId="q-cat"
-        [ngModel]="form().category"
-        (ngModelChange)="patchForm({ category: $event })"
-        [options]="categoryOpts"
-        optionLabel="label"
-        optionValue="value"
-        styleClass="form-dropdown"
-        appendTo="body"
-      />
-    </div>
+        <!-- Description -->
+        <div class="qfd-fld">
+          <label class="qfd-fld__label" for="q-desc">DESCRIPTION</label>
+          <textarea
+            id="q-desc"
+            class="qfd-fld__input qfd-fld__input--textarea"
+            [ngModel]="form().description"
+            (ngModelChange)="patchForm({ description: $event })"
+            placeholder="What does this queue handle?"
+            rows="3"
+          ></textarea>
+        </div>
 
-    <!-- SLA Hours -->
-    <div class="form-field">
-      <label class="form-label" for="q-sla">SLA Window (hours) <span class="required">*</span></label>
-      <p-inputNumber
-        inputId="q-sla"
-        [ngModel]="form().slaHours"
-        (ngModelChange)="patchForm({ slaHours: $event })"
-        [min]="1" [max]="720" [showButtons]="true"
-        buttonLayout="horizontal"
-        incrementButtonIcon="pi pi-plus"
-        decrementButtonIcon="pi pi-minus"
-        suffix=" hrs"
-        styleClass="form-input-number"
-      />
-    </div>
+        <!-- Category -->
+        <div class="qfd-fld">
+          <label class="qfd-fld__label" for="q-cat">CATEGORY <span class="qfd-fld__req">*</span></label>
+          <p-select
+            inputId="q-cat"
+            [ngModel]="form().category"
+            (ngModelChange)="patchForm({ category: $event })"
+            [options]="categoryOpts"
+            optionLabel="label"
+            optionValue="value"
+            styleClass="qfd-select"
+            appendTo="body"
+          />
+        </div>
 
-    <!-- Assigned Specialists -->
-    <div class="form-field">
-      <label class="form-label" for="q-spec">Assigned Specialists</label>
-      <p-multiSelect
-        inputId="q-spec"
-        [ngModel]="form().assignedSpecialists"
-        (ngModelChange)="patchForm({ assignedSpecialists: $event })"
-        [options]="availableSpecialists()"
-        optionLabel="label"
-        optionValue="id"
-        [filter]="true"
-        filterBy="label,email"
-        placeholder="Select IT specialists…"
-        [loading]="specialistsLoading()"
-        styleClass="form-multiselect"
-        display="chip"
-        appendTo="body"
-      />
-      <span class="form-hint">All active users are listed. Assign users who will handle this queue.</span>
-    </div>
+        <!-- SLA Hours -->
+        <div class="qfd-fld">
+          <label class="qfd-fld__label" for="q-sla">SLA WINDOW (HOURS) <span class="qfd-fld__req">*</span></label>
+          <p-inputNumber
+            inputId="q-sla"
+            [ngModel]="form().slaHours"
+            (ngModelChange)="patchForm({ slaHours: $event })"
+            [min]="1" [max]="720" [showButtons]="true"
+            buttonLayout="horizontal"
+            incrementButtonIcon="pi pi-plus"
+            decrementButtonIcon="pi pi-minus"
+            suffix=" hrs"
+            styleClass="qfd-input-number"
+          />
+        </div>
 
-  </div>
+        <!-- Assigned Specialists -->
+        <div class="qfd-fld">
+          <label class="qfd-fld__label" for="q-spec">ASSIGNED SPECIALISTS</label>
+          <p-multiSelect
+            inputId="q-spec"
+            [ngModel]="form().assignedSpecialists"
+            (ngModelChange)="patchForm({ assignedSpecialists: $event })"
+            [options]="availableSpecialists()"
+            optionLabel="label"
+            optionValue="id"
+            [filter]="true"
+            filterBy="label,email"
+            placeholder="Select IT specialists…"
+            [loading]="specialistsLoading()"
+            styleClass="qfd-multiselect"
+            display="chip"
+            appendTo="body"
+          />
+          <span class="qfd-fld__hint">Assign users who will handle requests in this queue.</span>
+        </div>
 
-  <ng-template pTemplate="footer">
-    <div class="drawer-footer">
-      <p-button label="Cancel" styleClass="p-button-text p-button-secondary" (onClick)="close()" />
-      <p-button
-        [label]="isEditMode() ? 'Save Changes' : 'Create Queue'"
-        icon="pi pi-check"
-        [disabled]="!valid"
-        (onClick)="submit()"
-      />
+      </div>
+
+      <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+      <footer class="qfd-drawer__footer">
+        <button type="button" class="qfd-btn-cancel" (click)="close()">Cancel</button>
+        <button type="button" class="qfd-btn-submit" [disabled]="!valid" (click)="submit()">
+          <i class="pi pi-check"></i>
+          {{ isEditMode() ? 'Save Changes' : 'Create Queue' }}
+        </button>
+      </footer>
+
     </div>
   </ng-template>
 </p-drawer>

@@ -1,142 +1,173 @@
 <div class="tf-chain-drawer">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
   <div class="tf-chain-drawer__header">
-    <h3 class="tf-chain-drawer__title">
-      Edit Approval Chains
-      <span class="tf-chain-drawer__tier">{{ chain().seniority }}</span>
-    </h3>
+    <div class="tf-chain-drawer__header-icon">
+      <i class="pi pi-share-alt"></i>
+    </div>
+    <div class="tf-chain-drawer__header-text">
+      <h3 class="tf-chain-drawer__title">Edit Approval Chains</h3>
+      <p class="tf-chain-drawer__subtitle">
+        {{ chain().seniority }} tier &nbsp;·&nbsp; Offer &amp; Provisioning sequences
+      </p>
+    </div>
+    <span class="tf-chain-drawer__tier">{{ chain().seniority }}</span>
     <button class="tf-chain-drawer__close" (click)="close()" aria-label="Close">
       <i class="pi pi-times"></i>
     </button>
   </div>
 
+  <!-- ── Body ────────────────────────────────────────────────────────────── -->
   <div class="tf-chain-drawer__body">
-    <!-- ── Offer Approval Chain ────────────────── -->
+
+    <!-- Offer Approval Chain -->
     <section class="tf-chain-section">
       <div class="tf-chain-section__header">
-        <h4>Offer Approval Chain</h4>
-        <p-button icon="pi pi-plus"
-                  label="Add Step"
-                  styleClass="p-button-text p-button-sm"
-                  (onClick)="addOfferStep()" />
-      </div>
-
-      <div class="tf-chain-section__empty" *ngIf="offerSteps().length === 0">
-        No steps defined. Add at least one approver.
-      </div>
-
-      <div *ngFor="let step of offerSteps(); let i = index" class="tf-chain-step">
-        <span class="tf-chain-step__order">{{ step.order }}</span>
-
-        <p-select
-          [options]="roleOptions"
-          [ngModel]="step.role"
-          (ngModelChange)="patchOfferStep(i, 'role', $event)"
-          optionLabel="label"
-          optionValue="value"
-          [style]="{ width: '170px' }" />
-
-        <div class="tf-chain-step__required">
-          <p-checkbox
-            [ngModel]="step.isRequired"
-            (ngModelChange)="patchOfferStep(i, 'isRequired', $event)"
-            [binary]="true"
-            inputId="offer-req-{{ i }}" />
-          <label [for]="'offer-req-' + i">Required</label>
-        </div>
-
-        <div class="tf-chain-step__reorder">
-          <button class="tf-chain-step__btn"
-                  [disabled]="i === 0"
-                  (click)="moveOfferUp(i)"
-                  pTooltip="Move up"
-                  tooltipPosition="top">
-            <i class="pi pi-chevron-up"></i>
-          </button>
-          <button class="tf-chain-step__btn"
-                  [disabled]="i === offerSteps().length - 1"
-                  (click)="moveOfferDown(i)"
-                  pTooltip="Move down"
-                  tooltipPosition="top">
-            <i class="pi pi-chevron-down"></i>
-          </button>
-        </div>
-
-        <button class="tf-chain-step__btn tf-chain-step__btn--delete"
-                (click)="removeOfferStep(i)"
-                pTooltip="Remove step"
-                tooltipPosition="top">
-          <i class="pi pi-trash"></i>
+        <p class="tf-chain-section__label">
+          <i class="pi pi-envelope"></i>
+          Offer Approval Chain
+        </p>
+        <button type="button" class="acd-add-btn" (click)="addOfferStep()">
+          <i class="pi pi-plus"></i> Add Step
         </button>
       </div>
+
+      @if (offerSteps().length === 0) {
+        <div class="tf-chain-section__empty">
+          No steps defined — add at least one approver.
+        </div>
+      }
+
+      @for (step of offerSteps(); track step.order; let i = $index) {
+        <div class="tf-chain-step">
+          <span class="tf-chain-step__order">{{ step.order }}</span>
+
+          <p-select
+            [options]="roleOptions"
+            [ngModel]="step.role"
+            (ngModelChange)="patchOfferStep(i, 'role', $event)"
+            optionLabel="label"
+            optionValue="value"
+            styleClass="acd-select"
+            [style]="{ width: '170px' }" />
+
+          <div class="tf-chain-step__required">
+            <input
+              type="checkbox"
+              class="acd-checkbox"
+              [id]="'offer-req-' + i"
+              [checked]="step.isRequired"
+              (change)="patchOfferStep(i, 'isRequired', $any($event.target).checked)"
+            />
+            <label class="acd-checkbox-label" [for]="'offer-req-' + i">Required</label>
+          </div>
+
+          <div class="tf-chain-step__reorder">
+            <button class="tf-chain-step__btn"
+                    [disabled]="i === 0"
+                    (click)="moveOfferUp(i)"
+                    pTooltip="Move up"
+                    tooltipPosition="top">
+              <i class="pi pi-chevron-up"></i>
+            </button>
+            <button class="tf-chain-step__btn"
+                    [disabled]="i === offerSteps().length - 1"
+                    (click)="moveOfferDown(i)"
+                    pTooltip="Move down"
+                    tooltipPosition="top">
+              <i class="pi pi-chevron-down"></i>
+            </button>
+          </div>
+
+          <button class="tf-chain-step__btn tf-chain-step__btn--delete"
+                  (click)="removeOfferStep(i)"
+                  pTooltip="Remove step"
+                  tooltipPosition="top">
+            <i class="pi pi-trash"></i>
+          </button>
+        </div>
+      }
     </section>
 
-    <!-- ── Provisioning Approval Chain ───────────── -->
+    <!-- Provisioning Approval Chain -->
     <section class="tf-chain-section">
       <div class="tf-chain-section__header">
-        <h4>Provisioning Approval Chain</h4>
-        <p-button icon="pi pi-plus"
-                  label="Add Step"
-                  styleClass="p-button-text p-button-sm"
-                  (onClick)="addProvisioningStep()" />
-      </div>
-
-      <div class="tf-chain-section__empty" *ngIf="provisioningSteps().length === 0">
-        No steps defined. Add at least one approver.
-      </div>
-
-      <div *ngFor="let step of provisioningSteps(); let i = index" class="tf-chain-step">
-        <span class="tf-chain-step__order">{{ step.order }}</span>
-
-        <p-select
-          [options]="roleOptions"
-          [ngModel]="step.role"
-          (ngModelChange)="patchProvisioningStep(i, 'role', $event)"
-          optionLabel="label"
-          optionValue="value"
-          [style]="{ width: '170px' }" />
-
-        <div class="tf-chain-step__required">
-          <p-checkbox
-            [ngModel]="step.isRequired"
-            (ngModelChange)="patchProvisioningStep(i, 'isRequired', $event)"
-            [binary]="true"
-            inputId="prov-req-{{ i }}" />
-          <label [for]="'prov-req-' + i">Required</label>
-        </div>
-
-        <div class="tf-chain-step__reorder">
-          <button class="tf-chain-step__btn"
-                  [disabled]="i === 0"
-                  (click)="moveProvisioningUp(i)"
-                  pTooltip="Move up"
-                  tooltipPosition="top">
-            <i class="pi pi-chevron-up"></i>
-          </button>
-          <button class="tf-chain-step__btn"
-                  [disabled]="i === provisioningSteps().length - 1"
-                  (click)="moveProvisioningDown(i)"
-                  pTooltip="Move down"
-                  tooltipPosition="top">
-            <i class="pi pi-chevron-down"></i>
-          </button>
-        </div>
-
-        <button class="tf-chain-step__btn tf-chain-step__btn--delete"
-                (click)="removeProvisioningStep(i)"
-                pTooltip="Remove step"
-                tooltipPosition="top">
-          <i class="pi pi-trash"></i>
+        <p class="tf-chain-section__label">
+          <i class="pi pi-desktop"></i>
+          Provisioning Approval Chain
+        </p>
+        <button type="button" class="acd-add-btn" (click)="addProvisioningStep()">
+          <i class="pi pi-plus"></i> Add Step
         </button>
       </div>
+
+      @if (provisioningSteps().length === 0) {
+        <div class="tf-chain-section__empty">
+          No steps defined — add at least one approver.
+        </div>
+      }
+
+      @for (step of provisioningSteps(); track step.order; let i = $index) {
+        <div class="tf-chain-step">
+          <span class="tf-chain-step__order">{{ step.order }}</span>
+
+          <p-select
+            [options]="roleOptions"
+            [ngModel]="step.role"
+            (ngModelChange)="patchProvisioningStep(i, 'role', $event)"
+            optionLabel="label"
+            optionValue="value"
+            styleClass="acd-select"
+            [style]="{ width: '170px' }" />
+
+          <div class="tf-chain-step__required">
+            <input
+              type="checkbox"
+              class="acd-checkbox"
+              [id]="'prov-req-' + i"
+              [checked]="step.isRequired"
+              (change)="patchProvisioningStep(i, 'isRequired', $any($event.target).checked)"
+            />
+            <label class="acd-checkbox-label" [for]="'prov-req-' + i">Required</label>
+          </div>
+
+          <div class="tf-chain-step__reorder">
+            <button class="tf-chain-step__btn"
+                    [disabled]="i === 0"
+                    (click)="moveProvisioningUp(i)"
+                    pTooltip="Move up"
+                    tooltipPosition="top">
+              <i class="pi pi-chevron-up"></i>
+            </button>
+            <button class="tf-chain-step__btn"
+                    [disabled]="i === provisioningSteps().length - 1"
+                    (click)="moveProvisioningDown(i)"
+                    pTooltip="Move down"
+                    tooltipPosition="top">
+              <i class="pi pi-chevron-down"></i>
+            </button>
+          </div>
+
+          <button class="tf-chain-step__btn tf-chain-step__btn--delete"
+                  (click)="removeProvisioningStep(i)"
+                  pTooltip="Remove step"
+                  tooltipPosition="top">
+            <i class="pi pi-trash"></i>
+          </button>
+        </div>
+      }
     </section>
+
   </div>
 
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
   <footer class="tf-chain-drawer__footer">
-    <p-button label="Cancel"
-              styleClass="p-button-outlined"
-              (onClick)="close()" />
-    <p-button label="Apply Changes"
-              icon="pi pi-check"
-              (onClick)="save()" />
+    <button type="button" class="acd-btn-cancel" (click)="close()">
+      Cancel
+    </button>
+    <button type="button" class="acd-btn-submit" (click)="save()">
+      <i class="pi pi-check"></i> Apply Changes
+    </button>
   </footer>
+
 </div>

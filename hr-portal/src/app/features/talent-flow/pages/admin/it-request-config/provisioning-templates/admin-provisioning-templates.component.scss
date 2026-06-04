@@ -7,8 +7,8 @@
 
   &__header-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
 
-  &__title    { font-size: 1.25rem; font-weight: 700; color: var(--tf-color-text-default, #111827); margin: 0 0 0.25rem; }
-  &__subtitle { font-size: 0.875rem; color: var(--tf-color-text-muted, #6b7280); margin: 0; }
+  &__title    { font-size: 1.25rem; font-weight: 700; color: var(--naleko-on-surface); margin: 0 0 0.25rem; }
+  &__subtitle { font-size: 0.875rem; color: var(--naleko-on-surface-variant); margin: 0; }
   &__skeleton { display: flex; flex-direction: column; gap: 0.75rem; }
 }
 
@@ -25,14 +25,14 @@
 
 .config-empty {
   display: flex; flex-direction: column; align-items: center;
-  padding: 4rem 1rem; color: var(--tf-color-text-muted, #6b7280); gap: 0.75rem;
+  padding: 4rem 1rem; color: var(--naleko-on-surface-variant); gap: 0.75rem;
 
   &__icon { font-size: 3rem; opacity: 0.3; }
 }
 
 .tmpl-name { font-weight: 600; font-size: 0.875rem; }
-.tmpl-desc { font-size: 0.75rem; color: var(--tf-color-text-muted, #6b7280); margin-top: 0.125rem; }
-.tmpl-role { font-size: 0.8125rem; color: var(--tf-color-text-muted, #374151); }
+.tmpl-desc { font-size: 0.75rem; color: var(--naleko-on-surface-variant); margin-top: 0.125rem; }
+.tmpl-role { font-size: 0.8125rem; color: var(--naleko-on-surface-variant); }
 .req-count { font-size: 0.8125rem; }
 
 .action-cell {

@@ -1,49 +1,87 @@
+// ── Approval Chain Drawer — Naleko design language ───────────────────────────
+
 .tf-chain-drawer {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--surface-overlay);
-  border-left: 1px solid var(--surface-border);
+  background: var(--naleko-surface);
+
+  // ── Header ─────────────────────────────────────────────────────────────────
 
   &__header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 0.875rem;
     padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid var(--naleko-outline-variant);
     flex-shrink: 0;
   }
 
-  &__title {
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 0;
+  &__header-icon {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--naleko-radius-lg);
+    background: color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
+    flex-shrink: 0;
+
+    .pi {
+      font-size: 1.2rem;
+      color: var(--naleko-secondary);
+    }
+  }
+
+  &__header-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0 0 0.15rem;
+    font-family: var(--naleko-font-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--naleko-on-surface);
+    letter-spacing: -0.01em;
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--naleko-on-surface-variant);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__tier {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    background: var(--primary-100, #e3f2fd);
-    color: var(--primary-color);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--naleko-radius-sm);
+    background: color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
+    color: var(--naleko-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
   }
 
   &__close {
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0.25rem;
-    color: var(--text-color-secondary);
-    border-radius: 4px;
+    padding: 0.375rem;
+    color: var(--naleko-on-surface-variant);
+    border-radius: var(--naleko-radius-md);
+    transition: background 0.12s;
+    flex-shrink: 0;
 
-    &:hover { background: var(--surface-hover); }
+    &:hover { background: var(--naleko-surface-container); }
   }
+
+  // ── Body ───────────────────────────────────────────────────────────────────
 
   &__body {
     flex: 1;
@@ -54,72 +92,105 @@
     gap: 2rem;
   }
 
+  // ── Footer ─────────────────────────────────────────────────────────────────
+
   &__footer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--surface-border);
     display: flex;
+    align-items: center;
     gap: 0.75rem;
-    justify-content: flex-end;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--naleko-outline-variant);
+    background: var(--naleko-surface-container-low);
     flex-shrink: 0;
   }
 }
 
+// ── Section ───────────────────────────────────────────────────────────────────
+
 .tf-chain-section {
+
   &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.875rem;
+  }
 
-    h4 {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text-color-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin: 0;
-    }
+  &__label {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--naleko-on-surface-variant);
   }
 
   &__empty {
     font-size: 0.8rem;
-    color: var(--text-color-secondary);
-    padding: 0.75rem 0;
-    border: 1px dashed var(--surface-border);
-    border-radius: 6px;
+    color: var(--naleko-on-surface-variant);
+    padding: 1rem;
+    border: 1px dashed var(--naleko-outline-variant);
+    border-radius: var(--naleko-radius-md);
     text-align: center;
+    opacity: 0.7;
   }
 }
+
+// ── Add Step button ───────────────────────────────────────────────────────────
+
+.acd-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  border: 1.5px solid var(--naleko-secondary);
+  border-radius: var(--naleko-radius-md);
+  background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+  color: var(--naleko-secondary);
+  font-family: var(--naleko-font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, box-shadow 0.12s;
+
+  &:hover {
+    background: color-mix(in srgb, var(--naleko-secondary) 15%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+  }
+}
+
+// ── Step row ──────────────────────────────────────────────────────────────────
 
 .tf-chain-step {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--surface-border);
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--naleko-outline-variant);
 
   &:last-child { border-bottom: none; }
 
   &__order {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.625rem;
+    height: 1.625rem;
     border-radius: 50%;
-    background: var(--surface-ground);
+    background: color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.7rem;
     font-weight: 700;
-    color: var(--text-color-secondary);
+    color: var(--naleko-secondary);
     flex-shrink: 0;
   }
 
   &__required {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    font-size: 0.8rem;
-    color: var(--text-color-secondary);
+    gap: 0.4rem;
     white-space: nowrap;
   }
 
@@ -131,16 +202,114 @@
 
   &__btn {
     background: none;
-    border: 1px solid var(--surface-border);
-    border-radius: 4px;
+    border: 1px solid var(--naleko-outline-variant);
+    border-radius: var(--naleko-radius-sm);
     cursor: pointer;
     padding: 0.2rem 0.35rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     line-height: 1;
     font-size: 0.7rem;
+    transition: background 0.12s;
 
-    &:hover:not(:disabled) { background: var(--surface-hover); }
+    &:hover:not(:disabled) { background: var(--naleko-surface-container-low); }
     &:disabled { opacity: 0.35; cursor: not-allowed; }
-    &--delete { color: var(--red-500); }
+
+    &--delete {
+      color: var(--naleko-error);
+      border-color: color-mix(in srgb, var(--naleko-error) 25%, transparent);
+
+      &:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--naleko-error) 8%, transparent);
+      }
+    }
+  }
+}
+
+// ── Native checkbox ───────────────────────────────────────────────────────────
+
+.acd-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-sm);
+  background: var(--naleko-surface);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:checked {
+    background: var(--naleko-secondary);
+    border-color: var(--naleko-secondary);
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0.19rem;
+      top: 0.04rem;
+      width: 0.38rem;
+      height: 0.6rem;
+      border: 2px solid white;
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--naleko-secondary);
+    outline-offset: 2px;
+  }
+}
+
+.acd-checkbox-label {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--naleko-on-surface-variant);
+}
+
+// ── Footer buttons ────────────────────────────────────────────────────────────
+
+.acd-btn-cancel {
+  background: none;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  padding: 0.6rem 1.25rem;
+  font-family: var(--naleko-font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+
+  &:hover {
+    background: var(--naleko-surface-container);
+    color: var(--naleko-on-surface);
+  }
+}
+
+.acd-btn-submit {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: var(--naleko-radius-md);
+  background: linear-gradient(135deg, var(--naleko-secondary), var(--naleko-primary));
+  color: var(--naleko-on-primary);
+  font-family: var(--naleko-font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-primary) 30%, transparent);
+
+  &:hover {
+    opacity: 0.92;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--naleko-primary) 40%, transparent);
   }
 }
