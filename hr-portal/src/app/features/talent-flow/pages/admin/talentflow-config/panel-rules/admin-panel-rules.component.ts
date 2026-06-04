@@ -5,12 +5,10 @@ import {
   signal,
   OnInit,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
+import { TitleCasePipe } from '@angular/common';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ToggleButtonModule } from 'primeng/togglebutton';
-import { CheckboxModule } from 'primeng/checkbox';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { TalentFlowApiService } from '../../../../services/talent-flow-api.service';
 import { ConfigResponse, PositionLevel } from '../../../../models/talent-flow.models';
@@ -70,7 +68,7 @@ const DEFAULT_INTERVIEW_REQS: Record<PositionLevel, Record<InterviewType, boolea
 @Component({
   selector: 'tf-admin-panel-rules',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputNumberModule, ToggleButtonModule, CheckboxModule, ConfigVersionBadgeComponent],
+  imports: [FormsModule, TitleCasePipe, InputNumberModule, ToggleButtonModule, ConfigVersionBadgeComponent],
   templateUrl: './admin-panel-rules.component.html',
   styleUrl:    './admin-panel-rules.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

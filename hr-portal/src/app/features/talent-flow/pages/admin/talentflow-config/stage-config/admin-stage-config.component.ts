@@ -5,9 +5,7 @@ import {
   signal,
   OnInit,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
 import { ToggleButtonModule } from 'primeng/togglebutton';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { TalentFlowApiService } from '../../../../services/talent-flow-api.service';
@@ -56,7 +54,7 @@ const STAGE_PHASE: Record<HiringStage, string> = {
 @Component({
   selector: 'tf-admin-stage-config',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, ToggleButtonModule, ConfigVersionBadgeComponent],
+  imports: [FormsModule, ToggleButtonModule, ConfigVersionBadgeComponent],
   templateUrl: './admin-stage-config.component.html',
   styleUrl:    './admin-stage-config.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

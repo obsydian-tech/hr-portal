@@ -5,9 +5,7 @@ import {
   signal,
   OnInit,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { TalentFlowApiService } from '../../../../services/talent-flow-api.service';
@@ -52,7 +50,7 @@ const DEFAULT_ESCALATION: SlaEscalation = { warningPct: 75, criticalPct: 90 };
 @Component({
   selector: 'tf-admin-sla-thresholds',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputNumberModule, ConfigVersionBadgeComponent],
+  imports: [FormsModule, InputNumberModule, ConfigVersionBadgeComponent],
   templateUrl: './admin-sla-thresholds.component.html',
   styleUrl:    './admin-sla-thresholds.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
