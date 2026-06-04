@@ -6,12 +6,9 @@ import {
   computed,
   OnInit,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { SelectModule } from 'primeng/select';
-import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { TooltipModule } from 'primeng/tooltip';
 import { MessageService, ConfirmationService } from 'primeng/api';
@@ -39,8 +36,7 @@ const CONDITION_FIELDS: Array<{ label: string; value: ConditionField }> = [
 @Component({
   selector: 'tf-admin-routing-rules',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, TableModule, SelectModule,
-            InputTextModule, InputNumberModule, TooltipModule, ConfigVersionBadgeComponent],
+  imports: [FormsModule, TableModule, SelectModule, InputNumberModule, TooltipModule, ConfigVersionBadgeComponent],
   templateUrl: './admin-routing-rules.component.html',
   styleUrl:    './admin-routing-rules.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

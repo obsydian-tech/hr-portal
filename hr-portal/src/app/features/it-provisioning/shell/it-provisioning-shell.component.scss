@@ -1,4 +1,4 @@
-// IT Provisioning Shell — topbar styles (mirrors TalentFlow shell pattern)
+// IT Provisioning Shell — mirrors TalentFlow shell exactly
 
 :host {
   display: block;
@@ -9,23 +9,27 @@
 // ── Topbar ────────────────────────────────────────────────────────────────────
 
 .ip-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 56px;
+  height: 4rem;
   padding: 0 1.5rem;
-  background: var(--surface-0, #fff);
-  border-bottom: 1px solid var(--surface-200, #e2e8f0);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  background: var(--naleko-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 
   &__left,
   &__right {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
   }
+
+  &__left { gap: 2rem; }
+  &__right { gap: 0.75rem; }
 }
 
 // ── Brand ─────────────────────────────────────────────────────────────────────
@@ -34,26 +38,28 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-right: 1.5rem;
 
   &__mark {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    border-radius: 6px;
-    background: #0f172a;
-    color: #fff;
+    border-radius: var(--naleko-radius-md);
+    background: var(--naleko-tertiary);
+    color: var(--naleko-on-primary);
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
     font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
   }
 
   &__name {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-color, #1e293b);
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--naleko-on-primary);
+    letter-spacing: -0.01em;
   }
 }
 
@@ -67,23 +73,22 @@
   &__item {
     display: inline-flex;
     align-items: center;
-    padding: 0.375rem 0.875rem;
-    border-radius: 6px;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--naleko-radius-pill);
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--text-color-secondary, #64748b);
+    color: rgba(255, 255, 255, 0.7);
     text-decoration: none;
-    transition: background 0.15s, color 0.15s;
+    transition: color 0.15s ease, background 0.15s ease;
 
     &:hover {
-      background: var(--surface-100, #f1f5f9);
-      color: var(--text-color, #1e293b);
+      color: var(--naleko-on-primary);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     &--active {
-      background: var(--surface-100, #f1f5f9);
-      color: var(--text-color, #1e293b);
-      font-weight: 600;
+      color: var(--naleko-tertiary-fixed-dim);
+      background: rgba(122, 212, 228, 0.12);
     }
   }
 }
@@ -93,29 +98,184 @@
 .ip-role-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.125rem 0.625rem;
-  border-radius: 9999px;
-  background: #f1f5f9;
-  color: #0f172a;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--naleko-radius-pill);
+  background: rgba(122, 212, 228, 0.15);
+  color: var(--naleko-tertiary-fixed-dim);
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: 1px solid #e2e8f0;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
-// ── Avatar & name ─────────────────────────────────────────────────────────────
+// ── Avatar ────────────────────────────────────────────────────────────────────
 
-.ip-display-name {
+::ng-deep .ip-avatar.p-avatar {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--naleko-secondary);
+  color: var(--naleko-on-primary);
+}
+
+// ── Icon buttons (bell / logout) ──────────────────────────────────────────────
+
+::ng-deep .ip-btn-bell.p-button,
+::ng-deep .ip-logout-btn.p-button {
+  color: rgba(255, 255, 255, 0.7);
+
+  &:hover {
+    color: var(--naleko-on-primary);
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+::ng-deep .ip-btn-bell.p-button .p-badge {
+  font-size: 0.625rem;
+  min-width: 1rem;
+  height: 1rem;
+  line-height: 1rem;
+}
+
+// ── Bell popover ──────────────────────────────────────────────────────────────
+
+::ng-deep .ip-bell-panel.p-popover {
+  width: 320px;
+  padding: 0;
+  border-radius: var(--naleko-radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(200, 197, 205, 0.15);
+  overflow: hidden;
+
+  .p-popover-content { padding: 0; }
+}
+
+.ip-bell-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1rem 0.5rem;
+  border-bottom: 1px solid rgba(200, 197, 205, 0.12);
+}
+
+.ip-bell-panel__title {
+  font-family: var(--naleko-font-display);
   font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-color, #1e293b);
+  font-weight: 700;
+  color: var(--naleko-on-surface);
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+.ip-bell-panel__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  border-radius: 999px;
+  background: var(--naleko-danger);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.ip-bell-panel__empty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.25rem 1rem;
+  color: var(--naleko-on-surface-variant);
+  font-size: 0.8125rem;
+
+  i { color: var(--naleko-success); font-size: 1rem; }
+}
+
+.ip-bell-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.375rem 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.ip-bell-panel__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  cursor: pointer;
+  transition: background 0.12s ease;
+
+  &:hover { background: var(--naleko-surface-container-low); }
+}
+
+.ip-bell-panel__avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--naleko-danger) 15%, transparent);
+  color: var(--naleko-danger);
+  font-family: var(--naleko-font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ip-bell-panel__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ip-bell-panel__name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ip-bell-panel__meta {
+  font-size: 0.75rem;
+  color: var(--naleko-on-surface-variant);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ip-bell-panel__arrow {
+  font-size: 0.625rem;
+  color: var(--naleko-on-surface-variant);
+  flex-shrink: 0;
+}
+
+.ip-bell-panel__footer {
+  padding: 0.625rem 1rem;
+  border-top: 1px solid rgba(200, 197, 205, 0.12);
+}
+
+.ip-bell-panel__view-all {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--naleko-secondary);
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+// ── Main content ──────────────────────────────────────────────────────────────
 
 .ip-main {
-  height: calc(100dvh - 56px);
+  padding-top: 4rem;
+  height: 100dvh;
   overflow-y: auto;
-  background: var(--surface-50, #f8fafc);
+  background: var(--naleko-surface);
 }

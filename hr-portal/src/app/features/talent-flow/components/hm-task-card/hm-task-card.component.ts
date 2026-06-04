@@ -9,7 +9,6 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { SliderModule } from 'primeng/slider';
-import { TagModule } from 'primeng/tag';
 import { TalentFlowApiService } from '../../services/talent-flow-api.service';
 import { Candidate, VotePayload } from '../../models/talent-flow.models';
 
@@ -21,16 +20,11 @@ const STAGE_LABELS: Record<string, string> = {
   EVALUATION:         'Evaluation',
 };
 
-const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
-  JUNIOR: 'success',
-  MID:    'info',
-  SENIOR: 'warn',
-};
 
 @Component({
   selector: 'tf-hm-task-card',
   standalone: true,
-  imports: [FormsModule, ButtonModule, SliderModule, TagModule],
+  imports: [FormsModule, ButtonModule, SliderModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!-- ── Card header ──────────────────────────────────────────────────── -->
@@ -44,11 +38,7 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
           <div class="hm-card__name">{{ candidate().firstName }} {{ candidate().lastName }}</div>
           <div class="hm-card__role">{{ candidate().role }}</div>
           <div class="hm-card__tags">
-            <p-tag
-              [value]="candidate().positionLevel"
-              [severity]="levelSeverity()"
-              styleClass="hm-tag"
-            />
+            <span class="hm-level-badge hm-level-badge--{{ levelClass() }}">{{ candidate().positionLevel }}</span>
             <span class="hm-card__stage">{{ currentStageLabel() }}</span>
             <span class="hm-card__sla hm-card__sla--{{ candidate().slaStatus ?? 'ON_TRACK' }}">
               ●
@@ -173,9 +163,10 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
   `,
   styles: [`
     .hm-card {
-      background: var(--naleko-surface-card, #fff);
-      border: 1px solid var(--naleko-border-subtle, #e2e8f0);
-      border-radius: var(--naleko-radius-lg, 12px);
+      background: var(--naleko-surface-container-lowest);
+      border: 1.5px solid rgba(200, 197, 205, 0.2);
+      border-radius: var(--naleko-radius-lg);
+      box-shadow: var(--naleko-shadow-card);
       padding: 1.25rem;
       margin-bottom: 1rem;
     }
@@ -191,13 +182,13 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
       height: 40px;
       min-width: 40px;
       border-radius: 50%;
-      background: var(--naleko-brand-indigo, #6366f1);
-      color: #fff;
+      background: color-mix(in srgb, var(--naleko-secondary) 15%, transparent);
+      color: var(--naleko-secondary);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 0.875rem;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     .hm-card__meta { flex: 1; }
@@ -205,12 +196,12 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
     .hm-card__name {
       font-size: 0.9375rem;
       font-weight: 600;
-      color: var(--naleko-text-primary, #1e293b);
+      color: var(--naleko-on-surface);
     }
 
     .hm-card__role {
       font-size: 0.8125rem;
-      color: var(--naleko-text-secondary, #64748b);
+      color: var(--naleko-on-surface-variant);
       margin-top: 0.125rem;
     }
 
@@ -221,21 +212,41 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
       margin-top: 0.375rem;
     }
 
+    .hm-level-badge {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--naleko-radius-pill);
+    }
+    .hm-level-badge--junior {
+      background: color-mix(in srgb, var(--naleko-success) 15%, transparent);
+      color: var(--naleko-success);
+    }
+    .hm-level-badge--mid {
+      background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+      color: var(--naleko-secondary);
+    }
+    .hm-level-badge--senior {
+      background: color-mix(in srgb, var(--naleko-warning) 15%, transparent);
+      color: var(--naleko-warning);
+    }
+
     .hm-card__stage {
-      font-size: 0.75rem;
-      color: var(--naleko-text-muted, #94a3b8);
+      font-size: 0.72rem;
+      color: var(--naleko-on-surface-variant);
     }
 
     .hm-card__sla { font-size: 0.625rem; }
-    .hm-card__sla--ON_TRACK  { color: var(--naleko-success, #22c55e); }
-    .hm-card__sla--AT_RISK   { color: var(--naleko-warning, #f59e0b); }
-    .hm-card__sla--BREACHED  { color: var(--naleko-danger, #ef4444); }
+    .hm-card__sla--ON_TRACK  { color: var(--naleko-success); }
+    .hm-card__sla--AT_RISK   { color: var(--naleko-warning); }
+    .hm-card__sla--BREACHED  { color: var(--naleko-danger); }
 
-    /* ── Scoring panel ──────────────────────────────────────────── */
     .hm-scoring-panel {
       margin-top: 1rem;
       padding-top: 1rem;
-      border-top: 1px solid var(--naleko-border-subtle, #e2e8f0);
+      border-top: 1px solid rgba(200, 197, 205, 0.25);
     }
 
     .hm-sliders { display: flex; flex-direction: column; gap: 0.875rem; margin-bottom: 1.25rem; }
@@ -250,18 +261,17 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
     .hm-slider-label {
       font-size: 0.8125rem;
       font-weight: 500;
-      color: var(--naleko-text-secondary, #475569);
+      color: var(--naleko-on-surface-variant);
       white-space: nowrap;
     }
 
     .hm-slider-value {
       font-size: 0.875rem;
       font-weight: 700;
-      color: var(--naleko-brand-indigo, #6366f1);
+      color: var(--naleko-secondary);
       text-align: right;
     }
 
-    /* ── Vote grid (D050) ─────────────────────────────────────── */
     .hm-vote-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -271,47 +281,37 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
 
     .hm-vote-btn {
       padding: 0.5rem 0.25rem;
-      border-radius: var(--naleko-radius-md, 8px);
-      border: 2px solid transparent;
+      border-radius: var(--naleko-radius-md);
+      border: 2px solid rgba(200, 197, 205, 0.35);
       font-size: 0.8125rem;
       font-weight: 500;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-
-    .hm-vote-btn--positive {
-      background: var(--naleko-surface-secondary, #f1f5f9);
-      color: var(--naleko-text-secondary, #475569);
-      border-color: var(--naleko-border-subtle, #e2e8f0);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      background: var(--naleko-surface-container-low);
+      color: var(--naleko-on-surface-variant);
     }
 
     .hm-vote-btn--positive.hm-vote-btn--active-positive {
-      background: var(--naleko-brand-indigo, #6366f1);
+      background: var(--naleko-secondary);
       color: #fff;
-      border-color: var(--naleko-brand-indigo, #6366f1);
-    }
-
-    .hm-vote-btn--negative {
-      background: var(--naleko-surface-secondary, #f1f5f9);
-      color: var(--naleko-text-secondary, #475569);
-      border-color: var(--naleko-border-subtle, #e2e8f0);
+      border-color: var(--naleko-secondary);
     }
 
     .hm-vote-btn--negative.hm-vote-btn--active-negative {
-      background: var(--naleko-danger-muted, #fef2f2);
-      color: var(--naleko-danger, #ef4444);
-      border-color: var(--naleko-danger, #ef4444);
+      background: color-mix(in srgb, var(--naleko-danger) 12%, transparent);
+      color: var(--naleko-danger);
+      border-color: var(--naleko-danger);
     }
 
     .hm-error {
-      color: var(--naleko-danger, #ef4444);
+      color: var(--naleko-danger);
       font-size: 0.8125rem;
       margin-bottom: 0.5rem;
     }
 
     .hm-no-interview {
       font-size: 0.75rem;
-      color: var(--naleko-text-muted, #94a3b8);
+      color: var(--naleko-on-surface-variant);
       margin-top: 0.375rem;
     }
 
@@ -321,17 +321,32 @@ const LEVEL_SEVERITY: Record<string, 'success' | 'info' | 'warn'> = {
       gap: 0.375rem;
       font-size: 0.8125rem;
       font-weight: 600;
-      color: var(--naleko-success, #22c55e);
-      background: var(--naleko-success-muted, #f0fdf4);
-      border: 1px solid var(--naleko-success, #22c55e);
-      border-radius: var(--naleko-radius-md, 8px);
+      color: var(--naleko-success);
+      background: color-mix(in srgb, var(--naleko-success) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--naleko-success) 35%, transparent);
+      border-radius: var(--naleko-radius-md);
       padding: 0.375rem 0.75rem;
       white-space: nowrap;
     }
 
     :host ::ng-deep .hm-slider { width: 100%; }
-    :host ::ng-deep .hm-submit-btn { width: 100%; justify-content: center; }
-    :host ::ng-deep .hm-card__eval-btn { white-space: nowrap; }
+
+    :host ::ng-deep .hm-submit-btn.p-button {
+      width: 100%;
+      justify-content: center;
+      background: var(--naleko-secondary);
+      border-color: var(--naleko-secondary);
+    }
+
+    :host ::ng-deep .hm-card__eval-btn.p-button {
+      white-space: nowrap;
+      border-color: var(--naleko-secondary);
+      color: var(--naleko-secondary);
+    }
+
+    :host ::ng-deep .hm-card__eval-btn.p-button:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+    }
   `],
 })
 export class HmTaskCardComponent {
@@ -386,8 +401,8 @@ export class HmTaskCardComponent {
     return STAGE_LABELS[this.candidate().currentStage] ?? this.candidate().currentStage;
   }
 
-  protected levelSeverity(): 'success' | 'info' | 'warn' {
-    return LEVEL_SEVERITY[this.candidate().positionLevel] ?? 'info';
+  protected levelClass(): string {
+    return (this.candidate().positionLevel ?? 'mid').toLowerCase();
   }
 
   protected hasInterviewId(): boolean {

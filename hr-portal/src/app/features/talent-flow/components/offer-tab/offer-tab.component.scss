@@ -60,7 +60,7 @@
   display:         flex;
   align-items:     flex-start;
   gap:             0;
-  padding:         1rem 0 1.25rem;
+  padding:         1.25rem 0.5rem 1.5rem;
   overflow-x:      auto;
 }
 
@@ -68,38 +68,40 @@
   display:        flex;
   flex-direction: column;
   align-items:    center;
-  gap:            0.35rem;
+  gap:            0.5rem;
   position:       relative;
   flex:           1;
   min-width:      80px;
 
-  &--pending { opacity: 0.45; }
+  &--pending { opacity: 0.4; }
 }
 
 .tf-offer-step__dot {
-  width:           32px;
-  height:          32px;
+  width:           2.25rem;
+  height:          2.25rem;
   border-radius:   50%;
   display:         flex;
   align-items:     center;
   justify-content: center;
-  font-size:       0.8rem;
+  font-size:       0.85rem;
   font-weight:     600;
   border:          2px solid var(--naleko-outline-variant);
-  background:      var(--naleko-surface);
+  background:      var(--naleko-surface-container-lowest);
   color:           var(--naleko-on-surface-variant);
   position:        relative;
   z-index:         1;
+  transition:      all 0.2s ease;
 
   .tf-offer-step--completed & {
-    background: var(--naleko-success, #22c55e);
-    border-color: var(--naleko-success, #22c55e);
-    color: #fff;
+    background:   var(--naleko-success);
+    border-color: var(--naleko-success);
+    color:        #fff;
   }
   .tf-offer-step--active & {
-    background: var(--naleko-primary);
-    border-color: var(--naleko-primary);
-    color: #fff;
+    background:   var(--naleko-secondary);
+    border-color: var(--naleko-secondary);
+    color:        #fff;
+    box-shadow:   0 0 0 4px color-mix(in srgb, var(--naleko-secondary) 18%, transparent);
   }
 }
 
@@ -109,19 +111,22 @@
   text-align:  center;
   color:       var(--naleko-on-surface-variant);
 
-  .tf-offer-step--active & { color: var(--naleko-primary); font-weight: 700; }
-  .tf-offer-step--completed & { color: var(--naleko-on-surface); }
+  .tf-offer-step--active    & { color: var(--naleko-secondary); font-weight: 700; }
+  .tf-offer-step--completed & { color: var(--naleko-success); font-weight: 600; }
 }
 
 .tf-offer-step__connector {
   position:   absolute;
-  top:        16px;
-  left:       calc(50% + 16px);
-  right:      calc(-50% + 16px);
+  top:        1.125rem;
+  left:       calc(50% + 1.125rem);
+  right:      calc(-50% + 1.125rem);
   height:     2px;
   background: var(--naleko-outline-variant);
+  border-radius: 1px;
+  z-index:    0;
+  transition: background 0.2s;
 
-  .tf-offer-step--completed & { background: var(--naleko-success, #22c55e); }
+  .tf-offer-step--completed & { background: var(--naleko-success); }
 }
 
 // ── Signal Intelligence (shared with workspace) ────────────────────────────
@@ -175,7 +180,7 @@
   text-transform: uppercase;
 
   &--done     { background: var(--naleko-success-container, #dcfce7); color: var(--naleko-success, #166534); }
-  &--accepted { background: var(--naleko-primary-container); color: var(--naleko-on-primary-container, var(--naleko-primary)); }
+  &--accepted { background: var(--naleko-primary-container); color: var(--naleko-on-primary-container, var(--naleko-secondary)); }
 }
 
 // ── Context strip ──────────────────────────────────────────────────────────
@@ -270,7 +275,7 @@
   font-family:   inherit;
   transition:    border-color 0.15s;
 
-  &:focus { border-color: var(--naleko-primary); }
+  &:focus { border-color: var(--naleko-secondary); }
 }
 .tf-offer-fld__textarea { resize: vertical; min-height: 72px; }
 
@@ -305,14 +310,14 @@
   &:disabled { opacity: 0.55; cursor: not-allowed; }
 
   &--primary {
-    background: var(--naleko-primary);
+    background: var(--naleko-secondary);
     color:      var(--naleko-on-primary, #fff);
     &:not(:disabled):hover { filter: brightness(0.92); }
   }
   &--ghost {
     background: transparent;
-    color:      var(--naleko-primary);
-    border:     1px solid var(--naleko-primary);
+    color:      var(--naleko-secondary);
+    border:     1px solid var(--naleko-secondary);
     &:not(:disabled):hover { background: var(--naleko-primary-container); }
   }
   &--sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
@@ -380,7 +385,7 @@
 .tf-offer-sla-bar__fill {
   height:        100%;
   width:         40%;
-  background:    var(--naleko-primary);
+  background:    var(--naleko-secondary);
   border-radius: 2px;
 }
 
@@ -465,7 +470,7 @@
   border-radius:  8px;
   border:         1px solid var(--naleko-outline-variant);
 }
-.tf-offer-trigger-card__icon  { font-size: 1.1rem; color: var(--naleko-primary); }
+.tf-offer-trigger-card__icon  { font-size: 1.1rem; color: var(--naleko-secondary); }
 .tf-offer-trigger-card__label { font-weight: 700; font-size: 0.82rem; }
 .tf-offer-trigger-card__desc  { font-size: 0.78rem; color: var(--naleko-on-surface-variant); }
 
@@ -491,11 +496,11 @@
   transition:     border-color 0.15s, background 0.15s;
 
   &--selected {
-    border-color: var(--naleko-primary);
+    border-color: var(--naleko-secondary);
     background:   var(--naleko-primary-container);
   }
   &:hover:not(.tf-offer-sentiment-card--selected) {
-    border-color: var(--naleko-primary);
+    border-color: var(--naleko-secondary);
   }
 }
 

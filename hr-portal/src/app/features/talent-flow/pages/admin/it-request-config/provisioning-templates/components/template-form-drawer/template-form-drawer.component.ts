@@ -8,14 +8,9 @@ import {
   computed,
   untracked,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
 import { DrawerModule } from 'primeng/drawer';
-import { InputTextModule } from 'primeng/inputtext';
-import { Textarea } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
-import { CheckboxModule } from 'primeng/checkbox';
 import { ProvisioningTemplate, TemplateRequirement, RequirementCategory } from '../../../it-request.models';
 
 const CATEGORY_OPTIONS: Array<{ label: string; value: RequirementCategory }> = [
@@ -47,8 +42,7 @@ const EMPTY_REQ = (): TemplateRequirement => ({
 @Component({
   selector: 'tf-template-form-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, DrawerModule, InputTextModule,
-            Textarea, SelectModule, CheckboxModule],
+  imports: [FormsModule, DrawerModule, SelectModule],
   templateUrl: './template-form-drawer.component.html',
   styleUrl:    './template-form-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

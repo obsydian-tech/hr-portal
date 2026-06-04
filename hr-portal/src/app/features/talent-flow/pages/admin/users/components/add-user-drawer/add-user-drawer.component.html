@@ -1,87 +1,136 @@
-<p-dialog
-  header="Add User"
+<p-drawer
   [visible]="visible()"
-  [modal]="true"
-  [draggable]="false"
-  [resizable]="false"
-  [style]="{ width: '32rem' }"
-  styleClass="tfad-drawer"
-  (onHide)="onHide()"
+  (visibleChange)="$event || onHide()"
+  position="right"
+  styleClass="tf-add-user-drawer"
+  [style]="{ width: '50vw', minWidth: '560px' }"
+  [blockScroll]="true"
 >
 
-  @if (error()) {
-    <div class="tfad-drawer-error">
-      <i class="pi pi-exclamation-circle"></i>
-      {{ error() }}
-    </div>
-  }
-
-  <div class="tfad-form">
-
-    <div class="tfad-field">
-      <label class="tfad-field__label" for="addEmail">Work email *</label>
-      <input
-        id="addEmail"
-        class="tfad-input"
-        type="email"
-        placeholder="user@company.com"
-        [(ngModel)]="email"
-      />
-    </div>
-
-    <div class="tfad-field-row">
-      <div class="tfad-field">
-        <label class="tfad-field__label" for="addGiven">First name *</label>
-        <input
-          id="addGiven"
-          class="tfad-input"
-          type="text"
-          placeholder="Jane"
-          [(ngModel)]="givenName"
-        />
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <ng-template pTemplate="header">
+    <div class="au__header">
+      <div class="au__header-icon">
+        <i class="pi pi-user-plus"></i>
       </div>
-      <div class="tfad-field">
-        <label class="tfad-field__label" for="addFamily">Last name *</label>
-        <input
-          id="addFamily"
-          class="tfad-input"
-          type="text"
-          placeholder="Smith"
-          [(ngModel)]="familyName"
-        />
+      <div>
+        <h3 class="au__title">Add User</h3>
+        <p class="au__subtitle">Invite a new platform user and assign their roles</p>
       </div>
     </div>
+  </ng-template>
 
-    <div class="tfad-field">
-      <label class="tfad-field__label">
-        Roles * <span class="tfad-field__hint">(select at least one)</span>
-      </label>
-      <div class="tfad-role-list">
-        @for (role of allRoles; track role) {
-          <label class="tfad-role-item">
-            <p-checkbox
-              [binary]="true"
-              [ngModel]="roles.includes(role)"
-              (onChange)="toggleRole(role, $event.checked)"
-            />
-            <span>{{ roleLabels[role] }}</span>
+  <!-- ── Scrollable body ──────────────────────────────────────────────────── -->
+  <div class="au__body">
+
+    <!-- Error banner -->
+    @if (error()) {
+      <div class="au__error">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    <!-- ── Section 1: User Details ────────────────────────────────────────── -->
+    <div class="au__section">
+      <p class="au__section-label">User Details</p>
+
+      <div class="au-fld au-fld--full">
+        <label class="au-fld__label" for="au-email">
+          Work email <span class="au-fld__required">*</span>
+        </label>
+        <input
+          id="au-email"
+          class="au-fld__input"
+          type="email"
+          placeholder="jane.smith@company.com"
+          [(ngModel)]="email"
+        />
+      </div>
+
+      <div class="au-form-row">
+        <div class="au-fld">
+          <label class="au-fld__label" for="au-given">
+            First name <span class="au-fld__required">*</span>
           </label>
+          <input
+            id="au-given"
+            class="au-fld__input"
+            type="text"
+            placeholder="Jane"
+            [(ngModel)]="givenName"
+          />
+        </div>
+        <div class="au-fld">
+          <label class="au-fld__label" for="au-family">
+            Last name <span class="au-fld__required">*</span>
+          </label>
+          <input
+            id="au-family"
+            class="au-fld__input"
+            type="text"
+            placeholder="Smith"
+            [(ngModel)]="familyName"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 2: Roles ───────────────────────────────────────────────── -->
+    <div class="au__section">
+      <p class="au__section-label">
+        Access &amp; Roles
+        <span class="au__section-hint">Select at least one</span>
+      </p>
+
+      <div class="au-roles">
+        @for (role of allRoles; track role) {
+          <button
+            type="button"
+            class="au-role-card"
+            [class.au-role-card--selected]="roles.includes(role)"
+            (click)="toggleRole(role, !roles.includes(role))"
+          >
+            <div class="au-role-card__check">
+              @if (roles.includes(role)) {
+                <i class="pi pi-check-circle"></i>
+              } @else {
+                <i class="pi pi-circle"></i>
+              }
+            </div>
+            <div class="au-role-card__icon-wrap">
+              <i class="pi {{ roleIcons[role] }}"></i>
+            </div>
+            <div class="au-role-card__body">
+              <span class="au-role-card__name">{{ roleLabels[role] }}</span>
+              <span class="au-role-card__desc">{{ roleDescs[role] }}</span>
+            </div>
+          </button>
         }
       </div>
     </div>
 
   </div>
 
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
   <ng-template pTemplate="footer">
-    <div class="tfad-drawer-footer">
-      <p-button label="Cancel" styleClass="p-button-text" (onClick)="onHide()" />
-      <p-button
-        label="Create User"
-        icon="pi pi-check"
-        [loading]="saving()"
-        (onClick)="submit()"
-      />
+    <div class="au__footer">
+      <button type="button" class="au__btn-cancel" (click)="onHide()">
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="au__btn-submit"
+        [disabled]="saving()"
+        (click)="submit()"
+      >
+        @if (saving()) {
+          <i class="pi pi-spin pi-spinner"></i> Creating…
+        } @else {
+          <i class="pi pi-user-plus"></i> Create User
+        }
+      </button>
     </div>
   </ng-template>
 
-</p-dialog>
+</p-drawer>

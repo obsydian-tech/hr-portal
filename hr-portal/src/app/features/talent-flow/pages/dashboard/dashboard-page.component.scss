@@ -13,6 +13,20 @@
   gap: 1.5rem;
 }
 
+// ── Greeting ──────────────────────────────────────────────────────────────────
+.tf-dash__greeting {
+  padding: 0.75rem 0 0.5rem;
+}
+.tf-dash__greeting-title {
+  font-family: var(--naleko-font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+  margin: 0;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
 // ── Loading / error ───────────────────────────────────────────────────────────
 .tf-dash__loading,
 .tf-dash__error {
@@ -42,35 +56,61 @@
   padding: 1.25rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
   cursor: pointer;
+  background: var(--naleko-surface-container-lowest);
+  box-shadow: var(--naleko-shadow-card);
+  border: 1px solid rgba(200, 197, 205, 0.18);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
-  border: 1.5px solid transparent;
 
   &:hover { transform: translateY(-2px); box-shadow: var(--naleko-shadow-md); }
 
   &--breached {
-    background: color-mix(in srgb, var(--naleko-error) 10%, var(--naleko-surface));
-    border-color: color-mix(in srgb, var(--naleko-error) 30%, transparent);
+    border-top: 3px solid var(--naleko-error);
     .tf-signal-card__value { color: var(--naleko-error); }
   }
   &--at-risk {
-    background: color-mix(in srgb, var(--naleko-warning) 10%, var(--naleko-surface));
-    border-color: color-mix(in srgb, var(--naleko-warning) 30%, transparent);
+    border-top: 3px solid var(--naleko-warning);
     .tf-signal-card__value { color: var(--naleko-warning-dark, var(--naleko-warning)); }
   }
   &--success {
-    background: color-mix(in srgb, var(--naleko-success) 10%, var(--naleko-surface));
-    border-color: color-mix(in srgb, var(--naleko-success) 25%, transparent);
+    border-top: 3px solid var(--naleko-success);
     cursor: default;
-    &:hover { transform: none; box-shadow: none; }
+    &:hover { transform: none; box-shadow: var(--naleko-shadow-card); }
     .tf-signal-card__value { color: var(--naleko-success); }
   }
   &--primary {
-    background: color-mix(in srgb, var(--naleko-primary) 8%, var(--naleko-surface));
-    border-color: color-mix(in srgb, var(--naleko-primary) 20%, transparent);
+    border-top: 3px solid var(--naleko-secondary);
     .tf-signal-card__value { color: var(--naleko-primary); }
   }
+}
+
+.tf-signal-card__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+.tf-signal-card--breached .tf-signal-card__icon {
+  background: color-mix(in srgb, var(--naleko-error) 14%, transparent);
+  color: var(--naleko-error);
+}
+.tf-signal-card--at-risk .tf-signal-card__icon {
+  background: color-mix(in srgb, var(--naleko-warning) 16%, transparent);
+  color: var(--naleko-warning-dark, var(--naleko-warning));
+}
+.tf-signal-card--success .tf-signal-card__icon {
+  background: color-mix(in srgb, var(--naleko-success) 14%, transparent);
+  color: var(--naleko-success);
+}
+.tf-signal-card--primary .tf-signal-card__icon {
+  background: color-mix(in srgb, var(--naleko-secondary) 14%, transparent);
+  color: var(--naleko-secondary);
 }
 
 .tf-signal-card__eyebrow {
@@ -106,7 +146,7 @@
 }
 .tf-section-head__title {
   font-family: var(--naleko-font-display);
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: var(--naleko-on-surface);
   margin: 0;
@@ -160,11 +200,8 @@
 // ZONE 2 — Candidates at Risk
 // ══════════════════════════════════════════════════════════════════════════════
 .tf-dash__zone-2 {
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
   border-radius: var(--naleko-radius-xl);
   padding: 1.25rem 1.5rem;
-  box-shadow: var(--naleko-shadow-sm);
 }
 
 .tf-risk-cards {
@@ -180,20 +217,19 @@
   gap: 1rem;
   padding: 0.875rem 1rem;
   border-radius: var(--naleko-radius-md);
-  border: 1.5px solid var(--naleko-outline-variant);
-  background: var(--naleko-surface);
+  border: 1px solid rgba(200, 197, 205, 0.2);
+  border-left: 3px solid rgba(200, 197, 205, 0.3);
+  background: var(--naleko-surface-container-lowest);
   cursor: pointer;
-  transition: box-shadow 0.12s ease, border-color 0.12s ease;
+  transition: box-shadow 0.12s ease;
 
   &:hover { box-shadow: var(--naleko-shadow-sm); }
 
   &--breached {
-    border-color: color-mix(in srgb, var(--naleko-error) 40%, transparent);
-    background: color-mix(in srgb, var(--naleko-error) 4%, var(--naleko-surface));
+    border-left-color: var(--naleko-error);
   }
   &--at-risk {
-    border-color: color-mix(in srgb, var(--naleko-warning) 40%, transparent);
-    background: color-mix(in srgb, var(--naleko-warning) 4%, var(--naleko-surface));
+    border-left-color: var(--naleko-warning);
   }
 }
 
@@ -368,11 +404,8 @@
 // Zone 3 — My Actions Today
 .tf-dash__zone-3,
 .tf-dash__zone-4 {
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
   border-radius: var(--naleko-radius-xl);
   padding: 1.25rem 1.5rem;
-  box-shadow: var(--naleko-shadow-sm);
 }
 
 .tf-empty-state {
@@ -528,11 +561,8 @@
 // ZONE 5 — This Month
 // ══════════════════════════════════════════════════════════════════════════════
 .tf-dash__zone-5 {
-  background: var(--naleko-surface-container-low);
-  border: 1px solid var(--naleko-outline-variant);
   border-radius: var(--naleko-radius-xl);
   padding: 1.25rem 1.5rem;
-  box-shadow: var(--naleko-shadow-sm);
 }
 
 .tf-month-cards {
@@ -546,20 +576,17 @@
 .tf-month-card {
   border-radius: var(--naleko-radius-lg);
   padding: 1.125rem 1.25rem;
-  background: var(--naleko-surface);
-  border: 1.5px solid var(--naleko-outline-variant);
+  background: var(--naleko-surface-container-lowest);
+  border: 1px solid rgba(200, 197, 205, 0.18);
+  box-shadow: var(--naleko-shadow-card);
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
 
   &--success {
-    border-color: color-mix(in srgb, var(--naleko-success) 30%, transparent);
-    background: color-mix(in srgb, var(--naleko-success) 6%, var(--naleko-surface));
     .tf-month-card__value { color: var(--naleko-success); }
   }
   &--warning {
-    border-color: color-mix(in srgb, var(--naleko-warning) 30%, transparent);
-    background: color-mix(in srgb, var(--naleko-warning) 6%, var(--naleko-surface));
     .tf-month-card__value { color: var(--naleko-warning-dark, var(--naleko-warning)); }
   }
 }
@@ -583,4 +610,21 @@
   font-size: 0.72rem;
   color: var(--naleko-on-surface-variant);
   margin: 0.15rem 0 0;
+}
+
+// ── p-card overrides for zone cards ──────────────────────────────────────────
+// Strip p-card's internal padding and border — zone classes control all visuals.
+::ng-deep {
+  .tf-dash__zone-2,
+  .tf-dash__zone-3,
+  .tf-dash__zone-4,
+  .tf-dash__zone-5 {
+    &.p-card {
+      background: var(--naleko-surface-container-lowest) !important;
+      border: none !important;
+      box-shadow: var(--naleko-shadow-card) !important;
+    }
+    .p-card-body  { padding: 0 !important; }
+    .p-card-content { padding: 0 !important; }
+  }
 }

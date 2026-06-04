@@ -270,11 +270,11 @@ export class CandidateWorkspacePageComponent implements OnInit {
 
   // ── Phase stepper (D029) ─────────────────────────────────────────────────
   protected readonly PHASES = [
-    { phase: 1, label: 'Interview & Evaluation', desc: 'Screen, evaluate, decide' },
-    { phase: 2, label: 'Offer & Acceptance',      desc: 'Create, approve, convert' },
-    { phase: 3, label: 'Pre-Onboarding',          desc: 'Prepare, provision, clear' },
-    { phase: 4, label: 'Onboarding & Day 1',      desc: 'Engage, activate, confirm' },
-  ] as const;
+    { phase: 1, label: 'Interview & Evaluation', desc: 'Screen, evaluate, decide',  icon: 'pi-comments'  },
+    { phase: 2, label: 'Offer & Acceptance',      desc: 'Create, approve, convert',  icon: 'pi-file-edit' },
+    { phase: 3, label: 'Pre-Onboarding',          desc: 'Prepare, provision, clear', icon: 'pi-box'       },
+    { phase: 4, label: 'Onboarding & Day 1',      desc: 'Engage, activate, confirm', icon: 'pi-home'      },
+  ];
 
   protected currentPhase(c: Candidate): number {
     return PHASE_MAP[c.currentStage] ?? 1;

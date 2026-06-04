@@ -8,9 +8,7 @@ import {
   effect,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
-import { DialogModule } from 'primeng/dialog';
-import { CheckboxModule } from 'primeng/checkbox';
+import { DrawerModule } from 'primeng/drawer';
 import { AdminApiService } from '../../../../../services/admin-api.service';
 import {
   AdminUser,
@@ -19,26 +17,10 @@ import {
   ROLE_LABELS,
 } from '../../../../../models/admin.models';
 
-/**
- * EditRolesDrawerComponent
- *
- * Self-contained drawer for updating an existing user's roles.
- * Owns its local role-selection state, seeded from the `user` input.
- * Emits `saved` with the updated AdminUser on success,
- * or `cancelled` when the user dismisses the dialog.
- *
- * Usage:
- *   <tf-edit-roles-drawer
- *     [visible]="showEditDrawer()"
- *     [user]="selectedUser()"
- *     (saved)="onRolesUpdated($event)"
- *     (cancelled)="showEditDrawer.set(false)"
- *   />
- */
 @Component({
   selector: 'tf-edit-roles-drawer',
   standalone: true,
-  imports: [FormsModule, ButtonModule, DialogModule, CheckboxModule],
+  imports: [FormsModule, DrawerModule],
   templateUrl: './edit-roles-drawer.component.html',
   styleUrl: './edit-roles-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,40 +28,41 @@ import {
 export class EditRolesDrawerComponent {
   private readonly api = inject(AdminApiService);
 
-  // ── Inputs ──────────────────────────────────────────────────────────────────
-
   readonly visible = input<boolean>(false);
   readonly user    = input<AdminUser | null>(null);
-
-  // ── Outputs ─────────────────────────────────────────────────────────────────
 
   readonly saved     = output<AdminUser>();
   readonly cancelled = output<void>();
 
-  // ── Internal state ───────────────────────────────────────────────────────────
-
   protected readonly saving = signal(false);
   protected readonly error  = signal<string | null>(null);
 
-  /** Mutable local copy of role selection, seeded from `user` input. */
   protected roles: TalentFlowRole[] = [];
-
-  // ── Constants ────────────────────────────────────────────────────────────────
 
   protected readonly allRoles   = ALL_ROLES;
   protected readonly roleLabels = ROLE_LABELS;
 
+  protected readonly roleIcons: Record<TalentFlowRole, string> = {
+    ADMIN: 'pi-shield',
+    HM:    'pi-briefcase',
+    IT:    'pi-server',
+    TA:    'pi-users',
+  };
+
+  protected readonly roleDescs: Record<TalentFlowRole, string> = {
+    ADMIN: 'Full access to all modules, users and settings',
+    HM:    'Manage vacancies, review candidates and approve offers',
+    IT:    'Handle IT provisioning requests and task queues',
+    TA:    'Manage talent acquisition pipeline and candidate flow',
+  };
+
   constructor() {
-    // Seed local roles whenever the user input changes (i.e. a different row is
-    // opened). Uses effect() so it stays reactive with signals.
     effect(() => {
       const u = this.user();
       this.roles = u ? [...u.roles] : [];
       this.error.set(null);
     });
   }
-
-  // ── Handlers ─────────────────────────────────────────────────────────────────
 
   protected onHide(): void {
     this.cancelled.emit();

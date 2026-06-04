@@ -5,11 +5,9 @@ import {
   signal,
   OnInit,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
+import { LowerCasePipe } from '@angular/common';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { InputTextModule } from 'primeng/inputtext';
 import { ToggleButtonModule } from 'primeng/togglebutton';
 import { SelectModule } from 'primeng/select';
 import { MessageService, ConfirmationService } from 'primeng/api';
@@ -56,7 +54,7 @@ const DEFAULT_SCALES: SentimentScaleRow[] = [
 @Component({
   selector: 'tf-admin-sentiment-scales',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputNumberModule, InputTextModule, ToggleButtonModule, SelectModule, ConfigVersionBadgeComponent],
+  imports: [FormsModule, LowerCasePipe, InputNumberModule, ToggleButtonModule, SelectModule, ConfigVersionBadgeComponent],
   templateUrl: './admin-sentiment-scales.component.html',
   styleUrl:    './admin-sentiment-scales.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

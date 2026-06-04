@@ -1,53 +1,144 @@
-<main class="platform-home">
-  <div class="platform-home__header">
-    <h1 class="platform-home__greeting">{{ greeting() }}</h1>
-    <p class="platform-home__subtitle">Your HR workspace</p>
-  </div>
+<main class="ph">
 
-  <section class="platform-home__modules">
-    <h2 class="platform-home__section-title">Your Modules</h2>
-    <div class="platform-home__tile-grid">
-      @for (tile of tiles(); track tile.key) {
+  <!-- ── Header ──────────────────────────────────────────────────────────────── -->
+  <header class="ph-header">
+    <h1 class="ph-header__title">Your HCM Workspace</h1>
+    <p class="ph-header__sub">{{ greeting() }}</p>
+  </header>
+
+  <!-- ── Modules ──────────────────────────────────────────────────────────────── -->
+  <section class="ph-modules">
+    <p class="ph-modules__eyebrow">YOUR MODULES</p>
+
+    <div class="ph-grid">
+      @for (tile of tiles(); track tile.key; let i = $index) {
         <div
-          class="module-tile"
-          [class.module-tile--active]="tile.available"
-          [class.module-tile--locked]="!tile.available"
+          class="ph-card"
+          [class.ph-card--active]="tile.available"
+          [class.ph-card--locked]="!tile.available && !tile.comingSoon"
+          [class.ph-card--coming]="tile.comingSoon"
+          [class.ph-card--featured]="tile.featured"
+          [attr.data-color]="tile.color"
+          [style.animation-delay]="i * 80 + 'ms'"
           (click)="openModule(tile)"
           [attr.role]="tile.available ? 'button' : null"
           [attr.tabindex]="tile.available ? 0 : null"
           (keydown.enter)="openModule(tile)"
         >
-          <div class="module-tile__icon-wrap">
-            <i [class]="tile.icon + ' module-tile__icon'"></i>
-          </div>
+          <div class="ph-card__inner">
 
-          <div class="module-tile__body">
-            <div class="module-tile__label-row">
-              <span class="module-tile__label">{{ tile.label }}</span>
-              @if (!tile.available) {
-                <p-tag
-                  [value]="tile.comingSoon ? 'Coming Soon' : 'Upgrade'"
-                  severity="secondary"
-                  class="module-tile__badge"
-                />
-              }
+            <!-- Top: icon + meta -->
+            <div class="ph-card__top">
+              <div class="ph-card__icon-box">
+                <i [class]="tile.icon"></i>
+              </div>
+              <div class="ph-card__meta">
+                <div class="ph-card__title-row">
+                  <span class="ph-card__title">{{ tile.label }}</span>
+                  @if (tile.available) {
+                    <span class="ph-card__badge ph-card__badge--active">ACTIVE</span>
+                  } @else if (tile.comingSoon) {
+                    <span class="ph-card__badge ph-card__badge--soon">SOON</span>
+                  } @else {
+                    <span class="ph-card__badge ph-card__badge--upgrade">ENTERPRISE</span>
+                  }
+                </div>
+                <p class="ph-card__desc">{{ tile.description }}</p>
+                @if (tile.telemetry && tile.available) {
+                  <div class="ph-card__telemetry">
+                    <span class="ph-card__tel-dot"></span>
+                    <span>{{ tile.telemetry }}</span>
+                  </div>
+                }
+              </div>
             </div>
-            <p class="module-tile__description">{{ tile.description }}</p>
+
+            <!-- Shortcuts grid (admin card) -->
+            @if (tile.shortcuts && tile.available) {
+              <div class="ph-card__shortcuts">
+                @for (sc of tile.shortcuts; track sc.label) {
+                  <button
+                    class="ph-card__shortcut"
+                    (click)="$event.stopPropagation(); openShortcut(sc)"
+                  >
+                    <i [class]="sc.icon"></i>
+                    <span>{{ sc.label }}</span>
+                  </button>
+                }
+              </div>
+            }
+
+            <!-- Stats strip -->
+            @if (tile.available && tile.stats) {
+              <div class="ph-card__stats">
+                @for (stat of tile.stats; track stat.label) {
+                  <div class="ph-card__stat">
+                    <span class="ph-card__stat-value">{{ stat.value }}</span>
+                    <span class="ph-card__stat-label">{{ stat.label }}</span>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- CTA footer -->
+            @if (tile.available) {
+              <div class="ph-card__footer">
+                <button class="ph-card__cta-btn">
+                  Launch Workspace
+                  <i class="pi pi-arrow-right ph-card__cta-arrow"></i>
+                </button>
+              </div>
+            }
+
           </div>
 
-          @if (tile.available) {
-            <div class="module-tile__cta">
-              <p-button
-                label="Open"
-                icon="pi pi-arrow-right"
-                iconPos="right"
-                [text]="true"
-                size="small"
-              />
+          <!-- Lock overlay -->
+          @if (!tile.available && !tile.comingSoon) {
+            <div class="ph-card__lock-overlay">
+              <i class="pi pi-lock"></i>
+              <p class="ph-card__lock-title">Enterprise Module</p>
+              <p class="ph-card__lock-msg">Contact your admin to unlock</p>
             </div>
           }
         </div>
       }
     </div>
   </section>
+
+  <!-- ── Agent Operations Console ─────────────────────────────────────────── -->
+  <section class="ph-console" [class.ph-console--fading]="chatFading()">
+
+    <div class="ph-console__bar">
+      <div class="ph-console__bar-left">
+        <span class="ph-console__traffic ph-console__traffic--red"></span>
+        <span class="ph-console__traffic ph-console__traffic--amber"></span>
+        <span class="ph-console__traffic ph-console__traffic--green"></span>
+        <span class="ph-console__bar-title">hcm-agent-operations — zsh</span>
+      </div>
+      <div class="ph-console__live">
+        <span class="ph-console__live-dot"></span>
+        LIVE
+      </div>
+    </div>
+
+    <div class="ph-console__body">
+      @for (msg of chatMessages(); track msg.id) {
+        <div class="ph-console__msg ph-console__msg--{{ msg.role }}">
+          <span class="ph-console__role">{{ roleLabel(msg.role) }}</span>
+          <span class="ph-console__text">{{ msg.text }}</span>
+        </div>
+      }
+
+      @if (showTyping()) {
+        <div class="ph-console__msg ph-console__msg--agent">
+          <span class="ph-console__role">AGENT</span>
+          <span class="ph-console__dots">
+            <span></span><span></span><span></span>
+          </span>
+        </div>
+      }
+    </div>
+
+  </section>
+
 </main>

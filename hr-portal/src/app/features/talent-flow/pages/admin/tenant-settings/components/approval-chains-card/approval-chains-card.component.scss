@@ -10,12 +10,12 @@
     gap: 1rem;
     align-items: center;
     padding: 0.75rem 0;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid rgba(200, 197, 205, 0.2);
 
     &--head {
       font-size: 0.75rem;
       font-weight: 600;
-      color: var(--text-color-secondary);
+      color: var(--naleko-on-surface-variant);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
@@ -39,7 +39,7 @@
   &__tier-label {
     font-size: 0.8rem;
     font-weight: 600;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 
   &__steps {

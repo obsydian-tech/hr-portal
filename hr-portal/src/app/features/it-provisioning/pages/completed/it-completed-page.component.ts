@@ -44,15 +44,101 @@ import { AuthService } from '../../../../core/services/auth.service';
     </div>
   `,
   styles: [`
-    :host { display: block; padding: 1.5rem 2rem; max-width: 960px; margin: 0 auto; }
-    .ip-completed__header h1 { font-size: 1.375rem; font-weight: 700; margin: 0 0 0.25rem; }
-    .ip-completed__header p  { font-size: 0.875rem; color: #64748b; margin: 0 0 1.5rem; }
-    .ip-completed__empty { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 3rem; color: #64748b; }
-    .ip-completed__list  { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
-    .ip-completed__item  { display: flex; gap: 1rem; align-items: center; padding: 1rem 1.25rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; }
-    .ip-completed__type  { font-weight: 700; font-size: 0.8125rem; text-transform: uppercase; color: #1e293b; }
-    .ip-completed__name  { font-size: 0.9375rem; font-weight: 600; color: #1e293b; }
-    .ip-completed__role  { font-size: 0.875rem; color: #64748b; }
+    :host {
+      display: block;
+      padding: 2rem 2rem 4rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .ip-completed__header {
+      margin-bottom: 1.75rem;
+    }
+
+    .ip-completed__header h1 {
+      font-family: var(--naleko-font-display);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--naleko-on-surface);
+      margin: 0 0 0.25rem;
+      letter-spacing: -0.01em;
+    }
+
+    .ip-completed__header p {
+      font-size: 0.875rem;
+      color: var(--naleko-on-surface-variant);
+      margin: 0;
+    }
+
+    .ip-completed__loading {
+      text-align: center;
+      color: var(--naleko-on-surface-variant);
+      padding: 3rem;
+    }
+
+    .ip-completed__empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 3rem;
+      color: var(--naleko-on-surface-variant);
+      font-size: 0.9375rem;
+    }
+
+    .ip-completed__empty i { font-size: 2rem; }
+    .ip-completed__empty p { margin: 0; }
+
+    .ip-completed__list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .ip-completed__item {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      padding: 1rem 1.25rem;
+      background: var(--naleko-surface-container-lowest);
+      border: 1.5px solid rgba(200, 197, 205, 0.2);
+      border-radius: var(--naleko-radius-xl);
+      box-shadow: var(--naleko-shadow-card);
+      transition: box-shadow var(--naleko-duration) var(--naleko-ease),
+                  border-color var(--naleko-duration) var(--naleko-ease);
+    }
+
+    .ip-completed__item:hover {
+      box-shadow: var(--naleko-shadow-lg);
+      border-color: color-mix(in srgb, var(--naleko-success) 30%, transparent);
+    }
+
+    .ip-completed__type {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--naleko-radius-pill);
+      background: color-mix(in srgb, var(--naleko-success) 12%, transparent);
+      color: var(--naleko-success);
+      white-space: nowrap;
+    }
+
+    .ip-completed__name {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--naleko-on-surface);
+      flex: 1;
+    }
+
+    .ip-completed__role {
+      font-size: 0.875rem;
+      color: var(--naleko-on-surface-variant);
+    }
   `],
 })
 export class ItCompletedPageComponent implements OnInit {

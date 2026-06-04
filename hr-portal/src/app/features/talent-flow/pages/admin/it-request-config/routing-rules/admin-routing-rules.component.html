@@ -9,7 +9,9 @@
       @if (!loading()) {
         <tf-config-version-badge [version]="configVersion()" [changedAt]="updatedAt()" />
       }
-      <p-button label="Add Rule" icon="pi pi-plus" (onClick)="addRule()" [disabled]="saving()" />
+      <button type="button" class="cfg-btn-save" [disabled]="saving()" (click)="addRule()">
+        <i class="pi pi-plus"></i> Add Rule
+      </button>
     </div>
   </div>
 
@@ -24,7 +26,9 @@
     <div class="config-empty">
       <i class="pi pi-sitemap config-empty__icon"></i>
       <p>No routing rules yet. Create rules to automatically route provisioning requests to the right queue.</p>
-      <p-button label="Add First Rule" icon="pi pi-plus" styleClass="p-button-text" (onClick)="addRule()" />
+      <button type="button" class="cfg-btn-save" (click)="addRule()">
+        <i class="pi pi-plus"></i> Add First Rule
+      </button>
     </div>
 
   } @else {
@@ -51,7 +55,7 @@
                 styleClass="row-dropdown" appendTo="body" />
             </td>
             <td>
-              <input pInputText type="text"
+              <input type="text"
                 [ngModel]="editingRows()[rule.id].conditionValue"
                 (ngModelChange)="patchEditRow(rule.id, { conditionValue: $event })"
                 placeholder="e.g. Engineering"
@@ -73,8 +77,8 @@
                 styleClass="row-priority-input" />
             </td>
             <td class="action-cell">
-              <p-button icon="pi pi-check" styleClass="p-button-text p-button-sm p-button-success" pTooltip="Save" (onClick)="saveRowEdit(rule.id)" />
-              <p-button icon="pi pi-times" styleClass="p-button-text p-button-sm" pTooltip="Cancel" (onClick)="cancelEdit(rule.id)" />
+              <button type="button" class="cfg-icon-btn cfg-icon-btn--success" pTooltip="Save" (click)="saveRowEdit(rule.id)"><i class="pi pi-check"></i></button>
+              <button type="button" class="cfg-icon-btn" pTooltip="Cancel" (click)="cancelEdit(rule.id)"><i class="pi pi-times"></i></button>
             </td>
           </tr>
         } @else {
@@ -91,8 +95,8 @@
               <span class="priority-badge">{{ rule.priority }}</span>
             </td>
             <td class="action-cell">
-              <p-button icon="pi pi-pencil" styleClass="p-button-text p-button-sm" pTooltip="Edit" (onClick)="startEdit(rule)" />
-              <p-button icon="pi pi-trash" styleClass="p-button-text p-button-sm p-button-danger" pTooltip="Delete" (onClick)="confirmDelete(rule)" />
+              <button type="button" class="cfg-icon-btn" pTooltip="Edit" (click)="startEdit(rule)"><i class="pi pi-pencil"></i></button>
+              <button type="button" class="cfg-icon-btn cfg-icon-btn--danger" pTooltip="Delete" (click)="confirmDelete(rule)"><i class="pi pi-trash"></i></button>
             </td>
           </tr>
         }

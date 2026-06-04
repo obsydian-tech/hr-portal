@@ -5,7 +5,7 @@
 
   .p-sidebar-header {
     padding: 0;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid rgba(200, 197, 205, 0.2);
   }
 
   .p-sidebar-content {
@@ -16,7 +16,7 @@
 
   .p-sidebar-footer {
     padding: 0;
-    border-top: 1px solid var(--surface-border);
+    border-top: 1px solid rgba(200, 197, 205, 0.2);
   }
 }
 
@@ -34,8 +34,8 @@
       gap: 0.5rem;
       font-weight: 700;
       font-size: 1rem;
-      color: var(--text-color);
-      .pi { color: var(--primary-color); }
+      color: var(--naleko-on-surface);
+      .pi { color: var(--naleko-secondary); }
     }
   }
 
@@ -46,7 +46,7 @@
 
   &__section {
     padding: 1.25rem;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid rgba(200, 197, 205, 0.2);
     &:last-child { border-bottom: none; }
   }
 
@@ -56,20 +56,20 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 
   &__event-name {
     margin: 0 0 0.35rem;
     font-weight: 600;
     font-size: 0.9375rem;
-    color: var(--text-color);
+    color: var(--naleko-on-surface);
   }
 
   &__event-desc {
     margin: 0;
     font-size: 0.875rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     line-height: 1.5;
   }
 
@@ -81,14 +81,14 @@
 
   &__toggle-label {
     font-size: 0.875rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     &--on { color: var(--green-600); font-weight: 500; }
   }
 
   &__hint {
     margin: 0 0 0.75rem;
     font-size: 0.8125rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 
   &__role-list {
@@ -105,7 +105,7 @@
 
   &__role-label {
     font-size: 0.875rem;
-    color: var(--text-color);
+    color: var(--naleko-on-surface);
     cursor: pointer;
   }
 
