@@ -22,43 +22,75 @@
   </div>
 
   <div class="ip-topbar__right">
-    <!-- Role pill -->
+
+    <!-- Role pill — matches TalentFlow style -->
     <span class="ip-role-pill">IT</span>
 
-    <!-- User avatar -->
+    <!-- Bell with SLA breach badge -->
+    <p-button
+      icon="pi pi-bell"
+      styleClass="ip-btn-bell"
+      [text]="true"
+      [rounded]="true"
+      [badge]="bellBadge()"
+      badgeSeverity="danger"
+      aria-label="SLA alerts"
+      (onClick)="toggleBell($event)"
+    />
+
+    <!-- Bell popover: SLA breach list -->
+    <p-popover #bellPanel styleClass="ip-bell-panel">
+      <div class="ip-bell-panel__header">
+        <span class="ip-bell-panel__title">SLA Breaches</span>
+        @if (breachedTasks().length > 0) {
+          <span class="ip-bell-panel__count">{{ breachedTasks().length }}</span>
+        }
+      </div>
+
+      @if (breachedTasks().length === 0) {
+        <div class="ip-bell-panel__empty">
+          <i class="pi pi-check-circle"></i>
+          <span>No active SLA breaches</span>
+        </div>
+      } @else {
+        <ul class="ip-bell-panel__list">
+          @for (task of breachedTasks(); track task.id) {
+            <li class="ip-bell-panel__item" (click)="goToTask(task.id)">
+              <div class="ip-bell-panel__avatar">
+                {{ task.newHire.name.split(' ')[0]?.[0] }}{{ task.newHire.name.split(' ')[1]?.[0] }}
+              </div>
+              <div class="ip-bell-panel__info">
+                <span class="ip-bell-panel__name">{{ task.newHire.name }}</span>
+                <span class="ip-bell-panel__meta">{{ task.requirementType }} · {{ task.queue }}</span>
+              </div>
+              <i class="pi pi-chevron-right ip-bell-panel__arrow"></i>
+            </li>
+          }
+        </ul>
+        <div class="ip-bell-panel__footer">
+          <a routerLink="/platform/it-requests/queue" (click)="bellPanel.hide()" class="ip-bell-panel__view-all">
+            View all in queue →
+          </a>
+        </div>
+      }
+    </p-popover>
+
+    <!-- Avatar -->
     <p-avatar
       [label]="initials()"
-      size="normal"
       shape="circle"
       styleClass="ip-avatar"
     />
 
-    <span class="ip-display-name">{{ displayName() }}</span>
-
-    <!-- Back to platform home -->
-    <button
-      pButton
-      type="button"
-      icon="pi pi-home"
-      [text]="true"
-      [rounded]="true"
-      class="ip-home-btn"
-      aria-label="Platform home"
-      routerLink="/platform/home"
-    ></button>
-
     <!-- Log out -->
-    <button
-      pButton
-      type="button"
+    <p-button
       icon="pi pi-sign-out"
+      styleClass="ip-logout-btn"
       [text]="true"
       [rounded]="true"
-      severity="secondary"
-      class="ip-logout-btn"
       aria-label="Log out"
       (click)="onLogout()"
-    ></button>
+    />
   </div>
 </header>
 

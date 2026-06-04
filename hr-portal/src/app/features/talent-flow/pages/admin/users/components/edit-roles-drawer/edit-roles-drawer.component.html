@@ -1,51 +1,91 @@
-<p-dialog
-  [header]="user() ? 'Edit Roles — ' + user()!.fullName : 'Edit Roles'"
+<p-drawer
   [visible]="visible()"
-  [modal]="true"
-  [draggable]="false"
-  [resizable]="false"
-  [style]="{ width: '28rem' }"
-  styleClass="tfad-drawer"
-  (onHide)="onHide()"
+  (visibleChange)="$event || onHide()"
+  position="right"
+  styleClass="tf-edit-roles-drawer"
+  [style]="{ width: '50vw', minWidth: '480px' }"
+  [blockScroll]="true"
 >
 
-  @if (error()) {
-    <div class="tfad-drawer-error">
-      <i class="pi pi-exclamation-circle"></i>
-      {{ error() }}
-    </div>
-  }
-
-  <div class="tfad-form">
-    <div class="tfad-field">
-      <label class="tfad-field__label">
-        Roles <span class="tfad-field__hint">(at least one required)</span>
-      </label>
-      <div class="tfad-role-list">
-        @for (role of allRoles; track role) {
-          <label class="tfad-role-item">
-            <p-checkbox
-              [binary]="true"
-              [ngModel]="roles.includes(role)"
-              (onChange)="toggleRole(role, $event.checked)"
-            />
-            <span>{{ roleLabels[role] }}</span>
-          </label>
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <ng-template pTemplate="header">
+    <div class="er-drawer__header">
+      <div class="er-drawer__header-icon">
+        <i class="pi pi-pencil"></i>
+      </div>
+      <div>
+        <h3 class="er-drawer__title">Edit Roles</h3>
+        @if (user()) {
+          <p class="er-drawer__subtitle">{{ user()!.fullName }} · {{ user()!.email }}</p>
         }
       </div>
     </div>
+  </ng-template>
+
+  <!-- ── Body ────────────────────────────────────────────────────────────── -->
+  <div class="er-drawer__body">
+
+    @if (error()) {
+      <div class="er-drawer__error">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    <div class="er-section">
+      <h4 class="er-section__label">
+        Platform Roles
+        <span class="er-section__hint">At least one required</span>
+      </h4>
+
+      <div class="er-roles">
+        @for (role of allRoles; track role) {
+          <button
+            type="button"
+            class="er-role-card"
+            [class.er-role-card--selected]="roles.includes(role)"
+            (click)="toggleRole(role, !roles.includes(role))"
+          >
+            <div class="er-role-card__check">
+              @if (roles.includes(role)) {
+                <i class="pi pi-check-circle"></i>
+              } @else {
+                <i class="pi pi-circle"></i>
+              }
+            </div>
+            <div class="er-role-card__icon-wrap">
+              <i class="pi {{ roleIcons[role] }}"></i>
+            </div>
+            <div class="er-role-card__body">
+              <span class="er-role-card__name">{{ roleLabels[role] }}</span>
+              <span class="er-role-card__desc">{{ roleDescs[role] }}</span>
+            </div>
+          </button>
+        }
+      </div>
+    </div>
+
   </div>
 
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
   <ng-template pTemplate="footer">
-    <div class="tfad-drawer-footer">
-      <p-button label="Cancel" styleClass="p-button-text" (onClick)="onHide()" />
-      <p-button
-        label="Save Roles"
-        icon="pi pi-check"
-        [loading]="saving()"
-        (onClick)="submit()"
-      />
+    <div class="er-drawer__footer">
+      <button type="button" class="er-btn-cancel" (click)="onHide()">
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="er-btn-submit"
+        [disabled]="saving()"
+        (click)="submit()"
+      >
+        @if (saving()) {
+          <i class="pi pi-spin pi-spinner"></i> Saving…
+        } @else {
+          <i class="pi pi-check"></i> Save Roles
+        }
+      </button>
     </div>
   </ng-template>
 
-</p-dialog>
+</p-drawer>

@@ -8,7 +8,10 @@ import {
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
 import { TalentFlowStateService } from '../../services/talent-flow-state.service';
+import { TalentFlowAuthService } from '../../services/talent-flow-auth.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { Candidate, HiringStage, PendingAction } from '../../models/talent-flow.models';
 import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.component';
 
@@ -59,14 +62,29 @@ const OFFER_STAGES: HiringStage[] = ['OFFER_DELIVERY', 'CONTRACT_SIGNING', 'PRE_
 @Component({
   selector: 'tf-dashboard-page',
   standalone: true,
-  imports: [CommonModule, ButtonModule],
+  imports: [CommonModule, ButtonModule, CardModule],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardPageComponent implements OnInit {
-  protected readonly state = inject(TalentFlowStateService);
-  private  readonly router = inject(Router);
+  protected readonly state      = inject(TalentFlowStateService);
+  protected readonly tfAuth     = inject(TalentFlowAuthService);
+  private  readonly nalekoAuth  = inject(AuthService);
+  private  readonly router      = inject(Router);
+
+  protected readonly timeOfDay = computed<string>(() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'morning';
+    if (h < 17) return 'afternoon';
+    return 'evening';
+  });
+
+  protected readonly greetingName = computed(() =>
+    this.tfAuth.currentUser()?.givenName ||
+    this.nalekoAuth.currentUser()?.givenName ||
+    'there',
+  );
 
   // ── Zone 1: Signal Summary Strip (D020) ─────────────────────────────────────
 

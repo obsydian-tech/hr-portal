@@ -16,7 +16,7 @@
   <!-- Loading skeleton -->
   @if (loading()) {
     <div class="config-page__skeleton">
-      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3,4]"></div>
+      @for (_ of [1,2,3,4]; track $index) { <div class="config-skeleton-row"></div> }
     </div>
   } @else {
 
@@ -38,6 +38,8 @@
               decrementButtonIcon="pi pi-minus"
               suffix="%"
               styleClass="config-input-number"
+              [style]="{ width: '11rem' }"
+              [inputStyle]="{ width: '4.5rem', 'min-width': '0' }"
             />
           </div>
         </div>
@@ -56,20 +58,13 @@
 
     <!-- Actions -->
     <div class="config-save-row">
-      <p-button
-        label="Reset to Defaults"
-        icon="pi pi-refresh"
-        styleClass="p-button-text p-button-secondary"
-        [disabled]="saving()"
-        (onClick)="confirmReset()"
-      />
-      <p-button
-        label="Save Changes"
-        icon="pi pi-check"
-        [loading]="saving()"
-        [disabled]="!valid() || saving()"
-        (onClick)="confirmSave()"
-      />
+      <button type="button" class="cfg-btn-reset" [disabled]="saving()" (click)="confirmReset()">
+        <i class="pi pi-refresh"></i> Reset to Defaults
+      </button>
+      <button type="button" class="cfg-btn-save" [disabled]="!valid() || saving()" (click)="confirmSave()">
+        <i class="pi" [class.pi-check]="!saving()" [class.pi-spinner]="saving()" [class.pi-spin]="saving()"></i>
+        Save Changes
+      </button>
     </div>
   }
 

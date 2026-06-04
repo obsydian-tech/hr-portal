@@ -9,7 +9,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { SliderModule } from 'primeng/slider';
+import { InputNumberModule } from 'primeng/inputnumber';
 import { TalentFlowApiService } from '../../../services/talent-flow-api.service';
 import { ScoringWeights, DEFAULT_SCORING_WEIGHTS } from '../../../models/talent-flow.models';
 
@@ -40,7 +40,7 @@ const CRITERIA: WeightCriterion[] = [
 @Component({
   selector: 'tf-scoring-weights-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, SliderModule],
+  imports: [CommonModule, FormsModule, ButtonModule, InputNumberModule],
   templateUrl: './scoring-weights-page.component.html',
   styleUrl:    './scoring-weights-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

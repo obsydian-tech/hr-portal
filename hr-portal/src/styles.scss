@@ -70,9 +70,10 @@ img {
 // Used by all tenant-settings card components (standalone, so must be global)
 
 .tf-config-card {
-  background:    var(--surface-card, #fff);
-  border:        1px solid var(--surface-border, #e5e7eb);
-  border-radius: 10px;
+  background:    var(--naleko-surface-container-lowest);
+  border:        1.5px solid rgba(200, 197, 205, 0.2);
+  border-radius: var(--naleko-radius-xl);
+  box-shadow:    var(--naleko-shadow-card);
   overflow:      hidden;
 
   &__header {
@@ -80,7 +81,7 @@ img {
     justify-content: space-between;
     align-items:     flex-start;
     padding:         1.25rem 1.5rem;
-    border-bottom:   1px solid var(--surface-border, #e5e7eb);
+    border-bottom:   1px solid rgba(200, 197, 205, 0.2);
     gap:             1rem;
   }
 
@@ -89,20 +90,21 @@ img {
   }
 
   &__title {
+    font-family: var(--naleko-font-display);
     font-size:   1rem;
-    font-weight: 600;
-    color:       var(--text-color, #111827);
+    font-weight: 700;
+    color:       var(--naleko-on-surface);
     margin:      0 0 0.25rem;
     display:     flex;
     align-items: center;
     gap:         0.5rem;
 
-    i { color: var(--primary-color); }
+    i { color: var(--naleko-secondary); }
   }
 
   &__desc {
     font-size: 0.8rem;
-    color:     var(--text-color-secondary, #6b7280);
+    color:     var(--naleko-on-surface-variant);
     margin:    0;
   }
 
@@ -112,7 +114,7 @@ img {
 
   &__footer {
     padding:         1rem 1.5rem;
-    border-top:      1px solid var(--surface-border, #e5e7eb);
+    border-top:      1px solid rgba(200, 197, 205, 0.2);
     display:         flex;
     justify-content: flex-end;
     gap:             0.75rem;
@@ -123,7 +125,7 @@ img {
     align-items:     center;
     gap:             0.75rem;
     padding:         2.5rem 1.5rem;
-    color:           var(--text-color-secondary);
+    color:           var(--naleko-on-surface-variant);
     justify-content: center;
     font-size:       0.875rem;
   }
@@ -155,17 +157,17 @@ img {
   &__label {
     font-size:   0.8rem;
     font-weight: 600;
-    color:       var(--text-color-secondary, #374151);
+    color:       var(--naleko-on-surface-variant);
     display:     flex;
     align-items: center;
     gap:         0.4rem;
 
-    .required { color: var(--red-500); }
+    .required { color: var(--naleko-danger); }
   }
 
   &__hint {
     font-size:  0.7rem;
     font-weight: 400;
-    color:      var(--text-color-secondary);
+    color:      var(--naleko-on-surface-variant);
   }
 }

@@ -22,14 +22,14 @@
     margin: 0;
     font-size: 1.375rem;
     font-weight: 700;
-    color: var(--text-color);
-    .pi { color: var(--primary-color); }
+    color: var(--naleko-on-surface);
+    .pi { color: var(--naleko-secondary); }
   }
 
   &__subtitle {
     margin: 0.25rem 0 0;
     font-size: 0.875rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 
   &__loading {
@@ -38,9 +38,9 @@
     justify-content: center;
     gap: 0.75rem;
     padding: 4rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     font-size: 0.9375rem;
-    .pi { font-size: 1.25rem; color: var(--primary-color); }
+    .pi { font-size: 1.25rem; color: var(--naleko-secondary); }
   }
 }
 
@@ -53,7 +53,7 @@
     justify-content: space-between;
     gap: 1rem;
     padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid rgba(200, 197, 205, 0.2);
     flex-wrap: wrap;
   }
 
@@ -61,13 +61,13 @@
     margin: 0 0 0.2rem;
     font-size: 1rem;
     font-weight: 700;
-    color: var(--text-color);
+    color: var(--naleko-on-surface);
   }
 
   &__desc {
     margin: 0;
     font-size: 0.875rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 
   &__footer-note {
@@ -76,9 +76,9 @@
     gap: 0.4rem;
     padding: 0.75rem 1.5rem;
     font-size: 0.8125rem;
-    color: var(--text-color-secondary);
-    background: var(--surface-ground);
-    border-top: 1px solid var(--surface-border);
+    color: var(--naleko-on-surface-variant);
+    background: var(--naleko-surface-container-low);
+    border-top: 1px solid rgba(200, 197, 205, 0.2);
     .pi { font-size: 0.75rem; }
   }
 }
@@ -90,13 +90,13 @@
   align-items: flex-start;
   gap: 0.6rem;
   padding: 0.85rem 1.5rem;
-  background: rgba(99, 102, 241, 0.06);
-  border-bottom: 1px solid rgba(99, 102, 241, 0.18);
+  background: color-mix(in srgb, var(--naleko-secondary) 6%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--naleko-secondary) 18%, transparent);
   font-size: 0.875rem;
-  color: var(--text-color);
+  color: var(--naleko-on-surface);
   line-height: 1.5;
 
-  .pi { color: #6366f1; flex-shrink: 0; margin-top: 0.15rem; }
+  .pi { color: var(--naleko-secondary); flex-shrink: 0; margin-top: 0.15rem; }
 }
 
 // ── MVP badge ─────────────────────────────────────────────────────────────
@@ -109,9 +109,9 @@
   border-radius: 14px;
   font-size: 0.775rem;
   font-weight: 600;
-  color: var(--primary-color);
-  background: color-mix(in srgb, var(--primary-color) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary-color) 20%, transparent);
+  color: var(--naleko-secondary);
+  background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--naleko-secondary) 20%, transparent);
   flex-shrink: 0;
 
   .pi { font-size: 0.7rem; }
@@ -125,10 +125,10 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-color-secondary);
-  background: var(--surface-ground);
-  border-top: 1px solid var(--surface-border);
-  border-bottom: 1px solid var(--surface-border);
+  color: var(--naleko-on-surface-variant);
+  background: var(--naleko-surface-container-low);
+  border-top: 1px solid rgba(200, 197, 205, 0.2);
+  border-bottom: 1px solid rgba(200, 197, 205, 0.2);
 }
 
 // ── Shared notification table ──────────────────────────────────────────────
@@ -144,18 +144,18 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--text-color-secondary);
-    background: var(--surface-50, var(--surface-ground));
-    border-bottom: 1px solid var(--surface-border);
+    color: var(--naleko-on-surface-variant);
+    background: var(--naleko-surface-container-low);
+    border-bottom: 1px solid rgba(200, 197, 205, 0.2);
     white-space: nowrap;
   }
 
   td {
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid rgba(200, 197, 205, 0.2);
     vertical-align: middle;
     font-size: 0.875rem;
-    color: var(--text-color);
+    color: var(--naleko-on-surface);
   }
 
   &__row:last-child td {
@@ -163,7 +163,7 @@
   }
 
   &__row:hover td {
-    background: var(--surface-hover);
+    background: var(--naleko-surface-container-low);
   }
 
   &__name {
@@ -171,14 +171,14 @@
   }
 
   &__desc {
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     font-size: 0.8125rem;
     line-height: 1.4;
   }
 
   &__module {
     font-size: 0.8125rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 
   &__roles {
@@ -193,7 +193,7 @@
 
   &__no-recipients {
     font-size: 0.8125rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     font-style: italic;
   }
 
@@ -211,13 +211,13 @@
 
   &__no-action {
     font-size: 0.8125rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     font-style: italic;
   }
 
   // Escalation column headers
   &__th--silent {
-    color: var(--text-color-secondary) !important;
+    color: var(--naleko-on-surface-variant) !important;
     opacity: 0.7;
   }
 
@@ -236,8 +236,8 @@
     letter-spacing: 0;
 
     &--locked {
-      background: var(--surface-200);
-      color: var(--text-color-secondary);
+      background: var(--naleko-surface-container);
+      color: var(--naleko-on-surface-variant);
     }
 
     &--amber {
@@ -266,7 +266,7 @@
 
 .tf-notif-template-card {
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--surface-border);
+  border-bottom: 1px solid rgba(200, 197, 205, 0.2);
 
   &:last-child { border-bottom: none; }
 
@@ -287,22 +287,22 @@
   &__event {
     font-weight: 700;
     font-size: 0.9375rem;
-    color: var(--text-color);
+    color: var(--naleko-on-surface);
   }
 
   &__subject {
     font-size: 0.8125rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 
   &__body {
     padding: 0.75rem;
-    background: var(--surface-ground);
-    border: 1px solid var(--surface-border);
+    background: var(--naleko-surface-container-low);
+    border: 1px solid rgba(200, 197, 205, 0.2);
     border-radius: 6px;
     font-size: 0.9rem;
     line-height: 1.6;
-    color: var(--text-color);
+    color: var(--naleko-on-surface);
     margin-bottom: 0.75rem;
     white-space: pre-wrap;
     word-break: break-word;
@@ -318,7 +318,7 @@
   &__vars-label {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin-right: 0.25rem;

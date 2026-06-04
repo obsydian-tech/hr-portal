@@ -6,7 +6,7 @@
 
   .p-sidebar-header {
     padding: 0;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid rgba(200, 197, 205, 0.2);
   }
 
   .p-sidebar-content {
@@ -31,9 +31,9 @@
       gap: 0.5rem;
       font-weight: 700;
       font-size: 1rem;
-      color: var(--text-color);
+      color: var(--naleko-on-surface);
 
-      .pi { color: var(--primary-color); }
+      .pi { color: var(--naleko-secondary); }
     }
   }
 
@@ -51,12 +51,12 @@
 
   &__section {
     padding: 1.25rem;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid rgba(200, 197, 205, 0.2);
 
     &:last-child { border-bottom: none; }
 
     &--technical {
-      background: var(--surface-ground);
+      background: var(--naleko-surface-container-low);
     }
   }
 
@@ -66,7 +66,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 
   &__summary-tags {
@@ -79,7 +79,7 @@
   &__action-desc {
     margin: 0;
     font-size: 0.9375rem;
-    color: var(--text-color);
+    color: var(--naleko-on-surface);
     line-height: 1.5;
   }
 
@@ -95,14 +95,14 @@
     dt {
       font-size: 0.8125rem;
       font-weight: 600;
-      color: var(--text-color-secondary);
+      color: var(--naleko-on-surface-variant);
       align-self: center;
     }
 
     dd {
       margin: 0;
       font-size: 0.875rem;
-      color: var(--text-color);
+      color: var(--naleko-on-surface);
       word-break: break-all;
       align-self: center;
     }
@@ -130,16 +130,16 @@
     th {
       text-align: left;
       padding: 0.35rem 0.5rem;
-      background: var(--surface-200);
-      border-bottom: 1px solid var(--surface-border);
+      background: var(--naleko-surface-container-low);
+      border-bottom: 1px solid rgba(200, 197, 205, 0.2);
       font-weight: 600;
       font-size: 0.75rem;
-      color: var(--text-color-secondary);
+      color: var(--naleko-on-surface-variant);
     }
 
     td {
       padding: 0.4rem 0.5rem;
-      border-bottom: 1px solid var(--surface-border);
+      border-bottom: 1px solid rgba(200, 197, 205, 0.2);
       vertical-align: top;
       word-break: break-word;
     }
@@ -147,7 +147,7 @@
     tr:last-child td { border-bottom: none; }
   }
 
-  &__diff-key  { color: var(--text-color); font-weight: 600; width: 35%; }
+  &__diff-key  { color: var(--naleko-on-surface); font-weight: 600; width: 35%; }
 
   &__diff-before {
     color: #dc2626;
@@ -165,13 +165,13 @@
   &__diff-type {
     margin: 0.6rem 0 0 0;
     font-size: 0.8125rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
   }
 
   &__empty-note {
     margin: 0;
     font-size: 0.875rem;
-    color: var(--text-color-secondary);
+    color: var(--naleko-on-surface-variant);
     font-style: italic;
   }
 }

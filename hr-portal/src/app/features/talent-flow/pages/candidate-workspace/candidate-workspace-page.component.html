@@ -34,9 +34,13 @@
 
         <div class="tf-ws-header__identity">
           <h1 class="tf-ws-header__name">{{ c.firstName }} {{ c.lastName }}</h1>
-          <p class="tf-ws-header__role">{{ c.role || '—' }}</p>
+          <p class="tf-ws-header__subtitle">
+            {{ c.role || '—' }}
+            @if (c.positionLevel) {
+              <span class="tf-ws-header__sep">·</span>{{ c.positionLevel | titlecase }}
+            }
+          </p>
           <div class="tf-ws-header__pills">
-            <span class="tf-pill tf-pill--seniority">{{ c.positionLevel | titlecase }}</span>
             <span [class]="healthPillClass(c)">{{ healthLabel(c) }}</span>
             @if (c.interviewSentiment) {
               <span class="tf-pill tf-pill--sentiment tf-pill--sentiment-{{ c.interviewSentiment | lowercase }}">
@@ -44,7 +48,7 @@
               </span>
             }
             @if (c.source) {
-              <span class="tf-pill tf-pill--source">{{ c.source }}</span>
+              <span class="tf-ws-header__source">{{ c.source }}</span>
             }
           </div>
         </div>
@@ -111,6 +115,8 @@
           <div class="tf-ws-phase__dot">
             @if (currentPhase(c) > p.phase) {
               <i class="pi pi-check"></i>
+            } @else if (currentPhase(c) === p.phase) {
+              <i [class]="'pi ' + p.icon"></i>
             } @else {
               <span>{{ p.phase }}</span>
             }

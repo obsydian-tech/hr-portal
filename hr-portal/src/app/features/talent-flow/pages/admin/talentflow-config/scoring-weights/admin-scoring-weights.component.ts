@@ -6,9 +6,7 @@ import {
   computed,
   OnInit,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { TalentFlowApiService } from '../../../../services/talent-flow-api.service';
@@ -43,7 +41,7 @@ const CRITERIA: WeightCriterion[] = [
 @Component({
   selector: 'tf-admin-scoring-weights',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputNumberModule, ConfigVersionBadgeComponent],
+  imports: [FormsModule, InputNumberModule, ConfigVersionBadgeComponent],
   templateUrl: './admin-scoring-weights.component.html',
   styleUrl:    './admin-scoring-weights.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

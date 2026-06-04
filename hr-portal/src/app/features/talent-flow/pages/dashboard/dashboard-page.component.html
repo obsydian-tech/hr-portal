@@ -15,6 +15,13 @@
     </div>
   }
 
+  <!-- ── Greeting ──────────────────────────────────────────────────────────── -->
+  <div class="tf-dash__greeting">
+    <h1 class="tf-dash__greeting-title">
+      Good {{ timeOfDay() }}, {{ greetingName() }} — here's your pipeline today.
+    </h1>
+  </div>
+
   <!-- ═══════════════════════════════════════════════════════════════════════
        ZONE 1 — Signal Summary Strip (D020 Z1, D016 signal-first)
        4 KPI cards: SLA Breaches · At Risk · Acceptance Rate · Active Pipeline
@@ -22,24 +29,28 @@
   <div class="tf-dash__zone-1">
 
     <div class="tf-signal-card tf-signal-card--breached" (click)="openPipeline({ health: 'BREACHED' })">
+      <div class="tf-signal-card__icon"><i class="pi pi-exclamation-triangle"></i></div>
       <p class="tf-signal-card__eyebrow">SLA Breaches</p>
       <p class="tf-signal-card__value">{{ slaBreachCount() }}</p>
       <p class="tf-signal-card__sub">Candidates past SLA threshold</p>
     </div>
 
     <div class="tf-signal-card tf-signal-card--at-risk" (click)="openPipeline({ health: 'AT_RISK' })">
+      <div class="tf-signal-card__icon"><i class="pi pi-clock"></i></div>
       <p class="tf-signal-card__eyebrow">At Risk</p>
       <p class="tf-signal-card__value">{{ atRiskCount() }}</p>
       <p class="tf-signal-card__sub">Approaching SLA threshold</p>
     </div>
 
     <div class="tf-signal-card tf-signal-card--success">
+      <div class="tf-signal-card__icon"><i class="pi pi-percentage"></i></div>
       <p class="tf-signal-card__eyebrow">Acceptance Rate</p>
       <p class="tf-signal-card__value">{{ acceptanceRate() }}</p>
       <p class="tf-signal-card__sub">Pipeline reaching offer stage</p>
     </div>
 
     <div class="tf-signal-card tf-signal-card--primary" (click)="openPipeline()">
+      <div class="tf-signal-card__icon"><i class="pi pi-users"></i></div>
       <p class="tf-signal-card__eyebrow">Active Pipeline</p>
       <p class="tf-signal-card__value">{{ activePipelineCount() }}</p>
       <p class="tf-signal-card__sub">Total open candidates</p>
@@ -51,7 +62,7 @@
        ZONE 2 — Candidates at Risk (D020 Z2, D024 card anatomy, max 2)
   ══════════════════════════════════════════════════════════════════════════ -->
   @if (atRiskTotal() > 0) {
-    <div class="tf-dash__zone-2">
+    <p-card styleClass="tf-dash__zone-2">
 
       <div class="tf-section-head">
         <h2 class="tf-section-head__title">Candidates at risk</h2>
@@ -111,7 +122,7 @@
         }
       </div>
 
-    </div>
+    </p-card>
   }
 
   <!-- ═══════════════════════════════════════════════════════════════════════
@@ -120,7 +131,7 @@
   <div class="tf-dash__zone-mid">
 
     <!-- Zone 3 — My Actions Today (max 3, D020 Z3) -->
-    <div class="tf-dash__zone-3">
+    <p-card styleClass="tf-dash__zone-3">
 
       <div class="tf-section-head">
         <h2 class="tf-section-head__title">My actions today</h2>
@@ -154,10 +165,10 @@
         </div>
       }
 
-    </div>
+    </p-card>
 
     <!-- Zone 4 — Pipeline Summary: counts + health dots only (D025, no candidate names) -->
-    <div class="tf-dash__zone-4">
+    <p-card styleClass="tf-dash__zone-4">
 
       <div class="tf-section-head">
         <h2 class="tf-section-head__title">Pipeline</h2>
@@ -189,14 +200,14 @@
         }
       </div>
 
-    </div>
+    </p-card>
 
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
        ZONE 5 — This Month (D020 Z5, 3 stat cards)
   ══════════════════════════════════════════════════════════════════════════ -->
-  <div class="tf-dash__zone-5">
+  <p-card styleClass="tf-dash__zone-5">
 
     <div class="tf-section-head">
       <h2 class="tf-section-head__title">This month</h2>
@@ -224,6 +235,6 @@
 
     </div>
 
-  </div>
+  </p-card>
 
 </section>

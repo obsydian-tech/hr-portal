@@ -89,6 +89,7 @@ import { Candidate } from '../../models/talent-flow.models';
                 @for (c of allCandidates(); track c.id) {
                   <div class="hm-candidate-row hm-candidate-row--clickable"
                     [routerLink]="['/platform/talentflow/candidates', c.id]">
+                    <div class="hm-candidate-row__avatar">{{ candidateInitials(c) }}</div>
                     <div class="hm-candidate-row__info">
                       <span class="hm-candidate-row__name">{{ c.firstName }} {{ c.lastName }}</span>
                       <span class="hm-candidate-row__role">{{ c.role }}</span>
@@ -114,6 +115,7 @@ import { Candidate } from '../../models/talent-flow.models';
                 @for (c of decisionCandidates(); track c.id) {
                   <div class="hm-candidate-row hm-candidate-row--clickable"
                     [routerLink]="['/platform/talentflow/candidates', c.id]">
+                    <div class="hm-candidate-row__avatar">{{ candidateInitials(c) }}</div>
                     <div class="hm-candidate-row__info">
                       <span class="hm-candidate-row__name">{{ c.firstName }} {{ c.lastName }}</span>
                       <span class="hm-candidate-row__role">{{ c.role }}</span>
@@ -144,15 +146,17 @@ import { Candidate } from '../../models/talent-flow.models';
     .hm-dashboard__header { margin-bottom: 1.5rem; }
 
     .hm-dashboard__title {
-      font-size: 1.375rem;
+      font-family: var(--naleko-font-display);
+      font-size: 1.5rem;
       font-weight: 700;
-      color: var(--naleko-text-primary, #1e293b);
+      color: var(--naleko-on-surface);
       margin: 0 0 0.375rem;
+      letter-spacing: -0.01em;
     }
 
     .hm-dashboard__sub {
       font-size: 0.875rem;
-      color: var(--naleko-text-secondary, #64748b);
+      color: var(--naleko-on-surface-variant);
       margin: 0;
     }
 
@@ -168,7 +172,7 @@ import { Candidate } from '../../models/talent-flow.models';
       align-items: center;
       gap: 0.75rem;
       padding: 3rem 0;
-      color: var(--naleko-text-muted, #94a3b8);
+      color: var(--naleko-on-surface-variant);
       text-align: center;
     }
 
@@ -181,23 +185,50 @@ import { Candidate } from '../../models/talent-flow.models';
       align-items: center;
       gap: 0.5rem;
       padding: 2rem 0;
-      color: var(--naleko-danger, #ef4444);
+      color: var(--naleko-danger);
       text-align: center;
     }
 
     .hm-task-list { padding-top: 1rem; }
-
     .hm-candidate-list { padding-top: 1rem; }
 
     .hm-candidate-row {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.875rem;
       padding: 0.875rem 1rem;
-      background: var(--naleko-surface-card, #fff);
-      border: 1px solid var(--naleko-border-subtle, #e2e8f0);
-      border-radius: var(--naleko-radius-lg, 12px);
+      background: var(--naleko-surface-container-lowest);
+      border: 1.5px solid rgba(200, 197, 205, 0.2);
+      border-radius: var(--naleko-radius-lg);
+      box-shadow: var(--naleko-shadow-card);
       margin-bottom: 0.625rem;
+      transition:
+        border-color var(--naleko-duration) var(--naleko-ease),
+        box-shadow var(--naleko-duration) var(--naleko-ease);
+    }
+
+    .hm-candidate-row--clickable {
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .hm-candidate-row--clickable:hover {
+      border-color: color-mix(in srgb, var(--naleko-secondary) 30%, transparent);
+      box-shadow: var(--naleko-shadow-lg);
+    }
+
+    .hm-candidate-row__avatar {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--naleko-secondary) 13%, transparent);
+      color: var(--naleko-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
     }
 
     .hm-candidate-row__info { flex: 1; }
@@ -206,45 +237,58 @@ import { Candidate } from '../../models/talent-flow.models';
       display: block;
       font-weight: 600;
       font-size: 0.9375rem;
-      color: var(--naleko-text-primary, #1e293b);
+      color: var(--naleko-on-surface);
     }
 
     .hm-candidate-row__role {
       display: block;
       font-size: 0.8125rem;
-      color: var(--naleko-text-secondary, #64748b);
+      color: var(--naleko-on-surface-variant);
       margin-top: 0.125rem;
     }
 
     .hm-candidate-row__stage {
-      font-size: 0.75rem;
-      color: var(--naleko-text-muted, #94a3b8);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--naleko-radius-pill);
+      background: color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
+      color: var(--naleko-secondary);
+      white-space: nowrap;
     }
 
     .hm-candidate-row__result {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 600;
       padding: 0.25rem 0.625rem;
-      border-radius: var(--naleko-radius-sm, 4px);
+      border-radius: var(--naleko-radius-pill);
+      white-space: nowrap;
     }
 
     .hm-candidate-row__result--passed {
-      background: var(--naleko-success-muted, #f0fdf4);
-      color: var(--naleko-success, #16a34a);
+      background: color-mix(in srgb, var(--naleko-success) 13%, transparent);
+      color: var(--naleko-success);
     }
 
     .hm-candidate-row__result--failed {
-      background: var(--naleko-danger-muted, #fef2f2);
-      color: var(--naleko-danger, #ef4444);
+      background: color-mix(in srgb, var(--naleko-danger) 12%, transparent);
+      color: var(--naleko-danger);
     }
 
-    .hm-candidate-row--clickable { cursor: pointer; text-decoration: none; }
-    .hm-candidate-row--clickable:hover { background: var(--naleko-surface-container-low, #f8fafc); }
-
     .hm-candidate-row__sla { font-size: 0.625rem; }
-    .hm-candidate-row__sla--ON_TRACK { color: var(--naleko-success, #22c55e); }
-    .hm-candidate-row__sla--AT_RISK  { color: var(--naleko-warning, #f59e0b); }
-    .hm-candidate-row__sla--BREACHED { color: var(--naleko-danger, #ef4444); }
+    .hm-candidate-row__sla--ON_TRACK { color: var(--naleko-success); }
+    .hm-candidate-row__sla--AT_RISK  { color: var(--naleko-warning); }
+    .hm-candidate-row__sla--BREACHED { color: var(--naleko-danger); }
+
+    :host ::ng-deep .p-tabs .p-tab[aria-selected="true"] {
+      color: var(--naleko-secondary);
+      border-color: var(--naleko-secondary);
+    }
+
+    :host ::ng-deep .p-tabs .p-tablist-active-bar {
+      background: var(--naleko-secondary);
+    }
   `],
 })
 export class HmDashboardPageComponent {
@@ -315,13 +359,24 @@ export class HmDashboardPageComponent {
 
   protected stageLabel(stage: string): string {
     const labels: Record<string, string> = {
-      APPLICATION_REVIEW: 'Application Review',
-      INTERVIEWING:       'Interviewing',
-      EVALUATION:         'Evaluation',
-      BACKGROUND_CHECK:   'Background Check',
-      OFFER_PREPARATION:  'Offer Preparation',
+      APPLICATION_REVIEW:  'Application Review',
+      SCREENING:           'Screening',
+      INTERVIEWING:        'Interviewing',
+      TECHNICAL_INTERVIEW: 'Technical Interview',
+      EVALUATION:          'Evaluation',
+      BACKGROUND_CHECK:    'Background Check',
+      OFFER_PREPARATION:   'Offer Preparation',
+      OFFER_ACCEPTED:      'Offer Accepted',
+      OFFER_DECLINED:      'Offer Declined',
+      ONBOARDING:          'Onboarding',
+      WITHDRAWN:           'Withdrawn',
+      REJECTED:            'Rejected',
     };
-    return labels[stage] ?? stage;
+    return labels[stage] ?? stage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  protected candidateInitials(c: Candidate): string {
+    return ((c.firstName?.[0] ?? '') + (c.lastName?.[0] ?? '')).toUpperCase();
   }
 
   private loadCandidates(): void {

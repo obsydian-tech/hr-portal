@@ -7,9 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonModule } from 'primeng/button';
-import { DialogModule } from 'primeng/dialog';
-import { CheckboxModule } from 'primeng/checkbox';
+import { DrawerModule } from 'primeng/drawer';
 import { AdminApiService } from '../../../../../services/admin-api.service';
 import {
   AdminUser,
@@ -19,25 +17,10 @@ import {
   CreateUserPayload,
 } from '../../../../../models/admin.models';
 
-/**
- * AddUserDrawerComponent
- *
- * Self-contained drawer for creating a new TalentFlow user.
- * Owns its form state and API call.
- * Emits `saved` with the created AdminUser on success,
- * or `cancelled` when the user dismisses the dialog.
- *
- * Usage:
- *   <tf-add-user-drawer
- *     [visible]="showAddDrawer()"
- *     (saved)="onUserCreated($event)"
- *     (cancelled)="showAddDrawer.set(false)"
- *   />
- */
 @Component({
   selector: 'tf-add-user-drawer',
   standalone: true,
-  imports: [FormsModule, ButtonModule, DialogModule, CheckboxModule],
+  imports: [FormsModule, DrawerModule],
   templateUrl: './add-user-drawer.component.html',
   styleUrl: './add-user-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -45,16 +28,10 @@ import {
 export class AddUserDrawerComponent {
   private readonly api = inject(AdminApiService);
 
-  // ── Inputs ──────────────────────────────────────────────────────────────────
-
   readonly visible = input<boolean>(false);
-
-  // ── Outputs ─────────────────────────────────────────────────────────────────
 
   readonly saved     = output<AdminUser>();
   readonly cancelled = output<void>();
-
-  // ── Internal state ───────────────────────────────────────────────────────────
 
   protected readonly saving = signal(false);
   protected readonly error  = signal<string | null>(null);
@@ -64,12 +41,22 @@ export class AddUserDrawerComponent {
   protected familyName = '';
   protected roles: TalentFlowRole[] = [];
 
-  // ── Constants ────────────────────────────────────────────────────────────────
-
   protected readonly allRoles   = ALL_ROLES;
   protected readonly roleLabels = ROLE_LABELS;
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
+  protected readonly roleIcons: Record<TalentFlowRole, string> = {
+    ADMIN: 'pi-shield',
+    HM:    'pi-briefcase',
+    IT:    'pi-server',
+    TA:    'pi-users',
+  };
+
+  protected readonly roleDescs: Record<TalentFlowRole, string> = {
+    ADMIN: 'Full access to all modules, users and settings',
+    HM:    'Manage vacancies, review candidates and approve offers',
+    IT:    'Handle IT provisioning requests and task queues',
+    TA:    'Manage talent acquisition pipeline and candidate flow',
+  };
 
   protected onHide(): void {
     this.reset();

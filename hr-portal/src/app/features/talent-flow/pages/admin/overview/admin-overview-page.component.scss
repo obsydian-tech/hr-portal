@@ -38,7 +38,7 @@
 .tfad-overview__refreshed {
   font-family: 'Inter', sans-serif;
   font-size: 0.75rem;
-  color: var(--naleko-muted);
+  color: var(--naleko-on-surface-variant);
 }
 
 // ── State messages (loading / error) ─────────────────────────────────────────
@@ -50,19 +50,19 @@
   padding: 2rem;
   font-family: 'Inter', sans-serif;
   font-size: 0.9rem;
-  color: var(--naleko-muted);
+  color: var(--naleko-on-surface-variant);
 
   .pi-spin {
     font-size: 1.25rem;
-    color: var(--naleko-primary);
+    color: var(--naleko-secondary);
   }
 
   &--error {
-    color: var(--naleko-danger, #dc3545);
+    color: var(--naleko-danger);
 
     .pi {
       font-size: 1.25rem;
-      color: var(--naleko-danger, #dc3545);
+      color: var(--naleko-danger);
     }
   }
 }
@@ -80,10 +80,10 @@
   flex-direction: column;
   gap: 0.25rem;
   padding: 1.25rem 1.5rem;
-  border-radius: var(--naleko-radius-md);
-  background: var(--naleko-surface-elevated, #fff);
-  border: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.08));
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border-radius: var(--naleko-radius-xl);
+  background: var(--naleko-surface-container-lowest);
+  border: 1.5px solid rgba(200, 197, 205, 0.2);
+  box-shadow: var(--naleko-shadow-card);
   transition: box-shadow 0.15s ease;
 
   &:hover {
@@ -93,21 +93,21 @@
   // ── Colour variants ───────────────────────────────────────────────────────
 
   &--primary {
-    border-left: 4px solid var(--naleko-primary);
+    border-left: 4px solid var(--naleko-secondary);
 
-    .tfad-kpi-card__value { color: var(--naleko-primary); }
+    .tfad-kpi-card__value { color: var(--naleko-secondary); }
   }
 
   &--success {
-    border-left: 4px solid var(--naleko-success, #28a745);
+    border-left: 4px solid var(--naleko-success);
 
-    .tfad-kpi-card__value { color: var(--naleko-success, #28a745); }
+    .tfad-kpi-card__value { color: var(--naleko-success); }
   }
 
   &--danger {
-    border-left: 4px solid var(--naleko-danger, #dc3545);
+    border-left: 4px solid var(--naleko-danger);
 
-    .tfad-kpi-card__value { color: var(--naleko-danger, #dc3545); }
+    .tfad-kpi-card__value { color: var(--naleko-danger); }
   }
 
   &--warning {
@@ -117,7 +117,7 @@
   }
 
   &--neutral {
-    border-left: 4px solid var(--naleko-muted, #6c757d);
+    border-left: 4px solid var(--naleko-on-surface-variant);
 
     .tfad-kpi-card__value { color: var(--naleko-on-surface); }
   }
@@ -129,7 +129,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--naleko-muted);
+  color: var(--naleko-on-surface-variant);
 }
 
 .tfad-kpi-card__value {
@@ -142,7 +142,7 @@
 .tfad-kpi-card__sub {
   font-family: 'Inter', sans-serif;
   font-size: 0.75rem;
-  color: var(--naleko-muted);
+  color: var(--naleko-on-surface-variant);
 }
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
@@ -171,7 +171,7 @@
 
   .pi {
     font-size: 1rem;
-    color: var(--naleko-danger, #dc3545);
+    color: var(--naleko-danger);
   }
 }
 
@@ -189,13 +189,13 @@
   text-transform: uppercase;
 
   &--danger {
-    background: rgba(220, 53, 69, 0.12);
-    color: var(--naleko-danger, #dc3545);
+    background: color-mix(in srgb, var(--naleko-danger) 12%, transparent);
+    color: var(--naleko-danger);
   }
 
   &--success {
-    background: rgba(40, 167, 69, 0.12);
-    color: var(--naleko-success, #28a745);
+    background: color-mix(in srgb, var(--naleko-success) 12%, transparent);
+    color: var(--naleko-success);
   }
 }
 
@@ -203,8 +203,10 @@
 
 .tfad-table-wrap {
   overflow-x: auto;
-  border-radius: var(--naleko-radius-md);
-  border: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.08));
+  border-radius: var(--naleko-radius-xl);
+  border: 1.5px solid rgba(200, 197, 205, 0.2);
+  box-shadow: var(--naleko-shadow-card);
+  overflow: hidden;
 }
 
 .tfad-table {
@@ -214,7 +216,7 @@
   font-size: 0.875rem;
 
   thead tr {
-    background: var(--naleko-surface-subtle, #f8f9fa);
+    background: var(--naleko-surface-container-low);
   }
 
   th {
@@ -224,15 +226,15 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--naleko-muted);
-    border-bottom: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.08));
+    color: var(--naleko-on-surface-variant);
+    border-bottom: 1px solid rgba(200, 197, 205, 0.2);
     white-space: nowrap;
   }
 
   td {
     padding: 0.875rem 1rem;
     color: var(--naleko-on-surface);
-    border-bottom: 1px solid var(--naleko-border, rgba(0, 0, 0, 0.05));
+    border-bottom: 1px solid rgba(200, 197, 205, 0.12);
     vertical-align: middle;
   }
 }
@@ -241,7 +243,7 @@
   transition: background 0.12s ease;
 
   &:hover {
-    background: var(--naleko-surface-subtle, #f8f9fa);
+    background: var(--naleko-surface-container-low);
   }
 
   &:last-child td {
@@ -264,8 +266,8 @@
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-  background: var(--naleko-primary);
-  color: var(--naleko-on-primary, #fff);
+  background: color-mix(in srgb, var(--naleko-secondary) 15%, transparent);
+  color: var(--naleko-secondary);
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -273,7 +275,7 @@
 }
 
 .tfad-table__role {
-  color: var(--naleko-muted);
+  color: var(--naleko-on-surface-variant);
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -292,7 +294,7 @@
 .tfad-table__link {
   font-size: 0.8rem;
   font-weight: 500;
-  color: var(--naleko-primary);
+  color: var(--naleko-secondary);
   text-decoration: none;
   white-space: nowrap;
   transition: opacity 0.12s ease;
@@ -309,26 +311,26 @@
   padding: 2.5rem 1.5rem;
   font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
-  color: var(--naleko-muted);
+  color: var(--naleko-on-surface-variant);
   border-radius: var(--naleko-radius-md);
-  border: 1px dashed var(--naleko-border, rgba(0, 0, 0, 0.12));
+  border: 1px dashed rgba(200, 197, 205, 0.35);
 
   .pi {
     font-size: 1.25rem;
-    color: var(--naleko-success, #28a745);
+    color: var(--naleko-success);
   }
 }
 
 // ── Refresh button override ────────────────────────────────────────────────────
 
 :host ::ng-deep .tfad-btn-refresh.p-button {
-  color: var(--naleko-muted);
+  color: var(--naleko-on-surface-variant);
 
   &:hover { color: var(--naleko-on-surface); }
 }
 
 :host ::ng-deep .tfad-btn-retry.p-button {
-  color: var(--naleko-danger, #dc3545);
+  color: var(--naleko-danger);
   padding-left: 0;
 
   &:hover { opacity: 0.7; }

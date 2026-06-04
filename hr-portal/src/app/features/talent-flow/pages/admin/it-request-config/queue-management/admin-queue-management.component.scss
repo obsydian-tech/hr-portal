@@ -18,8 +18,8 @@
     flex-shrink: 0;
   }
 
-  &__title    { font-size: 1.25rem; font-weight: 700; color: var(--tf-color-text-default, #111827); margin: 0 0 0.25rem; }
-  &__subtitle { font-size: 0.875rem; color: var(--tf-color-text-muted, #6b7280); margin: 0; }
+  &__title    { font-size: 1.25rem; font-weight: 700; color: var(--naleko-on-surface); margin: 0 0 0.25rem; }
+  &__subtitle { font-size: 0.875rem; color: var(--naleko-on-surface-variant); margin: 0; }
   &__skeleton { display: flex; flex-direction: column; gap: 0.75rem; }
 }
 
@@ -39,7 +39,7 @@
   flex-direction: column;
   align-items:    center;
   padding:        4rem 1rem;
-  color:          var(--tf-color-text-muted, #6b7280);
+  color:          var(--naleko-on-surface-variant);
   gap:            0.75rem;
 
   &__icon { font-size: 3rem; opacity: 0.3; }
@@ -48,15 +48,15 @@
 // Table cells
 
 .queue-name  { font-weight: 600; font-size: 0.875rem; }
-.queue-desc  { font-size: 0.75rem; color: var(--tf-color-text-muted, #6b7280); margin-top: 0.125rem; }
+.queue-desc  { font-size: 0.75rem; color: var(--naleko-on-surface-variant); margin-top: 0.125rem; }
 
 .queue-category-tag {
   font-size: 0.7rem;
 
-  &--hardware { background: #dbeafe; color: #1d4ed8; }
-  &--software { background: #d1fae5; color: #065f46; }
-  &--access   { background: #fef3c7; color: #92400e; }
-  &--infra    { background: #f3e8ff; color: #6b21a8; }
+  &--hardware { background: color-mix(in srgb, var(--naleko-secondary) 10%, transparent); color: var(--naleko-secondary); }
+  &--software { background: color-mix(in srgb, var(--naleko-success) 10%, transparent); color: var(--naleko-success); }
+  &--access   { background: color-mix(in srgb, var(--naleko-warning) 10%, transparent); color: var(--naleko-warning); }
+  &--infra    { background: color-mix(in srgb, var(--naleko-tertiary) 10%, transparent); color: var(--naleko-tertiary); }
 }
 
 .action-cell {
@@ -70,7 +70,7 @@
   all:         unset;
   cursor:      pointer;
   font-size:   0.8125rem;
-  color:       var(--tf-color-primary, #6366f1);
+  color:       var(--naleko-secondary);
   display:     inline-flex;
   align-items: center;
   gap:         0.375rem;
@@ -86,11 +86,11 @@
 .specialist-chip {
   display:       inline-block;
   padding:       0.15rem 0.5rem;
-  background:    var(--tf-color-surface-subtle, #f9fafb);
-  border:        1px solid var(--tf-color-border, #e5e7eb);
+  background:    var(--naleko-surface-container-low);
+  border:        1px solid var(--naleko-outline-variant);
   border-radius: 9999px;
   font-size:     0.75rem;
-  color:         var(--tf-color-text-default, #374151);
+  color:         var(--naleko-on-surface);
 
-  &--empty { color: var(--tf-color-text-muted, #9ca3af); font-style: italic; }
+  &--empty { color: var(--naleko-on-surface-variant); font-style: italic; }
 }

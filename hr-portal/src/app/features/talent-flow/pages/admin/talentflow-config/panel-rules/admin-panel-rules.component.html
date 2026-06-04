@@ -16,7 +16,7 @@
 
   @if (loading()) {
     <div class="config-page__skeleton">
-      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3]"></div>
+      @for (_ of [1,2,3]; track $index) { <div class="config-skeleton-row"></div> }
     </div>
   } @else {
 
@@ -39,6 +39,8 @@
               decrementButtonIcon="pi pi-minus"
               suffix=" votes"
               styleClass="config-input-number"
+              [style]="{ width: '11rem' }"
+              [inputStyle]="{ width: '4.5rem', 'min-width': '0' }"
             />
           </div>
         </div>
@@ -83,8 +85,13 @@
     </div>
 
     <div class="config-save-row">
-      <p-button label="Reset to Defaults" icon="pi pi-refresh" styleClass="p-button-text p-button-secondary" [disabled]="saving()" (onClick)="confirmReset()" />
-      <p-button label="Save Changes" icon="pi pi-check" [loading]="saving()" [disabled]="saving()" (onClick)="confirmSave()" />
+      <button type="button" class="cfg-btn-reset" [disabled]="saving()" (click)="confirmReset()">
+        <i class="pi pi-refresh"></i> Reset to Defaults
+      </button>
+      <button type="button" class="cfg-btn-save" [disabled]="saving()" (click)="confirmSave()">
+        <i class="pi" [class.pi-check]="!saving()" [class.pi-spinner]="saving()" [class.pi-spin]="saving()"></i>
+        Save Changes
+      </button>
     </div>
   }
 
@@ -104,7 +111,7 @@
 
   @if (irLoading()) {
     <div class="config-page__skeleton">
-      <div class="config-skeleton-row" *ngFor="let _ of [1,2,3,4,5]"></div>
+      @for (_ of [1,2,3,4,5]; track $index) { <div class="config-skeleton-row"></div> }
     </div>
   } @else {
 
@@ -128,10 +135,11 @@
           @for (lvl of interviewLevels; track lvl) {
             <div class="ir-matrix__cell ir-matrix__cell--check">
               <label class="ir-matrix__check-label">
-                <p-checkbox
-                  [binary]="true"
-                  [ngModel]="isReqChecked(lvl, type)"
-                  (ngModelChange)="toggleInterviewReq(lvl, type, $event)"
+                <input
+                  type="checkbox"
+                  class="ir-matrix__checkbox"
+                  [checked]="isReqChecked(lvl, type)"
+                  (change)="toggleInterviewReq(lvl, type, $any($event.target).checked)"
                 />
                 <span [class.ir-matrix__req-text--active]="isReqChecked(lvl, type)">
                   {{ isReqChecked(lvl, type) ? 'Required' : 'Optional' }}
@@ -144,13 +152,10 @@
     </div>
 
     <div class="config-save-row">
-      <p-button
-        label="Save Interview Requirements"
-        icon="pi pi-check"
-        [loading]="irSaving()"
-        [disabled]="irSaving()"
-        (onClick)="confirmSaveInterviewReqs()"
-      />
+      <button type="button" class="cfg-btn-save" [disabled]="irSaving()" (click)="confirmSaveInterviewReqs()">
+        <i class="pi" [class.pi-check]="!irSaving()" [class.pi-spinner]="irSaving()" [class.pi-spin]="irSaving()"></i>
+        Save Interview Requirements
+      </button>
     </div>
   }
 

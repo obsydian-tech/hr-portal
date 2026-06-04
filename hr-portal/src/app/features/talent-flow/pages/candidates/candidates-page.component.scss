@@ -86,7 +86,7 @@
   box-sizing: border-box;
   transition: border-color 0.15s;
 
-  &:focus { border-color: var(--naleko-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-primary) 12%, transparent); }
+  &:focus { border-color: var(--naleko-secondary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-secondary) 12%, transparent); }
   &::placeholder { color: var(--naleko-on-surface-variant); }
 }
 
@@ -128,10 +128,10 @@
   &:hover { background: var(--naleko-surface-container); }
 
   &--active {
-    background: var(--naleko-primary);
-    border-color: var(--naleko-primary);
+    background: var(--naleko-secondary);
+    border-color: var(--naleko-secondary);
     color: var(--naleko-on-primary);
-    &:hover { background: var(--naleko-primary); }
+    &:hover { background: var(--naleko-secondary); }
   }
   &--green.tf-qf-chip--active { background: var(--naleko-success); border-color: var(--naleko-success); color: #fff; }
   &--amber.tf-qf-chip--active { background: var(--naleko-warning); border-color: var(--naleko-warning); color: #fff; }
@@ -174,8 +174,8 @@
   height: 1.5rem;
   padding: 0 6px;
   border-radius: var(--naleko-radius-pill);
-  background: color-mix(in srgb, var(--naleko-primary) 12%, transparent);
-  color: var(--naleko-primary);
+  background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+  color: var(--naleko-secondary);
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -225,7 +225,7 @@
 .tf-recent-card__stage {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--naleko-primary);
+  color: var(--naleko-secondary);
   margin: 0.25rem 0 0;
 }
 

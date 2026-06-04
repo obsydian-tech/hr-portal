@@ -9,6 +9,7 @@ import {
 import { Router } from '@angular/router';
 import { RequirementType, ItTask, ItQueue, TaskSlaStatus } from '../../models/it-provisioning.models';
 import { ItProvisioningApiService } from '../../services/it-provisioning-api.service';
+import { ItProvisioningStateService } from '../../services/it-provisioning-state.service';
 import { TalentFlowAuthService } from '../../../talent-flow/services/talent-flow-auth.service';
 import { TalentFlowApiService } from '../../../talent-flow/services/talent-flow-api.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -24,6 +25,7 @@ import { ITQueue } from '../../../talent-flow/pages/admin/it-request-config/it-r
 })
 export class ItQueuePageComponent implements OnInit {
   private readonly api        = inject(ItProvisioningApiService);
+  private readonly itState    = inject(ItProvisioningStateService);
   private readonly tfAuth     = inject(TalentFlowAuthService);
   private readonly tfApi      = inject(TalentFlowApiService);
   private readonly nalekoAuth = inject(AuthService);
@@ -80,6 +82,7 @@ export class ItQueuePageComponent implements OnInit {
     ]);
 
     this.tasks.set(taskList);
+    this.itState.tasks.set(taskList);
 
     // 2. Derive queue tabs from admin config, filtered to queues where the
     //    specialist's email appears in assignedSpecialists (or show all if
@@ -113,6 +116,7 @@ export class ItQueuePageComponent implements OnInit {
     await this.api.claimTask(taskId);
     const updated = await this.api.getMyTasks();
     this.tasks.set(updated);
+    this.itState.tasks.set(updated);
     this.actionPending.set(null);
     // Navigate to task detail after claiming
     void this.router.navigate(['/platform/it-requests/task', taskId]);

@@ -5,14 +5,14 @@
 
   &__header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; gap: 1rem; }
   &__header-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
-  &__title    { font-size: 1.25rem; font-weight: 700; color: var(--tf-color-text-default, #111827); margin: 0 0 0.25rem; }
-  &__subtitle { font-size: 0.875rem; color: var(--tf-color-text-muted, #6b7280); margin: 0; }
+  &__title    { font-size: 1.25rem; font-weight: 700; color: var(--naleko-on-surface); margin: 0 0 0.25rem; }
+  &__subtitle { font-size: 0.875rem; color: var(--naleko-on-surface-variant); margin: 0; }
   &__skeleton { display: flex; flex-direction: column; gap: 0.75rem; }
 }
 
 .config-skeleton-row {
   height: 2.5rem; border-radius: 0.5rem;
-  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background: linear-gradient(90deg, var(--naleko-surface-container-low) 25%, var(--naleko-surface-container) 50%, var(--naleko-surface-container-low) 75%);
   background-size: 200% 100%; animation: shimmer 1.5s infinite;
 }
 
@@ -23,18 +23,18 @@
 
 .config-empty {
   display: flex; flex-direction: column; align-items: center;
-  padding: 4rem 1rem; color: var(--tf-color-text-muted, #6b7280); gap: 0.75rem;
+  padding: 4rem 1rem; color: var(--naleko-on-surface-variant); gap: 0.75rem;
 
   &__icon { font-size: 3rem; opacity: 0.3; }
 }
 
 // Table rows
 
-.editing-row { background: var(--tf-color-surface-subtle, #f9fafb); }
+.editing-row { background: var(--naleko-surface-container-low); }
 
 .duplicate-row {
   background: #fff7f7;
-  td { border-left: 2px solid var(--tf-color-danger, #ef4444); }
+  td { border-left: 2px solid var(--naleko-error); }
 }
 
 .action-cell { display: flex; gap: 0.25rem; align-items: center; justify-content: center; }
@@ -55,18 +55,69 @@
   min-width: 2rem;
   text-align: center;
   padding: 0.125rem 0.5rem;
-  border: 1px solid var(--tf-color-border, #e5e7eb);
+  border: 1px solid var(--naleko-outline-variant);
   border-radius: 0.375rem;
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .queue-label { font-size: 0.875rem; }
-.muted { color: var(--tf-color-text-muted, #9ca3af); font-size: 0.75rem; }
+.muted { color: var(--naleko-on-surface-variant); font-size: 0.75rem; }
 
 .row-dropdown      { width: 160px; }
-.row-input         { width: 100%; min-width: 120px; }
 .row-priority-input { width: 80px; }
+
+.row-input {
+  width: 100%;
+  min-width: 120px;
+  padding: 0.4rem 0.625rem;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface-container-lowest);
+  font-family: var(--naleko-font-body);
+  font-size: 0.875rem;
+  color: var(--naleko-on-surface);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &:focus {
+    border-color: var(--naleko-secondary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+  }
+}
+
+.cfg-btn-save {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  padding: 0.5rem 1rem; border: none; border-radius: var(--naleko-radius-md);
+  background: linear-gradient(135deg, var(--naleko-secondary), var(--naleko-primary));
+  color: var(--naleko-on-primary); font-family: var(--naleko-font-body); font-size: 0.875rem;
+  font-weight: 700; cursor: pointer; transition: opacity 0.15s;
+  &:hover:not(:disabled) { opacity: 0.92; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.cfg-icon-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--naleko-radius-sm);
+  cursor: pointer;
+  padding: 0.3rem 0.45rem;
+  color: var(--naleko-on-surface-variant);
+  line-height: 1;
+  font-size: 0.8rem;
+  transition: background 0.12s, color 0.12s;
+
+  &:hover:not(:disabled) { background: var(--naleko-surface-container); color: var(--naleko-on-surface); }
+
+  &--danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--naleko-error) 8%, transparent);
+    color: var(--naleko-error);
+  }
+
+  &--success:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--naleko-success) 8%, transparent);
+    color: var(--naleko-success);
+  }
+}
 
 .duplicate-warning {
   display:       flex;
@@ -80,5 +131,5 @@
   color:         #92400e;
   font-size:     0.875rem;
 
-  i { color: #f59e0b; }
+  i { color: var(--naleko-warning); }
 }
