@@ -384,3 +384,37 @@ resource "aws_lambda_permission" "sla_monitor_cron_eventbridge" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.sla_monitor_cron.arn
 }
+
+# ── Rule 10: IntelligenceRuleMatched → notification queue (INTEL-002 Phase 4) ─
+# Routes Intelligence Layer alerts to existing notification system.
+# Intelligence Layer evaluates rules when candidate data changes and publishes
+# events when rules match. This rule routes them to the notification queue
+# for email + in-app delivery via sendTalentFlowNotification Lambda.
+
+resource "aws_cloudwatch_event_rule" "intelligence_rule_matched" {
+  name           = "talent-flow-intelligence-rule-matched"
+  description    = "Route IntelligenceRuleMatched events to notification queue"
+  event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
+  state          = "ENABLED"
+
+  event_pattern = jsonencode({
+    source      = ["talent-flow.intelligence"]
+    detail-type = ["IntelligenceRuleMatched"]
+  })
+
+  tags = merge(local.tf_tags, { Ticket = "INTEL-002" })
+}
+
+resource "aws_cloudwatch_event_target" "intelligence_rule_matched" {
+  rule           = aws_cloudwatch_event_rule.intelligence_rule_matched.name
+  event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
+  target_id      = "notificationQueue-intelligenceRuleMatched"
+  arn            = aws_sqs_queue.talent_flow_notification.arn
+
+  sqs_target {
+    message_group_id = "intelligence-alerts"
+  }
+
+  # Pass the entire detail object without transformation to avoid issues with null values
+  input_path = "$.detail"
+}

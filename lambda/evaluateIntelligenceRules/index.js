@@ -9,14 +9,18 @@
  */
 
 const { DynamoDBClient, GetItemCommand, QueryCommand, PutItemCommand } = require('@aws-sdk/client-dynamodb');
+const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
 const { randomUUID } = require('crypto');
 const { getConfig } = require('./config-reader');
 
 const dynamoDB = new DynamoDBClient({});
+const lambda = new LambdaClient({});
 
 const STATE_TABLE = process.env.STATE_TABLE_NAME || 'talent-flow-state';
 const USERS_TABLE = process.env.USERS_TABLE_NAME || 'talent-flow-users';
+const NOTIFICATIONS_TABLE = process.env.NOTIFICATIONS_TABLE_NAME || 'talent-flow-notifications';
+const NOTIFICATION_LAMBDA = process.env.NOTIFICATION_LAMBDA_NAME || 'sendTalentFlowNotification';
 
 /**
  * Main handler - processes DynamoDB stream records
@@ -431,8 +435,110 @@ function evaluateCondition(signalValue, operator, expectedValue) {
 }
 
 /**
+ * Map action type to notification type
+ * Determines which type of notification to send based on rule action
+ *
+ * @param {string} actionType - Action type from rule
+ * @returns {string} Notification type
+ */
+function getNotificationType(actionType) {
+  const ACTION_TYPE_TO_NOTIFICATION_TYPE = {
+    // Generic/Fallback
+    'INTELLIGENCE_ALERT': 'INTELLIGENCE_RULE_MATCHED',
+    'CUSTOM_NOTIFICATION': 'INTELLIGENCE_RULE_MATCHED',
+
+    // Urgent Attention
+    'ALERT_TA_URGENT': 'CANDIDATE_ATTENTION_REQUIRED',
+    'ALERT_HM_URGENT': 'CANDIDATE_ATTENTION_REQUIRED',
+    'ESCALATE_TO_ADMIN': 'CANDIDATE_ATTENTION_REQUIRED',
+
+    // Offer Expiry
+    'NOTIFY_HM_OFFER_EXPIRY': 'OFFER_EXPIRING_SOON',
+    'NOTIFY_TA_OFFER_EXPIRY': 'OFFER_EXPIRING_SOON',
+    'ALERT_OFFER_DEADLINE': 'OFFER_EXPIRING_SOON',
+    'NOTIFY_HM_REVIEW_OFFER': 'OFFER_EXPIRING_SOON',
+
+    // HM Inactivity
+    'NOTIFY_HM_LOGIN_REQUIRED': 'HM_INACTIVE_ALERT',
+    'ALERT_TA_HM_INACTIVE': 'HM_INACTIVE_ALERT',
+    'ESCALATE_HM_INACTIVITY': 'HM_INACTIVE_ALERT',
+
+    // TA Follow-up
+    'NOTIFY_TA_FOLLOWUP': 'TA_FOLLOWUP_NEEDED',
+    'ALERT_TA_STALE_CANDIDATE': 'TA_FOLLOWUP_NEEDED',
+    'REMIND_TA_ACTION_NEEDED': 'TA_FOLLOWUP_NEEDED',
+    'NOTIFY_TA_REVIEW_CANDIDATE': 'TA_FOLLOWUP_NEEDED',
+  };
+
+  return ACTION_TYPE_TO_NOTIFICATION_TYPE[actionType] || 'INTELLIGENCE_RULE_MATCHED';
+}
+
+/**
+ * Determine recipient role based on action type
+ *
+ * @param {string} actionType - Action type from rule
+ * @returns {string} Recipient role (TA, HM, ADMIN)
+ */
+function getRecipientRole(actionType) {
+  const ACTION_TYPE_TO_RECIPIENT_ROLE = {
+    // TA Recipients
+    'ALERT_TA_URGENT': 'TA',
+    'NOTIFY_TA_FOLLOWUP': 'TA',
+    'ALERT_TA_STALE_CANDIDATE': 'TA',
+    'REMIND_TA_ACTION_NEEDED': 'TA',
+    'NOTIFY_TA_REVIEW_CANDIDATE': 'TA',
+    'NOTIFY_TA_OFFER_EXPIRY': 'TA',
+    'ALERT_TA_HM_INACTIVE': 'TA',
+
+    // HM Recipients
+    'ALERT_HM_URGENT': 'HM',
+    'NOTIFY_HM_OFFER_EXPIRY': 'HM',
+    'NOTIFY_HM_LOGIN_REQUIRED': 'HM',
+    'NOTIFY_HM_REVIEW_OFFER': 'HM',
+
+    // Admin Recipients
+    'ESCALATE_TO_ADMIN': 'ADMIN',
+    'ESCALATE_HM_INACTIVITY': 'ADMIN',
+
+    // Generic
+    'INTELLIGENCE_ALERT': 'TA',
+    'CUSTOM_NOTIFICATION': 'TA',
+  };
+
+  return ACTION_TYPE_TO_RECIPIENT_ROLE[actionType] || 'TA';
+}
+
+/**
+ * Determine recipient ID based on recipient role and candidate data
+ *
+ * @param {string} actionType - Action type from rule
+ * @param {Object} candidateData - Candidate SAGA record
+ * @returns {string} User ID of recipient
+ */
+function determineRecipientId(actionType, candidateData) {
+  const role = getRecipientRole(actionType);
+
+  switch (role) {
+    case 'HM':
+      // Hiring Manager - from candidate record
+      return candidateData.hiringManagerId || candidateData.updatedBy;
+
+    case 'TA':
+      // Talent Acquisition - candidate creator
+      return candidateData.updatedBy || candidateData.createdBy;
+
+    case 'ADMIN':
+      // System admin - placeholder for now
+      return 'SYSTEM_ADMIN';
+
+    default:
+      return candidateData.updatedBy || 'SYSTEM';
+  }
+}
+
+/**
  * Process action when rule matches
- * Creates notification and checks cooldown to prevent spam
+ * Directly invokes sendTalentFlowNotification Lambda for notification delivery
  *
  * @param {Object} rule - Matched intelligence rule
  * @param {Object} item - DynamoDB item (candidate or offer)
@@ -448,85 +554,110 @@ async function processAction(rule, item, signals) {
     actionType: rule.action.type
   });
 
+  // Determine recipient
+  const recipientId = determineRecipientId(rule.action.type, item);
+
   // Check cooldown to prevent notification spam
   const cooldownHours = rule.action.cooldown || 24;
-  const withinCooldown = await checkCooldown(entityId, rule.id, cooldownHours);
+  const withinCooldown = await checkCooldown(recipientId, rule.id, cooldownHours);
 
   if (withinCooldown) {
     console.info('[evaluateIntelligenceRules] Action skipped - within cooldown', {
       entityId,
       ruleId: rule.id,
+      recipientId,
       cooldownHours
     });
     return { status: 'skipped', reason: 'cooldown' };
   }
 
-  // Create notification record
-  const notificationId = randomUUID();
-  const now = new Date().toISOString();
+  // Determine notification type
+  const notificationType = getNotificationType(rule.action.type);
 
-  const notification = {
-    PK: `${entityType}#${entityId}`,
-    SK: `NOTIFICATION#${notificationId}`,
-    notificationId,
-    entityId,
-    entityType,
+  // Build notification payload for sendTalentFlowNotification Lambda
+  const notificationPayload = {
+    type: notificationType,
+    recipientEmail: 'system@talentflow.internal', // Placeholder for MVP1
+    recipientId,
+    candidateId: item.candidateId || null,
+    offerId: item.offerId || null,
+    tenantId: item.tenantId || 'DEFAULT',
     ruleId: rule.id,
     ruleName: rule.name,
-    actionType: rule.action.type,
     priority: rule.action.priority || 'MEDIUM',
-    status: 'PENDING',
-    signals: signals, // Store signal values that triggered the rule
-    createdAt: now,
-    tenantId: item.tenantId || 'DEFAULT'
+    actionType: rule.action.type,
+    signals: signals,
+    candidateName: item.firstName && item.lastName ? `${item.firstName} ${item.lastName}` : null,
+    positionTitle: item.positionTitle || null,
+    currentStage: item.currentStage || null,
   };
 
+  // Add type-specific fields
+  if (signals.OFFER_DAYS_TO_EXPIRY !== undefined) {
+    notificationPayload.daysToExpiry = signals.OFFER_DAYS_TO_EXPIRY;
+  }
+  if (signals.HM_DAYS_SINCE_LOGIN !== undefined) {
+    notificationPayload.daysSinceHMLogin = signals.HM_DAYS_SINCE_LOGIN;
+  }
+  if (signals.TA_DAYS_SINCE_CANDIDATE_ACTION !== undefined) {
+    notificationPayload.daysSinceLastAction = signals.TA_DAYS_SINCE_CANDIDATE_ACTION;
+  }
+
   try {
-    await dynamoDB.send(new PutItemCommand({
-      TableName: STATE_TABLE,
-      Item: marshall(notification)
+    // Directly invoke sendTalentFlowNotification Lambda (async)
+    await lambda.send(new InvokeCommand({
+      FunctionName: NOTIFICATION_LAMBDA,
+      InvocationType: 'Event', // Async invocation - don't wait for response
+      Payload: JSON.stringify({
+        Records: [{
+          body: JSON.stringify(notificationPayload)
+        }]
+      })
     }));
 
-    console.info('[evaluateIntelligenceRules] Notification created', {
-      notificationId,
+    console.info('[evaluateIntelligenceRules] Notification Lambda invoked', {
       entityId,
       ruleId: rule.id,
       actionType: rule.action.type,
-      priority: rule.action.priority
+      notificationType,
+      recipientId,
+      lambdaFunction: NOTIFICATION_LAMBDA
     });
 
-    return { status: 'created', notificationId };
+    return { status: 'invoked', notificationType, recipientId };
   } catch (err) {
-    console.error('[evaluateIntelligenceRules] Failed to create notification', {
+    console.error('[evaluateIntelligenceRules] Failed to invoke notification Lambda', {
       entityId,
       ruleId: rule.id,
       error: err.message
     });
-    throw err;
+    // Fail-open: log error but don't crash
+    return { status: 'failed', error: err.message };
   }
 }
 
 /**
  * Check if we're within cooldown period for this rule
- * Queries recent notifications to prevent spam
+ * Queries talent-flow-notifications table to prevent spam
  *
- * @param {string} entityId - Candidate or offer ID
+ * @param {string} recipientId - User ID of recipient
  * @param {string} ruleId - Rule ID
  * @param {number} cooldownHours - Hours to wait before re-triggering
  * @returns {Promise<boolean>} True if within cooldown period
  */
-async function checkCooldown(entityId, ruleId, cooldownHours) {
+async function checkCooldown(recipientId, ruleId, cooldownHours) {
   const cooldownMs = cooldownHours * 60 * 60 * 1000;
   const cooldownThreshold = new Date(Date.now() - cooldownMs).toISOString();
 
   try {
-    // Query for recent notifications for this rule
+    // Query talent-flow-notifications table for recent notifications
+    // PK: USER#{userId}, SK: NOTIFICATION#{notificationId}
     const result = await dynamoDB.send(new QueryCommand({
-      TableName: STATE_TABLE,
+      TableName: NOTIFICATIONS_TABLE,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       FilterExpression: 'ruleId = :ruleId AND createdAt > :threshold',
       ExpressionAttributeValues: marshall({
-        ':pk': `CANDIDATE#${entityId}`, // Try candidate first
+        ':pk': `USER#${recipientId}`,
         ':sk': 'NOTIFICATION#',
         ':ruleId': ruleId,
         ':threshold': cooldownThreshold
@@ -536,27 +667,20 @@ async function checkCooldown(entityId, ruleId, cooldownHours) {
 
     // If we found a recent notification, we're within cooldown
     if (result.Items && result.Items.length > 0) {
+      const notification = unmarshall(result.Items[0]);
+      console.info('[evaluateIntelligenceRules] Within cooldown period', {
+        recipientId,
+        ruleId,
+        lastNotificationAt: notification.createdAt,
+        cooldownHours
+      });
       return true;
     }
 
-    // Also check OFFER# prefix if candidate check returned nothing
-    const offerResult = await dynamoDB.send(new QueryCommand({
-      TableName: STATE_TABLE,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      FilterExpression: 'ruleId = :ruleId AND createdAt > :threshold',
-      ExpressionAttributeValues: marshall({
-        ':pk': `OFFER#${entityId}`,
-        ':sk': 'NOTIFICATION#',
-        ':ruleId': ruleId,
-        ':threshold': cooldownThreshold
-      }),
-      Limit: 1
-    }));
-
-    return offerResult.Items && offerResult.Items.length > 0;
+    return false;
   } catch (err) {
     console.warn('[evaluateIntelligenceRules] Cooldown check failed - allowing action', {
-      entityId,
+      recipientId,
       ruleId,
       error: err.message
     });

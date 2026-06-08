@@ -14,7 +14,7 @@
 #   evaluateIntelligenceRules Lambda
 #     ↓ (Reads) talent-flow-config (INTELLIGENCE_RULES)
 #     ↓ (Reads) talent-flow-users (for signals: lastLoginAt, lastActionAt)
-#     ↓ (Writes) talent-flow-state (NOTIFICATION# records)
+#     ↓ (Invokes) sendTalentFlowNotification Lambda (direct invocation - Phase 4)
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -38,9 +38,11 @@ resource "aws_lambda_function" "evaluate_intelligence_rules" {
 
   environment {
     variables = {
-      STATE_TABLE_NAME  = data.aws_dynamodb_table.talent_flow_state.name
-      CONFIG_TABLE_NAME = data.aws_dynamodb_table.talent_flow_config.name
-      USERS_TABLE_NAME  = data.aws_dynamodb_table.talent_flow_users.name
+      STATE_TABLE_NAME         = data.aws_dynamodb_table.talent_flow_state.name
+      CONFIG_TABLE_NAME        = data.aws_dynamodb_table.talent_flow_config.name
+      USERS_TABLE_NAME         = data.aws_dynamodb_table.talent_flow_users.name
+      NOTIFICATIONS_TABLE_NAME = data.aws_dynamodb_table.talent_flow_notifications.name
+      NOTIFICATION_LAMBDA_NAME = "sendTalentFlowNotification"
     }
   }
 
@@ -215,6 +217,25 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
           "kms:DescribeKey"
         ]
         Resource = data.aws_kms_key.talent_flow_state.arn
+      },
+      {
+        Sid    = "InvokeNotificationLambda"
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Resource = "arn:aws:lambda:af-south-1:${var.aws_account_id}:function:sendTalentFlowNotification"
+      },
+      {
+        Sid    = "NotificationsTableRead"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:Query"
+        ]
+        Resource = [
+          data.aws_dynamodb_table.talent_flow_notifications.arn,
+          "${data.aws_dynamodb_table.talent_flow_notifications.arn}/index/*"
+        ]
       }
     ]
   })
@@ -228,4 +249,9 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
 # talent-flow-config table (source of intelligence rules)
 data "aws_dynamodb_table" "talent_flow_config" {
   name = "talent-flow-config"
+}
+
+# talent-flow-notifications table (for cooldown tracking)
+data "aws_dynamodb_table" "talent_flow_notifications" {
+  name = "talent-flow-notifications"
 }
