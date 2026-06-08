@@ -21,6 +21,8 @@
 | HM Dashboard Zone 0 | ✅ Live | Phase 6.3 - Intelligence Alerts |
 | IT Queue Zone 0 | ✅ Live | Phase 6.3 - Compact tiles |
 | Composite Signals (3) | ✅ Live | Phase 6.4 - Risk, Stale, Onboarding |
+| Role-based Tile Filtering | ✅ Live | TA/HM/IT see only relevant tiles |
+| IT Provisioning Signals (3) | ✅ Live | DAYS_TO_START, EQUIPMENT_STATUS, ACCESS |
 | Dismiss/Snooze Overlay | ⏳ Pending | §10.3 |
 
 ---
@@ -315,6 +317,9 @@
 | 2026-06-08 | **Phase 6.3 COMPLETE** - HM Dashboard Zone 0, IT Queue Zone 0 | `834eeb4` |
 | 2026-06-08 | **Phase 6.4 COMPLETE** - Composite signals (Risk, Stale, Onboarding) | `834eeb4` |
 | 2026-06-08 | New tile rules: RULE-RISK-001, RULE-STALE-001, RULE-ONBOARD-001 | `834eeb4` |
+| 2026-06-08 | **Role-based tile filtering** - TA/HM/IT see only relevant tiles | `3c3f10c` |
+| 2026-06-08 | IT signals: DAYS_TO_START_DATE, EQUIPMENT_REQUEST_STATUS, ACCESS_PROVISIONED | `3c3f10c` |
+| 2026-06-08 | HM rules: RULE-DECISION-001, IT rules: RULE-PROVISION-001, RULE-EQUIPMENT-001, RULE-ACCESS-001 | `3c3f10c` |
 
 ---
 
