@@ -66,14 +66,18 @@
 ✅ ONBOARDING_READINESS     - Composite (0-100%)
 ```
 
+**IT Provisioning Signals (Implemented):**
+```
+✅ DAYS_TO_START_DATE       - Days until candidate start date
+✅ EQUIPMENT_REQUEST_STATUS - NOT_ORDERED | PENDING | ORDERED | DELIVERED
+✅ ACCESS_PROVISIONED       - Boolean for system access status
+```
+
 **Signals Pending (Priority Order):**
 ```
 ⏳ OFFER_STATE              - Cross-record lookup
 ⏳ DAYS_SINCE_OFFER_SENT    - Cross-record lookup
 ⏳ PANEL_FEEDBACK_PENDING   - Cross-record lookup
-⏳ DAYS_TO_START_DATE       - From offer.startDate
-⏳ EQUIPMENT_REQUEST_STATUS - Provisioning domain
-⏳ ACCESS_PROVISIONED       - Provisioning domain
 ```
 
 ---
