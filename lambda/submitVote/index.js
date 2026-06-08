@@ -46,7 +46,7 @@ const {
   EventBridgeClient,
   PutEventsCommand,
 } = require('@aws-sdk/client-eventbridge');
-const { getConfig } = require('../shared/config-reader');
+const { getConfig } = require('./config-reader');
 
 const dynamo  = new DynamoDBClient({});
 const eb      = new EventBridgeClient({});

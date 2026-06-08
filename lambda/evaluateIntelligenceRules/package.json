@@ -1,0 +1,9 @@
+{
+  "name": "evaluate-intelligence-rules",
+  "version": "1.0.0",
+  "description": "Lambda: DynamoDB Stream Processor — evaluates Intelligence Layer rules and triggers notifications (INTEL-002 Phase 3)",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0"
+  }
+}
