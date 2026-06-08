@@ -14,9 +14,11 @@
 | Event Log (§10.4) | ✅ Live | `talent-flow-intelligence-events` table |
 | Atomic Signals (12) | ✅ Live | 4 original + 8 new |
 | Latest-Signals Snapshot | ✅ Live | §10.2 - Verified in prod |
+| Intelligence Tile Component | ✅ Live | §7 - `IntelligenceTileComponent` |
+| Intelligence Service | ✅ Live | Signal-based state management |
+| getIntelligenceTiles Lambda | ✅ Live | `GET /v1/intelligence/tiles` |
+| TA Dashboard Zone 0 | ✅ Live | §8 - Integrated |
 | Dismiss/Snooze Overlay | ⏳ Pending | §10.3 |
-| Intelligence Tile Component | ⏳ Pending | §7 |
-| Dashboard Integration | ⏳ Pending | §8 |
 
 ---
 
@@ -67,16 +69,25 @@
 
 ---
 
-### Phase 6.2: Tile Component & TA Dashboard
+### Phase 6.2: Tile Component & TA Dashboard ✅ COMPLETE
 *First visible intelligence surface*
 
-| Task | Est | Status |
-|------|-----|--------|
-| 6.2.1 Create `IntelligenceTileComponent` | 1h | ⏳ |
-| 6.2.2 Implement tile SCSS (§6.4) | 30m | ⏳ |
-| 6.2.3 Add Zone 0 to TA dashboard | 30m | ⏳ |
-| 6.2.4 Create `IntelligenceService` | 1h | ⏳ |
-| 6.2.5 Wire up tile projection query | 1h | ⏳ |
+| Task | Est | Status | Commit |
+|------|-----|--------|--------|
+| 6.2.1 Create `IntelligenceTileComponent` | 1h | ✅ Done | `ee95a6d` |
+| 6.2.2 Implement tile SCSS (§6.4) | 30m | ✅ Done | `ee95a6d` |
+| 6.2.3 Add Zone 0 to TA dashboard | 30m | ✅ Done | `ee95a6d` |
+| 6.2.4 Create `IntelligenceService` | 1h | ✅ Done | `ee95a6d` |
+| 6.2.5 Wire up tile projection query | 1h | ✅ Done | `adcdc6c` |
+
+**Deployed Components:**
+- `IntelligenceTileComponent` - Priority-based tiles with signals, actions, dismiss/snooze
+- `IntelligenceService` - Signal-based state management, API integration
+- `getIntelligenceTiles` Lambda - Tile generation from signal snapshots
+- API Route: `GET /v1/intelligence/tiles?tenantId=X&role=Y`
+- TA Dashboard Zone 0 - Intelligence Alerts section
+
+**Verified:** Lambda returns real tile data (Sabelo Hadebe - Evaluation Failed)
 
 **Tile Types for TA (from §5.1):**
 ```
@@ -155,30 +166,26 @@
 
 ---
 
-## Next Up: Phase 6.1.2 — Latest-Signals Snapshot
+## Next Up: Phase 6.3 — HM & IT Dashboards
 
-**What:** Per-entity snapshot storing computed signals (§10.2)
-**Why:** Tiles are projections over snapshots, not stored records
-**Where:** `talent-flow-state` table with new SK pattern
+**What:** Expand intelligence tiles to HM and IT roles
+**Why:** All personas need actionable insights, not just TAs
+**Where:** HM Dashboard, IT Queue pages
 
-**Schema:**
-```
-PK: TENANT#<tenantId>#SNAP
-SK: CAND#<candidateId> | OFFER#<offerId>
+**Approach:**
+1. Add Zone 0 to HM Dashboard with HM-specific tiles
+2. Add compact intelligence banner to IT Queue
+3. Implement role-based tile filtering in `IntelligenceService`
+4. Add ownerId-scoped queries using GSI1
 
-Attributes:
-- signals: { CANDIDATE_STAGE: "HM_REVIEW", SLA_STATUS: "ON_TRACK", ... }
-- composites: { CANDIDATE_RISK_SCORE: { value: 45, label: "MEDIUM" }, ... }
-- computedAt: ISO timestamp
-- ownerIds: { recruiterId, hiringManagerId }
-- GSI1PK: OWNER#<recruiterId>#TA (for scoped queries)
-- GSI1SK: <computedAt>
-```
+**HM Tiles (Priority):**
+- Decision deadline (SLA_STATUS)
+- Awaiting your approval (APPROVAL_STEP_AGE)
+- Fast-track recommended (FINAL_SCORE ≥ 85)
 
-**Implementation:**
-1. Add snapshot write to `evaluateIntelligenceRules` Lambda
-2. Write snapshot after signal calculation (before rule evaluation)
-3. Overwrite on each stream event (always latest)
+**IT Tiles (Priority):**
+- Equipment not ordered (EQUIPMENT_REQUEST_STATUS)
+- Provisioning at risk (DAYS_TO_START_DATE)
 
 ---
 
@@ -268,7 +275,11 @@ Attributes:
 | 2026-06-08 | Created implementation tracker | - |
 | 2026-06-08 | Latest-signals snapshot (§10.2) | `f70d348` |
 | 2026-06-08 | Snapshot deployed & verified | `bbcaae5` |
+| 2026-06-08 | **Phase 6.2 COMPLETE** - IntelligenceTileComponent, IntelligenceService | `ee95a6d` |
+| 2026-06-08 | getIntelligenceTiles Lambda + API Gateway route | `adcdc6c` |
+| 2026-06-08 | TA Dashboard Zone 0 integration | `ee95a6d` |
+| 2026-06-08 | End-to-end verification with real data | - |
 
 ---
 
-**Ready to continue?** Next task: `6.2.1 IntelligenceTileComponent`
+**Ready to continue?** Next task: `6.3.1 HM Intelligence tab`
