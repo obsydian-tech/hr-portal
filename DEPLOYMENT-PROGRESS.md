@@ -966,3 +966,140 @@ npx tsc --noEmit
 ---
 
 **End of Phase 6.2 Progress Report**
+
+---
+
+# Intelligence Layer Phase 6.5 — Admin Configuration Enhancements
+
+**Date:** 2026-06-08
+**Branch:** develop
+**Ticket:** INTEL-002 (Phase 6.5 - Admin Configuration)
+**Status:** ✅ **COMPLETE**
+
+---
+
+## 📋 Phase 6.5 Summary
+
+**Objective:** Enhance admin UI with rule categories, target role filtering, and configurable thresholds
+
+**Result:** ✅ **100% SUCCESS** - All 6.5.2-6.5.4 components implemented
+
+---
+
+## 🎯 Completed Components
+
+### Phase 6.5.1 — Rule Form Drawer CRUD (Previous Session)
+**Status:** ✅ Complete (commit d0cf253)
+
+**Features:**
+- Create/edit drawer for intelligence rules
+- 18 signal options for conditions
+- 8 operators (equals, notEquals, greaterThan, etc.)
+- 12 action types (TA alerts, HM notifications, IT escalations)
+- Dynamic conditions list with add/remove
+- Cooldown configuration
+
+### Phase 6.5.2 — Rule Categories & Target Roles
+**Status:** ✅ Complete (commit 6f68b61)
+
+**Model Extensions (`talent-flow.models.ts`):**
+```typescript
+export type RuleCategory = 'SLA_COMPLIANCE' | 'ENGAGEMENT' | 'OFFERS' | 'ONBOARDING' | 'GENERAL';
+export type TargetRole = 'TA' | 'HM' | 'IT' | 'ADMIN';
+```
+
+**Admin UI Features:**
+- Category filter bar with visual chips and counts
+- Category badge display on rule cards
+- Target role chips selection in rule form drawer
+- Target role badges showing rule visibility
+- Filtered view with empty state handling
+
+**Styling:**
+- Category chips with color-coded icons
+- Active/inactive chip states
+- Role badges on rule cards
+- Filter label for current category
+
+### Phase 6.5.3 — Category-Based Filtering
+**Status:** ✅ Complete (commit 6f68b61)
+
+**Features:**
+- "All" option shows all rules
+- Click category chip to filter
+- Stats update to show filtered count
+- Empty state when no rules in category
+- "Show All Rules" button from empty state
+
+### Phase 6.5.4 — Threshold Settings Panel
+**Status:** ✅ Complete (commit 6f68b61)
+
+**IntelligenceThresholds Interface:**
+```typescript
+export interface IntelligenceThresholds {
+  slaAtRiskDays:       number;   // Default: 3
+  slaBreachDays:       number;   // Default: 0
+  offerExpiryUrgent:   number;   // Default: 3
+  candidateStaleDays:  number;   // Default: 14
+  highScoreThreshold:  number;   // Default: 85
+  lowEngagementScore:  number;   // Default: 40
+  onboardingReadyPct:  number;   // Default: 75
+  riskScoreHigh:       number;   // Default: 60
+  riskScoreCritical:   number;   // Default: 80
+}
+```
+
+**Admin UI Features:**
+- Collapsible thresholds panel
+- Tertiary accent styling
+- 9 configurable threshold inputs
+- Input number controls with +/- buttons
+- Min/max validation per field
+- Persisted with rules configuration
+
+---
+
+## 📁 Files Modified
+
+| File | Changes |
+|------|---------|
+| `talent-flow.models.ts` | +19 lines (RuleCategory, TargetRole, IntelligenceThresholds) |
+| `admin-intelligence-rules.component.ts` | +90 lines (filter state, thresholds, helpers) |
+| `admin-intelligence-rules.component.html` | +222 lines (category bar, thresholds panel, badges) |
+| `admin-intelligence-rules.component.scss` | +211 lines (category chips, thresholds, role badges) |
+| `rule-form-drawer.component.ts` | +56 lines (category, targetRoles options/methods) |
+| `rule-form-drawer.component.html` | +37 lines (category dropdown, role chips) |
+| `rule-form-drawer.component.scss` | +37 lines (role chip styles) |
+
+**Total:** +672 insertions, -20 deletions
+
+---
+
+## 📦 Git Commit
+
+| Commit | Description |
+|--------|-------------|
+| 6f68b61 | feat(INTEL-002): implement Intelligence Layer admin enhancements (Phase 6.5.2-6.5.4) |
+
+**Branch:** develop
+
+---
+
+## ✅ Phase 6.5 Complete
+
+**All components operational:**
+- ✅ Rule Form Drawer with full CRUD (6.5.1)
+- ✅ Rule Categories with filtering (6.5.2)
+- ✅ Target Roles for visibility control (6.5.2)
+- ✅ Category-based filtering UI (6.5.3)
+- ✅ Configurable thresholds panel (6.5.4)
+- ✅ Build verified (ng build success)
+
+**Next Steps:**
+- Test rule creation/editing in browser
+- Configure example rules for TA, HM, IT dashboards
+- Verify threshold changes persist correctly
+
+---
+
+**End of Phase 6.5 Progress Report**
