@@ -186,6 +186,46 @@ function generateTiles(snapshots) {
         ruleId: 'RULE-EVAL-001',
       }));
     }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Phase 6.4: Composite Signal Rules
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // Rule 7: High Risk Candidate (CRITICAL/HIGH based on score)
+    const riskScore = signals.CANDIDATE_RISK_SCORE;
+    if (riskScore !== null && riskScore !== undefined && riskScore >= 60) {
+      tiles.push(createTile(snapshot, {
+        priority: riskScore >= 80 ? 'CRITICAL' : 'HIGH',
+        title: 'High Risk Candidate',
+        description: `${entityName} has risk score of ${riskScore}% — multiple factors require attention`,
+        ruleId: 'RULE-RISK-001',
+      }));
+    }
+
+    // Rule 8: Stalled in Stage (HIGH) - only if risk score didn't already flag it
+    const daysInStage = signals.DAYS_IN_CURRENT_STAGE;
+    if (daysInStage !== null && daysInStage !== undefined &&
+        daysInStage >= THRESHOLDS.DAYS_STALE && riskScore < 60) {
+      tiles.push(createTile(snapshot, {
+        priority: 'HIGH',
+        title: 'Stalled in Stage',
+        description: `${entityName} has been in ${snapshot.currentStage?.replace(/_/g, ' ') || 'current stage'} for ${daysInStage} days`,
+        ruleId: 'RULE-STALE-001',
+      }));
+    }
+
+    // Rule 9: Onboarding Not Ready (HIGH) - for pre-boarding/onboarding candidates
+    const onboardingReadiness = signals.ONBOARDING_READINESS;
+    if (onboardingReadiness !== null && onboardingReadiness !== undefined &&
+        onboardingReadiness < 75 &&
+        ['PRE_BOARDING', 'ONBOARDING'].includes(snapshot.currentStage)) {
+      tiles.push(createTile(snapshot, {
+        priority: onboardingReadiness < 50 ? 'HIGH' : 'MEDIUM',
+        title: 'Onboarding Preparation Needed',
+        description: `${entityName} is ${onboardingReadiness}% ready for onboarding — items pending`,
+        ruleId: 'RULE-ONBOARD-001',
+      }));
+    }
   }
 
   return tiles;
@@ -242,6 +282,32 @@ function extractDisplaySignals(snapshot) {
       label: 'Score',
       value: `${score}%`,
       type: score >= 85 ? 'success' : score >= 60 ? 'info' : 'warning',
+    });
+  }
+
+  // Phase 6.4: Composite signal pills
+  if (s.CANDIDATE_RISK_SCORE !== null && s.CANDIDATE_RISK_SCORE !== undefined && s.CANDIDATE_RISK_SCORE >= 40) {
+    const risk = s.CANDIDATE_RISK_SCORE;
+    signals.push({
+      label: 'Risk',
+      value: `${risk}%`,
+      type: risk >= 80 ? 'error' : risk >= 60 ? 'warning' : 'info',
+    });
+  }
+
+  if (s.DAYS_IN_CURRENT_STAGE !== null && s.DAYS_IN_CURRENT_STAGE !== undefined && s.DAYS_IN_CURRENT_STAGE >= 7) {
+    signals.push({
+      label: 'In Stage',
+      value: `${s.DAYS_IN_CURRENT_STAGE}d`,
+      type: s.DAYS_IN_CURRENT_STAGE >= 14 ? 'warning' : 'info',
+    });
+  }
+
+  if (s.ONBOARDING_READINESS !== null && s.ONBOARDING_READINESS !== undefined) {
+    signals.push({
+      label: 'Ready',
+      value: `${s.ONBOARDING_READINESS}%`,
+      type: s.ONBOARDING_READINESS >= 75 ? 'success' : s.ONBOARDING_READINESS >= 50 ? 'warning' : 'error',
     });
   }
 

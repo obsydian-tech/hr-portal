@@ -276,6 +276,7 @@ const SIGNAL_CALCULATORS = {
 
   // === §1.1 Time & Stage Progression ===
   DAYS_SINCE_CANDIDATE_CREATED: calculateDaysSinceCandidateCreated, // 🟢
+  DAYS_IN_CURRENT_STAGE: calculateDaysInCurrentStage,               // 🟢 (Phase 6.4)
 
   // === §1.2 SLA & Risk ===
   SLA_STATUS: calculateSlaStatus,                                   // 🟢
@@ -289,6 +290,10 @@ const SIGNAL_CALCULATORS = {
   // === §1.5 Panel & Evaluation ===
   FINAL_SCORE: calculateFinalScore,                                 // 🟢
   EVALUATION_RESULT: calculateEvaluationResult,                     // 🟢
+
+  // === Phase 6.4: Composite Signals ===
+  CANDIDATE_RISK_SCORE: calculateCandidateRiskScore,                // 🟢 Composite
+  ONBOARDING_READINESS: calculateOnboardingReadiness,               // 🟢 Composite
 };
 
 /**
@@ -519,6 +524,164 @@ function calculateFinalScore(item) {
  */
 function calculateEvaluationResult(item) {
   return item.evaluationResult || null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 6.4: Stage History & Composite Signals
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Signal Calculator: DAYS_IN_CURRENT_STAGE
+ * Returns days since candidate entered current stage
+ * Uses stageChangedAt field if available, otherwise estimates from updatedAt
+ */
+function calculateDaysInCurrentStage(item) {
+  // Prefer explicit stageChangedAt timestamp if available
+  const stageChangeTimestamp = item.stageChangedAt || item.lastStageChangeAt;
+
+  if (stageChangeTimestamp) {
+    try {
+      const changedAt = new Date(stageChangeTimestamp);
+      const now = new Date();
+      const daysSince = Math.floor((now - changedAt) / (1000 * 60 * 60 * 24));
+      return daysSince;
+    } catch (err) {
+      console.warn('[evaluateIntelligenceRules] Failed to parse stageChangedAt', {
+        stageChangedAt: stageChangeTimestamp,
+        error: err.message
+      });
+    }
+  }
+
+  // Fallback: use updatedAt if no explicit stage change timestamp
+  // This is less accurate but better than null
+  if (item.updatedAt) {
+    try {
+      const updatedAt = new Date(item.updatedAt);
+      const now = new Date();
+      const daysSince = Math.floor((now - updatedAt) / (1000 * 60 * 60 * 24));
+      return daysSince;
+    } catch (err) {
+      // Fall through to null
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Signal Calculator: CANDIDATE_RISK_SCORE (Composite)
+ * Returns weighted risk score 0-100 based on multiple signals
+ *
+ * Factors:
+ * - SLA status (BREACHED = +40, AT_RISK = +20)
+ * - Days in current stage (>14 = +15, >7 = +10)
+ * - Engagement sentiment (DISENGAGED = +25, HESITANT = +15)
+ * - Days since created (>30 = +10)
+ * - Low final score (<60 = +10)
+ */
+function calculateCandidateRiskScore(item) {
+  let riskScore = 0;
+
+  // Factor 1: SLA Status (heaviest weight)
+  if (item.slaStatus === 'BREACHED') {
+    riskScore += 40;
+  } else if (item.slaStatus === 'AT_RISK') {
+    riskScore += 20;
+  }
+
+  // Factor 2: Days in current stage (stale candidates)
+  const stageChangeTimestamp = item.stageChangedAt || item.lastStageChangeAt || item.updatedAt;
+  if (stageChangeTimestamp) {
+    try {
+      const changedAt = new Date(stageChangeTimestamp);
+      const now = new Date();
+      const daysInStage = Math.floor((now - changedAt) / (1000 * 60 * 60 * 24));
+      if (daysInStage > 14) {
+        riskScore += 15;
+      } else if (daysInStage > 7) {
+        riskScore += 10;
+      }
+    } catch (err) {
+      // Skip this factor
+    }
+  }
+
+  // Factor 3: Engagement sentiment
+  if (item.engagementSentiment === 'DISENGAGED') {
+    riskScore += 25;
+  } else if (item.engagementSentiment === 'HESITANT') {
+    riskScore += 15;
+  }
+
+  // Factor 4: Pipeline age
+  if (item.createdAt) {
+    try {
+      const created = new Date(item.createdAt);
+      const now = new Date();
+      const daysSinceCreated = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+      if (daysSinceCreated > 30) {
+        riskScore += 10;
+      }
+    } catch (err) {
+      // Skip this factor
+    }
+  }
+
+  // Factor 5: Low evaluation score
+  if (item.finalScore !== undefined && item.finalScore !== null && item.finalScore < 60) {
+    riskScore += 10;
+  }
+
+  // Cap at 100
+  return Math.min(riskScore, 100);
+}
+
+/**
+ * Signal Calculator: ONBOARDING_READINESS (Composite)
+ * Returns readiness percentage 0-100 for candidates in pre-boarding/onboarding stages
+ *
+ * Factors (each worth 25%):
+ * - Stage is PRE_BOARDING or ONBOARDING
+ * - IT equipment requested
+ * - Access provisioned
+ * - Documents complete
+ *
+ * Returns null for candidates not in onboarding stages
+ */
+function calculateOnboardingReadiness(item) {
+  // Only calculate for candidates in relevant stages
+  const onboardingStages = ['PRE_BOARDING', 'ONBOARDING'];
+  if (!onboardingStages.includes(item.currentStage)) {
+    return null;
+  }
+
+  let readinessScore = 0;
+  let factorsEvaluated = 0;
+
+  // Factor 1: In onboarding stage (baseline)
+  readinessScore += 25;
+  factorsEvaluated++;
+
+  // Factor 2: IT equipment requested
+  if (item.equipmentRequested || item.provisioningBundleId) {
+    readinessScore += 25;
+  }
+  factorsEvaluated++;
+
+  // Factor 3: Access provisioned
+  if (item.accessProvisioned || item.systemAccessGranted) {
+    readinessScore += 25;
+  }
+  factorsEvaluated++;
+
+  // Factor 4: Documents complete
+  if (item.documentsComplete || item.onboardingDocumentsComplete) {
+    readinessScore += 25;
+  }
+  factorsEvaluated++;
+
+  return readinessScore;
 }
 
 /**

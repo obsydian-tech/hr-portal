@@ -7,6 +7,37 @@
   </div>
 } @else {
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     ZONE 0 — Intelligence Alerts (Phase 6.3)
+═══════════════════════════════════════════════════════════════════════════ -->
+@if (intelligence.hasTiles()) {
+  <p-card styleClass="ip-zone-0">
+    <div class="ip-zone-0__head">
+      <i class="pi pi-bolt ip-zone-0__icon"></i>
+      <h2 class="ip-zone-0__title">Intelligence Alerts</h2>
+      <div class="ip-zone-0__badges">
+        @if (intelligence.criticalCount() > 0) {
+          <span class="ip-badge ip-badge--red">{{ intelligence.criticalCount() }} critical</span>
+        }
+        @if (intelligence.highCount() > 0) {
+          <span class="ip-badge ip-badge--amber">{{ intelligence.highCount() }} high</span>
+        }
+      </div>
+    </div>
+    <div class="ip-tiles">
+      @for (tile of intelligence.tiles().slice(0, 3); track tile.id) {
+        <tf-intelligence-tile
+          [tile]="tile"
+          [compact]="true"
+          (actionClicked)="handleTileAction($event)"
+          (dismissed)="handleTileDismiss($event)"
+          (snoozed)="handleTileSnooze($event)"
+        />
+      }
+    </div>
+  </p-card>
+}
+
 <!-- ── Page header ──────────────────────────────────────────────────────────── -->
 <div class="ip-page-header">
   <h1 class="ip-page-header__title">My Queue</h1>

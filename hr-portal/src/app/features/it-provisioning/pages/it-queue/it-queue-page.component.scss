@@ -22,6 +22,76 @@
   &__icon { font-size: 1.5rem; color: var(--naleko-secondary); }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ZONE 0 — Intelligence Alerts (Phase 6.3)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+::ng-deep .ip-zone-0 {
+  &.p-card {
+    background: var(--naleko-surface-container-lowest) !important;
+    border: none !important;
+    box-shadow: var(--naleko-shadow-card) !important;
+    border-radius: var(--naleko-radius-xl);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    border-left: 3px solid var(--naleko-secondary);
+  }
+  .p-card-body, .p-card-content { padding: 0 !important; }
+}
+
+.ip-zone-0__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.625rem;
+}
+
+.ip-zone-0__icon {
+  font-size: 0.9rem;
+  color: var(--naleko-secondary);
+}
+
+.ip-zone-0__title {
+  font-family: var(--naleko-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.ip-zone-0__badges {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.ip-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--naleko-radius-pill);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.ip-badge--red {
+  background: color-mix(in srgb, var(--naleko-error) 15%, transparent);
+  color: var(--naleko-error);
+}
+
+.ip-badge--amber {
+  background: color-mix(in srgb, var(--naleko-warning) 18%, transparent);
+  color: var(--naleko-warning-dark, var(--naleko-warning));
+}
+
+.ip-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 // ── Page header ───────────────────────────────────────────────────────────────
 
 .ip-page-header {
