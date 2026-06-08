@@ -137,6 +137,9 @@ function getDefaults(configType) {
         'PRE_BOARDING',
         'ONBOARDING'
       ]
+    },
+    INTELLIGENCE_RULES: {
+      rules: []  // Empty rules = no notifications (safe default)
     }
   };
   return defaults[configType] ?? {};

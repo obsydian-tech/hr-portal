@@ -1,0 +1,86 @@
+<div class="config-page">
+
+  <!-- Header with title, subtitle, and version badge -->
+  <div class="config-page__header">
+    <div class="config-page__header-left">
+      <h2 class="config-page__title">Intelligence Layer Rules</h2>
+      <p class="config-page__subtitle">
+        Configure proactive insights and notifications based on candidate signals.
+      </p>
+    </div>
+    <div class="config-page__header-right">
+      @if (!loading()) {
+        <tf-config-version-badge
+          [version]="configVersion()"
+          [changedAt]="updatedAt()"
+        />
+      }
+    </div>
+  </div>
+
+  <!-- Loading skeleton -->
+  @if (loading()) {
+    <div class="config-page__skeleton">
+      @for (_ of [1,2,3,4]; track $index) {
+        <div class="config-skeleton-row"></div>
+      }
+    </div>
+  } @else {
+
+    <!-- Empty state when no rules configured -->
+    @if (configData().rules.length === 0) {
+      <div class="config-empty">
+        <i class="pi pi-bolt config-empty__icon"></i>
+        <p>No intelligence rules configured yet. Rules will enable proactive notifications based on candidate signals.</p>
+        <p class="config-empty__note">
+          <strong>Example:</strong> Notify HM when offer is expiring (less than 30 days) and HM hasn't logged in recently.
+        </p>
+      </div>
+    }
+
+    <!-- Rules configuration card (placeholder for future) -->
+    @if (configData().rules.length > 0) {
+      <div class="config-card">
+        <div class="config-card__section-label">Intelligence Rules ({{ configData().rules.length }})</div>
+
+        @for (rule of configData().rules; track rule.id) {
+          <div class="config-row">
+            <div class="config-row__label">
+              <span class="config-row__label-main">{{ rule.name }}</span>
+              <span class="config-row__label-desc">{{ rule.description }}</span>
+            </div>
+            <div class="config-row__control">
+              <p-toggleButton
+                [ngModel]="rule.enabled"
+                onLabel="Enabled"
+                offLabel="Disabled"
+                onIcon="pi pi-check"
+                offIcon="pi pi-times"
+                styleClass="config-toggle"
+              />
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Save/Reset buttons -->
+    <div class="config-save-row">
+      <button type="button" class="cfg-btn-reset"
+              [disabled]="saving()"
+              (click)="confirmReset()">
+        <i class="pi pi-refresh"></i> Reset to Defaults
+      </button>
+      <button type="button" class="cfg-btn-save"
+              [disabled]="saving()"
+              (click)="confirmSave()">
+        <i class="pi"
+           [class.pi-check]="!saving()"
+           [class.pi-spinner]="saving()"
+           [class.pi-spin]="saving()"></i>
+        Save Changes
+      </button>
+    </div>
+  }
+
+</div>

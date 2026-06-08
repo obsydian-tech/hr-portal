@@ -1,371 +1,515 @@
-# Intelligence Layer Implementation Plan
-## Naleko TalentFlow - AI-Powered Hiring Manager Actions
+# Intelligence Layer - Implementation Plan
 
-**Branch:** develop
-**Prerequisites:** ✅ User Activity Tracking Complete (INTEL-001)
-**Estimated Duration:** 3-4 weeks
-**Status:** READY TO START
-
----
-
-## 📋 Executive Summary
-
-**Objective:** Implement AI-powered decision engine that automatically suggests actions to Hiring Managers based on candidate pipeline state and user activity patterns.
-
-**Architecture:** Event-driven Lambda functions that:
-1. Monitor candidate state changes via DynamoDB streams
-2. Evaluate Intent Model rules against current state + signals
-3. Generate action recommendations
-4. Store decisions in audit log
-5. Notify HMs via existing notification system
-
-**Unblocked Signals (from INTEL-001):**
-- ✅ HM_DAYS_SINCE_LOGIN (from lastLoginAt)
-- ✅ TA_DAYS_SINCE_CANDIDATE_ACTION (from lastActionAt)
-- ✅ SLA_BREACH_HOURS (existing)
-- ✅ SLA_THRESHOLD_HOURS (existing)
-- ✅ CANDIDATE_STAGE (existing)
-- ✅ CANDIDATE_STATUS (existing)
-
-**Success Criteria:**
-- MVP rule operational (SLA-only)
-- Rules 001 and 002 deployed
-- 90%+ recommendation accuracy
-- <5 second decision latency
-- Zero false positives in first week
+**Based on:** INTELLIGENCE-LAYER-INVESTIGATION.md
+**Architecture:** Follows existing TalentFlow multi-tenant metadata patterns
+**Date Created:** 2026-06-08
+**Status:** READY FOR IMPLEMENTATION
 
 ---
 
-## 🏗️ Architecture Overview
+## Executive Summary
 
-### Components to Build
+This implementation follows **discovered TalentFlow patterns** from the investigation. The Intelligence Layer will:
 
-```
-DynamoDB Stream (talent-flow-state)
-    ↓
-evaluateIntelligenceRules Lambda
-    ↓ (reads Intent Model)
-talent-flow-config table
-    ↓ (reads user activity)
-talent-flow-users table
-    ↓ (writes decision log)
-talent-flow-user-actions table
-    ↓ (publishes event)
-EventBridge (talent-flow-bus)
-    ↓
-sendTalentFlowNotification Lambda
-    ↓
-Hiring Manager (email/dashboard notification)
-```
+✅ **Reuse existing `talent-flow-config` table** (no new config table)
+✅ **Reuse existing `manageTalentFlowConfig` Lambda** (no new CRUD API)
+✅ **Reuse existing `config-reader.js`** (no new config loader)
+✅ **Reuse existing Admin UI patterns** (consistent with scoring weights, SLA thresholds)
+✅ **Support per-tenant configurable rules** (like Salesforce validation rules)
 
-### Data Flow
-
-1. **Trigger:** Candidate state changes (SAGA update)
-2. **Evaluate:** Check all active rules in Intent Model
-3. **Calculate:** Compute signals from current state + user data
-4. **Decide:** Match rules → generate recommendation
-5. **Log:** Store decision in audit table
-6. **Notify:** Send notification if action recommended
+**Your "30 days" requirement** = configurable threshold in metadata, changeable via Admin UI without code deployment.
 
 ---
 
-## 📊 Implementation Phases
+## Key Architectural Decisions
 
-### Phase 1: Infrastructure Setup (Week 1)
-**Goal:** Create tables, Lambda, and basic evaluation framework
+### ✅ Decision 1: Config Storage Pattern
 
-**Tasks:**
-1.1. Create talent-flow-user-actions table (decision log)
-1.2. Create evaluateIntelligenceRules Lambda skeleton
-1.3. Set up DynamoDB stream trigger
-1.4. Create config reader for Intent Model
-1.5. Deploy infrastructure via Terraform
-
-**Deliverables:**
-- ✅ talent-flow-user-actions table operational
-- ✅ Lambda triggered by stream
-- ✅ Can read Intent Model from config
-- ✅ Can write decisions to actions table
-
----
-
-### Phase 2: MVP Rule (Week 1-2)
-**Goal:** Prove architecture with simple SLA-only rule
-
-**MVP Rule:** "Notify HM when candidate SLA breached by >24 hours"
-
-**Signals Required:**
-- SLA_BREACH_HOURS (existing)
-- CANDIDATE_STAGE (existing)
-
-**Tasks:**
-2.1. Implement signal calculation framework
-2.2. Create rule matching engine
-2.3. Implement MVP rule logic
-2.4. Test with real candidate data
-2.5. Deploy and monitor for 48 hours
-
-**Success Criteria:**
-- ✅ Rule triggers correctly on SLA breach
-- ✅ No false positives
-- ✅ Latency <5 seconds
-- ✅ HM receives notification
-
----
-
-### Phase 3: User Activity Rules (Week 2-3)
-**Goal:** Add Rules 001 and 002 (now unblocked)
-
-**RULE-001: Expiring Offer with Inactive HM**
+**Use existing `talent-flow-config` table:**
 ```
-IF:
-  - candidate.stage = OFFER_IN_APPROVAL
-  - HM_DAYS_SINCE_LOGIN > 3
-  - offer.expiryDate - today < 5 days
-THEN:
-  ACTION: NUDGE_HM_REVIEW_OFFER
-  PRIORITY: HIGH
+PK: TENANT#{tenantId}                    # e.g., TENANT#NALEKO
+SK: CONFIG#INTELLIGENCE_RULES#v{version}  # e.g., CONFIG#INTELLIGENCE_RULES#v1
+GSI1PK: TENANT#{tenantId}#ACTIVE         # Sparse index for active version
+GSI1SK: CONFIG#INTELLIGENCE_RULES
 ```
 
-**RULE-002: SLA Breach with No TA Action**
-```
-IF:
-  - SLA_BREACH_HOURS > 24
-  - TA_DAYS_SINCE_CANDIDATE_ACTION > 2
-  - candidate.status = ACTIVE
-THEN:
-  ACTION: NUDGE_TA_PROGRESS_CANDIDATE
-  PRIORITY: MEDIUM
-```
-
-**Tasks:**
-3.1. Implement HM_DAYS_SINCE_LOGIN signal calculation
-3.2. Implement TA_DAYS_SINCE_CANDIDATE_ACTION signal calculation
-3.3. Add Rule 001 to Intent Model
-3.4. Add Rule 002 to Intent Model
-3.5. Test both rules end-to-end
-3.6. Deploy to production
-3.7. Monitor for 1 week
-
-**Success Criteria:**
-- ✅ Both rules trigger correctly
-- ✅ Accuracy >90%
-- ✅ No spam (max 1 notification per rule per day per candidate)
-
----
-
-### Phase 4: Additional Rules (Week 3-4)
-**Goal:** Add remaining rules from Intent Model
-
-**RULE-003: Offer Lifecycle** (verify offer structure first)
-**RULE-004: IT Task Tracking** (verify architecture first - separate table)
-**RULE-005: Negative Sentiment** (existing events operational)
-
-**Tasks:**
-4.1. Verify offer structure in talent-flow-state
-4.2. Verify IT tasks architecture (separate table)
-4.3. Implement remaining signals
-4.4. Add Rules 003, 004, 005 to Intent Model
-4.5. Test and deploy incrementally
-
----
-
-## 📐 Detailed Design
-
-### 1. talent-flow-user-actions Table
-
-**Purpose:** Decision log / audit trail
-
-**Schema:**
-```
-PK: ACTION#{ulid}           # Unique action ID
-SK: CANDIDATE#{candidateId} # GSI for candidate history
-
-Attributes:
-- actionId: ulid
-- candidateId: string
-- userId: string            # HM being notified
-- ruleId: string            # Which rule triggered
-- action: string            # NUDGE_HM_REVIEW_OFFER, etc.
-- priority: HIGH|MEDIUM|LOW
-- signals: object           # Snapshot of signals at decision time
-- decision: RECOMMEND|SKIP|ERROR
-- reason: string            # Why this decision was made
-- notificationSent: boolean
-- notificationId: string    # Reference to notification
-- createdAt: ISO8601
-- ttl: number              # Auto-delete after 90 days
-```
-
-**GSI:**
-- GSI1: PK=CANDIDATE#{candidateId}, SK=ACTION#{actionId}
-  - Query: Get all actions for a candidate
-- GSI2: PK=USER#{userId}, SK=createdAt
-  - Query: Get all actions for a user (HM dashboard)
-
-**TTL:** 90 days (compliance + cost optimization)
-
----
-
-### 2. evaluateIntelligenceRules Lambda
-
-**Trigger:** DynamoDB Stream on talent-flow-state (SAGA updates)
-
-**Flow:**
-```javascript
-export const handler = async (event) => {
-  // 1. Filter for SAGA records
-  const sagaUpdates = event.Records.filter(r =>
-    r.dynamodb.NewImage.SK.S === 'SAGA'
-  );
-
-  // 2. For each SAGA update:
-  for (const record of sagaUpdates) {
-    const candidate = unmarshal(record.dynamodb.NewImage);
-    const candidateId = candidate.candidateId;
-
-    // 3. Load Intent Model from config
-    const intentModel = await loadIntentModel();
-
-    // 4. Calculate signals
-    const signals = await calculateSignals(candidate);
-
-    // 5. Evaluate all active rules
-    const matchedRules = evaluateRules(intentModel.rules, signals);
-
-    // 6. For each matched rule:
-    for (const rule of matchedRules) {
-      // Check if we already acted on this recently (de-dupe)
-      const recentAction = await checkRecentAction(candidateId, rule.id);
-      if (recentAction) {
-        console.log('Skipping - already acted recently');
-        continue;
+**Example record (YOUR "30 days" requirement):**
+```json
+{
+  "PK": "TENANT#NALEKO",
+  "SK": "CONFIG#INTELLIGENCE_RULES#v1",
+  "GSI1PK": "TENANT#NALEKO#ACTIVE",
+  "GSI1SK": "CONFIG#INTELLIGENCE_RULES",
+  "tenantId": "NALEKO",
+  "configType": "INTELLIGENCE_RULES",
+  "version": 1,
+  "isActive": true,
+  "data": {
+    "rules": [
+      {
+        "id": "RULE-001",
+        "name": "Expiring Offer with Inactive HM",
+        "enabled": true,
+        "conditions": [
+          {
+            "signal": "OFFER_DAYS_TO_EXPIRY",
+            "operator": "lessThan",
+            "value": 30
+          }
+        ],
+        "action": {
+          "type": "NUDGE_HM_REVIEW_OFFER",
+          "cooldownHours": 24
+        }
       }
+    ]
+  },
+  "createdAt": "2026-06-08T00:00:00Z"
+}
+```
 
-      // 7. Generate recommendation
-      const action = generateAction(rule, candidate, signals);
+**Rationale:**
+- Consistent with existing 9+ config types in same table
+- Reuses versioning strategy (365-day TTL on inactive versions)
+- Reuses IAM permissions, KMS encryption, PITR backup
+- **Rejected alternative:** Separate table (violates metadata-lite principle)
 
-      // 8. Log decision
-      await logAction(action);
+---
 
-      // 9. Publish notification event
-      await publishNotificationEvent(action);
+### ✅ Decision 2: No Version Locking
+
+**Intelligence Layer configs are NOT version-locked to candidates**
+
+**Rationale:**
+- Intelligence Layer is **advisory** (proactive insights), not **compliance-critical** (scoring decisions)
+- Admin should see immediate effect when changing threshold (30 days → 14 days)
+- Unlike scoring weights (must never change retroactively per POPIA), notification rules can evolve
+
+**Implementation:**
+- Always read active config: `getConfig(tenantId, 'INTELLIGENCE_RULES')` (no version parameter)
+- No `intelligenceConfigVersion` on SAGA record
+- Simpler than orchestrateTalentFlowWorkflow pattern
+
+---
+
+### ✅ Decision 3: Tenant Context from Candidate Record
+
+**Extract `tenantId` from candidate in DynamoDB Stream:**
+```javascript
+const candidate = unmarshall(record.dynamodb.NewImage);
+const { candidateId, tenantId } = candidate;  // Always present
+
+// Load tenant-specific rules
+const config = await getConfig(tenantId, 'INTELLIGENCE_RULES');
+```
+
+**Rationale:**
+- Consistent with existing Lambdas (orchestrateTalentFlowWorkflow, submitVote)
+- No separate tenant lookup needed
+- Natural multi-tenant isolation
+
+---
+
+### ✅ Decision 4: Fail-Open Error Handling
+
+**Skip evaluation on errors, don't crash:**
+```javascript
+try {
+  intelligenceConfig = await getConfig(tenantId, 'INTELLIGENCE_RULES');
+} catch (err) {
+  console.warn('[evaluateIntelligenceRules] Config read failed — skipping');
+  return; // Skip, don't crash candidate workflow
+}
+```
+
+**Rationale:**
+- Intelligence Layer is proactive insights, not workflow blocker
+- Better to skip notification than crash
+- Follows pattern in getItTasks.js (fail-open for non-critical features)
+
+---
+
+## Implementation Phases
+
+### Phase 1: Backend Configuration (2 days)
+
+**Goal:** Enable Intelligence Layer config storage without new infrastructure
+
+#### Task 1.1: Update config-reader.js
+**File:** `lambda/shared/config-reader.js`
+
+Add to `getDefaults()` function:
+```javascript
+INTELLIGENCE_RULES: {
+  rules: []  // Empty = no notifications (safe default)
+}
+```
+
+**Test:**
+```javascript
+const config = await getConfig('NALEKO', 'INTELLIGENCE_RULES');
+console.log(config); // Should return { rules: [] }
+```
+
+**Deliverable:** ✅ config-reader.js supports INTELLIGENCE_RULES
+
+---
+
+#### Task 1.2: Test Existing manageTalentFlowConfig API
+**Goal:** Verify no code changes needed for Intelligence Layer configs
+
+**Test via curl:**
+```bash
+# Create initial config
+curl -X POST https://api.talentflow.naleko.ai/v1/config \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "NALEKO",
+    "configType": "INTELLIGENCE_RULES",
+    "data": {
+      "rules": [{
+        "id": "RULE-001",
+        "name": "Test Rule",
+        "enabled": true,
+        "conditions": [{
+          "signal": "OFFER_DAYS_TO_EXPIRY",
+          "operator": "lessThan",
+          "value": 30
+        }],
+        "action": {
+          "type": "NUDGE_HM_REVIEW_OFFER",
+          "cooldownHours": 24
+        }
+      }]
     }
+  }'
+
+# Read active config
+curl "https://api.talentflow.naleko.ai/v1/config?configType=INTELLIGENCE_RULES&active=true&tenantId=NALEKO" \
+  -H "Authorization: Bearer $JWT_TOKEN"
+
+# Update (creates v2, deactivates v1 with TTL)
+curl -X PUT https://api.talentflow.naleko.ai/v1/config \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenantId": "NALEKO",
+    "configType": "INTELLIGENCE_RULES",
+    "data": {
+      "rules": [{
+        "id": "RULE-001",
+        "conditions": [{
+          "signal": "OFFER_DAYS_TO_EXPIRY",
+          "operator": "lessThan",
+          "value": 14
+        }],
+        ...
+      }]
+    }
+  }'
+```
+
+**Deliverable:** ✅ manageTalentFlowConfig works with INTELLIGENCE_RULES (no code changes!)
+
+---
+
+### Phase 2: Admin UI (3 days)
+
+**Goal:** Enable admins to configure rules via UI
+
+#### Task 2.1: Add TypeScript Types
+**File:** `hr-portal/src/app/features/talent-flow/models/talent-flow.models.ts`
+
+```typescript
+// Add to ConfigType union
+export type ConfigType =
+  | 'SCORING_WEIGHTS'
+  | 'SLA_THRESHOLDS'
+  | /* ... existing ... */
+  | 'INTELLIGENCE_RULES';  // ← Add this
+
+// New interfaces
+export interface IntelligenceRulesConfig {
+  rules: IntelligenceRule[];
+}
+
+export interface IntelligenceRule {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  conditions: RuleCondition[];
+  action: RuleAction;
+}
+
+export interface RuleCondition {
+  signal: string;  // "OFFER_DAYS_TO_EXPIRY"
+  operator: 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' |
+            'greaterThanOrEqual' | 'lessThanOrEqual' | 'in' | 'notIn';
+  value: number | string | string[];  // 30 ← YOUR EXAMPLE
+}
+
+export interface RuleAction {
+  type: string;  // "NUDGE_HM_REVIEW_OFFER"
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  cooldownHours: number;  // 24
+}
+```
+
+**Deliverable:** ✅ TypeScript types available
+
+---
+
+#### Task 2.2: Create Admin Component
+**File:** `hr-portal/src/app/features/talent-flow/pages/admin/talentflow-config/intelligence-rules/admin-intelligence-rules.component.ts`
+
+**Follow EXACT pattern from existing admin components** (scoring-weights, sla-thresholds, panel-rules):
+
+```typescript
+@Component({
+  selector: 'tf-admin-intelligence-rules',
+  standalone: true,
+  imports: [
+    FormsModule,
+    InputNumberModule,
+    DropdownModule,
+    ToggleButtonModule,
+    ConfigVersionBadgeComponent  // ← Reuse existing
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class AdminIntelligenceRulesComponent implements OnInit {
+  private readonly api            = inject(TalentFlowApiService);
+  private readonly messageService = inject(MessageService);
+  private readonly confirmService = inject(ConfirmationService);
+
+  readonly loading       = signal(true);
+  readonly saving        = signal(false);
+  readonly rules         = signal<IntelligenceRule[]>([]);
+  readonly configVersion = signal<string | null>(null);
+  readonly updatedAt     = signal<string | null>(null);
+
+  ngOnInit(): void {
+    this.loadConfig();
   }
 
-  return { statusCode: 200, processed: sagaUpdates.length };
-};
+  private loadConfig(): void {
+    this.loading.set(true);
+    this.api.getConfig('INTELLIGENCE_RULES').subscribe({
+      next: (cfg: ConfigResponse) => {
+        const data = cfg.data as IntelligenceRulesConfig;
+        this.rules.set(data.rules || []);
+        this.configVersion.set(cfg.version);
+        this.updatedAt.set(cfg.updatedAt);
+        this.loading.set(false);
+      },
+      error: () => { this.loading.set(false); }
+    });
+  }
+
+  confirmSave(): void {
+    if (this.saving()) return;
+    this.confirmService.confirm({
+      message: 'Save Intelligence rules? Changes take effect immediately.',
+      header: 'Save Rules',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => this.doSave()
+    });
+  }
+
+  private doSave(): void {
+    this.saving.set(true);
+    const payload: IntelligenceRulesConfig = { rules: this.rules() };
+
+    this.api.updateConfig('INTELLIGENCE_RULES', payload).subscribe({
+      next: (cfg: ConfigResponse) => {
+        this.configVersion.set(cfg.version);
+        this.updatedAt.set(cfg.updatedAt);
+        this.saving.set(false);
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Saved',
+          detail: `Intelligence rules saved as version ${cfg.version}.`,
+          life: 4000
+        });
+      },
+      error: (err: { userMessage?: string }) => {
+        this.saving.set(false);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Save Failed',
+          detail: err.userMessage ?? 'Could not save rules.',
+          life: 5000
+        });
+      }
+    });
+  }
+}
 ```
 
-**Configuration:**
-- Runtime: nodejs22.x
-- Memory: 512MB (need to calculate signals)
-- Timeout: 60s
-- Batch size: 10
-- Retry: 3 attempts with bisect
+**Template patterns to follow:**
+- Use same SCSS classes as scoring-weights component
+- PrimeNG components: InputNumber, Dropdown, ToggleButton
+- ConfigVersionBadgeComponent for version display
+- Confirm dialog before save (ConfirmationService)
+- Toast notifications on save (MessageService)
 
-**Error Handling:**
-- Log all errors
-- Return partial batch failures
-- Don't block candidate pipeline on intelligence errors
+**Deliverable:** ✅ Admin component functional
 
 ---
 
-### 3. Signal Calculation
+#### Task 2.3: Add Route and Navigation
+**Route:**
+```typescript
+{
+  path: 'platform/talentflow/admin/talentflow/intelligence-rules',
+  component: AdminIntelligenceRulesComponent,
+  canActivate: [authGuard, adminGuard]
+}
+```
 
-**Framework:**
+**Navigation link:**
+```html
+<a routerLink="/platform/talentflow/admin/talentflow/intelligence-rules">
+  <i class="pi pi-bolt"></i>
+  <span>Intelligence Rules</span>
+</a>
+```
+
+**Deliverable:** ✅ Admin can navigate to and use rules UI
+
+---
+
+### Phase 3: Signal Calculation Framework (3 days)
+
+**Goal:** Calculate candidate signals for rule evaluation
+
+#### Task 3.1: Create Signal Calculator Module
+**File:** `lambda/evaluateIntelligenceRules/signal-calculator.js`
+
 ```javascript
-const signalCalculators = {
-  SLA_BREACH_HOURS: (candidate) => {
-    const now = Date.now();
-    const slaDeadline = new Date(candidate.slaDeadline).getTime();
-    return Math.max(0, (now - slaDeadline) / (1000 * 60 * 60));
-  },
+const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
+const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
 
-  HM_DAYS_SINCE_LOGIN: async (candidate) => {
-    const hm = await getUser(candidate.hiringManagerId);
-    if (!hm.lastLoginAt) return 999; // Never logged in
-    const daysSince = (Date.now() - new Date(hm.lastLoginAt).getTime()) / (1000 * 60 * 60 * 24);
-    return Math.floor(daysSince);
-  },
-
-  TA_DAYS_SINCE_CANDIDATE_ACTION: async (candidate) => {
-    const ta = await getUser(candidate.assignedTA);
-    if (!ta.lastActionAt) return 999;
-    const daysSince = (Date.now() - new Date(ta.lastActionAt).getTime()) / (1000 * 60 * 60 * 24);
-    return Math.floor(daysSince);
-  },
-
-  CANDIDATE_STAGE: (candidate) => candidate.currentStage,
-  CANDIDATE_STATUS: (candidate) => candidate.status,
-  OFFER_DAYS_TO_EXPIRY: (candidate, offer) => {
-    if (!offer) return null;
-    const daysToExpiry = (new Date(offer.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-    return Math.ceil(daysToExpiry);
-  },
-};
+const USER_ACTIONS_TABLE = process.env.USER_ACTIONS_TABLE;
+const client = new DynamoDBClient({ region: process.env.AWS_REGION });
 
 async function calculateSignals(candidate) {
   const signals = {};
-  for (const [name, calculator] of Object.entries(signalCalculators)) {
-    try {
-      signals[name] = await calculator(candidate);
-    } catch (err) {
-      console.error(`Failed to calculate signal ${name}:`, err);
-      signals[name] = null; // Null signal = skip rules that depend on it
+
+  // Direct signals from candidate record
+  signals.CANDIDATE_STAGE = candidate.currentStage;
+  signals.CANDIDATE_STATUS = candidate.status;
+
+  // Offer expiry signal
+  if (candidate.offerExpiryDate) {
+    const expiryDate = new Date(candidate.offerExpiryDate);
+    const now = new Date();
+    const diffDays = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+    signals.OFFER_DAYS_TO_EXPIRY = diffDays;
+  }
+
+  // SLA breach signal
+  if (candidate.currentStageStartedAt) {
+    const stageStarted = new Date(candidate.currentStageStartedAt);
+    const now = new Date();
+    const diffHours = (now - stageStarted) / (1000 * 60 * 60);
+
+    // Get SLA threshold from config
+    const { getConfig } = require('/opt/config-reader');
+    const slaConfig = await getConfig(candidate.tenantId, 'SLA_THRESHOLDS');
+    const threshold = slaConfig[candidate.currentStage];
+
+    if (threshold) {
+      signals.SLA_BREACH_HOURS = Math.max(0, diffHours - threshold);
     }
   }
+
+  // Days in current stage
+  if (candidate.currentStageStartedAt) {
+    const stageStarted = new Date(candidate.currentStageStartedAt);
+    const now = new Date();
+    const diffDays = Math.floor((now - stageStarted) / (1000 * 60 * 60 * 24));
+    signals.DAYS_IN_CURRENT_STAGE = diffDays;
+  }
+
+  // HM days since login
+  if (candidate.hiringManagerId) {
+    try {
+      const hmLastLogin = await getUserLastLogin(candidate.hiringManagerId);
+      if (hmLastLogin) {
+        const diffDays = Math.floor((Date.now() - new Date(hmLastLogin)) / (1000 * 60 * 60 * 24));
+        signals.HM_DAYS_SINCE_LOGIN = diffDays;
+      }
+    } catch (err) {
+      console.warn('Failed to calculate HM_DAYS_SINCE_LOGIN:', err.message);
+    }
+  }
+
+  // TA days since login
+  if (candidate.assignedRecruiterId) {
+    try {
+      const taLastLogin = await getUserLastLogin(candidate.assignedRecruiterId);
+      if (taLastLogin) {
+        const diffDays = Math.floor((Date.now() - new Date(taLastLogin)) / (1000 * 60 * 60 * 24));
+        signals.TA_DAYS_SINCE_LOGIN = diffDays;
+      }
+    } catch (err) {
+      console.warn('Failed to calculate TA_DAYS_SINCE_LOGIN:', err.message);
+    }
+  }
+
   return signals;
 }
+
+async function getUserLastLogin(userId) {
+  try {
+    const result = await client.send(new QueryCommand({
+      TableName: USER_ACTIONS_TABLE,
+      KeyConditionExpression: 'PK = :pk',
+      ExpressionAttributeValues: marshall({
+        ':pk': `USER#${userId}`
+      }),
+      ScanIndexForward: false,
+      Limit: 1
+    }));
+
+    if (result.Items?.length) {
+      const action = unmarshall(result.Items[0]);
+      return action.timestamp;
+    }
+    return null;
+  } catch (err) {
+    console.error('getUserLastLogin error:', err.message);
+    return null;
+  }
+}
+
+module.exports = { calculateSignals };
 ```
+
+**Deliverable:** ✅ Signal calculator with unit tests
 
 ---
 
-### 4. Rule Matching Engine
+#### Task 3.2: Create Rule Evaluator Module
+**File:** `lambda/evaluateIntelligenceRules/rule-evaluator.js`
 
-**Intent Model Structure (in talent-flow-config):**
-```json
-{
-  "PK": "INTENT_MODEL",
-  "SK": "v1.0",
-  "version": "1.0",
-  "updatedAt": "2026-06-08T00:00:00Z",
-  "rules": [
-    {
-      "id": "RULE-001",
-      "name": "Expiring Offer with Inactive HM",
-      "enabled": true,
-      "priority": "HIGH",
-      "conditions": [
-        { "signal": "CANDIDATE_STAGE", "operator": "equals", "value": "OFFER_IN_APPROVAL" },
-        { "signal": "HM_DAYS_SINCE_LOGIN", "operator": "greaterThan", "value": 3 },
-        { "signal": "OFFER_DAYS_TO_EXPIRY", "operator": "lessThan", "value": 5 }
-      ],
-      "action": {
-        "type": "NUDGE_HM_REVIEW_OFFER",
-        "priority": "HIGH",
-        "cooldown": 24 // hours - don't re-trigger within 24 hours
-      }
-    }
-  ]
-}
-```
-
-**Evaluation Logic:**
 ```javascript
-function evaluateRules(rules, signals) {
-  return rules
-    .filter(rule => rule.enabled)
-    .filter(rule => {
-      // Check if all conditions match
-      return rule.conditions.every(condition => {
-        const signalValue = signals[condition.signal];
-        if (signalValue === null || signalValue === undefined) {
-          return false; // Can't evaluate if signal missing
-        }
-        return evaluateCondition(signalValue, condition.operator, condition.value);
-      });
-    });
+function evaluateRule(rule, signals) {
+  if (!rule.enabled) return false;
+
+  // All conditions must match (AND logic)
+  return rule.conditions.every(condition => {
+    const signalValue = signals[condition.signal];
+    if (signalValue == null) {
+      console.log(`Signal ${condition.signal} not available`);
+      return false;
+    }
+    return evaluateCondition(signalValue, condition.operator, condition.value);
+  });
 }
 
 function evaluateCondition(actual, operator, expected) {
@@ -376,580 +520,536 @@ function evaluateCondition(actual, operator, expected) {
     case 'lessThan': return actual < expected;
     case 'greaterThanOrEqual': return actual >= expected;
     case 'lessThanOrEqual': return actual <= expected;
-    case 'in': return expected.includes(actual);
-    case 'notIn': return !expected.includes(actual);
-    default: throw new Error(`Unknown operator: ${operator}`);
+    case 'in': return Array.isArray(expected) && expected.includes(actual);
+    case 'notIn': return Array.isArray(expected) && !expected.includes(actual);
+    default:
+      console.error(`Unknown operator: ${operator}`);
+      return false;
   }
 }
+
+module.exports = { evaluateRule, evaluateCondition };
 ```
+
+**Deliverable:** ✅ Rule evaluator with unit tests
 
 ---
 
-### 5. Action Generation
+### Phase 4: evaluateIntelligenceRules Lambda (2 days)
+
+**Goal:** Lambda evaluates rules on candidate updates
+
+#### Task 4.1: Create Lambda Function
+**File:** `lambda/evaluateIntelligenceRules/index.js`
 
 ```javascript
-function generateAction(rule, candidate, signals) {
-  return {
-    actionId: ulid(),
-    candidateId: candidate.candidateId,
-    userId: candidate.hiringManagerId, // Or assignedTA for TA rules
-    ruleId: rule.id,
-    action: rule.action.type,
-    priority: rule.action.priority,
-    signals: signals, // Snapshot for audit
-    decision: 'RECOMMEND',
-    reason: `Rule ${rule.id} matched: ${rule.name}`,
-    notificationSent: false,
-    createdAt: new Date().toISOString(),
-    ttl: Math.floor(Date.now() / 1000) + (90 * 24 * 60 * 60) // 90 days
-  };
-}
-```
+const { DynamoDBClient, GetItemCommand, PutItemCommand } = require('@aws-sdk/client-dynamodb');
+const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
+const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
+const { calculateSignals } = require('./signal-calculator');
+const { evaluateRule } = require('./rule-evaluator');
 
----
+const STATE_TABLE = process.env.STATE_TABLE;
+const PENDING_ACTIONS_TABLE = process.env.PENDING_ACTIONS_TABLE;
+const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION });
+const eventBridge = new EventBridgeClient({ region: process.env.AWS_REGION });
 
-### 6. De-duplication (Cooldown)
+// Import from Lambda layer
+const { getConfig } = require('/opt/config-reader');
 
-**Problem:** Same rule might match on every SAGA update (e.g., every hour)
+exports.handler = async (event) => {
+  console.log('evaluateIntelligenceRules invoked', { records: event.Records.length });
 
-**Solution:** Check recent actions before creating new one
+  for (const record of event.Records) {
+    if (record.eventName !== 'INSERT' && record.eventName !== 'MODIFY') continue;
+    if (!record.dynamodb.NewImage.PK.S.startsWith('CANDIDATE#')) continue;
 
-```javascript
-async function checkRecentAction(candidateId, ruleId) {
-  const cooldownHours = 24; // From rule.action.cooldown
-  const cutoff = new Date(Date.now() - cooldownHours * 60 * 60 * 1000).toISOString();
+    const candidate = unmarshall(record.dynamodb.NewImage);
+    const { candidateId, tenantId } = candidate;
 
-  const result = await dynamo.send(new QueryCommand({
-    TableName: 'talent-flow-user-actions',
-    IndexName: 'GSI1',
-    KeyConditionExpression: 'PK = :candidateKey',
-    FilterExpression: 'ruleId = :ruleId AND createdAt > :cutoff',
-    ExpressionAttributeValues: {
-      ':candidateKey': `CANDIDATE#${candidateId}`,
-      ':ruleId': ruleId,
-      ':cutoff': cutoff
+    try {
+      // Load tenant-specific rules (FOLLOWS EXISTING PATTERN)
+      let intelligenceConfig;
+      try {
+        intelligenceConfig = await getConfig(tenantId, 'INTELLIGENCE_RULES');
+      } catch (err) {
+        console.warn('[evaluateIntelligenceRules] Config read failed — skipping:', err.message);
+        continue;
+      }
+
+      const rules = intelligenceConfig.rules || [];
+      if (rules.length === 0) {
+        console.info('[evaluateIntelligenceRules] No rules configured — skipping', { tenantId });
+        continue;
+      }
+
+      // Calculate signals
+      const signals = await calculateSignals(candidate);
+
+      // Evaluate rules
+      for (const rule of rules) {
+        const matched = evaluateRule(rule, signals);
+
+        if (matched) {
+          console.info('RULE_MATCHED', {
+            candidateId, tenantId, ruleId: rule.id, actionType: rule.action.type
+          });
+
+          // Check cooldown
+          const cooldownActive = await checkCooldown(candidateId, rule.id, rule.action.cooldownHours);
+          if (cooldownActive) {
+            console.info('RULE_COOLDOWN_ACTIVE', { candidateId, ruleId: rule.id });
+            continue;
+          }
+
+          // Create pending action
+          await createPendingAction(candidate, rule, signals);
+
+          // Record cooldown
+          await recordCooldown(candidateId, rule.id, rule.action.cooldownHours);
+
+          // Publish event
+          await publishActionRecommendedEvent(candidate, rule);
+        }
+      }
+    } catch (err) {
+      console.error('Error processing candidate', {
+        candidateId, error: err.message, stack: err.stack
+      });
+      // Continue with next (fail-open)
     }
+  }
+};
+
+async function checkCooldown(candidateId, ruleId, cooldownHours) {
+  try {
+    const result = await dynamo.send(new GetItemCommand({
+      TableName: STATE_TABLE,
+      Key: marshall({
+        PK: `CANDIDATE#${candidateId}`,
+        SK: `INTELLIGENCE_COOLDOWN#${ruleId}`
+      })
+    }));
+
+    if (!result.Item) return false;
+
+    const cooldown = unmarshall(result.Item);
+    const expiresAt = new Date(cooldown.expiresAt);
+    return new Date() < expiresAt;
+  } catch (err) {
+    console.error('checkCooldown error:', err.message);
+    return false; // Fail open
+  }
+}
+
+async function recordCooldown(candidateId, ruleId, cooldownHours) {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + cooldownHours * 60 * 60 * 1000);
+
+  await dynamo.send(new PutItemCommand({
+    TableName: STATE_TABLE,
+    Item: marshall({
+      PK: `CANDIDATE#${candidateId}`,
+      SK: `INTELLIGENCE_COOLDOWN#${ruleId}`,
+      ruleId,
+      createdAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      expiresAtEpoch: Math.floor(expiresAt.getTime() / 1000)  // TTL
+    })
+  }));
+}
+
+async function createPendingAction(candidate, rule, signals) {
+  const actionId = `ACT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  await dynamo.send(new PutItemCommand({
+    TableName: PENDING_ACTIONS_TABLE,
+    Item: marshall({
+      PK: `CANDIDATE#${candidate.candidateId}`,
+      SK: `ACTION#${actionId}`,
+      actionId,
+      candidateId: candidate.candidateId,
+      tenantId: candidate.tenantId,
+      ruleId: rule.id,
+      actionType: rule.action.type,
+      priority: rule.action.priority,
+      status: 'PENDING',
+      signals,
+      createdAt: new Date().toISOString()
+    })
   }));
 
-  return result.Items.length > 0;
+  console.info('PENDING_ACTION_CREATED', { candidateId: candidate.candidateId, actionId });
+}
+
+async function publishActionRecommendedEvent(candidate, rule) {
+  await eventBridge.send(new PutEventsCommand({
+    Entries: [{
+      Source: 'talentflow.intelligence-layer',
+      DetailType: 'ActionRecommended',
+      Detail: JSON.stringify({
+        candidateId: candidate.candidateId,
+        tenantId: candidate.tenantId,
+        ruleId: rule.id,
+        actionType: rule.action.type,
+        priority: rule.action.priority,
+        timestamp: new Date().toISOString()
+      })
+    }]
+  }));
 }
 ```
 
+**Deliverable:** ✅ Lambda implemented
+
 ---
 
-### 7. Notification Integration
+#### Task 4.2: Create Terraform Configuration
+**File:** `talent-flow-infra/intelligence-layer.tf`
 
-**EventBridge Event:**
-```json
-{
-  "source": "talent-flow.intelligence",
-  "detail-type": "ActionRecommended",
-  "detail": {
-    "actionId": "01HXYZ...",
-    "candidateId": "CAND-01...",
-    "userId": "user-123",
-    "action": "NUDGE_HM_REVIEW_OFFER",
-    "priority": "HIGH",
-    "reason": "Offer expires in 4 days and HM hasn't logged in for 5 days"
+```hcl
+# Lambda function
+resource "aws_lambda_function" "evaluateIntelligenceRules" {
+  function_name = "evaluateIntelligenceRules"
+  role          = aws_iam_role.evaluateIntelligenceRules.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  timeout       = 60
+  memory_size   = 512
+
+  filename         = "../lambda/evaluateIntelligenceRules/index.zip"
+  source_code_hash = filebase64sha256("../lambda/evaluateIntelligenceRules/index.zip")
+
+  layers = [aws_lambda_layer_version.config_reader.arn]
+
+  environment {
+    variables = {
+      STATE_TABLE           = local.tf_table_state
+      PENDING_ACTIONS_TABLE = local.tf_table_pending_actions
+      USER_ACTIONS_TABLE    = local.tf_table_user_actions
+      CONFIG_TABLE          = local.tf_table_config
+    }
+  }
+}
+
+# IAM Role
+resource "aws_iam_role" "evaluateIntelligenceRules" {
+  name = "talent-flow-role-evaluateIntelligenceRules"
+  path = "/talent-flow/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+# IAM Policy (FOLLOWS EXISTING PATTERN)
+resource "aws_iam_role_policy" "evaluateIntelligenceRules_policy" {
+  name = "IntelligenceLayerPolicy"
+  role = aws_iam_role.evaluateIntelligenceRules.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "Logs"
+        Effect = "Allow"
+        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/evaluateIntelligenceRules:*"
+      },
+      {
+        Sid = "ConfigTableRead"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.tf_table_config}",
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.tf_table_config}/index/*"
+        ]
+      },
+      {
+        Sid = "StateTableReadWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid = "UserActionsTableRead"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.tf_table_user_actions}"
+      },
+      {
+        Sid = "PendingActionsTableWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:PutItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${local.tf_table_pending_actions}"
+      },
+      {
+        Sid = "EventBridge"
+        Effect = "Allow"
+        Action = ["events:PutEvents"]
+        Resource = "*"
+      },
+      {
+        Sid = "KMSStateKey"
+        Effect = "Allow"
+        Action = ["kms:Decrypt", "kms:GenerateDataKey"]
+        Resource = aws_kms_key.state_key.arn
+      }
+    ]
+  })
+}
+
+# DynamoDB Stream Trigger
+resource "aws_lambda_event_source_mapping" "evaluateIntelligenceRules_stream" {
+  event_source_arn  = aws_dynamodb_table.talent_flow_state.stream_arn
+  function_name     = aws_lambda_function.evaluateIntelligenceRules.arn
+  starting_position = "LATEST"
+  batch_size        = 10
+
+  filter_criteria {
+    filter {
+      pattern = jsonencode({
+        eventName = ["INSERT", "MODIFY"]
+        dynamodb = {
+          NewImage = {
+            PK = { S = [{ prefix = "CANDIDATE#" }] }
+          }
+        }
+      })
+    }
   }
 }
 ```
 
-**Notification Lambda (existing sendTalentFlowNotification):**
-- Already handles EventBridge events
-- Add new event type: `ActionRecommended`
-- Map action types to notification templates
-- Send email + dashboard notification
+**Deliverable:** ✅ Infrastructure as code
 
 ---
 
-## 🧪 Testing Strategy
+### Phase 5: Notification Integration (2-3 days)
 
-### Unit Tests
+**Goal:** Connect Intelligence Layer to notification system
 
-**evaluateIntelligenceRules Lambda:**
-- ✅ Signal calculation (mock DynamoDB responses)
-- ✅ Rule matching (various signal combinations)
-- ✅ Condition evaluation (all operators)
-- ✅ Action generation
-- ✅ De-duplication logic
+#### Task 5.1: EventBridge Integration
+**File:** `talent-flow-infra/intelligence-layer.tf` (add to existing)
 
-**Test Cases:**
-```javascript
-describe('Signal Calculation', () => {
-  it('calculates HM_DAYS_SINCE_LOGIN correctly', async () => {
-    const hm = { lastLoginAt: '2026-06-01T00:00:00Z' };
-    const days = await calculateHMDaysSinceLogin(hm);
-    expect(days).toBe(7); // If today is 2026-06-08
-  });
+```hcl
+# EventBridge rule
+resource "aws_cloudwatch_event_rule" "intelligence_action_recommended" {
+  name        = "intelligence-action-recommended"
+  description = "Trigger notifications when Intelligence Layer recommends action"
 
-  it('returns 999 if HM never logged in', async () => {
-    const hm = { lastLoginAt: null };
-    const days = await calculateHMDaysSinceLogin(hm);
-    expect(days).toBe(999);
-  });
-});
+  event_pattern = jsonencode({
+    source      = ["talentflow.intelligence-layer"]
+    detail-type = ["ActionRecommended"]
+  })
+}
 
-describe('Rule Matching', () => {
-  it('matches Rule 001 when all conditions met', () => {
-    const signals = {
-      CANDIDATE_STAGE: 'OFFER_IN_APPROVAL',
-      HM_DAYS_SINCE_LOGIN: 5,
-      OFFER_DAYS_TO_EXPIRY: 3
-    };
-    const matched = evaluateRule(RULE_001, signals);
-    expect(matched).toBe(true);
-  });
+resource "aws_cloudwatch_event_target" "intelligence_action_recommended" {
+  rule      = aws_cloudwatch_event_rule.intelligence_action_recommended.name
+  target_id = "SendTalentFlowNotification"
+  arn       = aws_lambda_function.sendTalentFlowNotification.arn
+}
 
-  it('does not match Rule 001 when HM recently logged in', () => {
-    const signals = {
-      CANDIDATE_STAGE: 'OFFER_IN_APPROVAL',
-      HM_DAYS_SINCE_LOGIN: 1,
-      OFFER_DAYS_TO_EXPIRY: 3
-    };
-    const matched = evaluateRule(RULE_001, signals);
-    expect(matched).toBe(false);
-  });
-});
+resource "aws_lambda_permission" "intelligence_action_recommended" {
+  statement_id  = "AllowExecutionFromEventBridge-IntelligenceLayer"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.sendTalentFlowNotification.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.intelligence_action_recommended.arn
+}
 ```
 
----
-
-### Integration Tests
-
-**Phase 2 (MVP):**
-1. Create test candidate with SLA breach >24h
-2. Wait for stream to trigger Lambda
-3. Verify action logged in talent-flow-user-actions
-4. Verify notification sent
-
-**Phase 3 (User Activity Rules):**
-1. Create test candidate in OFFER_IN_APPROVAL
-2. Set HM lastLoginAt to 5 days ago
-3. Set offer expiryDate to 3 days from now
-4. Trigger SAGA update
-5. Verify Rule 001 matches
-6. Verify HM notified
-
-**Phase 4 (All Rules):**
-- End-to-end test for each rule
-- Test rule combinations (multiple rules matching same candidate)
-- Test cooldown (same rule doesn't spam)
+**Deliverable:** ✅ EventBridge connects to notification Lambda
 
 ---
 
-### Production Smoke Tests
+#### Task 5.2: Update sendTalentFlowNotification
+**File:** `lambda/sendTalentFlowNotification/index.js`
 
-**After Each Phase Deployment:**
-1. Monitor CloudWatch for 1 hour (no errors)
-2. Check talent-flow-user-actions table (actions being created)
-3. Verify notification delivery (check HM email)
-4. Query decision log (validate decisions make sense)
-5. Check for false positives (manual review of 10 recommendations)
+Add handler for new event type:
+```javascript
+if (event['detail-type'] === 'ActionRecommended') {
+  const { candidateId, actionType, priority } = event.detail;
 
----
+  const templateMap = {
+    'NUDGE_HM_REVIEW_OFFER': 'talent-flow-nudge-hm-review-offer',
+    'NUDGE_TA_REVIEW_CANDIDATE': 'talent-flow-nudge-ta-review-candidate',
+    'ALERT_SLA_BREACH': 'talent-flow-sla-breach'
+  };
 
-## 📋 Implementation Checklist
+  const templateId = templateMap[actionType];
+  if (!templateId) {
+    console.warn('Unknown action type:', actionType);
+    return;
+  }
 
-### Phase 1: Infrastructure
+  const candidate = await getCandidateDetails(candidateId);
+  const recipientEmail = actionType.includes('HM')
+    ? candidate.hiringManagerEmail
+    : candidate.recruiterEmail;
 
-- [ ] Task 1.1: Create talent-flow-user-actions table
-  - [ ] Define schema
-  - [ ] Create Terraform resource
-  - [ ] Add GSI for candidate history
-  - [ ] Add GSI for user dashboard
-  - [ ] Enable TTL (90 days)
-  - [ ] Apply Terraform
+  await sendEmail({
+    to: recipientEmail,
+    templateId,
+    data: {
+      candidateName: `${candidate.firstName} ${candidate.lastName}`,
+      positionTitle: candidate.positionTitle,
+      dashboardLink: `https://talentflow.naleko.ai/candidates/${candidateId}`
+    }
+  });
+}
+```
 
-- [ ] Task 1.2: Create evaluateIntelligenceRules Lambda skeleton
-  - [ ] Create lambda/evaluateIntelligenceRules/index.js
-  - [ ] Add DynamoDB stream filtering (SAGA records only)
-  - [ ] Add basic logging
-  - [ ] Create package.json
-
-- [ ] Task 1.3: Set up DynamoDB stream trigger
-  - [ ] Create Terraform for event source mapping
-  - [ ] Configure batch size: 10
-  - [ ] Configure retry: 3 attempts
-  - [ ] Configure bisect on error: true
-  - [ ] Apply Terraform
-
-- [ ] Task 1.4: Create config reader for Intent Model
-  - [ ] Add getIntentModel() function
-  - [ ] Cache config for 5 minutes
-  - [ ] Handle config not found gracefully
-
-- [ ] Task 1.5: Test infrastructure
-  - [ ] Create test SAGA update
-  - [ ] Verify Lambda triggered
-  - [ ] Verify can read config
-  - [ ] Verify can write to actions table
+**Deliverable:** ✅ Notifications sent for Intelligence Layer events
 
 ---
 
-### Phase 2: MVP Rule
+### Phase 6: Monitoring (1-2 days)
 
-- [ ] Task 2.1: Implement signal calculation framework
-  - [ ] Create signalCalculators object
-  - [ ] Implement SLA_BREACH_HOURS calculator
-  - [ ] Implement CANDIDATE_STAGE extractor
-  - [ ] Add error handling for failed calculations
-  - [ ] Unit test each calculator
+**Goal:** Enable operational visibility
 
-- [ ] Task 2.2: Create rule matching engine
-  - [ ] Implement evaluateRules() function
-  - [ ] Implement evaluateCondition() for all operators
-  - [ ] Add filtering for enabled rules only
-  - [ ] Unit test rule matching
+#### Task 6.1: CloudWatch Dashboard
+**File:** `talent-flow-infra/cloudwatch-dashboard.tf`
 
-- [ ] Task 2.3: Implement MVP rule logic
-  - [ ] Add MVP rule to Intent Model in config
-  - [ ] Test rule matching with mock signals
-  - [ ] Implement action generation
-  - [ ] Implement de-duplication (24h cooldown)
+```hcl
+resource "aws_cloudwatch_dashboard" "intelligence_layer" {
+  dashboard_name = "TalentFlow-IntelligenceLayer"
 
-- [ ] Task 2.4: Deploy MVP rule
-  - [ ] Package Lambda with dependencies
-  - [ ] Deploy Lambda code
-  - [ ] Update Intent Model in talent-flow-config
-  - [ ] Monitor CloudWatch for 1 hour
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type = "metric"
+        properties = {
+          title = "Lambda Invocations"
+          metrics = [["AWS/Lambda", "Invocations", { stat = "Sum" }]]
+          region = var.aws_region
+        }
+      },
+      {
+        type = "metric"
+        properties = {
+          title = "Lambda Errors"
+          metrics = [["AWS/Lambda", "Errors", { stat = "Sum" }]]
+          region = var.aws_region
+        }
+      }
+    ]
+  })
+}
+```
 
-- [ ] Task 2.5: Test MVP rule end-to-end
-  - [ ] Create test candidate with SLA breach
-  - [ ] Wait for rule to trigger
-  - [ ] Verify action logged
-  - [ ] Verify notification sent
-  - [ ] Verify cooldown works (doesn't spam)
-
----
-
-### Phase 3: User Activity Rules
-
-- [ ] Task 3.1: Implement user activity signal calculators
-  - [ ] HM_DAYS_SINCE_LOGIN calculator
-  - [ ] TA_DAYS_SINCE_CANDIDATE_ACTION calculator
-  - [ ] OFFER_DAYS_TO_EXPIRY calculator
-  - [ ] Unit test all calculators
-
-- [ ] Task 3.2: Add Rule 001 to Intent Model
-  - [ ] Define rule conditions
-  - [ ] Define action (NUDGE_HM_REVIEW_OFFER)
-  - [ ] Set cooldown (24 hours)
-  - [ ] Deploy to config table
-
-- [ ] Task 3.3: Add Rule 002 to Intent Model
-  - [ ] Define rule conditions
-  - [ ] Define action (NUDGE_TA_PROGRESS_CANDIDATE)
-  - [ ] Set cooldown (24 hours)
-  - [ ] Deploy to config table
-
-- [ ] Task 3.4: Test Rule 001
-  - [ ] Create test scenario (offer expiring, HM inactive)
-  - [ ] Verify rule triggers
-  - [ ] Verify HM notified
-  - [ ] Verify no false positives
-
-- [ ] Task 3.5: Test Rule 002
-  - [ ] Create test scenario (SLA breach, TA inactive)
-  - [ ] Verify rule triggers
-  - [ ] Verify TA notified
-  - [ ] Verify no false positives
-
-- [ ] Task 3.6: Deploy to production
-  - [ ] Deploy updated Lambda code
-  - [ ] Enable both rules in config
-  - [ ] Monitor for 1 week
-  - [ ] Collect feedback from HMs/TAs
+**Deliverable:** ✅ CloudWatch dashboard
 
 ---
 
-### Phase 4: Additional Rules
+#### Task 6.2: CloudWatch Alarms
+```hcl
+resource "aws_cloudwatch_metric_alarm" "intelligence_layer_errors" {
+  alarm_name = "TalentFlow-IntelligenceLayer-HighErrorRate"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods = "2"
+  metric_name = "Errors"
+  namespace = "AWS/Lambda"
+  period = "300"
+  statistic = "Sum"
+  threshold = "10"
 
-- [ ] Task 4.1: Verify offer structure
-  - [ ] Read sample OFFER records from talent-flow-state
-  - [ ] Confirm expiryDate, startDate, state fields exist
-  - [ ] Update NALEKO-INTELLIGENCE-VERIFICATION-TRACKER.md
+  dimensions = {
+    FunctionName = aws_lambda_function.evaluateIntelligenceRules.function_name
+  }
+}
+```
 
-- [ ] Task 4.2: Verify IT tasks architecture
-  - [ ] Investigate it-tasks table structure
-  - [ ] Confirm how to link IT tasks to candidates
-  - [ ] Determine if stream/event integration needed
-  - [ ] Update architecture docs
-
-- [ ] Task 4.3: Implement remaining signals
-  - [ ] IT_DAYS_OVERDUE calculator
-  - [ ] SENTIMENT_CAPTURED calculator
-  - [ ] Any other signals for Rules 003-005
-
-- [ ] Task 4.4: Add Rules 003, 004, 005 to Intent Model
-  - [ ] Define each rule
-  - [ ] Test individually
-  - [ ] Deploy incrementally (one per week)
-
-- [ ] Task 4.5: Final production validation
-  - [ ] All 5 rules operational
-  - [ ] Monitor for 1 week
-  - [ ] Measure accuracy (target: >90%)
-  - [ ] Collect stakeholder feedback
-  - [ ] Document learnings
+**Deliverable:** ✅ Alarms configured
 
 ---
 
-## 🎯 Success Metrics
+## Timeline Summary
 
-### Technical Metrics
+| Phase | Duration | Dependencies |
+|-------|----------|--------------|
+| Phase 1: Backend config | 2 days | None |
+| Phase 2: Admin UI | 3 days | Phase 1 |
+| Phase 3: Signal calculation | 3 days | None (parallel) |
+| Phase 4: Lambda evaluation | 2 days | Phase 1, Phase 3 |
+| Phase 5: Notifications | 2-3 days | Phase 4 |
+| Phase 6: Monitoring | 1-2 days | Phase 4 |
 
-**Latency:**
-- Target: <5 seconds from SAGA update to notification sent
-- Measurement: CloudWatch duration metrics
-
-**Accuracy:**
-- Target: >90% of recommendations are acted upon by HMs
-- Measurement: Track action.notificationClicked in actions table
-
-**Reliability:**
-- Target: 99.9% uptime
-- Target: <1% error rate
-- Measurement: CloudWatch error logs
-
-**Cost:**
-- Target: <$5/month for Lambda + DynamoDB
-- Measurement: AWS Cost Explorer
+**Total: 2-3 weeks**
 
 ---
 
-### Business Metrics
+## Success Criteria
 
-**HM Engagement:**
-- Target: 50% of HMs click on recommendations within 24 hours
-- Measurement: Track clicks in actions table
+### Phase 1 Complete When:
+- ✅ config-reader.js returns `{ rules: [] }` for INTELLIGENCE_RULES
+- ✅ manageTalentFlowConfig API accepts INTELLIGENCE_RULES
+- ✅ Versions increment correctly (v1 → v2)
 
-**Pipeline Velocity:**
-- Target: 10% reduction in SLA breaches after intelligence deployed
-- Measurement: Compare pre/post SLA metrics
+### Phase 2 Complete When:
+- ✅ Admin can navigate to intelligence-rules page
+- ✅ Can add/edit/remove rules
+- ✅ Can configure thresholds (30 days example)
+- ✅ Save creates new version
+- ✅ Version badge displays
 
-**Time to Hire:**
-- Target: 5% reduction in average time to hire
-- Measurement: Track from SOURCING to CONTRACT_SIGNED
+### Phase 4 Complete When:
+- ✅ Lambda processes stream records
+- ✅ Rules evaluated on candidate updates
+- ✅ Cooldown prevents duplicates
+- ✅ Pending actions created
+- ✅ Events published
 
----
-
-## 🚨 Risk Mitigation
-
-### Risk 1: False Positives (HM Spam)
-
-**Likelihood:** MEDIUM
-**Impact:** HIGH (HMs ignore all notifications)
-
-**Mitigation:**
-- Start with MVP rule only (high confidence)
-- 24-hour cooldown on all rules
-- Max 1 notification per candidate per day
-- Monitor opt-out rate (should be <5%)
-- A/B test rule thresholds before full rollout
+### Phase 5 Complete When:
+- ✅ sendTalentFlowNotification receives events
+- ✅ Emails sent to correct recipients
 
 ---
+
+## Risk Mitigation
+
+### Risk 1: False Positives
+- Start with rules disabled (admin enables)
+- 24-hour cooldown configurable
+- Monitor opt-out rate
 
 ### Risk 2: Signal Calculation Errors
+- Unit test all calculators
+- Return null for missing signals
+- Skip rules with null signals
 
-**Likelihood:** MEDIUM
-**Impact:** MEDIUM (incorrect recommendations)
-
-**Mitigation:**
-- Unit test all signal calculators
-- Graceful handling of null signals (skip rule)
-- Log all signal values for debugging
-- Manual review of first 100 recommendations
-- Rollback if accuracy <80%
+### Risk 3: Performance
+- Lambda timeout: 60s
+- Batch size: 10
+- Cache config (5 minutes)
 
 ---
 
-### Risk 3: Performance Degradation
+## Key Patterns Followed
 
-**Likelihood:** LOW
-**Impact:** MEDIUM (slow notifications)
-
-**Mitigation:**
-- Lambda timeout: 60s (should complete in <5s)
-- Batch size: 10 (prevents overload)
-- Cache Intent Model (5-minute TTL)
-- Use projection expressions (minimize data transfer)
-- Monitor Lambda duration in CloudWatch
-
----
-
-### Risk 4: Config Changes Break Rules
-
-**Likelihood:** LOW
-**Impact:** HIGH (all rules stop working)
-
-**Mitigation:**
-- Version Intent Model (v1.0, v1.1, etc.)
-- Validate config schema before deployment
-- Test rule matching after config updates
-- Keep previous config version as backup
-- Monitor error rate after config changes
+✅ **Config storage:** Reuses talent-flow-config table
+✅ **Versioning:** Follows sparse GSI pattern (365-day TTL)
+✅ **Config loading:** Reuses config-reader.js with 5-min cache
+✅ **Admin UI:** Follows scoring-weights component pattern
+✅ **IAM:** Follows existing permission patterns (Query + index/*)
+✅ **Error handling:** Fail-open for non-critical operations
+✅ **Tenant context:** From candidate record (no lookup)
+✅ **Multi-tenant:** Per-tenant configs (TENANT#{tenantId})
 
 ---
 
-## 🔄 Rollback Plan
+## References
 
-### If Critical Issues Arise
-
-**Step 1: Disable all rules**
-```bash
-# Update Intent Model to disable all rules
-aws dynamodb update-item \
-  --table-name talent-flow-config \
-  --key '{"PK":{"S":"INTENT_MODEL"},"SK":{"S":"v1.0"}}' \
-  --update-expression "SET #rules = :empty" \
-  --expression-attribute-names '{"#rules":"rules"}' \
-  --expression-attribute-values '{":empty":{"L":[]}}'
-```
-
-**Step 2: Disable Lambda (stops evaluation)**
-```bash
-aws lambda update-event-source-mapping \
-  --uuid <mapping-uuid> \
-  --no-enabled
-```
-
-**Step 3: Revert Lambda code**
-```bash
-# Deploy previous working version
-aws lambda update-function-code \
-  --function-name evaluateIntelligenceRules \
-  --zip-file fileb://backup/previous-version.zip
-```
-
-**Impact:** Notifications stop, but no data loss or pipeline blocking
+- **Investigation:** `/Users/IggieMushanguri/Documents/hr-portal/INTELLIGENCE-LAYER-INVESTIGATION.md`
+- **Existing patterns:** talent-flow-config table, manageTalentFlowConfig, config-reader.js
+- **Example components:** scoring-weights, sla-thresholds, panel-rules
 
 ---
 
-## 📚 Documentation Requirements
-
-### For Development Team
-
-- [ ] API documentation for action recommendation events
-- [ ] Signal calculation formulas (for future signals)
-- [ ] Rule authoring guide (how to add new rules)
-- [ ] Testing guide (how to test rules locally)
-- [ ] Troubleshooting guide (common issues)
-
-### For Stakeholders
-
-- [ ] User guide: What notifications mean
-- [ ] FAQ: Why am I receiving this?
-- [ ] Opt-out process (if needed)
-- [ ] Feedback mechanism
-
-### For Operations
-
-- [ ] Monitoring setup (CloudWatch dashboards)
-- [ ] Alert configuration (error rate, latency)
-- [ ] Runbook: What to do if rules malfunction
-- [ ] Incident response plan
-
----
-
-## 🎓 Lessons from User Activity Tracking (Apply Here)
-
-1. **Test Lambda code manually before debugging triggers**
-   - Create test events for evaluateIntelligenceRules
-   - Verify rule matching works before enabling stream
-
-2. **Start simple, add complexity incrementally**
-   - MVP rule first (SLA-only)
-   - Add user activity rules second
-   - Add remaining rules last
-
-3. **Silent failure for non-critical paths**
-   - Log signal calculation errors but don't crash
-   - Skip rules with missing signals
-   - Don't block candidate pipeline
-
-4. **Comprehensive logging**
-   - Log all matched rules
-   - Log all signal values
-   - Log why rules were skipped
-   - Log notification outcomes
-
-5. **De-duplication is critical**
-   - 24-hour cooldown prevents spam
-   - Check recent actions before creating new ones
-   - Max 1 notification per candidate per day
-
----
-
-## 📅 Estimated Timeline
-
-### Week 1: Infrastructure + MVP
-- Days 1-2: Create tables, Lambda skeleton, Terraform
-- Days 3-4: Implement MVP rule
-- Day 5: Test and deploy MVP
-
-### Week 2: User Activity Rules
-- Days 1-2: Implement signal calculators
-- Days 3-4: Add Rules 001 and 002
-- Day 5: Test and deploy
-
-### Week 3: Additional Rules (Part 1)
-- Days 1-2: Verify offer + IT architecture
-- Days 3-4: Implement Rule 003 (offers)
-- Day 5: Test and deploy
-
-### Week 4: Additional Rules (Part 2) + Optimization
-- Days 1-2: Implement Rules 004 and 005
-- Days 3-4: Test all 5 rules together
-- Day 5: Tune thresholds, collect feedback
-
-**Total:** 4 weeks to full Intelligence Layer operational
-
----
-
-## ✅ Definition of Done
-
-**Infrastructure Complete When:**
-- ✅ talent-flow-user-actions table deployed
-- ✅ evaluateIntelligenceRules Lambda deployed
-- ✅ DynamoDB stream trigger working
-- ✅ Can read Intent Model from config
-- ✅ Can write decisions to actions table
-
-**MVP Complete When:**
-- ✅ SLA rule triggers automatically
-- ✅ HM receives notification
-- ✅ No false positives in 48 hours
-- ✅ Latency <5 seconds
-- ✅ Error rate <1%
-
-**User Activity Rules Complete When:**
-- ✅ Rules 001 and 002 operational
-- ✅ Accuracy >90%
-- ✅ HM/TA click rate >30%
-- ✅ No spam complaints
-- ✅ Monitored for 1 week without issues
-
-**Full Implementation Complete When:**
-- ✅ All 5 rules operational
-- ✅ Accuracy >90% overall
-- ✅ Time to hire reduced by 5%
-- ✅ SLA breaches reduced by 10%
-- ✅ Stakeholder approval
-- ✅ Documentation complete
-
----
-
-## 🚀 Ready to Start
-
-**Prerequisites Met:**
-- ✅ User activity tracking operational
-- ✅ All signals unblocked
-- ✅ Architecture validated
-- ✅ Team approval
-
-**Next Action:** Create Phase 1 tasks and begin infrastructure setup
-
----
-
-**End of Intelligence Layer Implementation Plan**
+**Status:** READY FOR IMPLEMENTATION
+**Date:** 2026-06-08

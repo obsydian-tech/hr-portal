@@ -72,7 +72,8 @@ export type ConfigType =
   | 'ROUTING_RULES'
   | 'SENIORITY_DEFINITIONS'
   | 'APPROVAL_CHAINS'
-  | 'LOCALE_SETTINGS';
+  | 'LOCALE_SETTINGS'
+  | 'INTELLIGENCE_RULES';
 
 // ─── Scoring Weights ──────────────────────────────────────────────────────────
 export interface ScoringWeights {
@@ -358,6 +359,35 @@ export interface ConfigResponse {
   data:       Record<string, unknown>;
   createdAt:  string;
   updatedAt:  string;
+}
+
+// ─── Intelligence Layer ───────────────────────────────────────────────────
+
+export interface IntelligenceRulesConfig {
+  rules: IntelligenceRule[];
+}
+
+export interface IntelligenceRule {
+  id:          string;                    // "RULE-001"
+  name:        string;                    // "Expiring Offer with Inactive HM"
+  description: string;                    // Human-readable description
+  enabled:     boolean;                   // Can disable rule without deleting
+  priority:    'HIGH' | 'MEDIUM' | 'LOW';
+  conditions:  RuleCondition[];
+  action:      RuleAction;
+  cooldown:    number;                    // Hours before re-triggering
+}
+
+export interface RuleCondition {
+  signal:   string;                       // "OFFER_DAYS_TO_EXPIRY"
+  operator: 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'in' | 'notIn';
+  value:    number | string | string[];   // 30 (your example)
+}
+
+export interface RuleAction {
+  type:     string;                       // "NUDGE_HM_REVIEW_OFFER"
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  cooldown: number;                       // 24 hours
 }
 
 // ─── Agent / AI Chat ──────────────────────────────────────────────────────────

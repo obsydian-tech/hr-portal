@@ -186,6 +186,13 @@ export const talentFlowRoutes: Routes = [
             (m) => m.AdminStageConfigComponent,
           ),
       },
+      {
+        path: 'talentflow/intelligence-rules',
+        loadComponent: () =>
+          import('./pages/admin/talentflow-config/intelligence-rules/admin-intelligence-rules.component').then(
+            (m) => m.AdminIntelligenceRulesComponent,
+          ),
+      },
       // ── Section 5: IT Request Config ──────────────────────────────────
       {
         path: 'it-request/queues',
