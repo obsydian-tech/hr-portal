@@ -227,12 +227,33 @@ async function loadIntelligenceConfig(tenantId) {
 /**
  * Signal Registry - Maps signal names to calculator functions
  * Extensible pattern: Add new signals here without changing core logic
+ *
+ * Legend:
+ *   🟢 Atomic - derivable from single record, no queries needed
+ *   🟡 Cross-record - needs lookup of other records (GetItem/Query)
  */
 const SIGNAL_CALCULATORS = {
-  CANDIDATE_STAGE: calculateCandidateStage,
-  HM_DAYS_SINCE_LOGIN: calculateHmDaysSinceLogin,
-  OFFER_DAYS_TO_EXPIRY: calculateOfferDaysToExpiry,
-  TA_DAYS_SINCE_CANDIDATE_ACTION: calculateTaDaysSinceCandidateAction,
+  // === Existing Signals ===
+  CANDIDATE_STAGE: calculateCandidateStage,                         // 🟢
+  HM_DAYS_SINCE_LOGIN: calculateHmDaysSinceLogin,                   // 🟡
+  OFFER_DAYS_TO_EXPIRY: calculateOfferDaysToExpiry,                 // 🟢
+  TA_DAYS_SINCE_CANDIDATE_ACTION: calculateTaDaysSinceCandidateAction, // 🟡
+
+  // === §1.1 Time & Stage Progression ===
+  DAYS_SINCE_CANDIDATE_CREATED: calculateDaysSinceCandidateCreated, // 🟢
+
+  // === §1.2 SLA & Risk ===
+  SLA_STATUS: calculateSlaStatus,                                   // 🟢
+  DAYS_SINCE_SLA_BREACH: calculateDaysSinceSlaBreach,               // 🟢
+
+  // === §1.3 Engagement & Sentiment ===
+  ENGAGEMENT_SCORE: calculateEngagementScore,                       // 🟢
+  ENGAGEMENT_SENTIMENT: calculateEngagementSentiment,               // 🟢
+  INTERVIEW_SENTIMENT: calculateInterviewSentiment,                 // 🟢
+
+  // === §1.5 Panel & Evaluation ===
+  FINAL_SCORE: calculateFinalScore,                                 // 🟢
+  EVALUATION_RESULT: calculateEvaluationResult,                     // 🟢
 };
 
 /**
@@ -355,6 +376,114 @@ async function calculateTaDaysSinceCandidateAction(item) {
     });
     return null;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §1.1 Time & Stage Progression Signals (Atomic 🟢)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Signal Calculator: DAYS_SINCE_CANDIDATE_CREATED
+ * Returns total pipeline age in days
+ */
+function calculateDaysSinceCandidateCreated(item) {
+  if (!item.createdAt) return null;
+
+  try {
+    const created = new Date(item.createdAt);
+    const now = new Date();
+    const daysSince = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+    return daysSince;
+  } catch (err) {
+    console.warn('[evaluateIntelligenceRules] Failed to parse createdAt', {
+      createdAt: item.createdAt,
+      error: err.message
+    });
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §1.2 SLA & Risk Signals (Atomic 🟢)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Signal Calculator: SLA_STATUS
+ * Returns current SLA state: ON_TRACK | AT_RISK | BREACHED
+ */
+function calculateSlaStatus(item) {
+  return item.slaStatus || null;
+}
+
+/**
+ * Signal Calculator: DAYS_SINCE_SLA_BREACH
+ * Returns days since SLA was breached (null if not breached)
+ */
+function calculateDaysSinceSlaBreach(item) {
+  if (!item.slaBreachedAt) return null;
+
+  try {
+    const breachedAt = new Date(item.slaBreachedAt);
+    const now = new Date();
+    const daysSince = Math.floor((now - breachedAt) / (1000 * 60 * 60 * 24));
+    return daysSince;
+  } catch (err) {
+    console.warn('[evaluateIntelligenceRules] Failed to parse slaBreachedAt', {
+      slaBreachedAt: item.slaBreachedAt,
+      error: err.message
+    });
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §1.3 Engagement & Sentiment Signals (Atomic 🟢)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Signal Calculator: ENGAGEMENT_SCORE
+ * Returns engagement score (0-100)
+ */
+function calculateEngagementScore(item) {
+  if (item.engagementScore === undefined || item.engagementScore === null) return null;
+  return item.engagementScore;
+}
+
+/**
+ * Signal Calculator: ENGAGEMENT_SENTIMENT
+ * Returns categorical engagement: ENTHUSIASTIC | POSITIVE | NEUTRAL | HESITANT | DISENGAGED
+ */
+function calculateEngagementSentiment(item) {
+  return item.engagementSentiment || null;
+}
+
+/**
+ * Signal Calculator: INTERVIEW_SENTIMENT
+ * Returns sentiment captured at first interview
+ */
+function calculateInterviewSentiment(item) {
+  return item.interviewSentiment || null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §1.5 Panel & Evaluation Signals (Atomic 🟢)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Signal Calculator: FINAL_SCORE
+ * Returns aggregate evaluation score (0-100)
+ */
+function calculateFinalScore(item) {
+  if (item.finalScore === undefined || item.finalScore === null) return null;
+  return item.finalScore;
+}
+
+/**
+ * Signal Calculator: EVALUATION_RESULT
+ * Returns pass/fail outcome: PASSED | FAILED
+ */
+function calculateEvaluationResult(item) {
+  return item.evaluationResult || null;
 }
 
 /**
