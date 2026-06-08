@@ -96,6 +96,18 @@ async function processRecord(item, eventName) {
     eventName
   });
 
+  // Skip snapshot records (they're written by this Lambda, avoid re-processing)
+  if (item.PK && item.PK.includes('#SNAP')) {
+    console.info('[evaluateIntelligenceRules] Skipping snapshot record', { PK: item.PK });
+    return { status: 'skipped', reason: 'snapshot_record' };
+  }
+
+  // Skip non-SAGA records (only process candidate/offer SAGA state)
+  if (item.SK && item.SK !== 'SAGA') {
+    console.info('[evaluateIntelligenceRules] Skipping non-SAGA record', { SK: item.SK });
+    return { status: 'skipped', reason: 'non_saga_record' };
+  }
+
   // Extract tenantId from item
   const tenantId = item.tenantId || 'DEFAULT';
 
