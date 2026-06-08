@@ -131,6 +131,9 @@ async function checkInterviewLoopComplete(candidateId, tenantId, positionLevel) 
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  // Extract userId from JWT claims for action tracking (INTEL-001)
+  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return badRequest('Missing candidateId path parameter');
 
@@ -191,11 +194,18 @@ exports.handler = async (event) => {
 
   // ── Step 5: Update SAGA ────────────────────────────────────────────────────
   try {
+    const updateExpr = userId
+      ? 'SET currentStage = :stage, stageEnteredAt = :ts, slaStatus = :slaReset, updatedBy = :uid'
+      : 'SET currentStage = :stage, stageEnteredAt = :ts, slaStatus = :slaReset';
+    const attrValues = userId
+      ? { ':stage': newStage, ':ts': now, ':slaReset': 'ON_TRACK', ':uid': userId }
+      : { ':stage': newStage, ':ts': now, ':slaReset': 'ON_TRACK' };
+
     await dynamo.send(new UpdateItemCommand({
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-      UpdateExpression: 'SET currentStage = :stage, stageEnteredAt = :ts, slaStatus = :slaReset',
-      ExpressionAttributeValues: marshall({ ':stage': newStage, ':ts': now, ':slaReset': 'ON_TRACK' }),
+      UpdateExpression: updateExpr,
+      ExpressionAttributeValues: marshall(attrValues),
     }));
   } catch (err) {
     console.error('Failed to update SAGA stage', { candidateId, newStage, error: err.message });

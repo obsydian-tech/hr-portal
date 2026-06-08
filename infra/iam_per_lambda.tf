@@ -142,6 +142,25 @@ resource "aws_iam_role_policy" "cognito_post_auth" {
         Effect   = "Allow"
         Action   = ["dynamodb:UpdateItem"]
         Resource = aws_dynamodb_table.employees.arn
+      },
+      # === NEW: TalentFlow User Tracking Permissions ===
+      {
+        Sid      = "TalentFlowUsersTableQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/talent-flow-users/index/EmailIndex"
+      },
+      {
+        Sid      = "TalentFlowUsersTableUpdate"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/talent-flow-users"
+      },
+      {
+        Sid      = "TalentFlowKMSDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/87842eae-1ee4-43d1-8bf8-9dd92415ea68"
       }
     ]
   })

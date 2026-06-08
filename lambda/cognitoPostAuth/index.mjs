@@ -17,6 +17,7 @@ const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-
 const logger = new Logger({ serviceName: 'cognitoPostAuth' });
 
 const EMPLOYEES_TABLE = process.env.EMPLOYEES_TABLE ?? 'employees';
+const TALENT_FLOW_USERS_TABLE = process.env.TALENT_FLOW_USERS_TABLE ?? 'talent-flow-users';
 
 export const handler = async (event) => {
   logger.info('PostAuthentication trigger fired', {
@@ -44,7 +45,51 @@ export const handler = async (event) => {
     }));
 
     if (!queryResult.Items || queryResult.Items.length === 0) {
-      logger.warn('No employee record found for email — skipping stage update', { email });
+      logger.info('No Naleko employee record found — checking if TalentFlow user', { email });
+
+      // User might be TalentFlow-only (no Naleko employee record)
+      // Still track their login
+      try {
+        const tfQueryResult = await dynamo.send(new QueryCommand({
+          TableName: TALENT_FLOW_USERS_TABLE,
+          IndexName: 'EmailIndex',
+          KeyConditionExpression: 'GSI1PK = :emailKey',
+          ExpressionAttributeValues: {
+            ':emailKey': { S: `EMAIL#${email.toLowerCase()}` }
+          },
+          ProjectionExpression: 'userId, PK, SK',
+          Limit: 1,
+        }));
+
+        if (tfQueryResult.Items && tfQueryResult.Items.length > 0) {
+          const tfUser = tfQueryResult.Items[0];
+          const userId = tfUser.userId?.S;
+          const now = new Date().toISOString();
+
+          await dynamo.send(new UpdateItemCommand({
+            TableName: TALENT_FLOW_USERS_TABLE,
+            Key: {
+              PK: { S: `USER#${userId}` },
+              SK: { S: 'PROFILE' }
+            },
+            UpdateExpression: 'SET lastLoginAt = :now, updatedAt = :now',
+            ExpressionAttributeValues: {
+              ':now': { S: now }
+            },
+          }));
+
+          logger.info('Updated TalentFlow-only user lastLoginAt', { userId, email });
+        } else {
+          logger.warn('No user found in either employees or talent-flow-users', { email });
+        }
+      } catch (tfErr) {
+        logger.error('Failed to track TalentFlow-only user login', {
+          errorMessage: tfErr.message,
+          errorName: tfErr.name,
+          email
+        });
+      }
+
       return event;
     }
 
@@ -75,6 +120,52 @@ export const handler = async (event) => {
     }));
 
     logger.info('Stage bumped INVITED → ACTIVE', { employeeId, email });
+
+    // === NEW: TalentFlow User Login Tracking ===
+    // Check if this email also belongs to a TalentFlow user and update lastLoginAt
+    try {
+      const tfQueryResult = await dynamo.send(new QueryCommand({
+        TableName: TALENT_FLOW_USERS_TABLE,
+        IndexName: 'EmailIndex',
+        KeyConditionExpression: 'GSI1PK = :emailKey',
+        ExpressionAttributeValues: {
+          ':emailKey': { S: `EMAIL#${email.toLowerCase()}` }
+        },
+        ProjectionExpression: 'userId, PK, SK',
+        Limit: 1,
+      }));
+
+      if (tfQueryResult.Items && tfQueryResult.Items.length > 0) {
+        const tfUser = tfQueryResult.Items[0];
+        const userId = tfUser.userId?.S;
+        const now = new Date().toISOString();
+
+        // Update lastLoginAt for TalentFlow user
+        await dynamo.send(new UpdateItemCommand({
+          TableName: TALENT_FLOW_USERS_TABLE,
+          Key: {
+            PK: { S: `USER#${userId}` },
+            SK: { S: 'PROFILE' }
+          },
+          UpdateExpression: 'SET lastLoginAt = :now, updatedAt = :now',
+          ExpressionAttributeValues: {
+            ':now': { S: now }
+          },
+        }));
+
+        logger.info('Updated TalentFlow user lastLoginAt', { userId, email });
+      } else {
+        logger.debug('No TalentFlow user found for email — skipping login tracking', { email });
+      }
+    } catch (tfErr) {
+      // Log error but don't block login — tracking is nice-to-have, not critical
+      logger.error('Failed to update TalentFlow lastLoginAt — login will still succeed', {
+        errorMessage: tfErr.message,
+        errorName: tfErr.name,
+        email
+      });
+    }
+    // === END: TalentFlow User Login Tracking ===
 
   } catch (err) {
     // ConditionalCheckFailedException is fine — means another invocation already
