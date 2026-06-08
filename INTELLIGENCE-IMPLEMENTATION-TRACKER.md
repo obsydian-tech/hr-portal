@@ -13,7 +13,7 @@
 | Rule Evaluation Engine | ✅ Live | Phase 3 - Lambda processing stream |
 | Event Log (§10.4) | ✅ Live | `talent-flow-intelligence-events` table |
 | Atomic Signals (12) | ✅ Live | 4 original + 8 new |
-| Latest-Signals Snapshot | ⏳ Pending | §10.2 - Required for tiles |
+| Latest-Signals Snapshot | ✅ Code Ready | §10.2 - Awaiting deploy |
 | Dismiss/Snooze Overlay | ⏳ Pending | §10.3 |
 | Intelligence Tile Component | ⏳ Pending | §7 |
 | Dashboard Integration | ⏳ Pending | §8 |
@@ -39,7 +39,7 @@
 | Task | Status | Commit |
 |------|--------|--------|
 | 6.1.1 Atomic signals (§2.2-2.3) | ✅ Done | `4965d22` |
-| 6.1.2 Latest-signals snapshot (§10.2) | ⏳ Next | - |
+| 6.1.2 Latest-signals snapshot (§10.2) | ✅ Done | `f70d348` |
 | 6.1.3 Cross-record signals (§2.4-2.6) | ⏳ Pending | - |
 
 **Signals Implemented (12):**
@@ -252,7 +252,9 @@ Attributes:
 |------|---------|
 | `INTELLIGENCE-SURFACING-DESIGN.md` | Master architecture (tiles, UI, signals) |
 | `INTELLIGENCE-LAYER-EXPANSION.md` | Detailed rules, composites, metrics |
-| `lambda/evaluateIntelligenceRules/` | Rule evaluation Lambda |
+| `lambda/evaluateIntelligenceRules/index.js` | Rule evaluation Lambda handler |
+| `lambda/evaluateIntelligenceRules/snapshot-writer.js` | Signal snapshot writer (§10.2) |
+| `lambda/evaluateIntelligenceRules/event-logger.js` | Intelligence event logger (§10.4) |
 | `talent-flow-intelligence-events` | Event log table |
 
 ---
@@ -264,7 +266,10 @@ Attributes:
 | 2026-06-08 | Event log (§10.4) deployed & tested | `bcd7ae1` |
 | 2026-06-08 | 8 atomic signals added (12 total) | `4965d22` |
 | 2026-06-08 | Created implementation tracker | - |
+| 2026-06-08 | Latest-signals snapshot (§10.2) | `f70d348` |
 
 ---
 
-**Ready to continue?** Next task: `6.1.2 Latest-signals snapshot`
+**Ready to continue?** Next task: `6.2.1 IntelligenceTileComponent`
+
+**Note:** Lambda needs manual deploy with admin AWS credentials.
