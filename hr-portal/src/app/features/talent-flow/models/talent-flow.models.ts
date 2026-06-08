@@ -380,7 +380,7 @@ export interface IntelligenceRule {
 
 export interface RuleCondition {
   signal:   string;                       // "OFFER_DAYS_TO_EXPIRY"
-  operator: 'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'in' | 'notIn';
+  operator: 'equals' | 'notEquals' | 'greaterThan' | 'greaterThanOrEqual' | 'lessThan' | 'lessThanOrEqual' | 'in' | 'notIn';
   value:    number | string | string[];   // 30 (your example)
 }
 

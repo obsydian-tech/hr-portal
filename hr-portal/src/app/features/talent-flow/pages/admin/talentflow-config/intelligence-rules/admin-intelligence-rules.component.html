@@ -27,37 +27,95 @@
     </div>
   } @else {
 
+    <!-- Action bar -->
+    <div class="rules-action-bar">
+      <div class="rules-action-bar__stats">
+        <span class="rules-stat">
+          <i class="pi pi-list"></i>
+          {{ rulesCount() }} {{ rulesCount() === 1 ? 'rule' : 'rules' }}
+        </span>
+        <span class="rules-stat rules-stat--enabled">
+          <i class="pi pi-check-circle"></i>
+          {{ enabledCount() }} enabled
+        </span>
+      </div>
+      <button type="button" class="rules-add-btn" (click)="openAddDrawer()">
+        <i class="pi pi-plus"></i> Add Rule
+      </button>
+    </div>
+
     <!-- Empty state when no rules configured -->
     @if (configData().rules.length === 0) {
       <div class="config-empty">
         <i class="pi pi-bolt config-empty__icon"></i>
-        <p>No intelligence rules configured yet. Rules will enable proactive notifications based on candidate signals.</p>
+        <p>No intelligence rules configured yet.</p>
         <p class="config-empty__note">
-          <strong>Example:</strong> Notify HM when offer is expiring (less than 30 days) and HM hasn't logged in recently.
+          Rules enable proactive notifications based on candidate signals like SLA status, engagement, or offer expiry.
         </p>
+        <button type="button" class="config-empty__btn" (click)="openAddDrawer()">
+          <i class="pi pi-plus"></i> Create First Rule
+        </button>
       </div>
     }
 
-    <!-- Rules configuration card (placeholder for future) -->
+    <!-- Rules list -->
     @if (configData().rules.length > 0) {
-      <div class="config-card">
-        <div class="config-card__section-label">Intelligence Rules ({{ configData().rules.length }})</div>
-
+      <div class="rules-list">
         @for (rule of configData().rules; track rule.id) {
-          <div class="config-row">
-            <div class="config-row__label">
-              <span class="config-row__label-main">{{ rule.name }}</span>
-              <span class="config-row__label-desc">{{ rule.description }}</span>
+          <div class="rule-card" [class.rule-card--disabled]="!rule.enabled">
+            <!-- Rule header -->
+            <div class="rule-card__header">
+              <div class="rule-card__title-row">
+                <span class="rule-card__name">{{ rule.name }}</span>
+                <span
+                  class="rule-card__priority"
+                  [style.background]="getPriorityStyle(rule.priority).bg"
+                  [style.color]="getPriorityStyle(rule.priority).color"
+                >
+                  {{ rule.priority }}
+                </span>
+              </div>
+              <p class="rule-card__desc">{{ rule.description || 'No description' }}</p>
             </div>
-            <div class="config-row__control">
-              <p-toggleButton
-                [ngModel]="rule.enabled"
-                onLabel="Enabled"
-                offLabel="Disabled"
-                onIcon="pi pi-check"
-                offIcon="pi pi-times"
-                styleClass="config-toggle"
-              />
+
+            <!-- Rule details -->
+            <div class="rule-card__details">
+              <div class="rule-card__detail">
+                <span class="rule-card__detail-label">Conditions</span>
+                <span class="rule-card__detail-value">{{ getConditionSummary(rule) }}</span>
+              </div>
+              <div class="rule-card__detail">
+                <span class="rule-card__detail-label">Action</span>
+                <span class="rule-card__detail-value">{{ rule.action.type }}</span>
+              </div>
+              <div class="rule-card__detail">
+                <span class="rule-card__detail-label">Cooldown</span>
+                <span class="rule-card__detail-value">{{ rule.cooldown }}h</span>
+              </div>
+            </div>
+
+            <!-- Rule actions -->
+            <div class="rule-card__actions">
+              <button
+                type="button"
+                class="rule-card__toggle"
+                [class.rule-card__toggle--enabled]="rule.enabled"
+                (click)="toggleRule(rule)"
+                [pTooltip]="rule.enabled ? 'Disable rule' : 'Enable rule'"
+                tooltipPosition="top"
+              >
+                <i class="pi" [class.pi-check-circle]="rule.enabled" [class.pi-circle]="!rule.enabled"></i>
+                {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+              </button>
+              <button
+                type="button"
+                class="rule-card__edit"
+                (click)="openEditDrawer(rule)"
+                pTooltip="Edit rule"
+                tooltipPosition="top"
+              >
+                <i class="pi pi-pencil"></i>
+              </button>
             </div>
           </div>
         }
@@ -65,22 +123,33 @@
     }
 
     <!-- Save/Reset buttons -->
-    <div class="config-save-row">
-      <button type="button" class="cfg-btn-reset"
-              [disabled]="saving()"
-              (click)="confirmReset()">
-        <i class="pi pi-refresh"></i> Reset to Defaults
-      </button>
-      <button type="button" class="cfg-btn-save"
-              [disabled]="saving()"
-              (click)="confirmSave()">
-        <i class="pi"
-           [class.pi-check]="!saving()"
-           [class.pi-spinner]="saving()"
-           [class.pi-spin]="saving()"></i>
-        Save Changes
-      </button>
-    </div>
+    @if (configData().rules.length > 0) {
+      <div class="config-save-row">
+        <button type="button" class="cfg-btn-reset"
+                [disabled]="saving()"
+                (click)="confirmReset()">
+          <i class="pi pi-refresh"></i> Reset to Defaults
+        </button>
+        <button type="button" class="cfg-btn-save"
+                [disabled]="saving()"
+                (click)="confirmSave()">
+          <i class="pi"
+             [class.pi-check]="!saving()"
+             [class.pi-spinner]="saving()"
+             [class.pi-spin]="saving()"></i>
+          Save All Changes
+        </button>
+      </div>
+    }
   }
 
 </div>
+
+<!-- Rule Form Drawer -->
+<tf-rule-form-drawer
+  [visible]="drawerVisible()"
+  [rule]="editingRule()"
+  (saved)="handleSave($event)"
+  (deleted)="handleDelete($event)"
+  (closed)="closeDrawer()"
+/>

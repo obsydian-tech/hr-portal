@@ -6,13 +6,22 @@ import { MessageService } from 'primeng/api';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ToggleButtonModule } from 'primeng/togglebutton';
 import { SelectModule } from 'primeng/select';
+import { TooltipModule } from 'primeng/tooltip';
 
 import { TalentFlowApiService } from '../../../../services/talent-flow-api.service';
 import { ConfigVersionBadgeComponent } from '../../components/config-version-badge/config-version-badge.component';
 import { ConfigResponse, IntelligenceRule, IntelligenceRulesConfig } from '../../../../models/talent-flow.models';
+import { RuleFormDrawerComponent } from './components/rule-form-drawer/rule-form-drawer.component';
 
 const DEFAULT_CONFIG: IntelligenceRulesConfig = {
   rules: []
+};
+
+// Priority badge styling
+const PRIORITY_STYLES: Record<string, { bg: string; color: string }> = {
+  HIGH:   { bg: 'color-mix(in srgb, var(--naleko-error) 12%, transparent)', color: 'var(--naleko-error)' },
+  MEDIUM: { bg: 'color-mix(in srgb, var(--naleko-warning) 12%, transparent)', color: 'var(--naleko-warning)' },
+  LOW:    { bg: 'color-mix(in srgb, var(--naleko-tertiary) 12%, transparent)', color: 'var(--naleko-tertiary)' },
 };
 
 @Component({
@@ -23,7 +32,9 @@ const DEFAULT_CONFIG: IntelligenceRulesConfig = {
     InputNumberModule,
     ToggleButtonModule,
     SelectModule,
+    TooltipModule,
     ConfigVersionBadgeComponent,
+    RuleFormDrawerComponent,
   ],
   templateUrl: './admin-intelligence-rules.component.html',
   styleUrl:    './admin-intelligence-rules.component.scss',
@@ -34,11 +45,22 @@ export class AdminIntelligenceRulesComponent implements OnInit {
   private readonly messageService  = inject(MessageService);
   private readonly confirmService  = inject(ConfirmationService);
 
+  // ── Config State ─────────────────────────────────────────────────────────────
   readonly loading       = signal(true);
   readonly saving        = signal(false);
   readonly configData    = signal<IntelligenceRulesConfig>({ ...DEFAULT_CONFIG });
   readonly configVersion = signal<string | null>(null);
   readonly updatedAt     = signal<string | null>(null);
+
+  // ── Drawer State ─────────────────────────────────────────────────────────────
+  readonly drawerVisible = signal(false);
+  readonly editingRule   = signal<IntelligenceRule | null>(null);
+
+  // ── Computed ─────────────────────────────────────────────────────────────────
+  readonly rulesCount  = computed(() => this.configData().rules.length);
+  readonly enabledCount = computed(() => this.configData().rules.filter(r => r.enabled).length);
+
+  readonly priorityStyles = PRIORITY_STYLES;
 
   ngOnInit(): void {
     this.loadConfig();
@@ -58,13 +80,100 @@ export class AdminIntelligenceRulesComponent implements OnInit {
     });
   }
 
+  // ── Drawer Actions ───────────────────────────────────────────────────────────
+
+  openAddDrawer(): void {
+    this.editingRule.set(null);
+    this.drawerVisible.set(true);
+  }
+
+  openEditDrawer(rule: IntelligenceRule): void {
+    this.editingRule.set(rule);
+    this.drawerVisible.set(true);
+  }
+
+  closeDrawer(): void {
+    this.drawerVisible.set(false);
+    this.editingRule.set(null);
+  }
+
+  handleSave(rule: IntelligenceRule): void {
+    const current = this.configData();
+    const existingIndex = current.rules.findIndex(r => r.id === rule.id);
+
+    let updatedRules: IntelligenceRule[];
+    if (existingIndex >= 0) {
+      // Update existing rule
+      updatedRules = current.rules.map((r, i) => (i === existingIndex ? rule : r));
+    } else {
+      // Add new rule
+      updatedRules = [...current.rules, rule];
+    }
+
+    this.doSave({ rules: updatedRules }, existingIndex >= 0 ? 'updated' : 'created');
+    this.closeDrawer();
+  }
+
+  handleDelete(ruleId: string): void {
+    this.confirmService.confirm({
+      message: 'Delete this intelligence rule? This action cannot be undone.',
+      header:  'Delete Rule',
+      icon:    'pi pi-trash',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept:  () => {
+        const current = this.configData();
+        const updatedRules = current.rules.filter(r => r.id !== ruleId);
+        this.doSave({ rules: updatedRules }, 'deleted');
+        this.closeDrawer();
+      },
+    });
+  }
+
+  // ── Toggle Rule ──────────────────────────────────────────────────────────────
+
+  toggleRule(rule: IntelligenceRule): void {
+    const current = this.configData();
+    const updatedRules = current.rules.map(r =>
+      r.id === rule.id ? { ...r, enabled: !r.enabled } : r
+    );
+
+    // Optimistic update
+    this.configData.set({ rules: updatedRules });
+
+    // Persist
+    this.api.updateConfig('INTELLIGENCE_RULES', { rules: updatedRules }).subscribe({
+      next: (cfg: ConfigResponse) => {
+        this.configVersion.set(cfg.version);
+        this.updatedAt.set(cfg.updatedAt);
+        this.messageService.add({
+          severity: 'success',
+          summary:  rule.enabled ? 'Disabled' : 'Enabled',
+          detail:   `Rule "${rule.name}" ${rule.enabled ? 'disabled' : 'enabled'}.`,
+          life:     3000,
+        });
+      },
+      error: (err: { userMessage?: string }) => {
+        // Revert on error
+        this.configData.set(current);
+        this.messageService.add({
+          severity: 'error',
+          summary:  'Failed',
+          detail:   err.userMessage ?? 'Could not update rule.',
+          life:     5000,
+        });
+      },
+    });
+  }
+
+  // ── Save/Reset ───────────────────────────────────────────────────────────────
+
   confirmSave(): void {
     if (this.saving()) return;
     this.confirmService.confirm({
       message: 'Save Intelligence Layer rules? Changes take effect immediately.',
       header:  'Save Rules',
       icon:    'pi pi-exclamation-triangle',
-      accept:  () => this.doSave(this.configData()),
+      accept:  () => this.doSave(this.configData(), 'saved'),
     });
   }
 
@@ -73,11 +182,11 @@ export class AdminIntelligenceRulesComponent implements OnInit {
       message: 'Reset to factory defaults? This will remove all configured rules.',
       header:  'Reset to Defaults',
       icon:    'pi pi-refresh',
-      accept:  () => this.doSave({ ...DEFAULT_CONFIG }),
+      accept:  () => this.doSave({ ...DEFAULT_CONFIG }, 'reset'),
     });
   }
 
-  private doSave(payload: IntelligenceRulesConfig): void {
+  private doSave(payload: IntelligenceRulesConfig, action: string = 'saved'): void {
     this.saving.set(true);
     this.api.updateConfig('INTELLIGENCE_RULES', payload).subscribe({
       next: (cfg: ConfigResponse) => {
@@ -87,8 +196,8 @@ export class AdminIntelligenceRulesComponent implements OnInit {
         this.saving.set(false);
         this.messageService.add({
           severity: 'success',
-          summary:  'Saved',
-          detail:   `Intelligence rules saved as version ${cfg.version}.`,
+          summary:  'Success',
+          detail:   `Intelligence rules ${action} (version ${cfg.version}).`,
           life:     4000,
         });
       },
@@ -102,5 +211,20 @@ export class AdminIntelligenceRulesComponent implements OnInit {
         });
       },
     });
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  getPriorityStyle(priority: string): { bg: string; color: string } {
+    return PRIORITY_STYLES[priority] || PRIORITY_STYLES['MEDIUM'];
+  }
+
+  getConditionSummary(rule: IntelligenceRule): string {
+    if (rule.conditions.length === 0) return 'No conditions';
+    if (rule.conditions.length === 1) {
+      const c = rule.conditions[0];
+      return `${c.signal} ${c.operator} ${c.value}`;
+    }
+    return `${rule.conditions.length} conditions (AND)`;
   }
 }
