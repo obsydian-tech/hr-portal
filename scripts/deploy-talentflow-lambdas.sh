@@ -73,6 +73,7 @@ ALL_TARGETS=(
   advanceCandidateStage
   trackUserAction
   evaluateIntelligenceRules
+  getIntelligenceTiles
 )
 
 # Lambdas that import from ../shared/config-reader (need patch+bundle)

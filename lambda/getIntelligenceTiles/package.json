@@ -1,0 +1,13 @@
+{
+  "name": "get-intelligence-tiles",
+  "version": "1.0.0",
+  "description": "Lambda to fetch intelligence tiles from signal snapshots",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.750.0",
+    "@aws-sdk/util-dynamodb": "^3.750.0"
+  }
+}
