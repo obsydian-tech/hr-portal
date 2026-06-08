@@ -294,6 +294,11 @@ const SIGNAL_CALCULATORS = {
   // === Phase 6.4: Composite Signals ===
   CANDIDATE_RISK_SCORE: calculateCandidateRiskScore,                // 🟢 Composite
   ONBOARDING_READINESS: calculateOnboardingReadiness,               // 🟢 Composite
+
+  // === IT Provisioning Signals ===
+  DAYS_TO_START_DATE: calculateDaysToStartDate,                     // 🟢
+  EQUIPMENT_REQUEST_STATUS: calculateEquipmentRequestStatus,        // 🟢
+  ACCESS_PROVISIONED: calculateAccessProvisioned,                   // 🟢
 };
 
 /**
@@ -682,6 +687,81 @@ function calculateOnboardingReadiness(item) {
   factorsEvaluated++;
 
   return readinessScore;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// IT Provisioning Signals (Atomic 🟢)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Signal Calculator: DAYS_TO_START_DATE
+ * Returns days until candidate's start date (negative if past)
+ * Used by IT to prioritize provisioning
+ */
+function calculateDaysToStartDate(item) {
+  // Check multiple possible field names for start date
+  const startDate = item.startDate || item.proposedStartDate || item.targetStartDate;
+
+  if (!startDate) return null;
+
+  try {
+    const start = new Date(startDate);
+    const now = new Date();
+    const daysTo = Math.floor((start - now) / (1000 * 60 * 60 * 24));
+    return daysTo;
+  } catch (err) {
+    console.warn('[evaluateIntelligenceRules] Failed to parse startDate', {
+      startDate,
+      error: err.message
+    });
+    return null;
+  }
+}
+
+/**
+ * Signal Calculator: EQUIPMENT_REQUEST_STATUS
+ * Returns status of IT equipment request: NOT_ORDERED | PENDING | ORDERED | DELIVERED
+ */
+function calculateEquipmentRequestStatus(item) {
+  // Check explicit status field
+  if (item.equipmentRequestStatus) {
+    return item.equipmentRequestStatus;
+  }
+
+  // Infer from boolean flags
+  if (item.equipmentDelivered) return 'DELIVERED';
+  if (item.equipmentOrdered) return 'ORDERED';
+  if (item.equipmentRequested || item.provisioningBundleId) return 'PENDING';
+
+  // Default for candidates in onboarding stages
+  if (['PRE_BOARDING', 'ONBOARDING', 'CONTRACT_SIGNING'].includes(item.currentStage)) {
+    return 'NOT_ORDERED';
+  }
+
+  return null;
+}
+
+/**
+ * Signal Calculator: ACCESS_PROVISIONED
+ * Returns boolean indicating if system access has been set up
+ */
+function calculateAccessProvisioned(item) {
+  // Check explicit boolean field
+  if (item.accessProvisioned !== undefined) {
+    return item.accessProvisioned;
+  }
+
+  // Check alternate field names
+  if (item.systemAccessGranted !== undefined) {
+    return item.systemAccessGranted;
+  }
+
+  // For candidates in onboarding stages, default to false if not explicitly set
+  if (['PRE_BOARDING', 'ONBOARDING'].includes(item.currentStage)) {
+    return false;
+  }
+
+  return null;
 }
 
 /**
