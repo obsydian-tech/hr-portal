@@ -195,16 +195,16 @@
 
   &:hover {
     background: var(--naleko-surface-container);
-    border-color: var(--chip-color, var(--naleko-outline));
+    border-color: var(--naleko-secondary);
   }
 
   &--active {
-    border-color: var(--chip-color, var(--naleko-tertiary));
-    background: color-mix(in srgb, var(--chip-color, var(--naleko-tertiary)) 12%, transparent);
-    color: var(--chip-color, var(--naleko-tertiary));
+    border-color: var(--naleko-secondary);
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
 
     .rules-category-chip__count {
-      background: color-mix(in srgb, var(--chip-color, var(--naleko-tertiary)) 20%, transparent);
+      background: color-mix(in srgb, var(--naleko-secondary) 20%, transparent);
     }
   }
 }
@@ -267,9 +267,9 @@
   transition: all 0.15s;
 
   &:hover {
-    background: var(--naleko-surface-container);
-    border-color: var(--naleko-tertiary);
-    color: var(--naleko-tertiary);
+    background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+    border-color: var(--naleko-secondary);
+    color: var(--naleko-secondary);
   }
 }
 
@@ -278,7 +278,7 @@
 .thresholds-panel {
   margin-bottom: 1.25rem;
   background: var(--naleko-surface-container-lowest);
-  border: 1.5px solid var(--naleko-tertiary);
+  border: 1.5px solid var(--naleko-secondary);
   border-radius: var(--naleko-radius-lg);
   overflow: hidden;
 
@@ -287,11 +287,11 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: color-mix(in srgb, var(--naleko-tertiary) 8%, transparent);
+    background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
     border-bottom: 1px solid var(--naleko-outline-variant);
     font-size: 0.8125rem;
     font-weight: 700;
-    color: var(--naleko-tertiary);
+    color: var(--naleko-secondary);
 
     .pi { font-size: 1rem; }
   }
@@ -352,18 +352,18 @@
   padding: 0.5rem 1rem;
   border: none;
   border-radius: var(--naleko-radius-md);
-  background: linear-gradient(135deg, var(--naleko-tertiary), var(--naleko-secondary));
+  background: linear-gradient(135deg, var(--naleko-secondary), var(--naleko-primary));
   color: var(--naleko-on-primary);
   font-family: var(--naleko-font-body);
   font-size: 0.8125rem;
   font-weight: 700;
   cursor: pointer;
   transition: opacity 0.15s, box-shadow 0.15s;
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--naleko-tertiary) 25%, transparent);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--naleko-secondary) 25%, transparent);
 
   &:hover {
     opacity: 0.92;
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--naleko-tertiary) 35%, transparent);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--naleko-secondary) 35%, transparent);
   }
 }
 
@@ -384,8 +384,8 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 
   &:hover {
-    border-color: var(--naleko-tertiary);
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-tertiary) 10%, transparent);
+    border-color: var(--naleko-secondary);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
   }
 
   &--disabled {
@@ -543,9 +543,9 @@
     transition: all 0.15s;
 
     &:hover {
-      background: var(--naleko-surface-container);
-      border-color: var(--naleko-tertiary);
-      color: var(--naleko-tertiary);
+      background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+      border-color: var(--naleko-secondary);
+      color: var(--naleko-secondary);
     }
   }
 }
@@ -595,18 +595,18 @@
     padding: 0.65rem 1.25rem;
     border: none;
     border-radius: var(--naleko-radius-md);
-    background: linear-gradient(135deg, var(--naleko-tertiary), var(--naleko-secondary));
+    background: linear-gradient(135deg, var(--naleko-secondary), var(--naleko-primary));
     color: var(--naleko-on-primary);
     font-family: var(--naleko-font-body);
     font-size: 0.875rem;
     font-weight: 700;
     cursor: pointer;
     transition: opacity 0.15s, box-shadow 0.15s;
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-tertiary) 30%, transparent);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-secondary) 30%, transparent);
 
     &:hover {
       opacity: 0.92;
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--naleko-tertiary) 40%, transparent);
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--naleko-secondary) 40%, transparent);
     }
 
     &--secondary {

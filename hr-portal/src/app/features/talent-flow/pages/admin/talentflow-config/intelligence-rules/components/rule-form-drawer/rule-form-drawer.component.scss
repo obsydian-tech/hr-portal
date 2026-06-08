@@ -24,12 +24,12 @@
     width: 2.75rem;
     height: 2.75rem;
     border-radius: var(--naleko-radius-lg);
-    background: color-mix(in srgb, var(--naleko-tertiary) 15%, transparent);
+    background: color-mix(in srgb, var(--naleko-secondary) 15%, transparent);
     flex-shrink: 0;
 
     .pi {
       font-size: 1.2rem;
-      color: var(--naleko-tertiary);
+      color: var(--naleko-secondary);
     }
   }
 
@@ -139,8 +139,8 @@
     &::placeholder { color: var(--naleko-on-surface-variant); opacity: 0.6; }
 
     &:focus {
-      border-color: var(--naleko-tertiary);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-tertiary) 12%, transparent);
+      border-color: var(--naleko-secondary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
     }
 
     &--textarea {
@@ -235,10 +235,10 @@
   align-items: center;
   gap: 0.3rem;
   padding: 0.35rem 0.75rem;
-  border: 1.5px solid var(--naleko-tertiary);
+  border: 1.5px solid var(--naleko-secondary);
   border-radius: var(--naleko-radius-md);
-  background: color-mix(in srgb, var(--naleko-tertiary) 8%, transparent);
-  color: var(--naleko-tertiary);
+  background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+  color: var(--naleko-secondary);
   font-family: var(--naleko-font-body);
   font-size: 0.75rem;
   font-weight: 700;
@@ -246,8 +246,8 @@
   transition: background 0.12s, box-shadow 0.12s;
 
   &:hover {
-    background: color-mix(in srgb, var(--naleko-tertiary) 15%, transparent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-tertiary) 12%, transparent);
+    background: color-mix(in srgb, var(--naleko-secondary) 15%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
   }
 }
 
@@ -330,18 +330,18 @@
   padding: 0.7rem 1.5rem;
   border: none;
   border-radius: var(--naleko-radius-md);
-  background: linear-gradient(135deg, var(--naleko-tertiary), var(--naleko-primary));
+  background: linear-gradient(135deg, var(--naleko-secondary), var(--naleko-primary));
   color: var(--naleko-on-primary);
   font-family: var(--naleko-font-body);
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
   transition: opacity 0.15s, box-shadow 0.15s;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-primary) 30%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-secondary) 30%, transparent);
 
   &:hover:not(:disabled) {
     opacity: 0.92;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--naleko-primary) 40%, transparent);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--naleko-secondary) 40%, transparent);
   }
 
   &:disabled { opacity: 0.45; cursor: not-allowed; }
