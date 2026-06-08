@@ -13,6 +13,7 @@ const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
 const { randomUUID } = require('crypto');
 const { getConfig } = require('./config-reader');
+const { logRuleFired } = require('./event-logger');
 
 const dynamoDB = new DynamoDBClient({});
 const lambda = new LambdaClient({});
@@ -622,6 +623,22 @@ async function processAction(rule, item, signals) {
       notificationType,
       recipientId,
       lambdaFunction: NOTIFICATION_LAMBDA
+    });
+
+    // Log intelligence event for effectiveness metrics (§7.5)
+    await logRuleFired(dynamoDB, {
+      tenantId: item.tenantId || 'DEFAULT',
+      ruleId: rule.id,
+      ruleName: rule.name,
+      ruleSeverity: rule.action?.priority || 'MEDIUM',
+      entityType,
+      entityId,
+      entityName: item.firstName && item.lastName ? `${item.firstName} ${item.lastName}` : null,
+      currentStage: item.currentStage,
+      recipientId,
+      recipientRole: getRecipientRole(rule.action.type),
+      signalsSnapshot: signals,
+      notificationId: `NOTIF#${new Date().toISOString()}`
     });
 
     return { status: 'invoked', notificationType, recipientId };

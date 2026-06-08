@@ -42,6 +42,7 @@ resource "aws_lambda_function" "evaluate_intelligence_rules" {
       CONFIG_TABLE_NAME        = data.aws_dynamodb_table.talent_flow_config.name
       USERS_TABLE_NAME         = data.aws_dynamodb_table.talent_flow_users.name
       NOTIFICATIONS_TABLE_NAME = data.aws_dynamodb_table.talent_flow_notifications.name
+      EVENTS_TABLE_NAME        = aws_dynamodb_table.intelligence_events.name
       NOTIFICATION_LAMBDA_NAME = "sendTalentFlowNotification"
     }
   }
@@ -236,6 +237,14 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
           data.aws_dynamodb_table.talent_flow_notifications.arn,
           "${data.aws_dynamodb_table.talent_flow_notifications.arn}/index/*"
         ]
+      },
+      {
+        Sid    = "IntelligenceEventsTableWrite"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem"
+        ]
+        Resource = aws_dynamodb_table.intelligence_events.arn
       }
     ]
   })
