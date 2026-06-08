@@ -18,6 +18,9 @@
 | Intelligence Service | ✅ Live | Signal-based state management |
 | getIntelligenceTiles Lambda | ✅ Live | `GET /v1/intelligence/tiles` |
 | TA Dashboard Zone 0 | ✅ Live | §8 - Integrated |
+| HM Dashboard Zone 0 | ✅ Live | Phase 6.3 - Intelligence Alerts |
+| IT Queue Zone 0 | ✅ Live | Phase 6.3 - Compact tiles |
+| Composite Signals (3) | ✅ Live | Phase 6.4 - Risk, Stale, Onboarding |
 | Dismiss/Snooze Overlay | ⏳ Pending | §10.3 |
 
 ---
@@ -54,17 +57,21 @@
 ✅ FINAL_SCORE              ✅ EVALUATION_RESULT
 ```
 
+**Signals Implemented (Phase 6.4 - Composites):**
+```
+✅ DAYS_IN_CURRENT_STAGE    - Days since last stage change
+✅ CANDIDATE_RISK_SCORE     - Weighted composite (0-100)
+✅ ONBOARDING_READINESS     - Composite (0-100%)
+```
+
 **Signals Pending (Priority Order):**
 ```
-⏳ DAYS_IN_CURRENT_STAGE    - Needs stage history (§10.1)
 ⏳ OFFER_STATE              - Cross-record lookup
 ⏳ DAYS_SINCE_OFFER_SENT    - Cross-record lookup
 ⏳ PANEL_FEEDBACK_PENDING   - Cross-record lookup
 ⏳ DAYS_TO_START_DATE       - From offer.startDate
 ⏳ EQUIPMENT_REQUEST_STATUS - Provisioning domain
 ⏳ ACCESS_PROVISIONED       - Provisioning domain
-⏳ ONBOARDING_READINESS     - Composite
-⏳ CANDIDATE_RISK_SCORE     - Composite (needs history)
 ```
 
 ---
@@ -101,14 +108,21 @@
 
 ---
 
-### Phase 6.3: HM & IT Dashboards
+### Phase 6.3: HM & IT Dashboards ✅ COMPLETE
 *Expand to all roles*
 
-| Task | Est | Status |
-|------|-----|--------|
-| 6.3.1 HM Intelligence tab | 1h | ⏳ |
-| 6.3.2 IT compact banner | 1h | ⏳ |
-| 6.3.3 Role-based tile filtering | 30m | ⏳ |
+| Task | Est | Status | Commit |
+|------|-----|--------|--------|
+| 6.3.1 HM Intelligence Zone 0 | 1h | ✅ Done | `834eeb4` |
+| 6.3.2 IT Queue Zone 0 | 1h | ✅ Done | `834eeb4` |
+| 6.3.3 Role-based tile filtering | 30m | ✅ Done | `ee95a6d` |
+
+**Deployed Components:**
+- HM Dashboard Zone 0 with Intelligence Alerts
+- IT Queue Zone 0 with compact Intelligence Alerts
+- IntelligenceService injected in both pages
+- Tile action handlers (navigate, dismiss, snooze)
+- Zone 0 SCSS styling matching Naleko design system
 
 **HM Tiles (from §5.2):**
 ```
@@ -122,7 +136,7 @@
 **IT Tiles (from §5.3):**
 ```
 1. Access not provisioned  - DAYS_TO_START + ACCESS_PROVISIONED
-2. Provisioning at risk    - ONBOARDING_READINESS
+2. Provisioning at risk    - ONBOARDING_READINESS ✅
 3. Equipment overdue       - EQUIPMENT_REQUEST_OVERDUE
 4. Equipment to order      - EQUIPMENT_REQUEST_STATUS
 5. Incomplete onboarding   - ONBOARDING_COMPLETE_PCT
@@ -130,16 +144,38 @@
 
 ---
 
-### Phase 6.4: Stage History & Composites
+### Phase 6.4: Stage History & Composites ✅ COMPLETE
 *Unlock advanced intelligence*
 
-| Task | Est | Status |
-|------|-----|--------|
-| 6.4.1 Stage history tracking (§10.1) | 2h | ⏳ |
-| 6.4.2 DAYS_IN_CURRENT_STAGE signal | 30m | ⏳ |
-| 6.4.3 CANDIDATE_RISK_SCORE composite | 1h | ⏳ |
-| 6.4.4 ONBOARDING_READINESS composite | 1h | ⏳ |
-| 6.4.5 Per-entity critical tiles | 1h | ⏳ |
+| Task | Est | Status | Commit |
+|------|-----|--------|--------|
+| 6.4.1 Stage history tracking (§10.1) | 2h | ✅ Done | `834eeb4` |
+| 6.4.2 DAYS_IN_CURRENT_STAGE signal | 30m | ✅ Done | `834eeb4` |
+| 6.4.3 CANDIDATE_RISK_SCORE composite | 1h | ✅ Done | `834eeb4` |
+| 6.4.4 ONBOARDING_READINESS composite | 1h | ✅ Done | `834eeb4` |
+| 6.4.5 Per-entity critical tiles | 1h | ✅ Done | `834eeb4` |
+
+**New Signals Implemented:**
+```
+✅ DAYS_IN_CURRENT_STAGE     - Days since last stage change
+✅ CANDIDATE_RISK_SCORE      - Weighted composite (0-100)
+   Factors: SLA status (+40/+20), days in stage (+15/+10),
+            engagement (+25/+15), pipeline age (+10), low score (+10)
+✅ ONBOARDING_READINESS      - Composite (0-100%)
+   Factors: stage, equipment, access, documents
+```
+
+**New Tile Rules:**
+```
+✅ RULE-RISK-001    - High Risk Candidate (score >= 60)
+✅ RULE-STALE-001   - Stalled in Stage (>14 days)
+✅ RULE-ONBOARD-001 - Onboarding Preparation Needed (<75% ready)
+```
+
+**New Signal Pills:**
+- Risk score pill (error/warning/info based on level)
+- Days in stage pill (warning if >14d)
+- Onboarding readiness pill (success/warning/error)
 
 ---
 
@@ -166,26 +202,23 @@
 
 ---
 
-## Next Up: Phase 6.3 — HM & IT Dashboards
+## Next Up: Phase 6.5 — Admin Configuration
 
-**What:** Expand intelligence tiles to HM and IT roles
-**Why:** All personas need actionable insights, not just TAs
-**Where:** HM Dashboard, IT Queue pages
+**What:** Full CRUD for intelligence rules in Admin UI
+**Why:** Admins need to create, edit, and delete rules without code changes
+**Where:** Admin > Intelligence Rules page
 
 **Approach:**
-1. Add Zone 0 to HM Dashboard with HM-specific tiles
-2. Add compact intelligence banner to IT Queue
-3. Implement role-based tile filtering in `IntelligenceService`
-4. Add ownerId-scoped queries using GSI1
+1. Create Rule Form Drawer component (similar to template-form-drawer)
+2. Add Create/Edit/Delete functionality
+3. Implement rule categories and filtering
+4. Add threshold configuration UI
 
-**HM Tiles (Priority):**
-- Decision deadline (SLA_STATUS)
-- Awaiting your approval (APPROVAL_STEP_AGE)
-- Fast-track recommended (FINAL_SCORE ≥ 85)
-
-**IT Tiles (Priority):**
-- Equipment not ordered (EQUIPMENT_REQUEST_STATUS)
-- Provisioning at risk (DAYS_TO_START_DATE)
+**Key Features:**
+- Dynamic conditions builder (add/remove signal conditions)
+- Action type selection with recipient targeting
+- Cooldown configuration
+- Enable/disable toggle per rule
 
 ---
 
@@ -279,7 +312,10 @@
 | 2026-06-08 | getIntelligenceTiles Lambda + API Gateway route | `adcdc6c` |
 | 2026-06-08 | TA Dashboard Zone 0 integration | `ee95a6d` |
 | 2026-06-08 | End-to-end verification with real data | - |
+| 2026-06-08 | **Phase 6.3 COMPLETE** - HM Dashboard Zone 0, IT Queue Zone 0 | `834eeb4` |
+| 2026-06-08 | **Phase 6.4 COMPLETE** - Composite signals (Risk, Stale, Onboarding) | `834eeb4` |
+| 2026-06-08 | New tile rules: RULE-RISK-001, RULE-STALE-001, RULE-ONBOARD-001 | `834eeb4` |
 
 ---
 
-**Ready to continue?** Next task: `6.3.1 HM Intelligence tab`
+**Ready to continue?** Next task: `6.5.1 Rule form drawer (CRUD)`
