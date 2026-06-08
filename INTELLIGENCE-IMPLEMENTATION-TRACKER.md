@@ -13,7 +13,7 @@
 | Rule Evaluation Engine | ✅ Live | Phase 3 - Lambda processing stream |
 | Event Log (§10.4) | ✅ Live | `talent-flow-intelligence-events` table |
 | Atomic Signals (12) | ✅ Live | 4 original + 8 new |
-| Latest-Signals Snapshot | ✅ Code Ready | §10.2 - Awaiting deploy |
+| Latest-Signals Snapshot | ✅ Live | §10.2 - Verified in prod |
 | Dismiss/Snooze Overlay | ⏳ Pending | §10.3 |
 | Intelligence Tile Component | ⏳ Pending | §7 |
 | Dashboard Integration | ⏳ Pending | §8 |
@@ -267,9 +267,8 @@ Attributes:
 | 2026-06-08 | 8 atomic signals added (12 total) | `4965d22` |
 | 2026-06-08 | Created implementation tracker | - |
 | 2026-06-08 | Latest-signals snapshot (§10.2) | `f70d348` |
+| 2026-06-08 | Snapshot deployed & verified | `bbcaae5` |
 
 ---
 
 **Ready to continue?** Next task: `6.2.1 IntelligenceTileComponent`
-
-**Note:** Lambda needs manual deploy with admin AWS credentials.
