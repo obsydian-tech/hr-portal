@@ -14,6 +14,7 @@ const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
 const { randomUUID } = require('crypto');
 const { getConfig } = require('./config-reader');
 const { logRuleFired } = require('./event-logger');
+const { writeSignalSnapshot } = require('./snapshot-writer');
 
 const dynamoDB = new DynamoDBClient({});
 const lambda = new LambdaClient({});
@@ -133,6 +134,28 @@ async function processRecord(item, eventName) {
       error: err.message
     });
     return { status: 'skipped', reason: 'signal_calculation_failed' };
+  }
+
+  // Step 2.5: Write signal snapshot for tile projections (§10.2)
+  const entityType = item.candidateId ? 'CANDIDATE' : 'OFFER';
+  const entityId = item.candidateId || item.offerId;
+
+  if (entityId) {
+    try {
+      await writeSignalSnapshot(dynamoDB, {
+        tenantId,
+        entityType,
+        entityId,
+        signals,
+        item
+      });
+    } catch (err) {
+      // Fail-open: snapshot write is advisory
+      console.warn('[evaluateIntelligenceRules] Snapshot write failed (continuing)', {
+        entityId,
+        error: err.message
+      });
+    }
   }
 
   // Step 3: Evaluate rules against signals

@@ -71,6 +71,8 @@ ALL_TARGETS=(
   createItTask
   getHiringManagers
   advanceCandidateStage
+  trackUserAction
+  evaluateIntelligenceRules
 )
 
 # Lambdas that import from ../shared/config-reader (need patch+bundle)
