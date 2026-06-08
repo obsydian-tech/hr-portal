@@ -23,6 +23,7 @@
 | Composite Signals (3) | ✅ Live | Phase 6.4 - Risk, Stale, Onboarding |
 | Role-based Tile Filtering | ✅ Live | TA/HM/IT see only relevant tiles |
 | IT Provisioning Signals (3) | ✅ Live | DAYS_TO_START, EQUIPMENT_STATUS, ACCESS |
+| Admin Rules CRUD | ✅ Live | Phase 6.5.1 - Create/Edit/Delete rules |
 | Dismiss/Snooze Overlay | ⏳ Pending | §10.3 |
 
 ---
@@ -185,15 +186,22 @@
 
 ---
 
-### Phase 6.5: Admin Configuration
+### Phase 6.5: Admin Configuration ✅ PARTIAL
 *Rule & tile management UI*
 
-| Task | Est | Status |
-|------|-----|--------|
-| 6.5.1 Rule form drawer (CRUD) | 2h | ⏳ |
-| 6.5.2 Rule categories | 1h | ⏳ |
-| 6.5.3 Tile configuration page | 2h | ⏳ |
-| 6.5.4 Threshold settings | 1h | ⏳ |
+| Task | Est | Status | Commit |
+|------|-----|--------|--------|
+| 6.5.1 Rule form drawer (CRUD) | 2h | ✅ Done | `d0cf253` |
+| 6.5.2 Rule categories | 1h | ⏳ | - |
+| 6.5.3 Tile configuration page | 2h | ⏳ | - |
+| 6.5.4 Threshold settings | 1h | ⏳ | - |
+
+**Deployed Components (6.5.1):**
+- `RuleFormDrawerComponent` - 560px sidebar for create/edit rules
+- Dynamic conditions builder with 18 signal options
+- Action configuration with 12 action types
+- Priority, enabled toggle, cooldown settings
+- Full CRUD: Create, Read, Update, Delete with confirmation
 
 ---
 
@@ -208,23 +216,22 @@
 
 ---
 
-## Next Up: Phase 6.5 — Admin Configuration
+## Next Up: Phase 6.5.2 — Rule Categories & Filtering
 
-**What:** Full CRUD for intelligence rules in Admin UI
-**Why:** Admins need to create, edit, and delete rules without code changes
+**What:** Organize rules by category and add filtering UI
+**Why:** As rule count grows, admins need ways to organize and find rules
 **Where:** Admin > Intelligence Rules page
 
-**Approach:**
-1. Create Rule Form Drawer component (similar to template-form-drawer)
-2. Add Create/Edit/Delete functionality
-3. Implement rule categories and filtering
-4. Add threshold configuration UI
+**Potential Categories:**
+- SLA & Compliance
+- Engagement & Sentiment
+- Offers & Approvals
+- Onboarding & Provisioning
 
-**Key Features:**
-- Dynamic conditions builder (add/remove signal conditions)
-- Action type selection with recipient targeting
-- Cooldown configuration
-- Enable/disable toggle per rule
+**Features:**
+- Category dropdown in rule form
+- Filter by category in rules list
+- Quick stats per category
 
 ---
 
@@ -324,7 +331,9 @@
 | 2026-06-08 | **Role-based tile filtering** - TA/HM/IT see only relevant tiles | `3c3f10c` |
 | 2026-06-08 | IT signals: DAYS_TO_START_DATE, EQUIPMENT_REQUEST_STATUS, ACCESS_PROVISIONED | `3c3f10c` |
 | 2026-06-08 | HM rules: RULE-DECISION-001, IT rules: RULE-PROVISION-001, RULE-EQUIPMENT-001, RULE-ACCESS-001 | `3c3f10c` |
+| 2026-06-08 | **Phase 6.5.1 COMPLETE** - Rule form drawer with full CRUD | `d0cf253` |
+| 2026-06-08 | RuleFormDrawerComponent: 18 signals, 12 actions, conditions builder | `d0cf253` |
 
 ---
 
-**Ready to continue?** Next task: `6.5.1 Rule form drawer (CRUD)`
+**Ready to continue?** Next task: `6.5.2 Rule categories`
