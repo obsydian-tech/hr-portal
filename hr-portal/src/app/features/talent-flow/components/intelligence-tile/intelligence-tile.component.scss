@@ -1,0 +1,317 @@
+/**
+ * IntelligenceTileComponent — Phase 6.2.1
+ * Naleko design tokens only. No hardcoded hex.
+ * Matches D024 card anatomy from dashboard-page.
+ */
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tile Container
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.tf-intel-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--naleko-radius-md);
+  border: 1px solid rgba(200, 197, 205, 0.2);
+  border-left: 3px solid var(--naleko-secondary);
+  background: var(--naleko-surface-container-lowest);
+  cursor: pointer;
+  transition:
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+
+  &:hover {
+    box-shadow: var(--naleko-shadow-sm);
+    transform: translateY(-1px);
+  }
+
+  // Priority variants (border-left color)
+  &--critical {
+    border-left-color: var(--naleko-error);
+
+    .tf-intel-tile__icon {
+      background: color-mix(in srgb, var(--naleko-error) 14%, transparent);
+      color: var(--naleko-error);
+    }
+  }
+
+  &--high {
+    border-left-color: var(--naleko-warning);
+
+    .tf-intel-tile__icon {
+      background: color-mix(in srgb, var(--naleko-warning) 16%, transparent);
+      color: var(--naleko-warning-dark, var(--naleko-warning));
+    }
+  }
+
+  &--medium {
+    border-left-color: var(--naleko-secondary);
+
+    .tf-intel-tile__icon {
+      background: color-mix(in srgb, var(--naleko-secondary) 14%, transparent);
+      color: var(--naleko-secondary);
+    }
+  }
+
+  &--low {
+    border-left-color: var(--naleko-on-surface-variant);
+
+    .tf-intel-tile__icon {
+      background: color-mix(in srgb, var(--naleko-on-surface-variant) 12%, transparent);
+      color: var(--naleko-on-surface-variant);
+    }
+  }
+
+  // Compact mode
+  &--compact {
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+
+    .tf-intel-tile__icon {
+      width: 2rem;
+      height: 2rem;
+      font-size: 0.85rem;
+    }
+
+    .tf-intel-tile__title {
+      font-size: 0.82rem;
+    }
+
+    .tf-intel-tile__desc {
+      display: none;
+    }
+
+    .tf-intel-tile__signals {
+      display: none;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Icon
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.tf-intel-tile__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--naleko-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+  // Default (overridden by priority variants above)
+  background: color-mix(in srgb, var(--naleko-secondary) 14%, transparent);
+  color: var(--naleko-secondary);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Body
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.tf-intel-tile__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.tf-intel-tile__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tf-intel-tile__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--naleko-on-surface);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.tf-intel-tile__priority {
+  padding: 2px 8px;
+  border-radius: var(--naleko-radius-pill);
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+
+  &--critical {
+    background: color-mix(in srgb, var(--naleko-error) 15%, transparent);
+    color: var(--naleko-error);
+  }
+
+  &--high {
+    background: color-mix(in srgb, var(--naleko-warning) 18%, transparent);
+    color: var(--naleko-warning-dark, var(--naleko-warning));
+  }
+
+  &--medium {
+    background: color-mix(in srgb, var(--naleko-secondary) 15%, transparent);
+    color: var(--naleko-secondary);
+  }
+
+  &--low {
+    background: color-mix(in srgb, var(--naleko-on-surface-variant) 12%, transparent);
+    color: var(--naleko-on-surface-variant);
+  }
+}
+
+.tf-intel-tile__desc {
+  font-size: 0.78rem;
+  color: var(--naleko-on-surface-variant);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.tf-intel-tile__context {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--naleko-on-surface-variant);
+}
+
+.tf-intel-tile__entity {
+  font-weight: 600;
+  color: var(--naleko-on-surface);
+}
+
+.tf-intel-tile__divider {
+  opacity: 0.5;
+}
+
+.tf-intel-tile__stage {
+  color: var(--naleko-on-surface-variant);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Signal Pills
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.tf-intel-tile__signals {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.tf-signal-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: var(--naleko-radius-pill);
+  font-size: 0.67rem;
+  font-weight: 600;
+
+  &--info {
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
+  }
+
+  &--warning {
+    background: color-mix(in srgb, var(--naleko-warning) 18%, transparent);
+    color: var(--naleko-warning-dark, var(--naleko-warning));
+  }
+
+  &--error {
+    background: color-mix(in srgb, var(--naleko-error) 15%, transparent);
+    color: var(--naleko-error);
+  }
+
+  &--success {
+    background: color-mix(in srgb, var(--naleko-success) 15%, transparent);
+    color: var(--naleko-success);
+  }
+}
+
+.tf-signal-pill__label {
+  opacity: 0.8;
+}
+
+.tf-signal-pill__value {
+  font-weight: 700;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Actions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.tf-intel-tile__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+// PrimeNG button overrides for tile context
+::ng-deep .tf-intel-tile__actions {
+  .p-button {
+    &.p-button-sm {
+      padding: 0.4rem 0.6rem;
+      font-size: 0.75rem;
+    }
+
+    &.p-button-text {
+      color: var(--naleko-on-surface-variant);
+
+      &:hover {
+        background: var(--naleko-surface-container);
+        color: var(--naleko-on-surface);
+      }
+    }
+
+    &.p-button-outlined {
+      border-color: var(--naleko-outline-variant);
+      color: var(--naleko-primary);
+
+      &:hover {
+        background: color-mix(in srgb, var(--naleko-primary) 8%, transparent);
+        border-color: var(--naleko-primary);
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Critical pulse animation (for urgent tiles)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.tf-intel-tile--critical {
+  animation: tf-critical-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes tf-critical-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--naleko-error) 20%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Responsive
+// ═══════════════════════════════════════════════════════════════════════════════
+
+@media (max-width: 640px) {
+  .tf-intel-tile {
+    flex-wrap: wrap;
+
+    .tf-intel-tile__actions {
+      width: 100%;
+      justify-content: flex-end;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(200, 197, 205, 0.15);
+    }
+  }
+}

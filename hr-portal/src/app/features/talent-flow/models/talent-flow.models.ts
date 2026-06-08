@@ -488,3 +488,78 @@ export interface ProvisioningBundleProgress extends ProvisioningBundle {
   items:       ProvisioningItemProgress[];
   activityLog: ActivityLogEntry[];
 }
+
+// ─── Intelligence Tiles (§10.2, Phase 6.2) ─────────────────────────────────────
+
+/** Signal snapshot - precomputed signals for a candidate/offer (written by evaluateIntelligenceRules Lambda) */
+export interface SignalSnapshot {
+  entityType:    'CANDIDATE' | 'OFFER';
+  entityId:      string;
+  tenantId:      string;
+  signals:       Record<string, number | string | boolean | null>;
+  composites:    Record<string, unknown>;
+  ownerIds:      {
+    recruiterId?:     string | null;
+    hiringManagerId?: string | null;
+    createdBy?:       string | null;
+  };
+  entityName:    string | null;
+  currentStage:  HiringStage | null;
+  positionTitle: string | null;
+  computedAt:    string; // ISO 8601
+  updatedAt:     string; // ISO 8601
+}
+
+/** Intelligence tile for dashboard display */
+export interface IntelligenceTile {
+  id:           string;
+  priority:     'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  title:        string;
+  description:  string;
+  entityType:   'CANDIDATE' | 'OFFER';
+  entityId:     string;
+  entityName:   string;
+  currentStage: HiringStage | null;
+  signals:      TileSignal[];
+  actions:      TileAction[];
+  createdAt:    string;
+  expiresAt?:   string;
+  ruleId?:      string;
+  ruleName?:    string;
+}
+
+export interface TileSignal {
+  label: string;
+  value: string | number;
+  type:  'info' | 'warning' | 'error' | 'success';
+}
+
+export interface TileAction {
+  id:              string;
+  label:           string;
+  icon:            string;
+  type:            'primary' | 'secondary' | 'inline';
+  route?:          string;
+  apiAction?:      string;
+  apiPayload?:     Record<string, unknown>;
+  confirmRequired?: boolean;
+}
+
+/** Filters for querying signal snapshots */
+export interface SignalSnapshotFilters {
+  ownerId?: string;
+  role?:    'TA' | 'HM' | 'IT';
+  limit?:   number;
+}
+
+/** Response from getSignalSnapshots API */
+export interface SignalSnapshotResponse {
+  snapshots: SignalSnapshot[];
+  total?:    number;
+}
+
+/** Response from getIntelligenceTiles API */
+export interface IntelligenceTilesResponse {
+  tiles: IntelligenceTile[];
+  total: number;
+}

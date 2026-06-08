@@ -11,9 +11,11 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { TalentFlowStateService } from '../../services/talent-flow-state.service';
 import { TalentFlowAuthService } from '../../services/talent-flow-auth.service';
+import { IntelligenceService } from '../../services/intelligence.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { Candidate, HiringStage, PendingAction } from '../../models/talent-flow.models';
+import { Candidate, HiringStage, PendingAction, IntelligenceTile, TileAction } from '../../models/talent-flow.models';
 import { STAGE_LABELS } from '../../components/stage-selector/stage-selector.component';
+import { IntelligenceTileComponent } from '../../components/intelligence-tile/intelligence-tile.component';
 
 /**
  * DashboardPageComponent — Phase B rebuild
@@ -62,16 +64,17 @@ const OFFER_STAGES: HiringStage[] = ['OFFER_DELIVERY', 'CONTRACT_SIGNING', 'PRE_
 @Component({
   selector: 'tf-dashboard-page',
   standalone: true,
-  imports: [CommonModule, ButtonModule, CardModule],
+  imports: [CommonModule, ButtonModule, CardModule, IntelligenceTileComponent],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardPageComponent implements OnInit {
-  protected readonly state      = inject(TalentFlowStateService);
-  protected readonly tfAuth     = inject(TalentFlowAuthService);
-  private  readonly nalekoAuth  = inject(AuthService);
-  private  readonly router      = inject(Router);
+  protected readonly state        = inject(TalentFlowStateService);
+  protected readonly tfAuth       = inject(TalentFlowAuthService);
+  protected readonly intelligence = inject(IntelligenceService);
+  private  readonly nalekoAuth    = inject(AuthService);
+  private  readonly router        = inject(Router);
 
   protected readonly timeOfDay = computed<string>(() => {
     const h = new Date().getHours();
@@ -143,6 +146,7 @@ export class DashboardPageComponent implements OnInit {
   ngOnInit(): void {
     this.state.loadPipeline();
     this.state.loadPendingActions();
+    this.intelligence.loadTiles('TA');
   }
 
   // ── Candidate card helpers (D024) ────────────────────────────────────────────
@@ -244,5 +248,25 @@ export class DashboardPageComponent implements OnInit {
 
   protected openCandidates(): void {
     void this.router.navigate(['/platform/talentflow/candidates']);
+  }
+
+  // ── Intelligence tile handlers (Zone 0) ─────────────────────────────────────
+
+  protected handleTileAction(event: { action: TileAction; tile: IntelligenceTile }): void {
+    const { action, tile } = event;
+    if (action.route) {
+      void this.router.navigate([action.route]);
+    } else if (action.apiAction) {
+      // Handle inline API actions (future: approve, escalate, etc.)
+      console.info('[Dashboard] API action:', action.apiAction, tile.entityId);
+    }
+  }
+
+  protected handleTileDismiss(tileId: string): void {
+    this.intelligence.handleDismiss(tileId);
+  }
+
+  protected handleTileSnooze(event: { tileId: string; hours: number }): void {
+    this.intelligence.handleSnooze(event.tileId, event.hours);
   }
 }

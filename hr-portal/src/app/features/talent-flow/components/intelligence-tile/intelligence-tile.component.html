@@ -1,0 +1,95 @@
+<!-- Intelligence Tile — D024 card anatomy, D016 signal-first -->
+<div class="tf-intel-tile"
+     [class]="priorityClass()"
+     [class.tf-intel-tile--compact]="compact()"
+     role="article"
+     [attr.aria-label]="tile().title">
+
+  <!-- Left: Icon (colour = priority) -->
+  <div class="tf-intel-tile__icon" [class]="iconClass()">
+    <i [class]="priorityIcon()"></i>
+  </div>
+
+  <!-- Centre: Content -->
+  <div class="tf-intel-tile__body">
+    <!-- Title + Priority badge -->
+    <div class="tf-intel-tile__header">
+      <h3 class="tf-intel-tile__title">{{ tile().title }}</h3>
+      <span class="tf-intel-tile__priority" [class]="'tf-intel-tile__priority--' + tile().priority.toLowerCase()">
+        {{ priorityLabel() }}
+      </span>
+    </div>
+
+    <!-- Description -->
+    <p class="tf-intel-tile__desc">{{ tile().description }}</p>
+
+    <!-- Entity context -->
+    <div class="tf-intel-tile__context">
+      <span class="tf-intel-tile__entity">{{ tile().entityName }}</span>
+      @if (stageLabel()) {
+        <span class="tf-intel-tile__divider">·</span>
+        <span class="tf-intel-tile__stage">{{ stageLabel() }}</span>
+      }
+    </div>
+
+    <!-- Signal pills -->
+    @if (tile().signals.length > 0 && !compact()) {
+      <div class="tf-intel-tile__signals">
+        @for (sig of tile().signals; track sig.label) {
+          <span class="tf-signal-pill" [class]="signalTypeClass(sig)">
+            <span class="tf-signal-pill__label">{{ sig.label }}:</span>
+            <span class="tf-signal-pill__value">{{ sig.value }}</span>
+          </span>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Right: Actions -->
+  <div class="tf-intel-tile__actions">
+    <!-- Primary action -->
+    @if (primaryAction(); as action) {
+      <button
+        pButton
+        type="button"
+        [label]="compact() ? '' : action.label"
+        [icon]="action.icon"
+        class="p-button-sm p-button-outlined"
+        [pTooltip]="compact() ? action.label : ''"
+        tooltipPosition="top"
+        (click)="handleActionClick(action)"
+      ></button>
+    }
+
+    <!-- Snooze menu -->
+    @if (!compact()) {
+      <button
+        pButton
+        type="button"
+        icon="pi pi-clock"
+        class="p-button-sm p-button-text p-button-secondary"
+        pTooltip="Snooze"
+        tooltipPosition="top"
+        (click)="snoozeMenu.toggle($event)"
+      ></button>
+      <p-menu
+        #snoozeMenu
+        [model]="snoozeMenuItems()"
+        [popup]="true"
+        appendTo="body"
+      ></p-menu>
+    }
+
+    <!-- Dismiss -->
+    <button
+      pButton
+      type="button"
+      icon="pi pi-times"
+      class="p-button-sm p-button-text p-button-secondary"
+      pTooltip="Dismiss"
+      tooltipPosition="top"
+      (click)="handleDismiss()"
+    ></button>
+  </div>
+
+</div>
