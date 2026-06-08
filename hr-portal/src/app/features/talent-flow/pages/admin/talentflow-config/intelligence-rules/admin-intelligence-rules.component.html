@@ -27,22 +27,220 @@
     </div>
   } @else {
 
+    <!-- Category Stats Bar (Phase 6.5.2) -->
+    <div class="rules-category-stats">
+      <button
+        type="button"
+        class="rules-category-chip"
+        [class.rules-category-chip--active]="categoryFilter() === 'ALL'"
+        (click)="categoryFilter.set('ALL')"
+      >
+        <i class="pi pi-list"></i>
+        <span>All</span>
+        <span class="rules-category-chip__count">{{ rulesCount() }}</span>
+      </button>
+      <button
+        type="button"
+        class="rules-category-chip"
+        [class.rules-category-chip--active]="categoryFilter() === 'SLA_COMPLIANCE'"
+        [style.--chip-color]="categoryStyles['SLA_COMPLIANCE'].color"
+        (click)="categoryFilter.set('SLA_COMPLIANCE')"
+      >
+        <i [class]="categoryStyles['SLA_COMPLIANCE'].icon"></i>
+        <span>{{ categoryStyles['SLA_COMPLIANCE'].label }}</span>
+        <span class="rules-category-chip__count">{{ categoryCounts().SLA_COMPLIANCE }}</span>
+      </button>
+      <button
+        type="button"
+        class="rules-category-chip"
+        [class.rules-category-chip--active]="categoryFilter() === 'ENGAGEMENT'"
+        [style.--chip-color]="categoryStyles['ENGAGEMENT'].color"
+        (click)="categoryFilter.set('ENGAGEMENT')"
+      >
+        <i [class]="categoryStyles['ENGAGEMENT'].icon"></i>
+        <span>{{ categoryStyles['ENGAGEMENT'].label }}</span>
+        <span class="rules-category-chip__count">{{ categoryCounts().ENGAGEMENT }}</span>
+      </button>
+      <button
+        type="button"
+        class="rules-category-chip"
+        [class.rules-category-chip--active]="categoryFilter() === 'OFFERS'"
+        [style.--chip-color]="categoryStyles['OFFERS'].color"
+        (click)="categoryFilter.set('OFFERS')"
+      >
+        <i [class]="categoryStyles['OFFERS'].icon"></i>
+        <span>{{ categoryStyles['OFFERS'].label }}</span>
+        <span class="rules-category-chip__count">{{ categoryCounts().OFFERS }}</span>
+      </button>
+      <button
+        type="button"
+        class="rules-category-chip"
+        [class.rules-category-chip--active]="categoryFilter() === 'ONBOARDING'"
+        [style.--chip-color]="categoryStyles['ONBOARDING'].color"
+        (click)="categoryFilter.set('ONBOARDING')"
+      >
+        <i [class]="categoryStyles['ONBOARDING'].icon"></i>
+        <span>{{ categoryStyles['ONBOARDING'].label }}</span>
+        <span class="rules-category-chip__count">{{ categoryCounts().ONBOARDING }}</span>
+      </button>
+      <button
+        type="button"
+        class="rules-category-chip"
+        [class.rules-category-chip--active]="categoryFilter() === 'GENERAL'"
+        [style.--chip-color]="categoryStyles['GENERAL'].color"
+        (click)="categoryFilter.set('GENERAL')"
+      >
+        <i [class]="categoryStyles['GENERAL'].icon"></i>
+        <span>{{ categoryStyles['GENERAL'].label }}</span>
+        <span class="rules-category-chip__count">{{ categoryCounts().GENERAL }}</span>
+      </button>
+    </div>
+
     <!-- Action bar -->
     <div class="rules-action-bar">
       <div class="rules-action-bar__stats">
         <span class="rules-stat">
-          <i class="pi pi-list"></i>
-          {{ rulesCount() }} {{ rulesCount() === 1 ? 'rule' : 'rules' }}
+          <i class="pi pi-filter"></i>
+          {{ filteredRules().length }} {{ filteredRules().length === 1 ? 'rule' : 'rules' }}
+          @if (categoryFilter() !== 'ALL') {
+            <span class="rules-stat__filter-label">in {{ getCategoryLabel(categoryFilter()) }}</span>
+          }
         </span>
         <span class="rules-stat rules-stat--enabled">
           <i class="pi pi-check-circle"></i>
           {{ enabledCount() }} enabled
         </span>
       </div>
-      <button type="button" class="rules-add-btn" (click)="openAddDrawer()">
-        <i class="pi pi-plus"></i> Add Rule
-      </button>
+      <div class="rules-action-bar__actions">
+        <button
+          type="button"
+          class="rules-thresholds-btn"
+          (click)="thresholdsPanelOpen.set(!thresholdsPanelOpen())"
+          pTooltip="Configure signal thresholds"
+          tooltipPosition="top"
+        >
+          <i class="pi pi-sliders-h"></i>
+          Thresholds
+        </button>
+        <button type="button" class="rules-add-btn" (click)="openAddDrawer()">
+          <i class="pi pi-plus"></i> Add Rule
+        </button>
+      </div>
     </div>
+
+    <!-- Thresholds Panel (Phase 6.5.4) -->
+    @if (thresholdsPanelOpen()) {
+      <div class="thresholds-panel">
+        <div class="thresholds-panel__header">
+          <i class="pi pi-sliders-h"></i>
+          <span>Signal Thresholds</span>
+          <button type="button" class="thresholds-panel__close" (click)="thresholdsPanelOpen.set(false)">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+        <div class="thresholds-panel__grid">
+          <div class="threshold-field">
+            <label class="threshold-field__label">SLA At Risk (days)</label>
+            <p-inputNumber
+              [ngModel]="configData().thresholds?.slaAtRiskDays ?? 3"
+              (ngModelChange)="updateThreshold('slaAtRiskDays', $event)"
+              [min]="1" [max]="14" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+              styleClass="threshold-input"
+            />
+          </div>
+          <div class="threshold-field">
+            <label class="threshold-field__label">SLA Breach (days)</label>
+            <p-inputNumber
+              [ngModel]="configData().thresholds?.slaBreachDays ?? 0"
+              (ngModelChange)="updateThreshold('slaBreachDays', $event)"
+              [min]="0" [max]="7" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+              styleClass="threshold-input"
+            />
+          </div>
+          <div class="threshold-field">
+            <label class="threshold-field__label">Offer Expiry Urgent (days)</label>
+            <p-inputNumber
+              [ngModel]="configData().thresholds?.offerExpiryUrgent ?? 3"
+              (ngModelChange)="updateThreshold('offerExpiryUrgent', $event)"
+              [min]="1" [max]="14" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+              styleClass="threshold-input"
+            />
+          </div>
+          <div class="threshold-field">
+            <label class="threshold-field__label">Candidate Stale (days)</label>
+            <p-inputNumber
+              [ngModel]="configData().thresholds?.candidateStaleDays ?? 14"
+              (ngModelChange)="updateThreshold('candidateStaleDays', $event)"
+              [min]="7" [max]="60" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+              styleClass="threshold-input"
+            />
+          </div>
+          <div class="threshold-field">
+            <label class="threshold-field__label">High Score Threshold</label>
+            <p-inputNumber
+              [ngModel]="configData().thresholds?.highScoreThreshold ?? 85"
+              (ngModelChange)="updateThreshold('highScoreThreshold', $event)"
+              [min]="70" [max]="100" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+              styleClass="threshold-input"
+            />
+          </div>
+          <div class="threshold-field">
+            <label class="threshold-field__label">Low Engagement Score</label>
+            <p-inputNumber
+              [ngModel]="configData().thresholds?.lowEngagementScore ?? 40"
+              (ngModelChange)="updateThreshold('lowEngagementScore', $event)"
+              [min]="10" [max]="60" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+              styleClass="threshold-input"
+            />
+          </div>
+          <div class="threshold-field">
+            <label class="threshold-field__label">Onboarding Ready %</label>
+            <p-inputNumber
+              [ngModel]="configData().thresholds?.onboardingReadyPct ?? 75"
+              (ngModelChange)="updateThreshold('onboardingReadyPct', $event)"
+              [min]="50" [max]="100" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+              styleClass="threshold-input"
+            />
+          </div>
+          <div class="threshold-field">
+            <label class="threshold-field__label">Risk Score High</label>
+            <p-inputNumber
+              [ngModel]="configData().thresholds?.riskScoreHigh ?? 60"
+              (ngModelChange)="updateThreshold('riskScoreHigh', $event)"
+              [min]="40" [max]="80" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+              styleClass="threshold-input"
+            />
+          </div>
+          <div class="threshold-field">
+            <label class="threshold-field__label">Risk Score Critical</label>
+            <p-inputNumber
+              [ngModel]="configData().thresholds?.riskScoreCritical ?? 80"
+              (ngModelChange)="updateThreshold('riskScoreCritical', $event)"
+              [min]="60" [max]="100" [showButtons]="true"
+              buttonLayout="horizontal"
+              incrementButtonIcon="pi pi-plus" decrementButtonIcon="pi pi-minus"
+              styleClass="threshold-input"
+            />
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- Empty state when no rules configured -->
     @if (configData().rules.length === 0) {
@@ -58,15 +256,36 @@
       </div>
     }
 
+    <!-- No results for filter -->
+    @if (configData().rules.length > 0 && filteredRules().length === 0) {
+      <div class="config-empty config-empty--filtered">
+        <i class="pi pi-filter-slash config-empty__icon"></i>
+        <p>No rules in this category.</p>
+        <button type="button" class="config-empty__btn config-empty__btn--secondary" (click)="categoryFilter.set('ALL')">
+          <i class="pi pi-list"></i> Show All Rules
+        </button>
+      </div>
+    }
+
     <!-- Rules list -->
-    @if (configData().rules.length > 0) {
+    @if (filteredRules().length > 0) {
       <div class="rules-list">
-        @for (rule of configData().rules; track rule.id) {
+        @for (rule of filteredRules(); track rule.id) {
           <div class="rule-card" [class.rule-card--disabled]="!rule.enabled">
             <!-- Rule header -->
             <div class="rule-card__header">
               <div class="rule-card__title-row">
                 <span class="rule-card__name">{{ rule.name }}</span>
+                <!-- Category badge (Phase 6.5.2) -->
+                @if (rule.category) {
+                  <span
+                    class="rule-card__category"
+                    [style.--cat-color]="categoryStyles[rule.category].color"
+                  >
+                    <i [class]="categoryStyles[rule.category].icon"></i>
+                    {{ categoryStyles[rule.category].label }}
+                  </span>
+                }
                 <span
                   class="rule-card__priority"
                   [style.background]="getPriorityStyle(rule.priority).bg"
@@ -91,6 +310,15 @@
               <div class="rule-card__detail">
                 <span class="rule-card__detail-label">Cooldown</span>
                 <span class="rule-card__detail-value">{{ rule.cooldown }}h</span>
+              </div>
+              <!-- Target roles (Phase 6.5.2) -->
+              <div class="rule-card__detail">
+                <span class="rule-card__detail-label">Visible To</span>
+                <span class="rule-card__roles">
+                  @for (role of rule.targetRoles || ['TA']; track role) {
+                    <span class="rule-card__role-badge">{{ role }}</span>
+                  }
+                </span>
               </div>
             </div>
 

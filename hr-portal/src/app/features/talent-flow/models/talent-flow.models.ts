@@ -365,7 +365,11 @@ export interface ConfigResponse {
 
 export interface IntelligenceRulesConfig {
   rules: IntelligenceRule[];
+  thresholds?: IntelligenceThresholds;   // Phase 6.5.4: Configurable thresholds
 }
+
+export type RuleCategory = 'SLA_COMPLIANCE' | 'ENGAGEMENT' | 'OFFERS' | 'ONBOARDING' | 'GENERAL';
+export type TargetRole = 'TA' | 'HM' | 'IT' | 'ADMIN';
 
 export interface IntelligenceRule {
   id:          string;                    // "RULE-001"
@@ -373,9 +377,24 @@ export interface IntelligenceRule {
   description: string;                    // Human-readable description
   enabled:     boolean;                   // Can disable rule without deleting
   priority:    'HIGH' | 'MEDIUM' | 'LOW';
+  category:    RuleCategory;              // Phase 6.5.2: Rule categorization
+  targetRoles: TargetRole[];              // Phase 6.5.2: Which roles see this tile
   conditions:  RuleCondition[];
   action:      RuleAction;
   cooldown:    number;                    // Hours before re-triggering
+}
+
+// Phase 6.5.4: Configurable thresholds for tile generation
+export interface IntelligenceThresholds {
+  slaAtRiskDays:       number;   // Default: 3
+  slaBreachDays:       number;   // Default: 0
+  offerExpiryUrgent:   number;   // Default: 3
+  candidateStaleDays:  number;   // Default: 14
+  highScoreThreshold:  number;   // Default: 85
+  lowEngagementScore:  number;   // Default: 40
+  onboardingReadyPct:  number;   // Default: 75
+  riskScoreHigh:       number;   // Default: 60
+  riskScoreCritical:   number;   // Default: 80
 }
 
 export interface RuleCondition {

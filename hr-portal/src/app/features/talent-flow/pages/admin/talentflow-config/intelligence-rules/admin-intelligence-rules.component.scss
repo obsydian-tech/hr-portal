@@ -155,6 +155,60 @@
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
+// ── Category Stats Bar (Phase 6.5.2) ──────────────────────────────────────────
+
+.rules-category-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--naleko-surface-container-lowest);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+}
+
+.rules-category-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface);
+  font-family: var(--naleko-font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant);
+  cursor: pointer;
+  transition: all 0.15s;
+
+  .pi { font-size: 0.85rem; }
+
+  &__count {
+    padding: 0.1rem 0.35rem;
+    border-radius: var(--naleko-radius-sm);
+    background: var(--naleko-surface-container);
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+
+  &:hover {
+    background: var(--naleko-surface-container);
+    border-color: var(--chip-color, var(--naleko-outline));
+  }
+
+  &--active {
+    border-color: var(--chip-color, var(--naleko-tertiary));
+    background: color-mix(in srgb, var(--chip-color, var(--naleko-tertiary)) 12%, transparent);
+    color: var(--chip-color, var(--naleko-tertiary));
+
+    .rules-category-chip__count {
+      background: color-mix(in srgb, var(--chip-color, var(--naleko-tertiary)) 20%, transparent);
+    }
+  }
+}
+
 // ── Action Bar ────────────────────────────────────────────────────────────────
 
 .rules-action-bar {
@@ -171,6 +225,11 @@
     display: flex;
     gap: 1.5rem;
   }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
 }
 
 .rules-stat {
@@ -184,6 +243,105 @@
 
   &--enabled {
     color: var(--naleko-success);
+  }
+
+  &__filter-label {
+    font-weight: 600;
+    color: var(--naleko-tertiary);
+  }
+}
+
+.rules-thresholds-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.875rem;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface);
+  font-family: var(--naleko-font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant);
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: var(--naleko-surface-container);
+    border-color: var(--naleko-tertiary);
+    color: var(--naleko-tertiary);
+  }
+}
+
+// ── Thresholds Panel (Phase 6.5.4) ────────────────────────────────────────────
+
+.thresholds-panel {
+  margin-bottom: 1.25rem;
+  background: var(--naleko-surface-container-lowest);
+  border: 1.5px solid var(--naleko-tertiary);
+  border-radius: var(--naleko-radius-lg);
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: color-mix(in srgb, var(--naleko-tertiary) 8%, transparent);
+    border-bottom: 1px solid var(--naleko-outline-variant);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--naleko-tertiary);
+
+    .pi { font-size: 1rem; }
+  }
+
+  &__close {
+    margin-left: auto;
+    padding: 0.25rem;
+    border: none;
+    background: none;
+    color: var(--naleko-on-surface-variant);
+    cursor: pointer;
+    border-radius: var(--naleko-radius-sm);
+    transition: background 0.12s;
+
+    &:hover {
+      background: var(--naleko-surface-container);
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+  }
+}
+
+.threshold-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  &__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--naleko-on-surface-variant);
+  }
+}
+
+:host ::ng-deep .threshold-input {
+  width: 100%;
+
+  .p-inputnumber-input {
+    width: 100%;
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
   }
 }
 
@@ -265,6 +423,38 @@
     letter-spacing: 0.05em;
     padding: 0.2rem 0.5rem;
     border-radius: var(--naleko-radius-sm);
+  }
+
+  // Category badge (Phase 6.5.2)
+  &__category {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--naleko-radius-sm);
+    background: color-mix(in srgb, var(--cat-color, var(--naleko-outline)) 12%, transparent);
+    color: var(--cat-color, var(--naleko-outline));
+
+    .pi { font-size: 0.7rem; }
+  }
+
+  // Target role badges (Phase 6.5.2)
+  &__roles {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  &__role-badge {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--naleko-radius-sm);
+    background: var(--naleko-surface-container);
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--naleko-on-surface-variant);
+    letter-spacing: 0.02em;
   }
 
   &__desc {
@@ -417,6 +607,27 @@
     &:hover {
       opacity: 0.92;
       box-shadow: 0 4px 12px color-mix(in srgb, var(--naleko-tertiary) 40%, transparent);
+    }
+
+    &--secondary {
+      background: var(--naleko-surface-container);
+      color: var(--naleko-on-surface);
+      box-shadow: none;
+      border: 1.5px solid var(--naleko-outline-variant);
+
+      &:hover {
+        background: var(--naleko-surface-container-high);
+        opacity: 1;
+      }
+    }
+  }
+
+  &--filtered {
+    padding: 2.5rem 1rem;
+
+    .config-empty__icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
     }
   }
 }

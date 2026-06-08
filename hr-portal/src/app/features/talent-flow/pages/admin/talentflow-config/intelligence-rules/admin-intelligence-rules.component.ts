@@ -10,11 +10,25 @@ import { TooltipModule } from 'primeng/tooltip';
 
 import { TalentFlowApiService } from '../../../../services/talent-flow-api.service';
 import { ConfigVersionBadgeComponent } from '../../components/config-version-badge/config-version-badge.component';
-import { ConfigResponse, IntelligenceRule, IntelligenceRulesConfig } from '../../../../models/talent-flow.models';
+import { ConfigResponse, IntelligenceRule, IntelligenceRulesConfig, RuleCategory, IntelligenceThresholds } from '../../../../models/talent-flow.models';
 import { RuleFormDrawerComponent } from './components/rule-form-drawer/rule-form-drawer.component';
 
+// Phase 6.5.4: Default thresholds
+const DEFAULT_THRESHOLDS: IntelligenceThresholds = {
+  slaAtRiskDays:      3,
+  slaBreachDays:      0,
+  offerExpiryUrgent:  3,
+  candidateStaleDays: 14,
+  highScoreThreshold: 85,
+  lowEngagementScore: 40,
+  onboardingReadyPct: 75,
+  riskScoreHigh:      60,
+  riskScoreCritical:  80,
+};
+
 const DEFAULT_CONFIG: IntelligenceRulesConfig = {
-  rules: []
+  rules: [],
+  thresholds: DEFAULT_THRESHOLDS,
 };
 
 // Priority badge styling
@@ -23,6 +37,25 @@ const PRIORITY_STYLES: Record<string, { bg: string; color: string }> = {
   MEDIUM: { bg: 'color-mix(in srgb, var(--naleko-warning) 12%, transparent)', color: 'var(--naleko-warning)' },
   LOW:    { bg: 'color-mix(in srgb, var(--naleko-tertiary) 12%, transparent)', color: 'var(--naleko-tertiary)' },
 };
+
+// Category styling (Phase 6.5.2)
+const CATEGORY_STYLES: Record<RuleCategory, { label: string; icon: string; color: string }> = {
+  SLA_COMPLIANCE: { label: 'SLA',        icon: 'pi pi-clock',     color: 'var(--naleko-error)'     },
+  ENGAGEMENT:     { label: 'Engagement', icon: 'pi pi-heart',     color: 'var(--naleko-primary)'   },
+  OFFERS:         { label: 'Offers',     icon: 'pi pi-file',      color: 'var(--naleko-secondary)' },
+  ONBOARDING:     { label: 'Onboarding', icon: 'pi pi-user-plus', color: 'var(--naleko-tertiary)'  },
+  GENERAL:        { label: 'General',    icon: 'pi pi-bolt',      color: 'var(--naleko-outline)'   },
+};
+
+// Filter options for category dropdown
+const CATEGORY_FILTER_OPTIONS: Array<{ label: string; value: RuleCategory | 'ALL' }> = [
+  { label: 'All Categories',       value: 'ALL'            },
+  { label: 'SLA & Compliance',     value: 'SLA_COMPLIANCE' },
+  { label: 'Engagement',           value: 'ENGAGEMENT'     },
+  { label: 'Offers & Approvals',   value: 'OFFERS'         },
+  { label: 'Onboarding',           value: 'ONBOARDING'     },
+  { label: 'General',              value: 'GENERAL'        },
+];
 
 @Component({
   selector: 'tf-admin-intelligence-rules',
@@ -56,11 +89,39 @@ export class AdminIntelligenceRulesComponent implements OnInit {
   readonly drawerVisible = signal(false);
   readonly editingRule   = signal<IntelligenceRule | null>(null);
 
+  // ── Filter State (Phase 6.5.2) ───────────────────────────────────────────────
+  readonly categoryFilter = signal<RuleCategory | 'ALL'>('ALL');
+  readonly categoryFilterOptions = CATEGORY_FILTER_OPTIONS;
+
+  // ── Thresholds Panel State (Phase 6.5.4) ─────────────────────────────────────
+  readonly thresholdsPanelOpen = signal(false);
+
   // ── Computed ─────────────────────────────────────────────────────────────────
   readonly rulesCount  = computed(() => this.configData().rules.length);
   readonly enabledCount = computed(() => this.configData().rules.filter(r => r.enabled).length);
 
+  // Filtered rules based on category
+  readonly filteredRules = computed(() => {
+    const filter = this.categoryFilter();
+    const rules = this.configData().rules;
+    if (filter === 'ALL') return rules;
+    return rules.filter(r => r.category === filter);
+  });
+
+  // Category counts for stats
+  readonly categoryCounts = computed(() => {
+    const rules = this.configData().rules;
+    return {
+      SLA_COMPLIANCE: rules.filter(r => r.category === 'SLA_COMPLIANCE').length,
+      ENGAGEMENT:     rules.filter(r => r.category === 'ENGAGEMENT').length,
+      OFFERS:         rules.filter(r => r.category === 'OFFERS').length,
+      ONBOARDING:     rules.filter(r => r.category === 'ONBOARDING').length,
+      GENERAL:        rules.filter(r => r.category === 'GENERAL').length,
+    };
+  });
+
   readonly priorityStyles = PRIORITY_STYLES;
+  readonly categoryStyles = CATEGORY_STYLES;
 
   ngOnInit(): void {
     this.loadConfig();
@@ -110,7 +171,7 @@ export class AdminIntelligenceRulesComponent implements OnInit {
       updatedRules = [...current.rules, rule];
     }
 
-    this.doSave({ rules: updatedRules }, existingIndex >= 0 ? 'updated' : 'created');
+    this.doSave({ ...current, rules: updatedRules }, existingIndex >= 0 ? 'updated' : 'created');
     this.closeDrawer();
   }
 
@@ -123,7 +184,7 @@ export class AdminIntelligenceRulesComponent implements OnInit {
       accept:  () => {
         const current = this.configData();
         const updatedRules = current.rules.filter(r => r.id !== ruleId);
-        this.doSave({ rules: updatedRules }, 'deleted');
+        this.doSave({ ...current, rules: updatedRules }, 'deleted');
         this.closeDrawer();
       },
     });
@@ -136,12 +197,13 @@ export class AdminIntelligenceRulesComponent implements OnInit {
     const updatedRules = current.rules.map(r =>
       r.id === rule.id ? { ...r, enabled: !r.enabled } : r
     );
+    const updatedConfig: IntelligenceRulesConfig = { ...current, rules: updatedRules };
 
     // Optimistic update
-    this.configData.set({ rules: updatedRules });
+    this.configData.set(updatedConfig);
 
     // Persist
-    this.api.updateConfig('INTELLIGENCE_RULES', { rules: updatedRules }).subscribe({
+    this.api.updateConfig('INTELLIGENCE_RULES', updatedConfig).subscribe({
       next: (cfg: ConfigResponse) => {
         this.configVersion.set(cfg.version);
         this.updatedAt.set(cfg.updatedAt);
@@ -219,6 +281,11 @@ export class AdminIntelligenceRulesComponent implements OnInit {
     return PRIORITY_STYLES[priority] || PRIORITY_STYLES['MEDIUM'];
   }
 
+  getCategoryLabel(category: RuleCategory | 'ALL'): string {
+    if (category === 'ALL') return 'All';
+    return CATEGORY_STYLES[category]?.label ?? category;
+  }
+
   getConditionSummary(rule: IntelligenceRule): string {
     if (rule.conditions.length === 0) return 'No conditions';
     if (rule.conditions.length === 1) {
@@ -226,5 +293,16 @@ export class AdminIntelligenceRulesComponent implements OnInit {
       return `${c.signal} ${c.operator} ${c.value}`;
     }
     return `${rule.conditions.length} conditions (AND)`;
+  }
+
+  // ── Thresholds (Phase 6.5.4) ────────────────────────────────────────────────
+
+  updateThreshold(key: keyof IntelligenceThresholds, value: number): void {
+    const current = this.configData();
+    const currentThresholds = current.thresholds ?? { ...DEFAULT_THRESHOLDS };
+    const updatedThresholds = { ...currentThresholds, [key]: value };
+
+    // Optimistic update
+    this.configData.set({ ...current, thresholds: updatedThresholds });
   }
 }

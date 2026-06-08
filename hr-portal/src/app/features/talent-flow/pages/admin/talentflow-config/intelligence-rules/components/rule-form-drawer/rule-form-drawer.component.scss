@@ -158,6 +158,43 @@
   gap: 1rem;
 }
 
+// ── Target Role Chips ─────────────────────────────────────────────────────────
+
+.rfd-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rfd-role-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant);
+  cursor: pointer;
+  transition: all 0.15s;
+
+  input[type="checkbox"] {
+    display: none;
+  }
+
+  &:hover {
+    background: var(--naleko-surface-container);
+  }
+
+  &--active {
+    border-color: var(--chip-color, var(--naleko-secondary));
+    background: color-mix(in srgb, var(--chip-color, var(--naleko-secondary)) 12%, transparent);
+    color: var(--chip-color, var(--naleko-secondary));
+  }
+}
+
 // ── Section ───────────────────────────────────────────────────────────────────
 
 .rfd-section {

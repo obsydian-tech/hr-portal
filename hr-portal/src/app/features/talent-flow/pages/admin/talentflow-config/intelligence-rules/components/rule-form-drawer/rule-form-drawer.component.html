@@ -42,8 +42,20 @@
             placeholder="When does this rule trigger?" rows="2"></textarea>
         </div>
 
-        <!-- Priority & Enabled Row -->
+        <!-- Category & Priority Row -->
         <div class="rfd-row">
+          <div class="rfd-fld rfd-fld--half">
+            <label class="rfd-fld__label">CATEGORY</label>
+            <p-select
+              [ngModel]="form().category"
+              (ngModelChange)="patchForm({ category: $event })"
+              [options]="categoryOptions"
+              optionLabel="label"
+              optionValue="value"
+              styleClass="rfd-select"
+              appendTo="body"
+            />
+          </div>
           <div class="rfd-fld rfd-fld--half">
             <label class="rfd-fld__label">PRIORITY</label>
             <p-select
@@ -55,6 +67,29 @@
               styleClass="rfd-select"
               appendTo="body"
             />
+          </div>
+        </div>
+
+        <!-- Target Roles & Status Row -->
+        <div class="rfd-row">
+          <div class="rfd-fld rfd-fld--half">
+            <label class="rfd-fld__label">VISIBLE TO <span class="rfd-fld__req">*</span></label>
+            <div class="rfd-roles">
+              @for (role of targetRoleOptions; track role.value) {
+                <label
+                  class="rfd-role-chip"
+                  [class.rfd-role-chip--active]="hasTargetRole(role.value)"
+                  [style.--chip-color]="role.color"
+                >
+                  <input
+                    type="checkbox"
+                    [checked]="hasTargetRole(role.value)"
+                    (change)="toggleTargetRole(role.value)"
+                  />
+                  {{ role.label }}
+                </label>
+              }
+            </div>
           </div>
           <div class="rfd-fld rfd-fld--half">
             <label class="rfd-fld__label">STATUS</label>

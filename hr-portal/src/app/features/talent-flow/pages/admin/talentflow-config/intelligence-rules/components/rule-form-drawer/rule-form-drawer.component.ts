@@ -13,7 +13,7 @@ import { DrawerModule } from 'primeng/drawer';
 import { SelectModule } from 'primeng/select';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { ToggleButtonModule } from 'primeng/togglebutton';
-import { IntelligenceRule, RuleCondition, RuleAction } from '../../../../../../models/talent-flow.models';
+import { IntelligenceRule, RuleCondition, RuleAction, RuleCategory, TargetRole } from '../../../../../../models/talent-flow.models';
 
 // ── Signal Options ─────────────────────────────────────────────────────────────
 // Available signals for condition builder
@@ -68,6 +68,23 @@ const PRIORITY_OPTIONS: Array<{ label: string; value: 'HIGH' | 'MEDIUM' | 'LOW' 
   { label: 'Low',    value: 'LOW'    },
 ];
 
+// Phase 6.5.2: Rule categories
+const CATEGORY_OPTIONS: Array<{ label: string; value: RuleCategory; icon: string }> = [
+  { label: 'SLA & Compliance',    value: 'SLA_COMPLIANCE', icon: 'pi pi-clock'       },
+  { label: 'Engagement',          value: 'ENGAGEMENT',     icon: 'pi pi-heart'       },
+  { label: 'Offers & Approvals',  value: 'OFFERS',         icon: 'pi pi-file'        },
+  { label: 'Onboarding',          value: 'ONBOARDING',     icon: 'pi pi-user-plus'   },
+  { label: 'General',             value: 'GENERAL',        icon: 'pi pi-bolt'        },
+];
+
+// Phase 6.5.2: Target roles (who sees the tile)
+const TARGET_ROLE_OPTIONS: Array<{ label: string; value: TargetRole; color: string }> = [
+  { label: 'TA',    value: 'TA',    color: 'var(--naleko-secondary)' },
+  { label: 'HM',    value: 'HM',    color: 'var(--naleko-primary)'   },
+  { label: 'IT',    value: 'IT',    color: 'var(--naleko-tertiary)'  },
+  { label: 'Admin', value: 'ADMIN', color: 'var(--naleko-error)'     },
+];
+
 const ACTION_TYPE_OPTIONS: Array<{ label: string; value: string; recipient: string }> = [
   // TA Actions
   { label: 'Alert TA - Urgent',           value: 'ALERT_TA_URGENT',           recipient: 'TA'    },
@@ -98,6 +115,8 @@ const EMPTY_RULE = (): IntelligenceRule => ({
   description: '',
   enabled:     true,
   priority:    'MEDIUM',
+  category:    'GENERAL',
+  targetRoles: ['TA'],
   conditions:  [],
   action:      { type: 'CUSTOM_NOTIFICATION', priority: 'MEDIUM', cooldown: 24 },
   cooldown:    24,
@@ -133,17 +152,20 @@ export class RuleFormDrawerComponent {
   readonly isEditMode = signal(false);
 
   // Dropdown options
-  readonly signalOptions   = SIGNAL_OPTIONS;
-  readonly operatorOptions = OPERATOR_OPTIONS;
-  readonly priorityOptions = PRIORITY_OPTIONS;
-  readonly actionOptions   = ACTION_TYPE_OPTIONS;
+  readonly signalOptions     = SIGNAL_OPTIONS;
+  readonly operatorOptions   = OPERATOR_OPTIONS;
+  readonly priorityOptions   = PRIORITY_OPTIONS;
+  readonly actionOptions     = ACTION_TYPE_OPTIONS;
+  readonly categoryOptions   = CATEGORY_OPTIONS;
+  readonly targetRoleOptions = TARGET_ROLE_OPTIONS;
 
   readonly valid = computed(() => {
     const f = this.form();
     return (
       f.name.trim().length > 0 &&
       f.conditions.length > 0 &&
-      f.conditions.every(c => c.signal && c.operator && c.value !== '')
+      f.conditions.every(c => c.signal && c.operator && c.value !== '') &&
+      (f.targetRoles?.length ?? 0) > 0
     );
   });
 
@@ -206,6 +228,28 @@ export class RuleFormDrawerComponent {
   getSignalType(signalValue: string): 'number' | 'string' | 'enum' {
     const opt = SIGNAL_OPTIONS.find(s => s.value === signalValue);
     return opt?.type ?? 'string';
+  }
+
+  // ── Target Role Toggle ──────────────────────────────────────────────────────
+
+  toggleTargetRole(role: TargetRole): void {
+    this.form.update(f => {
+      const current = f.targetRoles || [];
+      const hasRole = current.includes(role);
+
+      // Don't allow removing the last role
+      if (hasRole && current.length === 1) return f;
+
+      const newRoles = hasRole
+        ? current.filter(r => r !== role)
+        : [...current, role];
+
+      return { ...f, targetRoles: newRoles };
+    });
+  }
+
+  hasTargetRole(role: TargetRole): boolean {
+    return (this.form().targetRoles || []).includes(role);
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────────
