@@ -117,7 +117,9 @@ export class IntelligenceService {
    * GET /v1/intelligence/tiles?tenantId=X&role=Y
    */
   getIntelligenceTiles(role?: 'TA' | 'HM' | 'IT'): Observable<IntelligenceTilesResponse> {
-    let params = new HttpParams().set('tenantId', environment.talentFlow.tenantId);
+    let params = new HttpParams()
+      .set('tenantId', environment.talentFlow.tenantId)
+      .set('_t', Date.now().toString()); // Cache-busting timestamp
     if (role) params = params.set('role', role);
 
     return this.authHeaders().pipe(
