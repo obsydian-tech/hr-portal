@@ -296,6 +296,11 @@ const SIGNAL_CALCULATORS = {
   PANEL_CONSENSUS: calculatePanelConsensus,                         // 🟢 (EPIC 4 TASK 4.1)
   PANEL_SPLIT_FLAG: calculatePanelSplitFlag,                        // 🟢 (EPIC 4 TASK 4.1)
 
+  // === §1.6 Offer & Approval ===
+  OFFER_STATE: calculateOfferState,                                 // 🟢 (EPIC 4 TASK 4.2)
+  DAYS_SINCE_OFFER_SENT: calculateDaysSinceOfferSent,               // 🟢 (EPIC 4 TASK 4.2)
+  APPROVAL_STEP_AGE: calculateApprovalStepAge,                      // 🟢 (EPIC 4 TASK 4.2)
+
   // === Phase 6.4: Composite Signals ===
   CANDIDATE_RISK_SCORE: calculateCandidateRiskScore,                // 🟢 Composite
   ONBOARDING_READINESS: calculateOnboardingReadiness,               // 🟢 Composite
@@ -781,6 +786,123 @@ async function calculatePanelSplitFlag(item) {
   } catch (err) {
     console.warn('[evaluateIntelligenceRules] Failed to calculate PANEL_SPLIT_FLAG', {
       candidateId,
+      error: err.message
+    });
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// §1.6 Offer & Approval Signals (EPIC 4 TASK 4.2)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Signal Calculator: OFFER_STATE (EPIC 4 TASK 4.2)
+ * Returns the current state of the offer
+ *
+ * Possible values:
+ *   - DRAFT: Offer created but not yet sent
+ *   - PENDING_APPROVAL: Awaiting approval from stakeholders
+ *   - APPROVED: Approved but not yet sent
+ *   - SENT: Sent to candidate
+ *   - ACCEPTED: Candidate accepted
+ *   - DECLINED: Candidate declined
+ *   - EXPIRED: Offer expired
+ */
+function calculateOfferState(item) {
+  // Read from offerStatus field on SAGA record
+  return item.offerStatus || null;
+}
+
+/**
+ * Signal Calculator: DAYS_SINCE_OFFER_SENT (EPIC 4 TASK 4.2)
+ * Returns days since offer was sent to candidate
+ *
+ * Used for detecting stalled offers and tracking response time
+ */
+function calculateDaysSinceOfferSent(item) {
+  const offerSentAt = item.offerSentAt;
+
+  if (!offerSentAt) {
+    return null; // Offer not sent yet
+  }
+
+  try {
+    const sentTime = new Date(offerSentAt);
+    const now = new Date();
+    const daysSince = Math.floor((now - sentTime) / (1000 * 60 * 60 * 24));
+    return daysSince;
+  } catch (err) {
+    console.warn('[evaluateIntelligenceRules] Failed to parse offerSentAt', {
+      offerSentAt,
+      error: err.message
+    });
+    return null;
+  }
+}
+
+/**
+ * Signal Calculator: APPROVAL_STEP_AGE (EPIC 4 TASK 4.2)
+ * Returns days the current approval step has been pending
+ *
+ * Queries APPROVAL# history records to find when current step started
+ * Similar to DAYS_IN_CURRENT_STAGE pattern from EPIC 3 TASK 3.1
+ */
+async function calculateApprovalStepAge(item) {
+  const candidateId = item.candidateId;
+  const currentApprovalStep = item.currentApprovalStep; // e.g., 'HM_REVIEW', 'EXEC_APPROVAL'
+
+  if (!candidateId || !currentApprovalStep) {
+    return null; // Not in approval workflow
+  }
+
+  try {
+    // Query APPROVAL# history records for this candidate
+    const result = await dynamoDB.send(new QueryCommand({
+      TableName: STATE_TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+      ExpressionAttributeValues: marshall({
+        ':pk': `CANDIDATE#${candidateId}`,
+        ':prefix': 'APPROVAL#',
+      }),
+      ScanIndexForward: false, // Latest first
+      Limit: 20 // Get recent history
+    }));
+
+    if (!result.Items || result.Items.length === 0) {
+      // No approval history - fall back to approvalStartedAt if available
+      if (item.approvalStartedAt) {
+        const startTime = new Date(item.approvalStartedAt);
+        const now = new Date();
+        return Math.floor((now - startTime) / (1000 * 60 * 60 * 24));
+      }
+      return null;
+    }
+
+    const history = result.Items.map(i => unmarshall(i));
+
+    // Find most recent transition TO current step
+    const mostRecentTransition = history.find(h => h.toStep === currentApprovalStep);
+
+    if (mostRecentTransition && mostRecentTransition.timestamp) {
+      const stepStartTime = new Date(mostRecentTransition.timestamp);
+      const now = new Date();
+      return Math.floor((now - stepStartTime) / (1000 * 60 * 60 * 24));
+    }
+
+    // Fallback to approvalStartedAt
+    if (item.approvalStartedAt) {
+      const startTime = new Date(item.approvalStartedAt);
+      const now = new Date();
+      return Math.floor((now - startTime) / (1000 * 60 * 60 * 24));
+    }
+
+    return null;
+
+  } catch (err) {
+    console.warn('[evaluateIntelligenceRules] Failed to calculate APPROVAL_STEP_AGE', {
+      candidateId,
+      currentApprovalStep,
       error: err.message
     });
     return null;
