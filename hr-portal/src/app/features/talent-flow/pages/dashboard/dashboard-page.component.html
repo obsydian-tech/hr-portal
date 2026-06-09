@@ -41,12 +41,14 @@
           }
         </div>
         @if (intelligence.tilesCount() > 3) {
-          <button class="tf-link-btn">View all {{ intelligence.tilesCount() }} →</button>
+          <button class="tf-link-btn" (click)="viewAllTiles()">
+            {{ showAllTiles() ? 'Show less' : 'View all ' + intelligence.tilesCount() }} →
+          </button>
         }
       </div>
 
       <div class="tf-intelligence-tiles">
-        @for (tile of intelligence.tiles().slice(0, 3); track tile.id) {
+        @for (tile of showAllTiles() ? intelligence.tiles() : intelligence.tiles().slice(0, 3); track tile.id) {
           <tf-intelligence-tile
             [tile]="tile"
             (actionClicked)="handleTileAction($event)"

@@ -4,6 +4,7 @@ import {
   OnInit,
   inject,
   computed,
+  signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -75,6 +76,9 @@ export class DashboardPageComponent implements OnInit {
   protected readonly intelligence = inject(IntelligenceService);
   private  readonly nalekoAuth    = inject(AuthService);
   private  readonly router        = inject(Router);
+
+  // Tracks whether all intelligence tiles are shown or just top 3
+  protected readonly showAllTiles = signal<boolean>(false);
 
   protected readonly timeOfDay = computed<string>(() => {
     const h = new Date().getHours();
@@ -268,5 +272,9 @@ export class DashboardPageComponent implements OnInit {
 
   protected handleTileSnooze(event: { tileId: string; hours: number }): void {
     this.intelligence.handleSnooze(event.tileId, event.hours);
+  }
+
+  protected viewAllTiles(): void {
+    this.showAllTiles.update(val => !val);
   }
 }

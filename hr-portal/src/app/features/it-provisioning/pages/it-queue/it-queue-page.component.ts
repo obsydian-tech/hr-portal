@@ -41,6 +41,8 @@ export class ItQueuePageComponent implements OnInit {
   protected readonly queues  = signal<ItQueue[]>([]);
   protected readonly selectedQueue = signal<RequirementType | 'ALL'>('ALL');
   protected readonly actionPending = signal<string | null>(null); // task id in flight
+  // Tracks whether all intelligence tiles are shown or just top 3
+  protected readonly showAllTiles = signal<boolean>(false);
 
   // ── Signal strip counts ────────────────────────────────────────────────────
   protected readonly breachedCount = computed(() =>
@@ -187,5 +189,9 @@ export class ItQueuePageComponent implements OnInit {
 
   protected handleTileSnooze(event: { tileId: string; hours: number }): void {
     this.intelligence.handleSnooze(event.tileId, event.hours);
+  }
+
+  protected viewAllTiles(): void {
+    this.showAllTiles.update(val => !val);
   }
 }

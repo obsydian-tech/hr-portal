@@ -23,9 +23,14 @@
           <span class="ip-badge ip-badge--amber">{{ intelligence.highCount() }} high</span>
         }
       </div>
+      @if (intelligence.tilesCount() > 3) {
+        <button class="ip-link-btn" (click)="viewAllTiles()">
+          {{ showAllTiles() ? 'Show less' : 'View all ' + intelligence.tilesCount() }} →
+        </button>
+      }
     </div>
     <div class="ip-tiles">
-      @for (tile of intelligence.tiles().slice(0, 3); track tile.id) {
+      @for (tile of showAllTiles() ? intelligence.tiles() : intelligence.tiles().slice(0, 3); track tile.id) {
         <tf-intelligence-tile
           [tile]="tile"
           [compact]="true"
