@@ -536,14 +536,71 @@ function calculateEvaluationResult(item) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Signal Calculator: DAYS_IN_CURRENT_STAGE
+ * Signal Calculator: DAYS_IN_CURRENT_STAGE (EPIC 3 TASK 3.1)
  * Returns days since candidate entered current stage
- * Uses stageChangedAt field if available, otherwise estimates from updatedAt
+ *
+ * Precision strategy (graceful degradation):
+ *   1. Query for latest STAGE# history record (most accurate)
+ *   2. Fallback to stageEnteredAt from SAGA (advanceCandidateStage writes this)
+ *   3. Fallback to stageChangedAt/lastStageChangeAt (legacy)
+ *   4. Fallback to updatedAt (least accurate, better than null)
  */
-function calculateDaysInCurrentStage(item) {
-  // Prefer explicit stageChangedAt timestamp if available
-  const stageChangeTimestamp = item.stageChangedAt || item.lastStageChangeAt;
+async function calculateDaysInCurrentStage(item) {
+  const candidateId = item.candidateId;
+  const currentStage = item.currentStage;
 
+  // Strategy 1: Query for latest STAGE# history record (EPIC 3)
+  if (candidateId && currentStage) {
+    try {
+      const result = await dynamoDB.send(new QueryCommand({
+        TableName: STATE_TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+        ExpressionAttributeValues: marshall({
+          ':pk': `CANDIDATE#${candidateId}`,
+          ':prefix': 'STAGE#',
+        }),
+        ScanIndexForward: false, // Descending order (most recent first)
+        Limit: 5, // Get last 5 transitions
+      }));
+
+      if (result.Items && result.Items.length > 0) {
+        // Find the most recent transition TO the current stage
+        const transitions = result.Items.map(i => unmarshall(i));
+        const currentStageEntry = transitions.find(t => t.toStage === currentStage);
+
+        if (currentStageEntry && currentStageEntry.timestamp) {
+          const enteredAt = new Date(currentStageEntry.timestamp);
+          const now = new Date();
+          const daysSince = Math.floor((now - enteredAt) / (1000 * 60 * 60 * 24));
+          return daysSince;
+        }
+      }
+    } catch (err) {
+      // Non-fatal: log and fall through to fallbacks
+      console.warn('[evaluateIntelligenceRules] Failed to query stage history', {
+        candidateId,
+        error: err.message
+      });
+    }
+  }
+
+  // Strategy 2: Use stageEnteredAt from SAGA (written by advanceCandidateStage)
+  if (item.stageEnteredAt) {
+    try {
+      const enteredAt = new Date(item.stageEnteredAt);
+      const now = new Date();
+      const daysSince = Math.floor((now - enteredAt) / (1000 * 60 * 60 * 24));
+      return daysSince;
+    } catch (err) {
+      console.warn('[evaluateIntelligenceRules] Failed to parse stageEnteredAt', {
+        stageEnteredAt: item.stageEnteredAt,
+        error: err.message
+      });
+    }
+  }
+
+  // Strategy 3: Legacy stageChangedAt/lastStageChangeAt (backward compatibility)
+  const stageChangeTimestamp = item.stageChangedAt || item.lastStageChangeAt;
   if (stageChangeTimestamp) {
     try {
       const changedAt = new Date(stageChangeTimestamp);
@@ -558,8 +615,7 @@ function calculateDaysInCurrentStage(item) {
     }
   }
 
-  // Fallback: use updatedAt if no explicit stage change timestamp
-  // This is less accurate but better than null
+  // Strategy 4: Fallback to updatedAt (least accurate)
   if (item.updatedAt) {
     try {
       const updatedAt = new Date(item.updatedAt);
