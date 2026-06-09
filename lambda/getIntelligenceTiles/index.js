@@ -595,6 +595,72 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
         ruleId: 'RULE-ACCESS-001',
       }));
     }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // EPIC 4 Rules (Advanced Intelligence Signals)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // Rule 15: Fast-Track Recommended (EPIC 4 TASK 4.3)
+    // High score + high consensus + falling engagement = urgent decision
+    if (finalScore !== null && finalScore !== undefined && finalScore >= thresholds.FINAL_SCORE_HIGH &&
+        signals.PANEL_CONSENSUS?.label === 'HIGH' &&
+        signals.ENGAGEMENT_TREND === 'FALLING') {
+      tiles.push(createTile(snapshot, {
+        priority: 'CRITICAL', // CRITICAL so it gets promoted to per-entity display
+        title: 'Fast-Track Recommended',
+        description: `${entityName} • High score (${finalScore}) + strong panel consensus + engagement cooling — recommend urgent decision`,
+        ruleId: 'RULE-FASTTRACK-001',
+      }));
+    }
+
+    // Rule 16: Split Panel - Document Rationale (EPIC 4 TASK 4.1)
+    // Panel has strong disagreement - requires escalation/documentation
+    if (signals.PANEL_SPLIT_FLAG === true) {
+      tiles.push(createTile(snapshot, {
+        priority: 'CRITICAL', // CRITICAL so it gets promoted to per-entity display
+        title: 'Split Panel - Document Rationale',
+        description: `${entityName} • Panel strongly disagrees — document decision rationale required`,
+        ruleId: 'RULE-PANEL-001',
+        acknowledgeOnly: true, // Cannot be dismissed, only acknowledged
+      }));
+    }
+
+    // Rule 17: Approval Stalled (EPIC 4 TASK 4.2)
+    // Offer stuck in approval workflow
+    const approvalStepAge = signals.APPROVAL_STEP_AGE;
+    if (approvalStepAge !== null && approvalStepAge !== undefined && approvalStepAge >= 5) {
+      tiles.push(createTile(snapshot, {
+        priority: approvalStepAge >= 7 ? 'HIGH' : 'MEDIUM',
+        title: 'Approval Stalled',
+        description: `${entityName} • Offer approval stuck in ${snapshot.currentApprovalStep || 'current step'} for ${approvalStepAge} days`,
+        ruleId: 'RULE-APPROVAL-001',
+      }));
+    }
+
+    // Rule 18: Candidate Engagement Cooling (EPIC 3 TASK 3.2)
+    // Candidate engagement dropping + no recent response = ghosting risk
+    if (signals.ENGAGEMENT_TREND === 'FALLING' &&
+        signals.CANDIDATE_DAYS_SINCE_RESPONSE !== null &&
+        signals.CANDIDATE_DAYS_SINCE_RESPONSE >= 7) {
+      tiles.push(createTile(snapshot, {
+        priority: 'MEDIUM',
+        title: 'Candidate Engagement Cooling',
+        description: `${entityName} • Engagement falling + ${signals.CANDIDATE_DAYS_SINCE_RESPONSE} days since last response — ghosting risk`,
+        ruleId: 'RULE-COOLING-001',
+      }));
+    }
+
+    // Rule 19: Pending Feedback (EPIC 4 TASK 4.1)
+    // Panel members haven't submitted feedback
+    const pendingCount = signals.PANEL_FEEDBACK_PENDING_COUNT;
+    if (pendingCount !== null && pendingCount !== undefined && pendingCount > 0) {
+      tiles.push(createTile(snapshot, {
+        priority: pendingCount >= 3 ? 'HIGH' : 'MEDIUM',
+        title: 'Feedback Overdue',
+        description: `${entityName} • ${pendingCount} panel member${pendingCount > 1 ? 's have' : ' has'} not submitted feedback`,
+        ruleId: 'RULE-FEEDBACK-001',
+      }));
+    }
   }
 
   // Filter tiles by role if specified
@@ -611,7 +677,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
 function createTile(snapshot, opts) {
   const signals = snapshot.signals || {};
 
-  return {
+  const tile = {
     id: `tile-${snapshot.entityId}-${opts.ruleId}`,
     priority: opts.priority,
     title: opts.title,
@@ -625,6 +691,13 @@ function createTile(snapshot, opts) {
     createdAt: snapshot.computedAt,
     ruleId: opts.ruleId,
   };
+
+  // Add acknowledgeOnly flag if specified
+  if (opts.acknowledgeOnly) {
+    tile.acknowledgeOnly = true;
+  }
+
+  return tile;
 }
 
 /**
