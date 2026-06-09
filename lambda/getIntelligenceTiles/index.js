@@ -115,10 +115,12 @@ exports.handler = async (event) => {
 
     // Generate tiles from snapshots (with role filtering and config thresholds)
     const rawTiles = generateTiles(snapshots, role, thresholds);
+    console.info('[DEBUG] After generateTiles', { rawTileCount: rawTiles.length });
 
     // EPIC 1 Task 1.4: Aggregate-and-route tile model
     // Group tiles → aggregate by rule, promote top 1-3 CRITICAL to per-entity
     const tiles = applyAggregationModel(rawTiles, tenantId, role);
+    console.info('[DEBUG] After aggregation', { tileCount: tiles.length });
 
     // EPIC 1 Task 1.2: Apply dismissal/snooze overlay
     // Extract userId from JWT claims
@@ -126,9 +128,11 @@ exports.handler = async (event) => {
 
     // Fetch user's dismissal overlay (single query, no N+1)
     const dismissalOverlay = userId ? await fetchDismissalOverlay(userId) : new Map();
+    console.info('[DEBUG] Dismissal overlay', { userId, dismissedCount: dismissalOverlay.size });
 
     // Filter tiles based on dismissal overlay
     const visibleTiles = applyDismissalFilter(tiles, dismissalOverlay);
+    console.info('[DEBUG] After dismissal filter', { visibleTileCount: visibleTiles.length });
 
     // Sort by priority (CRITICAL > HIGH > MEDIUM > LOW)
     const sortedTiles = sortTilesByPriority(visibleTiles);
