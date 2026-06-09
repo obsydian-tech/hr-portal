@@ -44,8 +44,12 @@ const RULE_CONFIG = {
   // HM-focused rules (decisions, approvals, feedback)
   'RULE-HIPO-001': { targetRoles: ['HM'], name: 'Strong Candidate Ready' },
   'RULE-DECISION-001': { targetRoles: ['HM'], name: 'Decision Needed' },
-  'RULE-APPROVAL-001': { targetRoles: ['HM'], name: 'Approval Pending' },
+  'RULE-APPROVAL-001': { targetRoles: ['HM'], name: 'Approval Stalled' },
   'RULE-FEEDBACK-001': { targetRoles: ['HM'], name: 'Feedback Overdue' },
+  'RULE-FASTTRACK-001': { targetRoles: ['HM', 'TA'], name: 'Fast-Track Recommended' },  // EPIC 4
+  'RULE-PANEL-001': { targetRoles: ['HM'], name: 'Split Panel - Document Rationale' },  // EPIC 4
+  'RULE-COOLING-001': { targetRoles: ['HM', 'TA'], name: 'Candidate Engagement Cooling' },  // EPIC 3
+  'RULE-STAGE-001': { targetRoles: ['TA'], name: 'Stalled in Stage' },  // Was missing
 
   // IT-focused rules (provisioning, onboarding readiness)
   'RULE-ONBOARD-001': { targetRoles: ['IT'], name: 'Onboarding Preparation Needed' },
