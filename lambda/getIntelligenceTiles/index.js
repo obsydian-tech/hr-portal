@@ -96,7 +96,7 @@ exports.handler = async (event) => {
     const tenantId = params.tenantId || 'DEFAULT';
     const role = params.role; // TA | HM | IT
     const ownerId = params.ownerId;
-    const limit = parseInt(params.limit, 10) || 20;
+    const limit = parseInt(params.limit, 10) || 100; // Increased from 20 to 100
 
     // EPIC 1 Task 1.3: Load config-driven thresholds
     let thresholds = DEFAULT_THRESHOLDS;
@@ -183,7 +183,13 @@ async function fetchSnapshots(tenantId, opts = {}) {
     Limit: limit,
   }));
 
-  return (result.Items || []).map(item => unmarshall(item));
+  // Sort by computedAt (most recent first) since DynamoDB sorts by SK (alphabetical)
+  const snapshots = (result.Items || []).map(item => unmarshall(item));
+  return snapshots.sort((a, b) => {
+    const timeA = new Date(a.computedAt || 0).getTime();
+    const timeB = new Date(b.computedAt || 0).getTime();
+    return timeB - timeA; // Descending (newest first)
+  });
 }
 
 /**
