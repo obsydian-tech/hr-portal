@@ -286,6 +286,8 @@ const SIGNAL_CALCULATORS = {
   ENGAGEMENT_SCORE: calculateEngagementScore,                       // 🟢
   ENGAGEMENT_SENTIMENT: calculateEngagementSentiment,               // 🟢
   INTERVIEW_SENTIMENT: calculateInterviewSentiment,                 // 🟢
+  ENGAGEMENT_TREND: calculateEngagementTrend,                       // 🟢 (EPIC 3 TASK 3.2)
+  CANDIDATE_DAYS_SINCE_RESPONSE: calculateCandidateDaysSinceResponse, // 🟢 (EPIC 3 TASK 3.2)
 
   // === §1.5 Panel & Evaluation ===
   FINAL_SCORE: calculateFinalScore,                                 // 🟢
@@ -508,6 +510,61 @@ function calculateEngagementSentiment(item) {
  */
 function calculateInterviewSentiment(item) {
   return item.interviewSentiment || null;
+}
+
+/**
+ * Signal Calculator: ENGAGEMENT_TREND (EPIC 3 TASK 3.2)
+ * Returns engagement trend: RISING | FLAT | FALLING
+ *
+ * Compares lastEngagementReading to previousEngagementReading
+ * to detect if candidate is becoming more or less engaged.
+ *
+ * Thresholds:
+ *   RISING: current > previous + 10
+ *   FALLING: current < previous - 10
+ *   FLAT: otherwise (or only one reading)
+ */
+function calculateEngagementTrend(item) {
+  const last = item.lastEngagementReading;
+  const previous = item.previousEngagementReading;
+
+  // Default to FLAT if insufficient data
+  if (!last || !last.score || !previous || !previous.score) {
+    return 'FLAT';
+  }
+
+  const diff = last.score - previous.score;
+
+  if (diff > 10) return 'RISING';
+  if (diff < -10) return 'FALLING';
+  return 'FLAT';
+}
+
+/**
+ * Signal Calculator: CANDIDATE_DAYS_SINCE_RESPONSE (EPIC 3 TASK 3.2)
+ * Returns days since candidate's last engagement reading
+ *
+ * Used for ghosting detection - if days > threshold, candidate may be cooling off
+ */
+function calculateCandidateDaysSinceResponse(item) {
+  const last = item.lastEngagementReading;
+
+  if (!last || !last.timestamp) {
+    return null;
+  }
+
+  try {
+    const lastTime = new Date(last.timestamp);
+    const now = new Date();
+    const daysSince = Math.floor((now - lastTime) / (1000 * 60 * 60 * 24));
+    return daysSince;
+  } catch (err) {
+    console.warn('[evaluateIntelligenceRules] Failed to parse lastEngagementReading.timestamp', {
+      timestamp: last.timestamp,
+      error: err.message
+    });
+    return null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

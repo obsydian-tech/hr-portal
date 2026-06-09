@@ -252,6 +252,38 @@ const CANONICAL_RULES = [
       type: 'NOTIFY_HIPO_DISENGAGING',
       cooldown: 24  // Daily monitoring
     }
+  },
+
+  // === 9. Candidate Cooling (EPIC 3 TASK 3.2) ===
+  {
+    id: 'RULE-COOLING-001',
+    name: 'Candidate Engagement Cooling',
+    enabled: true,
+    severity: 'MEDIUM',
+    category: 'TA Engagement',
+    targetRoles: ['TA', 'HM'],
+    description: 'Candidate showing falling engagement trend with no recent response. Early ghosting warning.',
+    conditions: [
+      {
+        signal: 'ENGAGEMENT_TREND',
+        operator: 'equals',
+        value: 'FALLING'
+      },
+      {
+        signal: 'CANDIDATE_DAYS_SINCE_RESPONSE',
+        operator: 'greaterThan',
+        value: 7  // No engagement activity in 7+ days
+      },
+      {
+        signal: 'CANDIDATE_STAGE',
+        operator: 'in',
+        value: ['APPLICATION_REVIEW', 'INTERVIEWING', 'EVALUATION']  // Pre-offer stages
+      }
+    ],
+    action: {
+      type: 'NOTIFY_CANDIDATE_COOLING',
+      cooldown: 48  // Check every 2 days
+    }
   }
 ];
 
