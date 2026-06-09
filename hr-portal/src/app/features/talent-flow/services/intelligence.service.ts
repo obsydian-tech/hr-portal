@@ -184,10 +184,17 @@ export class IntelligenceService {
 
     this.getIntelligenceTiles(role).subscribe({
       next: (response) => {
+        console.log('[IntelligenceService] API Response:', {
+          total: response.total,
+          tileCount: response.tiles.length,
+          tiles: response.tiles.map(t => ({ id: t.id, title: t.title, entity: t.entityName }))
+        });
         this._tiles.set(response.tiles);
         this._isLoading.set(false);
+        console.log('[IntelligenceService] Tiles set in state:', this._tiles().length);
       },
       error: (err: { userMessage?: string }) => {
+        console.error('[IntelligenceService] API Error:', err);
         this._error.set(err.userMessage ?? 'Failed to load intelligence tiles.');
         this._isLoading.set(false);
         // Fallback: try to generate tiles from snapshots
