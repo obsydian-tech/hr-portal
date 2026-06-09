@@ -1209,7 +1209,7 @@ function calculateAccessProvisioned(item) {
 function evaluateRule(rule, signals) {
   // Check each condition (AND logic)
   for (const condition of rule.conditions) {
-    const signalValue = signals[condition.signal];
+    let signalValue = signals[condition.signal];
 
     // If signal is unavailable (null), condition fails
     if (signalValue == null) {
@@ -1217,6 +1217,19 @@ function evaluateRule(rule, signals) {
         matched: false,
         reason: `signal_unavailable:${condition.signal}`
       };
+    }
+
+    // Support nested property access via 'path' (e.g., path: 'value' for PANEL_CONSENSUS.value)
+    if (condition.path && typeof signalValue === 'object') {
+      signalValue = signalValue[condition.path];
+
+      // If nested property doesn't exist, condition fails
+      if (signalValue == null) {
+        return {
+          matched: false,
+          reason: `signal_path_unavailable:${condition.signal}.${condition.path}`
+        };
+      }
     }
 
     // Evaluate the condition

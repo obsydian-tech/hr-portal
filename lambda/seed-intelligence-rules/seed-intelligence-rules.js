@@ -284,6 +284,99 @@ const CANONICAL_RULES = [
       type: 'NOTIFY_CANDIDATE_COOLING',
       cooldown: 48  // Check every 2 days
     }
+  },
+
+  // === 10. HM Decision Support: Fast-Track (EPIC 4 TASK 4.3) ===
+  {
+    id: 'RULE-FASTTRACK-001',
+    name: 'Fast-Track Recommended',
+    enabled: true,
+    severity: 'HIGH',
+    category: 'HM Decision Support',
+    targetRoles: ['HM', 'TA'],
+    description: 'High-scoring candidate with strong panel consensus but falling engagement. Fast-track to prevent losing candidate.',
+    conditions: [
+      {
+        signal: 'FINAL_SCORE',
+        operator: 'greaterThanOrEqual',
+        value: 85  // Strong candidate
+      },
+      {
+        signal: 'PANEL_CONSENSUS',
+        operator: 'greaterThanOrEqual',
+        value: 0.75,
+        path: 'value'  // Check consensus.value >= 0.75
+      },
+      {
+        signal: 'ENGAGEMENT_TREND',
+        operator: 'equals',
+        value: 'FALLING'  // Urgency signal
+      },
+      {
+        signal: 'CANDIDATE_STAGE',
+        operator: 'equals',
+        value: 'EVALUATION'  // Ready to advance
+      }
+    ],
+    action: {
+      type: 'RECOMMEND_FASTTRACK',
+      cooldown: 24  // Daily check
+    }
+  },
+
+  // === 11. HM Decision Support: Split Panel Documentation (EPIC 4 TASK 4.3) ===
+  {
+    id: 'RULE-PANEL-001',
+    name: 'Split Panel - Document Rationale',
+    enabled: true,
+    severity: 'HIGH',
+    category: 'HM Decision Support',
+    targetRoles: ['HM'],
+    description: 'Panel has strong disagreement (STRONG_YES and STRONG_NO). Requires documented rationale for final decision (compliance/governance).',
+    conditions: [
+      {
+        signal: 'PANEL_SPLIT_FLAG',
+        operator: 'equals',
+        value: true
+      },
+      {
+        signal: 'CANDIDATE_STAGE',
+        operator: 'in',
+        value: ['EVALUATION', 'OFFER']  // Decision stages
+      }
+    ],
+    action: {
+      type: 'REQUIRE_RATIONALE_DOCUMENTATION',
+      cooldown: 168,  // Weekly (acknowledge-only, not recurring)
+      acknowledgeOnly: true  // Cannot be dismissed, only acknowledged
+    }
+  },
+
+  // === 12. HM Decision Support: Stalled Approval (EPIC 4 TASK 4.3) ===
+  {
+    id: 'RULE-APPROVAL-001',
+    name: 'Approval Step Stalled',
+    enabled: true,
+    severity: 'MEDIUM',
+    category: 'HM Decision Support',
+    targetRoles: ['HM', 'TA'],
+    description: 'Offer approval has been in current step for too long. May need follow-up or escalation.',
+    conditions: [
+      {
+        signal: 'APPROVAL_STEP_AGE',
+        operator: 'greaterThan',
+        value: 5  // More than 5 days in current approval step
+      },
+      {
+        signal: 'OFFER_STATE',
+        operator: 'equals',
+        value: 'PENDING_APPROVAL'
+      }
+    ],
+    action: {
+      type: 'NOTIFY_APPROVAL_STALLED',
+      cooldown: 48  // Check every 2 days
+    }
   }
 ];
 
