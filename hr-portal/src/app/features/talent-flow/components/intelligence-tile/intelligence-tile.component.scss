@@ -192,6 +192,23 @@
   color: var(--naleko-on-surface-variant);
 }
 
+// EPIC 1.4: Count badge for aggregate tiles
+.tf-intel-tile__count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 3px 10px;
+  border-radius: var(--naleko-radius-pill);
+  background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+  color: var(--naleko-secondary);
+  font-weight: 700;
+  font-size: 0.72rem;
+
+  i {
+    font-size: 0.9em;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Signal Pills
 // ═══════════════════════════════════════════════════════════════════════════════

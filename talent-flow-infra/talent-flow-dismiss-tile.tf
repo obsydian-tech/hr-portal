@@ -1,25 +1,25 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# Get Intelligence Tiles Lambda — INTEL-002 Phase 6.2.5
+# Dismiss Tile Lambda — INTEL-002 EPIC 1 Task 1.1
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# Purpose: API endpoint to fetch intelligence tiles for dashboard display
-#          Tiles are projections over signal snapshots (§10.2)
+# Purpose: API endpoint to dismiss an intelligence tile
+#          Records per-user dismissal in talent-flow-intelligence-dismissals table
 #
-# Trigger: HTTP API Gateway GET /v1/intelligence/tiles
+# Trigger: HTTP API Gateway POST /v1/intelligence/tiles/{id}/dismiss
 # Auth:    Cognito JWT (same as other talent-flow-api routes)
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ── Lambda Function ────────────────────────────────────────────────────────────
 
-resource "aws_lambda_function" "get_intelligence_tiles" {
-  function_name = "getIntelligenceTiles"
-  role          = aws_iam_role.get_intelligence_tiles.arn
+resource "aws_lambda_function" "dismiss_tile" {
+  function_name = "dismissTile"
+  role          = aws_iam_role.dismiss_tile.arn
   runtime       = "nodejs22.x"
   architectures = ["arm64"]
   handler       = "index.handler"
   memory_size   = 256
-  timeout       = 30
+  timeout       = 10
 
   # Code will be deployed separately via deploy script
   filename         = local.tf_placeholder_zip
@@ -27,9 +27,8 @@ resource "aws_lambda_function" "get_intelligence_tiles" {
 
   environment {
     variables = {
-      STATE_TABLE_NAME      = data.aws_dynamodb_table.talent_flow_state.name
       DISMISSALS_TABLE_NAME = aws_dynamodb_table.intelligence_dismissals.name
-      CONFIG_TABLE_NAME     = data.aws_dynamodb_table.talent_flow_config.name
+      STATE_TABLE_NAME      = data.aws_dynamodb_table.talent_flow_state.name
     }
   }
 
@@ -41,7 +40,7 @@ resource "aws_lambda_function" "get_intelligence_tiles" {
     log_format            = "JSON"
     application_log_level = "INFO"
     system_log_level      = "INFO"
-    log_group             = aws_cloudwatch_log_group.get_intelligence_tiles.name
+    log_group             = aws_cloudwatch_log_group.dismiss_tile.name
   }
 
   lifecycle {
@@ -49,29 +48,29 @@ resource "aws_lambda_function" "get_intelligence_tiles" {
   }
 
   tags = merge(local.tf_tags, {
-    Purpose = "IntelligenceLayerTiles"
+    Purpose = "IntelligenceDismissal"
     Ticket  = "INTEL-002"
-    Phase   = "6.2.5"
+    Phase   = "EPIC1-Task1.1"
   })
 }
 
 # ── CloudWatch Log Group ───────────────────────────────────────────────────────
 
-resource "aws_cloudwatch_log_group" "get_intelligence_tiles" {
-  name              = "/aws/lambda/getIntelligenceTiles"
+resource "aws_cloudwatch_log_group" "dismiss_tile" {
+  name              = "/aws/lambda/dismissTile"
   retention_in_days = 30
 
   tags = merge(local.tf_tags, {
-    Purpose = "IntelligenceLayerLogs"
+    Purpose = "IntelligenceDismissalLogs"
     Ticket  = "INTEL-002"
   })
 }
 
 # ── IAM Role ───────────────────────────────────────────────────────────────────
 
-resource "aws_iam_role" "get_intelligence_tiles" {
-  name        = "talent-flow-role-getIntelligenceTiles"
-  description = "Execution role for getIntelligenceTiles Lambda (INTEL-002)"
+resource "aws_iam_role" "dismiss_tile" {
+  name        = "talent-flow-role-dismissTile"
+  description = "Execution role for dismissTile Lambda (INTEL-002 EPIC 1)"
   path        = "/talent-flow/"
 
   assume_role_policy = jsonencode({
@@ -84,16 +83,16 @@ resource "aws_iam_role" "get_intelligence_tiles" {
   })
 
   tags = merge(local.tf_tags, {
-    Purpose = "IntelligenceLayerRole"
+    Purpose = "IntelligenceDismissalRole"
     Ticket  = "INTEL-002"
   })
 }
 
-# ── IAM Policy ─────────────────────────────────────────────────────────────────
+# ── IAM Policy (Least-Privilege) ──────────────────────────────────────────────
 
-resource "aws_iam_role_policy" "get_intelligence_tiles" {
-  name = "talent-flow-policy-getIntelligenceTiles"
-  role = aws_iam_role.get_intelligence_tiles.name
+resource "aws_iam_role_policy" "dismiss_tile" {
+  name = "talent-flow-policy-dismissTile"
+  role = aws_iam_role.dismiss_tile.name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -106,7 +105,7 @@ resource "aws_iam_role_policy" "get_intelligence_tiles" {
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = "${aws_cloudwatch_log_group.get_intelligence_tiles.arn}:*"
+        Resource = "${aws_cloudwatch_log_group.dismiss_tile.arn}:*"
       },
       {
         Sid    = "XRay"
@@ -118,37 +117,20 @@ resource "aws_iam_role_policy" "get_intelligence_tiles" {
         Resource = "*"
       },
       {
-        Sid    = "StateTableRead"
+        Sid    = "DismissalsTableWrite"
         Effect = "Allow"
         Action = [
-          "dynamodb:GetItem",
-          "dynamodb:Query",
-          "dynamodb:Scan"
-        ]
-        Resource = [
-          data.aws_dynamodb_table.talent_flow_state.arn,
-          "${data.aws_dynamodb_table.talent_flow_state.arn}/index/*"
-        ]
-      },
-      {
-        Sid    = "DismissalsTableRead"
-        Effect = "Allow"
-        Action = [
-          "dynamodb:Query"
+          "dynamodb:PutItem"
         ]
         Resource = aws_dynamodb_table.intelligence_dismissals.arn
       },
       {
-        Sid    = "ConfigTableRead"
+        Sid    = "StateTableRead"
         Effect = "Allow"
         Action = [
-          "dynamodb:GetItem",
           "dynamodb:Query"
         ]
-        Resource = [
-          data.aws_dynamodb_table.talent_flow_config.arn,
-          "${data.aws_dynamodb_table.talent_flow_config.arn}/index/*"
-        ]
+        Resource = data.aws_dynamodb_table.talent_flow_state.arn
       },
       {
         Sid    = "KMSDecrypt"
@@ -157,7 +139,7 @@ resource "aws_iam_role_policy" "get_intelligence_tiles" {
           "kms:Decrypt",
           "kms:DescribeKey"
         ]
-        Resource = data.aws_kms_key.talent_flow_state.arn
+        Resource = aws_kms_key.talent_flow_state.arn
       }
     ]
   })
@@ -165,29 +147,29 @@ resource "aws_iam_role_policy" "get_intelligence_tiles" {
 
 # ── API Gateway Integration ────────────────────────────────────────────────────
 
-resource "aws_apigatewayv2_integration" "get_intelligence_tiles" {
+resource "aws_apigatewayv2_integration" "dismiss_tile" {
   api_id                 = aws_apigatewayv2_api.talent_flow_api.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.get_intelligence_tiles.invoke_arn
+  integration_uri        = aws_lambda_function.dismiss_tile.invoke_arn
   payload_format_version = "2.0"
 }
 
-# ── API Gateway Route: GET /v1/intelligence/tiles ──────────────────────────────
+# ── API Gateway Route: POST /v1/intelligence/tiles/{id}/dismiss ────────────────
 
-resource "aws_apigatewayv2_route" "get_intelligence_tiles" {
+resource "aws_apigatewayv2_route" "dismiss_tile" {
   api_id             = aws_apigatewayv2_api.talent_flow_api.id
-  route_key          = "GET /v1/intelligence/tiles"
-  target             = "integrations/${aws_apigatewayv2_integration.get_intelligence_tiles.id}"
+  route_key          = "POST /v1/intelligence/tiles/{id}/dismiss"
+  target             = "integrations/${aws_apigatewayv2_integration.dismiss_tile.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
 }
 
 # ── Lambda Permission for API Gateway ──────────────────────────────────────────
 
-resource "aws_lambda_permission" "get_intelligence_tiles_api" {
-  statement_id  = "AllowTalentFlowAPIInvokeGetIntelligenceTiles"
+resource "aws_lambda_permission" "dismiss_tile_api" {
+  statement_id  = "AllowTalentFlowAPIInvokeDismissTile"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.get_intelligence_tiles.function_name
+  function_name = aws_lambda_function.dismiss_tile.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
 }

@@ -529,15 +529,16 @@ export interface SignalSnapshot {
   updatedAt:     string; // ISO 8601
 }
 
-/** Intelligence tile for dashboard display */
+/** Intelligence tile for dashboard display (EPIC 1 Task 1.4: supports aggregate mode) */
 export interface IntelligenceTile {
   id:           string;
+  mode?:        'aggregate' | 'per-entity'; // EPIC 1.4: tile display mode
   priority:     'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   title:        string;
   description:  string;
   entityType:   'CANDIDATE' | 'OFFER';
-  entityId:     string;
-  entityName:   string;
+  entityId:     string | null; // EPIC 1.4: null for aggregate tiles
+  entityName:   string | null; // EPIC 1.4: null for aggregate tiles
   currentStage: HiringStage | null;
   signals:      TileSignal[];
   actions:      TileAction[];
@@ -545,6 +546,15 @@ export interface IntelligenceTile {
   expiresAt?:   string;
   ruleId?:      string;
   ruleName?:    string;
+  count?:       number; // EPIC 1.4: item count for aggregate tiles
+  routeTarget?: TileRouteTarget; // EPIC 1.4: deep-link target for aggregates
+  why?:         string; // EPIC 1.4: explainability line from composite factors
+}
+
+/** Route target for aggregate tiles (EPIC 1 Task 1.4) */
+export interface TileRouteTarget {
+  view:    string; // e.g., 'candidates', 'offers'
+  filters: Record<string, unknown>; // filter state for deep-link
 }
 
 export interface TileSignal {

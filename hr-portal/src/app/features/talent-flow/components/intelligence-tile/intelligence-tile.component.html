@@ -23,14 +23,25 @@
     <!-- Description -->
     <p class="tf-intel-tile__desc">{{ tile().description }}</p>
 
-    <!-- Entity context -->
-    <div class="tf-intel-tile__context">
-      <span class="tf-intel-tile__entity">{{ tile().entityName }}</span>
-      @if (stageLabel()) {
-        <span class="tf-intel-tile__divider">·</span>
-        <span class="tf-intel-tile__stage">{{ stageLabel() }}</span>
-      }
-    </div>
+    <!-- EPIC 1.4: Aggregate mode shows count badge; Per-entity shows entity name -->
+    @if (isAggregate()) {
+      <!-- Aggregate tile: count badge -->
+      <div class="tf-intel-tile__context">
+        <span class="tf-intel-tile__count-badge">
+          <i class="pi pi-users"></i>
+          {{ tile().count }} items
+        </span>
+      </div>
+    } @else {
+      <!-- Per-entity tile: entity context -->
+      <div class="tf-intel-tile__context">
+        <span class="tf-intel-tile__entity">{{ tile().entityName }}</span>
+        @if (stageLabel()) {
+          <span class="tf-intel-tile__divider">·</span>
+          <span class="tf-intel-tile__stage">{{ stageLabel() }}</span>
+        }
+      </div>
+    }
 
     <!-- Signal pills -->
     @if (tile().signals.length > 0 && !compact()) {

@@ -13,12 +13,15 @@
 
 const { DynamoDBClient, QueryCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
+const { getConfig } = require('./config-reader');
 
 const dynamoDB = new DynamoDBClient({});
 const STATE_TABLE = process.env.STATE_TABLE_NAME || 'talent-flow-state';
+const DISMISSALS_TABLE = process.env.DISMISSALS_TABLE_NAME || 'talent-flow-intelligence-dismissals';
 
-// Tile generation thresholds
-const THRESHOLDS = {
+// Default tile generation thresholds (fallback if config unavailable)
+// EPIC 1 Task 1.3: Now loaded from config; these are safe defaults
+const DEFAULT_THRESHOLDS = {
   OFFER_EXPIRY_URGENT: 3,    // Days - urgent if expiring in 3 days
   FINAL_SCORE_HIGH: 85,      // Score - high performer threshold
   DAYS_STALE: 14,            // Days - candidate stale threshold
@@ -91,14 +94,40 @@ exports.handler = async (event) => {
     const ownerId = params.ownerId;
     const limit = parseInt(params.limit, 10) || 20;
 
+    // EPIC 1 Task 1.3: Load config-driven thresholds
+    let thresholds = DEFAULT_THRESHOLDS;
+    try {
+      const config = await getConfig(tenantId, 'INTELLIGENCE_RULES');
+      if (config?.thresholds) {
+        thresholds = { ...DEFAULT_THRESHOLDS, ...config.thresholds };
+        console.info('[getIntelligenceTiles] Using config thresholds', { thresholds });
+      }
+    } catch (configError) {
+      console.warn('[getIntelligenceTiles] Config load failed, using defaults', { error: configError.message });
+    }
+
     // Fetch signal snapshots
     const snapshots = await fetchSnapshots(tenantId, { ownerId, role, limit });
 
-    // Generate tiles from snapshots (with role filtering)
-    const tiles = generateTiles(snapshots, role);
+    // Generate tiles from snapshots (with role filtering and config thresholds)
+    const rawTiles = generateTiles(snapshots, role, thresholds);
+
+    // EPIC 1 Task 1.4: Aggregate-and-route tile model
+    // Group tiles → aggregate by rule, promote top 1-3 CRITICAL to per-entity
+    const tiles = applyAggregationModel(rawTiles, tenantId, role);
+
+    // EPIC 1 Task 1.2: Apply dismissal/snooze overlay
+    // Extract userId from JWT claims
+    const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+
+    // Fetch user's dismissal overlay (single query, no N+1)
+    const dismissalOverlay = userId ? await fetchDismissalOverlay(userId) : new Map();
+
+    // Filter tiles based on dismissal overlay
+    const visibleTiles = applyDismissalFilter(tiles, dismissalOverlay);
 
     // Sort by priority (CRITICAL > HIGH > MEDIUM > LOW)
-    const sortedTiles = sortTilesByPriority(tiles);
+    const sortedTiles = sortTilesByPriority(visibleTiles);
 
     console.info('[getIntelligenceTiles] Generated tiles', {
       role,
@@ -154,11 +183,241 @@ async function fetchSnapshots(tenantId, opts = {}) {
 }
 
 /**
+ * Fetch user's dismissal overlay (EPIC 1 Task 1.2)
+ * Returns Map of tileKey → { action, snoozeUntil, snapshotSignature }
+ * Single query per request (no N+1)
+ */
+async function fetchDismissalOverlay(userId) {
+  try {
+    const result = await dynamoDB.send(new QueryCommand({
+      TableName: DISMISSALS_TABLE,
+      KeyConditionExpression: 'PK = :pk',
+      ExpressionAttributeValues: {
+        ':pk': { S: `USER#${userId}` },
+      },
+      Limit: 100, // Most users won't have more than 100 dismissals
+    }));
+
+    const overlay = new Map();
+    for (const item of result.Items || []) {
+      const record = unmarshall(item);
+      // Extract tileKey from SK: "TILEDISMISS#{tileKey}"
+      const tileKey = record.SK?.replace(/^TILEDISMISS#/, '');
+      if (tileKey) {
+        overlay.set(tileKey, {
+          action: record.action,
+          snoozeUntil: record.snoozeUntil,
+          snapshotSignature: record.snapshotSignature,
+        });
+      }
+    }
+
+    return overlay;
+  } catch (error) {
+    console.warn('[fetchDismissalOverlay] Failed to fetch dismissals - showing all tiles', { error: error.message });
+    return new Map(); // Fail open - show all tiles if dismissals unavailable
+  }
+}
+
+/**
+ * Apply aggregate-and-route tile model (EPIC 1 Task 1.4)
+ * Groups tiles by rule → creates aggregate tiles with count + routeTarget
+ * Promotes top 1-3 CRITICAL tiles to per-entity mode
+ */
+function applyAggregationModel(rawTiles, tenantId, role) {
+  // Group tiles by ruleId
+  const ruleGroups = new Map();
+  for (const tile of rawTiles) {
+    const ruleId = tile.ruleId || 'UNKNOWN';
+    if (!ruleGroups.has(ruleId)) {
+      ruleGroups.set(ruleId, []);
+    }
+    ruleGroups.get(ruleId).push(tile);
+  }
+
+  const resultTiles = [];
+
+  // Process each rule group
+  for (const [ruleId, tiles] of ruleGroups.entries()) {
+    // If only 1-2 tiles, or all non-CRITICAL, keep as-is (per-entity)
+    if (tiles.length <= 2) {
+      for (const tile of tiles) {
+        tile.mode = 'per-entity';
+      }
+      resultTiles.push(...tiles);
+      continue;
+    }
+
+    // Multiple tiles (3+) → apply aggregation logic
+    const criticalTiles = tiles.filter(t => t.priority === 'CRITICAL');
+    const nonCriticalTiles = tiles.filter(t => t.priority !== 'CRITICAL');
+
+    // Rank CRITICAL tiles by scoring function
+    const rankedCritical = rankTiles(criticalTiles);
+
+    // Promote top 1-3 CRITICAL to per-entity
+    const promotedCount = Math.min(3, rankedCritical.length);
+    for (let i = 0; i < promotedCount; i++) {
+      rankedCritical[i].mode = 'per-entity';
+      resultTiles.push(rankedCritical[i]);
+    }
+
+    // Aggregate the rest (remaining CRITICAL + all non-CRITICAL)
+    const aggregateCandidates = [
+      ...rankedCritical.slice(promotedCount),
+      ...nonCriticalTiles,
+    ];
+
+    if (aggregateCandidates.length > 0) {
+      // Create aggregate tile
+      const firstTile = aggregateCandidates[0];
+      const ruleName = RULE_CONFIG[ruleId]?.name || ruleId;
+
+      const aggregateTile = {
+        id: `tile-aggregate-${ruleId}`,
+        mode: 'aggregate',
+        priority: firstTile.priority,
+        title: ruleName,
+        description: `${aggregateCandidates.length} items require attention`,
+        entityType: firstTile.entityType,
+        entityId: null, // No specific entity for aggregate
+        entityName: null,
+        currentStage: null,
+        signals: [],
+        actions: [
+          {
+            id: 'view-all',
+            label: 'View All',
+            icon: 'pi pi-list',
+            type: 'primary',
+            route: `/platform/talentflow/candidates`, // Will be enhanced with filters
+          },
+        ],
+        createdAt: new Date().toISOString(),
+        ruleId,
+        count: aggregateCandidates.length,
+        routeTarget: {
+          view: 'candidates',
+          filters: {
+            ruleId,
+            role,
+            tenantId,
+          },
+        },
+      };
+
+      resultTiles.push(aggregateTile);
+    }
+  }
+
+  return resultTiles;
+}
+
+/**
+ * Rank tiles by scoring function (§4.4 design)
+ * score = severityWeight + businessImpactWeight + actionabilityWeight - ageDecay
+ */
+function rankTiles(tiles) {
+  return [...tiles].sort((a, b) => {
+    const scoreA = calculateTileScore(a);
+    const scoreB = calculateTileScore(b);
+    return scoreB - scoreA; // Descending
+  });
+}
+
+/**
+ * Calculate tile ranking score (§4.4 design)
+ */
+function calculateTileScore(tile) {
+  // Severity weight
+  const severityWeights = { CRITICAL: 100, HIGH: 60, MEDIUM: 30, LOW: 10 };
+  let score = severityWeights[tile.priority] || 0;
+
+  // Business impact weight (based on ruleId pattern)
+  if (tile.ruleId?.includes('OFFER') || tile.ruleId?.includes('ONBOARD')) {
+    score += 40; // Offer/onboarding highest impact
+  } else if (tile.ruleId?.includes('SLA') || tile.ruleId?.includes('PROVISION')) {
+    score += 30; // Time-sensitive operations
+  } else if (tile.ruleId?.includes('EVAL') || tile.ruleId?.includes('DECISION')) {
+    score += 20; // Decision points
+  } else {
+    score += 10; // Housekeeping/general
+  }
+
+  // Actionability weight (tiles with primary actions score higher)
+  if (tile.actions?.some(a => a.type === 'primary')) {
+    score += 15;
+  }
+
+  // Age decay (tiles older than 24h get slight penalty)
+  const ageHours = (Date.now() - new Date(tile.createdAt).getTime()) / (1000 * 60 * 60);
+  if (ageHours > 24) {
+    score -= Math.min(20, Math.floor(ageHours / 24) * 2); // -2 per day, max -20
+  }
+
+  return score;
+}
+
+/**
+ * Apply dismissal/snooze filter to tiles (EPIC 1 Task 1.2)
+ * Filters out dismissed/snoozed tiles based on user's overlay
+ */
+function applyDismissalFilter(tiles, dismissalOverlay) {
+  const now = new Date().toISOString();
+
+  return tiles.filter(tile => {
+    // Compute tileKey from tile.entityId and tile.ruleId
+    const tileKey = `${tile.entityId}#${tile.ruleId}`;
+
+    // Check if user has a dismissal record for this tileKey
+    const dismissal = dismissalOverlay.get(tileKey);
+    if (!dismissal) {
+      return true; // No dismissal → show tile
+    }
+
+    // Compute current snapshotSignature (for now, use tileKey)
+    // In future: hash of actual condition so recurring issues resurface
+    const currentSignature = tileKey;
+
+    // Check action type
+    if (dismissal.action === 'DISMISS') {
+      // Skip if signature matches (same condition still active)
+      if (dismissal.snapshotSignature === currentSignature) {
+        return false; // Hide tile
+      }
+      // If signature changed (condition cleared and re-triggered), show tile
+      return true;
+    }
+
+    if (dismissal.action === 'SNOOZE') {
+      // Skip if snooze window hasn't expired yet
+      if (dismissal.snoozeUntil && now < dismissal.snoozeUntil) {
+        return false; // Hide tile until snoozeUntil
+      }
+      // Snooze expired → show tile
+      return true;
+    }
+
+    if (dismissal.action === 'ACKNOWLEDGE') {
+      // Acknowledge doesn't hide the tile (just records user saw it)
+      // Future: could add "don't show again" behavior for ACK
+      return true;
+    }
+
+    // Unknown action → show tile
+    return true;
+  });
+}
+
+/**
  * Generate intelligence tiles from signal snapshots
  * Applies business rules to create actionable tiles
  * Filters by role if provided
+ * @param {Array} snapshots - Signal snapshots to process
+ * @param {string|null} role - Optional role filter (TA|HM|IT)
+ * @param {Object} thresholds - Config-driven thresholds (EPIC 1 Task 1.3)
  */
-function generateTiles(snapshots, role = null) {
+function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) {
   const tiles = [];
 
   for (const snapshot of snapshots) {
@@ -190,7 +449,7 @@ function generateTiles(snapshots, role = null) {
     // Rule 3: Offer Expiring Soon (CRITICAL/HIGH)
     const daysToExpiry = signals.OFFER_DAYS_TO_EXPIRY;
     if (daysToExpiry !== null && daysToExpiry !== undefined &&
-        daysToExpiry <= THRESHOLDS.OFFER_EXPIRY_URGENT && daysToExpiry >= 0) {
+        daysToExpiry <= thresholds.OFFER_EXPIRY_URGENT && daysToExpiry >= 0) {
       tiles.push(createTile(snapshot, {
         priority: daysToExpiry <= 1 ? 'CRITICAL' : 'HIGH',
         title: 'Offer Expiring Soon',
@@ -243,7 +502,7 @@ function generateTiles(snapshots, role = null) {
     // Rule 8: Stalled in Stage (HIGH) - only if risk score didn't already flag it
     const daysInStage = signals.DAYS_IN_CURRENT_STAGE;
     if (daysInStage !== null && daysInStage !== undefined &&
-        daysInStage >= THRESHOLDS.DAYS_STALE && riskScore < 60) {
+        daysInStage >= thresholds.DAYS_STALE && riskScore < 60) {
       tiles.push(createTile(snapshot, {
         priority: 'HIGH',
         title: 'Stalled in Stage',
@@ -283,7 +542,7 @@ function generateTiles(snapshots, role = null) {
     }
 
     // Rule 11: Strong candidate for fast-track (HM visibility)
-    if (finalScore !== null && finalScore !== undefined && finalScore >= THRESHOLDS.FINAL_SCORE_HIGH) {
+    if (finalScore !== null && finalScore !== undefined && finalScore >= thresholds.FINAL_SCORE_HIGH) {
       tiles.push(createTile(snapshot, {
         priority: 'MEDIUM',
         title: 'Strong Candidate - Fast Track',

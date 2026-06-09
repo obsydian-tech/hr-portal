@@ -51,6 +51,13 @@ export class IntelligenceTileComponent {
   protected readonly showSnoozeMenu = signal(false);
 
   // ── Computed values ────────────────────────────────────────────────────────
+
+  // EPIC 1.4: Check if tile is in aggregate mode
+  protected readonly isAggregate = computed<boolean>(() => {
+    const tile = this.tile();
+    return tile.mode === 'aggregate' || (tile.count !== undefined && tile.count !== null);
+  });
+
   protected readonly priorityClass = computed<string>(() => {
     const priority = this.tile().priority;
     return `tf-intel-tile--${priority.toLowerCase()}`;
