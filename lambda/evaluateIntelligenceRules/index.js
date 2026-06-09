@@ -292,6 +292,9 @@ const SIGNAL_CALCULATORS = {
   // === §1.5 Panel & Evaluation ===
   FINAL_SCORE: calculateFinalScore,                                 // 🟢
   EVALUATION_RESULT: calculateEvaluationResult,                     // 🟢
+  PANEL_FEEDBACK_PENDING_COUNT: calculatePanelFeedbackPendingCount, // 🟢 (EPIC 4 TASK 4.1)
+  PANEL_CONSENSUS: calculatePanelConsensus,                         // 🟢 (EPIC 4 TASK 4.1)
+  PANEL_SPLIT_FLAG: calculatePanelSplitFlag,                        // 🟢 (EPIC 4 TASK 4.1)
 
   // === Phase 6.4: Composite Signals ===
   CANDIDATE_RISK_SCORE: calculateCandidateRiskScore,                // 🟢 Composite
@@ -586,6 +589,202 @@ function calculateFinalScore(item) {
  */
 function calculateEvaluationResult(item) {
   return item.evaluationResult || null;
+}
+
+/**
+ * Signal Calculator: PANEL_FEEDBACK_PENDING_COUNT (EPIC 4 TASK 4.1)
+ * Returns count of pending panel member votes
+ *
+ * Queries INTERVIEW# records to count how many have votesSubmitted < votesRequired
+ */
+async function calculatePanelFeedbackPendingCount(item) {
+  const candidateId = item.candidateId;
+  if (!candidateId) return null;
+
+  try {
+    // Query all INTERVIEW# records for this candidate
+    const result = await dynamoDB.send(new QueryCommand({
+      TableName: STATE_TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+      ExpressionAttributeValues: marshall({
+        ':pk': `CANDIDATE#${candidateId}`,
+        ':prefix': 'INTERVIEW#',
+      }),
+      ProjectionExpression: 'votesRequired, votesSubmitted, #s',
+      ExpressionAttributeNames: { '#s': 'status' }
+    }));
+
+    if (!result.Items || result.Items.length === 0) {
+      return 0; // No interviews scheduled
+    }
+
+    const interviews = result.Items.map(i => unmarshall(i));
+
+    // Count completed interviews with pending votes
+    let pendingCount = 0;
+    for (const interview of interviews) {
+      if (interview.status === 'COMPLETED') {
+        const required = interview.votesRequired || 0;
+        const submitted = interview.votesSubmitted || 0;
+        if (submitted < required) {
+          pendingCount += (required - submitted);
+        }
+      }
+    }
+
+    return pendingCount;
+
+  } catch (err) {
+    console.warn('[evaluateIntelligenceRules] Failed to calculate PANEL_FEEDBACK_PENDING_COUNT', {
+      candidateId,
+      error: err.message
+    });
+    return null;
+  }
+}
+
+/**
+ * Signal Calculator: PANEL_CONSENSUS (EPIC 4 TASK 4.1)
+ * Returns consensus score 0-1 + label + factors
+ *
+ * Consensus algorithm:
+ *   - Query all VOTE# records for the candidate
+ *   - Convert ratings to numeric scores: STRONG_NO=-2, NO=-1, YES=1, STRONG_YES=2
+ *   - Calculate standard deviation of votes
+ *   - Consensus = 1 - (stddev / max_possible_stddev)
+ *   - Label: HIGH (>0.75), MODERATE (0.5-0.75), LOW (<0.5)
+ *
+ * Returns: { value: 0-1, label: string, factors: [] }
+ */
+async function calculatePanelConsensus(item) {
+  const candidateId = item.candidateId;
+  if (!candidateId) return null;
+
+  try {
+    // Query all VOTE# records
+    const result = await dynamoDB.send(new QueryCommand({
+      TableName: STATE_TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+      ExpressionAttributeValues: marshall({
+        ':pk': `CANDIDATE#${candidateId}`,
+        ':prefix': 'VOTE#',
+      }),
+      ProjectionExpression: 'rating, voterId'
+    }));
+
+    if (!result.Items || result.Items.length === 0) {
+      return null; // No votes yet
+    }
+
+    const votes = result.Items.map(i => unmarshall(i));
+
+    // Convert ratings to numeric scores
+    const ratingToScore = {
+      'STRONG_NO': -2,
+      'NO': -1,
+      'YES': 1,
+      'STRONG_YES': 2
+    };
+
+    const scores = votes.map(v => ratingToScore[v.rating] || 0);
+    const count = scores.length;
+
+    if (count === 0) return null;
+    if (count === 1) {
+      // Single vote = perfect consensus
+      return {
+        value: 1.0,
+        label: 'UNANIMOUS',
+        factors: [`Single vote: ${votes[0].rating}`]
+      };
+    }
+
+    // Calculate mean and standard deviation
+    const mean = scores.reduce((sum, s) => sum + s, 0) / count;
+    const variance = scores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / count;
+    const stddev = Math.sqrt(variance);
+
+    // Max possible stddev for our rating scale (-2 to 2) with this many votes
+    // Worst case: half votes are -2, half are +2
+    const maxStddev = 2; // Theoretical max for this scale
+
+    // Consensus score: 1 - (normalized stddev)
+    const consensusScore = Math.max(0, Math.min(1, 1 - (stddev / maxStddev)));
+
+    // Determine label
+    let label;
+    if (consensusScore > 0.75) label = 'HIGH';
+    else if (consensusScore >= 0.5) label = 'MODERATE';
+    else label = 'LOW';
+
+    // Build factors array (distribution)
+    const distribution = {};
+    votes.forEach(v => {
+      distribution[v.rating] = (distribution[v.rating] || 0) + 1;
+    });
+
+    const factors = Object.entries(distribution).map(([rating, count]) =>
+      `${rating}: ${count}`
+    );
+
+    return {
+      value: parseFloat(consensusScore.toFixed(2)),
+      label,
+      factors,
+      distribution // Also include for debugging
+    };
+
+  } catch (err) {
+    console.warn('[evaluateIntelligenceRules] Failed to calculate PANEL_CONSENSUS', {
+      candidateId,
+      error: err.message
+    });
+    return null;
+  }
+}
+
+/**
+ * Signal Calculator: PANEL_SPLIT_FLAG (EPIC 4 TASK 4.1)
+ * Returns true if panel has both STRONG_YES and STRONG_NO votes
+ *
+ * Split panel = strong disagreement requiring documentation/escalation
+ */
+async function calculatePanelSplitFlag(item) {
+  const candidateId = item.candidateId;
+  if (!candidateId) return null;
+
+  try {
+    // Query all VOTE# records
+    const result = await dynamoDB.send(new QueryCommand({
+      TableName: STATE_TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+      ExpressionAttributeValues: marshall({
+        ':pk': `CANDIDATE#${candidateId}`,
+        ':prefix': 'VOTE#',
+      }),
+      ProjectionExpression: 'rating'
+    }));
+
+    if (!result.Items || result.Items.length === 0) {
+      return false; // No votes = no split
+    }
+
+    const votes = result.Items.map(i => unmarshall(i));
+    const ratings = votes.map(v => v.rating);
+
+    // Split flag = both STRONG_YES and STRONG_NO exist
+    const hasStrongYes = ratings.includes('STRONG_YES');
+    const hasStrongNo = ratings.includes('STRONG_NO');
+
+    return hasStrongYes && hasStrongNo;
+
+  } catch (err) {
+    console.warn('[evaluateIntelligenceRules] Failed to calculate PANEL_SPLIT_FLAG', {
+      candidateId,
+      error: err.message
+    });
+    return null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
