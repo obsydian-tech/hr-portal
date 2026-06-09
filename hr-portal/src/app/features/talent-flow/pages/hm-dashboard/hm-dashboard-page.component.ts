@@ -57,11 +57,13 @@ import { Candidate, IntelligenceTile, TileAction } from '../../models/talent-flo
               }
             </div>
             @if (intelligence.tilesCount() > 3) {
-              <button class="hm-link-btn" (click)="viewAllTiles()">View all {{ intelligence.tilesCount() }} →</button>
+              <button class="hm-link-btn" (click)="viewAllTiles()">
+                {{ showAllTiles() ? 'Show less' : 'View all ' + intelligence.tilesCount() }} →
+              </button>
             }
           </div>
           <div class="hm-tiles">
-            @for (tile of intelligence.tiles().slice(0, 3); track tile.id) {
+            @for (tile of showAllTiles() ? intelligence.tiles() : intelligence.tiles().slice(0, 3); track tile.id) {
               <tf-intelligence-tile
                 [tile]="tile"
                 (actionClicked)="handleTileAction($event)"
@@ -423,6 +425,8 @@ export class HmDashboardPageComponent implements OnInit {
   private readonly candidates             = signal<Candidate[]>([]);
   // Tracks candidate IDs the HM has voted on this session — prevents re-evaluation
   protected readonly evaluatedCandidateIds  = signal<Set<string>>(new Set());
+  // Tracks whether all intelligence tiles are shown or just top 3
+  protected readonly showAllTiles         = signal<boolean>(false);
 
   constructor() {
     // Read ?tab= query param to activate correct tab on direct navigation
@@ -548,7 +552,6 @@ export class HmDashboardPageComponent implements OnInit {
   }
 
   protected viewAllTiles(): void {
-    // Navigate to a dedicated tiles view or show modal (future)
-    console.info('[HM Dashboard] View all tiles');
+    this.showAllTiles.update(val => !val);
   }
 }
