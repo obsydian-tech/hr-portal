@@ -1,0 +1,15 @@
+{
+  "name": "seed-intelligence-rules",
+  "version": "1.0.0",
+  "description": "Idempotent seed script for Intelligence Layer canonical rule set - EPIC 2",
+  "main": "seed-intelligence-rules.js",
+  "scripts": {
+    "seed": "node seed-intelligence-rules.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0"
+  },
+  "author": "TalentFlow Intelligence Layer",
+  "license": "UNLICENSED"
+}

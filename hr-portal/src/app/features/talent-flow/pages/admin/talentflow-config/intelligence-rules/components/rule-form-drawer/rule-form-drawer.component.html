@@ -1,0 +1,242 @@
+<p-drawer
+  [visible]="visible()"
+  (visibleChange)="$event || close()"
+  position="right"
+  [style]="{ width: '50vw', minWidth: '560px' }"
+  [showCloseIcon]="false"
+  [blockScroll]="true"
+>
+  <ng-template pTemplate="content">
+    <div class="rfd-drawer">
+
+      <!-- ── Header ──────────────────────────────────────────────────────────── -->
+      <div class="rfd-drawer__header">
+        <div class="rfd-drawer__header-icon">
+          <i class="pi pi-bolt"></i>
+        </div>
+        <div class="rfd-drawer__header-text">
+          <h3 class="rfd-drawer__title">{{ isEditMode() ? 'Edit Rule' : 'New Rule' }}</h3>
+          <p class="rfd-drawer__subtitle">Intelligence layer condition & action</p>
+        </div>
+        <button class="rfd-drawer__close" (click)="close()" aria-label="Close">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <!-- ── Body ────────────────────────────────────────────────────────────── -->
+      <div class="rfd-drawer__body">
+
+        <!-- Rule Name -->
+        <div class="rfd-fld">
+          <label class="rfd-fld__label" for="r-name">RULE NAME <span class="rfd-fld__req">*</span></label>
+          <input id="r-name" type="text" class="rfd-fld__input"
+            [ngModel]="form().name" (ngModelChange)="patchForm({ name: $event })"
+            placeholder="e.g. SLA Breach Alert" />
+        </div>
+
+        <!-- Description -->
+        <div class="rfd-fld">
+          <label class="rfd-fld__label" for="r-desc">DESCRIPTION</label>
+          <textarea id="r-desc" class="rfd-fld__input rfd-fld__input--textarea"
+            [ngModel]="form().description" (ngModelChange)="patchForm({ description: $event })"
+            placeholder="When does this rule trigger?" rows="2"></textarea>
+        </div>
+
+        <!-- Category & Priority Row -->
+        <div class="rfd-row">
+          <div class="rfd-fld rfd-fld--half">
+            <label class="rfd-fld__label">CATEGORY</label>
+            <p-select
+              [ngModel]="form().category"
+              (ngModelChange)="patchForm({ category: $event })"
+              [options]="categoryOptions"
+              optionLabel="label"
+              optionValue="value"
+              styleClass="rfd-select"
+              appendTo="body"
+            />
+          </div>
+          <div class="rfd-fld rfd-fld--half">
+            <label class="rfd-fld__label">PRIORITY</label>
+            <p-select
+              [ngModel]="form().priority"
+              (ngModelChange)="patchForm({ priority: $event })"
+              [options]="priorityOptions"
+              optionLabel="label"
+              optionValue="value"
+              styleClass="rfd-select"
+              appendTo="body"
+            />
+          </div>
+        </div>
+
+        <!-- Target Roles & Status Row -->
+        <div class="rfd-row">
+          <div class="rfd-fld rfd-fld--half">
+            <label class="rfd-fld__label">VISIBLE TO <span class="rfd-fld__req">*</span></label>
+            <div class="rfd-roles">
+              @for (role of targetRoleOptions; track role.value) {
+                <label
+                  class="rfd-role-chip"
+                  [class.rfd-role-chip--active]="hasTargetRole(role.value)"
+                  [style.--chip-color]="role.color"
+                >
+                  <input
+                    type="checkbox"
+                    [checked]="hasTargetRole(role.value)"
+                    (change)="toggleTargetRole(role.value)"
+                  />
+                  {{ role.label }}
+                </label>
+              }
+            </div>
+          </div>
+          <div class="rfd-fld rfd-fld--half">
+            <label class="rfd-fld__label">STATUS</label>
+            <p-toggleButton
+              [ngModel]="form().enabled"
+              (ngModelChange)="patchForm({ enabled: $event })"
+              onLabel="Enabled"
+              offLabel="Disabled"
+              onIcon="pi pi-check"
+              offIcon="pi pi-times"
+              styleClass="rfd-toggle"
+            />
+          </div>
+        </div>
+
+        <!-- ── Conditions Section ────────────────────────────────────────────── -->
+        <div class="rfd-section">
+          <div class="rfd-section__header">
+            <span class="rfd-fld__label">CONDITIONS <span class="rfd-fld__req">*</span></span>
+            <span class="rfd-section__hint">All conditions must match (AND)</span>
+            <button type="button" class="rfd-add-btn" (click)="addCondition()">
+              <i class="pi pi-plus"></i> Add
+            </button>
+          </div>
+
+          @if (form().conditions.length === 0) {
+            <div class="rfd-empty">
+              No conditions defined. Click "Add" to create a condition.
+            </div>
+          }
+
+          @for (cond of form().conditions; track $index) {
+            <div class="rfd-cond-row">
+              <!-- Signal Select -->
+              <p-select
+                [ngModel]="cond.signal"
+                (ngModelChange)="updateCondition($index, { signal: $event })"
+                [options]="signalOptions"
+                optionLabel="label"
+                optionValue="value"
+                styleClass="rfd-cond-signal"
+                appendTo="body"
+                placeholder="Signal"
+              />
+
+              <!-- Operator Select -->
+              <p-select
+                [ngModel]="cond.operator"
+                (ngModelChange)="updateCondition($index, { operator: $event })"
+                [options]="operatorOptions"
+                optionLabel="label"
+                optionValue="value"
+                styleClass="rfd-cond-op"
+                appendTo="body"
+              />
+
+              <!-- Value Input (number or text based on signal type) -->
+              @if (getSignalType(cond.signal) === 'number') {
+                <p-inputNumber
+                  [ngModel]="cond.value"
+                  (ngModelChange)="updateCondition($index, { value: $event })"
+                  styleClass="rfd-cond-value"
+                  placeholder="Value"
+                  [showButtons]="false"
+                />
+              } @else {
+                <input type="text" class="rfd-fld__input rfd-cond-value"
+                  [ngModel]="cond.value"
+                  (ngModelChange)="updateCondition($index, { value: $event })"
+                  placeholder="Value (e.g. BREACHED)" />
+              }
+
+              <!-- Delete Button -->
+              <button type="button" class="rfd-icon-btn rfd-icon-btn--delete"
+                (click)="removeCondition($index)" title="Remove condition">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+          }
+        </div>
+
+        <!-- ── Action Section ────────────────────────────────────────────────── -->
+        <div class="rfd-section">
+          <div class="rfd-section__header">
+            <span class="rfd-fld__label">ACTION</span>
+          </div>
+
+          <div class="rfd-fld">
+            <label class="rfd-fld__label rfd-fld__label--small">ACTION TYPE</label>
+            <p-select
+              [ngModel]="form().action.type"
+              (ngModelChange)="patchAction({ type: $event })"
+              [options]="actionOptions"
+              optionLabel="label"
+              optionValue="value"
+              styleClass="rfd-select"
+              appendTo="body"
+            />
+          </div>
+
+          <div class="rfd-row">
+            <div class="rfd-fld rfd-fld--half">
+              <label class="rfd-fld__label rfd-fld__label--small">ACTION PRIORITY</label>
+              <p-select
+                [ngModel]="form().action.priority"
+                (ngModelChange)="patchAction({ priority: $event })"
+                [options]="priorityOptions"
+                optionLabel="label"
+                optionValue="value"
+                styleClass="rfd-select"
+                appendTo="body"
+              />
+            </div>
+            <div class="rfd-fld rfd-fld--half">
+              <label class="rfd-fld__label rfd-fld__label--small">COOLDOWN (HOURS)</label>
+              <p-inputNumber
+                [ngModel]="form().cooldown"
+                (ngModelChange)="patchForm({ cooldown: $event })"
+                styleClass="rfd-select"
+                [showButtons]="true"
+                [min]="1"
+                [max]="168"
+                buttonLayout="horizontal"
+                incrementButtonIcon="pi pi-plus"
+                decrementButtonIcon="pi pi-minus"
+              />
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+      <footer class="rfd-drawer__footer">
+        @if (isEditMode()) {
+          <button type="button" class="rfd-btn-delete" (click)="confirmDelete()">
+            <i class="pi pi-trash"></i> Delete
+          </button>
+        }
+        <div class="rfd-drawer__footer-spacer"></div>
+        <button type="button" class="rfd-btn-cancel" (click)="close()">Cancel</button>
+        <button type="button" class="rfd-btn-submit" [disabled]="!valid()" (click)="submit()">
+          <i class="pi pi-check"></i>
+          {{ isEditMode() ? 'Save Changes' : 'Create Rule' }}
+        </button>
+      </footer>
+
+    </div>
+  </ng-template>
+</p-drawer>

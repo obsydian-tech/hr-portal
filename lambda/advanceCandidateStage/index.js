@@ -23,10 +23,10 @@
  *   EVENTBRIDGE_BUS_NAME — talent-flow-bus
  */
 
-const { DynamoDBClient, GetItemCommand, UpdateItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, GetItemCommand, UpdateItemCommand, QueryCommand, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
-const { getConfig } = require('../shared/config-reader');
+const { getConfig } = require('./config-reader');
 
 const dynamo = new DynamoDBClient({});
 const eb     = new EventBridgeClient({});
@@ -129,8 +129,49 @@ async function checkInterviewLoopComplete(candidateId, tenantId, positionLevel) 
   return null; // gate passed
 }
 
+// ── Stage History Record (EPIC 3 TASK 3.1) ────────────────────────────────────
+/**
+ * Writes a stage-history sub-record for audit trail and precise DAYS_IN_CURRENT_STAGE.
+ *
+ * Record format:
+ *   PK: CANDIDATE#<candidateId>
+ *   SK: STAGE#<ISO8601 timestamp>
+ *   fromStage, toStage, actor (userId), timestamp, tenantId
+ *
+ * This enables:
+ *   - Precise stage duration calculations (read latest STAGE# record)
+ *   - Full audit trail of stage transitions
+ *   - Stage velocity analysis in EPIC 5
+ */
+async function writeStageHistory(candidateId, fromStage, toStage, tenantId, userId, timestamp) {
+  try {
+    await dynamo.send(new PutItemCommand({
+      TableName: STATE_TABLE,
+      Item: marshall({
+        PK: `CANDIDATE#${candidateId}`,
+        SK: `STAGE#${timestamp}`,
+        candidateId,
+        tenantId,
+        fromStage,
+        toStage,
+        actor: userId || 'SYSTEM',
+        timestamp,
+        recordType: 'STAGE_HISTORY',
+        createdAt: timestamp,
+      }),
+    }));
+    console.info('Stage history recorded', { candidateId, fromStage, toStage, actor: userId || 'SYSTEM' });
+  } catch (err) {
+    // Non-fatal: log but don't fail the stage advance
+    console.error('Failed to write stage history', { candidateId, fromStage, toStage, error: err.message });
+  }
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  // Extract userId from JWT claims for action tracking (INTEL-001)
+  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return badRequest('Missing candidateId path parameter');
 
@@ -191,16 +232,26 @@ exports.handler = async (event) => {
 
   // ── Step 5: Update SAGA ────────────────────────────────────────────────────
   try {
+    const updateExpr = userId
+      ? 'SET currentStage = :stage, stageEnteredAt = :ts, slaStatus = :slaReset, updatedBy = :uid'
+      : 'SET currentStage = :stage, stageEnteredAt = :ts, slaStatus = :slaReset';
+    const attrValues = userId
+      ? { ':stage': newStage, ':ts': now, ':slaReset': 'ON_TRACK', ':uid': userId }
+      : { ':stage': newStage, ':ts': now, ':slaReset': 'ON_TRACK' };
+
     await dynamo.send(new UpdateItemCommand({
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-      UpdateExpression: 'SET currentStage = :stage, stageEnteredAt = :ts, slaStatus = :slaReset',
-      ExpressionAttributeValues: marshall({ ':stage': newStage, ':ts': now, ':slaReset': 'ON_TRACK' }),
+      UpdateExpression: updateExpr,
+      ExpressionAttributeValues: marshall(attrValues),
     }));
   } catch (err) {
     console.error('Failed to update SAGA stage', { candidateId, newStage, error: err.message });
     return serverError('Failed to advance candidate stage');
   }
+
+  // ── Step 5b: Write stage history record (EPIC 3 TASK 3.1) ─────────────────
+  await writeStageHistory(candidateId, currentStage, newStage, tenantId, userId, now);
 
   // ── Step 6: Publish StageAdvanced event ────────────────────────────────────
   try {

@@ -71,6 +71,9 @@ function internalError(message) {
 exports.handler = async (event) => {
   console.info('createCandidate invoked', { path: event.path, method: event.httpMethod });
 
+  // Extract userId from JWT claims for action tracking (INTEL-001)
+  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+
   let body;
   try {
     body = JSON.parse(event.body || '{}');
@@ -186,6 +189,7 @@ exports.handler = async (event) => {
     slaStatus: 'ON_TRACK',
     configVersion: undefined,  // omitted — orchestrateTalentFlowWorkflow sets it via attribute_not_exists condition
     createdAt: now,
+    updatedBy: userId,  // INTEL-001: Track who created the candidate for action tracking
   };
 
   try {

@@ -46,7 +46,7 @@ const {
   EventBridgeClient,
   PutEventsCommand,
 } = require('@aws-sdk/client-eventbridge');
-const { getConfig } = require('../shared/config-reader');
+const { getConfig } = require('./config-reader');
 
 const dynamo  = new DynamoDBClient({});
 const eb      = new EventBridgeClient({});
@@ -78,6 +78,10 @@ function calculateWeightedScore(scores, weights) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  // Extract userId from JWT claims for action tracking (INTEL-001)
+  // Only available when called via API Gateway (not EventBridge)
+  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+
   const detail = event.detail || event.body
     ? (event.detail || (typeof event.body === 'string' ? JSON.parse(event.body) : event.body))
     : event;
@@ -138,15 +142,19 @@ exports.handler = async (event) => {
   const strongNoVeto = panelConfig && panelConfig.rules && panelConfig.rules.strongNoVeto === true;
   if (rating === 'STRONG_NO' && strongNoVeto) {
     try {
+      const updateExpr = userId
+        ? 'SET votingResult = :vr, #s = :sf, updatedBy = :uid'
+        : 'SET votingResult = :vr, #s = :sf';
+      const attrValues = userId
+        ? marshall({ ':vr': 'STRONG_NO_VETO', ':sf': 'EVALUATION_FAILED', ':uid': userId })
+        : marshall({ ':vr': 'STRONG_NO_VETO', ':sf': 'EVALUATION_FAILED' });
+
       await dynamo.send(new UpdateItemCommand({
         TableName: STATE_TABLE,
         Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-        UpdateExpression: 'SET votingResult = :vr, #s = :sf',
+        UpdateExpression: updateExpr,
         ExpressionAttributeNames: { '#s': 'status' },
-        ExpressionAttributeValues: marshall({
-          ':vr': 'STRONG_NO_VETO',
-          ':sf': 'EVALUATION_FAILED',
-        }),
+        ExpressionAttributeValues: attrValues,
       }));
     } catch (err) {
       console.error('Failed to update SAGA for STRONG_NO_VETO', { candidateId, error: err.message });
@@ -208,6 +216,7 @@ exports.handler = async (event) => {
         configVersionUsed: configVersion,
         createdAt:        timestamp,
         submittedByTA:    submittedByTA || null,
+        updatedBy:        userId || undefined,  // INTEL-001: Track who submitted the vote for action tracking
       }, { removeUndefinedValues: true }),
       ConditionExpression: 'attribute_not_exists(SK)',
     }));

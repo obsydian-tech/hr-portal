@@ -68,6 +68,9 @@ const ALLOWED_TRANSITIONS = {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  // Extract userId from JWT claims for action tracking (INTEL-001)
+  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+
   const candidateId =
     event.pathParameters?.id ??
     event.pathParameters?.candidateId ??
@@ -112,23 +115,30 @@ exports.handler = async (event) => {
       if (!expiryDate)  return badReq('Missing required field: expiryDate');
 
       try {
+        const updateExpr = userId
+          ? 'SET #state = :state, baseSalary = :salary, currency = :currency, ' +
+            'startDate = :start, expiryDate = :expiry, benefits = :benefits, ' +
+            'submittedForApprovalAt = :now, updatedAt = :now, updatedBy = :uid'
+          : 'SET #state = :state, baseSalary = :salary, currency = :currency, ' +
+            'startDate = :start, expiryDate = :expiry, benefits = :benefits, ' +
+            'submittedForApprovalAt = :now, updatedAt = :now';
+        const attrValues = {
+          ':state':    transition.to,
+          ':salary':   baseSalary,
+          ':currency': currency,
+          ':start':    startDate,
+          ':expiry':   expiryDate,
+          ':benefits': benefits ?? null,
+          ':now':      now,
+          ...(userId && { ':uid': userId }),  // INTEL-001: Track who submitted for approval
+        };
+
         await dynamo.send(new UpdateItemCommand({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
-          UpdateExpression:
-            'SET #state = :state, baseSalary = :salary, currency = :currency, ' +
-            'startDate = :start, expiryDate = :expiry, benefits = :benefits, ' +
-            'submittedForApprovalAt = :now, updatedAt = :now',
+          UpdateExpression: updateExpr,
           ExpressionAttributeNames: { '#state': 'state' },
-          ExpressionAttributeValues: marshall({
-            ':state':    transition.to,
-            ':salary':   baseSalary,
-            ':currency': currency,
-            ':start':    startDate,
-            ':expiry':   expiryDate,
-            ':benefits': benefits ?? null,
-            ':now':      now,
-          }, { removeUndefinedValues: true }),
+          ExpressionAttributeValues: marshall(attrValues, { removeUndefinedValues: true }),
         }));
       } catch (err) {
         console.error('Failed to update OFFER to IN_APPROVAL', { candidateId, error: err.message });
@@ -146,12 +156,19 @@ exports.handler = async (event) => {
       }
 
       try {
+        const updateExpr = userId
+          ? 'SET #state = :state, sentAt = :now, updatedAt = :now, updatedBy = :uid'
+          : 'SET #state = :state, sentAt = :now, updatedAt = :now';
+        const attrValues = userId
+          ? { ':state': transition.to, ':now': now, ':uid': userId }
+          : { ':state': transition.to, ':now': now };
+
         await dynamo.send(new UpdateItemCommand({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
-          UpdateExpression: 'SET #state = :state, sentAt = :now, updatedAt = :now',
+          UpdateExpression: updateExpr,
           ExpressionAttributeNames: { '#state': 'state' },
-          ExpressionAttributeValues: marshall({ ':state': transition.to, ':now': now }),
+          ExpressionAttributeValues: marshall(attrValues),
         }));
       } catch (err) {
         console.error('Failed to update OFFER to OFFER_SENT', { candidateId, error: err.message });
@@ -179,15 +196,18 @@ exports.handler = async (event) => {
       const entry = { interactionType, outcome, notes: notes ?? null, loggedAt: now };
 
       try {
+        const updateExpr = userId
+          ? 'SET interactionLog = list_append(if_not_exists(interactionLog, :empty), :entry), updatedAt = :now, updatedBy = :uid'
+          : 'SET interactionLog = list_append(if_not_exists(interactionLog, :empty), :entry), updatedAt = :now';
+        const attrValues = userId
+          ? { ':entry': [entry], ':empty': [], ':now': now, ':uid': userId }
+          : { ':entry': [entry], ':empty': [], ':now': now };
+
         await dynamo.send(new UpdateItemCommand({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
-          UpdateExpression: 'SET interactionLog = list_append(if_not_exists(interactionLog, :empty), :entry), updatedAt = :now',
-          ExpressionAttributeValues: marshall({
-            ':entry': [entry],
-            ':empty': [],
-            ':now':   now,
-          }),
+          UpdateExpression: updateExpr,
+          ExpressionAttributeValues: marshall(attrValues),
         }));
       } catch (err) {
         console.error('Failed to append interaction log entry', { candidateId, error: err.message });
@@ -213,21 +233,27 @@ exports.handler = async (event) => {
       }
 
       try {
+        const updateExpr = userId
+          ? 'SET #state = :state, acceptanceDate = :accDate, confirmedStartDate = :startDate, ' +
+            'acceptanceSentiment = :sentiment, acceptanceNotes = :notes, acceptedAt = :now, updatedAt = :now, updatedBy = :uid'
+          : 'SET #state = :state, acceptanceDate = :accDate, confirmedStartDate = :startDate, ' +
+            'acceptanceSentiment = :sentiment, acceptanceNotes = :notes, acceptedAt = :now, updatedAt = :now';
+        const attrValues = {
+          ':state':     transition.to,
+          ':accDate':   acceptanceDate,
+          ':startDate': confirmedStartDate,
+          ':sentiment': acceptanceSentiment,
+          ':notes':     notes ?? null,
+          ':now':       now,
+          ...(userId && { ':uid': userId }),  // INTEL-001: Track who confirmed acceptance
+        };
+
         await dynamo.send(new UpdateItemCommand({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
-          UpdateExpression:
-            'SET #state = :state, acceptanceDate = :accDate, confirmedStartDate = :startDate, ' +
-            'acceptanceSentiment = :sentiment, acceptanceNotes = :notes, acceptedAt = :now, updatedAt = :now',
+          UpdateExpression: updateExpr,
           ExpressionAttributeNames: { '#state': 'state' },
-          ExpressionAttributeValues: marshall({
-            ':state':     transition.to,
-            ':accDate':   acceptanceDate,
-            ':startDate': confirmedStartDate,
-            ':sentiment': acceptanceSentiment,
-            ':notes':     notes ?? null,
-            ':now':       now,
-          }, { removeUndefinedValues: true }),
+          ExpressionAttributeValues: marshall(attrValues, { removeUndefinedValues: true }),
         }));
       } catch (err) {
         console.error('Failed to update OFFER to ACCEPTED', { candidateId, error: err.message });
@@ -262,16 +288,18 @@ exports.handler = async (event) => {
 
       // Also update SAGA to reflect acceptance and move candidate to CONTRACT_SIGNING
       try {
+        const sagaUpdateExpr = userId
+          ? 'SET currentStage = :stage, acceptanceSentiment = :sentiment, updatedAt = :now, updatedBy = :uid'
+          : 'SET currentStage = :stage, acceptanceSentiment = :sentiment, updatedAt = :now';
+        const sagaAttrValues = userId
+          ? { ':stage': 'CONTRACT_SIGNING', ':sentiment': acceptanceSentiment, ':now': now, ':uid': userId }
+          : { ':stage': 'CONTRACT_SIGNING', ':sentiment': acceptanceSentiment, ':now': now };
+
         await dynamo.send(new UpdateItemCommand({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-          UpdateExpression:
-            'SET currentStage = :stage, acceptanceSentiment = :sentiment, updatedAt = :now',
-          ExpressionAttributeValues: marshall({
-            ':stage':     'CONTRACT_SIGNING',
-            ':sentiment': acceptanceSentiment,
-            ':now':       now,
-          }),
+          UpdateExpression: sagaUpdateExpr,
+          ExpressionAttributeValues: marshall(sagaAttrValues),
         }));
       } catch (err) {
         console.error('Failed to update SAGA stage on acceptance', { candidateId, error: err.message });

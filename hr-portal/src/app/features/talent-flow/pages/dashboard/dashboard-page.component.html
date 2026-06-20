@@ -23,6 +23,45 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
+       ZONE 0 — Intelligence Alerts (Phase 6.2, §7 Intelligence Tiles)
+       Shows actionable insights from signal snapshots + rule evaluation
+  ══════════════════════════════════════════════════════════════════════════ -->
+  @if (intelligence.hasTiles()) {
+    <p-card styleClass="tf-dash__zone-0">
+
+      <div class="tf-section-head">
+        <i class="pi pi-bolt tf-section-head__icon"></i>
+        <h2 class="tf-section-head__title">Intelligence Alerts</h2>
+        <div class="tf-section-head__badges">
+          @if (intelligence.criticalCount() > 0) {
+            <span class="tf-badge tf-badge--red">{{ intelligence.criticalCount() }} critical</span>
+          }
+          @if (intelligence.highCount() > 0) {
+            <span class="tf-badge tf-badge--amber">{{ intelligence.highCount() }} high</span>
+          }
+        </div>
+        @if (intelligence.tilesCount() > 3) {
+          <button class="tf-link-btn" (click)="viewAllTiles()">
+            {{ showAllTiles() ? 'Show less' : 'View all ' + intelligence.tilesCount() }} →
+          </button>
+        }
+      </div>
+
+      <div class="tf-intelligence-tiles">
+        @for (tile of showAllTiles() ? intelligence.tiles() : intelligence.tiles().slice(0, 3); track tile.id) {
+          <tf-intelligence-tile
+            [tile]="tile"
+            (actionClicked)="handleTileAction($event)"
+            (dismissed)="handleTileDismiss($event)"
+            (snoozed)="handleTileSnooze($event)"
+          />
+        }
+      </div>
+
+    </p-card>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
        ZONE 1 — Signal Summary Strip (D020 Z1, D016 signal-first)
        4 KPI cards: SLA Breaches · At Risk · Acceptance Rate · Active Pipeline
   ══════════════════════════════════════════════════════════════════════════ -->

@@ -67,11 +67,12 @@ exports.handler = async (event) => {
       TableName:                 STATE_TABLE,
       Key:                       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
       ConditionExpression:       'attribute_exists(PK)',
-      UpdateExpression:          'SET interviewSentiment = :s, sentimentCapturedBy = :by, sentimentCapturedAt = :at',
+      UpdateExpression:          'SET interviewSentiment = :s, sentimentCapturedBy = :by, sentimentCapturedAt = :at, updatedBy = :uid',
       ExpressionAttributeValues: marshall({
-        ':s':  interviewSentiment,
-        ':by': capturedBy,
-        ':at': capturedAt,
+        ':s':   interviewSentiment,
+        ':by':  capturedBy,
+        ':at':  capturedAt,
+        ':uid': capturedBy,  // INTEL-001: Track who captured sentiment for action tracking
       }),
     }));
   } catch (err) {

@@ -1,0 +1,633 @@
+// Config-page layout (self-contained)
+
+.config-page {
+  padding: 1.5rem 2rem;
+
+  &__header {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     flex-start;
+    margin-bottom:   1.5rem;
+    gap:             1rem;
+  }
+
+  &__title {
+    font-family: var(--naleko-font-display);
+    font-size:   1.375rem;
+    font-weight: 700;
+    color:       var(--naleko-on-surface);
+    margin:      0 0 0.25rem;
+  }
+
+  &__subtitle {
+    font-size: 0.875rem;
+    color:     var(--naleko-on-surface-variant);
+    margin:    0;
+  }
+
+  &__skeleton {
+    display:        flex;
+    flex-direction: column;
+    gap:            0.75rem;
+  }
+}
+
+.config-skeleton-row {
+  height:          2.5rem;
+  border-radius:   0.5rem;
+  background:      linear-gradient(90deg, var(--naleko-surface-container-low) 25%, var(--naleko-surface-container) 50%, var(--naleko-surface-container-low) 75%);
+  background-size: 200% 100%;
+  animation:       shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.config-card {
+  background:    var(--naleko-surface-container-lowest);
+  border:        1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-xl);
+  box-shadow:    var(--naleko-shadow-card);
+  margin-bottom: 1rem;
+
+  &__section-label {
+    padding:        0.625rem 1rem;
+    font-size:      0.75rem;
+    font-weight:    600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color:          var(--naleko-on-surface-variant);
+    background:     var(--naleko-surface-container-low);
+    border-bottom:  1px solid var(--naleko-outline-variant);
+    border-radius:  var(--naleko-radius-xl) var(--naleko-radius-xl) 0 0;
+  }
+}
+
+.config-row {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         0.75rem 1rem;
+  gap:             1rem;
+  border-bottom:   1px solid var(--naleko-outline-variant);
+
+  &:last-child { border-bottom: none; }
+
+  &__label {
+    flex:       1;
+    min-width:  0;
+    font-size:  0.875rem;
+    color:      var(--naleko-on-surface);
+  }
+
+  &__label-main {
+    display:     block;
+    font-weight: 600;
+  }
+
+  &__label-desc {
+    display:    block;
+    font-size:  0.75rem;
+    color:      var(--naleko-on-surface-variant);
+    margin-top: 0.125rem;
+  }
+
+  &__control {
+    flex-shrink: 0;
+    &--compact { width: 11rem; }
+  }
+}
+
+.config-save-row {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             0.75rem;
+  padding:         0.5rem 0;
+  margin-top:      0.5rem;
+}
+
+.cfg-btn-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: none;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  padding: 0.6rem 1.25rem;
+  font-family: var(--naleko-font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+
+  &:hover:not(:disabled) {
+    background: var(--naleko-surface-container);
+    color: var(--naleko-on-surface);
+  }
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.cfg-btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: var(--naleko-radius-md);
+  background: linear-gradient(135deg, var(--naleko-secondary), var(--naleko-primary));
+  color: var(--naleko-on-primary);
+  font-family: var(--naleko-font-body);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-primary) 30%, transparent);
+
+  &:hover:not(:disabled) {
+    opacity: 0.92;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--naleko-primary) 40%, transparent);
+  }
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+// ── Category Stats Bar (Phase 6.5.2) ──────────────────────────────────────────
+
+.rules-category-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--naleko-surface-container-lowest);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+}
+
+.rules-category-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface);
+  font-family: var(--naleko-font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant);
+  cursor: pointer;
+  transition: all 0.15s;
+
+  .pi { font-size: 0.85rem; }
+
+  &__count {
+    padding: 0.1rem 0.35rem;
+    border-radius: var(--naleko-radius-sm);
+    background: var(--naleko-surface-container);
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+
+  &:hover {
+    background: var(--naleko-surface-container);
+    border-color: var(--naleko-secondary);
+  }
+
+  &--active {
+    border-color: var(--naleko-secondary);
+    background: color-mix(in srgb, var(--naleko-secondary) 12%, transparent);
+    color: var(--naleko-secondary);
+
+    .rules-category-chip__count {
+      background: color-mix(in srgb, var(--naleko-secondary) 20%, transparent);
+    }
+  }
+}
+
+// ── Action Bar ────────────────────────────────────────────────────────────────
+
+.rules-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--naleko-surface-container-lowest);
+  border: 1px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+
+  &__stats {
+    display: flex;
+    gap: 1.5rem;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+}
+
+.rules-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--naleko-on-surface-variant);
+
+  .pi { font-size: 0.9rem; }
+
+  &--enabled {
+    color: var(--naleko-success);
+  }
+
+  &__filter-label {
+    font-weight: 600;
+    color: var(--naleko-tertiary);
+  }
+}
+
+.rules-thresholds-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.875rem;
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-md);
+  background: var(--naleko-surface);
+  font-family: var(--naleko-font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--naleko-on-surface-variant);
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+    border-color: var(--naleko-secondary);
+    color: var(--naleko-secondary);
+  }
+}
+
+// ── Thresholds Panel (Phase 6.5.4) ────────────────────────────────────────────
+
+.thresholds-panel {
+  margin-bottom: 1.25rem;
+  background: var(--naleko-surface-container-lowest);
+  border: 1.5px solid var(--naleko-secondary);
+  border-radius: var(--naleko-radius-lg);
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+    border-bottom: 1px solid var(--naleko-outline-variant);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--naleko-secondary);
+
+    .pi { font-size: 1rem; }
+  }
+
+  &__close {
+    margin-left: auto;
+    padding: 0.25rem;
+    border: none;
+    background: none;
+    color: var(--naleko-on-surface-variant);
+    cursor: pointer;
+    border-radius: var(--naleko-radius-sm);
+    transition: background 0.12s;
+
+    &:hover {
+      background: var(--naleko-surface-container);
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+  }
+}
+
+.threshold-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  &__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--naleko-on-surface-variant);
+  }
+}
+
+:host ::ng-deep .threshold-input {
+  width: 100%;
+
+  .p-inputnumber-input {
+    width: 100%;
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+}
+
+.rules-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--naleko-radius-md);
+  background: linear-gradient(135deg, var(--naleko-secondary), var(--naleko-primary));
+  color: var(--naleko-on-primary);
+  font-family: var(--naleko-font-body);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--naleko-secondary) 25%, transparent);
+
+  &:hover {
+    opacity: 0.92;
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--naleko-secondary) 35%, transparent);
+  }
+}
+
+// ── Rules List ────────────────────────────────────────────────────────────────
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.rule-card {
+  background: var(--naleko-surface-container-lowest);
+  border: 1.5px solid var(--naleko-outline-variant);
+  border-radius: var(--naleko-radius-lg);
+  padding: 1rem 1.25rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    border-color: var(--naleko-secondary);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-secondary) 10%, transparent);
+  }
+
+  &--disabled {
+    opacity: 0.6;
+    background: var(--naleko-surface-container-low);
+
+    &:hover {
+      border-color: var(--naleko-outline-variant);
+      box-shadow: none;
+    }
+  }
+
+  &__header {
+    margin-bottom: 0.75rem;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 0.25rem;
+  }
+
+  &__name {
+    font-family: var(--naleko-font-display);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--naleko-on-surface);
+  }
+
+  &__priority {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--naleko-radius-sm);
+  }
+
+  // Category badge (Phase 6.5.2)
+  &__category {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--naleko-radius-sm);
+    background: color-mix(in srgb, var(--cat-color, var(--naleko-outline)) 12%, transparent);
+    color: var(--cat-color, var(--naleko-outline));
+
+    .pi { font-size: 0.7rem; }
+  }
+
+  // Target role badges (Phase 6.5.2)
+  &__roles {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  &__role-badge {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--naleko-radius-sm);
+    background: var(--naleko-surface-container);
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--naleko-on-surface-variant);
+    letter-spacing: 0.02em;
+  }
+
+  &__desc {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--naleko-on-surface-variant);
+    line-height: 1.4;
+  }
+
+  &__details {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.625rem 0;
+    border-top: 1px solid var(--naleko-outline-variant);
+    border-bottom: 1px solid var(--naleko-outline-variant);
+    margin-bottom: 0.75rem;
+  }
+
+  &__detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  &__detail-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--naleko-on-surface-variant);
+  }
+
+  &__detail-value {
+    font-size: 0.8rem;
+    color: var(--naleko-on-surface);
+    font-family: var(--naleko-font-mono, monospace);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.4rem 0.75rem;
+    border: 1.5px solid var(--naleko-outline-variant);
+    border-radius: var(--naleko-radius-md);
+    background: var(--naleko-surface);
+    font-family: var(--naleko-font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--naleko-on-surface-variant);
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &:hover {
+      background: var(--naleko-surface-container);
+    }
+
+    &--enabled {
+      border-color: var(--naleko-success);
+      color: var(--naleko-success);
+      background: color-mix(in srgb, var(--naleko-success) 8%, transparent);
+
+      &:hover {
+        background: color-mix(in srgb, var(--naleko-success) 12%, transparent);
+      }
+    }
+  }
+
+  &__edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--naleko-outline-variant);
+    border-radius: var(--naleko-radius-md);
+    background: var(--naleko-surface);
+    color: var(--naleko-on-surface-variant);
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &:hover {
+      background: color-mix(in srgb, var(--naleko-secondary) 8%, transparent);
+      border-color: var(--naleko-secondary);
+      color: var(--naleko-secondary);
+    }
+  }
+}
+
+// Empty state styling
+
+.config-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  text-align: center;
+  color: var(--naleko-on-surface-variant);
+
+  &__icon {
+    font-size: 3rem;
+    color: var(--naleko-outline);
+    margin-bottom: 1rem;
+  }
+
+  p {
+    margin: 0 0 1rem;
+    max-width: 500px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  &__note {
+    background: var(--naleko-surface-container-low);
+    border: 1px solid var(--naleko-outline-variant);
+    border-radius: var(--naleko-radius-md);
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: var(--naleko-on-surface);
+
+    strong {
+      color: var(--naleko-secondary);
+    }
+  }
+
+  &__btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1.5rem;
+    padding: 0.65rem 1.25rem;
+    border: none;
+    border-radius: var(--naleko-radius-md);
+    background: linear-gradient(135deg, var(--naleko-secondary), var(--naleko-primary));
+    color: var(--naleko-on-primary);
+    font-family: var(--naleko-font-body);
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--naleko-secondary) 30%, transparent);
+
+    &:hover {
+      opacity: 0.92;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--naleko-secondary) 40%, transparent);
+    }
+
+    &--secondary {
+      background: var(--naleko-surface-container);
+      color: var(--naleko-on-surface);
+      box-shadow: none;
+      border: 1.5px solid var(--naleko-outline-variant);
+
+      &:hover {
+        background: var(--naleko-surface-container-high);
+        opacity: 1;
+      }
+    }
+  }
+
+  &--filtered {
+    padding: 2.5rem 1rem;
+
+    .config-empty__icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+  }
+}

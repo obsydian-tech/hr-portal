@@ -7,35 +7,42 @@ import {
   computed,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { CardModule } from 'primeng/card';
 import { RequirementType, ItTask, ItQueue, TaskSlaStatus } from '../../models/it-provisioning.models';
 import { ItProvisioningApiService } from '../../services/it-provisioning-api.service';
 import { ItProvisioningStateService } from '../../services/it-provisioning-state.service';
 import { TalentFlowAuthService } from '../../../talent-flow/services/talent-flow-auth.service';
 import { TalentFlowApiService } from '../../../talent-flow/services/talent-flow-api.service';
+import { IntelligenceService } from '../../../talent-flow/services/intelligence.service';
+import { IntelligenceTileComponent } from '../../../talent-flow/components/intelligence-tile/intelligence-tile.component';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ITQueue } from '../../../talent-flow/pages/admin/it-request-config/it-request.models';
+import { IntelligenceTile, TileAction } from '../../../talent-flow/models/talent-flow.models';
 
 @Component({
   selector: 'ip-it-queue-page',
   standalone: true,
-  imports: [],
+  imports: [CardModule, IntelligenceTileComponent],
   templateUrl: './it-queue-page.component.html',
   styleUrl: './it-queue-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItQueuePageComponent implements OnInit {
-  private readonly api        = inject(ItProvisioningApiService);
-  private readonly itState    = inject(ItProvisioningStateService);
-  private readonly tfAuth     = inject(TalentFlowAuthService);
-  private readonly tfApi      = inject(TalentFlowApiService);
-  private readonly nalekoAuth = inject(AuthService);
-  private readonly router     = inject(Router);
+  private readonly api          = inject(ItProvisioningApiService);
+  private readonly itState      = inject(ItProvisioningStateService);
+  private readonly tfAuth       = inject(TalentFlowAuthService);
+  private readonly tfApi        = inject(TalentFlowApiService);
+  protected readonly intelligence = inject(IntelligenceService);
+  private readonly nalekoAuth   = inject(AuthService);
+  private readonly router       = inject(Router);
 
   protected readonly loading = signal<boolean>(true);
   protected readonly tasks   = signal<ItTask[]>([]);
   protected readonly queues  = signal<ItQueue[]>([]);
   protected readonly selectedQueue = signal<RequirementType | 'ALL'>('ALL');
   protected readonly actionPending = signal<string | null>(null); // task id in flight
+  // Tracks whether all intelligence tiles are shown or just top 3
+  protected readonly showAllTiles = signal<boolean>(false);
 
   // ── Signal strip counts ────────────────────────────────────────────────────
   protected readonly breachedCount = computed(() =>
@@ -75,6 +82,9 @@ export class ItQueuePageComponent implements OnInit {
   );
 
   async ngOnInit(): Promise<void> {
+    // Load intelligence tiles for IT role
+    this.intelligence.loadTiles('IT');
+
     // 1. Fetch tasks and IT_QUEUES config in parallel.
     const [taskList, configRes] = await Promise.all([
       this.api.getMyTasks(),
@@ -160,5 +170,28 @@ export class ItQueuePageComponent implements OnInit {
     } else {
       void this.claimTask(task.id);
     }
+  }
+
+  // ── Intelligence tile handlers (Zone 0) ─────────────────────────────────────
+
+  protected handleTileAction(event: { action: TileAction; tile: IntelligenceTile }): void {
+    const { action, tile } = event;
+    if (action.route) {
+      void this.router.navigate([action.route]);
+    } else if (action.apiAction) {
+      console.info('[IT Queue] API action:', action.apiAction, tile.entityId);
+    }
+  }
+
+  protected handleTileDismiss(tileId: string): void {
+    this.intelligence.handleDismiss(tileId);
+  }
+
+  protected handleTileSnooze(event: { tileId: string; hours: number }): void {
+    this.intelligence.handleSnooze(event.tileId, event.hours);
+  }
+
+  protected viewAllTiles(): void {
+    this.showAllTiles.update(val => !val);
   }
 }

@@ -72,7 +72,8 @@ export type ConfigType =
   | 'ROUTING_RULES'
   | 'SENIORITY_DEFINITIONS'
   | 'APPROVAL_CHAINS'
-  | 'LOCALE_SETTINGS';
+  | 'LOCALE_SETTINGS'
+  | 'INTELLIGENCE_RULES';
 
 // ─── Scoring Weights ──────────────────────────────────────────────────────────
 export interface ScoringWeights {
@@ -360,6 +361,54 @@ export interface ConfigResponse {
   updatedAt:  string;
 }
 
+// ─── Intelligence Layer ───────────────────────────────────────────────────
+
+export interface IntelligenceRulesConfig {
+  rules: IntelligenceRule[];
+  thresholds?: IntelligenceThresholds;   // Phase 6.5.4: Configurable thresholds
+}
+
+export type RuleCategory = 'SLA_COMPLIANCE' | 'ENGAGEMENT' | 'OFFERS' | 'ONBOARDING' | 'GENERAL';
+export type TargetRole = 'TA' | 'HM' | 'IT' | 'ADMIN';
+
+export interface IntelligenceRule {
+  id:          string;                    // "RULE-001"
+  name:        string;                    // "Expiring Offer with Inactive HM"
+  description: string;                    // Human-readable description
+  enabled:     boolean;                   // Can disable rule without deleting
+  priority:    'HIGH' | 'MEDIUM' | 'LOW';
+  category:    RuleCategory;              // Phase 6.5.2: Rule categorization
+  targetRoles: TargetRole[];              // Phase 6.5.2: Which roles see this tile
+  conditions:  RuleCondition[];
+  action:      RuleAction;
+  cooldown:    number;                    // Hours before re-triggering
+}
+
+// Phase 6.5.4: Configurable thresholds for tile generation
+export interface IntelligenceThresholds {
+  slaAtRiskDays:       number;   // Default: 3
+  slaBreachDays:       number;   // Default: 0
+  offerExpiryUrgent:   number;   // Default: 3
+  candidateStaleDays:  number;   // Default: 14
+  highScoreThreshold:  number;   // Default: 85
+  lowEngagementScore:  number;   // Default: 40
+  onboardingReadyPct:  number;   // Default: 75
+  riskScoreHigh:       number;   // Default: 60
+  riskScoreCritical:   number;   // Default: 80
+}
+
+export interface RuleCondition {
+  signal:   string;                       // "OFFER_DAYS_TO_EXPIRY"
+  operator: 'equals' | 'notEquals' | 'greaterThan' | 'greaterThanOrEqual' | 'lessThan' | 'lessThanOrEqual' | 'in' | 'notIn';
+  value:    number | string | string[];   // 30 (your example)
+}
+
+export interface RuleAction {
+  type:     string;                       // "NUDGE_HM_REVIEW_OFFER"
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  cooldown: number;                       // 24 hours
+}
+
 // ─── Agent / AI Chat ──────────────────────────────────────────────────────────
 
 export interface ChatContext {
@@ -457,4 +506,89 @@ export interface ActivityLogEntry {
 export interface ProvisioningBundleProgress extends ProvisioningBundle {
   items:       ProvisioningItemProgress[];
   activityLog: ActivityLogEntry[];
+}
+
+// ─── Intelligence Tiles (§10.2, Phase 6.2) ─────────────────────────────────────
+
+/** Signal snapshot - precomputed signals for a candidate/offer (written by evaluateIntelligenceRules Lambda) */
+export interface SignalSnapshot {
+  entityType:    'CANDIDATE' | 'OFFER';
+  entityId:      string;
+  tenantId:      string;
+  signals:       Record<string, number | string | boolean | null>;
+  composites:    Record<string, unknown>;
+  ownerIds:      {
+    recruiterId?:     string | null;
+    hiringManagerId?: string | null;
+    createdBy?:       string | null;
+  };
+  entityName:    string | null;
+  currentStage:  HiringStage | null;
+  positionTitle: string | null;
+  computedAt:    string; // ISO 8601
+  updatedAt:     string; // ISO 8601
+}
+
+/** Intelligence tile for dashboard display (EPIC 1 Task 1.4: supports aggregate mode) */
+export interface IntelligenceTile {
+  id:           string;
+  mode?:        'aggregate' | 'per-entity'; // EPIC 1.4: tile display mode
+  priority:     'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  title:        string;
+  description:  string;
+  entityType:   'CANDIDATE' | 'OFFER';
+  entityId:     string | null; // EPIC 1.4: null for aggregate tiles
+  entityName:   string | null; // EPIC 1.4: null for aggregate tiles
+  currentStage: HiringStage | null;
+  signals:      TileSignal[];
+  actions:      TileAction[];
+  createdAt:    string;
+  expiresAt?:   string;
+  ruleId?:      string;
+  ruleName?:    string;
+  count?:       number; // EPIC 1.4: item count for aggregate tiles
+  routeTarget?: TileRouteTarget; // EPIC 1.4: deep-link target for aggregates
+  why?:         string; // EPIC 1.4: explainability line from composite factors
+}
+
+/** Route target for aggregate tiles (EPIC 1 Task 1.4) */
+export interface TileRouteTarget {
+  view:    string; // e.g., 'candidates', 'offers'
+  filters: Record<string, unknown>; // filter state for deep-link
+}
+
+export interface TileSignal {
+  label: string;
+  value: string | number;
+  type:  'info' | 'warning' | 'error' | 'success';
+}
+
+export interface TileAction {
+  id:              string;
+  label:           string;
+  icon:            string;
+  type:            'primary' | 'secondary' | 'inline';
+  route?:          string;
+  apiAction?:      string;
+  apiPayload?:     Record<string, unknown>;
+  confirmRequired?: boolean;
+}
+
+/** Filters for querying signal snapshots */
+export interface SignalSnapshotFilters {
+  ownerId?: string;
+  role?:    'TA' | 'HM' | 'IT';
+  limit?:   number;
+}
+
+/** Response from getSignalSnapshots API */
+export interface SignalSnapshotResponse {
+  snapshots: SignalSnapshot[];
+  total?:    number;
+}
+
+/** Response from getIntelligenceTiles API */
+export interface IntelligenceTilesResponse {
+  tiles: IntelligenceTile[];
+  total: number;
 }

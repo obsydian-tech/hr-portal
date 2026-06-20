@@ -1,0 +1,13 @@
+{
+  "name": "dismiss-tile",
+  "version": "1.0.0",
+  "description": "Lambda to dismiss intelligence tiles (INTEL-002 EPIC 1 Task 1.1)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.750.0",
+    "@aws-sdk/util-dynamodb": "^3.750.0"
+  }
+}

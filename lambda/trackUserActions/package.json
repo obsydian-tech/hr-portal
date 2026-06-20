@@ -1,0 +1,10 @@
+{
+  "name": "track-user-actions",
+  "version": "1.0.0",
+  "description": "Lambda: DynamoDB Stream Processor — tracks user actions by updating lastActionAt (INTEL-001)",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0"
+  }
+}

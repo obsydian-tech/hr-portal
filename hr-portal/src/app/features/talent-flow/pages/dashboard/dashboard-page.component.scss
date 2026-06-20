@@ -40,6 +40,26 @@
 .tf-dash__error { color: var(--naleko-error); }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ZONE 0 — Intelligence Alerts (Phase 6.2)
+// ══════════════════════════════════════════════════════════════════════════════
+.tf-dash__zone-0 {
+  border-radius: var(--naleko-radius-xl);
+  padding: 1.25rem 1.5rem;
+  border-left: 3px solid var(--naleko-secondary);
+}
+
+.tf-section-head__icon {
+  font-size: 1rem;
+  color: var(--naleko-secondary);
+}
+
+.tf-intelligence-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // ZONE 1 — Signal Summary Strip (4 KPI cards)
 // ══════════════════════════════════════════════════════════════════════════════
 .tf-dash__zone-1 {
@@ -615,6 +635,7 @@
 // ── p-card overrides for zone cards ──────────────────────────────────────────
 // Strip p-card's internal padding and border — zone classes control all visuals.
 ::ng-deep {
+  .tf-dash__zone-0,
   .tf-dash__zone-2,
   .tf-dash__zone-3,
   .tf-dash__zone-4,

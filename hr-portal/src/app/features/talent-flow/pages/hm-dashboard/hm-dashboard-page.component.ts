@@ -1,19 +1,23 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  OnInit,
   inject,
   signal,
   computed,
 } from '@angular/core';
-import { RouterModule, ActivatedRoute } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 
 import { Tabs, TabList, Tab, TabPanels, TabPanel } from 'primeng/tabs';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { CardModule } from 'primeng/card';
 import { TalentFlowApiService } from '../../services/talent-flow-api.service';
 import { TalentFlowAuthService } from '../../services/talent-flow-auth.service';
+import { IntelligenceService } from '../../services/intelligence.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { HmTaskCardComponent } from '../../components/hm-task-card/hm-task-card.component';
-import { Candidate } from '../../models/talent-flow.models';
+import { IntelligenceTileComponent } from '../../components/intelligence-tile/intelligence-tile.component';
+import { Candidate, IntelligenceTile, TileAction } from '../../models/talent-flow.models';
 
 /**
  * HM Dashboard — D044–D051
@@ -23,7 +27,7 @@ import { Candidate } from '../../models/talent-flow.models';
 @Component({
   selector: 'tf-hm-dashboard-page',
   standalone: true,
-  imports: [Tabs, TabList, Tab, TabPanels, TabPanel, ProgressSpinnerModule, HmTaskCardComponent, RouterModule],
+  imports: [Tabs, TabList, Tab, TabPanels, TabPanel, ProgressSpinnerModule, CardModule, HmTaskCardComponent, IntelligenceTileComponent, RouterModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="hm-dashboard">
@@ -35,6 +39,41 @@ import { Candidate } from '../../models/talent-flow.models';
           you have {{ taskCandidates().length }} active candidate{{ taskCandidates().length === 1 ? '' : 's' }}.
         </p>
       </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════════════
+           ZONE 0 — Intelligence Alerts (Phase 6.3)
+      ═══════════════════════════════════════════════════════════════════════ -->
+      @if (intelligence.hasTiles()) {
+        <p-card styleClass="hm-zone-0">
+          <div class="hm-zone-0__head">
+            <i class="pi pi-bolt hm-zone-0__icon"></i>
+            <h2 class="hm-zone-0__title">Intelligence Alerts</h2>
+            <div class="hm-zone-0__badges">
+              @if (intelligence.criticalCount() > 0) {
+                <span class="hm-badge hm-badge--red">{{ intelligence.criticalCount() }} critical</span>
+              }
+              @if (intelligence.highCount() > 0) {
+                <span class="hm-badge hm-badge--amber">{{ intelligence.highCount() }} high</span>
+              }
+            </div>
+            @if (intelligence.tilesCount() > 3) {
+              <button class="hm-link-btn" (click)="viewAllTiles()">
+                {{ showAllTiles() ? 'Show less' : 'View all ' + intelligence.tilesCount() }} →
+              </button>
+            }
+          </div>
+          <div class="hm-tiles">
+            @for (tile of showAllTiles() ? intelligence.tiles() : intelligence.tiles().slice(0, 3); track tile.id) {
+              <tf-intelligence-tile
+                [tile]="tile"
+                (actionClicked)="handleTileAction($event)"
+                (dismissed)="handleTileDismiss($event)"
+                (snoozed)="handleTileSnooze($event)"
+              />
+            }
+          </div>
+        </p-card>
+      }
 
       <p-tabs [value]="activeTab()" (valueChange)="setActiveTab($event)">
 
@@ -289,13 +328,96 @@ import { Candidate } from '../../models/talent-flow.models';
     :host ::ng-deep .p-tabs .p-tablist-active-bar {
       background: var(--naleko-secondary);
     }
+
+    /* ── Zone 0: Intelligence Alerts (Phase 6.3) ─────────────────────────── */
+    :host ::ng-deep .hm-zone-0 {
+      &.p-card {
+        background: var(--naleko-surface-container-lowest) !important;
+        border: none !important;
+        box-shadow: var(--naleko-shadow-card) !important;
+        border-radius: var(--naleko-radius-xl);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 3px solid var(--naleko-secondary);
+      }
+      .p-card-body, .p-card-content { padding: 0 !important; }
+    }
+
+    .hm-zone-0__head {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+
+    .hm-zone-0__icon {
+      font-size: 1rem;
+      color: var(--naleko-secondary);
+    }
+
+    .hm-zone-0__title {
+      font-family: var(--naleko-font-display);
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--naleko-on-surface);
+      margin: 0;
+      flex-shrink: 0;
+    }
+
+    .hm-zone-0__badges {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .hm-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 9px;
+      border-radius: var(--naleko-radius-pill);
+      font-size: 0.68rem;
+      font-weight: 700;
+      line-height: 1.6;
+    }
+
+    .hm-badge--red {
+      background: color-mix(in srgb, var(--naleko-error) 15%, transparent);
+      color: var(--naleko-error);
+    }
+
+    .hm-badge--amber {
+      background: color-mix(in srgb, var(--naleko-warning) 18%, transparent);
+      color: var(--naleko-warning-dark, var(--naleko-warning));
+    }
+
+    .hm-link-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--naleko-primary);
+      cursor: pointer;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    .hm-link-btn:hover { text-decoration: underline; }
+
+    .hm-tiles {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
   `],
 })
-export class HmDashboardPageComponent {
-  private readonly api        = inject(TalentFlowApiService);
-  protected readonly tfAuth   = inject(TalentFlowAuthService);
-  private readonly nalekoAuth = inject(AuthService);
-  private readonly route      = inject(ActivatedRoute);
+export class HmDashboardPageComponent implements OnInit {
+  private readonly api          = inject(TalentFlowApiService);
+  protected readonly tfAuth     = inject(TalentFlowAuthService);
+  protected readonly intelligence = inject(IntelligenceService);
+  private readonly nalekoAuth   = inject(AuthService);
+  private readonly router       = inject(Router);
+  private readonly route        = inject(ActivatedRoute);
 
   protected readonly activeTab            = signal<string>('tasks');
   protected readonly loading              = signal(true);
@@ -303,6 +425,8 @@ export class HmDashboardPageComponent {
   private readonly candidates             = signal<Candidate[]>([]);
   // Tracks candidate IDs the HM has voted on this session — prevents re-evaluation
   protected readonly evaluatedCandidateIds  = signal<Set<string>>(new Set());
+  // Tracks whether all intelligence tiles are shown or just top 3
+  protected readonly showAllTiles         = signal<boolean>(false);
 
   constructor() {
     // Read ?tab= query param to activate correct tab on direct navigation
@@ -310,6 +434,11 @@ export class HmDashboardPageComponent {
     if (tabParam) this.activeTab.set(tabParam);
     // nalekoAuth.checkSession() already ran via APP_INITIALIZER before routing
     this.loadCandidates();
+  }
+
+  ngOnInit(): void {
+    // Load intelligence tiles for HM role
+    this.intelligence.loadTiles('HM');
   }
 
   protected readonly currentUser = computed(() =>
@@ -401,5 +530,28 @@ export class HmDashboardPageComponent {
         this.loading.set(false);
       },
     });
+  }
+
+  // ── Intelligence tile handlers (Zone 0) ─────────────────────────────────────
+
+  protected handleTileAction(event: { action: TileAction; tile: IntelligenceTile }): void {
+    const { action, tile } = event;
+    if (action.route) {
+      void this.router.navigate([action.route]);
+    } else if (action.apiAction) {
+      console.info('[HM Dashboard] API action:', action.apiAction, tile.entityId);
+    }
+  }
+
+  protected handleTileDismiss(tileId: string): void {
+    this.intelligence.handleDismiss(tileId);
+  }
+
+  protected handleTileSnooze(event: { tileId: string; hours: number }): void {
+    this.intelligence.handleSnooze(event.tileId, event.hours);
+  }
+
+  protected viewAllTiles(): void {
+    this.showAllTiles.update(val => !val);
   }
 }

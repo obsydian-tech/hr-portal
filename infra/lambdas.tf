@@ -905,7 +905,8 @@ resource "aws_lambda_function" "cognito_post_auth" {
 
   environment {
     variables = {
-      EMPLOYEES_TABLE = "employees"
+      EMPLOYEES_TABLE         = "employees"
+      TALENT_FLOW_USERS_TABLE = "talent-flow-users"
     }
   }
 

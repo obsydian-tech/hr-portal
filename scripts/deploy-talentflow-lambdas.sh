@@ -71,6 +71,9 @@ ALL_TARGETS=(
   createItTask
   getHiringManagers
   advanceCandidateStage
+  trackUserAction
+  evaluateIntelligenceRules
+  getIntelligenceTiles
 )
 
 # Lambdas that import from ../shared/config-reader (need patch+bundle)
@@ -145,6 +148,8 @@ for LAMBDA in "${TARGETS[@]}"; do
 
   # Copy source into build dir
   cp "$SRC/$ENTRY_FILE" "$BUILD/"
+  # Copy sibling .js modules (e.g. config-reader.js, event-logger.js, snapshot-writer.js)
+  find "$SRC" -maxdepth 1 -name '*.js' ! -name "$ENTRY_FILE" -exec cp {} "$BUILD/" \;
   # Copy sibling .mjs modules (e.g. tool-resolver.mjs, cache.mjs, intent-classifier.mjs, pii-sanitiser.mjs)
   find "$SRC" -maxdepth 1 -name '*.mjs' ! -name "$ENTRY_FILE" -exec cp {} "$BUILD/" \;
   [[ -f "$SRC/package.json" ]] && cp "$SRC/package.json" "$BUILD/"
