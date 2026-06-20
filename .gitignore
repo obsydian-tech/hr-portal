@@ -16,6 +16,7 @@ lambda/**/node_modules/
 lambda/**/*.zip
 lambda/**/.package-lock.json
 *.zip
+!placeholder.zip
 
 # ─── Node / Angular ────────────────────────────────────────
 node_modules/
