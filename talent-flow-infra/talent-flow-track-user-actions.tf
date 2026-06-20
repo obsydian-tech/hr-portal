@@ -77,7 +77,7 @@ resource "aws_cloudwatch_log_group" "track_user_actions" {
 resource "aws_lambda_event_source_mapping" "track_user_actions_stream" {
   event_source_arn  = data.aws_dynamodb_table.talent_flow_state.stream_arn
   function_name     = aws_lambda_function.track_user_actions.arn
-  starting_position = "LATEST"  # Don't process historical records
+  starting_position = "LATEST" # Don't process historical records
   batch_size        = 10
 
   # Bisect on error for better error isolation

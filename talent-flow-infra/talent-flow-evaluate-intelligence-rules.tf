@@ -26,8 +26,8 @@ resource "aws_lambda_function" "evaluate_intelligence_rules" {
   runtime       = "nodejs22.x"
   architectures = ["arm64"]
   handler       = "index.handler"
-  memory_size   = 512  # Higher memory for config reads + DB queries
-  timeout       = 60   # Longer timeout for rule evaluation
+  memory_size   = 512 # Higher memory for config reads + DB queries
+  timeout       = 60  # Longer timeout for rule evaluation
 
   # Code will be deployed separately via deploy script
   filename         = local.tf_placeholder_zip
@@ -86,7 +86,7 @@ resource "aws_cloudwatch_log_group" "evaluate_intelligence_rules" {
 resource "aws_lambda_event_source_mapping" "evaluate_intelligence_rules_stream" {
   event_source_arn  = data.aws_dynamodb_table.talent_flow_state.stream_arn
   function_name     = aws_lambda_function.evaluate_intelligence_rules.arn
-  starting_position = "LATEST"  # Don't process historical records
+  starting_position = "LATEST" # Don't process historical records
   batch_size        = 10
 
   # Bisect on error for better error isolation
