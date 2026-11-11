@@ -16,6 +16,8 @@ import { test, expect, Page } from '../fixtures/no-ai';
 
 const HR_EMAIL = process.env['E2E_HR_EMAIL'] ?? '';
 const HR_PASSWORD = process.env['E2E_HR_PASSWORD'] ?? '';
+// Staff ID of the seeded HR login (scripts/ci/seed-dev.py HR_STAFF_ID).
+const HR_STAFF_ID = process.env['E2E_HR_STAFF_ID'] ?? 'E2EHR01';
 
 async function loginAsHR(page: Page): Promise<string> {
   await page.goto('/login');
@@ -23,13 +25,12 @@ async function loginAsHR(page: Page): Promise<string> {
   await page.locator('[data-testid="password-field"] input').fill(HR_PASSWORD);
   await page.locator('[data-testid="login-btn"] button').click();
 
-  // HR dashboard URL is /hr/:staffId — wait for navigation
-  await expect(page).toHaveURL(/\/hr\/[A-Z0-9]+/, { timeout: 15_000 });
-
-  // Return the staffId from the URL for constructing child routes
-  const url = page.url();
-  const match = url.match(/\/hr\/([^/]+)/);
-  return match ? match[1] : '';
+  // HR staff land on the platform home (Epic 5). The onboarding dashboard
+  // lives at /hr/:staffId and has no link from the home yet, so open it directly.
+  await expect(page).toHaveURL(/\/platform\/home|\/hr\//, { timeout: 15_000 });
+  await page.goto(`/hr/${HR_STAFF_ID}`);
+  await expect(page).toHaveURL(new RegExp(`/hr/${HR_STAFF_ID}`), { timeout: 15_000 });
+  return HR_STAFF_ID;
 }
 
 test.describe('HR Partner onboards a new employee', () => {
