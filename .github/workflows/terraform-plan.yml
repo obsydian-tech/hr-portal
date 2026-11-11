@@ -1,0 +1,117 @@
+# ---------------------------------------------------------------------------
+# Terraform plan on pull requests (read-only)
+#
+# Signs in to AWS through GitHub OIDC as naleko-github-plan-readonly. No AWS
+# keys are stored in GitHub. Runs `terraform plan` for both roots.
+#
+# The repo is PUBLIC, so job logs are public. This workflow never prints plan
+# contents: only the address and action of each resource that would change.
+# The plan file never leaves the runner.
+# ---------------------------------------------------------------------------
+
+name: Terraform plan
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "talent-flow-infra/**"
+      - "lambda/**"
+      - ".github/workflows/terraform-plan.yml"
+
+concurrency:
+  group: tf-plan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VERSION: "1.10.5"
+  AWS_REGION: af-south-1
+  PLAN_ROLE_ARN: arn:aws:iam::937137806477:role/naleko-github-plan-readonly
+
+jobs:
+  plan:
+    name: Plan — ${{ matrix.root }}
+    runs-on: ubuntu-latest
+    # Fork pull requests get no OIDC token; skip them instead of failing.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - root: infra
+            vars: ""
+          - root: talent-flow-infra
+            vars: "-var=aws_account_id=937137806477"
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.root }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform ${{ env.TF_VERSION }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Sign in to AWS (OIDC, read-only)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.PLAN_ROLE_ARN }}
+          role-session-name: tf-plan-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 3600
+
+      # Lambda code is deployed outside Terraform (filename is ignored), but
+      # the provider still expects the placeholder zip to exist.
+      - name: Create placeholder.zip
+        working-directory: .
+        run: python3 -c "import zipfile; zipfile.ZipFile('placeholder.zip','w').writestr('index.js','')"
+
+      - name: Terraform init
+        run: terraform init -input=false -no-color > init.log 2>&1 || { tail -20 init.log; exit 1; }
+
+      # Full plan output stays in the runner. Only errors are shown, and only
+      # the last lines, because the repo's logs are public.
+      - name: Terraform plan
+        run: |
+          set -o pipefail
+          if ! terraform plan -input=false -no-color -lock-timeout=120s ${{ matrix.vars }} -out=plan.bin > plan.log 2> plan.err; then
+            echo "::error::terraform plan failed in ${{ matrix.root }}"
+            tail -30 plan.err
+            exit 1
+          fi
+
+      - name: Summarise changes (addresses and actions only)
+        run: |
+          terraform show -json plan.bin \
+            | jq -r '.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"]) | "\(.change.actions | join("+"))\t\(.address)"' \
+            > changes.txt
+          count=$(wc -l < changes.txt | tr -d ' ')
+          {
+            echo "### Terraform plan: \`${{ matrix.root }}\`"
+            if [ "$count" = "0" ]; then
+              echo "No changes."
+            else
+              echo "$count resource(s) would change:"
+              echo '```'
+              cat changes.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Resources that would change: $count"
+          cat changes.txt
+
+      - name: Remove plan files
+        if: always()
+        run: rm -f plan.bin plan.log plan.err init.log changes.txt
