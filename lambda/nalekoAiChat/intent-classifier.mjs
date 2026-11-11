@@ -13,8 +13,9 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { guardAi } from '../shared/ai-guard.mjs';
 
-const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+const bedrock = guardAi(new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' }), 'bedrock');
 
 // Always classify with Haiku — cost: ~200 input tokens + ~5 output tokens per call
 // NH-81: resolved purely from env var — no hard-coded fallback.

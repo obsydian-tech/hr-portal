@@ -2,14 +2,16 @@ import {
   DynamoDBClient,
   QueryCommand,
   UpdateItemCommand,
+  GetItemCommand,
 } from '@aws-sdk/client-dynamodb';
 import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
+import { guardAi, isRobotCaller, isRobotEmail, markRobot } from '../shared/ai-guard.mjs';
 
 const dynamo = new DynamoDBClient({});
-const bedrock = new BedrockRuntimeClient({ region: 'af-south-1' });
+const bedrock = guardAi(new BedrockRuntimeClient({ region: 'af-south-1' }), 'bedrock');
 
 const VERIFICATIONS_TABLE = process.env.VERIFICATIONS_TABLE;
 const EMPLOYEES_TABLE = process.env.EMPLOYEES_TABLE;
@@ -28,6 +30,24 @@ export const handler = async (event) => {
   if (!employeeId) {
     return response(400, { message: 'Missing employee id in path' });
   }
+
+  // AI cost guardrail: robots (test logins) and test employees never reach the AI.
+  // If the employee record can't be read, play safe and treat it as test data.
+  let robot = isRobotCaller(event.requestContext?.authorizer?.jwt?.claims);
+  if (!robot) {
+    try {
+      const emp = await dynamo.send(new GetItemCommand({
+        TableName: EMPLOYEES_TABLE,
+        Key: { employee_id: { S: employeeId } },
+        ProjectionExpression: 'email',
+      }));
+      robot = !emp.Item || isRobotEmail(emp.Item.email?.S);
+    } catch (err) {
+      console.warn({ message: 'Employee lookup for AI guard failed; skipping AI', employeeId, error: err.message });
+      robot = true;
+    }
+  }
+  markRobot(robot);
 
   // 1. Query document-verification table via employeeId-index GSI
   let verifications = [];
@@ -108,6 +128,7 @@ export const handler = async (event) => {
     }
   } catch (err) {
     console.error({ message: 'Bedrock invocation failed', employeeId, error: err.message });
+    if (err.aiBlocked) reason = err.label;
     // Continue with UNKNOWN — do not block the response
   }
 

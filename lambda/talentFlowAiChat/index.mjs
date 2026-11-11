@@ -17,6 +17,7 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand }           from '@aws-sdk/client-bedrock-runtime';
+import { guardAi, isRobotCaller, markRobot, aiSwitchedOff, AI_SKIPPED_LABEL, AI_OFF_LABEL } from '../shared/ai-guard.mjs';
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand }   from '@aws-sdk/client-dynamodb';
 import { createHash }                                          from 'node:crypto';
 import { marshall }                                            from '@aws-sdk/util-dynamodb';
@@ -25,7 +26,7 @@ import { sanitisePii }                                         from './pii-sanit
 import { classifyIntent, selectModel }                         from './intent-classifier.mjs';
 import { buildCacheKey, getCached, setCached }                 from './cache.mjs';
 
-const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+const bedrock = guardAi(new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' }), 'bedrock');
 const dynamo  = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
 // Env vars (all resolved from process.env — no hard-coded values)
@@ -468,6 +469,26 @@ export const handler = async (event) => {
       statusCode: 401,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'Missing staff_id claim in JWT' }),
+    };
+  }
+
+  // AI cost guardrail: test logins (robots) never reach the AI; people do.
+  const robot = isRobotCaller(claims);
+  markRobot(robot);
+  if (robot || aiSwitchedOff()) {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message:         robot ? AI_SKIPPED_LABEL : AI_OFF_LABEL,
+        toolCallsMade:   [],
+        conversationId:  `${staffId}-${Date.now()}`,
+        structuredData:  {},
+        latencyMs:       Date.now() - start,
+        guardrailAction: 'AI_DISABLED',
+        status:          'AI_DISABLED',
+        cacheHit:        false,
+      }),
     };
   }
 

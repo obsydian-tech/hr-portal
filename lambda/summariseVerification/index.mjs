@@ -1,10 +1,11 @@
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { guardAi, isRobotCaller, markRobot } from '../shared/ai-guard.mjs';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamo  = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
-const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+const bedrock = guardAi(new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' }), 'bedrock');
 
 const logger = new Logger({ serviceName: 'summariseVerification' });
 const tracer  = new Tracer({ serviceName: 'summariseVerification' });
@@ -55,6 +56,7 @@ const handlerFn = async (event) => {
     return respond(204, {});
   }
 
+  markRobot(isRobotCaller(event.requestContext?.authorizer?.jwt?.claims));
   logger.info('Handler invoked', { verificationId: event.pathParameters?.id });
   tracer.putAnnotation('operation', 'summariseVerification');
 
@@ -110,6 +112,10 @@ ${ocrSnippet}`;
     logger.info('Bedrock summary generated', { verificationId, length: summary.length });
     tracer.putAnnotation('bedrockSuccess', true);
   } catch (err) {
+    if (err.aiBlocked) {
+      return respond(200, { verificationId, summary: err.label, aiDisabled: true,
+                            generatedAt: new Date().toISOString() });
+    }
     logger.error('Bedrock invocation failed', { error: err.message, verificationId });
     tracer.putAnnotation('bedrockSuccess', false);
     return respond(502, { error: 'AI summary service unavailable — try again shortly' });

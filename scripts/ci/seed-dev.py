@@ -40,6 +40,10 @@ EMPLOYEE_ID = "E2E-EMP-0001"  # custom:employee_id holds at most 20 characters
 # Groups the app reads that prod has but Terraform doesn't manage yet.
 NALEKO_EXTRA_GROUPS = ["hr_staff", "employee"]
 
+# AI cost guardrail: every test login is in this group, and the AI Lambdas
+# never call Bedrock or Textract for its members (lambda/shared/ai-guard.mjs).
+ROBOT_GROUP = "e2e-robots"
+
 NALEKO_PERSONAS = {
     "hr": {
         "attrs": {"custom:role": "hr_staff", "custom:staff_id": HR_STAFF_ID,
@@ -177,13 +181,14 @@ def main() -> None:
 
     naleko = pool_id(cognito, NALEKO_POOL)
     tf = pool_id(cognito, TF_POOL)
-    made_groups = ensure_groups(cognito, naleko, NALEKO_EXTRA_GROUPS)
+    made_groups = ensure_groups(cognito, naleko, NALEKO_EXTRA_GROUPS + [ROBOT_GROUP])
+    made_groups += ensure_groups(cognito, tf, [ROBOT_GROUP])
 
     for role, p in NALEKO_PERSONAS.items():
-        ensure_user(cognito, naleko, role, secret_password(sm, role), p["attrs"], p["groups"])
+        ensure_user(cognito, naleko, role, secret_password(sm, role), p["attrs"], p["groups"] + [ROBOT_GROUP])
     for group in TF_GROUPS:
         role = f"tf-{group.lower()}"
-        ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group])
+        ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group, ROBOT_GROUP])
 
     ns = uuid.UUID("6f1c2b1e-5d0a-4c55-9a59-2f1f0e1d7c11")
     for first, last, dept, title, stage in DEMO_PEOPLE:

@@ -15,11 +15,15 @@ on:
     branches: [main]
     paths:
       - "lambda/**"
+      - "hr-portal/e2e/**"
+      - "scripts/ci/check-ai-guard.py"
       - ".github/workflows/lambda-tests.yml"
   push:
     branches: [main]
     paths:
       - "lambda/**"
+      - "hr-portal/e2e/**"
+      - "scripts/ci/check-ai-guard.py"
       - ".github/workflows/lambda-tests.yml"
 
 permissions:
@@ -30,6 +34,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ai-guard:
+    # Iggie's hard rule: robots never call paid AI. Fails if an AI client is
+    # not wrapped in guardAi() or a Playwright spec skips the no-AI fixture.
+    name: AI cost guardrail
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python3 scripts/ci/check-ai-guard.py
+
   discover:
     name: Find Lambdas with tests
     runs-on: ubuntu-latest
