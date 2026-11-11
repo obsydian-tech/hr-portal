@@ -42,6 +42,8 @@ variable "ai_cost_services" {
     "Claude Haiku 4.5 (Amazon Bedrock Edition)",
     "Claude Sonnet 4.5 (Amazon Bedrock Edition)",
     "Claude 3 Haiku (Amazon Bedrock Edition)",
+    "Claude Opus 4.5 (Amazon Bedrock Edition)",
+    "Claude Sonnet 4.6 (Amazon Bedrock Edition)",
   ]
 }
 
