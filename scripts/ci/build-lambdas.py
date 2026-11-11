@@ -25,6 +25,11 @@ SKIP_FILE = re.compile(r"(\.test\.|\.spec\.|\.md$|\.zip$|^jest\.config\.|^\.)")
 SHARED_IMPORT = re.compile(r"""(['"])\.\./shared/""")
 EPOCH = (1980, 1, 1, 0, 0, 0)
 
+# Files a Lambda reads at runtime that live elsewhere in the repo.
+EXTRA_FILES = {
+    "serveAgentManifest": [("api/agent-tools.json", "tools.json")],
+}
+
 
 def copy_tree(src: Path, dst: Path) -> None:
     for dirpath, dirnames, filenames in os.walk(src):
@@ -84,6 +89,8 @@ def main() -> int:
         copy_tree(d, build)
         if uses_shared(build):
             bundle_shared(build)
+        for src_rel, dest_rel in EXTRA_FILES.get(name, []):
+            shutil.copy2(ROOT / src_rel, build / dest_rel)
         if (build / "package-lock.json").exists():
             r = subprocess.run(["npm", "ci", "--omit=dev", "--no-audit", "--no-fund", "--ignore-scripts"],
                                cwd=build, capture_output=True, text=True)
