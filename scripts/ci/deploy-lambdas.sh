@@ -11,6 +11,7 @@
 #
 # Output is names and counts only: the repo and its Actions logs are public.
 # Usage: deploy-lambdas.sh dist/lambdas
+#        DRY_RUN=1 deploy-lambdas.sh dist/lambdas   # list what would change
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -29,6 +30,7 @@ for name in $(jq -r 'keys[]' "$MANIFEST"); do
   have=$(awk -v n="$name" '$1==n {print $2}' <<<"$live")
   if [[ -z "$have" ]]; then missing+=("$name"); continue; fi
   if [[ "$have" == "$want" ]]; then unchanged+=("$name"); continue; fi
+  if [[ "${DRY_RUN:-}" == "1" ]]; then deployed+=("$name"); continue; fi
 
   if aws lambda update-function-code --region "$REGION" --function-name "$name" \
        --zip-file "fileb://$DIR/$name.zip" --query 'CodeSha256' --output text >/dev/null \
@@ -40,8 +42,8 @@ for name in $(jq -r 'keys[]' "$MANIFEST"); do
 done
 
 {
-  echo "### Lambda code deploy"
-  echo "- deployed: ${#deployed[@]}"
+  echo "### Lambda code deploy${DRY_RUN:+ (dry run: nothing changed)}"
+  echo "- ${DRY_RUN:+would be }deployed: ${#deployed[@]}"
   echo "- unchanged: ${#unchanged[@]}"
   echo "- no function with that name here: ${#missing[@]}"
   echo "- failed: ${#failed[@]}"

@@ -3,9 +3,8 @@
 #
 #   merge to main  ->  build (one deterministic zip per lambda/ folder)
 #                  ->  deploy to pepla-dev (GitHub env "dev", OIDC role)
-#
-# Prod promotion of the SAME artifact (after Iggie's Approve on the
-# "production" environment) is added once the prod deploy role exists.
+#                  ->  wait for Iggie's Approve (GitHub env "production")
+#                  ->  deploy the SAME zips to prod (code-only role)
 #
 # Terraform owns configuration and ignores Lambda code; this owns code only.
 # Logs show function names and counts only: the repo is public.
@@ -80,4 +79,37 @@ jobs:
           [ "$acct" = "424556617428" ] || { echo "::error::not pepla-dev"; exit 1; }
 
       - name: Deploy code
+        run: scripts/ci/deploy-lambdas.sh dist/lambdas
+
+  deploy-prod:
+    name: Promote to prod (needs Approve)
+    needs: [build, deploy-dev]
+    # Off until the first prod promotion has been checked by hand: set the
+    # repository variable PROD_LAMBDA_DEPLOY to "true" to switch it on.
+    if: vars.PROD_LAMBDA_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    # Required reviewer (Iggie) and main-only are set on this environment.
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: lambda-bundles-${{ github.sha }}
+          path: dist/lambdas/
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::937137806477:role/pepla-github-deploy-code-prod
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check we are in prod
+        run: |
+          acct=$(aws sts get-caller-identity --query Account --output text)
+          [ "$acct" = "937137806477" ] || { echo "::error::not prod"; exit 1; }
+
+      - name: Deploy the same code that passed dev
         run: scripts/ci/deploy-lambdas.sh dist/lambdas
