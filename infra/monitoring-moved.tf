@@ -21,3 +21,8 @@ moved {
   from = aws_cloudwatch_dashboard.naleko_ai_poc
   to   = aws_cloudwatch_dashboard.naleko_ai_poc[0]
 }
+
+moved {
+  from = aws_lambda_permission.naleko_mcp_server_url_public
+  to   = aws_lambda_permission.naleko_mcp_server_url_public[0]
+}
