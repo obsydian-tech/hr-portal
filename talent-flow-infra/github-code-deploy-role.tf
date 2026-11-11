@@ -30,9 +30,13 @@ resource "aws_iam_role" "github_code_deploy" {
         }
         StringLike = {
           # Both subject formats, production environment only (see
-          # github-plan-role.tf). Remove the unmatched one after the first run.
+          # github-plan-role.tf). The GitHub environment is named "Production"
+          # and IAM matching is case-sensitive, so both spellings are listed.
+          # Remove the unmatched entries after the first run.
           "token.actions.githubusercontent.com:sub" = [
+            "repo:obsydian-tech/hr-portal:environment:Production",
             "repo:obsydian-tech/hr-portal:environment:production",
+            "repo:obsydian-tech@183697107/hr-portal@1188146294:environment:Production",
             "repo:obsydian-tech@183697107/hr-portal@1188146294:environment:production",
           ]
         }
