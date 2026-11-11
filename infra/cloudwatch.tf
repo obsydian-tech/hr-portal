@@ -68,13 +68,9 @@ locals {
   ])
 }
 
-# Import pre-existing log groups (auto-created by Lambda runtime) so Terraform
-# can manage retention without a resource-already-exists conflict.
-import {
-  for_each = local.existing_lambda_log_groups
-  id       = each.value
-  to       = aws_cloudwatch_log_group.lambda[each.value]
-}
+# The pre-existing log groups in local.existing_lambda_log_groups were imported
+# into prod state already (prod plans show 0 imports). The import block is gone
+# so a fresh account (pepla-dev) can create them instead of failing to import.
 
 resource "aws_cloudwatch_log_group" "lambda" {
   for_each          = local.lambda_log_groups

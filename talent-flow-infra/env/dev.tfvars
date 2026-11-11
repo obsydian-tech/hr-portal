@@ -3,8 +3,8 @@ aws_account_id         = "424556617428"
 environment            = "dev"
 manage_github_ci_roles = false # comes from bootstrap/dev
 
-# Filled in after infra/ step 1 in pepla-dev (see bootstrap/dev/README.md).
-naleko_pool_id                 = "TODO_AFTER_INFRA_STEP_1"
-naleko_client_id               = "TODO_AFTER_INFRA_STEP_1"
-naleko_agent_api_id            = "TODO_AFTER_INFRA_STEP_1"
-naleko_agent_jwt_authorizer_id = "TODO_AFTER_INFRA_STEP_1"
+# IDs from infra/ in pepla-dev (first applied 2026-11-11).
+naleko_pool_id                 = "af-south-1_gUjFTe9bn"
+naleko_client_id               = "5mki8rhp1cujgk53ro4r219bnr"
+naleko_agent_api_id            = "k0832ravif"
+naleko_agent_jwt_authorizer_id = "4aeqy7"
