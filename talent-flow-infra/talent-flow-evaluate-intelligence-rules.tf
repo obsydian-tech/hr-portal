@@ -38,10 +38,10 @@ resource "aws_lambda_function" "evaluate_intelligence_rules" {
 
   environment {
     variables = {
-      STATE_TABLE_NAME         = data.aws_dynamodb_table.talent_flow_state.name
-      CONFIG_TABLE_NAME        = data.aws_dynamodb_table.talent_flow_config.name
-      USERS_TABLE_NAME         = data.aws_dynamodb_table.talent_flow_users.name
-      NOTIFICATIONS_TABLE_NAME = data.aws_dynamodb_table.talent_flow_notifications.name
+      STATE_TABLE_NAME         = aws_dynamodb_table.talent_flow_state.name
+      CONFIG_TABLE_NAME        = aws_dynamodb_table.talent_flow_config.name
+      USERS_TABLE_NAME         = aws_dynamodb_table.talent_flow_users.name
+      NOTIFICATIONS_TABLE_NAME = aws_dynamodb_table.talent_flow_notifications.name
       EVENTS_TABLE_NAME        = aws_dynamodb_table.intelligence_events.name
       NOTIFICATION_LAMBDA_NAME = "sendTalentFlowNotification"
     }
@@ -84,7 +84,7 @@ resource "aws_cloudwatch_log_group" "evaluate_intelligence_rules" {
 # ── DynamoDB Stream Event Source Mapping ───────────────────────────────────────
 
 resource "aws_lambda_event_source_mapping" "evaluate_intelligence_rules_stream" {
-  event_source_arn  = data.aws_dynamodb_table.talent_flow_state.stream_arn
+  event_source_arn  = aws_dynamodb_table.talent_flow_state.stream_arn
   function_name     = aws_lambda_function.evaluate_intelligence_rules.arn
   starting_position = "LATEST" # Don't process historical records
   batch_size        = 10
@@ -164,7 +164,7 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
           "dynamodb:GetShardIterator",
           "dynamodb:ListStreams"
         ]
-        Resource = data.aws_dynamodb_table.talent_flow_state.stream_arn
+        Resource = aws_dynamodb_table.talent_flow_state.stream_arn
       },
       {
         Sid    = "ConfigTableRead"
@@ -174,8 +174,8 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
           "dynamodb:Query"
         ]
         Resource = [
-          data.aws_dynamodb_table.talent_flow_config.arn,
-          "${data.aws_dynamodb_table.talent_flow_config.arn}/index/*"
+          aws_dynamodb_table.talent_flow_config.arn,
+          "${aws_dynamodb_table.talent_flow_config.arn}/index/*"
         ]
       },
       {
@@ -186,8 +186,8 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
           "dynamodb:Query"
         ]
         Resource = [
-          data.aws_dynamodb_table.talent_flow_state.arn,
-          "${data.aws_dynamodb_table.talent_flow_state.arn}/index/*"
+          aws_dynamodb_table.talent_flow_state.arn,
+          "${aws_dynamodb_table.talent_flow_state.arn}/index/*"
         ]
       },
       {
@@ -196,7 +196,7 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
         Action = [
           "dynamodb:PutItem"
         ]
-        Resource = data.aws_dynamodb_table.talent_flow_state.arn
+        Resource = aws_dynamodb_table.talent_flow_state.arn
       },
       {
         Sid    = "UsersTableRead"
@@ -206,8 +206,8 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
           "dynamodb:Query"
         ]
         Resource = [
-          data.aws_dynamodb_table.talent_flow_users.arn,
-          "${data.aws_dynamodb_table.talent_flow_users.arn}/index/*"
+          aws_dynamodb_table.talent_flow_users.arn,
+          "${aws_dynamodb_table.talent_flow_users.arn}/index/*"
         ]
       },
       {
@@ -217,7 +217,7 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
           "kms:Decrypt",
           "kms:DescribeKey"
         ]
-        Resource = data.aws_kms_key.talent_flow_state.arn
+        Resource = aws_kms_key.talent_flow_state.arn
       },
       {
         Sid    = "InvokeNotificationLambda"
@@ -234,8 +234,8 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
           "dynamodb:Query"
         ]
         Resource = [
-          data.aws_dynamodb_table.talent_flow_notifications.arn,
-          "${data.aws_dynamodb_table.talent_flow_notifications.arn}/index/*"
+          aws_dynamodb_table.talent_flow_notifications.arn,
+          "${aws_dynamodb_table.talent_flow_notifications.arn}/index/*"
         ]
       },
       {
@@ -252,15 +252,5 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
 
 # ── Data Sources ───────────────────────────────────────────────────────────────
 #
-# Note: talent-flow-state, talent-flow-users, and talent_flow_state KMS key data sources
-# are defined in talent-flow-track-user-actions.tf (reused to avoid duplication)
-
-# talent-flow-config table (source of intelligence rules)
-data "aws_dynamodb_table" "talent_flow_config" {
-  name = "talent-flow-config"
-}
-
-# talent-flow-notifications table (for cooldown tracking)
-data "aws_dynamodb_table" "talent_flow_notifications" {
-  name = "talent-flow-notifications"
-}
+# Tables and the state KMS key are referenced directly from talent-flow-dynamodb.tf
+# and talent-flow-kms.tf (no data sources), so a fresh account applies in one pass.

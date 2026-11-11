@@ -28,7 +28,7 @@ resource "aws_lambda_function" "dismiss_tile" {
   environment {
     variables = {
       DISMISSALS_TABLE_NAME = aws_dynamodb_table.intelligence_dismissals.name
-      STATE_TABLE_NAME      = data.aws_dynamodb_table.talent_flow_state.name
+      STATE_TABLE_NAME      = aws_dynamodb_table.talent_flow_state.name
     }
   }
 
@@ -130,7 +130,7 @@ resource "aws_iam_role_policy" "dismiss_tile" {
         Action = [
           "dynamodb:Query"
         ]
-        Resource = data.aws_dynamodb_table.talent_flow_state.arn
+        Resource = aws_dynamodb_table.talent_flow_state.arn
       },
       {
         Sid    = "KMSDecrypt"

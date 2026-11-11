@@ -27,9 +27,9 @@ resource "aws_lambda_function" "get_intelligence_tiles" {
 
   environment {
     variables = {
-      STATE_TABLE_NAME      = data.aws_dynamodb_table.talent_flow_state.name
+      STATE_TABLE_NAME      = aws_dynamodb_table.talent_flow_state.name
       DISMISSALS_TABLE_NAME = aws_dynamodb_table.intelligence_dismissals.name
-      CONFIG_TABLE_NAME     = data.aws_dynamodb_table.talent_flow_config.name
+      CONFIG_TABLE_NAME     = aws_dynamodb_table.talent_flow_config.name
     }
   }
 
@@ -126,8 +126,8 @@ resource "aws_iam_role_policy" "get_intelligence_tiles" {
           "dynamodb:Scan"
         ]
         Resource = [
-          data.aws_dynamodb_table.talent_flow_state.arn,
-          "${data.aws_dynamodb_table.talent_flow_state.arn}/index/*"
+          aws_dynamodb_table.talent_flow_state.arn,
+          "${aws_dynamodb_table.talent_flow_state.arn}/index/*"
         ]
       },
       {
@@ -146,8 +146,8 @@ resource "aws_iam_role_policy" "get_intelligence_tiles" {
           "dynamodb:Query"
         ]
         Resource = [
-          data.aws_dynamodb_table.talent_flow_config.arn,
-          "${data.aws_dynamodb_table.talent_flow_config.arn}/index/*"
+          aws_dynamodb_table.talent_flow_config.arn,
+          "${aws_dynamodb_table.talent_flow_config.arn}/index/*"
         ]
       },
       {
@@ -157,7 +157,7 @@ resource "aws_iam_role_policy" "get_intelligence_tiles" {
           "kms:Decrypt",
           "kms:DescribeKey"
         ]
-        Resource = data.aws_kms_key.talent_flow_state.arn
+        Resource = aws_kms_key.talent_flow_state.arn
       }
     ]
   })

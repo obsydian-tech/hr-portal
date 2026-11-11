@@ -526,7 +526,12 @@ resource "aws_lambda_function_url" "naleko_mcp_server" {
 # Public-access resource-based policy for the Function URL (AuthType=NONE).
 # AWS accounts created after ~2024 require BOTH InvokeFunctionUrl AND the legacy
 # InvokeFunction action to allow anonymous callers — Block Public Access enforcement.
+# In accounts where AWS adds this statement itself when the AuthType=NONE URL is
+# created (pepla-dev), declaring it again fails with "already exists". Prod keeps
+# managing the one it has.
 resource "aws_lambda_permission" "naleko_mcp_server_url_public" {
+  count = var.environment == "prod" ? 1 : 0
+
   statement_id           = "FunctionURLAllowPublicAccess"
   action                 = "lambda:InvokeFunctionUrl"
   function_name          = aws_lambda_function.naleko_mcp_server.function_name

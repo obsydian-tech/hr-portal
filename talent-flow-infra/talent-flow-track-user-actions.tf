@@ -34,7 +34,7 @@ resource "aws_lambda_function" "track_user_actions" {
 
   environment {
     variables = {
-      USERS_TABLE_NAME = data.aws_dynamodb_table.talent_flow_users.name
+      USERS_TABLE_NAME = aws_dynamodb_table.talent_flow_users.name
     }
   }
 
@@ -75,7 +75,7 @@ resource "aws_cloudwatch_log_group" "track_user_actions" {
 # ── DynamoDB Stream Event Source Mapping ───────────────────────────────────────
 
 resource "aws_lambda_event_source_mapping" "track_user_actions_stream" {
-  event_source_arn  = data.aws_dynamodb_table.talent_flow_state.stream_arn
+  event_source_arn  = aws_dynamodb_table.talent_flow_state.stream_arn
   function_name     = aws_lambda_function.track_user_actions.arn
   starting_position = "LATEST" # Don't process historical records
   batch_size        = 10
@@ -155,7 +155,7 @@ resource "aws_iam_role_policy" "track_user_actions" {
           "dynamodb:GetShardIterator",
           "dynamodb:ListStreams"
         ]
-        Resource = data.aws_dynamodb_table.talent_flow_state.stream_arn
+        Resource = aws_dynamodb_table.talent_flow_state.stream_arn
       },
       {
         Sid    = "UsersTableUpdate"
@@ -163,7 +163,7 @@ resource "aws_iam_role_policy" "track_user_actions" {
         Action = [
           "dynamodb:UpdateItem"
         ]
-        Resource = data.aws_dynamodb_table.talent_flow_users.arn
+        Resource = aws_dynamodb_table.talent_flow_users.arn
       },
       {
         Sid    = "KMSDecrypt"
@@ -172,7 +172,7 @@ resource "aws_iam_role_policy" "track_user_actions" {
           "kms:Decrypt",
           "kms:DescribeKey"
         ]
-        Resource = data.aws_kms_key.talent_flow_state.arn
+        Resource = aws_kms_key.talent_flow_state.arn
       }
     ]
   })
@@ -180,17 +180,6 @@ resource "aws_iam_role_policy" "track_user_actions" {
 
 # ── Data Sources ───────────────────────────────────────────────────────────────
 
-# talent-flow-state table (source of stream events)
-data "aws_dynamodb_table" "talent_flow_state" {
-  name = "talent-flow-state"
-}
-
-# talent-flow-users table (target for updates)
-data "aws_dynamodb_table" "talent_flow_users" {
-  name = "talent-flow-users"
-}
-
-# KMS key for talent-flow-state table encryption
-data "aws_kms_key" "talent_flow_state" {
-  key_id = "alias/talent-flow/state"
-}
+# The state/users tables and the state KMS key are managed in this stack
+# (talent-flow-dynamodb.tf, talent-flow-kms.tf) and referenced directly, so a
+# fresh account can be applied in one pass.
