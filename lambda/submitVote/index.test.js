@@ -22,13 +22,13 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand:  jest.fn((p) => ({ _cmd: 'PutEvents', ...p })),
 }));
 
-jest.mock('../shared/config-reader', () => ({
+jest.mock('./config-reader', () => ({
   getConfig: jest.fn(),
 }));
 
 // ── Module under test (imported AFTER mocks) ──────────────────────────────────
 const { handler, _calculateWeightedScore } = require('./index');
-const { getConfig } = require('../shared/config-reader');
+const { getConfig } = require('./config-reader');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 process.env.STATE_TABLE_NAME    = 'talent-flow-state';
@@ -61,6 +61,10 @@ const validEvent = {
   },
 };
 
+const interviewEvent = {
+  detail: { ...validEvent.detail, interviewId: 'int1' },
+};
+
 // Default happy-path mock chain
 function setupHappyPath({ votesSubmitted = 1, votesRequired = 3 } = {}) {
   mockDynamoSend
@@ -81,6 +85,11 @@ function setupHappyPath({ votesSubmitted = 1, votesRequired = 3 } = {}) {
 // ── Purge module between tests to avoid singleton state ───────────────────────
 beforeEach(() => {
   jest.clearAllMocks();
+  // clearAllMocks keeps queued mockResolvedValueOnce values, so one failing
+  // test would leak its leftovers into the next. Reset the queues too.
+  mockDynamoSend.mockReset();
+  mockEbSend.mockReset();
+  getConfig.mockReset();
 });
 
 // =============================================================================
@@ -125,20 +134,24 @@ describe('handler – quorum met', () => {
       { weightedScore: 6.50 },
     ];
 
+    // Current path: the vote names its interview, and the counter lives on
+    // the INTERVIEW# record (returned ALL_NEW with votesRequired).
     mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ Attributes: { votesSubmitted: 3 } })
-      .mockResolvedValueOnce({ Items: [{ votesRequired: 3 }] })   // interview
-      .mockResolvedValueOnce({ Items: voteItems });                // aggregate
+      .mockResolvedValueOnce({ Item: SAGA })                                     // GetItem SAGA
+      .mockResolvedValueOnce({ Items: [] })                                      // duplicate-vote Query
+      .mockResolvedValueOnce({})                                                 // PutItem vote
+      .mockResolvedValueOnce({ Attributes: { votesSubmitted: 3, votesRequired: 3 } }) // ADD on INTERVIEW#
+      .mockResolvedValueOnce({ Items: voteItems });                              // aggregate
 
     getConfig
       .mockResolvedValueOnce(WEIGHTS)
       .mockResolvedValueOnce(PANEL_CONFIG);
 
-    const res = await handler(validEvent);
+    const res = await handler(interviewEvent);
 
     expect(res.statusCode).toBe(200);
+    const counterUpdate = mockDynamoSend.mock.calls[3][0];
+    expect(counterUpdate.Key).toEqual({ PK: 'CANDIDATE#cand1', SK: 'INTERVIEW#int1' });
     expect(mockEbSend).toHaveBeenCalledTimes(1);
 
     const evtArg = mockEbSend.mock.calls[0][0];
@@ -444,16 +457,16 @@ describe('handler – averageScore calculation', () => {
 
     mockDynamoSend
       .mockResolvedValueOnce({ Item: SAGA })
+      .mockResolvedValueOnce({ Items: [] })
       .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ Attributes: { votesSubmitted: 3 } })
-      .mockResolvedValueOnce({ Items: [{ votesRequired: 3 }] })
+      .mockResolvedValueOnce({ Attributes: { votesSubmitted: 3, votesRequired: 3 } })
       .mockResolvedValueOnce({ Items: voteItems });
 
     getConfig
       .mockResolvedValueOnce(WEIGHTS)
       .mockResolvedValueOnce(PANEL_CONFIG);
 
-    await handler(validEvent);
+    await handler(interviewEvent);
 
     const detail = JSON.parse(mockEbSend.mock.calls[0][0].Entries[0].Detail);
     expect(detail.averageScore).toBeCloseTo(8.00, 5);
@@ -479,5 +492,27 @@ describe('handler – duplicate vote idempotent', () => {
 
     const res = await handler(validEvent);
     expect(res.statusCode).toBe(200);
+  });
+});
+
+// =============================================================================
+// 19.  Same voter, same interview → 409 before anything is written
+// =============================================================================
+describe('handler – duplicate vote on the same interview', () => {
+  it('returns 409 and writes nothing when the voter already voted on this interview', async () => {
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: SAGA })
+      .mockResolvedValueOnce({ Items: [{ SK: 'VOTE#voter1#2026-01-01T00:00:00Z' }] });
+    getConfig
+      .mockResolvedValueOnce(WEIGHTS)
+      .mockResolvedValueOnce(PANEL_CONFIG);
+
+    const res = await handler(interviewEvent);
+
+    expect(res.statusCode).toBe(409);
+    expect(mockDynamoSend).toHaveBeenCalledTimes(2);
+    const dupQuery = mockDynamoSend.mock.calls[1][0];
+    expect(dupQuery.ExpressionAttributeValues).toMatchObject({ ':votePrefix': 'VOTE#voter1#', ':iid': 'int1' });
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 });

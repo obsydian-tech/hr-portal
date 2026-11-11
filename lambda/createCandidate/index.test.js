@@ -5,7 +5,7 @@
  *
  * Unit tests covering the NH-118 Self-Verification Checklist:
  *   1. POST /candidates → 201 with candidateId
- *   2. DynamoDB talent-flow-state has SAGA record with configVersion=null
+ *   2. DynamoDB talent-flow-state has SAGA record without configVersion
  *   3. EventBridge CandidateCreated event published with correct source
  *   4. Duplicate POST with same idempotencyKey → 200 with same candidateId
  *   5. Invalid body (missing required field) → 400
@@ -29,7 +29,10 @@ jest.mock('@aws-sdk/client-dynamodb', () => ({
 }));
 
 jest.mock('@aws-sdk/util-dynamodb', () => ({
-  marshall:   jest.fn(obj  => obj),
+  // Pass-through, but honour removeUndefinedValues like the real marshall does.
+  marshall:   jest.fn((obj, opts) => (opts?.removeUndefinedValues
+    ? Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
+    : obj)),
   unmarshall: jest.fn(item => item),
 }));
 
@@ -98,12 +101,13 @@ describe('createCandidate', () => {
       expect(parseBody(response).candidateId).toBe('CAND-01HTEST00000000000000000');
     });
 
-    test('SAGA record written with configVersion=null and SK=SAGA', async () => {
+    test('SAGA record written with configVersion omitted and SK=SAGA', async () => {
       await handler(makeEvent());
       // Third DynamoDB call (index 2) is the SAGA PutItem
       const sagaPutCall = mockDynamoSend.mock.calls[2][0];
       expect(sagaPutCall.Item.SK).toBe('SAGA');
-      expect(sagaPutCall.Item.configVersion).toBeNull();
+      // Omitted, not null: the orchestrator sets it with attribute_not_exists(configVersion).
+      expect(sagaPutCall.Item).not.toHaveProperty('configVersion');
       expect(sagaPutCall.Item.PK).toBe('CANDIDATE#CAND-01HTEST00000000000000000');
     });
 

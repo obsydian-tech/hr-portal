@@ -19,7 +19,7 @@
  *        body: { tenantId, configType, data }
  *        → write new version N+1 (isActive=true, GSI1 keys set)
  *        → deactivate version N (isActive=false, GSI1 keys removed, expiresAt TTL set)
- *        → 404 if no active version exists yet (use POST to create)
+ *        → if no active version exists yet, creates v1 (upsert) and returns 200
  *
  * Admin guard (Epic 2 invariant #4):
  *   event.requestContext.authorizer.jwt.claims['custom:isAdmin'] MUST equal 'true'

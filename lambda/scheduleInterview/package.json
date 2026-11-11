@@ -8,8 +8,9 @@
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
-    "@aws-sdk/util-dynamodb": "^3.0.0",
+    "@aws-sdk/client-eventbridge": "^3.1166.0",
     "@aws-sdk/client-sqs": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0",
     "jest": "^29.0.0"
   }
 }
