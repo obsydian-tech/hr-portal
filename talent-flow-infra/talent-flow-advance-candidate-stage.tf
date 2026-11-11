@@ -44,8 +44,28 @@ resource "aws_iam_role_policy" "advance_candidate_stage" {
       {
         Sid      = "DynamoStateRW"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:PutItem"] # PutItem: stage-history audit rows (index.js writeStageHistory)
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        # Mirrors the hand-made inline policy "state-table-query" in prod.
+        Sid    = "DynamoStateQuery"
+        Effect = "Allow"
+        Action = "dynamodb:Query"
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
+        ]
+      },
+      {
+        # Mirrors the hand-made inline policy "config-table-query" in prod (config-reader.js).
+        Sid    = "DynamoConfigRead"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/*",
+        ]
       },
       {
         Sid      = "EventBridgePut"
@@ -105,6 +125,8 @@ resource "aws_lambda_function" "advance_candidate_stage" {
   environment {
     variables = {
       STATE_TABLE_NAME     = local.tf_table_state
+      CONFIG_TABLE_NAME    = local.tf_table_config # read by config-reader.js
+      EPIC3_ENABLED        = "true"                # set live in prod; kept to match
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
       ENVIRONMENT          = var.environment
       AWS_ACCOUNT_ID       = var.aws_account_id
