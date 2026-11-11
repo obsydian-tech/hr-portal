@@ -1,0 +1,10 @@
+{
+  "name": "serve-agent-manifest",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "NH-45: serves api/agent-tools.json at GET /agent/agent-tools.json",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0"
+  }
+}
