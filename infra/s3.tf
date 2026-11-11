@@ -52,6 +52,48 @@ resource "aws_s3_bucket_versioning" "document_uploads" {
   }
 }
 
+# Browser uploads and the OCR trigger. Prod has both, made by hand outside
+# Terraform (CORS for localhost:4200 and the Vercel app; 4 identical OCR
+# triggers). Until those are imported, Terraform manages them in non-prod only,
+# so this changes nothing in prod.
+resource "aws_s3_bucket_cors_configuration" "document_uploads" {
+  count  = var.environment == "prod" ? 0 : 1
+  bucket = aws_s3_bucket.document_uploads.id
+
+  cors_rule {
+    allowed_methods = ["GET", "PUT", "POST", "HEAD"]
+    allowed_origins = ["http://localhost:4200", "http://127.0.0.1:4200"]
+    allowed_headers = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
+resource "aws_lambda_permission" "process_document_ocr_s3" {
+  count          = var.environment == "prod" ? 0 : 1
+  statement_id   = "AllowS3InvokeOCR"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.process_document_ocr.function_name
+  principal      = "s3.amazonaws.com"
+  source_arn     = aws_s3_bucket.document_uploads.arn
+  source_account = var.aws_account_id
+}
+
+# Test uploads reach processDocumentOCR, but the AI cost guardrail
+# (lambda/shared/ai-guard.mjs) skips Textract and Bedrock for test employees.
+resource "aws_s3_bucket_notification" "document_uploads" {
+  count  = var.environment == "prod" ? 0 : 1
+  bucket = aws_s3_bucket.document_uploads.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.process_document_ocr.arn
+    events              = ["s3:ObjectCreated:Put"]
+    filter_prefix       = "uploads/"
+  }
+
+  depends_on = [aws_lambda_permission.process_document_ocr_s3]
+}
+
 # ---------------------------------------------------------------------------
 # NH-77 — Audit Archive Bucket  (POPIA 5-year retention)
 # PoC: Lambda-to-S3 instead of Kinesis Firehose (~$18/mo). Swap to Firehose
