@@ -90,7 +90,9 @@ jobs:
   e2e-dev:
     name: E2E on pepla-dev
     needs: deploy-dev
-    runs-on: ubuntu-latest
+    # Pinned: the repo's Playwright version has no Chromium build for the
+    # newer ubuntu-latest image. Move with the next Playwright upgrade.
+    runs-on: ubuntu-24.04
     environment: dev
     permissions:
       contents: read
