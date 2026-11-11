@@ -105,7 +105,7 @@ async function testSecret(secretId, token) {
     VersionStage: 'AWSPENDING',
   }));
 
-  const testUrl = `${AGENT_API_BASE}/employees?limit=1`;
+  const testUrl = `${AGENT_API_BASE}/agent/v1/employees?limit=1`;
   const res = await fetch(testUrl, {
     method: 'GET',
     headers: { 'x-api-key': pendingKey, 'Content-Type': 'application/json' },
