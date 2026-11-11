@@ -121,7 +121,7 @@ resource "aws_dynamodb_table" "intelligence_events" {
 
   server_side_encryption {
     enabled     = true
-    kms_key_arn = data.aws_kms_key.talent_flow_state.arn
+    kms_key_arn = aws_kms_key.talent_flow_state.arn
   }
 
   tags = merge(local.tf_tags, {
