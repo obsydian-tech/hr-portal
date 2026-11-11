@@ -11,7 +11,7 @@
  *   3. Write IN_PROGRESS to idempotency table (TTL 48hr)
  *   4. Validate required body fields
  *   5. Generate candidateId = CAND-{ulid()}
- *   6. Write SAGA record to talent-flow-state (configVersion=null — orchestrator sets it)
+ *   6. Write SAGA record to talent-flow-state (configVersion omitted — orchestrator sets it)
  *   7. Publish CandidateCreated to talent-flow-bus
  *   8. Mark idempotency key COMPLETED with candidateId
  *   9. Return 201 with candidateId

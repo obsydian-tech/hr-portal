@@ -36,7 +36,7 @@ const { resolveToolCall, TOOL_MAP, agentGet, agentPost } = await import('../tool
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CONTEXT = { staffId: 'AS00004' };
-const BASE    = 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com';
+const BASE    = 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com/agent/v1';
 
 beforeEach(() => {
   mockFetch.mockReset();
@@ -137,9 +137,10 @@ describe('HITL gate: onboard_new_employee', () => {
       firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com',
       department: 'Engineering', role: 'Engineer', phoneNumber: '+27821234567',
     }, CONTEXT);
-    expect(result.draft).toMatchObject({
-      firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com',
-      department: 'Engineering', role: 'Engineer', phoneNumber: '+27821234567',
+    // NH-58: draft keys are snake_case to match the createEmployee Lambda.
+    expect(result.draft).toEqual({
+      first_name: 'Jane', last_name: 'Doe', email: 'jane@example.com',
+      department: 'Engineering', job_title: 'Engineer', phone: '+27821234567',
     });
   });
 
@@ -151,12 +152,12 @@ describe('HITL gate: onboard_new_employee', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  test('phoneNumber defaults to null when not provided', async () => {
+  test('phone defaults to an empty string when not provided', async () => {
     const result = await resolveToolCall('onboard_new_employee', {
       firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com',
       department: 'Engineering', role: 'Engineer',
     }, CONTEXT);
-    expect(result.draft.phoneNumber).toBeNull();
+    expect(result.draft.phone).toBe('');
   });
 });
 

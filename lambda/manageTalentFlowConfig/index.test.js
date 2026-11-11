@@ -101,13 +101,16 @@ test('GET: returns active item only when ?active=true', async () => {
   expect(body.version).toBe(2);
 });
 
-test('GET: 404 when no active item found', async () => {
+test('GET: 200 with an empty config when no active item found', async () => {
+  // The admin UI treats a missing config as "not yet configured", not an error.
   mockSend.mockResolvedValueOnce({ Items: [] });
 
   const event = adminEvent('GET', { queryStringParameters: { configType: 'SCORING_WEIGHTS', active: 'true' } });
   const res = await handler(event);
 
-  expect(res.statusCode).toBe(404);
+  expect(res.statusCode).toBe(200);
+  const body = JSON.parse(res.body);
+  expect(body).toMatchObject({ configType: 'SCORING_WEIGHTS', version: null, isActive: false, data: {} });
 });
 
 test('GET: 400 when configType query param missing', async () => {
@@ -201,16 +204,21 @@ test('PUT: 403 when non-admin', async () => {
   expect(mockSend).not.toHaveBeenCalled();
 });
 
-test('PUT: 404 when no active version exists', async () => {
-  mockSend.mockResolvedValueOnce({ Items: [] });
+test('PUT: creates v1 when no active version exists (upsert)', async () => {
+  mockSend
+    .mockResolvedValueOnce({ Items: [] }) // getActiveItem Query
+    .mockResolvedValueOnce({});           // PutItem v1
 
   const event = adminEvent('PUT', {
     body: JSON.stringify({ configType: 'SCORING_WEIGHTS', data: { technical: 40 } })
   });
   const res = await handler(event);
 
-  expect(res.statusCode).toBe(404);
-  expect(mockSend).toHaveBeenCalledTimes(1); // only the getActiveItem Query
+  expect(res.statusCode).toBe(200);
+  expect(JSON.parse(res.body)).toMatchObject({ configType: 'SCORING_WEIGHTS', version: 1, data: { technical: 40 } });
+  expect(mockSend).toHaveBeenCalledTimes(2);
+  const put = mockSend.mock.calls[1][0];
+  expect(put.ConditionExpression).toBe('attribute_not_exists(PK)');
 });
 
 test('PUT: 400 when data missing', async () => {

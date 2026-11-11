@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# Lambda unit tests
+#
+# Runs `npm test` in every lambda/<name>/ folder that has test files, on every
+# PR that touches lambda/ and on every push to main. Node 22 matches the
+# Lambda runtime (nodejs22.x).
+#
+# Adding tests to a Lambda that has none is enough to get it picked up here.
+# Never skip or quarantine a failing test to get this green.
+# ---------------------------------------------------------------------------
+name: Lambda unit tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lambda/**"
+      - ".github/workflows/lambda-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lambda/**"
+      - ".github/workflows/lambda-tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lambda-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    name: Find Lambdas with tests
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.find.outputs.dirs }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: find
+        name: List lambda folders that contain test files
+        run: |
+          dirs=$(find lambda -mindepth 2 -maxdepth 3 \
+                   -not -path '*/node_modules/*' \
+                   \( -name '*.test.js' -o -name '*.test.mjs' -o -name '*.spec.js' -o -name '*.spec.mjs' \) \
+                 | cut -d/ -f2 | sort -u \
+                 | while read d; do [ -f "lambda/$d/package.json" ] && echo "$d"; done \
+                 | jq -R . | jq -cs .)
+          echo "dirs=$dirs" >> "$GITHUB_OUTPUT"
+          echo "### Lambdas with tests" >> "$GITHUB_STEP_SUMMARY"
+          echo "$dirs" | jq -r '.[] | "- " + .' >> "$GITHUB_STEP_SUMMARY"
+
+  test:
+    name: ${{ matrix.dir }}
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJson(needs.discover.outputs.dirs) }}
+    defaults:
+      run:
+        working-directory: lambda/${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: lambda/${{ matrix.dir }}/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Test
+        env:
+          CI: "true"
+        run: npm test

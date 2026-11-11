@@ -16,6 +16,7 @@ jest.unstable_mockModule('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient:    jest.fn(() => ({ send: mockDbSend })),
   GetItemCommand:    jest.fn((args) => ({ _type: 'Get',    ...args })),
   UpdateItemCommand: jest.fn((args) => ({ _type: 'Update', ...args })),
+  ScanCommand:       jest.fn((args) => ({ _type: 'Scan',   ...args })),
 }));
 
 jest.unstable_mockModule('@aws-sdk/client-eventbridge', () => ({
@@ -69,6 +70,20 @@ beforeEach(() => {
 describe('talentFlowApproveAction', () => {
 
   // ── GET ─────────────────────────────────────────────────────────────────────
+
+  test('GET /actions/pending lists only PENDING_APPROVAL actions', async () => {
+    mockDbSend.mockResolvedValueOnce({ Items: [{ ...PENDING_ACTION }] });
+
+    const res = await handler(makeEvent({ method: 'GET', path: '/agent/actions/pending' }));
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ actions: [PENDING_ACTION], count: 1 });
+    const cmd = mockDbSend.mock.calls[0][0];
+    expect(cmd._type).toBe('Scan');
+    expect(cmd.FilterExpression).toBe('#s = :pending');
+    expect(cmd.ExpressionAttributeValues).toEqual({ ':pending': 'PENDING_APPROVAL' });
+  });
+
 
   test('GET /actions/{id} returns 200 with action data', async () => {
     mockDbSend.mockResolvedValueOnce({ Item: { ...PENDING_ACTION } });

@@ -58,7 +58,9 @@ beforeEach(() => jest.clearAllMocks());
 // 1.  averageScore >= minimumPassScore → outcome = PASSED
 // =============================================================================
 describe('handler – PASSED outcome', () => {
-  it('updates SAGA to OFFER_PREPARATION and publishes PASSED event', async () => {
+  // Option B: PASSED records the result only. The stage stays at EVALUATION and
+  // EvaluationCompleted is published later by advanceCandidateStage.
+  it('records PASSED on the SAGA without changing stage or publishing', async () => {
     mockDynamoSend
       .mockResolvedValueOnce({ Item: SAGA })   // GetItem
       .mockResolvedValueOnce({});              // UpdateItem
@@ -72,19 +74,13 @@ describe('handler – PASSED outcome', () => {
     expect(body.finalScore).toBe(7.5);
     expect(body.configVersion).toBe('v1');
 
-    // SAGA UpdateItem should set currentStage=OFFER_PREPARATION
     const updateCall = mockDynamoSend.mock.calls[1][0];
-    expect(updateCall.ExpressionAttributeValues[':stage']).toBe('OFFER_PREPARATION');
-    expect(updateCall.ExpressionAttributeValues[':res']).toBe('PASSED');
+    expect(updateCall.UpdateExpression).not.toMatch(/currentStage|#st/);
+    expect(updateCall.ExpressionAttributeValues).toEqual({
+      ':res': 'PASSED', ':fs': 7.5, ':at': expect.any(String), ':cv': 'v1',
+    });
 
-    // EvaluationCompleted published
-    expect(mockEbSend).toHaveBeenCalledTimes(1);
-    const evtDetail = JSON.parse(mockEbSend.mock.calls[0][0].Entries[0].Detail);
-    expect(evtDetail.outcome).toBe('PASSED');
-    expect(evtDetail.finalScore).toBe(7.5);
-    expect(evtDetail.configVersion).toBe('v1');
-    expect(mockEbSend.mock.calls[0][0].Entries[0].Source).toBe('talent-flow.workflow');
-    expect(mockEbSend.mock.calls[0][0].Entries[0].DetailType).toBe('EvaluationCompleted');
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 });
 
@@ -92,7 +88,7 @@ describe('handler – PASSED outcome', () => {
 // 2.  averageScore < minimumPassScore → outcome = FAILED + status = REJECTED
 // =============================================================================
 describe('handler – FAILED outcome', () => {
-  it('updates SAGA to REJECTED and publishes FAILED event', async () => {
+  it('sets status=REJECTED on the SAGA without changing stage', async () => {
     mockDynamoSend
       .mockResolvedValueOnce({ Item: SAGA })
       .mockResolvedValueOnce({});
@@ -106,10 +102,9 @@ describe('handler – FAILED outcome', () => {
 
     const updateCall = mockDynamoSend.mock.calls[1][0];
     expect(updateCall.ExpressionAttributeValues[':rejected']).toBe('REJECTED');
-    expect(updateCall.ExpressionAttributeValues[':stage']).toBe('EVALUATION');
-
-    const evtDetail = JSON.parse(mockEbSend.mock.calls[0][0].Entries[0].Detail);
-    expect(evtDetail.outcome).toBe('FAILED');
+    expect(updateCall.ExpressionAttributeNames).toEqual({ '#st': 'status' });
+    expect(updateCall.UpdateExpression).not.toMatch(/currentStage/);
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 });
 
@@ -186,21 +181,20 @@ describe('handler – POPIA audit', () => {
 });
 
 // =============================================================================
-// 6.  configVersion included in EvaluationCompleted event detail
+// 6.  Response body carries the configVersion used
 // =============================================================================
-describe('handler – EvaluationCompleted event', () => {
-  it('includes configVersion in the published event detail', async () => {
+describe('handler – response body', () => {
+  it('returns candidateId, tenantId and the configVersion used', async () => {
     mockDynamoSend
       .mockResolvedValueOnce({ Item: SAGA })
       .mockResolvedValueOnce({});
     getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
 
-    await handler(passingEvent);
+    const res = await handler(passingEvent);
 
-    const evtDetail = JSON.parse(mockEbSend.mock.calls[0][0].Entries[0].Detail);
-    expect(evtDetail.configVersion).toBe('v1');
-    expect(evtDetail.candidateId).toBe('cand1');
-    expect(evtDetail.tenantId).toBe('tenant1');
+    expect(JSON.parse(res.body)).toEqual({
+      candidateId: 'cand1', tenantId: 'tenant1', outcome: 'PASSED', finalScore: 7.5, configVersion: 'v1',
+    });
   });
 });
 
@@ -333,15 +327,30 @@ describe('handler – UpdateItem failure', () => {
 });
 
 // =============================================================================
-// 14.  EventBridge failure is non-fatal
+// 14.  Current INTERVIEW record is marked COMPLETED
 // =============================================================================
-describe('handler – EventBridge non-fatal', () => {
-  it('returns 200 when EvaluationCompleted publish fails', async () => {
+describe('handler – current interview', () => {
+  it('marks the current INTERVIEW record COMPLETED', async () => {
     mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce({ Item: { ...SAGA, currentInterviewId: 'iv-1' } })
+      .mockResolvedValueOnce({})   // SAGA UpdateItem
+      .mockResolvedValueOnce({});  // INTERVIEW UpdateItem
     getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
-    mockEbSend.mockRejectedValueOnce(new Error('EB throttled'));
+
+    const res = await handler(passingEvent);
+
+    expect(res.statusCode).toBe(200);
+    const interviewUpdate = mockDynamoSend.mock.calls[2][0];
+    expect(interviewUpdate.Key).toEqual({ PK: 'CANDIDATE#cand1', SK: 'INTERVIEW#iv-1' });
+    expect(interviewUpdate.ExpressionAttributeValues[':completed']).toBe('COMPLETED');
+  });
+
+  it('still returns 200 when marking the interview fails (non-fatal)', async () => {
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: { ...SAGA, currentInterviewId: 'iv-1' } })
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error('throttled'));
+    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
 
     const res = await handler(passingEvent);
     expect(res.statusCode).toBe(200);
@@ -367,19 +376,20 @@ describe('handler – boundary score', () => {
 });
 
 // =============================================================================
-// 16.  STRONG_NO_VETO — EvaluationCompleted still published (outcome=FAILED)
+// 16.  STRONG_NO_VETO — rejection recorded, nothing published
 // =============================================================================
-describe('handler – STRONG_NO_VETO publishes event', () => {
-  it('publishes EvaluationCompleted with outcome=FAILED on veto', async () => {
+describe('handler – STRONG_NO_VETO records rejection', () => {
+  it('sets REJECTED with a null finalScore and publishes nothing', async () => {
     mockDynamoSend
       .mockResolvedValueOnce({ Item: SAGA })
       .mockResolvedValueOnce({});
 
-    await handler(vetoEvent);
+    const res = await handler(vetoEvent);
 
-    expect(mockEbSend).toHaveBeenCalledTimes(1);
-    const evtDetail = JSON.parse(mockEbSend.mock.calls[0][0].Entries[0].Detail);
-    expect(evtDetail.outcome).toBe('FAILED');
-    expect(evtDetail.finalScore).toBeNull();
+    expect(JSON.parse(res.body)).toMatchObject({ outcome: 'FAILED', finalScore: null });
+    const updateCall = mockDynamoSend.mock.calls[1][0];
+    expect(updateCall.ExpressionAttributeValues[':rejected']).toBe('REJECTED');
+    expect(updateCall.ExpressionAttributeValues[':fs']).toBeNull();
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 });

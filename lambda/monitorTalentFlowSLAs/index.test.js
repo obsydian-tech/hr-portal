@@ -108,7 +108,8 @@ describe('monitorTalentFlowSLAs', () => {
     // Verify UpdateItem has idempotency guard
     const updateArgs = mockDynSend.mock.calls[1][0];
     expect(updateArgs.ConditionExpression).toBe('attribute_not_exists(slaBreachedAt)');
-    expect(updateArgs.UpdateExpression).toBe('SET slaBreachedAt = :now, slaBreachedStage = :stage');
+    expect(updateArgs.UpdateExpression).toBe('SET slaBreachedAt = :now, slaBreachedStage = :stage, slaStatus = :status');
+    expect(updateArgs.ExpressionAttributeValues[':status']).toEqual({ S: 'BREACHED' });
     expect(updateArgs.TableName).toBe('talent-flow-state');
 
     // Verify EventBridge event
