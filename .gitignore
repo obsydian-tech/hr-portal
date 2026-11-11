@@ -86,3 +86,4 @@ tfplan*
 
 # CI Lambda bundles (scripts/ci/build-lambdas.py)
 /dist/
+__pycache__/
