@@ -39,7 +39,9 @@ test.describe('HR Partner onboards a new employee', () => {
   let staffId: string;
 
   test.beforeEach(async ({ page }) => {
-    uniqueEmail = `e2e.test+${Date.now()}@naleko.co.za`;
+    // Run marker: scripts/ci/cleanup-dev-e2e.py deletes every record whose
+    // email starts with "e2e.run-". Postmark's blackhole domain never delivers.
+    uniqueEmail = `e2e.run-${process.env['GITHUB_RUN_ID'] ?? 'local'}-${Date.now()}@blackhole.postmarkapp.com`;
     staffId = await loginAsHR(page);
   });
 
