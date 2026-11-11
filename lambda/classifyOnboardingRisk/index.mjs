@@ -7,9 +7,10 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
+import { guardAi, AI_DISABLED_LABEL } from '../shared/ai-guard.mjs';
 
 const dynamo = new DynamoDBClient({});
-const bedrock = new BedrockRuntimeClient({ region: 'af-south-1' });
+const bedrock = guardAi(new BedrockRuntimeClient({ region: 'af-south-1' }), 'bedrock');
 
 const VERIFICATIONS_TABLE = process.env.VERIFICATIONS_TABLE;
 const EMPLOYEES_TABLE = process.env.EMPLOYEES_TABLE;
@@ -108,6 +109,7 @@ export const handler = async (event) => {
     }
   } catch (err) {
     console.error({ message: 'Bedrock invocation failed', employeeId, error: err.message });
+    if (err.aiDisabled) reason = AI_DISABLED_LABEL;
     // Continue with UNKNOWN — do not block the response
   }
 

@@ -19,11 +19,12 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
+import { guardAi, AI_DISABLED_LABEL } from '../shared/ai-guard.mjs';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
 const dynamo  = new DynamoDBClient({});
-const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION_NAME ?? 'af-south-1' });
+const bedrock = guardAi(new BedrockRuntimeClient({ region: process.env.AWS_REGION_NAME ?? 'af-south-1' }), 'bedrock');
 
 const logger = new Logger({ serviceName: 'getBatchRiskReport' });
 const tracer = new Tracer({ serviceName: 'getBatchRiskReport' });
@@ -136,6 +137,7 @@ async function classifyRisk(employeeId, verificationItems) {
     return { employeeId, risk, reason };
   } catch (e) {
     logger.warn('Bedrock classification failed for employee', { employeeId, error: e.message });
+    if (e.aiDisabled) return { employeeId, risk: 'UNKNOWN', reason: AI_DISABLED_LABEL };
     return { employeeId, risk: 'UNKNOWN', reason: `Classification error: ${e.message}` };
   }
 }

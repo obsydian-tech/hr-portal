@@ -13,6 +13,7 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { aiEnabled, guardAi, AI_DISABLED_LABEL } from '../shared/ai-guard.mjs';
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { createHash } from 'node:crypto';
 import { marshall } from '@aws-sdk/util-dynamodb';
@@ -25,7 +26,7 @@ import { buildCacheKey, getCached, setCached } from './cache.mjs';
 
 const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
-const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+const bedrock = guardAi(new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'af-south-1' }), 'bedrock');
 const dynamo  = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
 // NH-74: audit table — AI interaction records for POPIA compliance
@@ -603,6 +604,24 @@ export const handler = async (event) => {
   }
   if (!claims['custom:staff_id']) {
     logger.warn(JSON.stringify({ event: 'staff_id_fallback_to_sub', sub: staffId }));
+  }
+
+  // AI cost guardrail: answer with a labelled stand-in while AI is off.
+  if (!aiEnabled()) {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message:         AI_DISABLED_LABEL,
+        toolCallsMade:   [],
+        conversationId:  `${staffId}-${Date.now()}`,
+        structuredData:  {},
+        latencyMs:       Date.now() - start,
+        guardrailAction: 'AI_DISABLED',
+        status:          'AI_DISABLED',
+        cacheHit:        false,
+      }),
+    };
   }
 
   // ── 1b. NH-80: Hourly rate limit check ─────────────────────────────────

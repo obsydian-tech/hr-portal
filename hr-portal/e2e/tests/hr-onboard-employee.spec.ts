@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from '../fixtures/no-ai';
 
 /**
  * Journey 1: HR Partner onboards a new employee
