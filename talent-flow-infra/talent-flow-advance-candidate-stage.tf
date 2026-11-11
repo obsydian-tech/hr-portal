@@ -48,6 +48,26 @@ resource "aws_iam_role_policy" "advance_candidate_stage" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
+        # Mirrors the hand-made inline policy "state-table-query" in prod.
+        Sid    = "DynamoStateQuery"
+        Effect = "Allow"
+        Action = "dynamodb:Query"
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/*",
+        ]
+      },
+      {
+        # Mirrors the hand-made inline policy "config-table-query" in prod (config-reader.js).
+        Sid    = "DynamoConfigRead"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/*",
+        ]
+      },
+      {
         Sid      = "EventBridgePut"
         Effect   = "Allow"
         Action   = "events:PutEvents"
