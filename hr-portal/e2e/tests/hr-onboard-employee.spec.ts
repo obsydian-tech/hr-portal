@@ -17,6 +17,8 @@ import { test, expect, Page } from '../fixtures/no-ai';
 const HR_EMAIL = process.env['E2E_HR_EMAIL'] ?? '';
 const HR_PASSWORD = process.env['E2E_HR_PASSWORD'] ?? '';
 // Staff ID of the seeded HR login (scripts/ci/seed-dev.py HR_STAFF_ID).
+// Names allow letters, spaces, hyphens and apostrophes only (no digits).
+const FIRST_NAME = 'Robot';
 const HR_STAFF_ID = process.env['E2E_HR_STAFF_ID'] ?? 'E2EHR01';
 
 async function loginAsHR(page: Page): Promise<string> {
@@ -57,7 +59,7 @@ test.describe('HR Partner onboards a new employee', () => {
     await page.goto(`/hr/${staffId}/new-employee`);
 
     // Step 1: Personal Details
-    await page.locator('[data-testid="first-name"]').fill('E2E');
+    await page.locator('[data-testid="first-name"]').fill(FIRST_NAME);
     await page.locator('[data-testid="last-name"]').fill('TestEmployee');
     await page.locator('[data-testid="email"]').fill(uniqueEmail);
     await page.locator('[data-testid="phone"]').fill('0812345678');
@@ -73,7 +75,7 @@ test.describe('HR Partner onboards a new employee', () => {
     await page.goto(`/hr/${staffId}/new-employee`);
 
     // ── Step 1: Personal Details ──
-    await page.locator('[data-testid="first-name"]').fill('E2E');
+    await page.locator('[data-testid="first-name"]').fill(FIRST_NAME);
     await page.locator('[data-testid="last-name"]').fill('TestEmployee');
     await page.locator('[data-testid="email"]').fill(uniqueEmail);
     await page.locator('[data-testid="phone"]').fill('0812345678');
@@ -86,9 +88,12 @@ test.describe('HR Partner onboards a new employee', () => {
     await page.locator('.p-select-option').first().click();
 
     // Pick offer accept date — use the input directly
-    const today = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
-    await page.locator('p-datepicker[id="offerDate"] input').fill(today);
-    await page.locator('p-datepicker[id="startDate"] input').fill(today);
+    // Offer date must be today or earlier; start date must be in the future.
+    const iso = (d: Date) => d.toISOString().split('T')[0]; // yyyy-mm-dd
+    const today = new Date();
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await page.locator('p-datepicker[id="offerDate"] input').fill(iso(today));
+    await page.locator('p-datepicker[id="startDate"] input').fill(iso(tomorrow));
     await page.keyboard.press('Escape'); // close any open datepicker overlay
 
     await page.locator('[data-testid="next-btn"] button').click();
@@ -103,13 +108,13 @@ test.describe('HR Partner onboards a new employee', () => {
 
     // Success state
     await expect(page.locator('[data-testid="success-card"]')).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('[data-testid="success-employee-name"]')).toContainText('E2E TestEmployee');
+    await expect(page.locator('[data-testid="success-employee-name"]')).toContainText(`${FIRST_NAME} TestEmployee`);
     await expect(page.locator('[data-testid="success-employee-id"]')).toBeVisible();
 
     // Verify employee appears in dashboard list
     // Navigate back to HR home
     await page.locator('button:has-text("Back to Dashboard")').click();
     await expect(page).toHaveURL(/\/hr\/[A-Z0-9]+$/, { timeout: 10_000 });
-    await expect(page.locator('[data-testid="employee-list"]')).toContainText('E2E TestEmployee');
+    await expect(page.locator('[data-testid="employee-list"]')).toContainText(`${FIRST_NAME} TestEmployee`);
   });
 });
