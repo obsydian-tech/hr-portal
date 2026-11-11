@@ -27,6 +27,8 @@
 # ---------------------------------------------------------------------------
 
 resource "aws_iam_openid_connect_provider" "github" {
+  count = var.manage_github_ci_roles ? 1 : 0
+
   url = "https://token.actions.githubusercontent.com"
 
   client_id_list = ["sts.amazonaws.com"]
@@ -42,6 +44,8 @@ resource "aws_iam_openid_connect_provider" "github" {
 # ---------------------------------------------------------------------------
 
 resource "aws_iam_role" "talent_flow_github_deploy" {
+  count = var.manage_github_ci_roles ? 1 : 0
+
   name        = "talent-flow-role-github-deploy"
   description = "Assumed by GitHub Actions (main branch only) to apply TalentFlow Terraform"
 
@@ -49,7 +53,7 @@ resource "aws_iam_role" "talent_flow_github_deploy" {
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Principal = { Federated = aws_iam_openid_connect_provider.github[0].arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
@@ -77,8 +81,10 @@ resource "aws_iam_role" "talent_flow_github_deploy" {
 # ---------------------------------------------------------------------------
 
 resource "aws_iam_role_policy" "talent_flow_github_deploy" {
+  count = var.manage_github_ci_roles ? 1 : 0
+
   name = "talent-flow-github-deploy-policy"
-  role = aws_iam_role.talent_flow_github_deploy.name
+  role = aws_iam_role.talent_flow_github_deploy[0].name
 
   policy = jsonencode({
     Version = "2012-10-17"

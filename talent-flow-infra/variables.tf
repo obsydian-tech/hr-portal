@@ -28,3 +28,37 @@ variable "project" {
     error_message = "project must be 'talent-flow' - all resource names depend on this prefix."
   }
 }
+
+variable "manage_github_ci_roles" {
+  description = "Create the GitHub OIDC provider and CI roles in this account. True in prod only; pepla-dev gets them from bootstrap/dev."
+  type        = bool
+  default     = true
+}
+
+# ── IDs of resources owned by infra/ (Naleko onboarding stack) ───────────────
+# Defaults are prod. A new account (pepla-dev) sets them in env/<env>.tfvars;
+# see bootstrap/dev/README.md for the first-time apply order.
+
+variable "naleko_pool_id" {
+  description = "Cognito user pool ID of the shared Naleko pool (infra/cognito.tf)."
+  type        = string
+  default     = "af-south-1_2LdAGFnw2"
+}
+
+variable "naleko_client_id" {
+  description = "Cognito app client ID used by the Angular app."
+  type        = string
+  default     = "1pk5rd58glsohfplnlr63tg0qb"
+}
+
+variable "naleko_agent_api_id" {
+  description = "API Gateway ID of naleko-agent-api (infra/agent_api.tf)."
+  type        = string
+  default     = "fou21cj8tj"
+}
+
+variable "naleko_agent_jwt_authorizer_id" {
+  description = "ID of the Cognito JWT authorizer on naleko-agent-api."
+  type        = string
+  default     = "uhi317"
+}

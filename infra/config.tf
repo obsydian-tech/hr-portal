@@ -5,12 +5,14 @@
 # ---------------------------------------------------------------------------
 
 module "config" {
+  count = var.enable_prod_monitoring ? 1 : 0
+
   source = "./modules/config"
 
   region            = var.aws_region
   environment       = var.environment
   account_id        = var.aws_account_id
-  ops_sns_topic_arn = module.alarms.sns_topic_arn
+  ops_sns_topic_arn = module.alarms[0].sns_topic_arn
   lambda_role_arn   = local.lambda_role_arn
   placeholder_zip   = local.placeholder_zip
   config_lambda_zip = "${path.root}/../lambda_configregioncheck.zip"

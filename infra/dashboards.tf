@@ -4,6 +4,8 @@
 # ---------------------------------------------------------------------------
 
 module "dashboards" {
+  count = var.enable_prod_monitoring ? 1 : 0
+
   source = "./modules/dashboards"
 
   region      = var.aws_region

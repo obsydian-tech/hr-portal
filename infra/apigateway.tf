@@ -39,8 +39,8 @@ resource "aws_apigatewayv2_api" "document_upload_api" {
 # ---------------------------------------------------------------------------
 
 locals {
-  cognito_issuer   = "https://cognito-idp.af-south-1.amazonaws.com/af-south-1_2LdAGFnw2"
-  cognito_audience = ["1pk5rd58glsohfplnlr63tg0qb"]
+  cognito_issuer   = "https://${aws_cognito_user_pool.naleko_dev.endpoint}"
+  cognito_audience = [local.naleko_web_client_id]
 }
 
 resource "aws_apigatewayv2_authorizer" "employees_api_cognito" {

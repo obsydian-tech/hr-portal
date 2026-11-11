@@ -43,3 +43,31 @@ variable "alert_email" {
   type        = string
   default     = "ignecious@obsydiantechnologies.com"
 }
+
+variable "enable_prod_monitoring" {
+  description = "AWS Config, CloudWatch dashboards and alarms. These cost a fixed amount each month, so they are on in prod and off in pepla-dev."
+  type        = bool
+  default     = true
+}
+
+# ── IDs of resources owned by talent-flow-infra/ ─────────────────────────────
+# Defaults are prod. A new account (pepla-dev) sets them in env/<env>.tfvars
+# after talent-flow-infra/ has been applied there.
+
+variable "talent_flow_api_id" {
+  description = "API Gateway ID of talent-flow-api (created by talent-flow-infra/)."
+  type        = string
+  default     = "57l0w7kk9h"
+}
+
+variable "talent_flow_cognito_authorizer_id" {
+  description = "ID of the cognito-jwt authorizer on talent-flow-api."
+  type        = string
+  default     = "ko4zam"
+}
+
+variable "talent_flow_kms_key_id" {
+  description = "Key ID of the TalentFlow KMS key used for the talent-flow-events table."
+  type        = string
+  default     = "87842eae-1ee4-43d1-8bf8-9dd92415ea68"
+}

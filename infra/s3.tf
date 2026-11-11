@@ -2,8 +2,17 @@
 # S3 Bucket — NH-11 Terraform import
 # ---------------------------------------------------------------------------
 
+# Bucket names are global across AWS, so non-prod accounts get their own name.
+# Prod keeps its original name (no change to the live bucket).
+locals {
+  document_uploads_bucket = var.environment == "prod" ? "document-ocr-verification-uploads" : "pepla-${var.environment}-document-uploads-${var.aws_account_id}"
+
+  # Only non-prod Lambdas get UPLOAD_BUCKET; prod code falls back to the original name.
+  upload_bucket_env = var.environment == "prod" ? {} : { UPLOAD_BUCKET = local.document_uploads_bucket }
+}
+
 resource "aws_s3_bucket" "document_uploads" {
-  bucket = "document-ocr-verification-uploads"
+  bucket = local.document_uploads_bucket
 
   tags = {
     Environment = "dev"

@@ -15,7 +15,7 @@ data "aws_ssm_parameter" "postmark_token" {
 
 locals {
   # Retained for the AWS Config region-enforcement Lambda in config.tf
-  lambda_role_arn = "arn:aws:iam::937137806477:role/doc-verification-lambda-role"
+  lambda_role_arn = "arn:aws:iam::${var.aws_account_id}:role/doc-verification-lambda-role"
   placeholder_zip = "${path.root}/../placeholder.zip"
 }
 
@@ -95,10 +95,10 @@ resource "aws_lambda_function" "upload_document_to_s3" {
   architectures = ["x86_64"]
 
   environment {
-    variables = {
+    variables = merge({
       KMS_KEY_ARN       = module.kms_pii.key_arn
       IDEMPOTENCY_TABLE = aws_dynamodb_table.idempotency_keys.name
-    }
+    }, local.upload_bucket_env)
   }
 
   ephemeral_storage { size = 512 }
@@ -304,9 +304,9 @@ resource "aws_lambda_function" "get_document_presigned_url" {
   architectures = ["x86_64"]
 
   environment {
-    variables = {
+    variables = merge({
       KMS_KEY_ARN = module.kms_pii.key_arn
-    }
+    }, local.upload_bucket_env)
   }
 
   ephemeral_storage { size = 512 }
@@ -334,9 +334,9 @@ resource "aws_lambda_function" "generate_document_upload_url" {
   architectures = ["x86_64"]
 
   environment {
-    variables = {
+    variables = merge({
       KMS_KEY_ARN = module.kms_pii.key_arn
-    }
+    }, local.upload_bucket_env)
   }
 
   ephemeral_storage { size = 512 }
@@ -503,6 +503,9 @@ resource "aws_lambda_function" "naleko_mcp_server" {
 # Resolves the agent API key from Secrets Manager at plan/apply time
 data "aws_secretsmanager_secret_version" "agent_api_key" {
   secret_id = aws_secretsmanager_secret.agent_api_key.id
+
+  # In a fresh account (pepla-dev) the first version must exist before it is read.
+  depends_on = [aws_secretsmanager_secret_version.agent_api_key]
 }
 
 # Lambda Function URL — RESPONSE_STREAM required for MCP HTTP+SSE transport

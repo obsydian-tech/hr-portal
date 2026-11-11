@@ -4,6 +4,8 @@
 # ---------------------------------------------------------------------------
 
 module "alarms" {
+  count = var.enable_prod_monitoring ? 1 : 0
+
   source = "./modules/alarms"
 
   region      = var.aws_region

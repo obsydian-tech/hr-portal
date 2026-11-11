@@ -62,7 +62,7 @@ resource "aws_iam_role_policy" "create_employee" {
           "cognito-idp:AdminAddUserToGroup",
           "cognito-idp:AdminSetUserPassword",
         ]
-        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/af-south-1_2LdAGFnw2"
+        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
       },
       {
         Sid      = "KMSPIIKey"
@@ -160,7 +160,7 @@ resource "aws_iam_role_policy" "cognito_post_auth" {
         Sid      = "TalentFlowKMSDecrypt"
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:DescribeKey"]
-        Resource = "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/87842eae-1ee4-43d1-8bf8-9dd92415ea68"
+        Resource = "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/${var.talent_flow_kms_key_id}"
       }
     ]
   })
@@ -262,7 +262,7 @@ resource "aws_iam_role_policy" "upload_document_to_s3" {
         Sid      = "S3Put"
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
-        Resource = "arn:aws:s3:::document-ocr-verification-uploads/*"
+        Resource = "arn:aws:s3:::${local.document_uploads_bucket}/*"
       },
       {
         Sid      = "DynamoDB"
@@ -327,7 +327,7 @@ resource "aws_iam_role_policy" "process_document_ocr" {
         Sid      = "S3Read"
         Effect   = "Allow"
         Action   = ["s3:GetObject"]
-        Resource = "arn:aws:s3:::document-ocr-verification-uploads/*"
+        Resource = "arn:aws:s3:::${local.document_uploads_bucket}/*"
       },
       {
         Sid      = "Textract"
@@ -727,7 +727,7 @@ resource "aws_iam_role_policy" "get_document_presigned_url" {
         Sid      = "S3Get"
         Effect   = "Allow"
         Action   = ["s3:GetObject"]
-        Resource = "arn:aws:s3:::document-ocr-verification-uploads/*"
+        Resource = "arn:aws:s3:::${local.document_uploads_bucket}/*"
       },
       {
         Sid      = "KMSPIIKey"
@@ -780,7 +780,7 @@ resource "aws_iam_role_policy" "generate_document_upload_url" {
         Sid      = "S3PresignedPut"
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
-        Resource = "arn:aws:s3:::document-ocr-verification-uploads/uploads/*"
+        Resource = "arn:aws:s3:::${local.document_uploads_bucket}/uploads/*"
       },
       {
         Sid    = "DynamoDB"

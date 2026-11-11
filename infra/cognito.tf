@@ -129,3 +129,27 @@ resource "aws_cognito_user_group" "it_provisioning" {
   description  = "IT Specialists with access to the IT Provisioning module"
   precedence   = 30
 }
+
+# ── Web app client ───────────────────────────────────────────────────────────
+# Prod's app client (1pk5rd58glsohfplnlr63tg0qb) was created by hand and is not
+# in Terraform yet. Other accounts (pepla-dev) get a managed one here.
+# Follow-up: import the prod client and drop the count.
+resource "aws_cognito_user_pool_client" "web" {
+  count = var.environment == "prod" ? 0 : 1
+
+  name            = "pepla-web-${var.environment}"
+  user_pool_id    = aws_cognito_user_pool.naleko_dev.id
+  generate_secret = false
+
+  # USER_PASSWORD_AUTH lets end-to-end tests sign in test users without a browser.
+  explicit_auth_flows = [
+    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+  ]
+  prevent_user_existence_errors = "ENABLED"
+}
+
+locals {
+  naleko_web_client_id = var.environment == "prod" ? "1pk5rd58glsohfplnlr63tg0qb" : aws_cognito_user_pool_client.web[0].id
+}

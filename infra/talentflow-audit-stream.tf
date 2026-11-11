@@ -28,20 +28,20 @@ data "aws_cloudwatch_event_bus" "talent_flow_bus" {
 
 # TalentFlow API Gateway — manually created; we add routes to it.
 data "aws_apigatewayv2_api" "talent_flow_api" {
-  api_id = "57l0w7kk9h"
+  api_id = var.talent_flow_api_id
 }
 
 # TalentFlow Cognito JWT authorizer ID (cognito-jwt, id: ko4zam).
 # aws_apigatewayv2_authorizer has no data source in this provider version;
 # the ID is stable — managed by talent-flow-infra/ and imported here by value.
 locals {
-  talent_flow_cognito_authorizer_id = "ko4zam"
+  talent_flow_cognito_authorizer_id = var.talent_flow_cognito_authorizer_id
 }
 
 # TalentFlow KMS key — used to encrypt the events table at rest.
 # The alias/talent-flow does not exist; look up by key ID directly.
 data "aws_kms_key" "talent_flow" {
-  key_id = "87842eae-1ee4-43d1-8bf8-9dd92415ea68"
+  key_id = var.talent_flow_kms_key_id
 }
 
 # ─── DynamoDB: talent-flow-events ─────────────────────────────────────────────

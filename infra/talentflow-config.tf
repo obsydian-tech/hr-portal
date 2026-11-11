@@ -74,7 +74,7 @@ resource "aws_iam_role_policy" "manage_talent_flow_config" {
         Sid      = "KMSStateKey"
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
-        Resource = "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/87842eae-1ee4-43d1-8bf8-9dd92415ea68"
+        Resource = "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/${var.talent_flow_kms_key_id}"
       }
     ]
   })

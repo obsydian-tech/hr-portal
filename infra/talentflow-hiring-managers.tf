@@ -62,7 +62,7 @@ resource "aws_iam_role_policy" "get_hiring_managers" {
         Effect = "Allow"
         Action = ["cognito-idp:ListUsersInGroup"]
         # Pool consolidation: use Naleko pool (same pool as TF API GW authorizer)
-        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/af-south-1_2LdAGFnw2"
+        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
       }
     ]
   })
@@ -79,7 +79,7 @@ resource "aws_lambda_function" "get_hiring_managers" {
 
   environment {
     variables = {
-      HM_COGNITO_POOL_ID = "af-south-1_2LdAGFnw2"
+      HM_COGNITO_POOL_ID = aws_cognito_user_pool.naleko_dev.id
       HM_GROUP_NAME      = "naleko-talentflow-hiringmanager"
     }
   }
