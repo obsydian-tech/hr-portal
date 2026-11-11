@@ -7,10 +7,10 @@ import path from 'path';
  * This spec covers the employee self-service document upload flow:
  *   1. Login as new employee
  *   2. Navigate to employee dashboard (/employees/:employeeId)
- *   3. Locate the ID Document card (doc-card-ID_DOCUMENT)
+ *   3. Locate the ID Document card (doc-card-NATIONAL_ID)
  *   4. Upload a test PDF fixture via the hidden file input
  *   5. Assert upload progress spinner appears
- *   6. Assert upload success state is visible within timeout
+ *   6. Assert it lands in manual review (test data never reaches the AI)
  *
  * Env vars required:
  *   E2E_EMP_EMAIL     — Employee identifier (e.g. EMP-0000001)
@@ -33,7 +33,22 @@ async function loginAsEmployee(page: Page): Promise<string> {
 
   const url = page.url();
   const match = url.match(/\/employees\/([^/]+)/);
+
+  // First visit shows the POPIA declaration; accept it to reach the checklist.
+  // (It is skipped automatically once the employee has documents.)
+  const accept = page.getByRole('button', { name: 'Accept & Continue' });
+  const checklist = page.locator('text=Upload Your Documents');
+  await expect(accept.or(checklist)).toBeVisible({ timeout: 15_000 });
+  if (await accept.isVisible()) {
+    await page.locator('label[for="consent"]').click();
+    await accept.click();
+  }
   return match ? match[1] : '';
+}
+
+/** The National ID row: the hidden file input sits beside the card, inside the row. */
+function idDocRow(page: Page) {
+  return page.locator('app-document-row').filter({ has: page.locator('[data-testid="doc-card-NATIONAL_ID"]') });
 }
 
 test.describe('New employee uploads ID document', () => {
@@ -53,7 +68,7 @@ test.describe('New employee uploads ID document', () => {
 
   test('New employee can upload ID document', async ({ page }) => {
     // Locate the ID document card
-    const idDocCard = page.locator('[data-testid="doc-card-ID_DOCUMENT"]');
+    const idDocCard = idDocRow(page);
     await expect(idDocCard).toBeVisible({ timeout: 10_000 });
 
     // The hidden file input within this card
@@ -66,22 +81,23 @@ test.describe('New employee uploads ID document', () => {
     // Upload progress indicator should appear near immediately
     await expect(idDocCard.locator('[data-testid="upload-progress"]')).toBeVisible({ timeout: 5_000 });
 
-    // Wait for upload + OCR to complete — 30s timeout for network round-trip
-    await expect(idDocCard.locator('[data-testid="upload-success"]')).toBeVisible({ timeout: 30_000 });
+    // Test employees never reach the AI (cost guardrail), so OCR is skipped and
+    // the document goes to manual review. "Verified" here would mean AI was called.
+    await expect(idDocCard.locator('[data-testid="upload-in-review"]')).toBeVisible({ timeout: 60_000 });
   });
 
   test('ID document appears in list after successful upload', async ({ page }) => {
     // After a successful upload, the card should show the verified extracted fields
     // and NOT show the dropzone anymore.
-    const idDocCard = page.locator('[data-testid="doc-card-ID_DOCUMENT"]');
+    const idDocCard = idDocRow(page);
     await expect(idDocCard).toBeVisible({ timeout: 10_000 });
 
-    // If already uploaded in a previous run, success state should be immediately visible
-    const alreadyUploaded = await idDocCard.locator('[data-testid="upload-success"]').isVisible();
-    if (!alreadyUploaded) {
+    // If already uploaded earlier in this run, the review state is already visible
+    const settled = idDocCard.locator('[data-testid="upload-in-review"]');
+    if (!(await settled.isVisible())) {
       const fileInput = idDocCard.locator('[data-testid="document-input"]');
       await fileInput.setInputFiles(TEST_PDF_PATH);
-      await expect(idDocCard.locator('[data-testid="upload-success"]')).toBeVisible({ timeout: 30_000 });
+      await expect(settled).toBeVisible({ timeout: 60_000 });
     }
 
     // No raw dropzone should remain
