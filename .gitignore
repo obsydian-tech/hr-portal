@@ -83,3 +83,6 @@ talent-flow-infra/.terraform/
 # Terraform plan files embed state, including secrets
 tfplan*
 *.tfplan
+
+# CI Lambda bundles (scripts/ci/build-lambdas.py)
+/dist/

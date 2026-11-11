@@ -1,0 +1,83 @@
+# ---------------------------------------------------------------------------
+# Lambda code deploy: build once, deploy the same zips everywhere.
+#
+#   merge to main  ->  build (one deterministic zip per lambda/ folder)
+#                  ->  deploy to pepla-dev (GitHub env "dev", OIDC role)
+#
+# Prod promotion of the SAME artifact (after Iggie's Approve on the
+# "production" environment) is added once the prod deploy role exists.
+#
+# Terraform owns configuration and ignores Lambda code; this owns code only.
+# Logs show function names and counts only: the repo is public.
+# ---------------------------------------------------------------------------
+name: Deploy Lambdas
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lambda/**"
+      - "scripts/ci/build-lambdas.py"
+      - "scripts/ci/deploy-lambdas.sh"
+      - ".github/workflows/deploy-lambdas.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-lambdas
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: af-south-1
+
+jobs:
+  build:
+    name: Build Lambda bundles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build
+        run: python3 scripts/ci/build-lambdas.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lambda-bundles-${{ github.sha }}
+          path: dist/lambdas/
+          retention-days: 14
+          if-no-files-found: error
+
+  deploy-dev:
+    name: Deploy to pepla-dev
+    needs: build
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: lambda-bundles-${{ github.sha }}
+          path: dist/lambdas/
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::424556617428:role/pepla-github-deploy-dev
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check we are in pepla-dev
+        run: |
+          acct=$(aws sts get-caller-identity --query Account --output text)
+          [ "$acct" = "424556617428" ] || { echo "::error::not pepla-dev"; exit 1; }
+
+      - name: Deploy code
+        run: scripts/ci/deploy-lambdas.sh dist/lambdas

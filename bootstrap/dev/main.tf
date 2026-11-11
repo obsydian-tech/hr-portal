@@ -45,7 +45,7 @@ variable "budget_alert_email" {
 variable "monthly_budget_usd" {
   description = "Monthly cost budget for pepla-dev, in USD."
   type        = string
-  default     = "5"
+  default     = "20"
 }
 
 provider "aws" {
