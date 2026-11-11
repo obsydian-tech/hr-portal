@@ -7,7 +7,7 @@ import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { aiEnabled, guardAi, AI_DISABLED_LABEL } from '../shared/ai-guard.mjs';
+import { guardAi, isRobotEmail, markRobot, aiSwitchedOff, AI_SKIPPED_LABEL, AI_OFF_LABEL } from '../shared/ai-guard.mjs';
 
 const textract = guardAi(new TextractClient({ region: "eu-west-1" }), "textract");
 const s3 = new S3Client();
@@ -231,12 +231,26 @@ const handlerFn = async (event) => {
     const fileBytes = await s3Response.Body.transformToByteArray();
     logger.info('File downloaded', { bytes: fileBytes.length });
 
-    // AI cost guardrail: with AI off, skip Textract and Claude and send the
-    // document straight to a person for manual review.
+    // AI cost guardrail: documents of test employees (robots) never reach
+    // Textract or Claude; they go straight to manual review. If the employee
+    // can't be read, play safe and treat it as test data.
+    let robot = true;
+    try {
+      const emp = await dynamodb.send(new GetItemCommand({
+        TableName: process.env.EMPLOYEES_TABLE ?? 'employees',
+        Key: { employee_id: { S: employeeId } },
+        ProjectionExpression: 'email',
+      }));
+      robot = !emp.Item || isRobotEmail(emp.Item.email?.S);
+    } catch (guardErr) {
+      logger.warn('Employee lookup for AI guard failed; skipping AI', { error: guardErr.message });
+    }
+    markRobot(robot);
     let validationResult;
-    if (!aiEnabled()) {
-      logger.info('AI is off: document goes to manual review without OCR', { documentType });
-      validationResult = { checks: {}, confidence: 0, decision: 'MANUAL_REVIEW', reasoning: AI_DISABLED_LABEL };
+    if (robot || aiSwitchedOff()) {
+      logger.info('AI skipped: document goes to manual review without OCR', { documentType, robot });
+      validationResult = { checks: {}, confidence: 0, decision: 'MANUAL_REVIEW',
+                           reasoning: robot ? AI_SKIPPED_LABEL : AI_OFF_LABEL };
     } else {
     // 3. Extract text with Textract
     const textractResponse = await textract.send(

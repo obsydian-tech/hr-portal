@@ -19,7 +19,7 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
-import { guardAi, AI_DISABLED_LABEL } from '../shared/ai-guard.mjs';
+import { guardAi, isRobotCaller, markRobot } from '../shared/ai-guard.mjs';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -137,7 +137,7 @@ async function classifyRisk(employeeId, verificationItems) {
     return { employeeId, risk, reason };
   } catch (e) {
     logger.warn('Bedrock classification failed for employee', { employeeId, error: e.message });
-    if (e.aiDisabled) return { employeeId, risk: 'UNKNOWN', reason: AI_DISABLED_LABEL };
+    if (e.aiBlocked) return { employeeId, risk: 'UNKNOWN', reason: e.label };
     return { employeeId, risk: 'UNKNOWN', reason: `Classification error: ${e.message}` };
   }
 }
@@ -147,6 +147,7 @@ async function classifyRisk(employeeId, verificationItems) {
 export const handler = async (event) => {
   logger.info('Handler invoked', { path: event.rawPath, method: event.requestContext?.http?.method });
   tracer.putAnnotation('operation', 'getBatchRiskReport');
+  markRobot(isRobotCaller(event.requestContext?.authorizer?.jwt?.claims));
 
   if (event.requestContext?.http?.method === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };

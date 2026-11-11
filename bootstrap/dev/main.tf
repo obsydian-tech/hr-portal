@@ -196,6 +196,22 @@ resource "aws_iam_role_policy" "github_deploy_dev_guardrails" {
         Resource = aws_s3_bucket.tfstate.arn
       },
       {
+        # AI cost guardrail: CI is a robot, and robots never call paid AI.
+        Sid      = "NoPaidAI"
+        Effect   = "Deny"
+        Action   = ["bedrock:Invoke*", "bedrock:StartAsyncInvoke", "bedrock:CreateModelInvocationJob", "textract:*"]
+        Resource = "*"
+      },
+      {
+        # Lambda direct-invoke of the AI functions from CI would bypass the robot check.
+        Sid    = "NoInvokingAiLambdas"
+        Effect = "Deny"
+        Action = ["lambda:InvokeFunction", "lambda:InvokeFunctionUrl"]
+        Resource = [for f in ["talentFlowAiChat", "nalekoAiChat", "classifyOnboardingRisk",
+          "summariseVerification", "getBatchRiskReport", "processDocumentOCR"] :
+        "arn:aws:lambda:af-south-1:${var.dev_account_id}:function:${f}*"]
+      },
+      {
         Sid    = "CapeTownOnly"
         Effect = "Deny"
         NotAction = [

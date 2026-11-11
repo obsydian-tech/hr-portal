@@ -18,6 +18,7 @@ on:
     paths:
       - "lambda/**"
       - "scripts/ci/build-lambdas.py"
+      - "scripts/ci/check-ai-guard.py"
       - "scripts/ci/deploy-lambdas.sh"
       - ".github/workflows/deploy-lambdas.yml"
       - "scripts/ci/seed-dev.py"
@@ -47,6 +48,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: AI cost guardrail check
+        run: python3 scripts/ci/check-ai-guard.py
 
       - name: Build
         run: python3 scripts/ci/build-lambdas.py

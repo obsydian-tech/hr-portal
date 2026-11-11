@@ -13,7 +13,7 @@
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import { aiEnabled, guardAi, AI_DISABLED_LABEL } from '../shared/ai-guard.mjs';
+import { guardAi, isRobotCaller, markRobot, aiSwitchedOff, AI_SKIPPED_LABEL, AI_OFF_LABEL } from '../shared/ai-guard.mjs';
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { createHash } from 'node:crypto';
 import { marshall } from '@aws-sdk/util-dynamodb';
@@ -606,13 +606,15 @@ export const handler = async (event) => {
     logger.warn(JSON.stringify({ event: 'staff_id_fallback_to_sub', sub: staffId }));
   }
 
-  // AI cost guardrail: answer with a labelled stand-in while AI is off.
-  if (!aiEnabled()) {
+  // AI cost guardrail: test logins (robots) never reach the AI; people do.
+  const robot = isRobotCaller(claims);
+  markRobot(robot);
+  if (robot || aiSwitchedOff()) {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message:         AI_DISABLED_LABEL,
+        message:         robot ? AI_SKIPPED_LABEL : AI_OFF_LABEL,
         toolCallsMade:   [],
         conversationId:  `${staffId}-${Date.now()}`,
         structuredData:  {},

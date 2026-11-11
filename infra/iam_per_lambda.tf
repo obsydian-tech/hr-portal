@@ -1054,10 +1054,12 @@ resource "aws_iam_role_policy" "classify_onboarding_risk" {
         ]
       },
       {
-        # NH-41: Persist riskBand, riskReason, riskAssessedAt to employees table
+        # NH-41: Persist riskBand, riskReason, riskAssessedAt to employees table.
+        # GetItem: the AI cost guardrail reads the employee's email to skip AI
+        # for test data (lambda/shared/ai-guard.mjs).
         Sid      = "DynamoDBUpdateEmployee"
         Effect   = "Allow"
-        Action   = ["dynamodb:UpdateItem"]
+        Action   = ["dynamodb:UpdateItem", "dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
       },
       {
