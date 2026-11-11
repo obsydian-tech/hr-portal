@@ -37,3 +37,9 @@ in a new account goes in three steps. After that, normal plans/applies work.
 3. `infra/`: full apply with `-var-file=env/dev.tfvars`.
 
 Prod is unchanged: every new variable defaults to today's prod value.
+
+Notes from the first run (2026-11-11, 6 + 306 + 384 resources created):
+- `placeholder.zip` must contain a real file (e.g. `index.mjs` exporting a stub
+  handler); Lambda rejects a zip with an empty file on create.
+- Use short-lived credentials for `OrganizationAccountAccessRole` in 424556617428.
+- All dev Lambdas start as the placeholder stub until code is deployed.
