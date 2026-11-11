@@ -78,3 +78,7 @@ Thumbs.db
 # TalentFlow — never commit account IDs
 talent-flow-infra/terraform.tfvars
 talent-flow-infra/.terraform/
+
+# Terraform plan files embed state, including secrets
+tfplan*
+*.tfplan
