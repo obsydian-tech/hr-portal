@@ -56,6 +56,7 @@ hr-portal/typings/
 *.md
 !hr-portal/**/*.md
 !infra/**/*.md
+!bootstrap/**/*.md
 !api/**/*.md
 !lambda/**/*.md
 !scripts/**/*.md
