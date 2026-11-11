@@ -10,7 +10,7 @@ const dynamodb = new DynamoDBClient({ region: "af-south-1" });
 const logger = new Logger({ serviceName: 'generateDocumentUploadUrl' });
 const tracer = new Tracer({ serviceName: 'generateDocumentUploadUrl' });
 
-const BUCKET_NAME = "document-ocr-verification-uploads";
+const BUCKET_NAME = process.env.UPLOAD_BUCKET ?? "document-ocr-verification-uploads";
 const DOCUMENTS_TABLE = "documents";
 const EMPLOYEES_TABLE = "employees";
 const URL_EXPIRY_SECONDS = 900; // 15 minutes

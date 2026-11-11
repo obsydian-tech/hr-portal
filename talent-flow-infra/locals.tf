@@ -102,8 +102,8 @@ locals {
   # validates tokens from the Naleko parent pool (af-south-1_2LdAGFnw2).
   # TalentFlow users exist as groups inside the Naleko pool. Angular logs in
   # once via the Naleko pool and that single token is accepted everywhere.
-  tf_naleko_pool_id   = "af-south-1_2LdAGFnw2"
-  tf_naleko_client_id = "1pk5rd58glsohfplnlr63tg0qb"
+  tf_naleko_pool_id   = var.naleko_pool_id
+  tf_naleko_client_id = var.naleko_client_id
 
   # Groups - internal staff only (candidates are DynamoDB records, not Cognito users)
   tf_cognito_groups = toset([

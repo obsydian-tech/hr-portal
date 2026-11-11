@@ -10,7 +10,7 @@ const s3 = new S3Client({ region: "af-south-1" });
 const logger = new Logger({ serviceName: 'getDocumentPresignedUrl' });
 const tracer = new Tracer({ serviceName: 'getDocumentPresignedUrl' });
 
-const BUCKET = "document-ocr-verification-uploads";
+const BUCKET = process.env.UPLOAD_BUCKET ?? "document-ocr-verification-uploads";
 const DOCUMENTS_TABLE = "documents";
 const URL_EXPIRY_SECONDS = 900; // 15 minutes
 

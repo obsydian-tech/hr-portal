@@ -16,7 +16,7 @@
 # ---------------------------------------------------------------------------
 
 resource "aws_apigatewayv2_integration" "talentflow_ai_chat" {
-  api_id                 = "fou21cj8tj"
+  api_id                 = var.naleko_agent_api_id
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.ai_chat.invoke_arn
   payload_format_version = "2.0"
@@ -27,10 +27,10 @@ resource "aws_apigatewayv2_integration" "talentflow_ai_chat" {
 }
 
 resource "aws_apigatewayv2_route" "talentflow_ai_chat" {
-  api_id             = "fou21cj8tj"
+  api_id             = var.naleko_agent_api_id
   route_key          = "POST /agent/v1/talentflow/chat"
   authorization_type = "JWT"
-  authorizer_id      = "uhi317"
+  authorizer_id      = var.naleko_agent_jwt_authorizer_id
   target             = "integrations/${aws_apigatewayv2_integration.talentflow_ai_chat.id}"
 }
 
@@ -39,5 +39,5 @@ resource "aws_lambda_permission" "talentflow_ai_chat_agent_api" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.ai_chat.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "arn:aws:execute-api:af-south-1:${var.aws_account_id}:fou21cj8tj/*/POST/agent/v1/talentflow/chat"
+  source_arn    = "arn:aws:execute-api:af-south-1:${var.aws_account_id}:${var.naleko_agent_api_id}/*/POST/agent/v1/talentflow/chat"
 }

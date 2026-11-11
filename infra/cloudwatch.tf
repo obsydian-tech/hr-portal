@@ -215,6 +215,8 @@ resource "aws_cloudwatch_log_metric_filter" "naleko_history_summarised" {
 # All metrics from Naleko/AI namespace (created by NH-82 metric filters).
 # period = 3600 (hourly). 2-column × 3-row layout (width 12 each, height 6).
 resource "aws_cloudwatch_dashboard" "naleko_ai_poc" {
+  count = var.enable_prod_monitoring ? 1 : 0
+
   dashboard_name = "Naleko-AI-PoC"
 
   dashboard_body = jsonencode({

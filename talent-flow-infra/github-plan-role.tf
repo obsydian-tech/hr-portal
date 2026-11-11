@@ -31,6 +31,8 @@ locals {
 }
 
 resource "aws_iam_role" "github_plan_readonly" {
+  count = var.manage_github_ci_roles ? 1 : 0
+
   name                 = "naleko-github-plan-readonly"
   description          = "Assumed by GitHub Actions on hr-portal pull requests to run terraform plan (read-only)"
   max_session_duration = 3600
@@ -39,7 +41,7 @@ resource "aws_iam_role" "github_plan_readonly" {
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Principal = { Federated = aws_iam_openid_connect_provider.github[0].arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
@@ -62,13 +64,17 @@ resource "aws_iam_role" "github_plan_readonly" {
 }
 
 resource "aws_iam_role_policy_attachment" "github_plan_readonly_managed" {
-  role       = aws_iam_role.github_plan_readonly.name
+  count = var.manage_github_ci_roles ? 1 : 0
+
+  role       = aws_iam_role.github_plan_readonly[0].name
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
 resource "aws_iam_role_policy" "github_plan_readonly" {
+  count = var.manage_github_ci_roles ? 1 : 0
+
   name = "naleko-github-plan-readonly"
-  role = aws_iam_role.github_plan_readonly.id
+  role = aws_iam_role.github_plan_readonly[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -152,5 +158,5 @@ resource "aws_iam_role_policy" "github_plan_readonly" {
 
 output "github_plan_role_arn" {
   description = "Role ARN used by .github/workflows/terraform-plan.yml"
-  value       = aws_iam_role.github_plan_readonly.arn
+  value       = one(aws_iam_role.github_plan_readonly[*].arn)
 }

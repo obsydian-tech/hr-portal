@@ -10,7 +10,7 @@ const dynamodb = new DynamoDBClient({ region: "af-south-1" });
 const logger = new Logger({ serviceName: 'uploadDocumentToS3' });
 const tracer = new Tracer({ serviceName: 'uploadDocumentToS3' });
 
-const BUCKET_NAME = "document-ocr-verification-uploads";
+const BUCKET_NAME = process.env.UPLOAD_BUCKET ?? "document-ocr-verification-uploads";
 const DOCUMENTS_TABLE = "documents";
 const EMPLOYEES_TABLE = "employees";
 
