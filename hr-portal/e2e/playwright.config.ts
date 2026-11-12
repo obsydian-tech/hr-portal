@@ -30,6 +30,8 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['html', { outputFolder: 'e2e/reports', open: 'never' }],
+    // Read by CI to post the PR result comment (test names and timings only).
+    ['json', { outputFile: 'results/results.json' }],
   ],
 
   projects: [

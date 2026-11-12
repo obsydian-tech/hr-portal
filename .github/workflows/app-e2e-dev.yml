@@ -56,6 +56,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      pull-requests: write # the result comment
     steps:
       - uses: actions/checkout@v4
 
@@ -99,6 +100,7 @@ jobs:
           npx wait-on http://127.0.0.1:4200 --timeout 180000
 
       - name: Run journeys
+        id: journeys
         working-directory: hr-portal
         env:
           E2E_BASE_URL: http://localhost:4200
@@ -110,6 +112,7 @@ jobs:
 
       # Failure pictures and videos show seeded fake people only. Short-lived.
       - name: Upload report
+        id: report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -119,3 +122,63 @@ jobs:
             hr-portal/e2e/test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+      # One comment per PR, updated on each run: which journeys passed, how
+      # long they took, and where the failure evidence is. On a push to
+      # develop, a new comment goes on the PR that was merged.
+      - name: Post results on the PR
+        if: always() && github.event_name != 'workflow_dispatch'
+        uses: actions/github-script@v7
+        env:
+          JOURNEYS_OUTCOME: ${{ steps.journeys.outcome }}
+          REPORT_URL: ${{ steps.report.outputs.artifact-url }}
+        with:
+          script: |
+            const fs = require('fs');
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const file = 'hr-portal/e2e/results/results.json';
+            const rows = [];
+            const walk = (suite, parents) => {
+              const names = suite.title && !/\.(ts|js)$/.test(suite.title) ? [...parents, suite.title] : parents;
+              for (const spec of suite.specs ?? []) {
+                for (const t of spec.tests ?? []) {
+                  const last = (t.results ?? []).at(-1) ?? {};
+                  const tries = (t.results ?? []).length;
+                  const icon = t.status === 'expected' ? (tries > 1 ? '🟡 passed on retry' : '✅ passed')
+                    : t.status === 'skipped' ? '⚪ skipped' : '❌ failed';
+                  rows.push({ group: names.join(' › '), title: spec.title, icon, secs: ((last.duration ?? 0) / 1000).toFixed(1), failed: t.status === 'unexpected' });
+                }
+              }
+              for (const child of suite.suites ?? []) walk(child, names);
+            };
+            let body;
+            const outcome = process.env.JOURNEYS_OUTCOME;
+            if (fs.existsSync(file) && outcome && outcome !== 'skipped') {
+              const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+              for (const s of data.suites ?? []) walk(s, []);
+              const failed = rows.filter(r => r.failed).length;
+              const ms = data.stats?.duration ?? 0;
+              const took = ms < 60000 ? `${Math.round(ms / 1000)} s` : `${(ms / 60000).toFixed(1)} min`;
+              const head = failed ? `❌ **${failed} of ${rows.length} tests failed** on pepla-dev (${took})`
+                : `✅ **All ${rows.length} tests passed** on pepla-dev (${took})`;
+              const table = ['| Journey | Test | Result | Time |', '| --- | --- | --- | --- |',
+                ...rows.map(r => `| ${r.group} | ${r.title} | ${r.icon} | ${r.secs}s |`)].join('\n');
+              const evidence = failed && process.env.REPORT_URL
+                ? `\n\nScreenshots, videos and traces of the failures (kept 7 days): ${process.env.REPORT_URL}` : '';
+              body = `${head}\n\n${table}${evidence}\n\nTest logins are robots and AI calls are blocked, so this run cost nothing in AI. [Run log](${run})`;
+            } else {
+              body = `⚠️ **The tests did not run**: a setup step failed before the tests started. [Run log](${run})`;
+            }
+            const when = context.eventName === 'pull_request' ? 'before merge' : 'after merge into develop';
+            const marker = `<!-- app-e2e-dev:${context.eventName} -->`;
+            body = `${marker}\n### App tests on pepla-dev, ${when}\n\n${body}`;
+            let pr = context.payload.pull_request?.number;
+            if (!pr) {
+              const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({ ...context.repo, commit_sha: context.sha });
+              pr = prs.find(p => p.merged_at)?.number;
+            }
+            if (!pr) { core.info('No PR for this commit; nothing to comment on.'); return; }
+            const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: pr, per_page: 100 });
+            const mine = comments.find(c => c.user?.type === 'Bot' && c.body?.startsWith(marker));
+            if (mine) await github.rest.issues.updateComment({ ...context.repo, comment_id: mine.id, body });
+            else await github.rest.issues.createComment({ ...context.repo, issue_number: pr, body });
