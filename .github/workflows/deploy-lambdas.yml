@@ -1,12 +1,15 @@
 # ---------------------------------------------------------------------------
-# Lambda code deploy: build once, deploy the same zips everywhere.
+# Lambda code deploy. Two long-lived branches:
 #
-#   merge to main  ->  build (one deterministic zip per lambda/ folder)
+#   merge to develop ->  build (one deterministic zip per lambda/ folder)
 #                  ->  deploy to pepla-dev (GitHub env "dev", OIDC role)
 #                  ->  seed pepla-dev, run the Playwright journeys against it
-#                  ->  wait for Iggie's Approve (GitHub env "production")
-#                  ->  deploy the SAME zips to prod (code-only role)
 #
+#   merge to main    ->  build the same code (it reached main from develop)
+#     (release)    ->  wait for Iggie's Approve (GitHub env "production")
+#                  ->  deploy to prod (code-only role)
+#
+# Web app changes are tested on every PR by app-e2e-dev.yml.
 # Terraform owns configuration and ignores Lambda code; this owns code only.
 # Logs show function names and counts only: the repo is public.
 # ---------------------------------------------------------------------------
@@ -14,7 +17,7 @@ name: Deploy Lambdas
 
 on:
   push:
-    branches: [main]
+    branches: [develop, main]
     paths:
       - "lambda/**"
       - "scripts/ci/build-lambdas.py"
@@ -32,7 +35,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-lambdas
+  group: deploy-lambdas-${{ github.ref_name }}
   cancel-in-progress: false
 
 env:
@@ -65,6 +68,7 @@ jobs:
   deploy-dev:
     name: Deploy to pepla-dev
     needs: build
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     environment: dev
     permissions:
@@ -94,6 +98,10 @@ jobs:
   e2e-dev:
     name: E2E on pepla-dev
     needs: deploy-dev
+    # Shares pepla-dev's seeded data with app-e2e-dev.yml: never run both at once.
+    concurrency:
+      group: pepla-dev-e2e
+      cancel-in-progress: false
     # Pinned: the repo's Playwright version has no Chromium build for the
     # newer ubuntu-latest image. Move with the next Playwright upgrade.
     runs-on: ubuntu-24.04
@@ -162,10 +170,11 @@ jobs:
 
   deploy-prod:
     name: Promote to prod (needs Approve)
-    needs: [build, deploy-dev, e2e-dev]
-    # Off until the first prod promotion has been checked by hand: set the
-    # repository variable PROD_LAMBDA_DEPLOY to "true" to switch it on.
-    if: vars.PROD_LAMBDA_DEPLOY == 'true'
+    needs: build
+    # Only from main (the release merge from develop, where this code was
+    # deployed and tested). Switched by the repository variable
+    # PROD_LAMBDA_DEPLOY ("true" = on).
+    if: github.ref == 'refs/heads/main' && vars.PROD_LAMBDA_DEPLOY == 'true'
     runs-on: ubuntu-latest
     # Required reviewer (Iggie) and main-only are set on this environment.
     environment: production
@@ -190,5 +199,5 @@ jobs:
           acct=$(aws sts get-caller-identity --query Account --output text)
           [ "$acct" = "937137806477" ] || { echo "::error::not prod"; exit 1; }
 
-      - name: Deploy the same code that passed dev
+      - name: Deploy the same code that passed pepla-dev
         run: scripts/ci/deploy-lambdas.sh dist/lambdas
