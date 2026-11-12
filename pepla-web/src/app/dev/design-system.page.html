@@ -1,0 +1,408 @@
+<div class="pp-stack pp-gap-500">
+  <pp-page-header heading="Naleko People design system" description="Every pp-* component in the app, in its states. Screens use these and Layout, nothing else.">
+    <pp-page-header-actions>
+      <a ppButton appearance="default" icon="external-link" href="https://obsydian-tech.github.io/pepla-design-system/" target="_blank" rel="noopener">Specs</a>
+    </pp-page-header-actions>
+  </pp-page-header>
+
+  <!-- Core -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-core">
+    <h2 class="pp-heading pp-heading--medium" id="g-core">Core</h2>
+    <div class="pp-inline pp-gap-400">
+      <pp-logo size="large" />
+      <pp-logo />
+      <pp-logo [markOnly]="true" />
+      <pp-app-icon />
+    </div>
+    <div class="pp-inline pp-gap-150">
+      <pp-avatar name="Thandeka Dlamini" size="xsmall" />
+      <pp-avatar name="Sipho Ndlovu" size="small" />
+      <pp-avatar name="Lerato Mokoena" />
+      <pp-avatar name="Kagiso Molefe" size="large" [online]="true" />
+      <pp-avatar name="Chipo Banda" size="xlarge" />
+      <pp-avatar name="Batsi" kind="agent" size="large" />
+      <pp-avatar name="Finance team" kind="team" size="large" />
+      <pp-avatar-group label="Interview panel" [names]="['Sipho Ndlovu', 'Lerato Mokoena', 'Kagiso Molefe', 'Chipo Banda', 'Tariro Moyo']" />
+    </div>
+    <div class="pp-inline pp-gap-300">
+      <pp-person name="Thandeka Dlamini" meta="Bookkeeper · Starts 17 Nov" />
+      <pp-person name="Batsi" kind="agent" meta="Your HR agent" />
+    </div>
+    <div class="pp-inline pp-gap-300">
+      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="sparkles" tone="agent" />Checked by Batsi</span>
+      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="circle-check" tone="success" />Matches</span>
+      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="clock" tone="warning" />Due in 2 days</span>
+      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="octagon-alert" tone="danger" />Contract not signed</span>
+      <pp-icon-tile icon="user-plus" tone="brand" />
+      <pp-icon-tile icon="calendar-days" />
+      <pp-icon-tile icon="sparkles" tone="agent" />
+    </div>
+  </section>
+
+  <!-- Actions -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-actions">
+    <h2 class="pp-heading pp-heading--medium" id="g-actions">Actions</h2>
+    <pp-button-group>
+      <button ppButton appearance="primary" [busy]="busy()" (click)="save()">Send contract</button>
+      <button ppButton>Edit</button>
+      <button ppButton appearance="subtle">Skip for now</button>
+      <button ppButton appearance="danger">Withdraw offer</button>
+      <button ppButton appearance="link">View history</button>
+      <button ppButton appearance="agent" icon="check">Approve</button>
+    </pp-button-group>
+    <pp-button-group>
+      <button ppButton appearance="primary" size="large" icon="user-plus">Add new employee</button>
+      <button ppButton icon="upload">Upload document</button>
+      <button ppButton size="small">Review</button>
+      <button ppButton [pressed]="true">Filtered: overdue</button>
+      <button ppButton appearance="primary" [busy]="true">Sending</button>
+      <pp-tooltip text="More actions for Thandeka Dlamini">
+        <button ppButton appearance="subtle" icon="ellipsis" [iconOnly]="true" aria-label="More actions for Thandeka Dlamini"></button>
+      </pp-tooltip>
+      <pp-dropdown-menu label="Actions for Thandeka Dlamini">
+        <pp-menu-section>
+          <button ppMenuItem icon="pencil">Edit details</button>
+          <button ppMenuItem icon="file-text">Send document</button>
+          <button ppMenuItem icon="copy" end="EMP-0142">Copy employee number</button>
+        </pp-menu-section>
+        <pp-menu-section heading="Move and exit">
+          <button ppMenuItem icon="door-open">Start exit</button>
+          <button ppMenuItem icon="user-x" [danger]="true">Remove access</button>
+        </pp-menu-section>
+      </pp-dropdown-menu>
+    </pp-button-group>
+    <p class="pp-text">Links go somewhere: <a ppLink href="#core">Thandeka Dlamini</a>, or stand alone: <a ppLink icon="history" href="#core">View audit trail</a> · <a ppLink [external]="true" href="https://www.sars.gov.za">SARS eFiling</a></p>
+  </section>
+
+  <!-- Status -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-status">
+    <h2 class="pp-heading pp-heading--medium" id="g-status">Status</h2>
+    <div class="pp-inline pp-gap-100">
+      <pp-lozenge>Not started</pp-lozenge>
+      <pp-lozenge status="information">In review</pp-lozenge>
+      <pp-lozenge status="success">Matches</pp-lozenge>
+      <pp-lozenge status="warning" icon="clock">Due in 2 days</pp-lozenge>
+      <pp-lozenge status="danger" icon="clock-alert">Overdue by 1 day</pp-lozenge>
+      <pp-lozenge status="agent">Checked by Batsi</pp-lozenge>
+      <pp-lozenge status="success" [bold]="true">Hired</pp-lozenge>
+    </div>
+    <div class="pp-inline pp-gap-100">
+      <time ppDeadline [due]="'2026-11-23'" [now]="now"></time>
+      <time ppDeadline [due]="'2026-11-13'" [now]="now"></time>
+      <time ppDeadline [due]="'2026-11-11'" [now]="now"></time>
+      <time ppDeadline [due]="'2026-11-10'" [now]="now"></time>
+      <time ppDeadline [done]="'2026-11-03'" [now]="now"></time>
+      <span ppDeadline paused="until Lerato replies"></span>
+    </div>
+    <div class="pp-inline pp-gap-200">
+      <pp-badge [count]="4" />
+      <pp-badge [count]="12" appearance="primary" />
+      <pp-badge [count]="3" appearance="danger" label="overdue" />
+      <pp-badge [count]="5" appearance="agent" />
+      <pp-badge [count]="140" appearance="primary" />
+      <pp-tag-group label="Departments">
+        <pp-tag colour="blue">Finance</pp-tag>
+        <pp-tag colour="violet">People and culture</pp-tag>
+        <pp-tag [removable]="true" text="Payroll">Payroll</pp-tag>
+      </pp-tag-group>
+      <pp-role role="hr-admin" />
+      <pp-role role="hiring-manager" [current]="true" />
+      <pp-spinner size="small" />
+      <pp-spinner />
+    </div>
+    <div class="pp-grid pp-grid--2 pp-gap-400">
+      <div class="pp-stack pp-gap-300">
+        <pp-progress-bar label="Lerato's documents" [value]="3" [max]="5" valueText="3 of 5 received" />
+        <pp-progress-bar label="Batsi is checking the documents" [value]="4" [max]="6" valueText="4 of 6 checked" tone="agent" help="You approve the results when Batsi is done" helpIcon="sparkles" />
+        <pp-skeleton-group label="Loading people">
+          <pp-skeleton-row><pp-skeleton shape="avatar" /><pp-skeleton-stack><pp-skeleton width="40%" /><pp-skeleton width="25%" /></pp-skeleton-stack><pp-skeleton shape="lozenge" /></pp-skeleton-row>
+        </pp-skeleton-group>
+      </div>
+      <pp-progress-tracker label="Lerato's onboarding" [steps]="steps" />
+    </div>
+  </section>
+
+  <!-- Messages -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-messages">
+    <h2 class="pp-heading pp-heading--medium" id="g-messages">Messages</h2>
+    <pp-banner>The payroll connection stopped at 06:00. November payslips won't sync until you <a ppLink href="#messages">reconnect payroll</a>.</pp-banner>
+    <div class="pp-grid pp-grid--2 pp-gap-300">
+      <pp-section-message heading="Lerato's contract is waiting on her tax number">
+        Batsi can send the contract once Lerato adds her SARS tax number in the portal.
+        <pp-section-message-actions><button ppButton size="small">Remind Lerato</button></pp-section-message-actions>
+      </pp-section-message>
+      <pp-section-message tone="danger" heading="Kagiso's ID check failed">The surname on the ID doesn't match the offer. Ask Kagiso which is right.</pp-section-message>
+    </div>
+    <div class="pp-stack pp-gap-100">
+      <pp-inline-message tone="error">That ID number has 12 digits. South African IDs have 13.</pp-inline-message>
+      <pp-inline-message tone="agent">Batsi filled this in from the bank letter.</pp-inline-message>
+    </div>
+    <pp-button-group>
+      <button ppButton size="small" (click)="flag('success')">Show a success flag</button>
+      <button ppButton size="small" (click)="flag('error')">Show an error flag</button>
+      <button ppButton size="small" (click)="flag('agent')">Show a Batsi flag</button>
+    </pp-button-group>
+    <pp-empty-state icon="user-plus" heading="No candidates yet" body="When people apply for Bookkeeper, they show up here." [compact]="true">
+      <button ppButton appearance="primary">Share job link</button>
+    </pp-empty-state>
+  </section>
+
+  <!-- Overlays -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-overlays">
+    <h2 class="pp-heading pp-heading--medium" id="g-overlays">Overlays</h2>
+    <pp-button-group>
+      <button ppButton appearance="danger" (click)="modal.set(true)">Withdraw offer</button>
+      <button ppButton (click)="drawer.set(true)">Edit routing rule</button>
+    </pp-button-group>
+    <pp-modal-dialog [(open)]="modal" heading="Withdraw Lerato Mokoena's offer?" tone="danger" size="small">
+      <p>Lerato will get an email saying the Bookkeeper offer is withdrawn. Her signed documents stay in the audit trail.</p>
+      <p>You can't undo this.</p>
+      <pp-modal-footer>
+        <button ppButton (click)="modal.set(false)">Keep offer</button>
+        <button ppButton appearance="danger" (click)="modal.set(false)">Withdraw offer</button>
+      </pp-modal-footer>
+    </pp-modal-dialog>
+    <pp-drawer [(open)]="drawer" heading="Edit routing rule" description="Decides which queue a help desk request goes to.">
+      <form ppForm>
+        <pp-field label="Rule name"><input ppTextField value="Payslip questions"></pp-field>
+        <pp-field label="Send to queue"><pp-select [options]="departments" [(value)]="dept" /></pp-field>
+      </form>
+      <pp-drawer-footer note="Last changed by Sipho Ndlovu, 3 Nov 2026">
+        <button ppButton (click)="drawer.set(false)">Cancel</button>
+        <button ppButton appearance="primary" (click)="drawer.set(false)">Save rule</button>
+      </pp-drawer-footer>
+    </pp-drawer>
+  </section>
+
+  <!-- Navigation -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-navigation">
+    <h2 class="pp-heading pp-heading--medium" id="g-navigation">Navigation</h2>
+    <pp-page-header heading="Thandeka Dlamini" [breadcrumbs]="[{ label: 'People', link: '/dev/design-system' }, { label: 'Finance team', link: '/dev/design-system' }]"
+                    [facts]="[{ icon: 'user', text: 'Finance manager' }, { icon: 'rocket', text: 'Started 3 Feb 2025' }]">
+      <pp-page-header-actions>
+        <button ppButton>Edit details</button>
+        <button ppButton appearance="primary">Send document</button>
+        <pp-dropdown-menu label="More actions for Thandeka Dlamini" size="medium">
+          <button ppMenuItem icon="history">View audit trail</button>
+        </pp-dropdown-menu>
+      </pp-page-header-actions>
+      <pp-tabs label="Thandeka Dlamini" [tabs]="[{ id: 'overview', label: 'Overview' }, { id: 'interviews', label: 'Interviews', count: 2 }, { id: 'notes', label: 'Notes', count: 5 }]" [(selected)]="tab" />
+    </pp-page-header>
+    @switch (tab()) {
+      @case ('overview') { <p class="pp-text">Finance manager since February 2025.</p> }
+      @case ('interviews') { <p class="pp-text pp-text--strong">Panel interview with Sipho Ndlovu, Thu 13 Nov 2026, 10:00</p> }
+      @default { <p class="pp-text pp-text--subtle">5 notes from the hiring team.</p> }
+    }
+    <pp-pagination noun="people" [total]="132" [pageSize]="20" [(page)]="page" />
+  </section>
+
+  <!-- Forms -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-forms">
+    <h2 class="pp-heading pp-heading--medium" id="g-forms">Forms</h2>
+    <form ppForm>
+      <fieldset ppFormSection heading="Personal details" description="As on their ID book or smart card.">
+        <pp-form-row>
+          <pp-field label="First name" [required]="true"><input ppTextField value="Sipho" autocomplete="off"></pp-field>
+          <pp-field label="Surname" [required]="true"><input ppTextField value="Ndlovu" autocomplete="off"></pp-field>
+          <pp-field label="ID number" [required]="true" help="13 digits, as on the green ID book or smart card" error="That ID number has 12 digits. South African IDs have 13.">
+            <input ppTextField inputmode="numeric" value="900514512408" [numeric]="true">
+          </pp-field>
+          <pp-field label="Start date" [required]="true" help="Monday, in 12 days"><pp-date-picker [(value)]="start" /></pp-field>
+        </pp-form-row>
+      </fieldset>
+      <fieldset ppFormSection heading="Employment">
+        <pp-form-row>
+          <pp-field label="Department" [required]="true"><pp-select [options]="departments" [(value)]="dept" /></pp-field>
+          <pp-field label="Manager" help="Type a name"><pp-autocomplete [suggestions]="people()" (query)="find($event)" [(value)]="manager" /></pp-field>
+          <pp-field label="Teams they help"><pp-multi-select [options]="departments" [(value)]="teams" noun="teams" /></pp-field>
+        </pp-form-row>
+        <pp-field label="Contract type" group="radio" [required]="true"><pp-radio-group [options]="contractTypes" [(value)]="contract" /></pp-field>
+        <pp-field label="Note for the hiring manager" help="Only the hiring team can see this" count="118 of 500">
+          <textarea ppTextarea maxlength="500">Sipho was strong on payroll reconciliations. Worth asking about SARS eFiling in the second interview.</textarea>
+        </pp-field>
+        <pp-checkbox label="Send Sipho his contract by email as well" [(value)]="email" />
+        <pp-toggle label="Remind new employees about missing documents" description="Batsi sends a WhatsApp message 2 days before the deadline" [(value)]="remind" />
+      </fieldset>
+      <pp-form-footer status="Saved 2 minutes ago">
+        <pp-button-group align="end" [stackPhone]="true">
+          <button ppButton type="button">Save draft</button>
+          <button ppButton appearance="primary" type="button" [busy]="busy()" (click)="save()">Add new employee</button>
+        </pp-button-group>
+      </pp-form-footer>
+    </form>
+    <pp-search label="Search candidates" [(value)]="query" results='3 candidates match "Ndlovu"' />
+  </section>
+
+  <!-- Data -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-data">
+    <h2 class="pp-heading pp-heading--medium" id="g-data">Data</h2>
+    <pp-stat-row>
+      <pp-stat label="New starters this month" icon="rocket" [value]="3" link="/dev/design-system" />
+      <pp-stat label="Documents waiting" icon="file-text" [value]="12" meta="2 due tomorrow" metaTone="attention" link="/dev/design-system" />
+      <pp-stat label="ID checks" icon="shield-check" [value]="8" meta="1 doesn't match" metaTone="attention" link="/dev/design-system" />
+      <pp-stat label="Chased by Batsi" icon="sparkles" [value]="5" link="/dev/design-system" />
+    </pp-stat-row>
+    <div class="pp-grid pp-grid--2 pp-gap-300">
+      <pp-card heading="Laptop and email setup" subheading="For Thandeka Dlamini · Starts 17 Nov" icon="laptop">
+        <pp-card-aside><pp-lozenge status="information" icon="circle-dot-dashed">In progress</pp-lozenge></pp-card-aside>
+        <div ppCardBody>Dell Latitude 5440, Microsoft 365 account and access to Xero. Sipho in IT has the request.</div>
+        <pp-card-footer align="end"><button ppButton size="small">View request</button></pp-card-footer>
+      </pp-card>
+      <pp-card heading="Thandeka's details">
+        <pp-description-list [items]="[
+          { term: 'Full name', value: 'Thandeka Nomsa Dlamini', source: 'From ID document' },
+          { term: 'Role', value: 'Bookkeeper' },
+          { term: 'Manager', value: 'Sipho Ndlovu', link: '/dev/design-system' },
+          { term: 'Tax number', value: null }
+        ]" />
+        <pp-description-list>
+          <dt>ID number</dt><dd><pp-masked-field field="ID number" record="Thandeka Dlamini" value="9005145124087" masked="•••••••••4087" /></dd>
+        </pp-description-list>
+      </pp-card>
+    </div>
+    <pp-card heading="New starters" [flush]="true">
+      <pp-table-wrap>
+        <table ppTable [stack]="true">
+          <caption class="pp-visually-hidden">New starters</caption>
+          <thead><tr>
+            <th ppSortHeader direction="ascending">Person</th>
+            <th ppCell scope="col">Start date</th>
+            <th ppCell scope="col">Documents</th>
+            <th ppCell="num" scope="col">Salary</th>
+            <th ppCell="actions" scope="col"><span class="pp-visually-hidden">Actions</span></th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td ppCell label="Person"><pp-person name="Thandeka Dlamini" meta="Bookkeeper" size="medium" /></td>
+              <td ppCell label="Start date">17 Nov 2026</td>
+              <td ppCell label="Documents">4 of 6</td>
+              <td ppCell="num" label="Salary"><pp-restricted-cell /></td>
+              <td ppCell="actions"><pp-dropdown-menu label="Actions for Thandeka Dlamini"><button ppMenuItem icon="pencil">Edit details</button></pp-dropdown-menu></td>
+            </tr>
+            <tr>
+              <td ppCell label="Person"><pp-person name="Sipho Ndlovu" meta="Sales rep" size="medium" /></td>
+              <td ppCell label="Start date">1 Dec 2026</td>
+              <td ppCell label="Documents">6 of 6</td>
+              <td ppCell="num" label="Salary">R 22 000</td>
+              <td ppCell="actions"><pp-dropdown-menu label="Actions for Sipho Ndlovu"><button ppMenuItem icon="pencil">Edit details</button></pp-dropdown-menu></td>
+            </tr>
+          </tbody>
+        </table>
+      </pp-table-wrap>
+    </pp-card>
+    <div class="pp-grid pp-grid--2 pp-gap-300">
+      <pp-accordion>
+        <details ppAccordionItem heading="Locale and currency" meta="South Africa · ZAR" open>Dates show as 17 Nov 2026, money as R 18 500.</details>
+        <details ppAccordionItem heading="Approval chains" meta="2 chains">Offers over R 30 000 a month need the director's approval.</details>
+      </pp-accordion>
+      <pp-timeline label="History for Kagiso Molefe" [days]="history" />
+    </div>
+  </section>
+
+  <!-- Agent -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-agent">
+    <h2 class="pp-heading pp-heading--medium" id="g-agent">Batsi, the agent</h2>
+    <div class="pp-inline pp-gap-300">
+      <pp-agent-mark />
+      <pp-agent-mark text="Suggested by Batsi" [suggested]="true" />
+      <pp-agent-mark [iconOnly]="true" />
+      <pp-confidence level="high" [sources]="3" />
+      <pp-confidence level="check" [sources]="2" />
+      <pp-confidence level="unsure" [sources]="1" />
+    </div>
+    <div class="pp-columns pp-gap-400">
+      <pp-proposal-card [proposal]="proposal" [(state)]="proposalState" [outcome]="proposalOutcome()" workingText="Sending to payroll" auditLink="/dev/design-system" (approve)="approveProposal()" (decline)="proposalState.set('waiting')" />
+      <pp-proposal-list>
+        <pp-proposal-row [proposal]="reminder" />
+        <pp-proposal-row [proposal]="unsure" />
+        <pp-proposal-row [proposal]="proposal" />
+      </pp-proposal-list>
+    </div>
+  </section>
+
+  <!-- Records -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-records">
+    <h2 class="pp-heading pp-heading--medium" id="g-records">HR records</h2>
+    <pp-person-header name="Thandeka Dlamini" role="Bookkeeper · Finance"
+      [facts]="[{ icon: 'calendar-days', text: 'Starts 17 Nov 2026', hiddenLabel: 'Start date:' }, { icon: 'map-pin', text: 'Johannesburg', hiddenLabel: 'Works in' }]">
+      <pp-lozenge status="information" icon="rocket">Onboarding, day 3 of 10</pp-lozenge>
+      <pp-person-header-actions>
+        <button ppButton icon="mail">Message</button>
+        <button ppButton appearance="primary">Plan first week</button>
+      </pp-person-header-actions>
+    </pp-person-header>
+    <div class="pp-grid pp-grid--2 pp-gap-300">
+      <pp-document-checklist heading="Kagiso's documents" subheading="Bookkeeper · Starts Mon 16 Nov" [done]="2" [total]="4">
+        <li ppDocumentRow name="South African ID" icon="id-card" meta="Uploaded by Kagiso, 9 Nov 2026, 08:02" status="success" statusText="Matches">
+          <button ppButton size="small">View<span class="pp-visually-hidden"> South African ID</span></button>
+        </li>
+        <li ppDocumentRow name="Bank confirmation letter" icon="landmark" meta="Uploaded 10 Nov 2026, 19:15" status="information" statusIcon="hourglass" statusText="Checking">
+          <pp-lozenge status="agent">Batsi is checking</pp-lozenge>
+          <button ppButton size="small">View<span class="pp-visually-hidden"> bank confirmation letter</span></button>
+        </li>
+        <li ppDocumentRow name="Tax number letter" meta="Requested 3 Nov" status="danger" statusIcon="circle-x" statusText="Rejected" reason="The letter is from 2019. Ask Kagiso for one from this tax year.">
+          <button ppButton size="small">Ask again</button>
+        </li>
+      </pp-document-checklist>
+      <pp-card heading="Kagiso Molefe starts Monday" subheading="Bookkeeper · Reports to you">
+        <pp-checklist heading="Ready for day 1" [done]="2" [total]="4">
+          <li ppChecklistRow label="Contract signed" owner="Kagiso" state="done"><time ppDeadline [done]="'2026-11-03'" [now]="now"></time></li>
+          <li ppChecklistRow label="ID checked" owner="Batsi" state="agent"><pp-lozenge status="agent">Done by Batsi 9 Nov</pp-lozenge></li>
+          <li ppChecklistRow label="Bank letter" owner="Kagiso"><time ppDeadline [due]="'2026-11-13'" [now]="now"></time></li>
+          <li ppChecklistRow label="Laptop" owner="IT, Sipho Ndlovu" state="overdue"><time ppDeadline [due]="'2026-11-10'" [now]="now"></time></li>
+        </pp-checklist>
+      </pp-card>
+    </div>
+    <div class="pp-grid pp-grid--2 pp-gap-300">
+      <pp-verification heading="ID check" subheading="Kagiso Molefe · South African ID" result="matches"
+        [checks]="[{ label: 'Name matches', result: 'match' }, { label: 'ID number matches', result: 'match' }, { label: 'Date of birth matches', result: 'match' }]">
+        <pp-description-list [items]="[{ term: 'Against', value: 'Home Affairs identity record' }, { term: 'When', value: '9 Nov 2026, 08:15' }]" />
+      </pp-verification>
+      <div class="pp-stack pp-gap-300">
+        <pp-config-version [version]="4" meta="Published by Thandeka Dlamini, 3 Nov 2026, 14:30">
+          <pp-config-version-actions><button ppButton appearance="subtle" size="small" icon="undo-2">Roll back</button></pp-config-version-actions>
+        </pp-config-version>
+        <ul ppAuditLog>
+          <li ppAuditEvent actor="Batsi" sentence="sent Kagiso Molefe's offer letter, approved by Thandeka Dlamini" [at]="'2026-11-11T09:12'" where="Batsi · Offers">
+            <pp-description-list [items]="[{ term: 'Event ID', value: 'evt_8F2K91' }]" />
+          </li>
+          <li ppAuditEvent actor="Lerato Mokoena" sentence="changed the start date on Kagiso Molefe's record" [at]="'2026-11-10T16:05'" where="Web app · Durban"
+            [change]="{ field: 'Start date', from: '9 Nov 2026', to: '16 Nov 2026' }" [open]="true"></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Live: the newer pieces, working, so they can be clicked through -->
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-live">
+    <h2 class="pp-heading pp-heading--medium" id="g-live">Try them</h2>
+    <div class="pp-inline pp-gap-200">
+      <pp-split-button label="Send offer" menuLabel="More ways to send" (run)="flag('success')">
+        <pp-menu-section><button ppMenuItem icon="clock">Schedule for later</button><button ppMenuItem icon="file-text">Download as PDF</button></pp-menu-section>
+      </pp-split-button>
+      <button ppButton appearance="agent" icon="sparkles" (click)="pepla.set(true)">Ask Batsi</button>
+    </div>
+    <div class="pp-columns pp-gap-400">
+      <pp-field label="Move to stage"><pp-rich-select [options]="stages" [(value)]="stage" /></pp-field>
+      <pp-field label="Onboarding buddy"><pp-rich-select [options]="buddies" [(value)]="buddy" [filter]="true" filterLabel="Filter people" placeholder="Choose a buddy" /></pp-field>
+    </div>
+    <pp-brand-preview class="pp-measure-form" company="Mokoena Accounting" [(value)]="accent" welcome="Welcome, Tariro. Your first day is 1 Dec." (save)="flag('success')" />
+    <pp-pipeline-board label="Hiring stages for Sales rep" [now]="now" [(stages)]="board" (moved)="flag('success')" />
+    <pp-agent-panel [(open)]="pepla" context="Looking at the design system" [messages]="chat()" [working]="thinking()" (send)="ask($event)" (stop)="thinking.set(undefined)" />
+  </section>
+
+  <section class="pp-stack pp-gap-300" aria-labelledby="g-long">
+    <h2 class="pp-heading pp-heading--medium" id="g-long">Long lists</h2>
+    <pp-table caption="Candidates for all jobs" [columns]="candidateColumns" [rows]="candidates()" [total]="60" [pageSize]="20"
+              [loading]="loadingCandidates()" (load)="more($event)">
+      <ng-template #row let-r>
+        <td ppCell label="Candidate"><pp-person [name]="r.name" size="small" /></td>
+        <td ppCell label="Job">{{ r.role }}</td>
+        <td ppCell label="Applied">{{ r.applied }}</td>
+        <td ppCell="num" label="Score">{{ r.score }}</td>
+      </ng-template>
+    </pp-table>
+  </section>
+</div>
+<pp-flag-group />

@@ -1,0 +1,10 @@
+/* Naleko People design system, synced by scripts/design-system-sync.mjs. Do not edit. */
+@import "./tokens/palette.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/shape.css";
+@import "./tokens/motion.css";
+@import "./tokens/layers.css";
+@import "./tokens/base.css";
+@import "./components.css";
