@@ -1,7 +1,9 @@
-# App tests on dev: when web app code merges to main, run the onboarding
-# journeys against pepla-dev. Backend code and prod are never touched, and
-# nothing here asks for an Approve. Backend changes are tested by
-# deploy-lambdas.yml instead.
+# App tests on dev: run the onboarding journeys against pepla-dev
+#   - on every PR into dev or main that changes the web app or its tests
+#     (tests the PR's own app code; red = don't merge), and
+#   - after web app code merges into dev.
+# Backend code and prod are never touched, and nothing here asks for an
+# Approve. Backend changes are deployed and tested by deploy-lambdas.yml.
 #
 # AI cost guardrail: test logins are robots (group e2e-robots), the specs
 # block AI routes in the browser (fixtures/no-ai), and the dev CI role is
@@ -9,8 +11,18 @@
 name: App tests on dev
 
 on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "hr-portal/src/**"
+      - "hr-portal/e2e/**"
+      - "hr-portal/angular.json"
+      - "hr-portal/package.json"
+      - "hr-portal/package-lock.json"
+      - "hr-portal/tsconfig*.json"
+      - ".github/workflows/app-e2e-dev.yml"
   push:
-    branches: [main]
+    branches: [dev]
     paths:
       - "hr-portal/src/**"
       - "hr-portal/angular.json"
@@ -29,6 +41,8 @@ env:
 jobs:
   e2e-dev:
     name: App E2E on pepla-dev
+    # PRs from forks get no AWS access; only branches in this repo run here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     # Shares pepla-dev's seeded data with deploy-lambdas.yml: never run both at once.
     concurrency:
       group: pepla-dev-e2e

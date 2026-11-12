@@ -17,7 +17,7 @@ name: TalentFlow CI/CD
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [dev, main]
     paths:
       - "hr-portal/**"
       - "talent-flow-infra/**"

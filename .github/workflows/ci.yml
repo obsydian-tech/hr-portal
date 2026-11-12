@@ -15,9 +15,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [dev, main]
   push:
-    branches: [main]
+    branches: [dev, main]
 
 # Cancel in-progress runs for the same branch to save minutes
 concurrency:
