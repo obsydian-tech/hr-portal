@@ -3,6 +3,11 @@
 #     (tests the PR's own app code; red = don't merge), and
 #   - after web app code merges into develop.
 # Release PRs develop -> main don't re-run it: that code already passed here.
+#
+# Test selection (keeps runs short as the app grows): a PR or merge runs only
+# the journeys tagged for the modules it changed, plus the @smoke set;
+# shared code runs everything. See scripts/ci/pick-e2e-tests.py. Every
+# Monday 05:00 SAST a full run checks all journeys.
 # Backend code and prod are never touched, and nothing here asks for an
 # Approve. Backend changes are deployed and tested by deploy-lambdas.yml.
 #
@@ -17,6 +22,7 @@ on:
     paths:
       - "hr-portal/src/**"
       - "hr-portal/e2e/**"
+      - "scripts/ci/pick-e2e-tests.py"
       - "hr-portal/angular.json"
       - "hr-portal/package.json"
       - "hr-portal/package-lock.json"
@@ -31,6 +37,8 @@ on:
       - "hr-portal/package-lock.json"
       - "hr-portal/tsconfig*.json"
       - ".github/workflows/app-e2e-dev.yml"
+  schedule:
+    - cron: "0 3 * * 1" # Monday 05:00 SAST: full run
   workflow_dispatch:
 
 permissions:
@@ -59,6 +67,28 @@ jobs:
       pull-requests: write # the result comment
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # to see which files the change touched
+
+      # Weekly and by-hand runs do everything; a new branch's first push too.
+      - name: Pick journeys for this change
+        id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          case "$EVENT" in
+            pull_request) range="$BASE...HEAD" ;;
+            push) [[ "$BEFORE" =~ ^0+$ ]] && range="" || range="$BEFORE..HEAD" ;;
+            *) range="" ;;
+          esac
+          if [ -n "$range" ]; then
+            git diff --name-only "$range" | python3 scripts/ci/pick-e2e-tests.py >> "$GITHUB_OUTPUT"
+          else
+            printf 'grep=\nmodules=all journeys (full run)\n' >> "$GITHUB_OUTPUT"
+          fi
+          grep -E '^(grep|modules)=' "$GITHUB_OUTPUT" | tail -2
 
       - uses: actions/setup-node@v4
         with:
@@ -104,7 +134,8 @@ jobs:
         working-directory: hr-portal
         env:
           E2E_BASE_URL: http://localhost:4200
-        run: npx playwright test --config e2e/playwright.config.ts
+          GREP: ${{ steps.pick.outputs.grep }}
+        run: npx playwright test --config e2e/playwright.config.ts ${GREP:+--grep "$GREP"}
 
       - name: Clean up this run's records
         if: always()
@@ -127,11 +158,12 @@ jobs:
       # long they took, and where the failure evidence is. On a push to
       # develop, a new comment goes on the PR that was merged.
       - name: Post results on the PR
-        if: always() && github.event_name != 'workflow_dispatch'
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'push')
         uses: actions/github-script@v7
         env:
           JOURNEYS_OUTCOME: ${{ steps.journeys.outcome }}
           REPORT_URL: ${{ steps.report.outputs.artifact-url }}
+          MODULES: ${{ steps.pick.outputs.modules }}
         with:
           script: |
             const fs = require('fs');
@@ -165,7 +197,8 @@ jobs:
                 ...rows.map(r => `| ${r.group} | ${r.title} | ${r.icon} | ${r.secs}s |`)].join('\n');
               const evidence = failed && process.env.REPORT_URL
                 ? `\n\nScreenshots, videos and traces of the failures (kept 7 days): ${process.env.REPORT_URL}` : '';
-              body = `${head}\n\n${table}${evidence}\n\nTest logins are robots and AI calls are blocked, so this run cost nothing in AI. [Run log](${run})`;
+              const ran = process.env.MODULES ? `\n\nRan: ${process.env.MODULES} (picked from the files this change touched; full run every Monday).` : '';
+              body = `${head}${ran}\n\n${table}${evidence}\n\nTest logins are robots and AI calls are blocked, so this run cost nothing in AI. [Run log](${run})`;
             } else {
               body = `⚠️ **The tests did not run**: a setup step failed before the tests started. [Run log](${run})`;
             }

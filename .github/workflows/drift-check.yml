@@ -1,0 +1,151 @@
+# ---------------------------------------------------------------------------
+# Nightly prod drift check (read-only)
+#
+# Every night, runs `terraform plan` for both roots against prod, using the
+# same read-only role as PR plans (naleko-github-plan-readonly, OIDC, no keys).
+# "Drift" = prod no longer matches the code, e.g. someone changed something
+# by hand in the AWS console.
+#
+#   - Drift found: the run fails (GitHub emails you) and one issue,
+#     "Prod drift found", is opened or updated with the list.
+#   - No drift: that issue is closed if it was open.
+#
+# The repo is PUBLIC: only resource addresses and actions are ever printed,
+# never values. Nothing here can change AWS, and nothing calls an AI service.
+# ---------------------------------------------------------------------------
+
+name: Prod drift check
+
+on:
+  schedule:
+    - cron: "30 1 * * *" # 03:30 SAST every night
+  workflow_dispatch:
+
+concurrency:
+  group: drift-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TF_VERSION: "1.10.5"
+  AWS_REGION: af-south-1
+  PLAN_ROLE_ARN: arn:aws:iam::937137806477:role/naleko-github-plan-readonly
+
+jobs:
+  plan:
+    name: Drift — ${{ matrix.root }}
+    runs-on: ubuntu-latest
+    # The plan role trusts only this environment (and PRs). No approval needed.
+    environment: drift-check
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - root: infra
+            vars: ""
+          - root: talent-flow-infra
+            vars: "-var=aws_account_id=937137806477"
+    defaults:
+      run:
+        working-directory: ${{ matrix.root }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main # prod runs what is on main
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Sign in to AWS (OIDC, read-only)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.PLAN_ROLE_ARN }}
+          role-session-name: drift-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 3600
+
+      - name: Create placeholder.zip
+        working-directory: .
+        run: python3 -c "import zipfile; zipfile.ZipFile('placeholder.zip','w').writestr('index.js','')"
+
+      - name: Terraform init
+        run: terraform init -input=false -no-color > init.log 2>&1 || { tail -20 init.log; exit 1; }
+
+      - name: Terraform plan
+        run: |
+          if ! terraform plan -input=false -no-color -lock-timeout=120s ${{ matrix.vars }} -out=plan.bin > plan.log 2> plan.err; then
+            echo "::error::terraform plan failed in ${{ matrix.root }}"
+            tail -30 plan.err
+            exit 1
+          fi
+
+      - name: List drift (addresses and actions only)
+        run: |
+          terraform show -json plan.bin \
+            | jq -r '.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"]) | "\(.change.actions | join("+"))\t\(.address)"' \
+            > "$RUNNER_TEMP/drift.txt"
+          echo "Resources that differ: $(wc -l < "$RUNNER_TEMP/drift.txt" | tr -d ' ')"
+          cat "$RUNNER_TEMP/drift.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: drift-${{ matrix.root }}
+          path: ${{ runner.temp }}/drift.txt
+          retention-days: 7
+
+      - name: Remove plan files
+        if: always()
+        run: rm -f plan.bin plan.log plan.err init.log
+
+  report:
+    name: Report drift
+    needs: plan
+    if: always() && needs.plan.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: drift-*
+          path: drift
+      - name: Open, update or close the drift issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PLAN_RESULT: ${{ needs.plan.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Prod drift found"
+          issue=$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[0].number')
+          total=0; body=""
+          for root in infra talent-flow-infra; do
+            f="drift/drift-$root/drift.txt"
+            [ -f "$f" ] || continue
+            n=$(wc -l < "$f" | tr -d ' '); total=$((total + n))
+            [ "$n" = "0" ] && continue
+            body+=$'\n'"**\`$root\`**: $n resource(s) differ from the code on main"$'\n```\n'"$(cat "$f")"$'\n```\n'
+          done
+          if [ "$PLAN_RESULT" != "success" ]; then
+            echo "::error::The drift check could not finish. See $RUN_URL"
+            exit 1
+          fi
+          if [ "$total" = "0" ]; then
+            echo "No drift: prod matches main."
+            [ -n "$issue" ] && gh issue close "$issue" --comment "No drift on $(date -u +%F): prod matches main again. [Run]($RUN_URL)"
+            exit 0
+          fi
+          text="Prod no longer matches the Terraform code on main ($(date -u +%F)). Usually someone changed something by hand in the AWS console, or a merged change hasn't been applied yet."$'\n'"$body"$'\n'"Fix: bring the change into code (or undo it in AWS), then apply. Only resource names are listed; this repo is public. [Run]($RUN_URL)"
+          # One issue, kept current: its text is replaced each night.
+          if [ -n "$issue" ]; then gh issue edit "$issue" --body "$text"; else gh issue create --title "$title" --body "$text"; fi
+          echo "::error::Drift found in $total resource(s)."
+          exit 1
