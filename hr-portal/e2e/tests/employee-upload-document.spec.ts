@@ -96,7 +96,7 @@ test.describe('New employee uploads ID document', () => {
 
     // Test employees never reach the AI (cost guardrail), so OCR is skipped and
     // the document goes to manual review. "Verified" here would mean AI was called.
-    await expect(idDocCard.locator('[data-testid="upload-in-review"]')).toBeVisible({ timeout: 60_000 })
+    await expect(idDocCard.locator('[data-testid="upload-in-review"]')).toBeVisible({ timeout: 45_000 })
       .catch(async (e) => {
         console.log(`[e2e] ID card shows: ${(await idDocCard.innerText()).replace(/\s+/g, ' ').slice(0, 200)}`);
         throw e;

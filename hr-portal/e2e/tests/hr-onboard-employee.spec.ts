@@ -92,9 +92,12 @@ test.describe('HR Partner onboards a new employee', () => {
     const iso = (d: Date) => d.toISOString().split('T')[0]; // yyyy-mm-dd
     const today = new Date();
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    await page.locator('p-datepicker[id="offerDate"] input').fill(iso(today));
-    await page.locator('p-datepicker[id="startDate"] input').fill(iso(tomorrow));
-    await page.keyboard.press('Escape'); // close any open datepicker overlay
+    // Type key by key: the date picker only saves a typed date on key events,
+    // so fill() shows the text but leaves the field empty and Next disabled.
+    await page.locator('p-datepicker[id="offerDate"] input').pressSequentially(iso(today));
+    await page.keyboard.press('Escape'); // close the date picker overlay
+    await page.locator('p-datepicker[id="startDate"] input').pressSequentially(iso(tomorrow));
+    await page.keyboard.press('Escape');
 
     await page.locator('[data-testid="next-btn"] button').click();
     await expect(page.locator('.step-card__badge', { hasText: 'Step 3 of 4' })).toBeVisible({ timeout: 5_000 });

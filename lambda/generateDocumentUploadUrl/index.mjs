@@ -4,7 +4,11 @@ import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
-const s3 = new S3Client({ region: "af-south-1" });
+// Newer AWS SDK versions (the Lambda runtime's) add a CRC32 checksum of an
+// EMPTY body to presigned URLs by default. The browser then PUTs the real file,
+// the checksum no longer matches, and S3 answers 400 (BadDigest). Only add a
+// checksum when S3 requires one, so the presigned PUT works from the browser.
+const s3 = new S3Client({ region: "af-south-1", requestChecksumCalculation: "WHEN_REQUIRED" });
 const dynamodb = new DynamoDBClient({ region: "af-south-1" });
 
 const logger = new Logger({ serviceName: 'generateDocumentUploadUrl' });
