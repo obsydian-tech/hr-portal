@@ -1,0 +1,96 @@
+# Retakes the help pictures and walkthrough videos after a merge into develop.
+#
+# Runs the pepla-web journeys in help mode (desktop and phone). When a picture
+# really changed (pixel check, not bytes), it opens or updates ONE pull request,
+# "Help pictures: retake", with each changed picture shown before and after.
+# Merging that PR only touches pepla-web/help/media, which this workflow
+# ignores, so it never loops.
+#
+# Safe by design: the app runs without a backend and shows only the fake help
+# company. Nothing here calls an AI service or touches AWS.
+name: Help pictures retake
+
+on:
+  push:
+    branches: [develop]
+    paths: ["pepla-web/**", "!pepla-web/help/media/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: help-retake
+  cancel-in-progress: true
+
+permissions:
+  contents: write       # push the help/retake branch
+  pull-requests: write  # open or update the review PR
+  actions: write        # start the required checks on that branch
+
+env:
+  BRANCH: help/retake
+
+jobs:
+  retake:
+    name: Retake help pictures
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: pepla-web/package-lock.json
+      - run: npm ci
+        working-directory: pepla-web
+      - run: npx playwright install --with-deps chromium
+        working-directory: pepla-web
+      - name: Install ffmpeg and ImageMagick
+        run: |
+          command -v ffmpeg >/dev/null && command -v compare >/dev/null || {
+            sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg imagemagick; }
+
+      # Start clean so pictures no journey takes any more show up as removed.
+      - name: Take pictures and videos (help mode)
+        working-directory: pepla-web
+        run: |
+          find help/media \( -name '*.png' -o -name '*.webm' \) -delete
+          npm run e2e:help
+
+      - name: Keep only real changes
+        id: diff
+        run: python3 scripts/ci/help-retake.py filter >> "$GITHUB_OUTPUT"
+
+      - name: Commit to the retake branch
+        if: steps.diff.outputs.changed == 'true'
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add -A -- pepla-web/help/media
+          git commit -q -m "Help pictures: retake after ${GITHUB_SHA::7}"
+          git push -f origin "$BRANCH"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the review PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          python3 scripts/ci/help-retake.py body --repo "$GITHUB_REPOSITORY" \
+            --base "$GITHUB_SHA" --head "$HEAD_SHA" --out "$RUNNER_TEMP/body.md"
+          pr=$(gh pr list --head "$BRANCH" --base develop --state open --json number -q '.[0].number')
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base develop --head "$BRANCH" \
+              --title "Help pictures: retake" --body-file "$RUNNER_TEMP/body.md"
+          fi
+          # A PR opened with this workflow's token does not start other
+          # workflows, so start the required checks on the branch directly.
+          gh workflow run ci.yml --ref "$BRANCH"
+
+      - name: Nothing changed
+        if: steps.diff.outputs.changed != 'true'
+        run: echo "No help picture changed, so no PR."
