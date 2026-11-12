@@ -13,7 +13,11 @@ name: Help pictures retake
 on:
   push:
     branches: [develop]
-    paths: ["pepla-web/**", "!pepla-web/help/media/**"]
+    paths:
+      - "pepla-web/**"
+      - "!pepla-web/help/media/**"
+      - ".github/workflows/help-retake.yml"
+      - "scripts/ci/help-retake.py"
   workflow_dispatch:
 
 concurrency:
