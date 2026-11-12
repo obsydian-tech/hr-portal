@@ -145,6 +145,15 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
+      # Fails if infra/ and talent-flow-infra/ both declare the same AWS
+      # object (same type and name). Two roots owning one object fight on
+      # every apply, so prod drifts.
+      - name: No AWS resource declared in both roots
+        working-directory: .
+        run: |
+          pip install -q python-hcl2==8.2.0
+          python3 scripts/ci/check-tf-duplicates.py
+
   # ---------------------------------------------------------------------------
   # Job 4 — Playwright E2E tests
   # Runs only when the repository variable E2E_ENABLED is set to 'true'.
