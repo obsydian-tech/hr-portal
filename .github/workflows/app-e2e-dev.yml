@@ -1,7 +1,8 @@
 # App tests on dev: run the onboarding journeys against pepla-dev
-#   - on every PR into develop or main that changes the web app or its tests
+#   - on every PR into develop that changes the web app or its tests
 #     (tests the PR's own app code; red = don't merge), and
 #   - after web app code merges into develop.
+# Release PRs develop -> main don't re-run it: that code already passed here.
 # Backend code and prod are never touched, and nothing here asks for an
 # Approve. Backend changes are deployed and tested by deploy-lambdas.yml.
 #
@@ -12,7 +13,7 @@ name: App tests on dev
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop]
     paths:
       - "hr-portal/src/**"
       - "hr-portal/e2e/**"
