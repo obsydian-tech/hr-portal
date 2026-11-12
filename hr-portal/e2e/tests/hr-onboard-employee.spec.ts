@@ -68,7 +68,7 @@ test.describe('HR Partner onboards a new employee', () => {
     await page.locator('[data-testid="next-btn"] button').click();
 
     // Should now be on step 2 — Employment Details header visible
-    await expect(page.locator('text=Employment Details')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('.step-card__badge', { hasText: 'Step 2 of 4' })).toBeVisible({ timeout: 5_000 });
   });
 
   test('HR partner can create and onboard a new employee (full journey)', async ({ page }) => {
@@ -80,7 +80,7 @@ test.describe('HR Partner onboards a new employee', () => {
     await page.locator('[data-testid="email"]').fill(uniqueEmail);
     await page.locator('[data-testid="phone"]').fill('0812345678');
     await page.locator('[data-testid="next-btn"] button').click();
-    await expect(page.locator('text=Employment Details')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('.step-card__badge', { hasText: 'Step 2 of 4' })).toBeVisible({ timeout: 5_000 });
 
     // ── Step 2: Employment Details ──
     // Select a department via the p-select dropdown
@@ -97,11 +97,11 @@ test.describe('HR Partner onboards a new employee', () => {
     await page.keyboard.press('Escape'); // close any open datepicker overlay
 
     await page.locator('[data-testid="next-btn"] button').click();
-    await expect(page.locator('text=Document Upload')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('.step-card__badge', { hasText: 'Step 3 of 4' })).toBeVisible({ timeout: 5_000 });
 
     // ── Step 3: Document Upload (skip — no docs required) ──
     await page.locator('[data-testid="next-btn"] button').click();
-    await expect(page.locator('text=Personal Details')).toBeVisible({ timeout: 5_000 }); // review step header
+    await expect(page.locator('[data-testid="register-btn"]')).toBeVisible({ timeout: 5_000 }); // review step
 
     // ── Step 4: Review & Submit ──
     await page.locator('[data-testid="register-btn"] button').click();
@@ -113,7 +113,7 @@ test.describe('HR Partner onboards a new employee', () => {
 
     // Verify employee appears in dashboard list
     // Navigate back to HR home
-    await page.locator('button:has-text("Back to Dashboard")').click();
+    await page.locator('button:has-text("Back to Dashboard")').first().click();
     await expect(page).toHaveURL(/\/hr\/[A-Z0-9]+$/, { timeout: 10_000 });
     await expect(page.locator('[data-testid="employee-list"]')).toContainText(`${FIRST_NAME} TestEmployee`);
   });

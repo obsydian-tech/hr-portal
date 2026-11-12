@@ -57,6 +57,19 @@ test.describe('New employee uploads ID document', () => {
   let employeeId: string;
 
   test.beforeEach(async ({ page }) => {
+    // Diagnostics for CI logs: failed calls to AWS (method, host, path, status).
+    // No query strings, so presigned-URL signatures never reach the log.
+    const where = (u: string) => { const x = new URL(u); return `${x.host}${x.pathname}`; };
+    page.on('response', (r) => {
+      if (r.status() >= 400 && /amazonaws\.com/.test(r.url())) {
+        console.log(`[e2e] ${r.request().method()} ${where(r.url())} -> ${r.status()}`);
+      }
+    });
+    page.on('requestfailed', (r) => {
+      if (/amazonaws\.com/.test(r.url())) {
+        console.log(`[e2e] ${r.method()} ${where(r.url())} failed: ${r.failure()?.errorText}`);
+      }
+    });
     employeeId = await loginAsEmployee(page);
   });
 
@@ -83,7 +96,11 @@ test.describe('New employee uploads ID document', () => {
 
     // Test employees never reach the AI (cost guardrail), so OCR is skipped and
     // the document goes to manual review. "Verified" here would mean AI was called.
-    await expect(idDocCard.locator('[data-testid="upload-in-review"]')).toBeVisible({ timeout: 60_000 });
+    await expect(idDocCard.locator('[data-testid="upload-in-review"]')).toBeVisible({ timeout: 60_000 })
+      .catch(async (e) => {
+        console.log(`[e2e] ID card shows: ${(await idDocCard.innerText()).replace(/\s+/g, ' ').slice(0, 200)}`);
+        throw e;
+      });
   });
 
   test('ID document appears in list after successful upload', async ({ page }) => {
