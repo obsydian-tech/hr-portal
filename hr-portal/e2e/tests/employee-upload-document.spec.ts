@@ -63,6 +63,16 @@ test.describe('New employee uploads ID document', () => {
     page.on('response', (r) => {
       if (r.status() >= 400 && /amazonaws\.com/.test(r.url())) {
         console.log(`[e2e] ${r.request().method()} ${where(r.url())} -> ${r.status()}`);
+        // Names only, never values: the repo and its logs are public.
+        const params = [...new URL(r.url()).searchParams.keys()].join(' ');
+        const headers = Object.keys(r.request().headers()).join(' ');
+        console.log(`[e2e]   query params: ${params}`);
+        console.log(`[e2e]   request headers: ${headers}`);
+        // S3's error code and message (e.g. BadDigest), without its other fields.
+        r.text().then((body) => {
+          const pick = (tag: string) => body.match(new RegExp(`<${tag}>([^<]{0,200})</${tag}>`))?.[1] ?? '';
+          console.log(`[e2e]   S3 says: ${pick('Code')}: ${pick('Message')}`);
+        }).catch(() => console.log('[e2e]   S3 error body not readable'));
       }
     });
     page.on('requestfailed', (r) => {
