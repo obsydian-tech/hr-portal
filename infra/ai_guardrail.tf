@@ -36,14 +36,15 @@ variable "ai_cost_services" {
     Edition)". Check this list against Cost Explorer before applying.
   EOT
   type        = list(string)
+  # Kept in the order AWS returns them, so the plan shows no false drift.
   default = [
     "Amazon Bedrock",
     "Amazon Textract",
     "Claude Haiku 4.5 (Amazon Bedrock Edition)",
-    "Claude Sonnet 4.5 (Amazon Bedrock Edition)",
-    "Claude 3 Haiku (Amazon Bedrock Edition)",
     "Claude Opus 4.5 (Amazon Bedrock Edition)",
+    "Claude Sonnet 4.5 (Amazon Bedrock Edition)",
     "Claude Sonnet 4.6 (Amazon Bedrock Edition)",
+    "Claude 3 Haiku (Amazon Bedrock Edition)",
   ]
 }
 
