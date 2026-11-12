@@ -14,7 +14,7 @@ as deleted).
 
 Usage:
   help-retake.py filter        # prints changed=true/false for GITHUB_OUTPUT
-  help-retake.py body --repo OWNER/NAME --base SHA --head SHA --out FILE
+  help-retake.py body --repo OWNER/NAME --base SHA --head SHA --out FILE [--previews SHA]
                                # PR body: before and after for each picture
 """
 import argparse
@@ -75,7 +75,7 @@ def keep_real_changes() -> None:
     print(f"{len(left)} help file(s) changed.", file=sys.stderr)
 
 
-def write_body(repo: str, base: str, head: str, out: str) -> None:
+def write_body(repo: str, base: str, head: str, out: str, previews: str | None = None) -> None:
     diff = git("diff", "--name-status", "--no-renames", base, head, "--", MEDIA)
     found = {line.split("\t", 1)[1]: line[0] for line in diff.splitlines() if line}
     raw = f"https://raw.githubusercontent.com/{repo}"
@@ -96,11 +96,18 @@ def write_body(repo: str, base: str, head: str, out: str) -> None:
         lines.append(f"| `{name}` | {before} | {after} |")
     videos = sorted(p for p in found if p.endswith(".webm"))
     if videos:
-        lines += ["", "**Videos**", ""]
+        # GitHub does not play videos linked from the repo, so each one gets an
+        # animated GIF preview (kept on the help/previews branch, never merged).
+        lines += ["", "**Videos** (preview; tap the name for the real video)", ""]
         for path in videos:
             name = os.path.relpath(path, MEDIA)
-            link = f"[{name}]({raw}/{head}/{path})" if found[path] != "D" else f"`{name}`"
-            lines.append(f"- {link} ({word[found[path]]})")
+            if found[path] == "D":
+                lines.append(f"- `{name}` (removed)")
+                continue
+            lines.append(f"- [{name}]({raw}/{head}/{path}) ({word[found[path]]})")
+            if previews:
+                gif = name[: -len(".webm")] + ".gif"
+                lines += ["", f"  ![{name} preview]({raw}/{previews}/{gif})", ""]
     lines += ["", "Made by the Help pictures retake workflow. No AI was used."]
     with open(out, "w") as f:
         f.write("\n".join(lines) + "\n")
@@ -115,11 +122,12 @@ def main() -> None:
     b.add_argument("--base", required=True)
     b.add_argument("--head", required=True)
     b.add_argument("--out", required=True)
+    b.add_argument("--previews", help="commit SHA on help/previews holding GIF previews")
     a = ap.parse_args()
     if a.cmd == "filter":
         keep_real_changes()
     else:
-        write_body(a.repo, a.base, a.head, a.out)
+        write_body(a.repo, a.base, a.head, a.out, a.previews)
 
 
 if __name__ == "__main__":
