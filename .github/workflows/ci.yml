@@ -18,6 +18,9 @@ on:
     branches: [develop, main]
   push:
     branches: [develop, main]
+  # Lets the help retake workflow start the required checks on its own PR
+  # (a PR opened by a workflow token does not trigger pull_request runs).
+  workflow_dispatch:
 
 # Cancel in-progress runs for the same branch to save minutes
 concurrency:

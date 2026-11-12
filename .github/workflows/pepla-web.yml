@@ -36,8 +36,8 @@ jobs:
 
   journeys:
     name: Journeys (no backend)
-    # Normal mode: checks the journeys, no help pictures. Help mode runs in its
-    # own retake workflow (later). Nothing here calls an AI service.
+    # Normal mode: checks the journeys, no help pictures. Help mode runs in
+    # help-retake.yml after merges. Nothing here calls an AI service.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
