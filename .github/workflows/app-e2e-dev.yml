@@ -1,7 +1,7 @@
 # App tests on dev: run the onboarding journeys against pepla-dev
-#   - on every PR into dev or main that changes the web app or its tests
+#   - on every PR into develop or main that changes the web app or its tests
 #     (tests the PR's own app code; red = don't merge), and
-#   - after web app code merges into dev.
+#   - after web app code merges into develop.
 # Backend code and prod are never touched, and nothing here asks for an
 # Approve. Backend changes are deployed and tested by deploy-lambdas.yml.
 #
@@ -12,7 +12,7 @@ name: App tests on dev
 
 on:
   pull_request:
-    branches: [dev, main]
+    branches: [develop, main]
     paths:
       - "hr-portal/src/**"
       - "hr-portal/e2e/**"
@@ -22,7 +22,7 @@ on:
       - "hr-portal/tsconfig*.json"
       - ".github/workflows/app-e2e-dev.yml"
   push:
-    branches: [dev]
+    branches: [develop]
     paths:
       - "hr-portal/src/**"
       - "hr-portal/angular.json"
