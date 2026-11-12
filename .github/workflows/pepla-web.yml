@@ -1,0 +1,35 @@
+# Gate for the new Pepla app in pepla-web/. Builds and tests only; deploys nothing and calls no AI service.
+name: Pepla web
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths: ["pepla-web/**", ".github/workflows/pepla-web.yml"]
+  push:
+    branches: [develop, main]
+    paths: ["pepla-web/**", ".github/workflows/pepla-web.yml"]
+
+concurrency:
+  group: pepla-web-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: verify:design, tests, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pepla-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: pepla-web/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build

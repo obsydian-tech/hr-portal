@@ -1,0 +1,11 @@
+/* Pepla base: page defaults built only from tokens. */
+html, body { background: var(--elevation-surface); color: var(--color-text); font: var(--font-body); letter-spacing: var(--font-body-tracking); -webkit-font-smoothing: antialiased; }
+a { color: var(--color-link); text-underline-offset: 2px; }
+a:active { color: var(--color-link-pressed); }
+button, input, select, textarea { font: inherit; letter-spacing: inherit; color: inherit; }
+:focus { outline: none; }
+:focus-visible { outline: var(--border-width-focused) solid var(--color-border-focused); outline-offset: var(--focus-ring-offset); }
+::selection { background: var(--color-background-selected-hovered); }
+
+/* Hidden on screen, still read by screen readers */
+.pp-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

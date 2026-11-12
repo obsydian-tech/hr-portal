@@ -1,0 +1,17 @@
+{
+  "repo": "obsydian-tech/pepla-design-system",
+  "ref": "9b6a941",
+  "files": {
+    "tokens/palette.css": "24583a888af5f967fc328ae8b03e2f12060a3334bad933a73bdd2493d7a4c9cf",
+    "tokens/colors.css": "177e4b94baf277918d271fabfc9a5a8dd752cca4ce8c48beddde6e2d441f3ff3",
+    "tokens/typography.css": "a9115fbda0db5f2f8c4c53a50b0f26b122bef903ac73bc0ad7d8aee900968804",
+    "tokens/spacing.css": "53145fe29d777fecaa353356847eb008d1598ee9249c09910250532e521dc1f5",
+    "tokens/shape.css": "bd767000b1a7a2fee8d526a551e9fba182b75b55cfe05968e0a0879b85e9615a",
+    "tokens/motion.css": "75b2b9c8fb5c0e69dad210cd6f9a072ce96c955df197062458732a83a4a444fd",
+    "tokens/layers.css": "16cc5210a6462beaaa2a3ea1100a2e34ebd6ef79459cd86d3fa6fce153e117c9",
+    "tokens/base.css": "4e148431645ab7696a9fa8a866fb80e1bdf313d5f76eab0f43e65e9bced70e37",
+    "components.css": "216887e22663a489745fbce246bc107eaf80146b22bf25b291feefad36816e99",
+    "icons.json": "14df77d29f4ce1c259e59e24f010585734ca531731b4dc014c5773bdca5d4555",
+    "index.css": "75337f86e85e69ccafb00bce12aff49128f53c167af66734803bbc4af2ab0aa9"
+  }
+}
