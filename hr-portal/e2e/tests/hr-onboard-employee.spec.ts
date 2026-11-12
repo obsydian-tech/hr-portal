@@ -35,7 +35,7 @@ async function loginAsHR(page: Page): Promise<string> {
   return HR_STAFF_ID;
 }
 
-test.describe('HR Partner onboards a new employee', () => {
+test.describe('HR Partner onboards a new employee', { tag: ['@onboard'] }, () => {
   test.skip(!HR_EMAIL || !HR_PASSWORD, 'E2E_HR_EMAIL / E2E_HR_PASSWORD not set — skipping');
 
   let uniqueEmail: string;
@@ -48,7 +48,7 @@ test.describe('HR Partner onboards a new employee', () => {
     staffId = await loginAsHR(page);
   });
 
-  test('HR partner can navigate to new employee registration', async ({ page }) => {
+  test('HR partner can navigate to new employee registration', { tag: ['@smoke'] }, async ({ page }) => {
     // Click the "New Hire" sidebar action button
     await page.locator('[data-testid="new-hire-btn"]').click();
     await expect(page).toHaveURL(/\/hr\/[A-Z0-9]+\/new-employee/, { timeout: 10_000 });

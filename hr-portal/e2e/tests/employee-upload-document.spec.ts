@@ -51,7 +51,7 @@ function idDocRow(page: Page) {
   return page.locator('app-document-row').filter({ has: page.locator('[data-testid="doc-card-NATIONAL_ID"]') });
 }
 
-test.describe('New employee uploads ID document', () => {
+test.describe('New employee uploads ID document', { tag: ['@onboard'] }, () => {
   test.skip(!EMP_EMAIL || !EMP_PASSWORD, 'E2E_EMP_EMAIL / E2E_EMP_PASSWORD not set — skipping');
 
   let employeeId: string;
@@ -83,7 +83,7 @@ test.describe('New employee uploads ID document', () => {
     employeeId = await loginAsEmployee(page);
   });
 
-  test('Employee dashboard loads and document checklist is visible', async ({ page }) => {
+  test('Employee dashboard loads and document checklist is visible', { tag: ['@smoke'] }, async ({ page }) => {
     await expect(page).toHaveURL(/\/employees\//, { timeout: 10_000 });
     // Document checklist section should be present
     await expect(page.locator('text=Upload Your Documents')).toBeVisible({ timeout: 10_000 });

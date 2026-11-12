@@ -27,14 +27,14 @@ async function loginAsHR(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/platform\/home|\/hr\//, { timeout: 15_000 });
 }
 
-test.describe('TalentFlow quick checks', () => {
+test.describe('TalentFlow quick checks', { tag: ['@hire'] }, () => {
   test.skip(!HR_EMAIL || !HR_PASSWORD, 'E2E_HR_EMAIL / E2E_HR_PASSWORD not set — skipping');
 
   test.beforeEach(async ({ page }) => {
     await loginAsHR(page);
   });
 
-  test('HR can open TalentFlow', async ({ page }) => {
+  test('HR can open TalentFlow', { tag: ['@smoke'] }, async ({ page }) => {
     await page.goto('/platform/talentflow');
     // A login without TalentFlow access is sent back to /platform/home?locked=talentflow.
     await expect(page).toHaveURL(/\/platform\/talentflow/, { timeout: 15_000 });
