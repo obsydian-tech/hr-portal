@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------
 # GitHub Actions read-only plan role
 #
-# Assumed by .github/workflows/terraform-plan.yml on pull requests, through
+# Assumed by .github/workflows/terraform-plan.yml on pull requests and by
+# .github/workflows/drift-check.yml every night, through
 # the GitHub OIDC provider defined in talent-flow-github-oidc.tf.
 # It runs `terraform plan` for both roots (infra/ and talent-flow-infra/).
 #
@@ -48,12 +49,17 @@ resource "aws_iam_role" "github_plan_readonly" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          # Both subject formats for the same repo, pull_request events only.
-          # The obsydian-tech org may issue the immutable form (org and repo
-          # IDs). Remove the form that does not match after the first run.
+          # Both subject formats for the same repo. The obsydian-tech org may
+          # issue the immutable form (org and repo IDs). Remove the form that
+          # does not match after the first run.
+          #   pull_request: terraform-plan.yml on PRs.
+          #   environment:drift-check: the nightly drift check (drift-check.yml),
+          #   which runs on develop in the "drift-check" GitHub environment.
           "token.actions.githubusercontent.com:sub" = [
             "repo:obsydian-tech/hr-portal:pull_request",
             "repo:obsydian-tech@183697107/hr-portal@1188146294:pull_request",
+            "repo:obsydian-tech/hr-portal:environment:drift-check",
+            "repo:obsydian-tech@183697107/hr-portal@1188146294:environment:drift-check",
           ]
         }
       }
