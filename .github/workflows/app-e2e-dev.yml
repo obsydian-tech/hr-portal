@@ -1,0 +1,120 @@
+# App tests on dev: run the onboarding journeys against pepla-dev
+#   - on every PR into develop or main that changes the web app or its tests
+#     (tests the PR's own app code; red = don't merge), and
+#   - after web app code merges into develop.
+# Backend code and prod are never touched, and nothing here asks for an
+# Approve. Backend changes are deployed and tested by deploy-lambdas.yml.
+#
+# AI cost guardrail: test logins are robots (group e2e-robots), the specs
+# block AI routes in the browser (fixtures/no-ai), and the dev CI role is
+# denied Bedrock/Textract. So a run costs nothing in AI.
+name: App tests on dev
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "hr-portal/src/**"
+      - "hr-portal/e2e/**"
+      - "hr-portal/angular.json"
+      - "hr-portal/package.json"
+      - "hr-portal/package-lock.json"
+      - "hr-portal/tsconfig*.json"
+      - ".github/workflows/app-e2e-dev.yml"
+  push:
+    branches: [develop]
+    paths:
+      - "hr-portal/src/**"
+      - "hr-portal/angular.json"
+      - "hr-portal/package.json"
+      - "hr-portal/package-lock.json"
+      - "hr-portal/tsconfig*.json"
+      - ".github/workflows/app-e2e-dev.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: af-south-1
+
+jobs:
+  e2e-dev:
+    name: App E2E on pepla-dev
+    # PRs from forks get no AWS access; only branches in this repo run here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Shares pepla-dev's seeded data with deploy-lambdas.yml: never run both at once.
+    concurrency:
+      group: pepla-dev-e2e
+      cancel-in-progress: false
+    # Pinned: the repo's Playwright version has no Chromium build for the
+    # newer ubuntu-latest image. Move with the next Playwright upgrade.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: hr-portal/package-lock.json
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::424556617428:role/pepla-github-deploy-dev
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check we are in pepla-dev
+        run: |
+          acct=$(aws sts get-caller-identity --query Account --output text)
+          [ "$acct" = "424556617428" ] || { echo "::error::not pepla-dev"; exit 1; }
+
+      - name: Seed demo company and test logins
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/seed-dev.py
+
+      - name: Point the app at pepla-dev
+        run: scripts/ci/dev-frontend-env.sh
+
+      - name: Load test logins (masked)
+        run: python3 scripts/ci/load-e2e-logins.py
+
+      - name: Install app and browser
+        working-directory: hr-portal
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start the app
+        working-directory: hr-portal
+        run: |
+          npx ng serve --host 127.0.0.1 --port 4200 > /tmp/ng-serve.log 2>&1 &
+          npx wait-on http://127.0.0.1:4200 --timeout 180000
+
+      - name: Run journeys
+        working-directory: hr-portal
+        env:
+          E2E_BASE_URL: http://localhost:4200
+        run: npx playwright test --config e2e/playwright.config.ts
+
+      - name: Clean up this run's records
+        if: always()
+        run: python3 scripts/ci/cleanup-dev-e2e.py
+
+      # Failure pictures and videos show seeded fake people only. Short-lived.
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-e2e-dev-report-${{ github.run_id }}
+          path: |
+            hr-portal/e2e/e2e/reports/
+            hr-portal/e2e/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
