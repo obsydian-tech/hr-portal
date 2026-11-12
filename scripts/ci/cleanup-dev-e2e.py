@@ -3,8 +3,9 @@
 Remove the records an E2E run created in pepla-dev.
 
 Journeys mark everything they create with an email that starts with
-"e2e.run-". This deletes those employees (and their documents) and any
-matching Cognito users. Seeded demo people and test logins stay.
+"e2e.run-". This deletes those employees (and their documents), TalentFlow
+candidates (every row of theirs in talent-flow-state) and any matching
+Cognito users. Seeded demo people and test logins stay.
 Refuses to run outside pepla-dev. Prints counts only.
 """
 import sys
@@ -14,6 +15,7 @@ import boto3
 DEV_ACCOUNT = "424556617428"
 REGION = "af-south-1"
 MARKER = "e2e.run-"
+TF_STATE = "talent-flow-state"
 
 
 def main() -> None:
@@ -49,7 +51,39 @@ def main() -> None:
                     cognito.admin_delete_user(UserPoolId=pool["Id"], Username=u["Username"])
                     users += 1
 
-    print(f"cleanup-dev-e2e: employees {employees}; documents {docs}; logins {users}")
+    candidates = remove_candidates(ddb)
+    print(f"cleanup-dev-e2e: employees {employees}; documents {docs}; "
+          f"candidates {candidates}; logins {users}")
+
+
+def remove_candidates(ddb) -> int:
+    """Delete TalentFlow candidates whose email carries the run marker."""
+    ids = []
+    try:
+        for page in ddb.get_paginator("scan").paginate(
+                TableName=TF_STATE,
+                FilterExpression="SK = :saga AND begins_with(email, :m)",
+                ExpressionAttributeValues={":saga": {"S": "SAGA"}, ":m": {"S": MARKER}},
+                ProjectionExpression="candidateId"):
+            ids += [i["candidateId"]["S"] for i in page["Items"]]
+        for cid in ids:
+            # The candidate's own rows (SAGA, STAGE#..., events) ...
+            for page in ddb.get_paginator("query").paginate(
+                    TableName=TF_STATE, KeyConditionExpression="PK = :pk",
+                    ExpressionAttributeValues={":pk": {"S": f"CANDIDATE#{cid}"}},
+                    ProjectionExpression="PK, SK"):
+                for key in page["Items"]:
+                    ddb.delete_item(TableName=TF_STATE, Key=key)
+            # ... and rows kept under other keys that name it (snapshots).
+            for page in ddb.get_paginator("scan").paginate(
+                    TableName=TF_STATE, FilterExpression="candidateId = :c",
+                    ExpressionAttributeValues={":c": {"S": cid}},
+                    ProjectionExpression="PK, SK"):
+                for key in page["Items"]:
+                    ddb.delete_item(TableName=TF_STATE, Key=key)
+    except ddb.exceptions.ResourceNotFoundException:
+        return 0
+    return len(ids)
 
 
 if __name__ == "__main__":
