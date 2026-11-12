@@ -91,7 +91,7 @@ const ROLES: Record<Role, { icon: IconName; text: string }> = {
   it: { icon: 'laptop', text: 'IT' }, employee: { icon: 'user', text: 'Employee' },
 };
 
-/** Someone's role in Pepla. Never in the top bar. `current` is the role they are acting as now. Spec: records/role-pill.md */
+/** Someone's role in Naleko People. Never in the top bar. `current` is the role they are acting as now. Spec: records/role-pill.md */
 @Component({
   selector: 'pp-role',
   imports: [PpIcon],
@@ -255,7 +255,7 @@ abstract class PpRevealable implements OnDestroy {
     @if (state() === 'revealed') {
       <span class="pp-masked__notice" role="status"><svg ppIcon="history" /><span>Shown to you, {{ when() }}. Hides again in 2 minutes.</span></span>
     } @else if (state() === 'failed') {
-      <span class="pp-masked__notice pp-masked__notice--error" role="alert"><svg ppIcon="octagon-alert" /><span>Pepla could not record the reveal, so the {{ noun() }} stays hidden.</span></span>
+      <span class="pp-masked__notice pp-masked__notice--error" role="alert"><svg ppIcon="octagon-alert" /><span>Batsi could not record the reveal, so the {{ noun() }} stays hidden.</span></span>
     } @else if (notice() && state() === 'hidden') {
       <span class="pp-masked__notice" [id]="id + '-n'"><svg ppIcon="history" /><span>Revealing is recorded</span></span>
     }
@@ -299,7 +299,7 @@ export class PpMaskedField extends PpRevealable {
       @if (state() === 'revealed') {
         <div class="pp-text-field-audit" [id]="id + '-h'"><svg ppIcon="history" /><span>Shown to you, {{ when() }}. Hides again in 2 minutes.</span></div>
       } @else if (state() === 'failed') {
-        <div class="pp-field__error" [id]="id + '-h'"><svg ppIcon="octagon-alert" /><span>Pepla could not record the reveal, so it stays hidden.</span></div>
+        <div class="pp-field__error" [id]="id + '-h'"><svg ppIcon="octagon-alert" /><span>Batsi could not record the reveal, so it stays hidden.</span></div>
       } @else if (hint()) {
         <div class="pp-field__help" [id]="id + '-h'">{{ hint() }} <ng-container [ngTemplateOutlet]="extraContent" /></div>
       }
@@ -389,7 +389,7 @@ export class PpPersonHeaderActions {}
         @if (subheading()) { <span class="pp-document-checklist__subtitle">{{ subheading() }}</span> }
       </div>
       @if (done() !== undefined && total()) {
-        <pp-progress-bar label="Verified" [value]="done()!" [max]="total()!" [valueText]="done() + ' of ' + total() + ' documents'" [tone]="done() === total() ? 'success' : 'warning'" />
+        <pp-progress-bar label="Checked" [value]="done()!" [max]="total()!" [valueText]="done() + ' of ' + total() + ' documents'" [tone]="done() === total() ? 'success' : 'warning'" />
       }
     </div>
     <ul class="pp-document-checklist__list"><ng-content /></ul>
@@ -399,14 +399,14 @@ export class PpPersonHeaderActions {}
 export class PpDocumentChecklist {
   readonly heading = input.required<string>();
   readonly subheading = input<string>();
-  /** Verified so far, for the progress bar. Leave both out on a new hire's own list (the subheading says it). */
+  /** Checked so far, for the progress bar. Leave both out on a new employee's own list (the subheading says it). */
   readonly done = input<number>();
   readonly total = input<number>();
 }
 
 /**
  * One document: what it is, who uploaded it, its status and the one action.
- * `<li ppDocumentRow name="South African ID" icon="id-card" meta="Uploaded by Kagiso, 9 Nov 2026, 08:02" status="success" statusText="Verified">`
+ * `<li ppDocumentRow name="South African ID" icon="id-card" meta="Uploaded by Kagiso, 9 Nov 2026, 08:02" status="success" statusText="Matches">`
  * Spec: records/document-row.md
  */
 @Component({
@@ -417,7 +417,7 @@ export class PpDocumentChecklist {
     <span class="pp-icon-tile" [class.pp-icon-tile--brand]="next()" aria-hidden="true"><svg [ppIcon]="icon()" /></span>
     <div class="pp-document-row__body">
       <span class="pp-document-row__name">{{ name() }}</span>
-      <!-- With a lozenge (Checked by Pepla) the words get their own span, so the two wrap apart. -->
+      <!-- With a lozenge (Checked by Batsi) the words get their own span, so the two wrap apart. -->
       @if (badge().length || inMeta()) { <span class="pp-document-row__meta"><span>{{ meta() }}</span><ng-content select="pp-lozenge, [ppDeadline]:not([ppDocumentStatus])" /></span> }
       @else { <span class="pp-document-row__meta">{{ meta() }}</span> }
       @if (reason()) { <span class="pp-document-row__reason"><svg ppIcon="octagon-alert" /><span>{{ reason() }}</span></span> }
@@ -435,7 +435,7 @@ export class PpDocumentRow {
   readonly status = input<Status>('neutral');
   /** The status in words. Or put a `<time ppDeadline ppDocumentStatus …>` inside instead, for a document that is due. */
   readonly statusText = input<string>();
-  /** The new hire's next document: the tile takes the brand colour. */
+  /** The new employee's next document: the tile takes the brand colour. */
   readonly next = input(false);
   /** Actions that are not ppButtons (the box shows by itself when a button is inside). */
   readonly hasActions = input(false);
@@ -510,7 +510,7 @@ export class PpChecklistRow {
     <details class="pp-audit-event" [open]="open()">
       <summary class="pp-audit-event__summary">
         <time class="pp-audit-event__when" [attr.datetime]="iso()">{{ when() }}</time>
-        <span class="pp-audit-event__what"><pp-avatar [name]="actor()" size="small" [kind]="actor() === 'Pepla' ? 'agent' : 'person'" [colour]="colour()" [decorative]="true" /><span class="pp-audit-event__sentence"><strong>{{ actor() }}</strong> {{ sentence() }}</span></span>
+        <span class="pp-audit-event__what"><pp-avatar [name]="actor()" size="small" [kind]="actor() === 'Batsi' ? 'agent' : 'person'" [colour]="colour()" [decorative]="true" /><span class="pp-audit-event__sentence"><strong>{{ actor() }}</strong> {{ sentence() }}</span></span>
         <span class="pp-audit-event__where">{{ where() }}</span>
         <pp-lozenge [status]="o().status" [icon]="o().icon" class="pp-audit-event__outcome">{{ o().text }}</pp-lozenge>
         <span class="pp-audit-event__chevron" aria-hidden="true"><svg ppIcon="chevron-down" /></span>
@@ -559,7 +559,7 @@ export class PpAuditLog { readonly label = input('Audit log'); }
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <span class="pp-config-version__version"><svg ppIcon="history" />Version {{ version() }}</span>
-    @if (draft() && byAgent()) { <pp-lozenge status="agent" icon="sparkles">Drafted by Pepla</pp-lozenge> }
+    @if (draft() && byAgent()) { <pp-lozenge status="agent" icon="sparkles">Drafted by Batsi</pp-lozenge> }
     @else if (draft()) { <pp-lozenge icon="pencil">Draft</pp-lozenge> }
     @else { <pp-lozenge status="success" icon="circle-check">Live</pp-lozenge> }
     <span class="pp-config-version__meta">{{ meta() }}</span>
@@ -571,7 +571,7 @@ export class PpConfigVersion {
   readonly version = input.required<number>();
   readonly meta = input.required<string>();
   readonly draft = input(false);
-  /** A draft Pepla proposed (from hiring data, say): it needs a person to review it. */
+  /** A draft Batsi proposed (from hiring data, say): it needs a person to review it. */
   readonly byAgent = input(false);
   readonly boxed = input(true);
 }
@@ -611,11 +611,12 @@ export class PpVerification {
   readonly heading = input.required<string>();
   readonly subheading = input.required<string>();
   readonly icon = input<IconName>('id-card');
-  readonly result = input.required<'passed' | 'failed' | 'check'>();
+  /** matches: everything matched. mismatch: something does not match. check: needs a look. The check only flags; HR decides. */
+  readonly result = input.required<'matches' | 'mismatch' | 'check'>();
   readonly checks = input.required<VerificationCheck[]>();
   protected readonly r = computed(() => ({
-    passed: { status: 'success' as Status, icon: 'shield-check' as IconName, text: 'Passed' },
-    failed: { status: 'danger' as Status, icon: 'octagon-alert' as IconName, text: 'Failed' },
+    matches: { status: 'success' as Status, icon: 'shield-check' as IconName, text: 'Matches' },
+    mismatch: { status: 'warning' as Status, icon: 'triangle-alert' as IconName, text: "Doesn't match" },
     check: { status: 'warning' as Status, icon: 'triangle-alert' as IconName, text: 'Needs a look' },
   })[this.result()]);
 }

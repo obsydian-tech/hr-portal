@@ -78,7 +78,7 @@ test('markup: native controls need their ds directive; no native select', () => 
 });
 
 test('markup: screens use only Layout and text classes; every class is a defined pp- class', () => {
-  fails(screen('<div class="mt-4"></div>'), 'markup', 'not a Pepla class');
+  fails(screen('<div class="mt-4"></div>'), 'markup', 'not a Naleko People class');
   fails(screen('<div class="pp-made-up"></div>'), 'markup', 'undefined pp- class');
   fails(screen('<div class="pp-card__header"></div>'), 'markup', 'component class in a screen');
   fails(screen('<div [class.pp-card]="x"></div>'), 'markup', 'component class bound in a screen');

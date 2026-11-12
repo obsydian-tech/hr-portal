@@ -12,8 +12,8 @@ export const initials = (name: string) => name.trim().split(/\s+/).filter(Boolea
 export const colourFor = (name: string): AvatarColour => COLOURS[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % COLOURS.length];
 
 /**
- * A person, team or Pepla itself. `<pp-avatar name="Thandeka Dlamini" size="large" />`.
- * kind="agent" is Pepla (mint, sparkles); kind="team" is a square with the people icon.
+ * A person, team or Batsi. `<pp-avatar name="Thandeka Dlamini" size="large" />`.
+ * kind="agent" is Batsi (mint, sparkles); kind="team" is a square with the people icon.
  * Spec: project/components/core/avatar.md
  */
 @Component({

@@ -1,5 +1,5 @@
 <div class="pp-stack pp-gap-500">
-  <pp-page-header heading="Pepla design system" description="Every pp-* component in the app, in its states. Screens use these and Layout, nothing else.">
+  <pp-page-header heading="Naleko People design system" description="Every pp-* component in the app, in its states. Screens use these and Layout, nothing else.">
     <pp-page-header-actions>
       <a ppButton appearance="default" icon="external-link" href="https://obsydian-tech.github.io/pepla-design-system/" target="_blank" rel="noopener">Specs</a>
     </pp-page-header-actions>
@@ -20,19 +20,19 @@
       <pp-avatar name="Lerato Mokoena" />
       <pp-avatar name="Kagiso Molefe" size="large" [online]="true" />
       <pp-avatar name="Chipo Banda" size="xlarge" />
-      <pp-avatar name="Pepla" kind="agent" size="large" />
+      <pp-avatar name="Batsi" kind="agent" size="large" />
       <pp-avatar name="Finance team" kind="team" size="large" />
       <pp-avatar-group label="Interview panel" [names]="['Sipho Ndlovu', 'Lerato Mokoena', 'Kagiso Molefe', 'Chipo Banda', 'Tariro Moyo']" />
     </div>
     <div class="pp-inline pp-gap-300">
       <pp-person name="Thandeka Dlamini" meta="Bookkeeper · Starts 17 Nov" />
-      <pp-person name="Pepla" kind="agent" meta="Your HR agent" />
+      <pp-person name="Batsi" kind="agent" meta="Your HR agent" />
     </div>
     <div class="pp-inline pp-gap-300">
-      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="sparkles" tone="agent" />Checked by Pepla</span>
-      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="circle-check" tone="success" />Verified</span>
+      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="sparkles" tone="agent" />Checked by Batsi</span>
+      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="circle-check" tone="success" />Matches</span>
       <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="clock" tone="warning" />Due in 2 days</span>
-      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="octagon-alert" tone="danger" />ID check failed</span>
+      <span class="pp-inline pp-inline--fit pp-gap-075"><svg ppIcon="octagon-alert" tone="danger" />Contract not signed</span>
       <pp-icon-tile icon="user-plus" tone="brand" />
       <pp-icon-tile icon="calendar-days" />
       <pp-icon-tile icon="sparkles" tone="agent" />
@@ -51,7 +51,7 @@
       <button ppButton appearance="agent" icon="check">Approve</button>
     </pp-button-group>
     <pp-button-group>
-      <button ppButton appearance="primary" size="large" icon="user-plus">Add new hire</button>
+      <button ppButton appearance="primary" size="large" icon="user-plus">Add new employee</button>
       <button ppButton icon="upload">Upload document</button>
       <button ppButton size="small">Review</button>
       <button ppButton [pressed]="true">Filtered: overdue</button>
@@ -80,10 +80,10 @@
     <div class="pp-inline pp-gap-100">
       <pp-lozenge>Not started</pp-lozenge>
       <pp-lozenge status="information">In review</pp-lozenge>
-      <pp-lozenge status="success">Verified</pp-lozenge>
+      <pp-lozenge status="success">Matches</pp-lozenge>
       <pp-lozenge status="warning" icon="clock">Due in 2 days</pp-lozenge>
       <pp-lozenge status="danger" icon="clock-alert">Overdue by 1 day</pp-lozenge>
-      <pp-lozenge status="agent">Checked by Pepla</pp-lozenge>
+      <pp-lozenge status="agent">Checked by Batsi</pp-lozenge>
       <pp-lozenge status="success" [bold]="true">Hired</pp-lozenge>
     </div>
     <div class="pp-inline pp-gap-100">
@@ -113,7 +113,7 @@
     <div class="pp-grid pp-grid--2 pp-gap-400">
       <div class="pp-stack pp-gap-300">
         <pp-progress-bar label="Lerato's documents" [value]="3" [max]="5" valueText="3 of 5 received" />
-        <pp-progress-bar label="Pepla is checking the documents" [value]="4" [max]="6" valueText="4 of 6 checked" tone="agent" help="You approve the results when Pepla is done" helpIcon="sparkles" />
+        <pp-progress-bar label="Batsi is checking the documents" [value]="4" [max]="6" valueText="4 of 6 checked" tone="agent" help="You approve the results when Batsi is done" helpIcon="sparkles" />
         <pp-skeleton-group label="Loading people">
           <pp-skeleton-row><pp-skeleton shape="avatar" /><pp-skeleton-stack><pp-skeleton width="40%" /><pp-skeleton width="25%" /></pp-skeleton-stack><pp-skeleton shape="lozenge" /></pp-skeleton-row>
         </pp-skeleton-group>
@@ -128,19 +128,19 @@
     <pp-banner>The payroll connection stopped at 06:00. November payslips won't sync until you <a ppLink href="#messages">reconnect payroll</a>.</pp-banner>
     <div class="pp-grid pp-grid--2 pp-gap-300">
       <pp-section-message heading="Lerato's contract is waiting on her tax number">
-        Pepla can send the contract once Lerato adds her SARS tax number in the portal.
+        Batsi can send the contract once Lerato adds her SARS tax number in the portal.
         <pp-section-message-actions><button ppButton size="small">Remind Lerato</button></pp-section-message-actions>
       </pp-section-message>
       <pp-section-message tone="danger" heading="Kagiso's ID check failed">The surname on the ID doesn't match the offer. Ask Kagiso which is right.</pp-section-message>
     </div>
     <div class="pp-stack pp-gap-100">
       <pp-inline-message tone="error">That ID number has 12 digits. South African IDs have 13.</pp-inline-message>
-      <pp-inline-message tone="agent">Pepla filled this in from the bank letter.</pp-inline-message>
+      <pp-inline-message tone="agent">Batsi filled this in from the bank letter.</pp-inline-message>
     </div>
     <pp-button-group>
       <button ppButton size="small" (click)="flag('success')">Show a success flag</button>
       <button ppButton size="small" (click)="flag('error')">Show an error flag</button>
-      <button ppButton size="small" (click)="flag('agent')">Show a Pepla flag</button>
+      <button ppButton size="small" (click)="flag('agent')">Show a Batsi flag</button>
     </pp-button-group>
     <pp-empty-state icon="user-plus" heading="No candidates yet" body="When people apply for Bookkeeper, they show up here." [compact]="true">
       <button ppButton appearance="primary">Share job link</button>
@@ -221,12 +221,12 @@
           <textarea ppTextarea maxlength="500">Sipho was strong on payroll reconciliations. Worth asking about SARS eFiling in the second interview.</textarea>
         </pp-field>
         <pp-checkbox label="Send Sipho his contract by email as well" [(value)]="email" />
-        <pp-toggle label="Remind new hires about missing documents" description="Pepla sends a WhatsApp message 2 days before the deadline" [(value)]="remind" />
+        <pp-toggle label="Remind new employees about missing documents" description="Batsi sends a WhatsApp message 2 days before the deadline" [(value)]="remind" />
       </fieldset>
       <pp-form-footer status="Saved 2 minutes ago">
         <pp-button-group align="end" [stackPhone]="true">
           <button ppButton type="button">Save draft</button>
-          <button ppButton appearance="primary" type="button" [busy]="busy()" (click)="save()">Add new hire</button>
+          <button ppButton appearance="primary" type="button" [busy]="busy()" (click)="save()">Add new employee</button>
         </pp-button-group>
       </pp-form-footer>
     </form>
@@ -239,8 +239,8 @@
     <pp-stat-row>
       <pp-stat label="New starters this month" icon="rocket" [value]="3" link="/dev/design-system" />
       <pp-stat label="Documents waiting" icon="file-text" [value]="12" meta="2 due tomorrow" metaTone="attention" link="/dev/design-system" />
-      <pp-stat label="ID checks" icon="shield-check" [value]="8" meta="1 failed" metaTone="danger" link="/dev/design-system" />
-      <pp-stat label="Chased by Pepla" icon="sparkles" [value]="5" link="/dev/design-system" />
+      <pp-stat label="ID checks" icon="shield-check" [value]="8" meta="1 doesn't match" metaTone="attention" link="/dev/design-system" />
+      <pp-stat label="Chased by Batsi" icon="sparkles" [value]="5" link="/dev/design-system" />
     </pp-stat-row>
     <div class="pp-grid pp-grid--2 pp-gap-300">
       <pp-card heading="Laptop and email setup" subheading="For Thandeka Dlamini · Starts 17 Nov" icon="laptop">
@@ -301,10 +301,10 @@
 
   <!-- Agent -->
   <section class="pp-stack pp-gap-300" aria-labelledby="g-agent">
-    <h2 class="pp-heading pp-heading--medium" id="g-agent">Pepla, the agent</h2>
+    <h2 class="pp-heading pp-heading--medium" id="g-agent">Batsi, the agent</h2>
     <div class="pp-inline pp-gap-300">
       <pp-agent-mark />
-      <pp-agent-mark text="Suggested by Pepla" [suggested]="true" />
+      <pp-agent-mark text="Suggested by Batsi" [suggested]="true" />
       <pp-agent-mark [iconOnly]="true" />
       <pp-confidence level="high" [sources]="3" />
       <pp-confidence level="check" [sources]="2" />
@@ -333,11 +333,11 @@
     </pp-person-header>
     <div class="pp-grid pp-grid--2 pp-gap-300">
       <pp-document-checklist heading="Kagiso's documents" subheading="Bookkeeper · Starts Mon 16 Nov" [done]="2" [total]="4">
-        <li ppDocumentRow name="South African ID" icon="id-card" meta="Uploaded by Kagiso, 9 Nov 2026, 08:02" status="success" statusText="Verified">
+        <li ppDocumentRow name="South African ID" icon="id-card" meta="Uploaded by Kagiso, 9 Nov 2026, 08:02" status="success" statusText="Matches">
           <button ppButton size="small">View<span class="pp-visually-hidden"> South African ID</span></button>
         </li>
         <li ppDocumentRow name="Bank confirmation letter" icon="landmark" meta="Uploaded 10 Nov 2026, 19:15" status="information" statusIcon="hourglass" statusText="Checking">
-          <pp-lozenge status="agent">Pepla is checking</pp-lozenge>
+          <pp-lozenge status="agent">Batsi is checking</pp-lozenge>
           <button ppButton size="small">View<span class="pp-visually-hidden"> bank confirmation letter</span></button>
         </li>
         <li ppDocumentRow name="Tax number letter" meta="Requested 3 Nov" status="danger" statusIcon="circle-x" statusText="Rejected" reason="The letter is from 2019. Ask Kagiso for one from this tax year.">
@@ -347,14 +347,14 @@
       <pp-card heading="Kagiso Molefe starts Monday" subheading="Bookkeeper · Reports to you">
         <pp-checklist heading="Ready for day 1" [done]="2" [total]="4">
           <li ppChecklistRow label="Contract signed" owner="Kagiso" state="done"><time ppDeadline [done]="'2026-11-03'" [now]="now"></time></li>
-          <li ppChecklistRow label="ID checked" owner="Pepla" state="agent"><pp-lozenge status="agent">Done by Pepla 9 Nov</pp-lozenge></li>
+          <li ppChecklistRow label="ID checked" owner="Batsi" state="agent"><pp-lozenge status="agent">Done by Batsi 9 Nov</pp-lozenge></li>
           <li ppChecklistRow label="Bank letter" owner="Kagiso"><time ppDeadline [due]="'2026-11-13'" [now]="now"></time></li>
           <li ppChecklistRow label="Laptop" owner="IT, Sipho Ndlovu" state="overdue"><time ppDeadline [due]="'2026-11-10'" [now]="now"></time></li>
         </pp-checklist>
       </pp-card>
     </div>
     <div class="pp-grid pp-grid--2 pp-gap-300">
-      <pp-verification heading="ID check" subheading="Kagiso Molefe · South African ID" result="passed"
+      <pp-verification heading="ID check" subheading="Kagiso Molefe · South African ID" result="matches"
         [checks]="[{ label: 'Name matches', result: 'match' }, { label: 'ID number matches', result: 'match' }, { label: 'Date of birth matches', result: 'match' }]">
         <pp-description-list [items]="[{ term: 'Against', value: 'Home Affairs identity record' }, { term: 'When', value: '9 Nov 2026, 08:15' }]" />
       </pp-verification>
@@ -363,7 +363,7 @@
           <pp-config-version-actions><button ppButton appearance="subtle" size="small" icon="undo-2">Roll back</button></pp-config-version-actions>
         </pp-config-version>
         <ul ppAuditLog>
-          <li ppAuditEvent actor="Pepla" sentence="sent Kagiso Molefe's offer letter, approved by Thandeka Dlamini" [at]="'2026-11-11T09:12'" where="Pepla agent · Offers">
+          <li ppAuditEvent actor="Batsi" sentence="sent Kagiso Molefe's offer letter, approved by Thandeka Dlamini" [at]="'2026-11-11T09:12'" where="Batsi · Offers">
             <pp-description-list [items]="[{ term: 'Event ID', value: 'evt_8F2K91' }]" />
           </li>
           <li ppAuditEvent actor="Lerato Mokoena" sentence="changed the start date on Kagiso Molefe's record" [at]="'2026-11-10T16:05'" where="Web app · Durban"
@@ -381,7 +381,7 @@
       <pp-split-button label="Send offer" menuLabel="More ways to send" (run)="flag('success')">
         <pp-menu-section><button ppMenuItem icon="clock">Schedule for later</button><button ppMenuItem icon="file-text">Download as PDF</button></pp-menu-section>
       </pp-split-button>
-      <button ppButton appearance="agent" icon="sparkles" (click)="pepla.set(true)">Ask Pepla</button>
+      <button ppButton appearance="agent" icon="sparkles" (click)="pepla.set(true)">Ask Batsi</button>
     </div>
     <div class="pp-columns pp-gap-400">
       <pp-field label="Move to stage"><pp-rich-select [options]="stages" [(value)]="stage" /></pp-field>

@@ -67,7 +67,7 @@ export class PpCheckbox extends PpValueControl<boolean> {
 }
 
 /**
- * On or off, taking effect at once (settings): `<pp-toggle label="Remind new hires" [(value)]="remind" />`.
+ * On or off, taking effect at once (settings): `<pp-toggle label="Remind new employees" [(value)]="remind" />`.
  * For a choice that is saved with a form, use a checkbox. Spec: forms/toggle.md
  */
 @Component({

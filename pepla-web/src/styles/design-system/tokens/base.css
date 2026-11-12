@@ -1,4 +1,4 @@
-/* Pepla base: page defaults built only from tokens. */
+/* Naleko People base: page defaults built only from tokens. */
 html, body { background: var(--elevation-surface); color: var(--color-text); font: var(--font-body); letter-spacing: var(--font-body-tracking); -webkit-font-smoothing: antialiased; }
 a { color: var(--color-link); text-underline-offset: 2px; }
 a:active { color: var(--color-link-pressed); }

@@ -16,7 +16,7 @@ export const STATUS_ICONS: Partial<Record<Status, IconName[]>> = {
 
 /**
  * A status: always an icon and a word (rule 4). Only on something that needs someone (Calm rule 2);
- * a row that is on track shows none. `<pp-lozenge status="success">Verified</pp-lozenge>`
+ * a row that is on track shows none. `<pp-lozenge status="success">Matches</pp-lozenge>`
  * Spec: project/components/status/lozenge.md
  */
 @Component({

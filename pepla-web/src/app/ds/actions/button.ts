@@ -6,7 +6,7 @@ import { IconName } from '../core/icon.registry';
 export type ButtonAppearance = 'primary' | 'default' | 'subtle' | 'danger' | 'agent' | 'link' | 'neutral';
 
 /**
- * Every button in Pepla: `<button ppButton appearance="primary">Send contract</button>`.
+ * Every button in Naleko People: `<button ppButton appearance="primary">Send contract</button>`.
  * Also on links that look like buttons: `<a ppButton routerLink="…">`.
  * - `icon` goes before the label; `iconAfter` is only for chevron-down (opens a menu) or arrow-right (next step).
  * - `iconOnly` needs an aria-label on the button.

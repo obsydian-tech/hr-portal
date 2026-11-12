@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Writes src/app/ds/core/icon.registry.ts from the synced icon vocabulary
 // (src/styles/design-system/icons.json). Only listed icons are imported, so the bundle carries
-// only the icons Pepla uses. design-system:sync runs this; verify:design fails if it is stale.
+// only the icons Naleko People uses. design-system:sync runs this; verify:design fails if it is stale.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 

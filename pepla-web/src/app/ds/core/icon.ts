@@ -5,7 +5,7 @@ const SVG = 'http://www.w3.org/2000/svg';
 export type IconTone = 'subtle' | 'brand' | 'agent' | 'success' | 'warning' | 'danger' | 'information';
 
 /**
- * An icon from the Pepla vocabulary: `<svg ppIcon="sparkles" />`.
+ * An icon from the Naleko People vocabulary: `<svg ppIcon="sparkles" />`.
  * The host is the <svg> itself, so component CSS that styles `> svg` applies.
  * Decorative by default (aria-hidden). Give `label` when the icon carries meaning on its own.
  * Spec: project/components/core/icon.md

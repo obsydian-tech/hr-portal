@@ -15,7 +15,7 @@ export interface ApprovalStep {
   detail?: string;
   /** The lozenge words when they say more than the state: "Waiting 8 days", "Approved 3 Nov". */
   status?: string;
-  /** Pepla reminded them: an agent lozenge in the detail line. */
+  /** Batsi reminded them: an agent lozenge in the detail line. */
   agent?: string;
   /** Declined: why, in the approver's words. */
   reason?: string;
