@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, input, model, output } from '@angul
 export interface LogFilter { value: string; label: string; count: number; }
 
 /**
- * What Pepla did, with filters by outcome. Put a `pp-timeline` inside whose events carry an `outcome`.
+ * What Batsi did, with filters by outcome. Put a `pp-timeline` inside whose events carry an `outcome`.
  * `<pp-agent-log [filters]="filters" [(selected)]="show" [hasMore]="true" (more)="older()"><pp-timeline …/></pp-agent-log>`
  * Spec: agent/agent-activity-log.md
  */

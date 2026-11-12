@@ -10,7 +10,7 @@ const TONE_ICON: Record<MessageTone, IconName> = { information: 'info', success:
 /**
  * Something about this section that people should know or act on.
  * `<pp-section-message tone="warning" heading="…">Body<pp-section-message-actions>…</…></pp-section-message>`
- * At most one Pepla (agent) notice per screen (Calm rule 5). Spec: messages/section-message.md
+ * At most one Batsi (agent) notice per screen (Calm rule 5). Spec: messages/section-message.md
  */
 @Component({
   selector: 'pp-section-message',
@@ -112,7 +112,7 @@ export class PpEmptyState {
 @Component({ selector: 'pp-empty-state-actions', template: '<ng-content />', host: { class: 'pp-empty-state__actions' }, changeDetection: ChangeDetectionStrategy.OnPush })
 export class PpEmptyStateActions {}
 
-/** What Pepla did meanwhile, under a "done" empty state: `<p ppEmptyStateNote>Pepla handled 12 tasks…</p>` */
+/** What Batsi did meanwhile, under a "done" empty state: `<p ppEmptyStateNote>Batsi handled 12 tasks…</p>` */
 @Component({
   selector: 'p[ppEmptyStateNote]', imports: [PpIcon], changeDetection: ChangeDetectionStrategy.OnPush,
   template: '<svg ppIcon="sparkles" /><span><ng-content /></span>',

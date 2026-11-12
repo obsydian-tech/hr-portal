@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// verify:design: the only way to build UI in Pepla, checked on every build (prebuild) and in CI.
+// verify:design: the only way to build UI in Naleko People, checked on every build (prebuild) and in CI.
 // Spec: pepla-design-system docs/verify-design-angular.md. There is no escape hatch: no ignore
 // comment, no allowlist file, no baseline. Fix the code, or change the design system and sync it.
 //
@@ -103,7 +103,7 @@ export function checkTemplate(raw, { inDs = false, hostBlocks = [] } = {}) {
   for (const m of html.matchAll(/\sclass="([^"]*)"/g)) for (const c of m[1].replace(/\{\{[^}]*\}\}/g, ' ').split(/\s+/).filter(Boolean)) classNames.push([m.index, c]);
   for (const m of html.matchAll(/\[class\.([\w-]+)\]/g)) classNames.push([m.index, m[1]]);
   for (const [i, c] of classNames) {
-    if (!c.startsWith('pp-')) report(i, 'markup', `class "${c}" is not a Pepla class`);
+    if (!c.startsWith('pp-')) report(i, 'markup', `class "${c}" is not a Naleko People class`);
     else if (!CLASSES.has(c)) report(i, 'markup', `class "${c}" is not defined by the design system`);
     else if (!inDs && !LAYOUT.test(c)) report(i, 'markup', `class "${c}" belongs to a component; use the pp-* component, or a Layout class`);
   }
@@ -140,7 +140,7 @@ export function checkTs(raw, { inDs = false, isRegistry = false } = {}) {
   const code = raw.replace(/\/\*[\s\S]*?\*\//g, blank).replace(/(^|[^:'"`])\/\/[^\n]*/g, (m, p) => p + blank(m.slice(p.length)));
   const at = (offset, list) => list.map((v) => ({ ...v, line: v.line + lineOf(code, offset) - 1 }));
   for (const m of code.matchAll(/import\s[^;]*?from\s+['"]([^'"]+)['"]/g)) {
-    if (/^(?:primeng|@primeuix|@primeng)(?:\/|$)/.test(m[1])) out.push({ line: lineOf(code, m.index), rule: 'deps', text: `import from ${m[1]}; Pepla builds on Angular Aria and the CDK` });
+    if (/^(?:primeng|@primeuix|@primeng)(?:\/|$)/.test(m[1])) out.push({ line: lineOf(code, m.index), rule: 'deps', text: `import from ${m[1]}; Naleko People builds on Angular Aria and the CDK` });
     if (/^(?:lucide|lucide-angular|@lucide\/)/.test(m[1]) && !isRegistry) out.push({ line: lineOf(code, m.index), rule: 'icons', text: `Lucide import outside the icon registry; use <svg ppIcon="…">` });
     if (/^@angular\/material(?:\/|$)/.test(m[1])) out.push({ line: lineOf(code, m.index), rule: 'deps', text: `import from ${m[1]}; Material brings its own look` });
   }
@@ -219,7 +219,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const found = verify();
   for (const v of found) console.log(`${v.file}:${v.line} [${v.rule}] ${v.text}`);
   if (found.length) {
-    console.log(`\nverify:design: ${found.length} problem${found.length === 1 ? '' : 's'}. How to build UI in Pepla: src/app/ds/README.md`);
+    console.log(`\nverify:design: ${found.length} problem${found.length === 1 ? '' : 's'}. How to build UI in Naleko People: src/app/ds/README.md`);
     process.exit(1);
   }
   console.log('verify:design: 0 problems');

@@ -3,28 +3,28 @@
   "icons": [
     {
       "name": "sparkles",
-      "meaning": "Pepla (the agent) did or suggests this",
-      "group": "Pepla and the agent"
+      "meaning": "Batsi (the agent) did or suggests this",
+      "group": "Naleko People and the agent"
     },
     {
       "name": "loader",
       "meaning": "The agent is working right now (animated only)",
-      "group": "Pepla and the agent"
+      "group": "Naleko People and the agent"
     },
     {
       "name": "circle-help",
-      "meaning": "Pepla could not tell",
-      "group": "Pepla and the agent"
+      "meaning": "Batsi could not tell",
+      "group": "Naleko People and the agent"
     },
     {
       "name": "server",
       "meaning": "The system did this (not a person, not the agent)",
-      "group": "Pepla and the agent"
+      "group": "Naleko People and the agent"
     },
     {
       "name": "database",
       "meaning": "Where data is stored",
-      "group": "Pepla and the agent"
+      "group": "Naleko People and the agent"
     },
     {
       "name": "house",
@@ -68,7 +68,7 @@
     },
     {
       "name": "calendar-days",
-      "meaning": "Time off",
+      "meaning": "Leave",
       "group": "Places and modules"
     },
     {
@@ -358,7 +358,7 @@
     },
     {
       "name": "package",
-      "meaning": "Equipment bundle",
+      "meaning": "Laptop and access",
       "group": "Records and documents"
     },
     {

@@ -13,10 +13,10 @@ export interface BundleItem {
   icon: IconName;
   name: string;
   detail: string;
-  /** Who does it: a person, or "Pepla". Left out: "No owner yet". */
+  /** Who does it: a person, or "Batsi". Left out: "No owner yet". */
   owner?: { name: string; colour?: AvatarColour };
   state: BundleItemState;
-  /** "Ready 10 Nov", "Created by Pepla 9 Nov", "In progress". */
+  /** "Ready 10 Nov", "Created by Batsi 9 Nov", "In progress". */
   status: string;
   due?: Date | string;
 }
@@ -51,7 +51,7 @@ const LOOK: Record<BundleItemState, { status: Status; icon: IconName }> = {
           <span class="pp-icon-tile" aria-hidden="true"><svg [ppIcon]="i.icon" /></span>
           <div class="pp-bundle__body"><span class="pp-bundle__name">{{ i.name }}</span><span class="pp-bundle__detail">{{ i.detail }}</span></div>
           <span class="pp-bundle__owner">
-            @if (i.owner; as o) { <pp-person [name]="o.name" size="small" [kind]="o.name === 'Pepla' ? 'agent' : 'person'" [colour]="o.colour" /> }
+            @if (i.owner; as o) { <pp-person [name]="o.name" size="small" [kind]="o.name === 'Batsi' ? 'agent' : 'person'" [colour]="o.colour" /> }
             @else { <span class="pp-bundle__unowned"><svg ppIcon="user-x" />No owner yet</span> }
           </span>
           <div class="pp-bundle__status">

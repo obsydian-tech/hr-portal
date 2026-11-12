@@ -13,7 +13,7 @@ export interface NavItem { label: string; icon: IconName; link: string; count?: 
 export interface NavSection { heading?: string; items: NavItem[]; }
 
 /**
- * The one Pepla frame: banner, sidebar, top bar, main and flags. Pages render inside main.
+ * The one Naleko People frame: banner, sidebar, top bar, main and flags. Pages render inside main.
  * ```html
  * <pp-app-shell>
  *   <pp-side-navigation … /> <pp-top-navigation … />
@@ -61,7 +61,7 @@ export class PpAppShell {
 export class PpAppShellActions {}
 
 /**
- * The sidebar: Today, People, the modules this person can use, and Settings at the bottom (One Pepla).
+ * The sidebar: Today, People, the modules this person can use, and Settings at the bottom (One Naleko People).
  * The header shows the company; with more than one company it switches between them.
  * On phone it is a drawer: `[(open)]`. Spec: navigation/side-navigation.md
  */
@@ -73,7 +73,7 @@ export class PpAppShellActions {}
     <div class="pp-side-navigation__header">
       <ng-template #name>
         <svg ppMark />
-        <span class="pp-side-navigation__product-name"><span class="pp-side-navigation__wordmark">pepla</span>@if (!collapsed()) {<span class="pp-side-navigation__product-area">{{ company() }}</span>}</span>
+        <span class="pp-side-navigation__product-name"><span class="pp-side-navigation__wordmark">Naleko People</span>@if (!collapsed()) {<span class="pp-side-navigation__product-area">{{ company() }}</span>}</span>
       </ng-template>
       @if (switchable()) {
         <button class="pp-side-navigation__product" type="button" aria-haspopup="menu" [attr.aria-expanded]="switching()"
@@ -151,7 +151,7 @@ export class PpSideNavigation {
     @if (collapsible()) {
       <button ppButton appearance="subtle" icon="panel-left" [iconOnly]="true" [attr.aria-label]="collapsed() ? 'Expand menu' : 'Collapse menu'" [attr.aria-expanded]="!collapsed()" aria-controls="pp-side-navigation" (click)="collapse.emit()"></button>
     }
-    <a class="pp-top-navigation__brand" routerLink="/" aria-label="Pepla home"><svg ppMark /></a>
+    <a class="pp-top-navigation__brand" routerLink="/" aria-label="Naleko People home"><svg ppMark /></a>
     <label class="pp-top-navigation__search">
       <svg ppIcon="search" />
       <input #searchBox class="pp-top-navigation__search-input" type="search" [placeholder]="searchPlaceholder()" [attr.aria-label]="searchPlaceholder()" (keydown.enter)="search.emit($any($event.target).value)">

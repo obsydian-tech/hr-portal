@@ -75,7 +75,7 @@ export class PpFileList { readonly label = input.required<string>(); }
 
 export type FileState = 'uploading' | 'done' | 'agent' | 'error';
 
-/** One file: uploading with progress, uploaded, checked by Pepla, or failed with the reason. */
+/** One file: uploading with progress, uploaded, checked by Batsi, or failed with the reason. */
 @Component({
   selector: 'pp-file',
   imports: [PpIcon, PpButton, PpLozenge],
@@ -88,7 +88,7 @@ export type FileState = 'uploading' | 'done' | 'agent' | 'error';
         @switch (state()) {
           @case ('uploading') { <span>Uploading, {{ progress() }}%</span> }
           @case ('done') { <span class="pp-file__status pp-file__status--success"><svg ppIcon="circle-check" />Uploaded</span> }
-          @case ('agent') { <pp-lozenge status="agent">Checked by Pepla</pp-lozenge> }
+          @case ('agent') { <pp-lozenge status="agent">Checked by Batsi</pp-lozenge> }
           @case ('error') { <span class="pp-file__status pp-file__status--danger"><svg ppIcon="octagon-alert" />{{ error() }}</span> }
         }
       </span>

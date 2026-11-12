@@ -1,4 +1,4 @@
-// The Pepla design system port. Screens import from here and nowhere else for UI.
+// The Naleko People design system port. Screens import from here and nowhere else for UI.
 export * from './core/icon';
 export * from './core/icon.registry';
 export * from './core/mark';

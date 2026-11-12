@@ -13,8 +13,8 @@ import { PpLozenge, Status } from '../status/lozenge';
 import { uid } from '../util';
 
 /**
- * "Pepla did this" (rule 1: mint means the agent). `<pp-agent-mark />`, `<pp-agent-mark text="Suggested by Pepla" suggested />`,
- * or `iconOnly` with a `label` beside a value Pepla filled in. Spec: agent/agent-mark.md
+ * "Batsi did this" (rule 1: mint means the agent). `<pp-agent-mark />`, `<pp-agent-mark text="Suggested by Batsi" suggested />`,
+ * or `iconOnly` with a `label` beside a value Batsi filled in. Spec: agent/agent-mark.md
  */
 @Component({
   selector: 'pp-agent-mark',
@@ -32,21 +32,21 @@ import { uid } from '../util';
   },
 })
 export class PpAgentMark {
-  /** Reachable by Tab, for a mark inside a `<pp-tooltip>` that says what Pepla read and when. */
+  /** Reachable by Tab, for a mark inside a `<pp-tooltip>` that says what Batsi read and when. */
   readonly focusable = input(false);
   /** In a dense row, the icon-only mark's detail as a native title. */
   readonly detail = input<string>();
-  readonly text = input('Pepla');
+  readonly text = input('Batsi');
   readonly suggested = input(false);
   readonly iconOnly = input(false);
-  readonly label = input('Filled in by Pepla');
+  readonly label = input('Filled in by Batsi');
 }
 
 export type Confidence = 'high' | 'check' | 'unsure';
 const CONF: Record<Confidence, { icon: IconName; words: string }> = {
   high: { icon: 'file-text', words: 'High confidence' },
   check: { icon: 'triangle-alert', words: 'Check this' },
-  unsure: { icon: 'circle-help', words: 'Pepla could not tell' },
+  unsure: { icon: 'circle-help', words: 'Batsi could not tell' },
 };
 
 export interface ConfidenceSource {
@@ -54,14 +54,14 @@ export interface ConfidenceSource {
   /** The document: "SA ID ending 0876". */
   label: string;
   link: string;
-  /** What Pepla found in it: "Name and date of birth match the offer". */
+  /** What Batsi found in it: "Name and date of birth match the offer". */
   found: string;
   /** The source disagrees: "Does not match: surname is Moyo-Ncube". */
   mismatch?: boolean;
 }
 
 /**
- * How sure Pepla is, and how many sources it read. Opens "What Pepla read": why, then each source and
+ * How sure Batsi is, and how many sources it read. Opens "What Batsi read": why, then each source and
  * what it found. `<pp-confidence level="check" why="The surnames differ. …" [items]="sources" />`
  * Spec: agent/confidence-chip.md
  */
@@ -78,7 +78,7 @@ export interface ConfidenceSource {
       <div class="pp-popup" [class.pp-popup--inline]="inline()" [class.pp-popup--floating]="!inline()" [id]="id" role="dialog" [attr.aria-labelledby]="id + '-t'"
            (keydown.escape)="dismiss()" cdkTrapFocus [cdkTrapFocusAutoCapture]="!inline()">
         <div class="pp-confidence-sources">
-          <span class="pp-popup__title" [id]="id + '-t'">What Pepla read</span>
+          <span class="pp-popup__title" [id]="id + '-t'">What Batsi read</span>
           @if (why()) { <span class="pp-confidence-sources__why">{{ why() }}</span> }
           <div class="pp-confidence-sources__list" role="list">
             @for (i of items(); track i.link) {
@@ -127,23 +127,23 @@ export interface ProposalDestination {
   where: string;
   /** What goes there: "name, ID ending 0876, account ending 4821" */
   what: string;
-  /** True when the data leaves Pepla for another company. Then one-tap Approve is never offered. */
+  /** True when the data leaves Naleko People for another company. Then one-tap Approve is never offered. */
   external: boolean;
 }
 export interface Proposal {
   title: string;
   whyNow: string;
   sources: ProposalSource[];
-  /** Systems that receive data. Empty: "Nothing leaves Pepla. Kept in Cape Town." */
+  /** Systems that receive data. Empty: "Nothing leaves Naleko People. Kept in Cape Town." */
   destinations: ProposalDestination[];
   confidence: Confidence;
-  /** What Pepla found in each source, for the confidence popup. */
+  /** What Batsi found in each source, for the confidence popup. */
   read?: ConfidenceSource[];
   /** Why this confidence: "The name, date of birth and photo match on all three." */
   readWhy?: string;
   /** A deadline or expiry, as a lozenge: { status: 'warning', text: 'Expires in 2 days', icon: 'clock' } */
   status?: { status: Status; text: string; icon?: IconName };
-  /** For the compact row, what happens in a few words when nothing leaves Pepla: "Emails to 3 people". */
+  /** For the compact row, what happens in a few words when nothing leaves Naleko People: "Emails to 3 people". */
   effect?: string;
 }
 
@@ -172,7 +172,7 @@ const OUTCOME_LOZENGE: Record<Exclude<ProposalState, 'waiting' | 'declining'>, {
 };
 
 /**
- * Pepla's signature: the agent proposes, a person approves (rule 2). Shows what it will do, why now,
+ * Naleko People's signature: the agent proposes, a person approves (rule 2). Shows what it will do, why now,
  * what it read, where the data goes and how sure it is. Approve, edit or decline; the choice is audited.
  * Decline asks for an optional reason first. After the decision the card says who decided and when.
  * ```html
@@ -189,7 +189,7 @@ const OUTCOME_LOZENGE: Record<Exclude<ProposalState, 'waiting' | 'declining'>, {
   template: `
     <header class="pp-card__header">
       <div class="pp-proposal__titles">
-        <pp-agent-mark [text]="decided() ? 'Pepla suggested' : 'Pepla suggests'" />
+        <pp-agent-mark [text]="decided() ? 'Batsi suggested' : 'Batsi suggests'" />
         <span class="pp-proposal__title" role="heading" aria-level="3" [id]="id">{{ proposal().title }}</span>
       </div>
       @if (lozenge(); as l) { <div class="pp-card__aside"><pp-lozenge [status]="l.status" [icon]="l.icon">{{ l.text }}</pp-lozenge></div> }
@@ -209,7 +209,7 @@ const OUTCOME_LOZENGE: Record<Exclude<ProposalState, 'waiting' | 'declining'>, {
         <dl class="pp-proposal__facts">
           <dt>Why now</dt><dd>{{ proposal().whyNow }}</dd>
           @if (proposal().sources.length) {
-            <dt>What Pepla read</dt>
+            <dt>What Batsi read</dt>
             <dd><div class="pp-proposal__sources">@for (s of proposal().sources; track s.link) {<a class="pp-tag" [routerLink]="s.link"><svg [ppIcon]="s.icon" /><span class="pp-tag__text">{{ s.label }}</span></a>}</div></dd>
           }
           <dt>Where it goes</dt>
@@ -220,7 +220,7 @@ const OUTCOME_LOZENGE: Record<Exclude<ProposalState, 'waiting' | 'declining'>, {
               }
             </div></dd>
           } @else {
-            <dd>Nothing leaves Pepla. Kept in Cape Town.</dd>
+            <dd>Nothing leaves Naleko People. Kept in Cape Town.</dd>
           }
           @if (!items().length) {
             <dt>How sure</dt>
@@ -248,7 +248,7 @@ const OUTCOME_LOZENGE: Record<Exclude<ProposalState, 'waiting' | 'declining'>, {
       }
       @case ('declining') {
         <div class="pp-proposal__decline">
-          <pp-field label="Why are you declining?" [optional]="true" help="Pepla uses this to suggest better next time. It is kept with the decision.">
+          <pp-field label="Why are you declining?" [optional]="true" help="Batsi uses this to suggest better next time. It is kept with the decision.">
             <textarea ppTextarea rows="2" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
           </pp-field>
           <div class="pp-button-group">
@@ -284,7 +284,7 @@ export class PpProposalCard {
   readonly proposal = input.required<Proposal>();
   readonly state = model<ProposalState>('waiting');
   readonly outcome = input<ProposalOutcome>();
-  /** What Pepla is doing while it works: "Sending to payroll". */
+  /** What Batsi is doing while it works: "Sending to payroll". */
   readonly workingText = input('Working on it');
   readonly auditLink = input<string>();
   /** A batch: one decision for several records. */
@@ -314,8 +314,8 @@ export class PpProposalCard {
 }
 
 /**
- * One proposal as a row in a list ("Needs you"). One-tap Approve only when Pepla is sure and nothing
- * leaves Pepla; otherwise Review, which opens the full card (decided 11 Nov 2026).
+ * One proposal as a row in a list ("Needs you"). One-tap Approve only when Batsi is sure and nothing
+ * leaves Naleko People; otherwise Review, which opens the full card (decided 11 Nov 2026).
  * After a decision, `outcome` says who decided and when.
  */
 @Component({
@@ -324,7 +324,7 @@ export class PpProposalCard {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-proposal__titles">
-      <pp-agent-mark [text]="outcome() ? 'Pepla suggested' : 'Pepla suggests'" />
+      <pp-agent-mark [text]="outcome() ? 'Batsi suggested' : 'Batsi suggests'" />
       <span class="pp-proposal__title" [id]="id">{{ proposal().title }}</span>
       <span class="pp-proposal__meta">{{ outcome() ?? meta() }}</span>
     </div>
@@ -354,14 +354,14 @@ export class PpProposalRow {
   protected readonly oneTap = computed(() => this.proposal().confidence === 'high' && this.external().length === 0);
   protected readonly meta = computed(() => {
     const ext = this.external();
-    const where = ext.length ? `Goes to another company: ${ext.map((d) => d.where.charAt(0).toLowerCase() + d.where.slice(1)).join(', ')}` : this.proposal().effect ?? 'Nothing leaves Pepla';
+    const where = ext.length ? `Goes to another company: ${ext.map((d) => d.where.charAt(0).toLowerCase() + d.where.slice(1)).join(', ')}` : this.proposal().effect ?? 'Nothing leaves Naleko People';
     return ext.length && !this.proposal().whyNow ? where : `${this.proposal().whyNow} · ${where}`;
   });
 }
 
-/** Pepla's proposals for this screen, in one list (Calm rule 5). */
+/** Batsi's proposals for this screen, in one list (Calm rule 5). */
 @Component({
   selector: 'pp-proposal-list', template: '<ng-content />', changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'pp-proposal-list', role: 'list', '[attr.aria-label]': 'label()' },
 })
-export class PpProposalList { readonly label = input('Pepla suggests'); }
+export class PpProposalList { readonly label = input('Batsi suggests'); }

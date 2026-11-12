@@ -157,7 +157,7 @@ export class PpSkeletonStack {}
 
 export type StepState = 'done' | 'agent' | 'current' | 'blocked' | 'upcoming';
 export interface Step { label: string; state: StepState; meta?: string; }
-const STEP_WORDS: Record<StepState, string> = { done: 'Done: ', agent: 'Done by Pepla: ', current: 'Current step: ', blocked: 'Blocked: ', upcoming: 'Not started: ' };
+const STEP_WORDS: Record<StepState, string> = { done: 'Done: ', agent: 'Done by Batsi: ', current: 'Current step: ', blocked: 'Blocked: ', upcoming: 'Not started: ' };
 const STEP_ICON: Partial<Record<StepState, IconName>> = { done: 'check', agent: 'sparkles', blocked: 'octagon-alert' };
 
 /** Where something is in a fixed set of steps. One per screen (Calm rule 4). Spec: status/progress-tracker.md */

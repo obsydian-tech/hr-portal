@@ -360,9 +360,9 @@ export class PpPopupFooter {}
 // ------------------------------------------------------------------ inline dialog
 
 /**
- * A short question next to the control it is about, with a beak pointing at it: "Remind new hires by SMS?".
- * Use `tone="agent"` for a Pepla suggestion about one field. Opens from its button, closes by its actions.
- * `<pp-inline-dialog text="SMS reminders" icon="bell" heading="Remind new hires by SMS?" [closable]="true">Body<pp-inline-dialog-actions>…</pp-inline-dialog-actions></pp-inline-dialog>`
+ * A short question next to the control it is about, with a beak pointing at it: "Remind new employees by SMS?".
+ * Use `tone="agent"` for a Batsi suggestion about one field. Opens from its button, closes by its actions.
+ * `<pp-inline-dialog text="SMS reminders" icon="bell" heading="Remind new employees by SMS?" [closable]="true">Body<pp-inline-dialog-actions>…</pp-inline-dialog-actions></pp-inline-dialog>`
  * Spec: overlays/inline-dialog.md
  */
 @Component({

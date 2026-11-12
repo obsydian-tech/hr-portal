@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copies the Pepla design system into this app. The design system repo is the only source of
+// Copies the Naleko People design system into this app. The design system repo is the only source of
 // colour, type, space, shape, motion, layers, component CSS and the icon vocabulary; this app
 // never edits them. verify:design fails if anything under src/styles/design-system/ changes
 // without going through this script.
@@ -65,7 +65,7 @@ export function sync(src, ref) {
   put('components.css', readFileSync(join(P, 'components.css'), 'utf8'));
   put('icons.json', existsSync(join(P, 'icons.json')) ? readFileSync(join(P, 'icons.json'), 'utf8') : iconsFromReadme(readFileSync(join(P, 'readme.md'), 'utf8')));
   put('index.css', [
-    '/* Pepla design system, synced by scripts/design-system-sync.mjs. Do not edit. */',
+    '/* Naleko People design system, synced by scripts/design-system-sync.mjs. Do not edit. */',
     ...TOKEN_FILES.map((f) => `@import "./tokens/${f}";`),
     '@import "./components.css";',
     '',
@@ -82,10 +82,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     const src = resolve(args[i + 1] || '');
     let ref = 'local';
     try { ref = `local:${execFileSync('git', ['-C', src, 'rev-parse', '--short', 'HEAD']).toString().trim()}`; } catch { /* not a git checkout */ }
-    console.log(`Pepla design system: synced ${sync(src, ref)} files from ${src} (${ref})`);
+    console.log(`Naleko People design system: synced ${sync(src, ref)} files from ${src} (${ref})`);
   } else if (args[0]) {
     const dir = fetchRef(args[0]);
-    try { console.log(`Pepla design system: synced ${sync(dir, args[0])} files from ${REPO}@${args[0]}`); }
+    try { console.log(`Naleko People design system: synced ${sync(dir, args[0])} files from ${REPO}@${args[0]}`); }
     finally { rmSync(dir, { recursive: true, force: true }); }
   } else {
     console.error('Usage: npm run design-system:sync -- <tag|branch|commit>   or   -- --from <path to pepla-design-system>');

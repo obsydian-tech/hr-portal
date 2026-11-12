@@ -4,12 +4,12 @@ import { PpButton, PpButtonGroup } from '../actions/button';
 import { uid } from '../util';
 import { contrast, hueName, isHex, looksLike, nearestPassing, ratioWords } from './colour';
 
-// Pepla's own colours the check compares against. Kept in step with the design system tokens.
+// Naleko People's own colours the check compares against. Kept in step with the design system tokens.
 const WHITE = 'FFFFFF', DARK_SURFACE = '1B1640', INK = '1B1640', MINT = '2BB3A3', DANGER = 'AD093E';
 
 /**
  * An admin's brand colour, checked and previewed in light and dark. Every colour is accepted: one that fails
- * contrast, or looks like Pepla's mint or the error red, stays on the header, logo area and sign-in page.
+ * contrast, or looks like Naleko People's mint or the error red, stays on the header, logo area and sign-in page.
  * `<pp-brand-preview company="Mokoena Accounting" [(value)]="accent" (save)="store($event)" (reset)="usePepla()" />`
  * Spec: records/tenant-branding-preview.md
  */
@@ -28,13 +28,13 @@ const WHITE = 'FFFFFF', DARK_SURFACE = '1B1640', INK = '1B1640', MINT = '2BB3A3'
         </div>
       </div>
       @if (!value()) {
-        <span class="pp-field__help" [id]="id + '-r'">Pepla's violet</span>
+        <span class="pp-field__help" [id]="id + '-r'">Naleko People's violet</span>
       } @else if (!hex()) {
         <span class="pp-brand-preview__result pp-brand-preview__result--brand-only" [id]="id + '-r'" role="status"><svg ppIcon="info" /><span>Enter 6 characters, like 00668D</span></span>
       } @else if (everywhere()) {
         <span class="pp-brand-preview__result" [id]="id + '-r'" role="status"><svg ppIcon="circle-check" /><span>Passes. {{ ratio() }} to 1 on white; buttons and links need 4.5 to 1.</span></span>
       } @else {
-        <span class="pp-brand-preview__result pp-brand-preview__result--brand-only" [id]="id + '-r'" role="status"><svg ppIcon="info" /><span>Saved for your logo area, header and sign-in page. Buttons and links stay Pepla violet, because {{ reason() }}</span></span>
+        <span class="pp-brand-preview__result pp-brand-preview__result--brand-only" [id]="id + '-r'" role="status"><svg ppIcon="info" /><span>Saved for your logo area, header and sign-in page. Buttons and links stay Naleko People violet, because {{ reason() }}</span></span>
         @if (suggestion(); as s) {
           <div class="pp-brand-preview__suggestion">
             <span class="pp-brand-preview__swatch pp-brand-preview__swatch--small" data-theme="light" aria-hidden="true" [style.--_accent]="'#' + s.hex"></span>
@@ -62,7 +62,7 @@ const WHITE = 'FFFFFF', DARK_SURFACE = '1B1640', INK = '1B1640', MINT = '2BB3A3'
       }
     </div>
     @if (hex()) {
-      <span class="pp-brand-preview__note">@if (everywhere()) {In dark theme Pepla uses {{ dark() === hex() ? 'your colour as it is' : 'a lighter partner of your colour, ' + dark() + ',' }} which has {{ darkRatio() }} to 1 on the dark background. Pepla's mint and the status colours do not change.} @else {Your colour is on the header strip. Buttons and links stay violet so everyone can read them.}</span>
+      <span class="pp-brand-preview__note">@if (everywhere()) {In dark theme Naleko People uses {{ dark() === hex() ? 'your colour as it is' : 'a lighter partner of your colour, ' + dark() + ',' }} which has {{ darkRatio() }} to 1 on the dark background. Naleko People's mint and the status colours do not change.} @else {Your colour is on the header strip. Buttons and links stay violet so everyone can read them.}</span>
     }
     <pp-button-group>
       <button ppButton appearance="primary" type="button" [busy]="busy()" (click)="save.emit(hex() ?? '')">Save accent colour</button>
@@ -78,9 +78,9 @@ export class PpBrandPreview {
   readonly label = input('Accent colour');
   readonly welcome = input<string>();
   readonly linkText = input('Read the welcome pack');
-  readonly buttonText = input('Start onboarding');
+  readonly buttonText = input('Get started');
   /** "Skip for now" when a new company is setting up. */
-  readonly resetText = input("Use Pepla's violet");
+  readonly resetText = input("Use Naleko People's violet");
   readonly busy = input(false);
   readonly save = output<string>();
   readonly reset = output<void>();
@@ -94,8 +94,8 @@ export class PpBrandPreview {
   protected readonly everywhere = computed(() => !!this.hex() && this.onWhite() >= 4.5 && !this.like());
   protected readonly reason = computed(() =>
     this.onWhite() < 4.5 ? `this colour has ${this.ratio()} to 1 on white and they need 4.5 to 1.`
-      : this.like() === 'mint' ? "this colour is close to the mint that marks Pepla's own work."
-        : 'this colour is close to the red Pepla uses for errors.');
+      : this.like() === 'mint' ? "this colour is close to the mint that marks Batsi's own work."
+        : 'this colour is close to the red Naleko People uses for errors.');
   protected readonly suggestion = computed(() => {
     const h = this.hex();
     if (!h || this.onWhite() >= 4.5) return null;

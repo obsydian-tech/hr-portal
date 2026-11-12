@@ -84,7 +84,7 @@ export class DesignSystemPage {
 
   protected readonly steps: Step[] = [
     { label: 'Offer signed', state: 'done', meta: 'Done 28 Oct' },
-    { label: 'Documents checked', state: 'agent', meta: 'Checked by Pepla, 3 Nov' },
+    { label: 'Documents checked', state: 'agent', meta: 'Checked by Batsi, 3 Nov' },
     { label: 'Laptop and access', state: 'current', meta: 'Due in 2 days' },
     { label: 'First day', state: 'upcoming', meta: '23 Nov' },
   ];
@@ -98,24 +98,24 @@ export class DesignSystemPage {
     ],
     destinations: [
       { where: 'Payroll system, South Africa', what: 'name, ID ending 0876, account ending 4821', external: true },
-      { where: 'Pepla, Cape Town', what: 'a record of this change', external: false },
+      { where: 'Naleko People, Cape Town', what: 'a record of this change', external: false },
     ],
     confidence: 'high',
     status: { status: 'warning', text: 'Expires in 2 days', icon: 'clock' },
   };
   protected readonly reminder: Proposal = {
-    title: 'Remind 3 new hires to upload bank letters', whyNow: 'Payroll needs them 5 working days before the first pay run',
+    title: 'Remind 3 new employees to upload bank letters', whyNow: 'Payroll needs them 5 working days before the first pay run',
     sources: [{ label: 'Document checklist', icon: 'file-text', link: '/dev/design-system' }],
-    destinations: [{ where: 'Pepla', what: 'emails to 3 people', external: false }], confidence: 'high',
+    destinations: [{ where: 'Naleko People', what: 'emails to 3 people', external: false }], confidence: 'high',
   };
   protected readonly unsure: Proposal = {
     title: "Mark Kagiso Molefe's ID as verified", whyNow: 'Kagiso starts 16 Nov',
     sources: [{ label: 'ID document', icon: 'id-card', link: '/dev/design-system' }, { label: 'Home Affairs', icon: 'shield-check', link: '/dev/design-system' }],
-    destinations: [{ where: 'Pepla', what: 'the verification result', external: false }], confidence: 'check',
+    destinations: [{ where: 'Naleko People', what: 'the verification result', external: false }], confidence: 'check',
   };
   protected readonly history: TimelineDay[] = [
     { day: 'Today', events: [
-      { actor: 'Pepla', summary: "drafted Kagiso's offer letter", detail: 'Approved by Thandeka Dlamini, 10 min ago', when: '2 hours ago', at: '2026-11-11T09:12', exact: '11 Nov 2026, 09:12' },
+      { actor: 'Batsi', summary: "drafted Kagiso's offer letter", detail: 'Approved by Thandeka Dlamini, 10 min ago', when: '2 hours ago', at: '2026-11-11T09:12', exact: '11 Nov 2026, 09:12' },
       { actor: 'Lerato Mokoena', summary: 'moved Kagiso to Offer', when: '3 hours ago', at: '2026-11-11T08:05', exact: '11 Nov 2026, 08:05' },
     ] },
     { day: 'Yesterday', events: [
@@ -125,17 +125,17 @@ export class DesignSystemPage {
 
   protected save() { this.busy.set(true); setTimeout(() => { this.busy.set(false); this.flags.show({ tone: 'success', title: 'Contract sent to Lerato Mokoena', body: "She'll get an email and an SMS." }); }, 1200); }
   protected flag(tone: 'success' | 'warning' | 'error' | 'agent') {
-    const t = { success: 'Leave approved', warning: 'Payroll sync is slow', error: "Couldn't send the contract", agent: 'Pepla chased 2 documents' }[tone];
+    const t = { success: 'Leave approved', warning: 'Payroll sync is slow', error: "Couldn't send the contract", agent: 'Batsi chased 2 documents' }[tone];
     this.flags.show({ tone, title: t, body: tone === 'error' ? 'Check your connection and try again.' : undefined, action: tone === 'success' ? { label: 'Undo', run: () => {} } : undefined });
   }
 
-  // Try them: live versions of the newer pieces. Pepla's replies here are canned: nothing calls a model.
+  // Try them: live versions of the newer pieces. Batsi's replies here are canned: nothing calls a model.
   protected readonly pepla = signal(false);
   protected readonly thinking = signal<string | undefined>(undefined);
   protected readonly chat = signal<PanelMessage[]>([{ day: 'Today', from: 'pepla', text: 'Hi. This is a preview: I answer with a fixed line and change nothing.' }]);
   protected ask(text: string) {
     this.chat.update((c) => [...c, { from: 'person', text, at: '09:00' }]);
-    this.thinking.set('Pepla is reading the question');
+    this.thinking.set('Batsi is reading the question');
     setTimeout(() => {
       if (!this.thinking()) return;
       this.thinking.set(undefined);

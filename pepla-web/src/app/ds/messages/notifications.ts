@@ -9,8 +9,8 @@ import { uid } from '../util';
 
 /**
  * One notification: who or what, the sentence (projected, with the name in <strong>), when, and one action.
- * `<li ppNotification actor="Pepla" [unread]="true" at="2026-11-11T09:40" when="20 min ago" [action]="{ text: 'Approve result', link: '/…' }">
- *    <strong>Pepla</strong> checked Kagiso Molefe's ID. It passed.</li>`
+ * `<li ppNotification actor="Batsi" [unread]="true" at="2026-11-11T09:40" when="20 min ago" [action]="{ text: 'Approve result', link: '/…' }">
+ *    <strong>Batsi</strong> checked Kagiso Molefe's ID. It passed.</li>`
  * Without an actor, an icon says what kind it is (`icon="clock-alert" tone="danger"`). Spec: records/notification-item.md
  */
 @Component({
@@ -18,7 +18,7 @@ import { uid } from '../util';
   imports: [PpIcon, PpAvatar, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (actor()) { <pp-avatar [name]="actor()!" [kind]="actor() === 'Pepla' ? 'agent' : 'person'" [colour]="colour()" [decorative]="true" /> }
+    @if (actor()) { <pp-avatar [name]="actor()!" [kind]="actor() === 'Batsi' ? 'agent' : 'person'" [colour]="colour()" [decorative]="true" /> }
     @else { <span class="pp-notification__icon" [class]="tone() !== 'neutral' ? 'pp-notification__icon--' + tone() : ''" aria-hidden="true"><svg [ppIcon]="icon()" /></span> }
     <div class="pp-notification__body">
       <span class="pp-notification__text">@if (unread()) {<span class="pp-visually-hidden">Unread. </span>}<ng-content /></span>
@@ -29,7 +29,7 @@ import { uid } from '../util';
   host: { class: 'pp-notification', '[class.pp-notification--unread]': 'unread()' },
 })
 export class PpNotification {
-  /** A person's name, or "Pepla": their avatar. */
+  /** A person's name, or "Batsi": their avatar. */
   readonly actor = input<string>();
   readonly colour = input<AvatarColour>();
   /** Without an actor: what kind of news it is. */

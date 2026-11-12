@@ -1,6 +1,6 @@
-# Pepla design system, in Angular
+# Naleko People design system, in Angular
 
-Every piece of UI in Pepla comes from this folder. Screens (`src/app/features/**`) put `pp-*` components together inside Layout classes. They style nothing themselves. `npm run verify:design` enforces this on every build, and nothing can switch it off.
+Every piece of UI in Naleko People comes from this folder. Screens (`src/app/features/**`) put `pp-*` components together inside Layout classes. They style nothing themselves. `npm run verify:design` enforces this on every build, and nothing can switch it off.
 
 - **The look** comes from the design system repo ([obsydian-tech/pepla-design-system](https://github.com/obsydian-tech/pepla-design-system)). `npm run design-system:sync -- <tag>` copies its tokens, `components.css` and the icon vocabulary into `src/styles/design-system/` and regenerates `core/icon.registry.ts`. Never edit those files by hand: the check compares them against the hashes in `sync.json`.
 - **The behaviour** is built here, on Angular 22 signals, plus [Angular Aria](https://angular.dev/guide/aria/overview) for the hard keyboard and screen reader patterns (combobox, listbox) and the Angular CDK for overlays, focus trapping and virtual scroll. No PrimeNG and no other UI kit.
@@ -50,8 +50,8 @@ Each component's doc comment shows how to use it and names its spec in the desig
 - **Dates.** Dates show as "3 Nov" or "17 Nov 2026" (`format.ts`). Deadlines are written in words inside a `<time>`. The date picker starts weeks on Monday, and also accepts typed "23/11/2026" or "2026-11-23".
 - **Flags.** Success and information flags disappear after 8 seconds unless they have an action. Warnings and errors stay until they are dismissed. Each flag is a status (or an alert), not a list item.
 - **Menus.** Every button that opens a menu says so (`aria-haspopup`, `aria-expanded`), and points at the menu with `aria-controls` only while it is open. Escape and a choice put focus back on the button.
-- **Brand colour.** `pp-brand-preview` accepts every colour. One that is under 4.5 to 1 on white, or close to Pepla's mint or the error red, stays on the header, logo area and sign-in page; buttons and links stay violet. The maths is in `records/colour.ts`, and the API must run the same check.
-- **Agent panel.** One panel for Pepla. It is a dialog: focus goes to the composer and comes back to the opener. Send waits while Pepla works. Proposals in it follow the one-tap rule above.
+- **Brand colour.** `pp-brand-preview` accepts every colour. One that is under 4.5 to 1 on white, or close to Naleko People's mint or the error red, stays on the header, logo area and sign-in page; buttons and links stay violet. The maths is in `records/colour.ts`, and the API must run the same check.
+- **Agent panel.** One panel for Batsi. It is a dialog: focus goes to the composer and comes back to the opener. Send waits while Batsi works. Proposals in it follow the one-tap rule above.
 - **Long tables on a phone.** Rows stack as cards of different heights, so `pp-table` renders every loaded row on a phone and loads the next page as the end comes near. Desktop keeps virtual scroll. A table that scrolls sideways becomes a named region a keyboard can reach.
 
 ## Forms

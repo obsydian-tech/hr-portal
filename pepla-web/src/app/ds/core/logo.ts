@@ -3,22 +3,22 @@ import { PpMark } from './mark';
 import { PpIcon, IconTone } from './icon';
 import { IconName } from './icon.registry';
 
-/** The Pepla lockup: mark and lowercase wordmark. Spec: project/components/core/logo.md */
+/** The Naleko People lockup: the mark, "Naleko People" and "by Naleko" under it. Spec: project/components/core/logo.md */
 @Component({
   selector: 'pp-logo, a[ppLogo]',
   imports: [PpMark],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<svg ppMark /><span class="pp-logo__word">pepla</span>`,
+  template: `<svg ppMark /><span class="pp-logo__word"><span class="pp-logo__name">Naleko <span class="pp-logo__people">People</span></span><span class="pp-logo__maker">by Naleko</span></span>`,
   host: {
     class: 'pp-logo',
     '[class.pp-logo--small]': 'size() === "small"',
     '[class.pp-logo--large]': 'size() === "large"',
     '[class.pp-logo--mark-only]': 'markOnly()',
-    '[attr.aria-label]': 'isLink ? "Pepla home" : null',
+    '[attr.aria-label]': 'isLink ? "Naleko People home" : null',
   },
 })
 export class PpLogo {
-  /** `<a ppLogo routerLink="/">` is the way home, named "Pepla home". Otherwise the word "pepla" names it, even with the mark only. */
+  /** `<a ppLogo routerLink="/">` is the way home, named "Naleko People home". Otherwise the words "Naleko People by Naleko" name it, even with the mark only. */
   protected readonly isLink = inject(ElementRef).nativeElement.tagName === 'A';
   readonly size = input<'small' | 'medium' | 'large'>('medium');
   readonly markOnly = input(false);

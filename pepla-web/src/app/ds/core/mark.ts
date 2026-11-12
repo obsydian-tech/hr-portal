@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /**
- * The Pepla mark: three overlapping circles. `<svg ppMark />`, only inside ds (Logo, app icon).
+ * The Naleko People mark: three overlapping circles. `<svg ppMark />`, only inside ds (Logo, app icon).
  * Spec: project/components/core/logo.md
  */
 @Component({

@@ -131,7 +131,7 @@ export class PpDl { readonly layout = input<'columns' | 'stacked' | 'strip'>('co
 export interface DlItem {
   term: string;
   value?: string | null;
-  /** Where Pepla read it ("From ID document"); shows the agent mark. */
+  /** Where Batsi read it ("From ID document"); shows the agent mark. */
   source?: string;
   link?: string;
   /**
@@ -254,7 +254,7 @@ export class PpAccordionItem {
 export class PpAccordion {}
 
 export interface TimelineEvent {
-  /** Who did it: a person's name, or "Pepla" for the agent. Leave it out for something that happened (an ID check came back). */
+  /** Who did it: a person's name, or "Batsi" for the agent. Leave it out for something that happened (an ID check came back). */
   actor?: string;
   /** The person's avatar colour, from their record. */
   colour?: AvatarColour;
@@ -263,7 +263,7 @@ export interface TimelineEvent {
   tone?: 'neutral' | 'success' | 'danger' | 'warning';
   /** The rest of the sentence after the actor: "drafted Kagiso's offer letter". */
   summary: string;
-  /** Words at the end of the sentence that matter most, in bold: "Verified", "overdue by 1 day". */
+  /** Words at the end of the sentence that matter most, in bold: "everything matches", "overdue by 1 day". */
   emphasis?: string;
   detail?: string;
   /** An icon before the detail, such as eye for "revealed". */
@@ -274,9 +274,9 @@ export interface TimelineEvent {
   quote?: string;
   /** Just happened: highlighted until the person has seen it. */
   fresh?: boolean;
-  /** Pepla had a hand in it: "Drafted by Pepla" after the summary. */
+  /** Batsi had a hand in it: "Drafted by Batsi" after the summary. */
   agent?: string;
-  /** What came of something Pepla did or suggested, for the agent activity log. Always an icon and words. */
+  /** What came of something Batsi did or suggested, for the agent activity log. Always an icon and words. */
   outcome?: TimelineOutcome;
   /** When, in words ("2 hours ago"), and the exact time for the tooltip and datetime. */
   when: string;
@@ -307,7 +307,7 @@ export interface TimelineDay { day: string; events: TimelineEvent[]; }
     <ng-template #event let-e>
       <li class="pp-timeline__event" [class.pp-timeline__event--new]="e.fresh">
         <span class="pp-timeline__marker" aria-hidden="true">
-          @if (e.actor) { <pp-avatar [name]="e.actor === 'Pepla' ? 'Pepla' : e.actor" [kind]="e.actor === 'Pepla' ? 'agent' : 'person'" [colour]="e.colour" [decorative]="true" /> }
+          @if (e.actor) { <pp-avatar [name]="e.actor === 'Batsi' ? 'Batsi' : e.actor" [kind]="e.actor === 'Batsi' ? 'agent' : 'person'" [colour]="e.colour" [decorative]="true" /> }
           @else { <span class="pp-timeline__icon" [class]="e.tone && e.tone !== 'neutral' ? 'pp-timeline__icon--' + e.tone : ''"><svg [ppIcon]="e.icon ?? 'circle-dot'" /></span> }
         </span>
         <div class="pp-timeline__content">

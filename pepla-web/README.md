@@ -1,6 +1,6 @@
 # pepla-web
 
-The new Pepla web app: Angular 22 with signals and no zone.js. It uses only `pp-*` components from `src/app/ds`, which are built from the Pepla design system (obsydian-tech/pepla-design-system). There is no PrimeNG; the hard controls use `@angular/aria` and `@angular/cdk`.
+The new Naleko People web app: Angular 22 with signals and no zone.js. It uses only `pp-*` components from `src/app/ds`, which are built from the Naleko People design system (obsydian-tech/pepla-design-system). There is no PrimeNG; the hard controls use `@angular/aria` and `@angular/cdk`.
 
 The old app in `../hr-portal` keeps running on Vercel until this one replaces it.
 

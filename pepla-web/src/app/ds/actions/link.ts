@@ -37,7 +37,7 @@ export class PpLink {
   readonly visited = input(false);
   readonly external = input(false);
   readonly icon = input<IconName>();
-  /** An icon after the words, such as arrow-right on "View all new hires". */
+  /** An icon after the words, such as arrow-right on "View all new employees". */
   readonly iconAfter = input<IconName>();
   protected readonly isStandalone = computed(() => this.standalone() || !!this.icon() || !!this.iconAfter());
   protected readonly classes = computed(() => ['pp-link',

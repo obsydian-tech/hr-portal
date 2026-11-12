@@ -1,4 +1,4 @@
-// Pepla's own date picker. Angular Aria has no calendar, so the keyboard grid follows the WAI-ARIA
+// Naleko People's own date picker. Angular Aria has no calendar, so the keyboard grid follows the WAI-ARIA
 // date picker dialog pattern by hand; the CDK overlay places the panel. Date in, Date out.
 // Spec: forms/date-picker.md
 import { ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, effect, inject, input, output, signal, untracked } from '@angular/core';

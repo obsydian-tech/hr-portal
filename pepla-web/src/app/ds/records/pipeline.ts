@@ -28,7 +28,7 @@ export interface PipelineStage {
   id: string;
   name: string;
   cards: PipelineCard[];
-  /** "1 scorecard overdue" (danger), or "1 waiting over 5 days" (warning). */
+  /** "1 interview feedback overdue" (danger), or "1 waiting over 5 days" (warning). */
   alert?: { text: string; tone: 'danger' | 'warning' };
 }
 
