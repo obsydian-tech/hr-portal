@@ -43,5 +43,16 @@
   --layout-drawer-width-large: 720px;
   --layout-gutter-phone: 16px;
   --layout-gutter-desktop: 24px;
+  --layout-site-max: 1200px;
+  --layout-site-gutter-desktop: 40px;
+  --layout-site-header-height: 72px;
+  --layout-site-header-height-shrunk: 56px;
+  --layout-site-subnav-height: 56px;
+  --layout-site-menu-max: 720px;
+  --layout-site-menu-height-max: 360px;
+  --layout-site-sheet-width: 380px;
+  --layout-site-breakpoint-nav: 1280px;
+  --layout-site-frame-height: 560px;
+  --layout-site-frame-phone: 390px;
 }
 /* Breakpoints (min-width, px), for media queries: xxs 0, xs 480, sm 768, md 1024, lg 1440, xl 1768 */

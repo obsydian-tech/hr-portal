@@ -779,6 +779,23 @@ legend.pp-field__label { margin-bottom: var(--space-075); }
 .pp-password-caps > svg { width: var(--size-icon-small); height: var(--size-icon-small); flex: none; color: var(--color-icon-warning); }
 .pp-password-caps[hidden] { display: none; }
 
+/* ---- forms/qr-code ---- */
+/* QR code. Spec: qr-code.md */
+.pp-qr-code {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: calc(var(--space-1000) * 2);
+  max-width: 100%;
+  aspect-ratio: 1;
+  padding: var(--space-100);
+  background: var(--elevation-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-medium);
+}
+.pp-qr-code__image { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.pp-qr-code--small { width: calc(var(--space-1000) * 1.5); }
+
 /* ---- forms/radio ---- */
 /* Radio and radio group. Spec: radio.md */
 .pp-radio {
@@ -3160,6 +3177,528 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-confidence-sources__item > svg { width: var(--size-icon-small); height: var(--size-icon-small); margin-top: var(--space-025); color: var(--color-icon-subtle); }
 .pp-confidence-sources__found { grid-column: 2; font: var(--font-body-small); color: var(--color-text-subtle); }
 .pp-confidence-sources__found--mismatch { color: var(--color-text-warning); }
+
+/* ---- site/site-footer ---- */
+/* Site footer. Spec: site-footer.md. Layout follows the footer's own width (container query), so a phone-sized preview on a wide screen lays out like a phone. */
+.pp-site-footer {
+  position: relative;
+  container-type: inline-size;
+  container-name: pp-site-footer;
+  background: var(--elevation-surface-raised);
+  color: var(--color-text);
+}
+.pp-site-footer__inner {
+  box-sizing: border-box;
+  max-width: calc(var(--layout-site-max) + var(--layout-site-gutter-desktop) * 2);
+  margin: 0 auto;
+  padding: var(--space-800) max(var(--layout-gutter-phone), env(safe-area-inset-right, 0px)) var(--space-400) max(var(--layout-gutter-phone), env(safe-area-inset-left, 0px));
+}
+.pp-site-footer__top { display: grid; gap: var(--space-500); }
+.pp-site-footer__brand { display: grid; gap: var(--space-200); justify-items: start; align-content: start; }
+.pp-site-footer__logo { border-radius: var(--radius-small); }
+.pp-site-footer__about { margin: 0; max-width: 38ch; font: var(--font-body); letter-spacing: var(--font-body-tracking); color: var(--color-text-subtle); }
+.pp-site-footer__pin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-075);
+  padding: var(--space-050) var(--space-150);
+  border-radius: var(--radius-full);
+  background: var(--color-background-neutral);
+  color: var(--color-text);
+  font: var(--font-label-small);
+  letter-spacing: var(--font-label-small-tracking);
+}
+.pp-site-footer__pin > svg { width: var(--size-icon-small); height: var(--size-icon-small); flex: none; color: var(--color-icon-subtle); }
+
+.pp-site-footer__cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-400) var(--space-250); }
+.pp-site-footer__col { min-width: 0; }
+.pp-site-footer__heading { margin: 0 0 var(--space-150); font: var(--font-heading-xxsmall); letter-spacing: var(--font-heading-xxsmall-tracking); text-transform: uppercase; color: var(--color-text-subtlest); }
+.pp-site-footer__list { display: grid; gap: var(--space-025); margin: 0; padding: 0; list-style: none; }
+.pp-site-footer__link {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-050) var(--space-100);
+  min-height: var(--size-touch-target);
+  color: var(--color-text);
+  font: var(--font-body);
+  letter-spacing: var(--font-body-tracking);
+  text-decoration: none;
+  border-radius: var(--radius-xsmall);
+}
+.pp-site-footer__link:hover { text-decoration: underline; text-decoration-thickness: var(--border-width); text-underline-offset: var(--space-050); }
+.pp-site-footer__soon { font: var(--font-label-small); letter-spacing: var(--font-label-small-tracking); color: var(--color-text-subtlest); }
+
+.pp-site-footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-100) var(--space-300);
+  margin-top: var(--space-600);
+  padding-top: var(--space-250);
+  border-top: var(--border-width) solid var(--color-border);
+  font: var(--font-body-small);
+  letter-spacing: var(--font-body-small-tracking);
+  color: var(--color-text-subtle);
+}
+.pp-site-footer__legal { display: flex; flex-wrap: wrap; gap: 0 var(--space-300); margin: 0; padding: 0; list-style: none; }
+.pp-site-footer__legal-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--color-text-subtle);
+  text-decoration: none;
+  border-radius: var(--radius-xsmall);
+}
+.pp-site-footer__legal-link:hover { color: var(--color-text); text-decoration: underline; text-decoration-thickness: var(--border-width); }
+.pp-site-footer__copy { display: inline-flex; align-items: center; min-height: var(--size-touch-target); }
+
+@container pp-site-footer (min-width: 768px) {
+  .pp-site-footer__link, .pp-site-footer__legal-link, .pp-site-footer__copy { min-height: var(--size-control-small); }
+  .pp-site-footer__inner { padding-left: max(var(--layout-site-gutter-desktop), env(safe-area-inset-left, 0px)); padding-right: max(var(--layout-site-gutter-desktop), env(safe-area-inset-right, 0px)); }
+  .pp-site-footer__cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container pp-site-footer (min-width: 1080px) {
+  .pp-site-footer__top { grid-template-columns: minmax(0, 0.9fr) minmax(0, 2.1fr); gap: var(--space-600); }
+  .pp-site-footer__cols { grid-template-columns: 1.3fr 0.9fr 1.1fr 1fr 1.2fr; }
+}
+
+/* ---- site/site-gradient ---- */
+/* The Naleko gradient: the company name and the footer hairline. Accent only; the page stays light. */
+.pp-site-gradient-text {
+  background-image: linear-gradient(90deg, var(--color-site-gradient-1), var(--color-site-gradient-2), var(--color-site-gradient-text-3), var(--color-site-gradient-4), var(--color-site-gradient-5), var(--color-site-gradient-6));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.pp-site-gradient-line {
+  display: block;
+  block-size: var(--border-width);
+  background-image: linear-gradient(90deg, var(--color-site-gradient-1), var(--color-site-gradient-2), var(--color-site-gradient-3), var(--color-site-gradient-4), var(--color-site-gradient-5), var(--color-site-gradient-6));
+}
+@media (forced-colors: active) {
+  .pp-site-gradient-text { color: LinkText; }
+}
+
+/* ---- site/site-header ---- */
+/* Site header. Spec: site-header.md. Compositor properties only: the shrink is two translations, the frost is an opacity. */
+.pp-site-header {
+  --_h: var(--layout-site-header-height);
+  --_hs: var(--layout-site-header-height-shrunk);
+  position: sticky;
+  top: 0;
+  z-index: var(--layer-navigation);
+  height: var(--_h);
+  margin-bottom: calc(var(--_h) * -1);
+  color: var(--color-text);
+  /* The layout follows the header's own width, not the window's, so a phone-sized preview on a wide screen lays out like a phone. */
+  container-type: inline-size;
+  container-name: pp-site-header;
+}
+/* The frosted ground: one layer, as tall as the header, that slides up to the shrunk height and fades in. */
+.pp-site-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--elevation-surface-raised) 82%, transparent);
+  -webkit-backdrop-filter: blur(var(--space-200)) saturate(1.4);
+  backdrop-filter: blur(var(--space-200)) saturate(1.4);
+  border-bottom: var(--border-width) solid var(--color-border);
+  opacity: 0;
+  transform: translateY(0);
+  transition: opacity var(--motion-site-duration-header) var(--motion-site-easing), transform var(--motion-site-duration-header) var(--motion-site-easing);
+  pointer-events: none;
+}
+.pp-site-header--scrolled::before { opacity: 1; transform: translateY(calc(var(--_hs) - var(--_h))); }
+
+.pp-site-header__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-300);
+  height: var(--_h);
+  max-width: calc(var(--layout-site-max) + var(--layout-site-gutter-desktop) * 2); /* content is --layout-site-max wide inside the gutters */
+  margin: 0 auto;
+  padding: 0 max(var(--layout-gutter-phone), env(safe-area-inset-right, 0px)) 0 max(var(--layout-gutter-phone), env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  transition: transform var(--motion-site-duration-header) var(--motion-site-easing);
+}
+.pp-site-header--scrolled .pp-site-header__bar { transform: translateY(calc((var(--_hs) - var(--_h)) / 2)); }
+@container pp-site-header (min-width: 768px) {
+  .pp-site-header__bar { padding-left: max(var(--layout-site-gutter-desktop), env(safe-area-inset-left, 0px)); padding-right: max(var(--layout-site-gutter-desktop), env(safe-area-inset-right, 0px)); }
+}
+
+.pp-site-header__logo { flex: none; border-radius: var(--radius-small); }
+.pp-site-header__menu { flex: 1; min-width: 0; display: none; }
+.pp-site-header__actions { display: flex; align-items: center; gap: var(--space-100); margin-left: auto; }
+.pp-site-header__login, .pp-site-header__secondary { display: none; }
+.pp-site-header__burger { display: inline-flex; }
+@container pp-site-header (max-width: 520px) { .pp-site-header__primary { display: none; } }
+@container pp-site-header (min-width: 1280px) {
+  .pp-site-header__menu { display: block; }
+  .pp-site-header__login, .pp-site-header__secondary { display: inline-flex; }
+  .pp-site-header__burger { display: none; }
+}
+
+/* Skip link: hidden until a keyboard focuses it. */
+.pp-site-header__skip {
+  position: absolute;
+  top: var(--space-100);
+  left: var(--space-100);
+  z-index: 1;
+  padding: var(--space-100) var(--space-200);
+  border-radius: var(--radius-full);
+  background: var(--color-background-brand-bold);
+  color: var(--color-text-inverse);
+  font: var(--font-label);
+  text-decoration: none;
+  opacity: 0;
+  transform: translateY(calc(var(--space-600) * -1));
+  pointer-events: none;
+}
+.pp-site-header__skip:focus { opacity: 1; transform: none; pointer-events: auto; }
+
+/* ---- site/site-menu ---- */
+/* Site menu: the top-level links and the one shared panel that slides, resizes and fades between lists.
+   Spec: site-menu.md. The panel's size is a scale of one background (transform), never a width or height change.
+   Inputs set by the page script or the Angular directive on the open panel and on the menu:
+     --_x   how far the panel sits from the left of the menu          (length)
+     --_sx --_sy   background size as a fraction of its reference size (unitless, 0 to 1)
+     --_ax  where the arrow points, from the left of the menu         (length)
+     --_dir which side the panel arrives from: 1 right, -1 left        (unitless) */
+.pp-site-menu { position: relative; }
+.pp-site-menu__item { display: block; }
+.pp-site-menu__list { display: flex; align-items: center; gap: var(--space-050); margin: 0; padding: 0; list-style: none; }
+
+.pp-site-menu__trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-075);
+  min-height: var(--size-control-medium);
+  padding: 0 var(--space-150);
+  border: 0;
+  border-radius: var(--radius-medium);
+  background: transparent;
+  color: var(--color-text);
+  font: var(--font-label);
+  letter-spacing: var(--font-label-tracking);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* Hover and open ground: a layer that fades in, so no colour is transitioned. */
+.pp-site-menu__trigger::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-background-brand-subtlest);
+  opacity: 0;
+  transition: opacity var(--motion-site-duration-header) var(--motion-site-easing);
+  pointer-events: none;
+}
+.pp-site-menu__trigger:hover::before, .pp-site-menu__trigger[aria-expanded="true"]::before { opacity: 1; }
+.pp-site-menu__trigger > * { position: relative; }
+.pp-site-menu__chevron { width: var(--size-icon-small); height: var(--size-icon-small); transition: transform var(--motion-site-duration-header) var(--motion-site-easing); }
+.pp-site-menu__trigger[aria-expanded="true"] .pp-site-menu__chevron { transform: rotate(180deg); }
+
+/* The shared background and its arrow: one of each for the whole menu. */
+.pp-site-menu__morph, .pp-site-menu__arrow { position: absolute; top: calc(100% + var(--space-100)); left: 0; pointer-events: none; opacity: 0; }
+.pp-site-menu__morph {
+  width: var(--layout-site-menu-max);
+  height: var(--layout-site-menu-height-max);
+  border-radius: var(--radius-medium);
+  background: var(--elevation-surface-overlay);
+  box-shadow: var(--elevation-shadow-overlay);
+  transform-origin: 0 0;
+  transform: translateX(var(--_x, 0px)) scale(var(--_sx, 1), var(--_sy, 1));
+  transition: transform var(--motion-site-duration-menu) var(--motion-site-easing), opacity var(--motion-site-duration-header) var(--motion-site-easing);
+}
+.pp-site-menu__arrow {
+  width: var(--space-150);
+  height: var(--space-150);
+  margin-top: calc(var(--space-075) * -1);
+  border-radius: var(--radius-xsmall) 0 0 0;
+  background: var(--elevation-surface-overlay);
+  transform: translateX(var(--_ax, 0px)) rotate(45deg);
+  transition: transform var(--motion-site-duration-menu) var(--motion-site-easing), opacity var(--motion-site-duration-header) var(--motion-site-easing);
+}
+.pp-site-menu--open .pp-site-menu__morph, .pp-site-menu--open .pp-site-menu__arrow { opacity: 1; }
+
+/* Panels: transparent, sitting on the shared background. Closed panels are inert and invisible. */
+.pp-site-menu__panel {
+  position: absolute;
+  top: calc(100% + var(--space-100));
+  left: 0;
+  display: grid;
+  gap: var(--space-025);
+  box-sizing: border-box;
+  width: var(--layout-narrow-max);
+  padding: var(--space-100);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(calc(var(--_x, 0px) + var(--_dir, 1) * var(--space-500)));
+  transition: opacity var(--motion-site-duration-header) var(--motion-site-easing), transform var(--motion-site-duration-menu) var(--motion-site-easing);
+}
+.pp-site-menu__panel--medium { width: var(--layout-drawer-width-medium); }
+.pp-site-menu__panel--wide { width: var(--layout-site-menu-max); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pp-site-menu__panel--open { opacity: 1; pointer-events: auto; transform: translateX(var(--_x, 0px)); }
+
+.pp-site-menu__link {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-150);
+  align-items: start;
+  padding: var(--space-150);
+  border-radius: var(--radius-medium);
+  color: var(--color-text);
+  text-decoration: none;
+  opacity: 0;
+  transform: translateY(var(--space-075));
+  transition: opacity var(--motion-site-duration-reveal) var(--motion-site-easing) calc(var(--_i, 0) * var(--motion-site-stagger)), transform var(--motion-site-duration-reveal) var(--motion-site-easing) calc(var(--_i, 0) * var(--motion-site-stagger));
+}
+.pp-site-menu__panel--open .pp-site-menu__link { opacity: 1; transform: none; }
+.pp-site-menu__link::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-background-brand-subtlest);
+  opacity: 0;
+  transition: opacity var(--motion-site-duration-header) var(--motion-site-easing);
+}
+.pp-site-menu__link:hover::before, .pp-site-menu__link:focus-visible::before { opacity: 1; }
+.pp-site-menu__link > * { position: relative; min-width: 0; }
+.pp-site-menu__name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-075); font: var(--font-heading-xsmall); }
+.pp-site-menu__soon { font: var(--font-label-small); letter-spacing: var(--font-label-small-tracking); color: var(--color-text-subtlest); }
+.pp-site-menu__hint { display: block; margin-top: var(--space-025); font: var(--font-body-small); color: var(--color-text-subtle); }
+.pp-site-menu__foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-100);
+  margin-top: var(--space-050);
+  padding: var(--space-150) var(--space-150) var(--space-075);
+  border-top: var(--border-width) solid var(--color-border);
+  color: var(--color-text-subtle);
+  font: var(--font-body-small);
+}
+
+/* Reduced motion: the panel fades and still lands where it belongs; it does not fly in from the side. */
+@media (prefers-reduced-motion: reduce) {
+  .pp-site-menu__panel { transform: translateX(var(--_x, 0px)); }
+  .pp-site-menu__link { transform: none; }
+}
+[data-site-still] .pp-site-menu__morph, [data-site-still] .pp-site-menu__arrow,
+[data-site-still] .pp-site-menu__panel, [data-site-still] .pp-site-menu__link,
+[data-site-still] .pp-site-header, [data-site-still] .pp-site-header::before, [data-site-still] .pp-site-header__bar { transition: none; }
+
+/* ---- site/site-motion ---- */
+/* Public site motion: arrivals, loops and still mode. Compositor properties only (transform, opacity). */
+
+/* Arrival. Visible at rest: a page only hides arrivals once its script has set data-site-reveal on <html>,
+   then adds pp-site-reveal--in as each one scrolls into view. No script, no hidden content. */
+.pp-site-reveal {
+  transition: opacity var(--motion-site-duration-reveal) var(--motion-site-easing) calc(var(--_i, 0) * var(--motion-site-stagger)), transform var(--motion-site-duration-reveal) var(--motion-site-easing) calc(var(--_i, 0) * var(--motion-site-stagger));
+}
+[data-site-reveal] .pp-site-reveal:not(.pp-site-reveal--in) {
+  opacity: 0;
+  transform: translateY(var(--space-300));
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-site-reveal] .pp-site-reveal:not(.pp-site-reveal--in) { transform: none; }
+}
+
+/* Loops: shared by the lights, rings, radar and live dots. */
+@keyframes pp-site-drift {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(var(--space-600), var(--space-300)); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes pp-site-turn { to { transform: rotate(360deg); } }
+@keyframes pp-site-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+.pp-site-drift { animation: pp-site-drift var(--motion-site-duration-loop-orb) ease-in-out infinite; }
+.pp-site-turn { animation: pp-site-turn var(--motion-site-duration-loop-turn) linear infinite; }
+.pp-site-sweep { animation: pp-site-turn var(--motion-site-duration-loop-sweep) linear infinite; }
+.pp-site-pulse { animation: pp-site-pulse var(--motion-site-duration-loop-pulse) ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pp-site-drift { animation-duration: var(--motion-site-duration-loop-orb-reduced); }
+}
+
+/* Still mode: data-site-still="start" or "end" on a page or a wrapper. Nothing moves, so a screenshot is the same
+   every time. Demos show their first step (start) or their last step (end). */
+[data-site-still] .pp-site-reveal,
+[data-site-still] .pp-site-reveal:not(.pp-site-reveal--in) { opacity: 1; transform: none; transition: none; }
+[data-site-still] .pp-site-drift,
+[data-site-still] .pp-site-turn,
+[data-site-still] .pp-site-sweep,
+[data-site-still] .pp-site-pulse { animation: none; }
+
+/* ---- site/site-sheet ---- */
+/* Site sheet: the phone menu. Spec: site-sheet.md. Slides in from the right over a blanket; opacity and transform only. */
+.pp-site-sheet { position: fixed; inset: 0; z-index: var(--layer-modal); pointer-events: none; }
+.pp-site-sheet--open { pointer-events: auto; }
+.pp-site-sheet__blanket {
+  position: absolute;
+  inset: 0;
+  background: var(--color-blanket);
+  opacity: 0;
+  transition: opacity var(--motion-site-duration-header) var(--motion-site-easing);
+}
+.pp-site-sheet--open .pp-site-sheet__blanket { opacity: 1; }
+.pp-site-sheet__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100);
+  box-sizing: border-box;
+  /* never the full width: a strip of the page stays visible so a tap on it closes the sheet */
+  width: min(var(--layout-site-sheet-width), calc(100% - var(--space-600)));
+  padding: max(var(--space-200), env(safe-area-inset-top, 0px)) max(var(--space-250), env(safe-area-inset-right, 0px)) max(var(--space-300), env(safe-area-inset-bottom, 0px)) var(--space-250);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--elevation-surface-overlay);
+  box-shadow: var(--elevation-shadow-overlay);
+  transform: translateX(100%);
+  transition: transform var(--motion-site-duration-menu) var(--motion-site-easing);
+}
+.pp-site-sheet--open .pp-site-sheet__panel { transform: none; }
+.pp-site-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-200); }
+.pp-site-sheet__heading { margin: var(--space-200) 0 var(--space-050); font: var(--font-heading-xxsmall); letter-spacing: var(--font-heading-xxsmall-tracking); text-transform: uppercase; color: var(--color-text-subtlest); }
+.pp-site-sheet__list { display: grid; margin: 0; padding: 0; list-style: none; }
+.pp-site-sheet__link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-100);
+  min-height: var(--size-touch-target);
+  padding: var(--space-100) var(--space-050);
+  border-bottom: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-xsmall);
+  color: var(--color-text);
+  font: var(--font-body-large);
+  text-decoration: none;
+}
+.pp-site-sheet__link:hover { background: var(--color-background-neutral-subtle-hovered); }
+.pp-site-sheet__soon { font: var(--font-label-small); letter-spacing: var(--font-label-small-tracking); color: var(--color-text-subtlest); }
+.pp-site-sheet__actions { display: grid; gap: var(--space-100); margin-top: auto; padding-top: var(--space-300); }
+
+/* Frame for kit pages and previews: a box that stands in for the browser window, so a phone-sized or desktop-sized
+   header and its sheet can be shown side by side on one page. Not used on the site itself. */
+.pp-site-frame { position: relative; overflow: hidden; contain: paint; isolation: isolate; height: var(--layout-site-frame-height); background: var(--elevation-surface); border-radius: var(--radius-medium); }
+.pp-site-frame--phone { max-width: var(--layout-site-frame-phone); height: calc(var(--layout-site-frame-height) * 1.4); }
+/* A desktop frame is always the header's full width. On a narrower screen the preview script sets --_fit (a scale), and the negative margin takes back the height the scale saves. A scale, never a zoom: zoom breaks container queries on iOS. */
+.pp-site-frame--desktop { width: var(--layout-site-breakpoint-nav); transform: scale(var(--_fit, 1)); transform-origin: top left; margin-bottom: calc((var(--_fit, 1) - 1) * var(--layout-site-frame-height)); }
+.pp-site-frame__page { height: 100%; overflow-x: hidden; overflow-y: auto; }
+.pp-site-frame__content { display: grid; gap: var(--space-200); padding: calc(var(--layout-site-header-height) + var(--space-200)) var(--layout-gutter-phone) var(--space-400); }
+.pp-site-frame > .pp-site-sheet { position: absolute; }
+.pp-site-frame__content--flush { padding-top: var(--space-200); padding-bottom: calc(var(--layout-site-frame-height) * 1.2); }
+.pp-site-frame__section { display: grid; gap: var(--space-200); padding-block: var(--space-300); scroll-margin-top: calc(var(--layout-site-header-height-shrunk) + var(--layout-site-subnav-height)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-site-sheet__panel { transform: none; opacity: 0; transition: opacity var(--motion-site-duration-header) var(--motion-site-easing); }
+  .pp-site-sheet--open .pp-site-sheet__panel { opacity: 1; }
+}
+[data-site-still] .pp-site-sheet__blanket, [data-site-still] .pp-site-sheet__panel { transition: none; }
+
+/* ---- site/site-subnav ---- */
+/* Site sub-menu: the sticky "on this page" bar of a module page. Spec: site-subnav.md.
+   One highlight slides to the section in view: a translate and a scale, never left or width. */
+.pp-site-subnav {
+  position: sticky;
+  top: var(--layout-site-header-height-shrunk);
+  z-index: var(--layer-card); /* under the header (and its open menu), over the page */
+  height: var(--layout-site-subnav-height);
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--elevation-surface-raised) 86%, transparent);
+  -webkit-backdrop-filter: blur(var(--space-200)) saturate(1.4);
+  backdrop-filter: blur(var(--space-200)) saturate(1.4);
+  border-block: var(--border-width) solid var(--color-border);
+  container-type: inline-size;
+  container-name: pp-site-subnav;
+}
+.pp-site-subnav__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200);
+  height: 100%;
+  box-sizing: border-box;
+  max-width: calc(var(--layout-site-max) + var(--layout-site-gutter-desktop) * 2);
+  margin: 0 auto;
+  padding: 0 max(var(--layout-gutter-phone), env(safe-area-inset-right, 0px)) 0 max(var(--layout-gutter-phone), env(safe-area-inset-left, 0px));
+}
+.pp-site-subnav__title { display: none; flex: none; margin: 0; font: var(--font-heading-xsmall); letter-spacing: var(--font-heading-xsmall-tracking); white-space: nowrap; }
+.pp-site-subnav__tabs {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-025);
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  /* a soft edge says there is more to scroll to */
+  -webkit-mask-image: linear-gradient(90deg, transparent, var(--color-text) var(--space-200), var(--color-text) calc(100% - var(--space-300)), transparent);
+  mask-image: linear-gradient(90deg, transparent, var(--color-text) var(--space-200), var(--color-text) calc(100% - var(--space-300)), transparent);
+  padding-inline: var(--space-100);
+}
+.pp-site-subnav__tabs::-webkit-scrollbar { display: none; }
+/* The highlight: a fixed-size block that the page script moves and stretches with --_x and --_sx (unitless, width ÷ the block's own width). */
+.pp-site-subnav__pill {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  inline-size: var(--space-1000);
+  block-size: var(--size-control-medium);
+  margin-top: calc(var(--size-control-medium) / -2);
+  border-radius: var(--radius-small);
+  background: var(--color-background-neutral);
+  transform-origin: left center;
+  transform: translateX(var(--_x, 0px)) scaleX(var(--_sx, 1));
+  opacity: 0;
+  transition: transform var(--motion-site-duration-menu) var(--motion-site-easing), opacity var(--motion-site-duration-header) var(--motion-site-easing);
+  pointer-events: none;
+}
+.pp-site-subnav--active .pp-site-subnav__pill { opacity: 1; }
+.pp-site-subnav__link {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  padding: 0 var(--space-200);
+  border-radius: var(--radius-small);
+  color: var(--color-text-subtle);
+  font: var(--font-label);
+  letter-spacing: var(--font-label-tracking);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.pp-site-subnav__link:hover { color: var(--color-text); }
+.pp-site-subnav__link[aria-current="true"] { color: var(--color-text); }
+
+@container pp-site-subnav (min-width: 768px) {
+  .pp-site-subnav__bar { padding-left: max(var(--layout-site-gutter-desktop), env(safe-area-inset-left, 0px)); padding-right: max(var(--layout-site-gutter-desktop), env(safe-area-inset-right, 0px)); }
+}
+@container pp-site-subnav (min-width: 1280px) {
+  .pp-site-subnav__title { display: block; }
+}
+/* Reduced motion: the highlight appears under the new tab instead of travelling. */
+@media (prefers-reduced-motion: reduce) {
+  .pp-site-subnav__pill { transition: opacity var(--motion-site-duration-header) var(--motion-site-easing); }
+}
+[data-site-still] .pp-site-subnav__pill { transition: none; }
 
 /* ---- records/approval-chain ---- */
 /* Approval chain. Spec: approval-chain.md
