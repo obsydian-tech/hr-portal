@@ -78,3 +78,47 @@ export const HELP_NEW_EMPLOYEES = [
     hr_staff_name: 'Pieter van Wyk',
   },
 ] as const;
+
+/**
+ * Johan Botha's page (HELP-02): what the document upload API answers for
+ * GET /v1/employees/sunbird-johan-botha/verifications. He is In review: his
+ * National ID matches, his bank letter needs a look, and HR has decided
+ * nothing. No phone, so the page leaves it out.
+ *
+ * The ID number is made up and can never be a real person's: its birth month
+ * is 00 and its check digit is wrong. Pictures show it hidden to the last four
+ * digits, and no journey ever presses Show.
+ */
+export const HELP_JOHAN_ID_NUMBER = '8700015800087';
+
+export const HELP_JOHAN_DOCUMENTS = [
+  { document_type: 'NATIONAL_ID', file_name: 'johan-id.pdf', uploaded_at: '2026-02-26T08:00:00Z', check: 'MATCHES' },
+  { document_type: 'BANK_CONFIRMATION', file_name: 'johan-bank-letter.pdf', uploaded_at: '2026-02-26T08:00:00Z', check: 'NEEDS_A_LOOK' },
+] as const;
+
+/** Johan's answer from the document upload API, built only from the lists above. */
+export function helpJohanDetail() {
+  const person = HELP_PEOPLE.find((p) => p.key === 'employee3')!;
+  const row = HELP_NEW_EMPLOYEES.find((e) => `${e.first_name} ${e.last_name}` === person.name)!;
+  return {
+    employee: {
+      employee_id: row.employee_id,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      email: row.email,
+      phone: '',
+      department: row.department,
+      job_title: person.title,
+      stage: row.stage,
+      planned_start_date: row.planned_start_date,
+      hr_staff_name: row.hr_staff_name,
+    },
+    documents: HELP_JOHAN_DOCUMENTS.map((d, i) => ({
+      ...d,
+      document_id: `sunbird-johan-document-${i + 1}`,
+      hr_decision: null,
+      hr_decided_at: null,
+      verification: d.document_type === 'NATIONAL_ID' ? { id_number: HELP_JOHAN_ID_NUMBER, id_number_last4: HELP_JOHAN_ID_NUMBER.slice(-4) } : null,
+    })),
+  };
+}

@@ -61,6 +61,30 @@ export class Help {
     await this.step(`${this.phone ? 'Tap' : 'Click'} ${name}`, () => button.click());
   }
 
+  /** Open a link by its exact visible name. Caption: "Tap <name>" / "Click <name>". */
+  async open(name: string, within: Page | Locator = this.page): Promise<void> {
+    const link = within.getByRole('link', { name, exact: true });
+    await expect(link).toBeVisible();
+    await this.step(`${this.phone ? 'Tap' : 'Click'} ${name}`, () => link.click());
+  }
+
+  /**
+   * Scroll to a heading by its exact name. Caption: "Scroll to <name>".
+   * The heading stops just below a fixed or sticky top bar, so the bar never covers it.
+   */
+  async scrollTo(heading: string, within: Page | Locator = this.page): Promise<void> {
+    const target = within.getByRole('heading', { name: heading, exact: true });
+    await expect(target).toBeVisible();
+    await this.step(`Scroll to ${heading}`, () =>
+      target.evaluate((el) => {
+        const bar = document.querySelector('[role="banner"]');
+        const sticky = bar && ['fixed', 'sticky'].includes(getComputedStyle(bar).position);
+        const barBottom = sticky ? bar.getBoundingClientRect().bottom : 0;
+        window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - barBottom - 16, behavior: 'instant' });
+      }),
+    );
+  }
+
   /** Type into a field by its exact label. Caption: "Enter <label>". */
   async fill(label: string, value: string, within: Page | Locator = this.page): Promise<void> {
     const field = within.getByLabel(label, { exact: true });
