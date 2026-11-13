@@ -10,6 +10,7 @@ feature is built.
 | ONB-01 HR signs in (NH-147) | `onb-01.spec.ts` | [ONB-01 card](https://claude.ai/artifact/6CCqqjLxwN6Jtt2szsKjZC) |
 | ONB-01.1 Sign-in says Email (NH-148): AC-1, AC-2, AC-11 changed, AC-13 new | `onb-01.spec.ts` | [ONB-01.1 card](https://claude.ai/artifact/C6mTFVtoRw4AGnYNVVCuNp) |
 | HELP-01 Help pictures: HR signs in (NH-149) | `help-01.spec.ts` | [HELP-01 card](https://claude.ai/artifact/2ymwurnoSSuNJZFDZi4VUN) |
+| OPS-02 Dev test run starts after app-only merges (NH-152): checks the workflow files | `ops-02.spec.ts` | [OPS-02 card](https://claude.ai/artifact/RcgsQNdSreMKuSwNJp76BZ) |
 
 ## Locked
 
@@ -59,6 +60,15 @@ request or a renamed button to the page. It puts `help/media` back as it was.
 These tests run once (in `desktop-1280`) and check the journey's desktop and
 phone runs themselves. They need `ffmpeg`, `ffprobe`, ImageMagick `compare`
 and `python3`, like the help retake workflow.
+
+### Cards about workflows
+
+`ops-02.spec.ts` checks `.github/workflows/` rather than a page.
+`support/ops-02-workflows.ts` reads the workflows with python3 and PyYAML,
+applies GitHub's path filter rules to sample file lists, and runs the real
+"post results" step of `app-e2e-dev.yml` on the sample results in
+`support/ops-02/` with a fake GitHub API. These tests run once (in
+`desktop-1280`), open no page and call nothing outside the machine.
 
 No test calls Bedrock or any paid AI: `support/fixtures.ts` refuses AI routes and
 AWS AI hosts in the browser in both runs.
