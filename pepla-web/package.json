@@ -12,7 +12,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "npm run test:design && ng test --watch=false",
     "e2e": "playwright test -c e2e/playwright.config.ts",
-    "e2e:help": "HELP_SHOTS=1 playwright test -c e2e/playwright.config.ts"
+    "e2e:help": "HELP_SHOTS=1 playwright test -c e2e/playwright.config.ts",
+    "e2e:acceptance": "playwright test -c e2e/acceptance/playwright.config.ts"
   },
   "private": true,
   "packageManager": "npm@10.9.9",
@@ -25,6 +26,7 @@
     "@angular/forms": "^22.2.0",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
+    "amazon-cognito-identity-js": "^6.3.22",
     "lucide": "^1.39.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
@@ -33,6 +35,7 @@
     "@angular/build": "^22.2.6",
     "@angular/cli": "^22.2.6",
     "@angular/compiler-cli": "^22.2.0",
+    "@axe-core/playwright": "^4.11.0",
     "@playwright/test": "1.63.0",
     "jsdom": "^30.0.0",
     "linkedom": "^0.18.5",
