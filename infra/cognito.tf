@@ -130,6 +130,36 @@ resource "aws_cognito_user_group" "it_provisioning" {
   precedence   = 30
 }
 
+# ---------------------------------------------------------------------------
+# Cognito User Groups: the two roles the app and the Lambdas read (BE-16)
+# hr_staff sends a sign-in to HR home; employee is every new hire.
+# Same in pepla-dev and prod. Prod's groups were made by scripts/create-cognito.sh
+# and are adopted as they are (see cognito-group-imports.tf).
+# ---------------------------------------------------------------------------
+
+resource "aws_cognito_user_group" "hr_staff" {
+  name         = "hr_staff"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "HR managers and administrators - full access"
+}
+
+resource "aws_cognito_user_group" "employee" {
+  name         = "employee"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "Onboarding employees - own data access only"
+}
+
+# AI cost guardrail, pepla-dev only: every test login is in this group, and the
+# AI Lambdas never call Bedrock or Textract for its members
+# (lambda/shared/ai-guard.mjs). Terraform owns it so it cannot vanish by accident.
+resource "aws_cognito_user_group" "e2e_robots" {
+  count = var.environment == "prod" ? 0 : 1
+
+  name         = "e2e-robots"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "Test logins for end-to-end runs: AI services are never called for them"
+}
+
 # ── Web app client ───────────────────────────────────────────────────────────
 # Prod's app client (1pk5rd58glsohfplnlr63tg0qb) was created by hand and is not
 # in Terraform yet. Other accounts (pepla-dev) get a managed one here.

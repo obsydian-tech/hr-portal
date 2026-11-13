@@ -37,9 +37,6 @@ TF_POOL = "talent-flow-user-pool"
 HR_STAFF_ID = "E2EHR01"
 EMPLOYEE_ID = "E2E-EMP-0001"  # custom:employee_id holds at most 20 characters
 
-# Groups the app reads that prod has but Terraform doesn't manage yet.
-NALEKO_EXTRA_GROUPS = ["hr_staff", "employee"]
-
 # AI cost guardrail: every test login is in this group, and the AI Lambdas
 # never call Bedrock or Textract for its members (lambda/shared/ai-guard.mjs).
 ROBOT_GROUP = "e2e-robots"
@@ -90,6 +87,15 @@ def pool_id(cognito, name: str) -> str:
     if len(ids) != 1:
         sys.exit(f"::error::expected one Cognito pool named {name}, found {len(ids)}")
     return ids[0]
+
+
+def require_groups(cognito, pool: str, groups: list[str]) -> None:
+    """Terraform owns the Naleko groups (infra/cognito.tf). Stop if one is missing."""
+    existing = {g["GroupName"] for page in cognito.get_paginator("list_groups").paginate(UserPoolId=pool)
+                for g in page["Groups"]}
+    for g in groups:
+        if g not in existing:
+            sys.exit(f"::error::Cognito group {g} is missing: Terraform owns it (infra/cognito.tf), apply Terraform first")
 
 
 def ensure_groups(cognito, pool: str, groups: list[str]) -> int:
@@ -181,8 +187,8 @@ def main() -> None:
 
     naleko = pool_id(cognito, NALEKO_POOL)
     tf = pool_id(cognito, TF_POOL)
-    made_groups = ensure_groups(cognito, naleko, NALEKO_EXTRA_GROUPS + [ROBOT_GROUP])
-    made_groups += ensure_groups(cognito, tf, [ROBOT_GROUP])
+    require_groups(cognito, naleko, sorted({g for p in NALEKO_PERSONAS.values() for g in p["groups"]} | {ROBOT_GROUP}))
+    made_groups = ensure_groups(cognito, tf, [ROBOT_GROUP])
 
     for role, p in NALEKO_PERSONAS.items():
         ensure_user(cognito, naleko, role, secret_password(sm, role), p["attrs"], p["groups"] + [ROBOT_GROUP])

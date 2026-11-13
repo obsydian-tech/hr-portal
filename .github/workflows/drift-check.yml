@@ -90,7 +90,7 @@ jobs:
       - name: List drift (addresses and actions only)
         run: |
           terraform show -json plan.bin \
-            | jq -r '.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"]) | "\(.change.actions | join("+"))\t\(.address)"' \
+            | jq -r '.resource_changes[]? | (.change.actions | join("+")) as $a | select(.change.actions != ["read"] and (.change.actions != ["no-op"] or .change.importing)) | (if .change.importing then (if .change.actions == ["no-op"] then "import" else "import+\($a)" end) else $a end) + "\t\(.address)"' \
             > "$RUNNER_TEMP/drift.txt"
           echo "Resources that differ: $(wc -l < "$RUNNER_TEMP/drift.txt" | tr -d ' ')"
           cat "$RUNNER_TEMP/drift.txt"
