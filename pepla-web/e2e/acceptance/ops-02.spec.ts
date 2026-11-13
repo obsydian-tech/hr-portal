@@ -101,7 +101,7 @@ test.describe('OPS-02 Dev test run starts after app-only merges', () => {
     expect(comment.body, 'the after-merge comment says it is after merge').toMatch(/after merge/i);
   });
 
-  test('AC-2 The comment says what ran: both apps in "Ran", a Size column, no @pepla-dev, no doubled rows', () => {
+  test('AC-2 The comment says what ran: both apps in "Ran", a Size column, no tag in test names, no doubled rows', () => {
     const newTests = sampleTests('new-app-results.json');
     const currentTests = sampleTests('current-app-results.json');
     const cards = [...new Set(newTests.map((t) => t.describe.split(' ')[0]))];
