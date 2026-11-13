@@ -1,6 +1,6 @@
 {
   "repo": "obsydian-tech/pepla-design-system",
-  "ref": "e3bdd53",
+  "ref": "8ed00fa",
   "files": {
     "tokens/palette.css": "7e52116852dc514a5715d3218fbca047c30c54939a4605c8f40c656334dfdb66",
     "tokens/colors.css": "e36010830220adba1d4f637232ead2e6fb789fac07b6f15c4b8f41f73b6c36e3",
@@ -10,7 +10,7 @@
     "tokens/motion.css": "76e3fc4d6527165dfad0acbcade233f56c58b6600a27ac4b3cbac4d4bb72a9ed",
     "tokens/layers.css": "f3269beec620258b95fe70773ca17f0d1609a6da214338230b1984765756e56a",
     "tokens/base.css": "e0746031564084301268c62e767cb63802d332a71bed74ec2679b2048c0b0ad0",
-    "components.css": "52f80a52725430316e714c3cec958acae74655c62575034144d7173d90df80dd",
+    "components.css": "4551d5b4df2c78041d174c28c3c4e1907a5ae3529bef56588e3a16993a54f56b",
     "icons.json": "4660da1c032f3600b279921fb49d4975d1ab3293275e7baa954fe0b0d7a1ac40",
     "index.css": "645e849d81ed62821ff75bc81975609120167bf0f06597ad25c37a47fa6e6a99"
   }
