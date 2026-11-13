@@ -3,13 +3,17 @@
 #
 #   merge to develop ->  build (one deterministic zip per lambda/ folder)
 #                  ->  deploy to pepla-dev (GitHub env "dev", OIDC role)
-#                  ->  seed pepla-dev, run the Playwright journeys against it
+#                  ->  call app-e2e-dev.yml: seed pepla-dev, then run every
+#                      journey of the current app and the new app's pepla-dev
+#                      tests (once per merge, after the deploy)
 #
 #   merge to main    ->  build the same code (it reached main from develop)
 #     (release)    ->  wait for Iggie's Approve (GitHub env "production")
 #                  ->  deploy to prod (code-only role)
 #
-# Web app changes are tested on every PR by app-e2e-dev.yml.
+# Web app changes are tested on every PR by app-e2e-dev.yml; after a merge it
+# steps aside when this workflow starts for the same commit.
+# Docs (*.md, docs/, help pictures and videos) start nothing.
 # Terraform owns configuration and ignores Lambda code; this owns code only.
 # Logs show function names and counts only: the repo is public.
 # ---------------------------------------------------------------------------
@@ -29,6 +33,10 @@ on:
       - "scripts/ci/load-e2e-logins.py"
       - "scripts/ci/dev-frontend-env.sh"
       - "hr-portal/e2e/**"
+      # Docs start nothing.
+      - "!**/*.md"
+      - "!docs/**"
+      - "!pepla-web/help/media/**"
   workflow_dispatch:
 
 permissions:
@@ -95,78 +103,19 @@ jobs:
       - name: Deploy code
         run: scripts/ci/deploy-lambdas.sh dist/lambdas
 
+  # Tests the new Lambda code on pepla-dev, and the new app with it, once the
+  # deploy has succeeded. app-e2e-dev.yml holds the steps, the lock on
+  # pepla-dev's seeded data and the comment on the merged PR.
   e2e-dev:
     name: E2E on pepla-dev
     needs: deploy-dev
-    # Shares pepla-dev's seeded data with app-e2e-dev.yml: never run both at once.
-    concurrency:
-      group: pepla-dev-e2e
-      cancel-in-progress: false
-    # Pinned: the repo's Playwright version has no Chromium build for the
-    # newer ubuntu-latest image. Move with the next Playwright upgrade.
-    runs-on: ubuntu-24.04
-    environment: dev
     permissions:
       contents: read
       id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: hr-portal/package-lock.json
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::424556617428:role/pepla-github-deploy-dev
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Seed demo company and test logins
-        run: |
-          pip install --quiet boto3
-          python3 scripts/ci/seed-dev.py
-
-      - name: Point the app at pepla-dev
-        run: scripts/ci/dev-frontend-env.sh
-
-      - name: Load test logins (masked)
-        run: python3 scripts/ci/load-e2e-logins.py
-
-      - name: Install app and browser
-        working-directory: hr-portal
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
-
-      - name: Start the app
-        working-directory: hr-portal
-        run: |
-          npx ng serve --host 127.0.0.1 --port 4200 > /tmp/ng-serve.log 2>&1 &
-          npx wait-on http://127.0.0.1:4200 --timeout 180000
-
-      - name: Run journeys
-        working-directory: hr-portal
-        env:
-          E2E_BASE_URL: http://localhost:4200
-        run: npx playwright test --config e2e/playwright.config.ts
-
-      - name: Clean up this run's records
-        if: always()
-        run: python3 scripts/ci/cleanup-dev-e2e.py
-
-      # Failure pictures and videos show seeded fake people only. Short-lived.
-      - name: Upload report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-dev-report-${{ github.run_id }}
-          path: |
-            hr-portal/e2e/e2e/reports/
-            hr-portal/e2e/test-results/
-          retention-days: 7
-          if-no-files-found: ignore
+      pull-requests: write
+    uses: ./.github/workflows/app-e2e-dev.yml
+    with:
+      full: true
 
   deploy-prod:
     name: Promote to prod (needs Approve)
