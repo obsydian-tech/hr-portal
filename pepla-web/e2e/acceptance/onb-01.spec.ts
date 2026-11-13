@@ -96,6 +96,14 @@ test.describe('ONB-01 HR sign-in', () => {
     await expect(signIn.password).toBeFocused();
 
     expect(cognito!.calls, 'nothing is sent to Cognito').toEqual([]);
+
+    // Any well-formed address is allowed, whatever the domain: no company-domain rule.
+    for (const ok of ['jane.smith@gmail.com', 'jane@outlook.com', 'jane.smith@mokoena-logistics.co.za']) {
+      const before = cognito!.signInCalls().length;
+      await signIn.signInAs({ email: ok, password: hr.password });
+      await expect.poll(() => cognito!.signInCalls().length, `${ok} is sent to Cognito`).toBeGreaterThan(before);
+      await expect(signIn.message(BAD_EMAIL)).toHaveCount(0);
+    }
   });
 
   test('AC-3 HR signs in and lands on HR home @pepla-dev', async ({ page, signIn, hr }) => {
