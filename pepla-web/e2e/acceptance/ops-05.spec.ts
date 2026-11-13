@@ -186,6 +186,25 @@ function waitsForEnv(w: Workflow, j: Job, env: string): boolean {
   return w.jobs.some((x) => ids.has(x.id) && sameEnv(x.environment, env)) || called.some((c) => sameEnv(c.j.environment, env));
 }
 
+/**
+ * Every job a workflow runs, with the top-level job that starts it: a job runs
+ * itself, and a job that calls a local reusable workflow runs that workflow's
+ * jobs (followed through further calls). The caller is what waits (needs:) for
+ * other jobs, so a called job's waiting is read from its top-level caller.
+ */
+function runsOf(w: Workflow): { caller: Found; job: Found }[] {
+  const out: { caller: Found; job: Found }[] = [];
+  const expand = (caller: Found, at: Found, seen: Set<string>) => {
+    out.push({ caller, job: at });
+    const file = at.j.uses.match(/^\.\/\.github\/workflows\/([^@]+)/)?.[1];
+    if (!file || seen.has(file) || !existsSync(join(REPO, '.github', 'workflows', file))) return;
+    const inner = loadWorkflow(file);
+    for (const x of inner.jobs) expand(caller, { w: inner, j: x }, new Set([...seen, file]));
+  };
+  for (const j of w.jobs) expand({ w, j }, { w, j }, new Set([w.file]));
+  return out;
+}
+
 const where = (f: Found) => `${f.w.file} job "${f.j.id}"`;
 const pathCovers = (paths: string[], want: string) =>
   paths.length === 0 || paths.some((p) => p === want || (p.endsWith('/**') && want.startsWith(p.slice(0, -2))) || (p.endsWith('**') && want.startsWith(p.slice(0, -2))));
@@ -313,18 +332,22 @@ test.describe('OPS-05 Terraform applies itself, prod on Approve', () => {
   test('AC-2 the dev Lambda deploy and the pepla-dev E2E wait for the dev apply and do not start after a failed one', () => {
     const found = allJobs().filter((f) => starters(f.w).some((s) => pushBranches(s).includes('develop')));
     const deploy = found.filter((f) => f.j.text.includes('deploy-lambdas.sh') && rolesAssumed(f.w, f.j).includes(DEV_CODE_ROLE));
-    // The E2E that follows the Lambda deploy (app-e2e-dev.yml's web-app run is read on the second pass).
-    const e2e = found.filter(
-      (f) => f.j.text.includes('seed-dev.py') && rolesAssumed(f.w, f.j).includes(DEV_CODE_ROLE) && deploy.some((d) => d.w.file === f.w.file),
-    );
+    // The E2E that follows the Lambda deploy: a job in the deploy's own workflow, or in a reusable workflow
+    // that workflow calls (app-e2e-dev.yml's own web-app run is read on the second pass).
+    const deployFiles = new Set(deploy.map((d) => d.w.file));
+    const runs = [...deployFiles].flatMap((file) => runsOf(loadWorkflow(file)));
+    const e2e = runs.filter(({ job }) => job.j.text.includes('seed-dev.py') && rolesAssumed(job.w, job.j).includes(DEV_CODE_ROLE));
+    const label = ({ caller, job }: { caller: Found; job: Found }) =>
+      caller.j === job.j ? where(job) : `${where(job)} (called by ${where(caller)})`;
     expect(deploy.map(where), 'the dev Lambda deploy job').not.toHaveLength(0);
-    expect(e2e.map(where), 'the pepla-dev E2E job').not.toHaveLength(0);
+    expect(e2e.map(label), 'the pepla-dev E2E job').not.toHaveLength(0);
 
-    for (const f of [...deploy, ...e2e]) {
-      expect(waitsForEnv(f.w, f.j, 'dev-apply'), `${where(f)} waits (needs:) for the dev-apply job`).toBe(true);
+    const checks = [...deploy.map((f) => ({ caller: f, job: f })), ...e2e];
+    for (const r of checks) {
+      expect(waitsForEnv(r.caller.w, r.caller.j, 'dev-apply'), `${label(r)} waits (needs:) for the dev-apply job`).toBe(true);
       // A job that overrides the default "skip when a needed job failed" must still check the result.
-      if (/always\(\)|!\s*cancelled\(\)|failure\(\)/.test(f.j.if)) {
-        expect(f.j.if, `${where(f)} overrides the skip, so it must check the apply's result`).toMatch(/needs\.[\w-]+\.result/);
+      if (/always\(\)|!\s*cancelled\(\)|failure\(\)/.test(r.caller.j.if)) {
+        expect(r.caller.j.if, `${label(r)} overrides the skip, so it must check the apply's result`).toMatch(/needs\.[\w-]+\.result/);
       }
     }
   });
