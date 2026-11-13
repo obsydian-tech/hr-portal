@@ -25,6 +25,8 @@ export type Login = { email: string; password: string; givenName: string };
 export const FAKE = {
   hr: { email: 'jane.smith@mokoena-logistics.co.za', givenName: 'Jane', familyName: 'Smith', groups: ['hr_staff'] },
   employee: { email: 'john.doe@mokoena-logistics.co.za', givenName: 'John', familyName: 'Doe', groups: ['employee'] },
+  // ONB-01.1 AC-13. Not one of the addresses AC-2 tries, so AC-2 still stays on the sign-in page.
+  hrGmail: { email: 'nomsa.khumalo@gmail.com', givenName: 'Nomsa', familyName: 'Khumalo', groups: ['hr_staff'] },
   newHr: {
     email: 'thabo.nkosi@mokoena-logistics.co.za',
     givenName: 'Thabo',
@@ -63,6 +65,7 @@ type Fixtures = {
   hr: Login;
   employee: Login;
   newHr: Login;
+  hrGmail: Login;
   signIn: SignInPage;
 };
 
@@ -87,6 +90,9 @@ export const test = base.extend<Fixtures>({
   },
   employee: async ({}, use) => {
     await use(ON_DEV ? devLogin('E2E_EMP', process.env['E2E_EMP_GIVEN_NAME'] ?? 'Sipho') : { ...FAKE.employee, password: FAKE_PASSWORD });
+  },
+  hrGmail: async ({}, use) => {
+    await use({ ...FAKE.hrGmail, password: FAKE_PASSWORD });
   },
   newHr: async ({}, use) => {
     await use({ ...FAKE.newHr, password: FAKE_PASSWORD });
@@ -113,7 +119,7 @@ export class SignInPage {
   constructor(readonly page: Page) {
     this.mark = page.getByText('Naleko People', { exact: true }).or(page.getByRole('img', { name: /Naleko People/ })).first();
     this.heading = page.getByRole('heading', { name: 'Sign in', exact: true });
-    this.email = page.getByLabel('Work email', { exact: true });
+    this.email = page.getByLabel('Email', { exact: true });
     this.password = page.getByLabel('Password', { exact: true });
     this.submit = page.getByRole('button', { name: 'Sign in', exact: true });
     this.forgot = page.getByText(/Forgot your password\?\s*Your Admin can send you a new link\./);

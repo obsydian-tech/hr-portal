@@ -15,6 +15,7 @@ import {
  * ONB-01 · HR signs in to Naleko People (Jira NH-147).
  * One test per acceptance criterion, written from the card before any code.
  * Spec: https://claude.ai/artifact/6CCqqjLxwN6Jtt2szsKjZC
+ * ONB-01.1 (label "Email", any address): https://claude.ai/artifact/C6mTFVtoRw4AGnYNVVCuNp
  * Board: journey "HR adds a new employee", step 1, desktop and phone.
  *
  * Each test runs at 1280 and 390 wide (projects in ./playwright.config.ts).
@@ -28,20 +29,20 @@ const WRONG = 'Email or password is incorrect.';
 const TOO_MANY = 'Too many attempts. Try again in a few minutes.';
 const OFFLINE = "We can't reach Naleko People. Check your connection and try again.";
 const SET_PASSWORD = 'Use the link in your invite email to set your password.';
-const BAD_EMAIL = 'Enter a valid work email.';
+const BAD_EMAIL = 'Enter a valid email.';
 const NO_PASSWORD = 'Enter your password.';
 
 const noBackendOnly = () => test.skip(ON_DEV, 'Runs in the no-backend journey only (ONB-01 test layers).');
 
 test.describe('ONB-01 HR sign-in', () => {
-  test('AC-1 Sign-in page shows the mark, Work email, Password, Sign in and the Forgot your password line, inside the page', async ({ page, signIn }) => {
+  test('AC-1 Sign-in page shows the mark, Email, Password, Sign in and the Forgot your password line, inside the page', async ({ page, signIn }) => {
     noBackendOnly();
     await signIn.open();
 
     const parts = [signIn.mark, signIn.heading, signIn.email, signIn.password, signIn.submit, signIn.forgot];
     for (const part of parts) await expect(part).toBeVisible();
 
-    // Laid out as the board screen: mark, then the card (Sign in, Work email,
+    // Laid out as the board screen: mark, then the card (Sign in, Email,
     // Password, Sign in button), then the Forgot your password line, top to bottom.
     const boxes = [];
     for (const part of parts) boxes.push((await part.boundingBox())!);
@@ -68,6 +69,11 @@ test.describe('ONB-01 HR sign-in', () => {
     }
     await expect(signIn.email).toHaveAttribute('type', 'email');
     await expect(signIn.password).toHaveAttribute('type', 'password');
+
+    // ONB-01.1: the product never asks for a work email.
+    await expect(page.getByText(/work email/i), 'the words "Work email" appear nowhere').toHaveCount(0);
+    await expect(page.getByLabel(/work email/i)).toHaveCount(0);
+    await expect(page.getByPlaceholder(/work email/i)).toHaveCount(0);
   });
 
   test('AC-2 Email and password are checked before anything is sent', async ({ signIn, cognito, hr }) => {
@@ -235,8 +241,8 @@ test.describe('ONB-01 HR sign-in', () => {
       order.push(stop.label);
     }
     const at = (name: RegExp) => order.findIndex((l) => name.test(l));
-    expect(at(/^Work email$/), `tab order was: ${order.join(' → ')}`).toBeGreaterThanOrEqual(0);
-    expect(at(/^Password$/)).toBeGreaterThan(at(/^Work email$/));
+    expect(at(/^Email$/), `tab order was: ${order.join(' → ')}`).toBeGreaterThanOrEqual(0);
+    expect(at(/^Password$/)).toBeGreaterThan(at(/^Email$/));
     expect(at(/^Sign in$/)).toBeGreaterThan(at(/^Password$/));
 
     // Field messages are announced.
@@ -288,5 +294,16 @@ test.describe('ONB-01 HR sign-in', () => {
     await signIn.signInAs(hr);
     await expect(signIn.message(WRONG)).toBeVisible();
     await scan('the page with a sign-in message');
+  });
+
+  // ONB-01.1 AC-13. No-backend run only: pepla-dev has no seeded Gmail HR login,
+  // and this card adds no accounts there. AC-2 already sends Gmail and Outlook
+  // addresses to Cognito; this test follows one all the way to HR home.
+  test('AC-13 Any address works: an HR account with a Gmail address signs in', async ({ page, signIn, hrGmail }) => {
+    noBackendOnly();
+    await signIn.open();
+    await signIn.signInAs(hrGmail);
+    await expect(page).toHaveURL(HR_HOME);
+    await expect(page.getByRole('heading', { name: `Welcome back, ${hrGmail.givenName}`, exact: true })).toBeVisible();
   });
 });

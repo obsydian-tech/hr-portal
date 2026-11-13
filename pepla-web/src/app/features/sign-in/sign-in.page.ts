@@ -18,7 +18,7 @@ import { AuthService } from '../../core/auth/auth.service';
   template: `
     <pp-sign-in-page heading="Sign in" footer="Forgot your password? Your Admin can send you a new link.">
       <form ppForm aria-label="Sign in" (ngSubmit)="submit()">
-        <pp-field label="Work email" [error]="emailError()">
+        <pp-field label="Email" [error]="emailError()">
           <input ppTextField type="email" name="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" [ngModel]="email()" (ngModelChange)="email.set($event)" />
         </pp-field>
         <pp-field label="Password" [error]="passwordError()">

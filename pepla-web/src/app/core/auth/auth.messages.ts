@@ -5,7 +5,7 @@ export const SIGN_IN_MESSAGES = {
   tooMany: 'Too many attempts. Try again in a few minutes.',
   offline: "We can't reach Naleko People. Check your connection and try again.",
   setPassword: 'Use the link in your invite email to set your password.',
-  badEmail: 'Enter a valid work email.',
+  badEmail: 'Enter a valid email.',
   noPassword: 'Enter your password.',
   secondStep: 'This account needs a second sign-in step that Naleko People does not offer here yet. Ask your Admin.',
   unknown: 'Sign-in did not work. Try again in a few minutes.',
