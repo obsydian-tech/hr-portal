@@ -11,14 +11,15 @@ feature is built.
 
 ## Locked
 
-Once Iggie accepts a card's tests, the commit that adds them is tagged
-`acceptance/<card>` (a later accepted change gets `acceptance/<card>.2`, and so on).
+Once Iggie accepts a card's tests, a lock branch `acceptance-lock/<card>` is
+pushed pointing at the commit that adds them (a later accepted change gets
+`acceptance-lock/<card>.2`, and so on).
 The `Acceptance tests locked` check (`.github/workflows/acceptance-lock.yml`)
 fails a PR if any other commit changes this folder. A test that looks wrong goes
 back to the verifier, and to Iggie if the criterion itself changes.
 
 Builders: bring `develop` in with a merge, not a rebase. A rebase rewrites the
-tagged commits and the check fails.
+locked commits and the check fails.
 
 ## Running
 
