@@ -27,10 +27,11 @@ locals {
 # GSI2: byCandidateId PK=candidateId SK=createdAt → progress + EventBridge lookup
 
 resource "aws_dynamodb_table" "provisioning_bundles" {
-  name         = local.bundles_table_name
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "bundleId"
-  table_class  = "STANDARD"
+  name                        = local.bundles_table_name
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "bundleId"
+  table_class                 = "STANDARD"
 
   attribute {
     name = "bundleId"
@@ -77,6 +78,10 @@ resource "aws_dynamodb_table" "provisioning_bundles" {
     Component          = "ITProvisioning"
     DataClassification = "Internal"
     Ticket             = "IT-003"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 

@@ -4,10 +4,24 @@ name: Pepla web
 on:
   pull_request:
     branches: [develop, main]
-    paths: ["pepla-web/**", ".github/workflows/pepla-web.yml"]
+    paths:
+      - "pepla-web/**"
+      # Read or run by the infra acceptance checks (BE-16, OPS-05).
+      - "infra/**"
+      - "talent-flow-infra/**"
+      - "bootstrap/**"
+      - "scripts/ci/**"
+      - ".github/workflows/**"
   push:
     branches: [develop, main]
-    paths: ["pepla-web/**", ".github/workflows/pepla-web.yml"]
+    paths:
+      - "pepla-web/**"
+      # Read or run by the infra acceptance checks (BE-16, OPS-05).
+      - "infra/**"
+      - "talent-flow-infra/**"
+      - "bootstrap/**"
+      - "scripts/ci/**"
+      - ".github/workflows/**"
 
 concurrency:
   group: pepla-web-${{ github.ref }}

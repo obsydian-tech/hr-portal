@@ -26,10 +26,11 @@
 #    Stream enabled - SLA monitor Lambda polls NEW_AND_OLD_IMAGES.
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_state" {
-  name         = local.tf_table_state
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+  name                        = local.tf_table_state
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "PK"
+  range_key                   = "SK"
 
   attribute {
     name = "PK"
@@ -96,6 +97,10 @@ resource "aws_dynamodb_table" "talent_flow_state" {
     RetentionYears     = "7"
     Ticket             = "NH-107"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -110,10 +115,11 @@ resource "aws_dynamodb_table" "talent_flow_state" {
 #    GSI1SK = CONFIG#{configType}
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_config" {
-  name         = local.tf_table_config
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+  name                        = local.tf_table_config
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "PK"
+  range_key                   = "SK"
 
   attribute {
     name = "PK"
@@ -164,6 +170,10 @@ resource "aws_dynamodb_table" "talent_flow_config" {
     RetentionYears     = "7"
     Ticket             = "NH-107"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -175,10 +185,11 @@ resource "aws_dynamodb_table" "talent_flow_config" {
 #    TTL 30 days (hot window); DynamoDB Stream → S3 archive (TF-005/TF-012)
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_agent_audit" {
-  name         = local.tf_table_agent_audit
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "pk"
-  range_key    = "sk"
+  name                        = local.tf_table_agent_audit
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "pk"
+  range_key                   = "sk"
 
   attribute {
     name = "pk"
@@ -227,6 +238,10 @@ resource "aws_dynamodb_table" "talent_flow_agent_audit" {
     RetentionDays      = "30"
     Ticket             = "NH-107"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -237,9 +252,10 @@ resource "aws_dynamodb_table" "talent_flow_agent_audit" {
 #    PK = CACHE#{sha256hash}
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_prompt_cache" {
-  name         = local.tf_table_prompt_cache
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "cacheKey"
+  name                        = local.tf_table_prompt_cache
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "cacheKey"
 
   attribute {
     name = "cacheKey"
@@ -266,6 +282,10 @@ resource "aws_dynamodb_table" "talent_flow_prompt_cache" {
     RetentionDays = "0.04"
     Ticket        = "NH-107"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -275,9 +295,10 @@ resource "aws_dynamodb_table" "talent_flow_prompt_cache" {
 #    PK = ACTION#{actionId}   TTL 24hr (auto-expire unapproved actions)
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_pending_actions" {
-  name         = local.tf_table_pending_actions
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "actionId"
+  name                        = local.tf_table_pending_actions
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "actionId"
 
   attribute {
     name = "actionId"
@@ -305,6 +326,10 @@ resource "aws_dynamodb_table" "talent_flow_pending_actions" {
     RetentionDays      = "1"
     Ticket             = "NH-107"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -314,10 +339,11 @@ resource "aws_dynamodb_table" "talent_flow_pending_actions" {
 #    TTL on window expiry - rolling window self-cleans
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_ai_rate_limit" {
-  name         = local.tf_table_rate_limit
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "pk"
-  range_key    = "sk"
+  name                        = local.tf_table_rate_limit
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "pk"
+  range_key                   = "sk"
 
   attribute {
     name = "pk"
@@ -348,6 +374,10 @@ resource "aws_dynamodb_table" "talent_flow_ai_rate_limit" {
     Purpose = "AiRateLimit"
     Ticket  = "NH-107"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -357,9 +387,10 @@ resource "aws_dynamodb_table" "talent_flow_ai_rate_limit" {
 #    PK = IDEM#{idempotencyKey}
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_idempotency_keys" {
-  name         = local.tf_table_idempotency
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "idempotencyKey"
+  name                        = local.tf_table_idempotency
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "idempotencyKey"
 
   attribute {
     name = "idempotencyKey"
@@ -387,6 +418,10 @@ resource "aws_dynamodb_table" "talent_flow_idempotency_keys" {
     RetentionDays      = "2"
     Ticket             = "NH-107"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -407,10 +442,11 @@ resource "aws_dynamodb_table" "talent_flow_idempotency_keys" {
 #    POPIA 7-year retention applies (same as state + config).
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_users" {
-  name         = local.tf_table_users
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+  name                        = local.tf_table_users
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "PK"
+  range_key                   = "SK"
 
   attribute {
     name = "PK"
@@ -455,6 +491,10 @@ resource "aws_dynamodb_table" "talent_flow_users" {
     RetentionYears     = "7"
     Ticket             = "Admin-S1"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -466,10 +506,11 @@ resource "aws_dynamodb_table" "talent_flow_users" {
 #    30-day TTL (POPIA: operational notifications not retained beyond one month).
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "talent_flow_notifications" {
-  name         = local.tf_table_notifications
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+  name                        = local.tf_table_notifications
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "PK"
+  range_key                   = "SK"
 
   attribute {
     name = "PK"
@@ -518,4 +559,8 @@ resource "aws_dynamodb_table" "talent_flow_notifications" {
     RetentionDays = "30"
     Ticket        = "NH-123"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }

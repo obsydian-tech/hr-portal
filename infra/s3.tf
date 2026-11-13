@@ -18,6 +18,10 @@ resource "aws_s3_bucket" "document_uploads" {
     Environment = "dev"
     Project     = "document-ocr-verification"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "document_uploads" {
@@ -108,6 +112,10 @@ resource "aws_s3_bucket" "audit_archive" {
     DataClassification = "AUDIT"
     RetentionYears     = "5"
     Ticket             = "NH-77"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 

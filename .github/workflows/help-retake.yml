@@ -16,6 +16,7 @@ on:
     paths:
       - "pepla-web/**"
       - "!pepla-web/help/media/**"
+      - "!**/*.md"
       - ".github/workflows/help-retake.yml"
       - "scripts/ci/help-retake.py"
   workflow_dispatch:

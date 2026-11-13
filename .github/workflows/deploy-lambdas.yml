@@ -1,17 +1,25 @@
 # ---------------------------------------------------------------------------
-# Lambda code deploy. Two long-lived branches:
+# Terraform and Lambda code deploy (OPS-05). Two long-lived branches:
 #
 #   merge to develop ->  build (one deterministic zip per lambda/ folder)
-#                  ->  deploy to pepla-dev (GitHub env "dev", OIDC role)
-#                  ->  seed pepla-dev, run the Playwright journeys against it
+#                  ->  terraform-apply.yml: plan and apply pepla-dev (a delete
+#                      or replace waits for a second Approve)
+#                  ->  deploy code to pepla-dev (GitHub env "dev", OIDC role),
+#                      only after the apply succeeded or had nothing to do
+#                  ->  call app-e2e-dev.yml: seed pepla-dev, then run every
+#                      journey of the current app and the new app's pepla-dev
+#                      tests (once per merge, after the apply and the deploy)
 #
 #   merge to main    ->  build the same code (it reached main from develop)
-#     (release)    ->  wait for Iggie's Approve (GitHub env "production")
-#                  ->  deploy to prod (code-only role)
+#     (release)    ->  terraform-apply.yml: read-only prod plan, then one
+#                      Approve in "Production" applies Terraform and deploys
+#                      this code with the code-only role
 #
-# Web app changes are tested on every PR by app-e2e-dev.yml.
-# Terraform owns configuration and ignores Lambda code; this owns code only.
-# Logs show function names and counts only: the repo is public.
+# Web app changes are tested on every PR by app-e2e-dev.yml; after a merge it
+# steps aside when this workflow starts for the same commit, so a merge that
+# changes Terraform is tested here, after the apply.
+# Docs (*.md, docs/, help pictures and videos) start nothing.
+# Logs show function names, addresses and counts only: the repo is public.
 # ---------------------------------------------------------------------------
 name: Deploy Lambdas
 
@@ -29,7 +37,20 @@ on:
       - "scripts/ci/load-e2e-logins.py"
       - "scripts/ci/dev-frontend-env.sh"
       - "hr-portal/e2e/**"
+      - "infra/**"
+      - "talent-flow-infra/**"
+      - "scripts/ci/tf-gate.py"
+      - ".github/workflows/terraform-apply.yml"
+      # Docs start nothing.
+      - "!**/*.md"
+      - "!docs/**"
+      - "!pepla-web/help/media/**"
   workflow_dispatch:
+    inputs:
+      fail_after_plan:
+        description: "pepla-dev only: fail on purpose after the Terraform plan, before any apply (tests the failure issue)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -42,6 +63,36 @@ env:
   AWS_REGION: af-south-1
 
 jobs:
+  # What this push touched. A run started by hand, or a new branch, does everything.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.diff.outputs.infra }}
+      lambda: ${{ steps.diff.outputs.lambda }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: List changed areas
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" != "push" ] || [[ "$BEFORE" =~ ^0+$ ]] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            printf 'infra=true\nlambda=true\n' >> "$GITHUB_OUTPUT"
+          else
+            files=$(git diff --name-only "$BEFORE" HEAD)
+            has() { grep -qE "$1" <<<"$files" && echo true || echo false; }
+            {
+              echo "infra=$(has '^(infra|talent-flow-infra)/|^scripts/ci/tf-gate\.py$|^\.github/workflows/(deploy-lambdas|terraform-apply)\.yml$')"
+              echo "lambda=$(has '^lambda/|^scripts/ci/(build-lambdas\.py|check-ai-guard\.py|deploy-lambdas\.sh)$|^\.github/workflows/deploy-lambdas\.yml$')"
+            } >> "$GITHUB_OUTPUT"
+          fi
+          grep -E '^(infra|lambda)=' "$GITHUB_OUTPUT"
+
   build:
     name: Build Lambda bundles
     runs-on: ubuntu-latest
@@ -65,9 +116,26 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+  # pepla-dev apply on develop; prod plan, Approve, apply and code deploy on
+  # main. Waits for the build so a release can deploy this run's bundles.
+  terraform:
+    name: Terraform
+    needs: [changes, build]
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    uses: ./.github/workflows/terraform-apply.yml
+    with:
+      infra: ${{ needs.changes.outputs.infra }}
+      lambda: ${{ needs.changes.outputs.lambda }}
+      fail_after_plan: ${{ github.event_name == 'workflow_dispatch' && inputs.fail_after_plan == true }}
+
   deploy-dev:
     name: Deploy to pepla-dev
-    needs: build
+    # Waits for the pepla-dev apply. A failed or refused apply stops it, and
+    # with it the tests below.
+    needs: [build, terraform]
     if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     environment: dev
@@ -95,109 +163,16 @@ jobs:
       - name: Deploy code
         run: scripts/ci/deploy-lambdas.sh dist/lambdas
 
+  # Tests the new Lambda code on pepla-dev, and the new app with it, once the
+  # deploy has succeeded. app-e2e-dev.yml holds the steps, the lock on
+  # pepla-dev's seeded data and the comment on the merged PR.
   e2e-dev:
     name: E2E on pepla-dev
     needs: deploy-dev
-    # Shares pepla-dev's seeded data with app-e2e-dev.yml: never run both at once.
-    concurrency:
-      group: pepla-dev-e2e
-      cancel-in-progress: false
-    # Pinned: the repo's Playwright version has no Chromium build for the
-    # newer ubuntu-latest image. Move with the next Playwright upgrade.
-    runs-on: ubuntu-24.04
-    environment: dev
     permissions:
       contents: read
       id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: hr-portal/package-lock.json
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::424556617428:role/pepla-github-deploy-dev
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Seed demo company and test logins
-        run: |
-          pip install --quiet boto3
-          python3 scripts/ci/seed-dev.py
-
-      - name: Point the app at pepla-dev
-        run: scripts/ci/dev-frontend-env.sh
-
-      - name: Load test logins (masked)
-        run: python3 scripts/ci/load-e2e-logins.py
-
-      - name: Install app and browser
-        working-directory: hr-portal
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
-
-      - name: Start the app
-        working-directory: hr-portal
-        run: |
-          npx ng serve --host 127.0.0.1 --port 4200 > /tmp/ng-serve.log 2>&1 &
-          npx wait-on http://127.0.0.1:4200 --timeout 180000
-
-      - name: Run journeys
-        working-directory: hr-portal
-        env:
-          E2E_BASE_URL: http://localhost:4200
-        run: npx playwright test --config e2e/playwright.config.ts
-
-      - name: Clean up this run's records
-        if: always()
-        run: python3 scripts/ci/cleanup-dev-e2e.py
-
-      # Failure pictures and videos show seeded fake people only. Short-lived.
-      - name: Upload report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-dev-report-${{ github.run_id }}
-          path: |
-            hr-portal/e2e/e2e/reports/
-            hr-portal/e2e/test-results/
-          retention-days: 7
-          if-no-files-found: ignore
-
-  deploy-prod:
-    name: Promote to prod (needs Approve)
-    needs: build
-    # Only from main (the release merge from develop, where this code was
-    # deployed and tested). Switched by the repository variable
-    # PROD_LAMBDA_DEPLOY ("true" = on).
-    if: github.ref == 'refs/heads/main' && vars.PROD_LAMBDA_DEPLOY == 'true'
-    runs-on: ubuntu-latest
-    # Required reviewer (Iggie) and main-only are set on this environment.
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: lambda-bundles-${{ github.sha }}
-          path: dist/lambdas/
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::937137806477:role/pepla-github-deploy-code-prod
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Check we are in prod
-        run: |
-          acct=$(aws sts get-caller-identity --query Account --output text)
-          [ "$acct" = "937137806477" ] || { echo "::error::not prod"; exit 1; }
-
-      - name: Deploy the same code that passed pepla-dev
-        run: scripts/ci/deploy-lambdas.sh dist/lambdas
+      pull-requests: write
+    uses: ./.github/workflows/app-e2e-dev.yml
+    with:
+      full: true

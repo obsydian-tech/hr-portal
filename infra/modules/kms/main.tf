@@ -100,6 +100,10 @@ resource "aws_kms_key" "this" {
   tags = {
     Name = var.alias_name
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_kms_alias" "this" {

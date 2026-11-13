@@ -47,10 +47,11 @@ data "aws_kms_key" "talent_flow" {
 # ─── DynamoDB: talent-flow-events ─────────────────────────────────────────────
 
 resource "aws_dynamodb_table" "talent_flow_events" {
-  name         = "talent-flow-events"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+  name                        = "talent-flow-events"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "PK"
+  range_key                   = "SK"
 
   attribute {
     name = "PK"
@@ -104,6 +105,10 @@ resource "aws_dynamodb_table" "talent_flow_events" {
     DataClassification = "Confidential"
     RetentionYears     = "2"
     Ticket             = "FE-006"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 
