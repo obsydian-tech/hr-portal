@@ -23,6 +23,7 @@ on:
       - "scripts/ci/tf-gate.py"
       - ".github/workflows/terraform-plan.yml"
       - ".github/workflows/deploy-lambdas.yml"
+      - ".github/workflows/terraform-apply.yml"
 
 concurrency:
   group: tf-plan-${{ github.ref }}
@@ -132,8 +133,8 @@ jobs:
         run: |
           {
             if git -C "$GITHUB_WORKSPACE" diff --name-only "$BASE...HEAD" \
-                | grep -qE '^(bootstrap/|scripts/ci/tf-gate\.py$|\.github/workflows/deploy-lambdas\.yml$)'; then
-              echo "- :warning: **This PR changes the apply pipeline** (deploy workflow, apply guard or bootstrap/). Read it closely."
+                | grep -qE '^(bootstrap/|scripts/ci/tf-gate\.py$|\.github/workflows/(deploy-lambdas|terraform-apply)\.yml$)'; then
+              echo "- :warning: **This PR changes the apply pipeline** (deploy or apply workflow, apply guard or bootstrap/). Read it closely."
               echo
             fi
             python3 "$GITHUB_WORKSPACE/scripts/ci/tf-gate.py" summary "$ROOT" plan.json | sed '1s/^### Terraform plan:/#### Details:/'
