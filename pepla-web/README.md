@@ -25,3 +25,4 @@ Pages for checking the components:
 - Never edit `src/styles/design-system/` or `src/app/ds/core/icon.registry.ts`. Change the design system repo, then run `npm run design-system:sync`. Against a local checkout, use `-- --from ../../pepla-design-system`.
 - No PrimeNG, Angular Material, Tailwind, PrimeFlex or second icon set.
 - Check `/dev/design-system` in a browser after any change in `src/app/ds`.
+<!-- throwaway A -->
