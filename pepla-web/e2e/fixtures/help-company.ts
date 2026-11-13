@@ -78,3 +78,43 @@ export const HELP_NEW_EMPLOYEES = [
     hr_staff_name: 'Pieter van Wyk',
   },
 ] as const;
+
+/**
+ * Johan Botha's page (GET /v1/employees/{id}/verifications), as HELP-02 shows it: In review, two
+ * documents uploaded before HELP_TODAY, no phone. Job title comes from HELP_PEOPLE.
+ *
+ * The ID number is made up and can never belong to a real person: its birth month is 00 and it
+ * fails the ID check digit.
+ */
+const JOHAN_ID_NUMBER = '8500015009087';
+const JOHAN_UPLOADED = '2026-02-26T08:00:00Z';
+
+export const HELP_JOHAN_DETAIL = (() => {
+  const person = HELP_PEOPLE.find((p) => p.email === 'johan@example.com')!;
+  const employee = HELP_NEW_EMPLOYEES.find((e) => e.email === person.email)!;
+  return {
+    employee: { ...employee, phone: '', job_title: person.title },
+    documents: [
+      {
+        document_id: 'sunbird-johan-id',
+        document_type: 'NATIONAL_ID',
+        file_name: 'johan-id.pdf',
+        uploaded_at: JOHAN_UPLOADED,
+        check: 'MATCHES',
+        hr_decision: null,
+        hr_decided_at: null,
+        verification: { id_number: JOHAN_ID_NUMBER, id_number_last4: JOHAN_ID_NUMBER.slice(-4) },
+      },
+      {
+        document_id: 'sunbird-johan-bank',
+        document_type: 'BANK_CONFIRMATION',
+        file_name: 'johan-bank-letter.pdf',
+        uploaded_at: JOHAN_UPLOADED,
+        check: 'NEEDS_A_LOOK',
+        hr_decision: null,
+        hr_decided_at: null,
+        verification: null,
+      },
+    ],
+  };
+})();
