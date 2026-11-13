@@ -21,7 +21,7 @@ rm -rf /tmp/ops05 && git clone --depth 1 --branch develop https://github.com/obs
 cd /tmp/ops05/bootstrap/prod
 terraform init -input=false
 terraform plan -input=false -out=ops05-prod.tfplan
-# Expect: 6 to import, 9 to add, 2 to change, 0 to destroy.
+# Expect: 6 to import, 9 to add, 4 to change, 0 to destroy.
 terraform apply -input=false ops05-prod.tfplan
 
 # 2. pepla-dev: new dev apply role
@@ -38,8 +38,9 @@ cd ~ && rm -rf /tmp/ops05
 unset TF_VAR_budget_alert_email AWS_PROFILE
 ```
 
-9 to add is 1 role, 4 policy parts and 4 attachments. Prod's 2 changes are the
+9 to add is 1 role, 4 policy parts and 4 attachments. Prod's 4 changes are
+updates to imported pieces, as the read-only plan on the OPS-05 PR showed: the
 plan role's trust (adds `prod-plan` and `drift-check`) and its policy (reads
-this root's state). Dev's 1 change is the deploy-dev guardrail, which now also
-protects the dev apply role. The read-only plan on the OPS-05 PR shows the
-real prod numbers.
+this root's state), plus the OIDC provider and the code deploy role, which pick
+up the root's default tags. Dev's 1 change is the deploy-dev guardrail, which
+now also protects the dev apply role.
