@@ -2,7 +2,8 @@
 # Terraform plan on pull requests (read-only)
 #
 # Signs in to AWS through GitHub OIDC as naleko-github-plan-readonly. No AWS
-# keys are stored in GitHub. Runs `terraform plan` for both roots.
+# keys are stored in GitHub. Runs `terraform plan` for both roots and for
+# bootstrap/prod (the CI roles, applied by hand).
 #
 # The repo is PUBLIC, so job logs are public. This workflow never prints plan
 # contents: only the address and action of each resource that would change.
@@ -17,8 +18,11 @@ on:
     paths:
       - "infra/**"
       - "talent-flow-infra/**"
+      - "bootstrap/**"
       - "lambda/**"
+      - "scripts/ci/tf-gate.py"
       - ".github/workflows/terraform-plan.yml"
+      - ".github/workflows/deploy-lambdas.yml"
 
 concurrency:
   group: tf-plan-${{ github.ref }}
@@ -49,6 +53,11 @@ jobs:
             vars: ""
           - root: talent-flow-infra
             vars: "-var=aws_account_id=937137806477"
+          # The CI roles (OPS-05). Applied by hand only; planned here so a PR
+          # shows what Iggie's next CloudShell run would change. No lock: this
+          # plan never writes state.
+          - root: bootstrap/prod
+            vars: "-lock=false"
 
     defaults:
       run:
@@ -57,6 +66,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # to see which files the PR touches
 
       - name: Set up Terraform ${{ env.TF_VERSION }}
         uses: hashicorp/setup-terraform@v3
@@ -94,7 +105,7 @@ jobs:
 
       - name: Summarise changes (addresses and actions only)
         run: |
-          terraform show -json plan.bin \
+          terraform show -json plan.bin | tee plan.json \
             | jq -r '.resource_changes[]? | (.change.actions | join("+")) as $a | select(.change.actions != ["read"] and (.change.actions != ["no-op"] or .change.importing)) | (if .change.importing then (if .change.actions == ["no-op"] then "import" else "import+\($a)" end) else $a end) + "\t\(.address)"' \
             > changes.txt
           count=$(wc -l < changes.txt | tr -d ' ')
@@ -112,6 +123,22 @@ jobs:
           echo "Resources that would change: $count"
           cat changes.txt
 
+      # Changed attribute NAMES (never values) and warning lines for IAM,
+      # Lambda environment and protected resources, from the apply guard.
+      - name: Details (attribute names and warnings)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          ROOT: ${{ matrix.root }}
+        run: |
+          {
+            if git -C "$GITHUB_WORKSPACE" diff --name-only "$BASE...HEAD" \
+                | grep -qE '^(bootstrap/|scripts/ci/tf-gate\.py$|\.github/workflows/deploy-lambdas\.yml$)'; then
+              echo "- :warning: **This PR changes the apply pipeline** (deploy workflow, apply guard or bootstrap/). Read it closely."
+              echo
+            fi
+            python3 "$GITHUB_WORKSPACE/scripts/ci/tf-gate.py" summary "$ROOT" plan.json | sed '1s/^### Terraform plan:/#### Details:/'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Remove plan files
         if: always()
-        run: rm -f plan.bin plan.log plan.err init.log changes.txt
+        run: rm -f plan.bin plan.json plan.log plan.err init.log changes.txt

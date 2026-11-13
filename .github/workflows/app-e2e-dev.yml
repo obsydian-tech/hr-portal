@@ -1,7 +1,9 @@
 # App tests on dev: run the onboarding journeys against pepla-dev
 #   - on every PR into develop that changes the web app or its tests
 #     (tests the PR's own app code; red = don't merge), and
-#   - after web app code merges into develop.
+#   - after web app code merges into develop: started by deploy-lambdas.yml
+#     (workflow_call) only after that merge's pepla-dev Terraform apply has
+#     finished, so the tests never run while pepla-dev is being changed.
 # Release PRs develop -> main don't re-run it: that code already passed here.
 #
 # Test selection (keeps runs short as the app grows): a PR or merge runs only
@@ -33,17 +35,8 @@ on:
       - "pepla-web/**"
       - "scripts/ci/dev-frontend-env.sh"
       - ".github/workflows/app-e2e-dev.yml"
-  push:
-    branches: [develop]
-    paths:
-      - "hr-portal/src/**"
-      - "hr-portal/angular.json"
-      - "hr-portal/package.json"
-      - "hr-portal/package-lock.json"
-      - "hr-portal/tsconfig*.json"
-      - "pepla-web/**"
-      - "scripts/ci/dev-frontend-env.sh"
-      - ".github/workflows/app-e2e-dev.yml"
+  # After a merge into develop: called by deploy-lambdas.yml once the dev apply is done.
+  workflow_call:
   schedule:
     - cron: "0 3 * * 1" # Monday 05:00 SAST: full run
   workflow_dispatch:
