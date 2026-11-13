@@ -327,7 +327,7 @@ test.describe('HELP-01 Help pictures and video: HR signs in', () => {
 
   test('AC-10 Pictures arrive by the retake PR: this PR adds none, and the retake lists six new pictures and two videos', async () => {
     const changed = prChanges('pepla-web/help/media');
-    if (changed !== null && process.env['GITHUB_HEAD_REF'] !== 'help/retake') {
+    if (changed !== null && process.env['GITHUB_HEAD_REF'] !== 'help/retake' && process.env['GITHUB_BASE_REF'] !== 'main') {
       expect(changed, 'the pull request changes no file under pepla-web/help/media').toEqual([]);
     }
 

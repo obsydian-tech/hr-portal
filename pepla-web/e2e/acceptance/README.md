@@ -15,6 +15,7 @@ feature is built.
 | HELP-01.2 HR home in the help pictures shows Sunbird Bakery's new employees (with ONB-02) | `support/journey-harness.ts` | ONB-02 spec, Decision 1 |
 | ONB-02 HR home: who is starting (NH-155) | `onb-02.spec.ts` | [NH-155](https://obsydian.atlassian.net/browse/NH-155) |
 | ONB-12 One new employee's page (NH-156) | `onb-12.spec.ts` | [NH-156](https://obsydian.atlassian.net/browse/NH-156) |
+| HELP-01.3 Release PRs into main skip the AC-10 help pictures rule (NH-157) | `help-01.spec.ts` | [NH-157](https://obsydian.atlassian.net/browse/NH-157) |
 
 ## Locked
 
