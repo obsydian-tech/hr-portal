@@ -61,6 +61,34 @@ export class Help {
     await this.step(`${this.phone ? 'Tap' : 'Click'} ${name}`, () => button.click());
   }
 
+  /** Follow a link by its exact visible name. Caption: "Tap <name>" / "Click <name>". */
+  async open(name: string, within: Page | Locator = this.page): Promise<void> {
+    const link = within.getByRole('link', { name, exact: true });
+    await expect(link).toBeVisible();
+    await this.step(`${this.phone ? 'Tap' : 'Click'} ${name}`, () => link.click());
+  }
+
+  /**
+   * Scroll a heading, by its exact name, to the top of the window. Caption: "Scroll to <name>".
+   * A fixed or sticky top bar (the phone's) would hide it, so it stops just below that bar.
+   */
+  async scrollTo(heading: string, within: Page | Locator = this.page): Promise<void> {
+    const target = within.getByRole('heading', { name: heading, exact: true });
+    await expect(target).toBeVisible();
+    await this.step(`Scroll to ${heading}`, async () => {
+      await target.evaluate((el) => {
+        const bar = Math.max(
+          0,
+          ...[...document.querySelectorAll('[role=banner]')]
+            .filter((b) => ['fixed', 'sticky'].includes(getComputedStyle(b).position))
+            .map((b) => b.getBoundingClientRect().bottom),
+        );
+        window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - bar - 16, behavior: 'instant' });
+      });
+      await this.page.waitForTimeout(200);
+    });
+  }
+
   /** Type into a field by its exact label. Caption: "Enter <label>". */
   async fill(label: string, value: string, within: Page | Locator = this.page): Promise<void> {
     const field = within.getByLabel(label, { exact: true });

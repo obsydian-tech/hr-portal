@@ -82,19 +82,30 @@ export function projectUse(width: Width): ProjectUse {
 
 // ---------------------------------------------------------------- the proxy in front of the app
 
-export type PageEvent = { page: string; seq: number; width: number; type: 'caption' | 'input' | 'click' | 'reveal' | 'length'; name: string };
+export type PageEvent = {
+  page: string;
+  seq: number;
+  width: number;
+  /** 'scroll' and 'text' come only from a card's own `extra` script (HELP-02). */
+  type: 'caption' | 'input' | 'click' | 'reveal' | 'length' | 'scroll' | 'text';
+  name: string;
+};
 
 export type FrontMode =
   | { kind: 'plain' }
-  | { kind: 'record' }
-  /** The page asks a host that is neither the app nor Cognito. */
-  | { kind: 'escape' }
-  /** Visible words on labels and buttons are swapped, e.g. { 'Sign in': 'Continue' }. */
-  | { kind: 'rename'; words: Record<string, string> };
+  /** `extra` runs inside the recorder, with its `send(type, name)` (HELP-02). */
+  | { kind: 'record'; extra?: string }
+  /** The page asks a host that is neither the app nor Cognito (or `url`, HELP-02). */
+  | { kind: 'escape'; url?: string }
+  /**
+   * Visible words on labels and buttons are swapped, e.g. { 'Sign in': 'Continue' }.
+   * `selector` widens or narrows where (HELP-02 renames a heading and a link).
+   */
+  | { kind: 'rename'; words: Record<string, string>; selector?: string };
 
 export const ESCAPE_URL = 'https://journey-probe.invalid/escape';
 
-const RECORDER = `(() => {
+const recorder = (extra = '') => `(() => {
   const id = Math.random().toString(36).slice(2);
   let seq = 0;
   const clean = (s) => String(s || '').replace(/\\*|\\(optional\\)/g, '').replace(/\\s+/g, ' ').trim();
@@ -131,14 +142,16 @@ const RECORDER = `(() => {
           && /show|hide/i.test(t.getAttribute('aria-label') || '')) send('reveal', t.getAttribute('aria-label'));
     }
   }).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['type', 'aria-pressed'], attributeOldValue: true });
+${extra}
 })();`;
 
-const ESCAPER = `fetch(${JSON.stringify(ESCAPE_URL)}, { mode: 'no-cors' }).catch(() => {});`;
+const escaper = (url = ESCAPE_URL) => `fetch(${JSON.stringify(url)}, { mode: 'no-cors' }).catch(() => {});`;
+const RENAME_WHERE = 'label, button, legend, .pp-field__label';
 
-const renamer = (words: Record<string, string>) => `(() => {
+const renamer = (words: Record<string, string>, selector = RENAME_WHERE) => `(() => {
   const words = ${JSON.stringify(words)};
   const fix = () => {
-    for (const el of document.querySelectorAll('label, button, legend, .pp-field__label')) {
+    for (const el of document.querySelectorAll(${JSON.stringify(selector)})) {
       const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       for (let n = walk.nextNode(); n; n = walk.nextNode()) {
         const t = n.nodeValue.trim();
@@ -157,7 +170,13 @@ export async function startFront(mode: FrontMode): Promise<Front> {
   const port = Number(target.port || 80);
   const events: PageEvent[] = [];
   const script =
-    mode.kind === 'record' ? RECORDER : mode.kind === 'escape' ? ESCAPER : mode.kind === 'rename' ? renamer(mode.words) : '';
+    mode.kind === 'record'
+      ? recorder(mode.extra)
+      : mode.kind === 'escape'
+        ? escaper(mode.url)
+        : mode.kind === 'rename'
+          ? renamer(mode.words, mode.selector)
+          : '';
 
   const server = createServer((req, res) => {
     if (req.method === 'POST' && req.url === '/__journey/event') {
@@ -318,9 +337,10 @@ export type HelpRun = Run & { dir: string; events: PageEvent[] };
 /**
  * Runs the journey in help mode through the recorder and keeps a copy of what
  * it wrote to help/media/<width>/<folder>/. The folder is put back as it was.
+ * `extra` is more recorder script (see FrontMode).
  */
-export async function helpRun(file: string, folder: string, tag: string): Promise<HelpRun> {
-  const front = await startFront({ kind: 'record' });
+export async function helpRun(file: string, folder: string, tag: string, extra?: string): Promise<HelpRun> {
+  const front = await startFront({ kind: 'record', extra });
   const backup = join(SCRATCH, `${tag}-backup`);
   const dir = join(SCRATCH, tag);
   rmSync(dir, { recursive: true, force: true });
