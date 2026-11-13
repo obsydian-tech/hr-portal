@@ -15,7 +15,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, ops-02-tw-base]
   push:
     branches: [develop, main]
   # Lets the help retake workflow start the required checks on its own PR
