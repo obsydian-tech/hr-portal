@@ -1,4 +1,5 @@
 #!/bin/bash
+# Note: Cognito groups now come from Terraform (infra/cognito.tf), not from this script.
 # Naleko HR Portal — Cognito Setup Script
 # Creates User Pool, App Client, Groups, and Seeds HR Users
 # Region: af-south-1 | Account: 937137806477
