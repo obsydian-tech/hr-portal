@@ -41,6 +41,7 @@ unset TF_VAR_budget_alert_email AWS_PROFILE
 9 to add is 1 role, 4 policy parts and 4 attachments. Prod's 4 changes are
 updates to imported pieces, as the read-only plan on the OPS-05 PR showed: the
 plan role's trust (adds `prod-plan` and `drift-check`) and its policy (reads
-this root's state), plus the OIDC provider and the code deploy role, which pick
-up the root's default tags. Dev's 1 change is the deploy-dev guardrail, which
+this root's state), plus in-place updates on the OIDC provider and the code deploy
+role (the PR run summary names the changed attributes; check them before
+applying). Dev's 1 change is the deploy-dev guardrail, which
 now also protects the dev apply role.
