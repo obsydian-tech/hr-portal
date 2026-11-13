@@ -98,7 +98,19 @@
         "states:CreateStateMachine", "states:DeleteStateMachine", "states:TagResource", "states:UntagResource", "states:UpdateStateMachine"
       ],
       "Resource": [
-        "arn:aws:*:${region}:${account_id}:*",
+        "arn:aws:athena:${region}:${account_id}:*",
+        "arn:aws:cloudwatch:${region}:${account_id}:*",
+        "arn:aws:cognito-idp:${region}:${account_id}:*",
+        "arn:aws:config:${region}:${account_id}:*",
+        "arn:aws:dynamodb:${region}:${account_id}:*",
+        "arn:aws:events:${region}:${account_id}:*",
+        "arn:aws:glue:${region}:${account_id}:*",
+        "arn:aws:kms:${region}:${account_id}:*",
+        "arn:aws:lambda:${region}:${account_id}:*",
+        "arn:aws:logs:${region}:${account_id}:*",
+        "arn:aws:sns:${region}:${account_id}:*",
+        "arn:aws:sqs:${region}:${account_id}:*",
+        "arn:aws:states:${region}:${account_id}:*",
         "arn:aws:apigateway:${region}::/*",
         "arn:aws:cloudwatch::${account_id}:dashboard/*",
         "arn:aws:s3:::*"
