@@ -13,6 +13,7 @@ feature is built.
 | OPS-02 Dev test run starts after app-only merges (NH-152): checks the workflow files | `ops-02.spec.ts` | [OPS-02 card](https://claude.ai/artifact/RcgsQNdSreMKuSwNJp76BZ) |
 | BE-16 Sign-in groups set up by Terraform (NH-151) | `be-16.spec.ts` | [NH-151](https://obsydian.atlassian.net/browse/NH-151) |
 | HELP-01.2 HR home in the help pictures shows Sunbird Bakery's new employees (with ONB-02) | `support/journey-harness.ts` | ONB-02 spec, Decision 1 |
+| ONB-02 HR home: who is starting (NH-155) | `onb-02.spec.ts` | [NH-155](https://obsydian.atlassian.net/browse/NH-155) |
 
 ## Locked
 
@@ -40,6 +41,11 @@ browser with `support/cognito-fake.ts`. The app uses its real Cognito library
 so the app needs no special settings for it. The fake does not check
 passwords (SRP never sends one); tests that need a wrong password say so, and
 real password checks run on pepla-dev.
+
+Pages that read the employees list (ONB-02 on) get it from
+`support/employees-fake.ts`: it answers `GET <employeesApiUrl>/v1/employees` in
+the browser the way `lambda/getEmployees` does (`items`, and `lastKey` while
+another page follows) and refuses a call without a sign-in token.
 
 ```sh
 ACCEPTANCE_TARGET=pepla-dev E2E_BASE_URL=http://localhost:4200 \
