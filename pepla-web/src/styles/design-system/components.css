@@ -2549,6 +2549,39 @@ a.pp-tag:hover { text-decoration: underline; }
 }
 @media (prefers-reduced-motion: reduce) { .pp-side-navigation { transition: none; } }
 
+/* ---- navigation/sign-in-page ---- */
+/* Sign-in page. Spec: sign-in-page.md */
+.pp-sign-in {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  min-height: 100%;
+  padding: var(--space-800) var(--layout-gutter-phone) var(--space-600);
+  background: var(--elevation-surface-sunken);
+  color: var(--color-text);
+}
+.pp-sign-in__panel { display: flex; flex-direction: column; gap: var(--space-300); width: 100%; max-width: 400px; }
+.pp-sign-in__card {
+  display: flex; flex-direction: column; gap: var(--space-300);
+  padding: var(--space-400);
+  background: var(--elevation-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-large);
+}
+.pp-sign-in__heading { display: flex; flex-direction: column; gap: var(--space-100); }
+.pp-sign-in__title { margin: 0; font: var(--font-heading-large); letter-spacing: var(--font-heading-large-tracking); color: var(--color-text); }
+.pp-sign-in__lead { margin: 0; font: var(--font-body); color: var(--color-text-subtle); }
+.pp-sign-in__company { font: var(--font-label); color: var(--color-text-subtle); }
+.pp-sign-in__actions { display: flex; flex-direction: column; gap: var(--space-150); }
+.pp-sign-in__actions > .pp-button { box-sizing: border-box; width: 100%; justify-content: center; }
+.pp-sign-in__footer { margin: 0; font: var(--font-body-small); color: var(--color-text-subtle); }
+/* Phone: less space above, the card keeps its padding */
+.pp-sign-in--phone { padding: var(--space-500) var(--layout-gutter-phone) var(--space-400); }
+.pp-sign-in--phone > .pp-sign-in__panel > .pp-sign-in__card { padding: var(--space-300); }
+@media (max-width: 767px) {
+  .pp-sign-in { padding: var(--space-500) var(--layout-gutter-phone) var(--space-400); }
+}
+
 /* ---- navigation/tabs ---- */
 /* Tabs. Spec: tabs.md */
 .pp-tabs__list {
@@ -2738,9 +2771,9 @@ a.pp-tag:hover { text-decoration: underline; }
 .pp-card--interactive:hover { background: var(--elevation-surface-raised-hovered); border-color: var(--color-border-bold); }
 .pp-card--interactive:active { background: var(--elevation-surface-raised-pressed); }
 .pp-card--selected { border: var(--border-width-selected) solid var(--color-border-selected); background: var(--color-background-selected); }
-.pp-card__header { display: flex; align-items: flex-start; gap: var(--space-150); }
-.pp-card__titles { display: flex; flex-direction: column; gap: var(--space-025); flex: 1; min-width: 0; }
-.pp-card__aside { display: flex; align-items: center; gap: var(--space-100); flex: none; margin-left: auto; }
+.pp-card__header { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-150); }
+.pp-card__titles { display: flex; flex-direction: column; gap: var(--space-025); flex: 1 1 auto; min-width: 0; }
+.pp-card__aside { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-100); flex: none; max-width: 100%; margin-left: auto; }
 .pp-card__title { margin: 0; font: var(--font-heading-small); letter-spacing: var(--font-heading-small-tracking); color: var(--color-text); }
 .pp-card__subtitle { margin: 0; font: var(--font-body); color: var(--color-text-subtle); }
 .pp-card__body { font: var(--font-body); color: var(--color-text-subtle); }
@@ -2780,7 +2813,7 @@ a.pp-stat:hover { background: var(--elevation-surface-raised-hovered); border-co
 .pp-stat__meta--danger { color: var(--color-text-danger); }
 .pp-stat__meta--good { color: var(--color-text-success); }
 .pp-stat__meta--agent { color: var(--color-text-agent); }
-.pp-stat-row { display: grid; gap: var(--space-150); grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+.pp-stat-row { display: grid; gap: var(--space-150); grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
 
 /* Six compact stats in one row on a wide page (a dashboard strip); fewer on narrower pages */
 .pp-stat-row--6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
@@ -2808,14 +2841,19 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-table__empty { padding: var(--space-600) var(--space-200); text-align: center; color: var(--color-text-subtle); }
 .pp-table__restricted { display: inline-flex; align-items: center; gap: var(--space-050); color: var(--color-text-subtlest); }
 .pp-table__restricted svg { width: 14px; height: 14px; }
-/* Phone: rows become stacked cards when the table opts in */
+/* Phone: rows become compact cards when the table opts in. The first cell is the row's title,
+   the other cells sit two to a line with their label above, and the row action stays top right. */
 @media (max-width: 767px) {
   .pp-table--stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .pp-table--stack, .pp-table--stack tbody, .pp-table--stack tr, .pp-table--stack td { display: block; width: 100%; }
-  .pp-table--stack tr { padding: var(--space-150) var(--space-200); border-bottom: var(--border-width) solid var(--color-border); }
-  .pp-table--stack td { border: 0; padding: var(--space-025) 0; text-align: left; }
+  .pp-table--stack, .pp-table--stack tbody { display: block; width: 100%; }
+  .pp-table--stack tr { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-100) var(--space-200); box-sizing: border-box; padding: var(--space-150) var(--space-200); border-bottom: var(--border-width) solid var(--color-border); }
+  .pp-table--stack td { display: block; box-sizing: border-box; min-width: 0; border: 0; padding: 0; text-align: left; overflow-wrap: anywhere; }
+  .pp-table--stack td:first-child { grid-column: 1 / -1; padding-inline-end: var(--space-500); }
   .pp-table--stack td[data-label]::before { content: attr(data-label); display: block; font: var(--font-heading-xxsmall); color: var(--color-text-subtlest); }
+  .pp-table--stack td:first-child::before { display: none; }
   .pp-table--stack td.pp-table__num { text-align: left; }
+  .pp-table--stack td:has(.pp-confidence) { grid-column: 1 / -1; }
+  .pp-table--stack td.pp-table__actions { position: absolute; top: var(--space-150); right: var(--space-150); width: auto; }
 }
 
 /* ---- data/timeline ---- */
@@ -3445,6 +3483,7 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-notification__text { color: var(--color-text-subtle); overflow-wrap: anywhere; }
 .pp-notification__text strong { font-weight: var(--font-weight-semibold); color: var(--color-text); }
 .pp-notification__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-050) var(--space-150); font: var(--font-body-small); color: var(--color-text-subtlest); }
+.pp-notification__meta > .pp-confidence { max-width: 100%; white-space: normal; text-align: start; }
 .pp-notification__action { font: var(--font-label); color: var(--color-link); text-decoration: none; }
 .pp-notification__action:hover { text-decoration: underline; }
 .pp-notification__dot { width: var(--space-100); height: var(--space-100); margin-top: var(--space-075); border-radius: var(--radius-full); }
@@ -3732,4 +3771,5 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-verification__check--unsure > svg { color: var(--color-icon-warning); }
 .pp-verification__check-note { color: var(--color-text-subtle); }
 .pp-verification__by { display: inline-flex; align-items: center; gap: var(--space-100); flex-wrap: wrap; }
-.pp-verification .pp-dl { grid-template-columns: minmax(96px, 160px) 1fr; }
+.pp-verification .pp-dl { grid-template-columns: minmax(96px, 160px) minmax(0, 1fr); }
+@media (max-width: 479px) { .pp-verification .pp-dl { grid-template-columns: minmax(0, 1fr); } }
