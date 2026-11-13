@@ -1,4 +1,5 @@
 #!/bin/bash
+# Note: Cognito groups now come from Terraform (infra/cognito.tf), not from this script.
 set -e
 
 POOL_ID="af-south-1_2LdAGFnw2"
