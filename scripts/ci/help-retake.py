@@ -38,15 +38,22 @@ def changes() -> dict[str, str]:
 
 
 def same_pixels(path: str) -> bool:
-    """True when the new picture has exactly the pixels of the committed one."""
+    """True when the new picture matches the committed one, give or take font smoothing.
+
+    Pixels that differ by less than 2% in colour are ignored, and a picture where at most 0.1% of the
+    pixels still differ counts as unchanged, so anti-aliasing noise does not open a retake pull request.
+    """
     old = subprocess.run(["git", "show", f"HEAD:{path}"], check=True, capture_output=True).stdout
     tmp = os.path.join(os.environ.get("RUNNER_TEMP", "/tmp"), "help-before.png")
     with open(tmp, "wb") as f:
         f.write(old)
     # ImageMagick compare: prints the count of differing pixels on stderr.
-    r = subprocess.run(["compare", "-metric", "AE", tmp, path, "null:"], capture_output=True, text=True)
+    r = subprocess.run(["compare", "-fuzz", "2%", "-metric", "AE", tmp, path, "null:"], capture_output=True, text=True)
+    size = subprocess.run(["identify", "-format", "%w %h", path], capture_output=True, text=True)
     try:
-        return float(r.stderr.split()[0]) == 0
+        differing = float(r.stderr.split()[0])
+        width, height = (int(n) for n in size.stdout.split())
+        return differing <= width * height * 0.001
     except (IndexError, ValueError):
         return False  # different sizes or unreadable: treat as changed
 

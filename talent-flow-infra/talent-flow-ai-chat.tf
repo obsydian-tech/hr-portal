@@ -37,6 +37,10 @@ resource "aws_secretsmanager_secret" "agent_api_key" {
   recovery_window_in_days = 7
 
   tags = merge(local.tf_tags, { Ticket = "NH-115", Purpose = "AgentApiKey" })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_secretsmanager_secret_version" "agent_api_key_placeholder" {

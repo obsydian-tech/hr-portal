@@ -3,8 +3,10 @@
 # Point the Angular app at pepla-dev for the E2E run.
 #
 # Looks up pepla-dev's sign-in pools, app clients and APIs by name and writes
-# hr-portal/src/environments/environment.ts in the CI workspace only (never
-# committed). Refuses to run outside pepla-dev.
+# hr-portal/src/environments/environment.ts (the current app) and
+# pepla-web/src/environments/environment.ts (the new app) in the CI workspace
+# only (never committed). Both sign in to the Naleko pool through the
+# pepla-web-dev app client. Refuses to run outside pepla-dev.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -50,4 +52,12 @@ export const environment = {
   },
 };
 TS
-echo "dev-frontend-env: environment.ts now points at pepla-dev"
+cat > pepla-web/src/environments/environment.ts <<TS
+// Generated in CI by scripts/ci/dev-frontend-env.sh for the pepla-dev E2E run.
+export const environment = {
+  production: false,
+  employeesApiUrl: '${EMP_API}',
+  cognito: { userPoolId: '${NALEKO_POOL}', clientId: '${NALEKO_CLIENT}', region: '${REGION}' },
+};
+TS
+echo "dev-frontend-env: environment.ts now points at pepla-dev (hr-portal and pepla-web)"

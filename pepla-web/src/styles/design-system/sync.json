@@ -1,17 +1,17 @@
 {
   "repo": "obsydian-tech/pepla-design-system",
-  "ref": "e3bdd53",
+  "ref": "7c86e1d",
   "files": {
     "tokens/palette.css": "7e52116852dc514a5715d3218fbca047c30c54939a4605c8f40c656334dfdb66",
-    "tokens/colors.css": "e36010830220adba1d4f637232ead2e6fb789fac07b6f15c4b8f41f73b6c36e3",
+    "tokens/colors.css": "a6160864be8cc899d24cdca32a313c14be48cab4db22a43b69b2b1fad0585b10",
     "tokens/typography.css": "53b5487ea8b7df042e9ca0b1513d9e11a2777ac2c7be17aea8456089acd17dd0",
-    "tokens/spacing.css": "6ad7831d26e4df0f073d2515bcd7a418611aa9905235227c55b3d153e46f8bb6",
+    "tokens/spacing.css": "1c2f45b5822b60098e21aadb843e77141d71326196c5946bc6f38d8c52fde0c7",
     "tokens/shape.css": "0c3400e783bb91e0a445f20c82df90762fffdc4cfd8826eb8a9c64adb8df0659",
-    "tokens/motion.css": "76e3fc4d6527165dfad0acbcade233f56c58b6600a27ac4b3cbac4d4bb72a9ed",
+    "tokens/motion.css": "09dde0ebde9f8ccfeb252f9243235de8ca2b229ef242cdd0337a9f4b67c59ac3",
     "tokens/layers.css": "f3269beec620258b95fe70773ca17f0d1609a6da214338230b1984765756e56a",
     "tokens/base.css": "e0746031564084301268c62e767cb63802d332a71bed74ec2679b2048c0b0ad0",
-    "components.css": "52f80a52725430316e714c3cec958acae74655c62575034144d7173d90df80dd",
-    "icons.json": "4660da1c032f3600b279921fb49d4975d1ab3293275e7baa954fe0b0d7a1ac40",
+    "components.css": "99701ad3a634c8fc44b868b7a2d0c20e5a8c712514258a4880f04df3f875ac34",
+    "icons.json": "89214a25e3fa836ad1a868b1171510115ca8f0ae7676358e01e7580dcb2b4e17",
     "index.css": "645e849d81ed62821ff75bc81975609120167bf0f06597ad25c37a47fa6e6a99"
   }
 }

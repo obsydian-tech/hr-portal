@@ -14,6 +14,7 @@ export * from './messages/notifications';
 export * from './overlays/overlays';
 export * from './navigation/shell';
 export * from './navigation/navigation';
+export * from './navigation/sign-in-page';
 export * from './data/data';
 export * from './data/table/table';
 export * from './agent/agent';

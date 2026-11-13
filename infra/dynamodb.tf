@@ -14,9 +14,10 @@
 # Records expire automatically after 24h via TTL.
 
 resource "aws_dynamodb_table" "pending_actions" {
-  name         = "naleko-pending-actions"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "actionId"
+  name                        = "naleko-pending-actions"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "actionId"
 
   attribute {
     name = "actionId"
@@ -39,6 +40,10 @@ resource "aws_dynamodb_table" "pending_actions" {
     RetentionDays      = "1"
     Ticket             = "NH-73"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ─── Idempotency keys table (NH-44) ──────────────────────────────────────────
@@ -47,9 +52,10 @@ resource "aws_dynamodb_table" "pending_actions" {
 # from duplicate execution when AI agents or retry-prone clients re-submit.
 
 resource "aws_dynamodb_table" "idempotency_keys" {
-  name         = "naleko-idempotency-keys"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "idempotencyKey"
+  name                        = "naleko-idempotency-keys"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "idempotencyKey"
 
   attribute {
     name = "idempotencyKey"
@@ -72,13 +78,18 @@ resource "aws_dynamodb_table" "idempotency_keys" {
     DataClassification = "Internal"
     RetentionDays      = "1"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_dynamodb_table" "employees" {
-  name         = "employees"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "employee_id"
-  table_class  = "STANDARD"
+  name                        = "employees"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "employee_id"
+  table_class                 = "STANDARD"
 
   attribute {
     name = "employee_id"
@@ -142,14 +153,19 @@ resource "aws_dynamodb_table" "employees" {
     DataClassification = "PII"
     RetentionYears     = "7"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_dynamodb_table" "documents" {
-  name         = "documents"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "employee_id"
-  range_key    = "document_id"
-  table_class  = "STANDARD"
+  name                        = "documents"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "employee_id"
+  range_key                   = "document_id"
+  table_class                 = "STANDARD"
 
   attribute {
     name = "employee_id"
@@ -180,13 +196,18 @@ resource "aws_dynamodb_table" "documents" {
     DataClassification = "PII"
     RetentionYears     = "7"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_dynamodb_table" "document_verification" {
-  name         = "document-verification"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "verificationId"
-  table_class  = "STANDARD"
+  name                        = "document-verification"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "verificationId"
+  table_class                 = "STANDARD"
 
   attribute {
     name = "verificationId"
@@ -220,14 +241,19 @@ resource "aws_dynamodb_table" "document_verification" {
     enabled        = false
     attribute_name = ""
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # NH-13: audit table for external verification requests
 resource "aws_dynamodb_table" "external_verification_requests" {
-  name         = "external-verification-requests"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "request_id"
-  table_class  = "STANDARD"
+  name                        = "external-verification-requests"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "request_id"
+  table_class                 = "STANDARD"
 
   attribute {
     name = "request_id"
@@ -248,6 +274,10 @@ resource "aws_dynamodb_table" "external_verification_requests" {
     enabled        = false
     attribute_name = ""
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -256,11 +286,12 @@ resource "aws_dynamodb_table" "external_verification_requests" {
 # Immutability enforced at IAM level: auditLogConsumer only has PutItem.
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "onboarding_events" {
-  name         = "onboarding-events"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "eventId"
-  range_key    = "timestamp"
-  table_class  = "STANDARD"
+  name                        = "onboarding-events"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "eventId"
+  range_key                   = "timestamp"
+  table_class                 = "STANDARD"
 
   attribute {
     name = "eventId"
@@ -304,6 +335,10 @@ resource "aws_dynamodb_table" "onboarding_events" {
     DataClassification = "AUDIT"
     RetentionYears     = "7"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -315,10 +350,11 @@ resource "aws_dynamodb_table" "onboarding_events" {
 # TTL = 30 days (hot operational window); DynamoDB Stream → S3 for 5-yr archive
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "agent_audit" {
-  name         = "naleko-agent-audit"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "pk"
-  range_key    = "sk"
+  name                        = "naleko-agent-audit"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "pk"
+  range_key                   = "sk"
 
   attribute {
     name = "pk"
@@ -364,6 +400,10 @@ resource "aws_dynamodb_table" "agent_audit" {
     RetentionDays      = "30"
     Ticket             = "NH-74"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -373,9 +413,10 @@ resource "aws_dynamodb_table" "agent_audit" {
 # Post-client upgrade: replace DynamoDB with Momento SDK (code change only).
 # ---------------------------------------------------------------------------
 resource "aws_dynamodb_table" "prompt_cache" {
-  name         = "naleko-prompt-cache"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "cacheKey"
+  name                        = "naleko-prompt-cache"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "cacheKey"
 
   attribute {
     name = "cacheKey"
@@ -397,5 +438,9 @@ resource "aws_dynamodb_table" "prompt_cache" {
     Purpose       = "prompt-cache"
     RetentionDays = "0.04" # ~1hr
     Ticket        = "NH-76"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }

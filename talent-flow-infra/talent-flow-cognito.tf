@@ -78,7 +78,7 @@ resource "aws_cognito_user_pool" "talent_flow" {
   name                     = local.tf_cognito_pool_name
   auto_verified_attributes = ["email"]
   username_attributes      = ["email"]
-  deletion_protection      = "INACTIVE"
+  deletion_protection      = "ACTIVE"
   mfa_configuration        = "OFF"
   user_pool_tier           = "ESSENTIALS"
 
@@ -151,6 +151,10 @@ resource "aws_cognito_user_pool" "talent_flow" {
     Purpose = "TalentFlowUserPool"
     Ticket  = "NH-106"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------

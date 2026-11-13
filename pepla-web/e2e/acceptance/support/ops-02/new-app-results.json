@@ -1,0 +1,323 @@
+{
+ "suites": [
+  {
+   "title": "onb-01.spec.ts",
+   "file": "onb-01.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [],
+   "suites": [
+    {
+     "title": "ONB-01 HR sign-in",
+     "file": "onb-01.spec.ts",
+     "line": 2,
+     "column": 6,
+     "specs": [
+      {
+       "title": "AC-3 HR signs in and lands on HR home @pepla-dev",
+       "ok": true,
+       "tags": [
+        "pepla-dev"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "desktop-1280",
+         "projectName": "desktop-1280",
+         "results": [
+          {
+           "status": "passed",
+           "duration": 1200,
+           "errors": [],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "expected"
+        }
+       ],
+       "id": "0c0d0fd4a6269ab4341d-0449705040c5e3d5603c",
+       "file": "onb-01.spec.ts",
+       "line": 3,
+       "column": 7
+      },
+      {
+       "title": "AC-4 An account outside hr_staff is refused and keeps no session @pepla-dev",
+       "ok": true,
+       "tags": [
+        "pepla-dev"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "desktop-1280",
+         "projectName": "desktop-1280",
+         "results": [
+          {
+           "status": "passed",
+           "duration": 1200,
+           "errors": [],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "expected"
+        }
+       ],
+       "id": "0c0d0fd4a6269ab4341d-79573495d329ac3ba161",
+       "file": "onb-01.spec.ts",
+       "line": 4,
+       "column": 7
+      },
+      {
+       "title": "AC-9 A signed-out visit to an HR page goes to sign in, then back to that page @pepla-dev",
+       "ok": true,
+       "tags": [
+        "pepla-dev"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "desktop-1280",
+         "projectName": "desktop-1280",
+         "results": [
+          {
+           "status": "passed",
+           "duration": 1200,
+           "errors": [],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "expected"
+        }
+       ],
+       "id": "0c0d0fd4a6269ab4341d-5ca9f76577f58343cdcf",
+       "file": "onb-01.spec.ts",
+       "line": 5,
+       "column": 7
+      },
+      {
+       "title": "AC-3 HR signs in and lands on HR home @pepla-dev",
+       "ok": true,
+       "tags": [
+        "pepla-dev"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "phone-390",
+         "projectName": "phone-390",
+         "results": [
+          {
+           "status": "passed",
+           "duration": 1200,
+           "errors": [],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "expected"
+        }
+       ],
+       "id": "0c0d0fd4a6269ab4341d-f572d591603951d6b4d2",
+       "file": "onb-01.spec.ts",
+       "line": 3,
+       "column": 7
+      },
+      {
+       "title": "AC-4 An account outside hr_staff is refused and keeps no session @pepla-dev",
+       "ok": true,
+       "tags": [
+        "pepla-dev"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "phone-390",
+         "projectName": "phone-390",
+         "results": [
+          {
+           "status": "passed",
+           "duration": 1200,
+           "errors": [],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "expected"
+        }
+       ],
+       "id": "0c0d0fd4a6269ab4341d-b4bedbc35d9e624b4fc0",
+       "file": "onb-01.spec.ts",
+       "line": 4,
+       "column": 7
+      },
+      {
+       "title": "AC-9 A signed-out visit to an HR page goes to sign in, then back to that page @pepla-dev",
+       "ok": true,
+       "tags": [
+        "pepla-dev"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "phone-390",
+         "projectName": "phone-390",
+         "results": [
+          {
+           "status": "passed",
+           "duration": 1200,
+           "errors": [],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "expected"
+        }
+       ],
+       "id": "0c0d0fd4a6269ab4341d-6cb95c52efc3b644539a",
+       "file": "onb-01.spec.ts",
+       "line": 5,
+       "column": 7
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "onb-02.spec.ts",
+   "file": "onb-02.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [],
+   "suites": [
+    {
+     "title": "ONB-02 Invite list",
+     "file": "onb-02.spec.ts",
+     "line": 2,
+     "column": 6,
+     "specs": [
+      {
+       "title": "AC-2 HR sees the invited people @pepla-dev",
+       "ok": true,
+       "tags": [
+        "pepla-dev"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "desktop-1280",
+         "projectName": "desktop-1280",
+         "results": [
+          {
+           "status": "passed",
+           "duration": 1200,
+           "errors": [],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "expected"
+        }
+       ],
+       "id": "c52f9289f633d6653703-8a33ea2df111bd5f173c",
+       "file": "onb-02.spec.ts",
+       "line": 3,
+       "column": 7
+      },
+      {
+       "title": "AC-2 HR sees the invited people @pepla-dev",
+       "ok": false,
+       "tags": [
+        "pepla-dev"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "phone-390",
+         "projectName": "phone-390",
+         "results": [
+          {
+           "status": "failed",
+           "duration": 1200,
+           "errors": [
+            {
+             "message": "Error: sample failure"
+            }
+           ],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "unexpected"
+        }
+       ],
+       "id": "c52f9289f633d6653703-f09dd0b59d13c272cd05",
+       "file": "onb-02.spec.ts",
+       "line": 3,
+       "column": 7
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "errors": [],
+ "stats": {
+  "startTime": "2026-11-13T10:00:00.000Z",
+  "duration": 42000,
+  "expected": 7,
+  "unexpected": 1,
+  "flaky": 0,
+  "skipped": 0
+ }
+}

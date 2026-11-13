@@ -2,6 +2,12 @@
 # API Gateway v2 (HTTP APIs) — NH-11 Terraform import
 # ---------------------------------------------------------------------------
 
+# Browser origins both APIs accept. The new app (pepla-web) runs on port 4300 in the pepla-dev test job, so
+# those two addresses are allowed outside prod only. Prod keeps exactly today's list.
+locals {
+  api_allowed_origins = concat(["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"], var.environment != "prod" ? ["http://localhost:4300", "http://127.0.0.1:4300"] : [])
+}
+
 resource "aws_apigatewayv2_api" "employees_api" {
   name                       = "employees"
   protocol_type              = "HTTP"
@@ -11,7 +17,7 @@ resource "aws_apigatewayv2_api" "employees_api" {
     allow_credentials = false
     allow_headers     = ["authorization", "content-type"]
     allow_methods     = ["GET", "OPTIONS", "POST"]
-    allow_origins     = ["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"]
+    allow_origins     = local.api_allowed_origins
     expose_headers    = []
     max_age           = 86400
   }
@@ -26,7 +32,7 @@ resource "aws_apigatewayv2_api" "document_upload_api" {
     allow_credentials = false
     allow_headers     = ["authorization", "content-type"]
     allow_methods     = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
-    allow_origins     = ["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"]
+    allow_origins     = local.api_allowed_origins
     expose_headers    = ["*"]
     max_age           = 3600
   }

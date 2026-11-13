@@ -1,0 +1,414 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StateBucketList",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetBucketVersioning", "s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::${state_bucket}"
+    },
+    {
+      "Sid": "StateFiles",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": [
+        "arn:aws:s3:::${state_bucket}/naleko/onboarding/terraform.tfstate",
+        "arn:aws:s3:::${state_bucket}/talent-flow/mvp1/terraform.tfstate"
+      ]
+    },
+    {
+      "Sid": "StateLocks",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": [
+        "arn:aws:s3:::${state_bucket}/naleko/onboarding/terraform.tfstate.tflock",
+        "arn:aws:s3:::${state_bucket}/talent-flow/mvp1/terraform.tfstate.tflock"
+      ]
+    },
+    {
+      "Sid": "ReadConfiguration",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET",
+        "athena:GetWorkGroup", "athena:ListTagsForResource",
+        "cloudwatch:Describe*", "cloudwatch:GetDashboard", "cloudwatch:ListDashboards", "cloudwatch:ListTagsForResource",
+        "cognito-idp:DescribeUserPool", "cognito-idp:DescribeUserPoolClient", "cognito-idp:DescribeUserPoolDomain",
+        "cognito-idp:GetGroup", "cognito-idp:GetUserPoolMfaConfig", "cognito-idp:GetUICustomization",
+        "cognito-idp:ListGroups", "cognito-idp:ListUserPoolClients", "cognito-idp:ListUserPools", "cognito-idp:ListTagsForResource",
+        "config:Describe*", "config:ListTagsForResource",
+        "dynamodb:DescribeContinuousBackups", "dynamodb:DescribeContributorInsights", "dynamodb:DescribeKinesisStreamingDestination",
+        "dynamodb:DescribeStream", "dynamodb:DescribeTable", "dynamodb:DescribeTimeToLive",
+        "dynamodb:ListStreams", "dynamodb:ListTables", "dynamodb:ListTagsOfResource",
+        "events:Describe*", "events:List*",
+        "glue:GetCrawler", "glue:GetDatabase", "glue:GetTable", "glue:GetTags",
+        "kms:DescribeKey", "kms:GetKeyPolicy", "kms:GetKeyRotationStatus", "kms:ListAliases", "kms:ListResourceTags",
+        "lambda:GetEventSourceMapping", "lambda:GetFunction", "lambda:GetFunctionCodeSigningConfig", "lambda:GetFunctionConcurrency",
+        "lambda:GetFunctionConfiguration", "lambda:GetFunctionEventInvokeConfig", "lambda:GetFunctionRecursionConfig",
+        "lambda:GetFunctionUrlConfig", "lambda:GetPolicy", "lambda:GetRuntimeManagementConfig",
+        "lambda:ListEventSourceMappings", "lambda:ListFunctions", "lambda:ListTags", "lambda:ListVersionsByFunction",
+        "logs:DescribeLogGroups", "logs:DescribeMetricFilters", "logs:DescribeResourcePolicies",
+        "logs:GetLogDelivery", "logs:ListLogDeliveries", "logs:ListTagsForResource", "logs:ListTagsLogGroup",
+        "s3:GetAccelerateConfiguration", "s3:GetBucket*", "s3:GetEncryptionConfiguration", "s3:GetLifecycleConfiguration",
+        "s3:GetReplicationConfiguration", "s3:ListAllMyBuckets", "s3:ListBucket",
+        "secretsmanager:DescribeSecret", "secretsmanager:GetResourcePolicy", "secretsmanager:ListSecretVersionIds",
+        "sns:GetSubscriptionAttributes", "sns:GetTopicAttributes", "sns:ListSubscriptionsByTopic", "sns:ListTagsForResource",
+        "sqs:GetQueueAttributes", "sqs:GetQueueUrl", "sqs:ListDeadLetterSourceQueues", "sqs:ListQueueTags",
+        "states:DescribeStateMachine", "states:ListStateMachineVersions", "states:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ManageStackResources",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:DELETE", "apigateway:PATCH", "apigateway:POST", "apigateway:PUT",
+        "athena:CreateWorkGroup", "athena:DeleteWorkGroup", "athena:TagResource", "athena:UntagResource", "athena:UpdateWorkGroup",
+        "cloudwatch:DeleteAlarms", "cloudwatch:DeleteDashboards", "cloudwatch:PutCompositeAlarm", "cloudwatch:PutDashboard",
+        "cloudwatch:PutMetricAlarm", "cloudwatch:TagResource", "cloudwatch:UntagResource",
+        "cognito-idp:CreateGroup", "cognito-idp:CreateUserPool", "cognito-idp:CreateUserPoolClient", "cognito-idp:CreateUserPoolDomain",
+        "cognito-idp:DeleteGroup", "cognito-idp:DeleteUserPoolClient", "cognito-idp:DeleteUserPoolDomain",
+        "cognito-idp:SetUserPoolMfaConfig", "cognito-idp:TagResource", "cognito-idp:UntagResource",
+        "cognito-idp:UpdateGroup", "cognito-idp:UpdateUserPool", "cognito-idp:UpdateUserPoolClient", "cognito-idp:UpdateUserPoolDomain",
+        "config:DeleteConfigRule", "config:DeleteConfigurationRecorder", "config:DeleteDeliveryChannel", "config:DeleteRemediationConfiguration",
+        "config:PutConfigRule", "config:PutConfigurationRecorder", "config:PutDeliveryChannel", "config:PutRemediationConfigurations",
+        "config:StartConfigurationRecorder", "config:StopConfigurationRecorder", "config:TagResource", "config:UntagResource",
+        "dynamodb:CreateTable", "dynamodb:TagResource", "dynamodb:UntagResource", "dynamodb:UpdateContinuousBackups",
+        "dynamodb:UpdateTable", "dynamodb:UpdateTimeToLive",
+        "events:CreateEventBus", "events:DeleteEventBus", "events:DeleteRule", "events:DisableRule", "events:EnableRule",
+        "events:PutRule", "events:PutTargets", "events:RemoveTargets", "events:TagResource", "events:UntagResource",
+        "glue:CreateCrawler", "glue:CreateDatabase", "glue:CreateTable", "glue:DeleteCrawler", "glue:DeleteDatabase", "glue:DeleteTable",
+        "glue:TagResource", "glue:UntagResource", "glue:UpdateCrawler", "glue:UpdateDatabase", "glue:UpdateTable",
+        "kms:CreateAlias", "kms:CreateKey", "kms:DeleteAlias", "kms:DisableKeyRotation", "kms:EnableKeyRotation", "kms:PutKeyPolicy",
+        "kms:TagResource", "kms:UntagResource", "kms:UpdateAlias", "kms:UpdateKeyDescription",
+        "lambda:AddPermission", "lambda:CreateEventSourceMapping", "lambda:CreateFunction", "lambda:CreateFunctionUrlConfig",
+        "lambda:DeleteEventSourceMapping", "lambda:DeleteFunction", "lambda:DeleteFunctionConcurrency", "lambda:DeleteFunctionEventInvokeConfig",
+        "lambda:DeleteFunctionUrlConfig", "lambda:PublishVersion", "lambda:PutFunctionConcurrency", "lambda:PutFunctionEventInvokeConfig",
+        "lambda:RemovePermission", "lambda:TagResource", "lambda:UntagResource", "lambda:UpdateEventSourceMapping",
+        "lambda:UpdateFunctionConfiguration", "lambda:UpdateFunctionEventInvokeConfig", "lambda:UpdateFunctionUrlConfig",
+        "logs:AssociateKmsKey", "logs:CreateLogDelivery", "logs:CreateLogGroup", "logs:DeleteLogDelivery", "logs:DeleteLogGroup",
+        "logs:DeleteMetricFilter", "logs:DeleteResourcePolicy", "logs:DeleteRetentionPolicy", "logs:DisassociateKmsKey",
+        "logs:PutMetricFilter", "logs:PutResourcePolicy", "logs:PutRetentionPolicy", "logs:TagLogGroup", "logs:TagResource",
+        "logs:UntagLogGroup", "logs:UntagResource", "logs:UpdateLogDelivery",
+        "s3:CreateBucket", "s3:DeleteBucketPolicy", "s3:PutBucketCORS", "s3:PutBucketLogging", "s3:PutBucketNotification",
+        "s3:PutBucketOwnershipControls", "s3:PutBucketPolicy", "s3:PutBucketPublicAccessBlock", "s3:PutBucketTagging",
+        "s3:PutBucketVersioning", "s3:PutEncryptionConfiguration", "s3:PutLifecycleConfiguration",
+        "sns:CreateTopic", "sns:DeleteTopic", "sns:SetSubscriptionAttributes", "sns:SetTopicAttributes", "sns:Subscribe",
+        "sns:TagResource", "sns:Unsubscribe", "sns:UntagResource",
+        "sqs:CreateQueue", "sqs:DeleteQueue", "sqs:SetQueueAttributes", "sqs:TagQueue", "sqs:UntagQueue",
+        "states:CreateStateMachine", "states:DeleteStateMachine", "states:TagResource", "states:UntagResource", "states:UpdateStateMachine"
+      ],
+      "Resource": [
+        "arn:aws:athena:${region}:${account_id}:*",
+        "arn:aws:cloudwatch:${region}:${account_id}:*",
+        "arn:aws:cognito-idp:${region}:${account_id}:*",
+        "arn:aws:config:${region}:${account_id}:*",
+        "arn:aws:dynamodb:${region}:${account_id}:*",
+        "arn:aws:events:${region}:${account_id}:*",
+        "arn:aws:glue:${region}:${account_id}:*",
+        "arn:aws:kms:${region}:${account_id}:*",
+        "arn:aws:lambda:${region}:${account_id}:*",
+        "arn:aws:logs:${region}:${account_id}:*",
+        "arn:aws:sns:${region}:${account_id}:*",
+        "arn:aws:sqs:${region}:${account_id}:*",
+        "arn:aws:states:${region}:${account_id}:*",
+        "arn:aws:apigateway:${region}::/*",
+        "arn:aws:cloudwatch::${account_id}:dashboard/*",
+        "arn:aws:s3:::*"
+      ]
+    },
+    {
+      "Sid": "ManageCallsWithoutResourceArns",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:CreateUserPool",
+        "config:DeleteConfigurationRecorder", "config:DeleteDeliveryChannel", "config:PutConfigurationRecorder",
+        "config:PutDeliveryChannel", "config:StartConfigurationRecorder", "config:StopConfigurationRecorder",
+        "kms:CreateKey",
+        "lambda:CreateEventSourceMapping",
+        "logs:CreateLogDelivery", "logs:DeleteLogDelivery", "logs:DeleteResourcePolicy", "logs:PutResourcePolicy", "logs:UpdateLogDelivery"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AgentKeySecrets",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CancelRotateSecret", "secretsmanager:CreateSecret", "secretsmanager:DeleteResourcePolicy",
+        "secretsmanager:GetSecretValue", "secretsmanager:PutResourcePolicy", "secretsmanager:PutSecretValue",
+        "secretsmanager:RotateSecret", "secretsmanager:TagResource", "secretsmanager:UntagResource",
+        "secretsmanager:UpdateSecret", "secretsmanager:UpdateSecretVersionStage"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:${region}:${account_id}:secret:naleko/agent/api-key-*",
+        "arn:aws:secretsmanager:${region}:${account_id}:secret:talent-flow/agent/api-key-*"
+      ]
+    },
+    {
+      "Sid": "ParametersReadAtPlan",
+      "Effect": "Allow",
+      "Action": ["ssm:GetParameter", "ssm:GetParameters"],
+      "Resource": "arn:aws:ssm:${region}:${account_id}:parameter/naleko/postmark/api_token"
+    },
+    {
+      "Sid": "DecryptOnlyThroughSecretsAndParameters",
+      "Effect": "Allow",
+      "Action": ["kms:Decrypt", "kms:GenerateDataKey"],
+      "Resource": "arn:aws:kms:${region}:${account_id}:key/*",
+      "Condition": { "StringEquals": { "kms:ViaService": ["secretsmanager.${region}.amazonaws.com", "ssm.${region}.amazonaws.com"] } }
+    },
+    {
+      "Sid": "AiSpendBudget",
+      "Effect": "Allow",
+      "Action": [
+        "budgets:CreateBudgetAction", "budgets:DescribeBudgetAction", "budgets:DescribeBudgetActionsForBudget",
+        "budgets:ListTagsForResource", "budgets:ModifyBudget", "budgets:TagResource", "budgets:UntagResource",
+        "budgets:UpdateBudgetAction", "budgets:ViewBudget"
+      ],
+      "Resource": [
+        "arn:aws:budgets::${account_id}:budget/pepla-ai-spend",
+        "arn:aws:budgets::${account_id}:budget/pepla-ai-spend/action/*"
+      ]
+    },
+    {
+      "Sid": "IamRead",
+      "Effect": "Allow",
+      "Action": ["iam:Get*", "iam:List*"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "WorkloadRoles",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole", "iam:DeleteRole", "iam:DeleteRolePolicy", "iam:PutRolePolicy", "iam:TagRole", "iam:UntagRole",
+        "iam:UpdateAssumeRolePolicy", "iam:UpdateRole", "iam:UpdateRoleDescription"
+      ],
+      "Resource": [
+        "arn:aws:iam::${account_id}:role/naleko-*",
+        "arn:aws:iam::${account_id}:role/naleko/naleko-*",
+        "arn:aws:iam::${account_id}:role/talent-flow-role-*",
+        "arn:aws:iam::${account_id}:role/talent-flow/talent-flow-role-*",
+        "arn:aws:iam::${account_id}:role/it-tasks-role-*",
+        "arn:aws:iam::${account_id}:role/talent-flow/it-tasks-role-*",
+        "arn:aws:iam::${account_id}:role/doc-verification-lambda-role",
+        "arn:aws:iam::${account_id}:role/pepla-ai-brake-budgets"
+      ]
+    },
+    {
+      "Sid": "WorkloadRoleManagedPolicies",
+      "Effect": "Allow",
+      "Action": ["iam:AttachRolePolicy", "iam:DetachRolePolicy"],
+      "Resource": [
+        "arn:aws:iam::${account_id}:role/naleko-*",
+        "arn:aws:iam::${account_id}:role/naleko/naleko-*",
+        "arn:aws:iam::${account_id}:role/talent-flow-role-*",
+        "arn:aws:iam::${account_id}:role/talent-flow/talent-flow-role-*",
+        "arn:aws:iam::${account_id}:role/it-tasks-role-*",
+        "arn:aws:iam::${account_id}:role/talent-flow/it-tasks-role-*",
+        "arn:aws:iam::${account_id}:role/doc-verification-lambda-role",
+        "arn:aws:iam::${account_id}:role/pepla-ai-brake-budgets"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": [
+            "arn:aws:iam::aws:policy/AmazonBedrockFullAccess",
+            "arn:aws:iam::aws:policy/AmazonCognitoPowerUser",
+            "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess",
+            "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+            "arn:aws:iam::aws:policy/AmazonTextractFullAccess",
+            "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess",
+            "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess",
+            "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
+            "arn:aws:iam::aws:policy/service-role/AWS_ConfigRole",
+            "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole",
+            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+            "arn:aws:iam::${account_id}:policy/pepla-ai-brake"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "PassWorkloadRolesToTheirServices",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": [
+        "arn:aws:iam::${account_id}:role/naleko-*",
+        "arn:aws:iam::${account_id}:role/naleko/naleko-*",
+        "arn:aws:iam::${account_id}:role/talent-flow-role-*",
+        "arn:aws:iam::${account_id}:role/talent-flow/talent-flow-role-*",
+        "arn:aws:iam::${account_id}:role/it-tasks-role-*",
+        "arn:aws:iam::${account_id}:role/talent-flow/it-tasks-role-*",
+        "arn:aws:iam::${account_id}:role/doc-verification-lambda-role",
+        "arn:aws:iam::${account_id}:role/pepla-ai-brake-budgets"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "apigateway.amazonaws.com", "budgets.amazonaws.com", "config.amazonaws.com", "events.amazonaws.com",
+            "glue.amazonaws.com", "lambda.amazonaws.com", "states.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "AiBrakePolicyVersions",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy", "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion",
+        "iam:TagPolicy", "iam:UntagPolicy"
+      ],
+      "Resource": "arn:aws:iam::${account_id}:policy/pepla-ai-brake"
+    },
+    {
+      "Sid": "DenyOutsideCapeTown",
+      "Effect": "Deny",
+      "NotAction": ["iam:*", "sts:*", "budgets:*"],
+      "Resource": "*",
+      "Condition": { "StringNotEquals": { "aws:RequestedRegion": "${region}" } }
+    },
+    {
+      "Sid": "DenyPaidAi",
+      "Effect": "Deny",
+      "Action": ["bedrock:*", "textract:*"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyRunningOrReadingData",
+      "Effect": "Deny",
+      "Action": [
+        "athena:GetQueryResults", "athena:StartQueryExecution",
+        "cognito-idp:Admin*", "cognito-idp:ListUsers", "cognito-idp:ListUsersInGroup",
+        "dynamodb:BatchGetItem", "dynamodb:BatchWriteItem", "dynamodb:DeleteItem", "dynamodb:ExportTableToPointInTime",
+        "dynamodb:GetItem", "dynamodb:GetRecords", "dynamodb:GetShardIterator", "dynamodb:PartiQL*", "dynamodb:PutItem",
+        "dynamodb:Query", "dynamodb:Scan", "dynamodb:UpdateItem",
+        "glue:StartCrawler",
+        "lambda:InvokeAsync", "lambda:InvokeFunction", "lambda:InvokeFunctionUrl", "lambda:UpdateFunctionCode",
+        "logs:FilterLogEvents", "logs:GetLogEvents", "logs:GetLogRecord", "logs:GetQueryResults", "logs:StartLiveTail", "logs:StartQuery",
+        "sns:Publish",
+        "sqs:DeleteMessage", "sqs:PurgeQueue", "sqs:ReceiveMessage", "sqs:SendMessage",
+        "states:GetExecutionHistory", "states:StartExecution", "states:StartSyncExecution"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyObjectsOutsideState",
+      "Effect": "Deny",
+      "Action": ["s3:DeleteObject", "s3:GetObject", "s3:GetObjectVersion", "s3:PutObject"],
+      "NotResource": [
+        "arn:aws:s3:::${state_bucket}/naleko/onboarding/terraform.tfstate",
+        "arn:aws:s3:::${state_bucket}/naleko/onboarding/terraform.tfstate.tflock",
+        "arn:aws:s3:::${state_bucket}/talent-flow/mvp1/terraform.tfstate",
+        "arn:aws:s3:::${state_bucket}/talent-flow/mvp1/terraform.tfstate.tflock"
+      ]
+    },
+    {
+      "Sid": "DenyOtherSecretsAndParameters",
+      "Effect": "Deny",
+      "Action": ["secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue", "ssm:GetParameter*"],
+      "NotResource": [
+        "arn:aws:secretsmanager:${region}:${account_id}:secret:naleko/agent/api-key-*",
+        "arn:aws:secretsmanager:${region}:${account_id}:secret:talent-flow/agent/api-key-*",
+        "arn:aws:ssm:${region}:${account_id}:parameter/naleko/postmark/api_token"
+      ]
+    },
+    {
+      "Sid": "DenyDeletingProtectedData",
+      "Effect": "Deny",
+      "Action": [
+        "cognito-idp:DeleteUserPool", "dynamodb:DeleteBackup", "dynamodb:DeleteTable",
+        "kms:DisableKey", "kms:ScheduleKeyDeletion", "s3:DeleteObjectVersion", "secretsmanager:DeleteSecret"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyDeletingProtectedBuckets",
+      "Effect": "Deny",
+      "Action": "s3:DeleteBucket",
+      "Resource": [
+        "arn:aws:s3:::${state_bucket}",
+        "arn:aws:s3:::document-ocr-verification-uploads",
+        "arn:aws:s3:::pepla-*-document-uploads-${account_id}",
+        "arn:aws:s3:::naleko-audit-archive-${account_id}",
+        "arn:aws:s3:::naleko-config-logs-${account_id}",
+        "arn:aws:s3:::talent-flow-audit-archive-${account_id}"
+      ]
+    },
+    {
+      "Sid": "DenyStateBucketSettings",
+      "Effect": "Deny",
+      "Action": [
+        "s3:DeleteBucketPolicy", "s3:PutBucketAcl", "s3:PutBucketObjectLockConfiguration", "s3:PutBucketOwnershipControls",
+        "s3:PutBucketPolicy", "s3:PutBucketPublicAccessBlock", "s3:PutBucketVersioning", "s3:PutEncryptionConfiguration",
+        "s3:PutLifecycleConfiguration"
+      ],
+      "Resource": "arn:aws:s3:::${state_bucket}"
+    },
+    {
+      "Sid": "DenyTouchingCiRoles",
+      "Effect": "Deny",
+      "Action": [
+        "iam:Add*", "iam:Attach*", "iam:Create*", "iam:Delete*", "iam:Detach*", "iam:PassRole", "iam:Put*",
+        "iam:Remove*", "iam:Tag*", "iam:Untag*", "iam:Update*"
+      ],
+      "Resource": [
+        "arn:aws:iam::${account_id}:role/pepla-github-tf-apply-dev",
+        "arn:aws:iam::${account_id}:role/pepla-github-tf-apply-prod",
+        "arn:aws:iam::${account_id}:role/naleko-github-plan-readonly",
+        "arn:aws:iam::${account_id}:role/pepla-github-deploy-code-prod",
+        "arn:aws:iam::${account_id}:role/pepla-github-deploy-dev",
+        "arn:aws:iam::${account_id}:role/OrganizationAccountAccessRole",
+        "arn:aws:iam::${account_id}:role/aws-service-role/*",
+        "arn:aws:iam::${account_id}:oidc-provider/*"
+      ]
+    },
+    {
+      "Sid": "DenyLongLivedCredentialsAndIdentityProviders",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateAccessKey", "iam:CreateGroup", "iam:CreateLoginProfile", "iam:CreateOpenIDConnectProvider",
+        "iam:CreateSAMLProvider", "iam:CreateServiceSpecificCredential", "iam:CreateUser", "iam:UpdateLoginProfile"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyBroadManagedPolicies",
+      "Effect": "Deny",
+      "Action": ["iam:AttachRolePolicy"],
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": [
+            "arn:aws:iam::aws:policy/AdministratorAccess",
+            "arn:aws:iam::aws:policy/PowerUserAccess",
+            "arn:aws:iam::aws:policy/IAMFullAccess",
+            "arn:aws:iam::aws:policy/AWSOrganizationsFullAccess"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyReleasingTheAiBrake",
+      "Effect": "Deny",
+      "Action": "iam:DetachRolePolicy",
+      "Resource": "*",
+      "Condition": { "ArnEquals": { "iam:PolicyARN": "arn:aws:iam::${account_id}:policy/pepla-ai-brake" } }
+    },
+    {
+      "Sid": "DenyDeletingTheAiBrakePolicy",
+      "Effect": "Deny",
+      "Action": "iam:DeletePolicy",
+      "Resource": "arn:aws:iam::${account_id}:policy/pepla-ai-brake"
+    },
+    {
+      "Sid": "DenyAiBudgetRemovalAndRelease",
+      "Effect": "Deny",
+      "Action": ["budgets:DeleteBudget", "budgets:DeleteBudgetAction", "budgets:ExecuteBudgetAction"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyAccountAndBilling",
+      "Effect": "Deny",
+      "Action": ["account:*", "aws-portal:*", "billing:*", "organizations:*"],
+      "Resource": "*"
+    }
+  ]
+}

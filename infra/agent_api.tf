@@ -29,6 +29,10 @@ resource "aws_secretsmanager_secret" "agent_api_key" {
   tags = {
     Component = "AgentAPI"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_secretsmanager_secret_version" "agent_api_key" {
