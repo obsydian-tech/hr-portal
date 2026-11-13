@@ -82,6 +82,10 @@ resource "aws_kms_key" "talent_flow_state" {
     Purpose = "DynamoDB SSE"
     Ticket  = "NH-105"
   }, local.tf_tags)
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_kms_alias" "talent_flow_state" {
@@ -194,6 +198,10 @@ resource "aws_kms_key" "talent_flow_agent_audit" {
     Purpose = "AgentAuditKey"
     Ticket  = "NH-105"
   }, local.tf_tags)
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_kms_alias" "talent_flow_agent_audit" {

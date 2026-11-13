@@ -69,6 +69,10 @@ resource "aws_s3_bucket" "config_logs" {
     Project     = "naleko"
     Purpose     = "aws-config-delivery"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_versioning" "config_logs" {
