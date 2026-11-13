@@ -1,5 +1,5 @@
 import { CognitoFake } from '../acceptance/support/cognito-fake';
-import { HELP_PEOPLE } from '../fixtures/help-company';
+import { HELP_NEW_EMPLOYEES, HELP_PEOPLE } from '../fixtures/help-company';
 import { expect, test } from '../support/help';
 
 /**
@@ -17,6 +17,8 @@ import { expect, test } from '../support/help';
  * No backend: the browser answers Cognito with the fake from the acceptance
  * tests (read only, never copied). Any request to another host fails the
  * journey, except the Inter and Manrope font files from Google Fonts.
+ * The employees API is answered the same way, with Sunbird Bakery's new employees from
+ * e2e/fixtures/help-company.ts, so HR home shows the help company's people and counts.
  * Nothing here calls an AI service.
  */
 
@@ -45,6 +47,21 @@ test('HR signs in', async ({ page, context, help, baseURL }) => {
   // Installed after the catch-all, so it answers Cognito first.
   const fake = new CognitoFake([{ email: hr.email, givenName, familyName: familyName.join(' '), groups: ['hr_staff'] }]);
   await fake.install(context);
+
+  // The employees API answers with the help company's new employees only (GET /v1/employees on any host but the app).
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, OPTIONS' };
+  await context.route(
+    (url) => /\/v1\/employees$/.test(url.pathname) && url.host !== appHost,
+    (route) => {
+      const req = route.request();
+      if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+      if (req.method() !== 'GET' || !/^Bearer \S+$/.test(req.headers()['authorization'] ?? '')) {
+        return route.fulfill({ status: 401, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ message: 'Unauthorized' }) });
+      }
+      const items = HELP_NEW_EMPLOYEES.map((p) => ({ ...p, middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: hr.email }));
+      return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ items, count: items.length }) });
+    },
+  );
 
   await page.goto('/sign-in');
   await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
