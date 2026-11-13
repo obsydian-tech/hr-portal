@@ -196,9 +196,10 @@ resource "aws_lambda_permission" "naleko_ai_chat" {
 # ─── Rate limiting table (NH-67) ─────────────────────────────────────────────
 
 resource "aws_dynamodb_table" "naleko_ai_rate_limit" {
-  name         = "NalekoAiRateLimit"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "pk"
+  name                        = "NalekoAiRateLimit"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "pk"
 
   attribute {
     name = "pk"
@@ -213,5 +214,9 @@ resource "aws_dynamodb_table" "naleko_ai_rate_limit" {
   tags = {
     Component = "AIMode"
     Ticket    = "NH-67"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }

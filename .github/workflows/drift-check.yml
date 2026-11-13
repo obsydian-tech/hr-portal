@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------
 # Nightly prod drift check (read-only)
 #
-# Every night, runs `terraform plan` for both roots against prod, using the
+# Every night, runs `terraform plan` for both roots and bootstrap/prod (the CI
+# roles, OPS-05) against prod, using the
 # same read-only role as PR plans (naleko-github-plan-readonly, OIDC, no keys).
 # "Drift" = prod no longer matches the code, e.g. someone changed something
 # by hand in the AWS console.
@@ -48,9 +49,15 @@ jobs:
       matrix:
         include:
           - root: infra
+            name: infra
             vars: ""
           - root: talent-flow-infra
+            name: talent-flow-infra
             vars: "-var=aws_account_id=937137806477"
+          # Applied by hand only; a plan here never writes state, so no lock.
+          - root: bootstrap/prod
+            name: bootstrap-prod
+            vars: "-lock=false"
     defaults:
       run:
         working-directory: ${{ matrix.root }}
@@ -59,12 +66,22 @@ jobs:
         with:
           ref: main # prod runs what is on main
 
+      # bootstrap/prod reaches main with the first release after OPS-05.
+      - name: Is this root on main yet?
+        id: present
+        working-directory: .
+        run: |
+          if [ -d "${{ matrix.root }}" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else
+            echo "ok=false" >> "$GITHUB_OUTPUT"; : > "$RUNNER_TEMP/drift.txt"; echo "${{ matrix.root }} is not on main yet."; fi
+
       - uses: hashicorp/setup-terraform@v3
+        if: steps.present.outputs.ok == 'true'
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: Sign in to AWS (OIDC, read-only)
+        if: steps.present.outputs.ok == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.PLAN_ROLE_ARN }}
@@ -73,13 +90,16 @@ jobs:
           role-duration-seconds: 3600
 
       - name: Create placeholder.zip
+        if: steps.present.outputs.ok == 'true'
         working-directory: .
         run: python3 -c "import zipfile; zipfile.ZipFile('placeholder.zip','w').writestr('index.js','')"
 
       - name: Terraform init
+        if: steps.present.outputs.ok == 'true'
         run: terraform init -input=false -no-color > init.log 2>&1 || { tail -20 init.log; exit 1; }
 
       - name: Terraform plan
+        if: steps.present.outputs.ok == 'true'
         run: |
           if ! terraform plan -input=false -no-color -lock-timeout=120s ${{ matrix.vars }} -out=plan.bin > plan.log 2> plan.err; then
             echo "::error::terraform plan failed in ${{ matrix.root }}"
@@ -88,6 +108,7 @@ jobs:
           fi
 
       - name: List drift (addresses and actions only)
+        if: steps.present.outputs.ok == 'true'
         run: |
           terraform show -json plan.bin \
             | jq -r '.resource_changes[]? | (.change.actions | join("+")) as $a | select(.change.actions != ["read"] and (.change.actions != ["no-op"] or .change.importing)) | (if .change.importing then (if .change.actions == ["no-op"] then "import" else "import+\($a)" end) else $a end) + "\t\(.address)"' \
@@ -97,13 +118,14 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: drift-${{ matrix.root }}
+          name: drift-${{ matrix.name }}
           path: ${{ runner.temp }}/drift.txt
           retention-days: 7
 
       - name: Remove plan files
         if: always()
-        run: rm -f plan.bin plan.log plan.err init.log
+        working-directory: .
+        run: rm -f "${{ matrix.root }}"/plan.bin "${{ matrix.root }}"/plan.log "${{ matrix.root }}"/plan.err "${{ matrix.root }}"/init.log
 
   report:
     name: Report drift
@@ -128,7 +150,7 @@ jobs:
           title="Prod drift found"
           issue=$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[0].number')
           total=0; body=""
-          for root in infra talent-flow-infra; do
+          for root in infra talent-flow-infra bootstrap-prod; do
             f="drift/drift-$root/drift.txt"
             [ -f "$f" ] || continue
             n=$(wc -l < "$f" | tr -d ' '); total=$((total + n))

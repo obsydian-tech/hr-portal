@@ -6,6 +6,7 @@
 #   2. GitHub OIDC provider + role pepla-github-deploy-dev (no stored keys)
 #   3. Monthly budget with email alerts
 #   4. Seed parameters the stacks read at plan time
+#   5. Role pepla-github-tf-apply-dev: Terraform applies on merge to develop (OPS-05)
 #
 # State for THIS root lives in the prod state bucket (management account),
 # because the dev bucket doesn't exist until this root creates it.
@@ -185,6 +186,8 @@ resource "aws_iam_role_policy" "github_deploy_dev_guardrails" {
         Action = ["iam:*"]
         Resource = [
           aws_iam_role.github_deploy_dev.arn,
+          aws_iam_role.tf_apply_dev.arn,
+          "arn:aws:iam::${var.dev_account_id}:policy/pepla-github-tf-apply-dev-*",
           aws_iam_openid_connect_provider.github.arn,
           "arn:aws:iam::${var.dev_account_id}:role/OrganizationAccountAccessRole",
         ]
@@ -225,6 +228,52 @@ resource "aws_iam_role_policy" "github_deploy_dev_guardrails" {
   })
 }
 
+# ── 5. Terraform apply role (OPS-05) ────────────────────────────────────────
+#
+# Used only by jobs in the GitHub environment dev-apply (develop only), which
+# apply infra/ and talent-flow-infra/ to pepla-dev after each merge. Its rights
+# are the exact prod apply policy (bootstrap/modules/tf-apply-policy), so a
+# missing permission shows up here before a release.
+
+resource "aws_iam_role" "tf_apply_dev" {
+  name                 = "pepla-github-tf-apply-dev"
+  description          = "GitHub Actions (environment dev-apply, develop only) applies Terraform to pepla-dev"
+  max_session_duration = 3600
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com" }
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = [
+            "${local.repo_short}:environment:dev-apply",
+            "${local.repo_immutable}:environment:dev-apply",
+          ]
+        }
+      }
+    }]
+  })
+}
+
+module "tf_apply_policy" {
+  source = "../modules/tf-apply-policy"
+
+  name         = "pepla-github-tf-apply-dev"
+  account_id   = var.dev_account_id
+  state_bucket = aws_s3_bucket.tfstate.bucket
+}
+
+resource "aws_iam_role_policy_attachment" "tf_apply_dev" {
+  count = module.tf_apply_policy.part_count
+
+  role       = aws_iam_role.tf_apply_dev.name
+  policy_arn = module.tf_apply_policy.policy_arns[count.index]
+}
+
 # ── 3. Budget ───────────────────────────────────────────────────────────────
 
 resource "aws_budgets_budget" "monthly" {
@@ -263,6 +312,10 @@ resource "aws_ssm_parameter" "postmark_token" {
 
 output "deploy_role_arn" {
   value = aws_iam_role.github_deploy_dev.arn
+}
+
+output "tf_apply_role_arn" {
+  value = aws_iam_role.tf_apply_dev.arn
 }
 
 output "state_bucket" {

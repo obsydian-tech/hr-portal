@@ -148,6 +148,21 @@ jobs:
       # Fails if infra/ and talent-flow-infra/ both declare the same AWS
       # object (same type and name). Two roots owning one object fight on
       # every apply, so prod drifts.
+      # Every table, bucket, key, sign-in pool and agent key secret keeps
+      # prevent_destroy and AWS deletion protection (OPS-05).
+      - name: Data resources cannot be destroyed
+        working-directory: .
+        run: python3 scripts/ci/check-prevent-destroy.py
+
+      # The apply guard on fixture plans: deletes and replaces stop the apply.
+      - name: Apply guard tests
+        working-directory: .
+        run: python3 -B scripts/ci/test_tf_gate.py
+
+      - name: Terraform fmt check (bootstrap)
+        working-directory: .
+        run: terraform fmt -check -recursive bootstrap
+
       - name: No AWS resource declared in both roots
         working-directory: .
         run: |

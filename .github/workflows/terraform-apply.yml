@@ -1,0 +1,655 @@
+# ---------------------------------------------------------------------------
+# Terraform apply (OPS-05). Called by deploy-lambdas.yml, never on its own.
+#
+#   develop  ->  Terraform plan for infra/ then talent-flow-infra/ in pepla-dev
+#                (GitHub env "dev-apply", role pepla-github-tf-apply-dev),
+#                change list in the summary
+#            ->  nothing deleted or replaced: apply the saved plans
+#                anything deleted or replaced: wait for Iggie in "dev-destroy",
+#                plan again, apply only if it matches
+#            deploy-lambdas.yml deploys Lambda code and runs the pepla-dev
+#            tests only after this whole workflow succeeded.
+#
+#   main     ->  read-only plan of prod (env "prod-plan"): change list in the
+#   (release)    summary, one row per resource
+#            ->  nothing to apply and no Lambda code: done, no Approve
+#            ->  anything deleted or replaced: Iggie approves in
+#                "production-destroy" first (second tap)
+#            ->  one Approve in "Production" covers the whole release: plan
+#                again as pepla-github-tf-apply-prod, stop if it differs from
+#                what was approved, apply infra/ then talent-flow-infra/, then
+#                deploy the Lambda code (built by the caller) with the
+#                code-only role
+#
+# Kill switch: repository variable TF_AUTO_APPLY. Unless it is exactly "true",
+# plans and summaries still run and nothing is applied.
+# A failed apply opens one issue per environment; the next good apply closes it.
+# There is no automatic second attempt.
+#
+# The repo is PUBLIC: logs and summaries show resource addresses, actions and
+# attribute names, never values. Plan files and plan output never leave the
+# runner and are deleted at the end of every job. Nothing here calls a paid
+# model or service; the apply roles are denied that in IAM too.
+# ---------------------------------------------------------------------------
+name: Terraform apply
+
+on:
+  workflow_call:
+    inputs:
+      infra:
+        description: "Terraform files changed (or a run by hand): plan and apply pepla-dev"
+        type: string
+        default: "true"
+      lambda:
+        description: "Lambda code changed: a release deploys it after the Approve"
+        type: string
+        default: "true"
+      fail_after_plan:
+        description: "pepla-dev only: fail on purpose after the plan, before any apply (tests the failure issue)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: af-south-1
+  TF_VERSION: "1.10.5"
+  DEV_ACCOUNT: "424556617428"
+  PROD_ACCOUNT: "937137806477"
+
+jobs:
+  tf-dev:
+    name: "Terraform pepla-dev: plan and apply"
+    if: github.ref == 'refs/heads/develop' && inputs.infra == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Branch rule on the environment: develop only. The role trusts only this environment.
+    environment: dev-apply
+    concurrency:
+      group: tf-apply-dev
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      destroys: ${{ steps.gate.outputs.destroys }}
+      applied: ${{ steps.done.outputs.applied }}
+      infra_list: ${{ steps.lists.outputs.infra_list }}
+      talent_list: ${{ steps.lists.outputs.talent_list }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::424556617428:role/pepla-github-tf-apply-dev
+          role-session-name: tf-apply-dev-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 3600
+
+      - name: Check we are in pepla-dev
+        run: |
+          acct=$(aws sts get-caller-identity --query Account --output text)
+          [ "$acct" = "$DEV_ACCOUNT" ] || { echo "::error::not pepla-dev"; exit 1; }
+
+      # Lambda code is deployed outside Terraform; a new function starts from this stub.
+      - name: Create placeholder.zip
+        run: |
+          python3 -c "import zipfile; zipfile.ZipFile('placeholder.zip','w').writestr('index.mjs','export const handler = async () => ({ statusCode: 200 });')"
+
+      - name: Terraform init (dev state)
+        run: |
+          for root in infra talent-flow-infra; do
+            terraform -chdir=$root init -input=false -no-color -reconfigure -backend-config=env/dev.s3.tfbackend > "$RUNNER_TEMP/init-${root}.log" 2>&1 \
+              || { echo "::error::terraform init failed in $root"; tail -20 "$RUNNER_TEMP/init-${root}.log"; exit 1; }
+          done
+
+      - name: Plan infra/ and talent-flow-infra/
+        run: |
+          for root in infra talent-flow-infra; do
+            if ! terraform -chdir=$root plan -input=false -no-color -lock-timeout=300s -var-file=env/dev.tfvars -out=dev.tfplan > "$RUNNER_TEMP/plan-${root}.log" 2> "$RUNNER_TEMP/plan-${root}.err"; then
+              echo "::error::terraform plan failed in $root"
+              tail -30 "$RUNNER_TEMP/plan-${root}.err"
+              exit 1
+            fi
+            terraform -chdir=$root show -json dev.tfplan > "$RUNNER_TEMP/${root}.json"
+            python3 scripts/ci/tf-gate.py summary "$root" "$RUNNER_TEMP/${root}.json" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Change lists
+        id: lists
+        run: |
+          {
+            echo "infra_list<<LIST_END"
+            python3 scripts/ci/tf-gate.py list "$RUNNER_TEMP/infra.json"
+            echo "LIST_END"
+            echo "talent_list<<LIST_END"
+            python3 scripts/ci/tf-gate.py list "$RUNNER_TEMP/talent-flow-infra.json"
+            echo "LIST_END"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Deletes and replaces
+        id: gate
+        run: |
+          found=0
+          for root in infra talent-flow-infra; do
+            set +e
+            python3 scripts/ci/tf-gate.py destroys "$RUNNER_TEMP/${root}.json" > "$RUNNER_TEMP/destroys-${root}.txt"
+            rc=$?
+            set -e
+            case $rc in
+              0) ;;
+              3) found=1 ;;
+              *) echo "::error::the apply guard could not read the $root plan"; exit 1 ;;
+            esac
+          done
+          if [ "$found" = 1 ]; then
+            echo "destroys=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Deletes and replaces wait for Iggie in dev-destroy"
+              echo '```'
+              cat "$RUNNER_TEMP"/destroys-*.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "destroys=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Kill switch
+        if: vars.TF_AUTO_APPLY != 'true'
+        run: echo "### Applies are switched off (TF_AUTO_APPLY is not \"true\"). Plans only." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail on purpose (test of the failure issue)
+        if: github.event_name == 'workflow_dispatch' && inputs.fail_after_plan
+        run: |
+          echo "::error::Failed on purpose after the plan, before any apply."
+          exit 1
+
+      - name: Apply infra/ (saved plan)
+        if: vars.TF_AUTO_APPLY == 'true' && steps.gate.outputs.destroys == 'false'
+        run: |
+          if ! terraform -chdir=infra apply -input=false -no-color -lock-timeout=300s dev.tfplan > "$RUNNER_TEMP/apply-infra.log" 2> "$RUNNER_TEMP/apply-infra.err"; then
+            echo "::error::terraform apply failed in infra (talent-flow-infra was not applied)"
+            tail -30 "$RUNNER_TEMP/apply-infra.err"
+            exit 1
+          fi
+          grep -E '^Apply complete' "$RUNNER_TEMP/apply-infra.log" || true
+
+      - name: Apply talent-flow-infra/ (saved plan)
+        if: vars.TF_AUTO_APPLY == 'true' && steps.gate.outputs.destroys == 'false'
+        run: |
+          if ! terraform -chdir=talent-flow-infra apply -input=false -no-color -lock-timeout=300s dev.tfplan > "$RUNNER_TEMP/apply-talent.log" 2> "$RUNNER_TEMP/apply-talent.err"; then
+            echo "::error::terraform apply failed in talent-flow-infra"
+            tail -30 "$RUNNER_TEMP/apply-talent.err"
+            exit 1
+          fi
+          grep -E '^Apply complete' "$RUNNER_TEMP/apply-talent.log" || true
+
+      - name: Mark applied
+        id: done
+        if: vars.TF_AUTO_APPLY == 'true' && steps.gate.outputs.destroys == 'false'
+        run: echo "applied=true" >> "$GITHUB_OUTPUT"
+
+      # Proof the apply took: a fresh plan straight after shows no changes.
+      - name: Plan again (expect no changes)
+        if: steps.done.outputs.applied == 'true'
+        run: |
+          for root in infra talent-flow-infra; do
+            terraform -chdir=$root plan -input=false -no-color -lock-timeout=300s -var-file=env/dev.tfvars -out=check.tfplan > "$RUNNER_TEMP/check-${root}.log" 2>&1 \
+              || { echo "::error::follow-up plan failed in $root"; exit 1; }
+            terraform -chdir=$root show -json check.tfplan > "$RUNNER_TEMP/check-${root}.json"
+            n=$(python3 scripts/ci/tf-gate.py list "$RUNNER_TEMP/check-${root}.json" | wc -l | tr -d ' ')
+            echo "- \`$root\` after apply: $n change(s) left" >> "$GITHUB_STEP_SUMMARY"
+            [ "$n" = "0" ] || echo "::warning::$root still shows $n change(s) after the apply"
+          done
+
+      - name: Remove plan files
+        if: always()
+        run: rm -f infra/dev.tfplan talent-flow-infra/dev.tfplan infra/check.tfplan talent-flow-infra/check.tfplan "$RUNNER_TEMP"/*.json "$RUNNER_TEMP"/*.log "$RUNNER_TEMP"/*.err "$RUNNER_TEMP"/*.txt placeholder.zip
+
+  # Iggie's tap for deletes and replaces in pepla-dev. Signs in to nothing.
+  tf-dev-delete-gate:
+    name: "pepla-dev: approve deletes"
+    needs: tf-dev
+    if: needs.tf-dev.outputs.destroys == 'true' && vars.TF_AUTO_APPLY == 'true'
+    runs-on: ubuntu-latest
+    environment: dev-destroy
+    steps:
+      - name: What will be deleted or replaced
+        env:
+          INFRA_LIST: ${{ needs.tf-dev.outputs.infra_list }}
+          TALENT_LIST: ${{ needs.tf-dev.outputs.talent_list }}
+        run: |
+          {
+            echo "### Approved: deletes and replaces in pepla-dev"
+            echo '```'
+            printf '%s\n%s\n' "$INFRA_LIST" "$TALENT_LIST" | grep -E '^(delete|replace)' || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  tf-dev-after-approval:
+    name: "Terraform pepla-dev: apply after approval"
+    needs: [tf-dev, tf-dev-delete-gate]
+    if: github.ref == 'refs/heads/develop' && needs.tf-dev-delete-gate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: dev-apply
+    concurrency:
+      group: tf-apply-dev
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      applied: ${{ steps.done.outputs.applied }}
+    env:
+      INFRA_LIST: ${{ needs.tf-dev.outputs.infra_list }}
+      TALENT_LIST: ${{ needs.tf-dev.outputs.talent_list }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::424556617428:role/pepla-github-tf-apply-dev
+          role-session-name: tf-apply-dev-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 3600
+
+      - name: Check we are in pepla-dev
+        run: |
+          acct=$(aws sts get-caller-identity --query Account --output text)
+          [ "$acct" = "$DEV_ACCOUNT" ] || { echo "::error::not pepla-dev"; exit 1; }
+
+      - name: Create placeholder.zip
+        run: |
+          python3 -c "import zipfile; zipfile.ZipFile('placeholder.zip','w').writestr('index.mjs','export const handler = async () => ({ statusCode: 200 });')"
+
+      - name: Plan again
+        run: |
+          for root in infra talent-flow-infra; do
+            terraform -chdir=$root init -input=false -no-color -reconfigure -backend-config=env/dev.s3.tfbackend > "$RUNNER_TEMP/init-${root}.log" 2>&1 \
+              || { echo "::error::terraform init failed in $root"; tail -20 "$RUNNER_TEMP/init-${root}.log"; exit 1; }
+            if ! terraform -chdir=$root plan -input=false -no-color -lock-timeout=300s -var-file=env/dev.tfvars -out=approved.tfplan > "$RUNNER_TEMP/plan-${root}.log" 2> "$RUNNER_TEMP/plan-${root}.err"; then
+              echo "::error::terraform plan failed in $root"
+              tail -30 "$RUNNER_TEMP/plan-${root}.err"
+              exit 1
+            fi
+            terraform -chdir=$root show -json approved.tfplan > "$RUNNER_TEMP/${root}.json"
+          done
+
+      - name: Same changes as approved?
+        run: |
+          printf '%s\n' "$INFRA_LIST" > "$RUNNER_TEMP/approved-infra.txt"
+          printf '%s\n' "$TALENT_LIST" > "$RUNNER_TEMP/approved-talent-flow-infra.txt"
+          ok=1
+          for root in infra talent-flow-infra; do
+            echo "== $root"
+            python3 scripts/ci/tf-gate.py compare "$RUNNER_TEMP/approved-${root}.txt" "$RUNNER_TEMP/${root}.json" || ok=0
+          done
+          [ "$ok" = 1 ] || { echo "::error::The plan changed since it was approved. Nothing was applied."; exit 1; }
+
+      - name: Apply infra/ (saved plan)
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: |
+          if ! terraform -chdir=infra apply -input=false -no-color -lock-timeout=300s approved.tfplan > "$RUNNER_TEMP/apply-infra.log" 2> "$RUNNER_TEMP/apply-infra.err"; then
+            echo "::error::terraform apply failed in infra (talent-flow-infra was not applied)"
+            tail -30 "$RUNNER_TEMP/apply-infra.err"
+            exit 1
+          fi
+
+      - name: Apply talent-flow-infra/ (saved plan)
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: |
+          if ! terraform -chdir=talent-flow-infra apply -input=false -no-color -lock-timeout=300s approved.tfplan > "$RUNNER_TEMP/apply-talent.log" 2> "$RUNNER_TEMP/apply-talent.err"; then
+            echo "::error::terraform apply failed in talent-flow-infra"
+            tail -30 "$RUNNER_TEMP/apply-talent.err"
+            exit 1
+          fi
+
+      - name: Mark applied
+        id: done
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: echo "applied=true" >> "$GITHUB_OUTPUT"
+
+      - name: Applies are switched off
+        if: vars.TF_AUTO_APPLY != 'true'
+        run: echo "### Applies are switched off (TF_AUTO_APPLY is not \"true\")." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove plan files
+        if: always()
+        run: rm -f infra/approved.tfplan talent-flow-infra/approved.tfplan "$RUNNER_TEMP"/*.json "$RUNNER_TEMP"/*.log "$RUNNER_TEMP"/*.err "$RUNNER_TEMP"/*.txt placeholder.zip
+
+  # One issue per environment: opened or updated on a failed apply, closed by the next good one.
+  report-dev:
+    name: "pepla-dev: failure issue"
+    needs: [tf-dev, tf-dev-after-approval]
+    if: always() && github.ref == 'refs/heads/develop' && needs.tf-dev.result != 'skipped' && needs.tf-dev.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: 'Open, update or close "Terraform apply failed: dev"'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILED: ${{ needs.tf-dev.result == 'failure' || needs.tf-dev-after-approval.result == 'failure' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Terraform apply failed: dev"
+          issue=$(gh issue list --state open --search "\"$title\" in:title" --json number,title -q ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ "$FAILED" = "true" ]; then
+            text="The Terraform run for pepla-dev failed on $(date -u +%F) ($GITHUB_SHA). Nothing after the failed step ran. Open the run for the error; only resource names are shown, this repo is public. Fix in a PR, or re-run the job once the cause is gone. [Run]($RUN_URL)"
+            if [ -n "$issue" ]; then gh issue comment "$issue" --body "$text"; else gh issue create --title "$title" --body "$text"; fi
+            echo "::error::Terraform apply failed: pepla-dev"
+          elif [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "The next run worked on $(date -u +%F) ($GITHUB_SHA). [Run]($RUN_URL)"
+          fi
+
+  # ──────────────────────────── pepla-dev code ─────────────────────────────
+
+  prod-plan:
+    name: "Prod: plan (read-only)"
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Branch rule on the environment: main only. No reviewer.
+    environment: prod-plan
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      release: ${{ steps.decide.outputs.release }}
+      destroys: ${{ steps.gate.outputs.destroys }}
+      code: ${{ steps.decide.outputs.code }}
+      infra_list: ${{ steps.lists.outputs.infra_list }}
+      talent_list: ${{ steps.lists.outputs.talent_list }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::937137806477:role/naleko-github-plan-readonly
+          role-session-name: prod-plan-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 3600
+
+      - name: Check we are in prod
+        run: |
+          acct=$(aws sts get-caller-identity --query Account --output text)
+          [ "$acct" = "$PROD_ACCOUNT" ] || { echo "::error::not prod"; exit 1; }
+
+      - name: Create placeholder.zip
+        run: |
+          python3 -c "import zipfile; zipfile.ZipFile('placeholder.zip','w').writestr('index.mjs','export const handler = async () => ({ statusCode: 200 });')"
+
+      - name: Plan infra/ and talent-flow-infra/
+        run: |
+          for root in infra talent-flow-infra; do
+            vars=""; [ "$root" = talent-flow-infra ] && vars="-var=aws_account_id=$PROD_ACCOUNT"
+            terraform -chdir=$root init -input=false -no-color > "$RUNNER_TEMP/init-${root}.log" 2>&1 \
+              || { echo "::error::terraform init failed in $root"; tail -20 "$RUNNER_TEMP/init-${root}.log"; exit 1; }
+            if ! terraform -chdir=$root plan -input=false -no-color -lock-timeout=300s $vars -out=prod.tfplan > "$RUNNER_TEMP/plan-${root}.log" 2> "$RUNNER_TEMP/plan-${root}.err"; then
+              echo "::error::terraform plan failed in $root"
+              tail -30 "$RUNNER_TEMP/plan-${root}.err"
+              exit 1
+            fi
+            terraform -chdir=$root show -json prod.tfplan > "$RUNNER_TEMP/${root}.json"
+            python3 scripts/ci/tf-gate.py summary "$root" "$RUNNER_TEMP/${root}.json" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Change lists
+        id: lists
+        run: |
+          {
+            echo "infra_list<<LIST_END"
+            python3 scripts/ci/tf-gate.py list "$RUNNER_TEMP/infra.json"
+            echo "LIST_END"
+            echo "talent_list<<LIST_END"
+            python3 scripts/ci/tf-gate.py list "$RUNNER_TEMP/talent-flow-infra.json"
+            echo "LIST_END"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Deletes and replaces
+        id: gate
+        run: |
+          found=0
+          for root in infra talent-flow-infra; do
+            set +e
+            python3 scripts/ci/tf-gate.py destroys "$RUNNER_TEMP/${root}.json" > "$RUNNER_TEMP/destroys-${root}.txt"
+            rc=$?
+            set -e
+            case $rc in
+              0) ;;
+              3) found=1 ;;
+              *) echo "::error::the apply guard could not read the $root plan"; exit 1 ;;
+            esac
+          done
+          echo "destroys=$([ "$found" = 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Is there anything to release?
+        id: decide
+        env:
+          LAMBDA_CHANGED: ${{ inputs.lambda }}
+          PROD_LAMBDA_DEPLOY: ${{ vars.PROD_LAMBDA_DEPLOY }}
+          TF_AUTO_APPLY: ${{ vars.TF_AUTO_APPLY }}
+        run: |
+          infra=$({ python3 scripts/ci/tf-gate.py list "$RUNNER_TEMP/infra.json"; python3 scripts/ci/tf-gate.py list "$RUNNER_TEMP/talent-flow-infra.json"; } | wc -l | tr -d ' ')
+          code=false
+          [ "$LAMBDA_CHANGED" = "true" ] && [ "$PROD_LAMBDA_DEPLOY" = "true" ] && code=true
+          release=false
+          if [ "$infra" != "0" ] && [ "$TF_AUTO_APPLY" = "true" ]; then release=true; fi
+          [ "$code" = "true" ] && release=true
+          printf 'code=%s\nrelease=%s\n' "$code" "$release" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Release"
+            echo "- Terraform changes: $infra"
+            echo "- Lambda code to deploy: $code"
+            if [ "$infra" != "0" ] && [ "$TF_AUTO_APPLY" != "true" ]; then
+              echo "- Applies are switched off (TF_AUTO_APPLY is not \"true\"): the Terraform changes above wait."
+            fi
+            if [ "$release" = "true" ]; then
+              echo "- Waiting for one Approve in **Production**. It covers the Terraform changes and the Lambda code."
+            else
+              echo "- Nothing to release. No Approve needed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove plan files
+        if: always()
+        run: rm -f infra/prod.tfplan talent-flow-infra/prod.tfplan "$RUNNER_TEMP"/*.json "$RUNNER_TEMP"/*.log "$RUNNER_TEMP"/*.err "$RUNNER_TEMP"/*.txt placeholder.zip
+
+  # Iggie's second tap, only when the release deletes or replaces something. Signs in to nothing.
+  prod-delete-gate:
+    name: "Prod: approve deletes"
+    needs: prod-plan
+    if: needs.prod-plan.outputs.destroys == 'true' && needs.prod-plan.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    environment: production-destroy
+    steps:
+      - name: What will be deleted or replaced
+        env:
+          INFRA_LIST: ${{ needs.prod-plan.outputs.infra_list }}
+          TALENT_LIST: ${{ needs.prod-plan.outputs.talent_list }}
+        run: |
+          {
+            echo "### Deletes and replaces in prod"
+            echo "Only these. Approve here, then approve the release in Production."
+            echo '```'
+            printf '%s\n%s\n' "$INFRA_LIST" "$TALENT_LIST" | grep -E '^(delete|replace)' || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # The one Approve per release (environment Production: Iggie, main only).
+  release:
+    name: "Prod: apply and deploy (after Approve)"
+    needs: [prod-plan, prod-delete-gate]
+    if: >-
+      ${{ !cancelled() && github.ref == 'refs/heads/main'
+      && needs.prod-plan.result == 'success'
+      && needs.prod-plan.outputs.release == 'true'
+      && (needs.prod-delete-gate.result == 'success' || (needs.prod-delete-gate.result == 'skipped' && needs.prod-plan.outputs.destroys != 'true')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: Production
+    concurrency:
+      group: tf-apply-prod
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      applied: ${{ steps.done.outputs.applied }}
+    env:
+      INFRA_LIST: ${{ needs.prod-plan.outputs.infra_list }}
+      TALENT_LIST: ${{ needs.prod-plan.outputs.talent_list }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Sign in as the prod apply role
+        if: vars.TF_AUTO_APPLY == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::937137806477:role/pepla-github-tf-apply-prod
+          role-session-name: tf-apply-prod-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 3600
+
+      - name: Check we are in prod
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: |
+          acct=$(aws sts get-caller-identity --query Account --output text)
+          [ "$acct" = "$PROD_ACCOUNT" ] || { echo "::error::not prod"; exit 1; }
+
+      - name: Create placeholder.zip
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: |
+          python3 -c "import zipfile; zipfile.ZipFile('placeholder.zip','w').writestr('index.mjs','export const handler = async () => ({ statusCode: 200 });')"
+
+      - name: Plan again
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: |
+          for root in infra talent-flow-infra; do
+            vars=""; [ "$root" = talent-flow-infra ] && vars="-var=aws_account_id=$PROD_ACCOUNT"
+            terraform -chdir=$root init -input=false -no-color > "$RUNNER_TEMP/init-${root}.log" 2>&1 \
+              || { echo "::error::terraform init failed in $root"; tail -20 "$RUNNER_TEMP/init-${root}.log"; exit 1; }
+            if ! terraform -chdir=$root plan -input=false -no-color -lock-timeout=300s $vars -out=release.tfplan > "$RUNNER_TEMP/plan-${root}.log" 2> "$RUNNER_TEMP/plan-${root}.err"; then
+              echo "::error::terraform plan failed in $root"
+              tail -30 "$RUNNER_TEMP/plan-${root}.err"
+              exit 1
+            fi
+            terraform -chdir=$root show -json release.tfplan > "$RUNNER_TEMP/${root}.json"
+          done
+
+      - name: Same changes as approved?
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: |
+          printf '%s\n' "$INFRA_LIST" > "$RUNNER_TEMP/approved-infra.txt"
+          printf '%s\n' "$TALENT_LIST" > "$RUNNER_TEMP/approved-talent-flow-infra.txt"
+          ok=1
+          for root in infra talent-flow-infra; do
+            echo "== $root"
+            python3 scripts/ci/tf-gate.py compare "$RUNNER_TEMP/approved-${root}.txt" "$RUNNER_TEMP/${root}.json" || ok=0
+          done
+          [ "$ok" = 1 ] || { echo "::error::Prod changed since the plan Iggie approved. Nothing was applied."; exit 1; }
+
+      - name: Apply infra/ (saved plan)
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: |
+          if ! terraform -chdir=infra apply -input=false -no-color -lock-timeout=300s release.tfplan > "$RUNNER_TEMP/apply-infra.log" 2> "$RUNNER_TEMP/apply-infra.err"; then
+            echo "::error::terraform apply failed in infra (talent-flow-infra and Lambda code were not deployed)"
+            tail -30 "$RUNNER_TEMP/apply-infra.err"
+            exit 1
+          fi
+          grep -E '^Apply complete' "$RUNNER_TEMP/apply-infra.log" || true
+
+      - name: Apply talent-flow-infra/ (saved plan)
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: |
+          if ! terraform -chdir=talent-flow-infra apply -input=false -no-color -lock-timeout=300s release.tfplan > "$RUNNER_TEMP/apply-talent.log" 2> "$RUNNER_TEMP/apply-talent.err"; then
+            echo "::error::terraform apply failed in talent-flow-infra (Lambda code was not deployed)"
+            tail -30 "$RUNNER_TEMP/apply-talent.err"
+            exit 1
+          fi
+          grep -E '^Apply complete' "$RUNNER_TEMP/apply-talent.log" || true
+
+      - name: Mark applied
+        id: done
+        if: vars.TF_AUTO_APPLY == 'true'
+        run: echo "applied=true" >> "$GITHUB_OUTPUT"
+
+      - name: Applies are switched off
+        if: vars.TF_AUTO_APPLY != 'true'
+        run: echo "### Applies are switched off (TF_AUTO_APPLY is not \"true\"). Terraform changes wait; Lambda code still deploys." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove plan files
+        if: always()
+        run: rm -f infra/release.tfplan talent-flow-infra/release.tfplan "$RUNNER_TEMP"/*.json "$RUNNER_TEMP"/*.log "$RUNNER_TEMP"/*.err "$RUNNER_TEMP"/*.txt placeholder.zip
+
+      # Lambda code goes after infra, with the code-only role.
+      - name: Sign in as the code-only role
+        if: needs.prod-plan.outputs.code == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::937137806477:role/pepla-github-deploy-code-prod
+          role-session-name: deploy-code-prod-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/download-artifact@v4
+        if: needs.prod-plan.outputs.code == 'true'
+        with:
+          name: lambda-bundles-${{ github.sha }}
+          path: dist/lambdas/
+
+      - name: Deploy the same code that passed pepla-dev
+        if: needs.prod-plan.outputs.code == 'true'
+        run: |
+          acct=$(aws sts get-caller-identity --query Account --output text)
+          [ "$acct" = "$PROD_ACCOUNT" ] || { echo "::error::not prod"; exit 1; }
+          scripts/ci/deploy-lambdas.sh dist/lambdas
+
+  report-prod:
+    name: "Prod: failure issue"
+    needs: [prod-plan, release]
+    if: always() && github.ref == 'refs/heads/main' && needs.release.result != 'skipped' && needs.release.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: 'Open, update or close "Terraform apply failed: prod"'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILED: ${{ needs.release.result == 'failure' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Terraform apply failed: prod"
+          issue=$(gh issue list --state open --search "\"$title\" in:title" --json number,title -q ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ "$FAILED" = "true" ]; then
+            text="The Terraform run for prod failed on $(date -u +%F) ($GITHUB_SHA). Nothing after the failed step ran. Open the run for the error; only resource names are shown, this repo is public. Fix in a PR, or re-run the job once the cause is gone. [Run]($RUN_URL)"
+            if [ -n "$issue" ]; then gh issue comment "$issue" --body "$text"; else gh issue create --title "$title" --body "$text"; fi
+            echo "::error::Terraform apply failed: prod"
+          elif [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "The next run worked on $(date -u +%F) ($GITHUB_SHA). [Run]($RUN_URL)"
+          fi

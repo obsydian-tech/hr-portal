@@ -47,10 +47,11 @@ locals {
 # GSI2: byCandidateId    PK=candidateId SK=createdAt  → orchestration / audit
 
 resource "aws_dynamodb_table" "it_tasks" {
-  name         = local.it_tasks_table_name
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "taskId"
-  table_class  = "STANDARD"
+  name                        = local.it_tasks_table_name
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "taskId"
+  table_class                 = "STANDARD"
 
   attribute {
     name = "taskId"
@@ -106,6 +107,10 @@ resource "aws_dynamodb_table" "it_tasks" {
     Component          = "ITProvisioning"
     DataClassification = "Internal"
     Ticket             = "IT-001"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 

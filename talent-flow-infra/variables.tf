@@ -29,12 +29,6 @@ variable "project" {
   }
 }
 
-variable "manage_github_ci_roles" {
-  description = "Create the GitHub OIDC provider and CI roles in this account. True in prod only; pepla-dev gets them from bootstrap/dev."
-  type        = bool
-  default     = true
-}
-
 # ── IDs of resources owned by infra/ (Naleko onboarding stack) ───────────────
 # Defaults are prod. A new account (pepla-dev) sets them in env/<env>.tfvars;
 # see bootstrap/dev/README.md for the first-time apply order.

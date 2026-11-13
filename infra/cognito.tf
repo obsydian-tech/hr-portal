@@ -6,7 +6,7 @@ resource "aws_cognito_user_pool" "naleko_dev" {
   name                     = "naleko-dev-user-pool"
   auto_verified_attributes = ["email"]
   username_attributes      = ["email"]
-  deletion_protection      = "INACTIVE"
+  deletion_protection      = "ACTIVE"
   mfa_configuration        = "OFF"
   user_pool_tier           = "ESSENTIALS"
 
@@ -99,6 +99,10 @@ resource "aws_cognito_user_pool" "naleko_dev" {
   # Bumps employee stage INVITED → ACTIVE on first login.
   lambda_config {
     post_authentication = aws_lambda_function.cognito_post_auth.arn
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 

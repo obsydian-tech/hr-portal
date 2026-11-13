@@ -26,10 +26,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 resource "aws_dynamodb_table" "intelligence_dismissals" {
-  name         = "talent-flow-intelligence-dismissals"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+  name                        = "talent-flow-intelligence-dismissals"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "PK"
+  range_key                   = "SK"
 
   attribute {
     name = "PK"
@@ -63,4 +64,8 @@ resource "aws_dynamodb_table" "intelligence_dismissals" {
     Ticket             = "INTEL-002"
     Phase              = "EPIC1-Task1.1"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }

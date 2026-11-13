@@ -6,24 +6,22 @@ on:
     branches: [develop, main]
     paths:
       - "pepla-web/**"
-      - ".github/workflows/pepla-web.yml"
-      # Read or run by the BE-16 acceptance checks.
-      - "infra/cognito.tf"
-      - "infra/cognito-group-imports.tf"
-      - "scripts/ci/seed-dev.py"
-      - ".github/workflows/terraform-plan.yml"
-      - ".github/workflows/drift-check.yml"
+      # Read or run by the infra acceptance checks (BE-16, OPS-05).
+      - "infra/**"
+      - "talent-flow-infra/**"
+      - "bootstrap/**"
+      - "scripts/ci/**"
+      - ".github/workflows/**"
   push:
     branches: [develop, main]
     paths:
       - "pepla-web/**"
-      - ".github/workflows/pepla-web.yml"
-      # Read or run by the BE-16 acceptance checks.
-      - "infra/cognito.tf"
-      - "infra/cognito-group-imports.tf"
-      - "scripts/ci/seed-dev.py"
-      - ".github/workflows/terraform-plan.yml"
-      - ".github/workflows/drift-check.yml"
+      # Read or run by the infra acceptance checks (BE-16, OPS-05).
+      - "infra/**"
+      - "talent-flow-infra/**"
+      - "bootstrap/**"
+      - "scripts/ci/**"
+      - ".github/workflows/**"
 
 concurrency:
   group: pepla-web-${{ github.ref }}
