@@ -122,6 +122,11 @@
       "group": "Places and modules"
     },
     {
+      "name": "layout-grid",
+      "meaning": "Modules switched on for a company",
+      "group": "Places and modules"
+    },
+    {
       "name": "user-cog",
       "meaning": "HR admin, HR director",
       "group": "Roles (matches the role pill)"
@@ -149,6 +154,16 @@
     {
       "name": "user",
       "meaning": "Employee",
+      "group": "Roles (matches the role pill)"
+    },
+    {
+      "name": "user-round-check",
+      "meaning": "Manager",
+      "group": "Roles (matches the role pill)"
+    },
+    {
+      "name": "user-round",
+      "meaning": "Guest",
       "group": "Roles (matches the role pill)"
     },
     {
@@ -609,6 +624,11 @@
     {
       "name": "bell",
       "meaning": "Notifications",
+      "group": "Actions and navigation"
+    },
+    {
+      "name": "log-in",
+      "meaning": "Sign in",
       "group": "Actions and navigation"
     },
     {
