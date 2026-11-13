@@ -6,6 +6,9 @@
 #                      or replace waits for a second Approve)
 #                  ->  deploy code to pepla-dev (GitHub env "dev", OIDC role),
 #                      only after the apply succeeded or had nothing to do
+#                      (a code-only merge, no Terraform change, still deploys
+#                      and is tested: the Terraform workflow ends with a
+#                      result job that is never skipped on develop)
 #                  ->  call app-e2e-dev.yml: seed pepla-dev, then run every
 #                      journey of the current app and the new app's pepla-dev
 #                      tests (once per merge, after the apply and the deploy)

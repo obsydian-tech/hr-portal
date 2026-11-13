@@ -9,6 +9,10 @@
 #                plan again, apply only if it matches
 #            deploy-lambdas.yml deploys Lambda code and runs the pepla-dev
 #            tests only after this whole workflow succeeded.
+#            "pepla-dev: Terraform result" (dev-result) always runs on
+#            develop and ends the call as success or failure, so a merge
+#            with no Terraform change (code only) is never "skipped" and
+#            still deploys and is tested.
 #
 #   main     ->  read-only plan of prod (env "prod-plan"): change list in the
 #   (release)    summary, one row per resource
@@ -355,6 +359,54 @@ jobs:
           elif [ -n "$issue" ]; then
             gh issue close "$issue" --comment "The next run worked on $(date -u +%F) ($GITHUB_SHA). [Run]($RUN_URL)"
           fi
+
+  # OPS-07: the one job that decides how this called workflow ends on develop.
+  # Without it, a merge that changes no Terraform skips every job above, the
+  # call counts as "skipped", and deploy-lambdas.yml skips the code deploy and
+  # the pepla-dev tests with it. This job always runs on develop and ends the
+  # call as success or failure, never skipped. It signs in to nothing.
+  dev-result:
+    name: "pepla-dev: Terraform result"
+    needs: [tf-dev, tf-dev-delete-gate, tf-dev-after-approval]
+    if: always() && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Pass only when nothing is left to wait for or fix
+        env:
+          INFRA: ${{ inputs.infra }}
+          AUTO_APPLY: ${{ vars.TF_AUTO_APPLY }}
+          TF_DEV: ${{ needs.tf-dev.result }}
+          DESTROYS: ${{ needs.tf-dev.outputs.destroys }}
+          GATE: ${{ needs.tf-dev-delete-gate.result }}
+          AFTER: ${{ needs.tf-dev-after-approval.result }}
+        run: |
+          echo "infra=$INFRA auto_apply=$AUTO_APPLY tf-dev=$TF_DEV destroys=$DESTROYS gate=$GATE after-approval=$AFTER"
+          if [ "$TF_DEV" = "skipped" ]; then
+            if [ "$INFRA" != "true" ]; then
+              echo "No Terraform change in this merge: nothing to apply on pepla-dev."
+              exit 0
+            fi
+            echo "::error::The pepla-dev Terraform plan was skipped although Terraform changed."
+            exit 1
+          fi
+          if [ "$TF_DEV" != "success" ]; then
+            echo "::error::The pepla-dev Terraform plan or apply ended as $TF_DEV."
+            exit 1
+          fi
+          if [ "$AUTO_APPLY" != "true" ]; then
+            echo "Applies are switched off: plan only."
+            exit 0
+          fi
+          if [ "$DESTROYS" = "true" ]; then
+            if [ "$GATE" = "success" ] && [ "$AFTER" = "success" ]; then
+              echo "Delete approved and applied."
+              exit 0
+            fi
+            echo "::error::A delete or replace was not approved and applied (gate $GATE, apply $AFTER)."
+            exit 1
+          fi
+          echo "Applied with nothing to delete."
 
   # ──────────────────────────── pepla-dev code ─────────────────────────────
 
