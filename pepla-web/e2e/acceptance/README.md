@@ -17,6 +17,7 @@ feature is built.
 | ONB-12 One new employee's page (NH-156) | `onb-12.spec.ts` | [NH-156](https://obsydian.atlassian.net/browse/NH-156) |
 | HELP-01.3 Release PRs into main skip the AC-10 help pictures rule (NH-157) | `help-01.spec.ts` | [NH-157](https://obsydian.atlassian.net/browse/NH-157) |
 | OPS-06 After-merge test run can't be bumped from the pepla-dev queue (NH-158): checks the workflow files | `ops-06.spec.ts` | [NH-158](https://obsydian.atlassian.net/browse/NH-158) |
+| HELP-02 Help pictures: HR sees who is starting (NH-159) | `help-02.spec.ts`, `support/help-02.ts` | [NH-159](https://obsydian.atlassian.net/browse/NH-159) |
 
 ## Locked
 
@@ -71,6 +72,9 @@ request or a renamed button to the page. It puts `help/media` back as it was.
 These tests run once (in `desktop-1280`) and check the journey's desktop and
 phone runs themselves. They need `ffmpeg`, `ffprobe`, ImageMagick `compare`
 and `python3`, like the help retake workflow.
+`help-02.spec.ts` adds a `watcher` to the recorder (`support/help-02.ts`): it
+sees the scroll position, a shown masked value, the full made-up ID number in
+the page text, and every email and phone number the page shows.
 
 ### Cards about workflows
 
