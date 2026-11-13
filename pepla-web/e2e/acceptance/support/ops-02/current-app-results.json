@@ -1,0 +1,117 @@
+{
+ "suites": [
+  {
+   "title": "smoke.spec.ts",
+   "file": "smoke.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [],
+   "suites": [
+    {
+     "title": "Smoke",
+     "file": "smoke.spec.ts",
+     "line": 2,
+     "column": 6,
+     "specs": [
+      {
+       "title": "HR dashboard loads",
+       "ok": true,
+       "tags": [
+        "smoke"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "chromium",
+         "projectName": "chromium",
+         "results": [
+          {
+           "status": "passed",
+           "duration": 1200,
+           "errors": [],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "expected"
+        }
+       ],
+       "id": "4219922fea2e2bd3c691-67be66b31cb8f9c2813a",
+       "file": "smoke.spec.ts",
+       "line": 3,
+       "column": 7
+      },
+      {
+       "title": "Employee dashboard loads",
+       "ok": false,
+       "tags": [
+        "smoke"
+       ],
+       "tests": [
+        {
+         "timeout": 30000,
+         "annotations": [],
+         "expectedStatus": "passed",
+         "projectId": "chromium",
+         "projectName": "chromium",
+         "results": [
+          {
+           "status": "failed",
+           "duration": 1200,
+           "errors": [
+            {
+             "message": "Error: sample failure"
+            }
+           ],
+           "stdout": [],
+           "stderr": [],
+           "retry": 0,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          },
+          {
+           "status": "failed",
+           "duration": 1200,
+           "errors": [
+            {
+             "message": "Error: sample failure"
+            }
+           ],
+           "stdout": [],
+           "stderr": [],
+           "retry": 1,
+           "startTime": "2026-11-13T10:00:00.000Z",
+           "annotations": [],
+           "attachments": []
+          }
+         ],
+         "status": "unexpected"
+        }
+       ],
+       "id": "4219922fea2e2bd3c691-36a66f55dda370f67462",
+       "file": "smoke.spec.ts",
+       "line": 5,
+       "column": 7
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "errors": [],
+ "stats": {
+  "startTime": "2026-11-13T10:00:00.000Z",
+  "duration": 42000,
+  "expected": 1,
+  "unexpected": 1,
+  "flaky": 0,
+  "skipped": 0
+ }
+}
