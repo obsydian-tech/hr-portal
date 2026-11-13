@@ -598,11 +598,13 @@ export interface VerificationCheck { label: string; result: 'match' | 'mismatch'
       <div class="pp-card__titles"><span class="pp-card__title" role="heading" aria-level="3">{{ heading() }}</span><span class="pp-card__subtitle">{{ subheading() }}</span></div>
       <div class="pp-card__aside"><pp-lozenge [bold]="true" [status]="r().status" [icon]="r().icon">{{ r().text }}</pp-lozenge></div>
     </div>
-    <ul class="pp-verification__checks" aria-label="What was compared">
-      @for (c of checks(); track c.label) {
-        <li class="pp-verification__check" [class]="c.result !== 'match' ? 'pp-verification__check--' + c.result : ''"><svg [ppIcon]="c.result === 'match' ? 'check' : c.result === 'mismatch' ? 'x' : 'triangle-alert'" /><span>{{ c.label }}@if (c.note) {&ngsp;<span class="pp-verification__check-note">{{ c.note }}</span>}</span></li>
-      }
-    </ul>
+    @if (checks().length) {
+      <ul class="pp-verification__checks" aria-label="What was compared">
+        @for (c of checks(); track c.label) {
+          <li class="pp-verification__check" [class]="c.result !== 'match' ? 'pp-verification__check--' + c.result : ''"><svg [ppIcon]="c.result === 'match' ? 'check' : c.result === 'mismatch' ? 'x' : 'triangle-alert'" /><span>{{ c.label }}@if (c.note) {&ngsp;<span class="pp-verification__check-note">{{ c.note }}</span>}</span></li>
+        }
+      </ul>
+    }
     <ng-content />
   `,
   host: { class: 'pp-card pp-verification', role: 'article' },
@@ -611,13 +613,15 @@ export class PpVerification {
   readonly heading = input.required<string>();
   readonly subheading = input.required<string>();
   readonly icon = input<IconName>('id-card');
-  /** matches: everything matched. mismatch: something does not match. check: needs a look. The check only flags; HR decides. */
-  readonly result = input.required<'matches' | 'mismatch' | 'check'>();
-  readonly checks = input.required<VerificationCheck[]>();
+  /** matches: everything matched. mismatch: something does not match. check: needs a look. reading: the file is still being read. The check only flags; HR decides. */
+  readonly result = input.required<'matches' | 'mismatch' | 'check' | 'reading'>();
+  /** What was compared. Leave it empty when the page has no comparison to list. */
+  readonly checks = input<VerificationCheck[]>([]);
   protected readonly r = computed(() => ({
     matches: { status: 'success' as Status, icon: 'shield-check' as IconName, text: 'Matches' },
     mismatch: { status: 'warning' as Status, icon: 'triangle-alert' as IconName, text: "Doesn't match" },
     check: { status: 'warning' as Status, icon: 'triangle-alert' as IconName, text: 'Needs a look' },
+    reading: { status: 'neutral' as Status, icon: 'clock' as IconName, text: 'Being checked' },
   })[this.result()]);
 }
 

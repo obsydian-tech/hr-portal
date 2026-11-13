@@ -14,6 +14,7 @@ feature is built.
 | BE-16 Sign-in groups set up by Terraform (NH-151) | `be-16.spec.ts` | [NH-151](https://obsydian.atlassian.net/browse/NH-151) |
 | HELP-01.2 HR home in the help pictures shows Sunbird Bakery's new employees (with ONB-02) | `support/journey-harness.ts` | ONB-02 spec, Decision 1 |
 | ONB-02 HR home: who is starting (NH-155) | `onb-02.spec.ts` | [NH-155](https://obsydian.atlassian.net/browse/NH-155) |
+| ONB-12 One new employee's page (NH-156) | `onb-12.spec.ts` | [NH-156](https://obsydian.atlassian.net/browse/NH-156) |
 | HELP-01.3 Release PRs into main skip the AC-10 help pictures rule (NH-157) | `help-01.spec.ts` | [NH-157](https://obsydian.atlassian.net/browse/NH-157) |
 | OPS-06 After-merge test run can't be bumped from the pepla-dev queue (NH-158): checks the workflow files | `ops-06.spec.ts` | [NH-158](https://obsydian.atlassian.net/browse/NH-158) |
 
@@ -89,6 +90,22 @@ stand-in `boto3` that records every call and never reaches AWS), and runs one
 step of a workflow with a stub `terraform` and made-up plans. What only real
 AWS can show (the prod plan on the PR, the pepla-dev apply) is read by the
 verifier on the second pass. Needs `python3`, `jq` and `bash`.
+
+Pages that read one person (ONB-12 on) get them from
+`support/documents-fake.ts`: it answers
+`GET <documentUploadApiUrl>/v1/employees/<id>/verifications` in the browser. People
+and documents are given as they are stored; the fake works out `check` and
+`hr_decision` with the card's tables, the same functions the Lambda is held to.
+
+### Cards that change a Lambda
+
+`onb-12.spec.ts` AC-5 and AC-11 run the real `lambda/getEmployeeDocumentVerifications`
+handler in its own Node process against a fake AWS (`support/onb-12/fake-aws`):
+every AWS SDK and Powertools import is answered by a fake, the tables come from
+made-up people, and every DynamoDB and KMS call is recorded. Nothing is installed
+in the Lambda folder and nothing reaches AWS; importing an AI client fails the run.
+They run once (in `desktop-1280`). `support/onb-12/openapi_route.py` reads
+`api/openapi.yaml` (python3 and PyYAML).
 
 No test calls Bedrock or any paid AI: `support/fixtures.ts` refuses AI routes and
 AWS AI hosts in the browser in both runs.

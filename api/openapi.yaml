@@ -189,6 +189,34 @@ components:
           $ref: "#/components/schemas/VerificationSummary"
           nullable: true
 
+    EmployeeDocument:
+      description: |
+        A document as GET /v1/employees/{id}/verifications answers it: the stored document plus
+        the check and HR's decision, worked out by the Lambda so every reader gets one answer.
+      allOf:
+        - $ref: "#/components/schemas/Document"
+        - type: object
+          properties:
+            document_type:
+              type: string
+              enum: [NATIONAL_ID, BANK_CONFIRMATION, MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION]
+            check:
+              type: string
+              enum: [READING, MATCHES, NEEDS_A_LOOK, DOESNT_MATCH]
+              description: |
+                READING: the file is still being read. MATCHES: a verification at 90% confidence or more.
+                NEEDS_A_LOOK: under 90%, or the file could not be read. DOESNT_MATCH: reserved for ONB-07.
+            hr_decision:
+              type: string
+              nullable: true
+              enum: [ACCEPTED, NEW_ONE_ASKED, null]
+              description: Null until HR decides. Told apart by hr_reviewed_at, because HR's decision overwrites ocr_status.
+            hr_decided_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When HR decided, or null.
+
     VerificationSummary:
       type: object
       description: Condensed OCR result used in list views and embedded in Document records.
@@ -503,7 +531,7 @@ paths:
                   documents:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Document"
+                      $ref: "#/components/schemas/EmployeeDocument"
                   summary:
                     type: object
                     properties:
@@ -515,6 +543,15 @@ paths:
                         type: integer
                       failed:
                         type: integer
+        "403":
+          description: |
+            The caller is neither in the hr_staff group nor the employee (the token email
+            must equal the employee's email, compared without case). The body carries no
+            employee or document data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: Employee not found.
           content:

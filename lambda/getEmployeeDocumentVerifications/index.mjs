@@ -29,6 +29,50 @@ async function kmsDecrypt(ciphertext) {
   }
 }
 
+const json = (statusCode, body) => ({
+  statusCode,
+  headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+  body: JSON.stringify(body),
+});
+
+/**
+ * The caller's groups. API Gateway hands a list claim over as one string such as
+ * "[hr_staff naleko-onboarding-hr]", so it is split into names (never a substring match).
+ */
+function groupsOf(claims) {
+  const raw = claims?.['cognito:groups'];
+  const list = Array.isArray(raw) ? raw : String(raw ?? '').replace(/^\[|\]$/g, '').split(/[\s,]+/);
+  return list.map((g) => String(g).trim()).filter(Boolean);
+}
+
+/** HR staff may read anyone; everyone else may read only their own record (same email, any case). */
+function mayRead(claims, employee) {
+  if (groupsOf(claims).includes('hr_staff')) return true;
+  const mine = String(claims?.email ?? '').trim().toLowerCase();
+  const theirs = String(employee.email ?? '').trim().toLowerCase();
+  return mine !== '' && mine === theirs;
+}
+
+/**
+ * What the check on a document is, from what is stored (ONB-12 spec). ONB-07 changes the rules here only.
+ * A verification at 90% or more matches; under 90 needs a look; a file that could not be read needs a look;
+ * a file still being read is being checked.
+ */
+function checkOf(doc, verification) {
+  if (verification) return Number(verification.confidence) >= 90 ? 'MATCHES' : 'NEEDS_A_LOOK';
+  if (doc.ocr_status === 'FAILED' || doc.ocr_status === 'MANUAL_REVIEW') return 'NEEDS_A_LOOK';
+  if (doc.ocr_status === 'PASSED') return 'MATCHES';
+  return 'READING';
+}
+
+/** HR's decision overwrites ocr_status with PASSED or FAILED, so only hr_reviewed_at tells it apart. */
+function hrDecisionOf(doc) {
+  if (!doc.hr_reviewed_at) return null;
+  if (doc.ocr_status === 'PASSED') return 'ACCEPTED';
+  if (doc.ocr_status === 'FAILED') return 'NEW_ONE_ASKED';
+  return null;
+}
+
 const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, employeeId: event.pathParameters?.id || event.pathParameters?.employee_id });
   tracer.putAnnotation('operation', 'getEmployeeDocumentVerifications');
@@ -65,6 +109,13 @@ const handlerFn = async (event) => {
 
     const employee = unmarshall(empResult.Items[0]);
 
+    // Only HR or the person themselves. Nothing about the employee or their documents is read or sent before this.
+    const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
+    if (!mayRead(claims, employee)) {
+      logger.warn('Refused: caller is neither HR nor the employee');
+      return json(403, { error: 'Forbidden' });
+    }
+
     // 2. Get employee's documents
     const docsResult = await dynamodb.send(new QueryCommand({
       TableName: 'documents',
@@ -82,7 +133,8 @@ const handlerFn = async (event) => {
         return {
           ...doc,
           verification: null,
-          can_reupload: true
+          can_reupload: true,
+          check: checkOf(doc, null),
         };
       }
 
@@ -127,11 +179,12 @@ const handlerFn = async (event) => {
             gender: verification.gender,
             citizenship: verification.citizenship
           } : null,
-          can_reupload: ['MANUAL_REVIEW', 'FAILED', 'PENDING'].includes(doc.ocr_status)
+          can_reupload: ['MANUAL_REVIEW', 'FAILED', 'PENDING'].includes(doc.ocr_status),
+          check: checkOf(doc, verification)
         };
       } catch (err) {
         logger.error('Failed to get verification', { error: err });
-        return { ...doc, verification: null, can_reupload: true };
+        return { ...doc, verification: null, can_reupload: true, check: checkOf(doc, null) };
       }
     }));
 
@@ -160,6 +213,7 @@ const handlerFn = async (event) => {
           phone: employee.phone || '',
           stage: employee.stage,
           department: employee.department || '',
+          job_title: employee.job_title || '',
           planned_start_date: employee.planned_start_date || '',
           hr_staff_id: employee.hr_staff_id || employee.created_by || '',
           hr_staff_name: employee.hr_staff_name || '',
@@ -173,7 +227,10 @@ const handlerFn = async (event) => {
           ocr_status: doc.ocr_status,
           ocr_completed_at: doc.ocr_completed_at,
           verification: doc.verification,
-          can_reupload: doc.can_reupload
+          can_reupload: doc.can_reupload,
+          check: doc.check,
+          hr_decision: hrDecisionOf(doc),
+          hr_decided_at: doc.hr_reviewed_at || null
         })),
         summary
       })
