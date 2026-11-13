@@ -5,6 +5,8 @@ export const environment = {
   production: false,
   // The employees API. The placeholder never resolves; the real address is written by CI for pepla-dev.
   employeesApiUrl: 'https://employees-api.invalid',
+  // The document upload API (documents and their checks). Same placeholder rule as above.
+  documentUploadApiUrl: 'https://document-api.invalid',
   cognito: {
     userPoolId: 'af-south-1_NotConfigured',
     clientId: 'not-configured',

@@ -57,6 +57,7 @@ cat > pepla-web/src/environments/environment.ts <<TS
 export const environment = {
   production: false,
   employeesApiUrl: '${EMP_API}',
+  documentUploadApiUrl: '${DOC_API}',
   cognito: { userPoolId: '${NALEKO_POOL}', clientId: '${NALEKO_CLIENT}', region: '${REGION}' },
 };
 TS
