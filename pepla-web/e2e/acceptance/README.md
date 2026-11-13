@@ -10,6 +10,7 @@ feature is built.
 | ONB-01 HR signs in (NH-147) | `onb-01.spec.ts` | [ONB-01 card](https://claude.ai/artifact/6CCqqjLxwN6Jtt2szsKjZC) |
 | ONB-01.1 Sign-in says Email (NH-148): AC-1, AC-2, AC-11 changed, AC-13 new | `onb-01.spec.ts` | [ONB-01.1 card](https://claude.ai/artifact/C6mTFVtoRw4AGnYNVVCuNp) |
 | HELP-01 Help pictures: HR signs in (NH-149) | `help-01.spec.ts` | [HELP-01 card](https://claude.ai/artifact/2ymwurnoSSuNJZFDZi4VUN) |
+| BE-16 Sign-in groups set up by Terraform (NH-151) | `be-16.spec.ts` | [NH-151](https://obsydian.atlassian.net/browse/NH-151) |
 
 ## Locked
 
@@ -59,6 +60,16 @@ request or a renamed button to the page. It puts `help/media` back as it was.
 These tests run once (in `desktop-1280`) and check the journey's desktop and
 phone runs themselves. They need `ffmpeg`, `ffprobe`, ImageMagick `compare`
 and `python3`, like the help retake workflow.
+
+### Infra cards
+
+`be-16.spec.ts` checks an infra card, so it opens no browser and runs once (in
+`desktop-1280`). `support/infra-harness.ts` reads the Terraform files as text,
+runs a `scripts/ci` script against a fake AWS (`support/be-16/fake-aws`, a
+stand-in `boto3` that records every call and never reaches AWS), and runs one
+step of a workflow with a stub `terraform` and made-up plans. What only real
+AWS can show (the prod plan on the PR, the pepla-dev apply) is read by the
+verifier on the second pass. Needs `python3`, `jq` and `bash`.
 
 No test calls Bedrock or any paid AI: `support/fixtures.ts` refuses AI routes and
 AWS AI hosts in the browser in both runs.
