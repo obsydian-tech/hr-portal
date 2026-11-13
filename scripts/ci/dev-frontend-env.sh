@@ -56,6 +56,7 @@ cat > pepla-web/src/environments/environment.ts <<TS
 // Generated in CI by scripts/ci/dev-frontend-env.sh for the pepla-dev E2E run.
 export const environment = {
   production: false,
+  employeesApiUrl: '${EMP_API}',
   cognito: { userPoolId: '${NALEKO_POOL}', clientId: '${NALEKO_CLIENT}', region: '${REGION}' },
 };
 TS

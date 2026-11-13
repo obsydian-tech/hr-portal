@@ -7,7 +7,7 @@ import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import journeys from '../../playwright.config';
-import { HELP_PEOPLE } from '../../fixtures/help-company';
+import { HELP_NEW_EMPLOYEES, HELP_PEOPLE } from '../../fixtures/help-company';
 import { HELP_TODAY } from '../../support/help';
 import { CognitoFake } from './cognito-fake';
 import { SignInPage } from './fixtures';
@@ -464,7 +464,8 @@ export type SignInReference = {
  * The three sign-in help pictures as they should look, taken here with the
  * same settings as the journeys (size, scale, clock, locale), the same fake
  * Cognito and the help company's HR person, and checked against the card
- * (AC-4) before they are used. `passwordLength` is the length of the made-up
+ * (AC-4) before they are used. HR home answers the employees API with
+ * Sunbird Bakery's new employees (HELP-01.2, ONB-02 Decision 1). `passwordLength` is the length of the made-up
  * password the journey typed, so the dots match.
  */
 export async function signInReference(browser: Browser, width: Width, passwordLength: number): Promise<SignInReference> {
@@ -473,6 +474,7 @@ export async function signInReference(browser: Browser, width: Width, passwordLe
   try {
     const fake = new CognitoFake([{ email: HELP_HR.email, givenName: HELP_HR.givenName, familyName: HELP_HR.familyName, groups: ['hr_staff'] }]);
     await fake.install(context);
+    await answerHelpEmployees(context);
     const page = await context.newPage();
     await page.clock.setFixedTime(HELP_TODAY);
     const signIn = new SignInPage(page);
@@ -510,6 +512,8 @@ export async function signInReference(browser: Browser, width: Width, passwordLe
     const greeting = page.getByRole('heading', { name: `Welcome back, ${HELP_HR.givenName}`, exact: true });
     await greeting.waitFor({ state: 'visible' });
     if (!new URL(page.url()).pathname.startsWith('/hr')) throw new Error(`reference 03: not on HR home (${page.url()})`);
+    // HELP-01.2: HR home lists Sunbird Bakery's new employees (ONB-02).
+    for (const p of HELP_NEW_EMPLOYEES) await page.getByText(`${p.first_name} ${p.last_name}`, { exact: true }).first().waitFor({ state: 'visible' });
     const r3 = { greeting: await box(greeting) };
     const p3 = await shot();
 
@@ -517,6 +521,37 @@ export async function signInReference(browser: Browser, width: Width, passwordLe
   } finally {
     await context.close();
   }
+}
+
+// ---------------------------------------------------------------- HR home's new employees (HELP-01.2, ONB-02)
+
+/** GET <employees API>/v1/employees, on any host but the app's. */
+export const EMPLOYEES_API = (url: URL): boolean => /\/v1\/employees$/.test(url.pathname) && url.origin !== new URL(APP).origin;
+
+/**
+ * Answers the employees API in the browser with Sunbird Bakery's new
+ * employees from e2e/fixtures/help-company.ts, in one page, as the real API
+ * answers. Checks first that the list holds only the help company's people,
+ * with its HR person as HR partner, so the HR home picture can show no one else.
+ */
+export async function answerHelpEmployees(context: import('@playwright/test').BrowserContext): Promise<void> {
+  const names = new Set<string>(HELP_PEOPLE.map((p) => p.name));
+  for (const p of HELP_NEW_EMPLOYEES) {
+    const name = `${p.first_name} ${p.last_name}`;
+    if (!names.has(name)) throw new Error(`HELP_NEW_EMPLOYEES: ${name} is not one of Sunbird Bakery's people (HELP_PEOPLE)`);
+    if (p.hr_staff_name !== HELP_HR.name) throw new Error(`HELP_NEW_EMPLOYEES: ${name}'s HR partner is not ${HELP_HR.name}`);
+    if (!p.email.endsWith('@example.com')) throw new Error(`HELP_NEW_EMPLOYEES: ${name}'s email is not an example.com address`);
+  }
+  const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, OPTIONS' };
+  await context.route(EMPLOYEES_API, (route) => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+    if (req.method() !== 'GET' || !/^Bearer \S+$/.test(req.headers()['authorization'] ?? '')) {
+      return route.fulfill({ status: 401, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ message: 'Unauthorized' }) });
+    }
+    const items = HELP_NEW_EMPLOYEES.map((p) => ({ ...p, middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: HELP_HR.email }));
+    return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ items, count: items.length }) });
+  });
 }
 
 // ---------------------------------------------------------------- the retake script, in a throwaway repo

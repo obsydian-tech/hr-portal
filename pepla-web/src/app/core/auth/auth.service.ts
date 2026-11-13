@@ -76,6 +76,12 @@ export class AuthService {
     return { ok: true, user };
   }
 
+  /** The signed-in person's ID token, for calls to our own APIs. Null when nobody is signed in. */
+  async idToken(): Promise<string | null> {
+    const session = await this.readSession();
+    return session ? session.getIdToken().getJwtToken() : null;
+  }
+
   /** Ends the session here and, as far as the network allows, in Cognito. */
   async signOut(): Promise<void> {
     const cognitoUser = (await this.library).pool.getCurrentUser();
