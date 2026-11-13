@@ -8,6 +8,9 @@
 # the journeys tagged for the modules it changed, plus the @smoke set;
 # shared code runs everything. See scripts/ci/pick-e2e-tests.py. Every
 # Monday 05:00 SAST a full run checks all journeys.
+# The new app (pepla-web) runs its acceptance tests here too, against the real
+# pepla-dev sign-in pool, with the same seeded test logins (tests tagged
+# @pepla-dev; the no-backend run is in pepla-web.yml).
 # Backend code and prod are never touched, and nothing here asks for an
 # Approve. Backend changes are deployed and tested by deploy-lambdas.yml.
 #
@@ -27,6 +30,8 @@ on:
       - "hr-portal/package.json"
       - "hr-portal/package-lock.json"
       - "hr-portal/tsconfig*.json"
+      - "pepla-web/**"
+      - "scripts/ci/dev-frontend-env.sh"
       - ".github/workflows/app-e2e-dev.yml"
   push:
     branches: [develop]
@@ -36,6 +41,8 @@ on:
       - "hr-portal/package.json"
       - "hr-portal/package-lock.json"
       - "hr-portal/tsconfig*.json"
+      - "pepla-web/**"
+      - "scripts/ci/dev-frontend-env.sh"
       - ".github/workflows/app-e2e-dev.yml"
   schedule:
     - cron: "0 3 * * 1" # Monday 05:00 SAST: full run
@@ -94,7 +101,9 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: hr-portal/package-lock.json
+          cache-dependency-path: |
+            hr-portal/package-lock.json
+            pepla-web/package-lock.json
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -137,6 +146,32 @@ jobs:
           GREP: ${{ steps.pick.outputs.grep }}
         run: npx playwright test --config e2e/playwright.config.ts ${GREP:+--grep "$GREP"}
 
+      # The new app: its acceptance tests that need a real sign-in, at desktop and phone.
+      # Runs even when the old journeys failed, so one report shows both.
+      - name: Install new app and browser
+        if: ${{ !cancelled() }}
+        working-directory: pepla-web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start the new app
+        if: ${{ !cancelled() }}
+        working-directory: pepla-web
+        run: |
+          npx ng serve --host 127.0.0.1 --port 4300 > /tmp/ng-serve-pepla-web.log 2>&1 &
+          npx wait-on http://127.0.0.1:4300 --timeout 180000
+
+      - name: Run new app acceptance tests
+        id: acceptance
+        if: ${{ !cancelled() }}
+        working-directory: pepla-web
+        env:
+          ACCEPTANCE_TARGET: pepla-dev
+          E2E_BASE_URL: http://localhost:4300
+          CI: "true"
+        run: npm run e2e:acceptance
+
       - name: Clean up this run's records
         if: always()
         run: python3 scripts/ci/cleanup-dev-e2e.py
@@ -151,6 +186,7 @@ jobs:
           path: |
             hr-portal/e2e/e2e/reports/
             hr-portal/e2e/test-results/
+            pepla-web/e2e/acceptance/.output/
           retention-days: 7
           if-no-files-found: ignore
 
@@ -162,13 +198,17 @@ jobs:
         uses: actions/github-script@v7
         env:
           JOURNEYS_OUTCOME: ${{ steps.journeys.outcome }}
+          ACCEPTANCE_OUTCOME: ${{ steps.acceptance.outcome }}
           REPORT_URL: ${{ steps.report.outputs.artifact-url }}
           MODULES: ${{ steps.pick.outputs.modules }}
         with:
           script: |
             const fs = require('fs');
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const file = 'hr-portal/e2e/results/results.json';
+            const files = [
+              ['hr-portal/e2e/results/results.json', process.env.JOURNEYS_OUTCOME, ''],
+              ['pepla-web/e2e/acceptance/.output/results.json', process.env.ACCEPTANCE_OUTCOME, 'New app › '],
+            ].filter(([f, o]) => fs.existsSync(f) && o && o !== 'skipped');
             const rows = [];
             const walk = (suite, parents) => {
               const names = suite.title && !/\.(ts|js)$/.test(suite.title) ? [...parents, suite.title] : parents;
@@ -184,12 +224,16 @@ jobs:
               for (const child of suite.suites ?? []) walk(child, names);
             };
             let body;
-            const outcome = process.env.JOURNEYS_OUTCOME;
-            if (fs.existsSync(file) && outcome && outcome !== 'skipped') {
-              const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-              for (const s of data.suites ?? []) walk(s, []);
+            if (files.length) {
+              let ms = 0;
+              for (const [file, , prefix] of files) {
+                const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+                const before = rows.length;
+                for (const s of data.suites ?? []) walk(s, []);
+                for (const r of rows.slice(before)) r.group = prefix + r.group;
+                ms += data.stats?.duration ?? 0;
+              }
               const failed = rows.filter(r => r.failed).length;
-              const ms = data.stats?.duration ?? 0;
               const took = ms < 60000 ? `${Math.round(ms / 1000)} s` : `${(ms / 60000).toFixed(1)} min`;
               const head = failed ? `❌ **${failed} of ${rows.length} tests failed** on pepla-dev (${took})`
                 : `✅ **All ${rows.length} tests passed** on pepla-dev (${took})`;
