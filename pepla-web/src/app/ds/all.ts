@@ -26,6 +26,7 @@ import { PpSectionMessage, PpSectionMessageActions, PpInlineMessage, PpBanner, P
 import { PpNotification, PpNotificationsPanel } from './messages/notifications';
 import { PpBreadcrumbs, PpPageHeader, PpPageHeaderActions, PpTabs, PpPagination } from './navigation/navigation';
 import { PpAppShell, PpAppShellActions, PpSideNavigation, PpTopNavigation } from './navigation/shell';
+import { PpSignInPage, PpSignInActions } from './navigation/sign-in-page';
 import { PpModalDialog, PpModalFooter, PpDrawer, PpDrawerFooter, PpMenuItem, PpMenuSection, PpDropdownMenu, PpPopup, PpPopupFooter, PpInlineDialog, PpInlineDialogActions, PpTooltip } from './overlays/overlays';
 import { PpApprovalChain, PpOffer, PpOfferApprovals } from './records/approvals';
 import { PpBrandPreview } from './records/branding';
@@ -124,6 +125,8 @@ export const PP_ALL = [
   PpAppShellActions,
   PpSideNavigation,
   PpTopNavigation,
+  PpSignInPage,
+  PpSignInActions,
   PpModalDialog,
   PpModalFooter,
   PpDrawer,

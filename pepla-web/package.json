@@ -26,6 +26,7 @@
     "@angular/forms": "^22.2.0",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
+    "amazon-cognito-identity-js": "^6.3.22",
     "lucide": "^1.39.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
