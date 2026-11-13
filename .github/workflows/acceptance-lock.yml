@@ -1,0 +1,77 @@
+# Acceptance tests are written from the card before the code, by someone other
+# than the builder, and Iggie accepts them. After that they are locked: this
+# check fails a PR if any commit in it changes pepla-web/e2e/acceptance/ (or
+# this check) without being an accepted, tagged commit.
+#
+# How a commit is accepted: a lock branch acceptance-lock/<card>[.n] points at
+# it, for example acceptance-lock/onb-01 (a tag acceptance/<card> counts too).
+# The verifier makes the lock once Iggie accepts the tests; a commit without a
+# lock (the builder's) may not touch these files. Merges may bring in the files as
+# they are on either side, but may not change them.
+#
+# Runs on pull_request_target so the rule comes from the target branch, not
+# from the PR: a PR cannot switch the check off. It only reads git history and
+# never runs code from the PR.
+name: Acceptance tests locked
+
+on:
+  pull_request_target:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    name: Acceptance tests locked
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check commits that touch acceptance tests
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          paths=(pepla-web/e2e/acceptance/ .github/workflows/acceptance-lock.yml)
+          git fetch --quiet --force origin \
+            "+refs/tags/acceptance/*:refs/tags/acceptance/*" \
+            "+refs/heads/acceptance-lock/*:refs/remotes/origin/acceptance-lock/*" || true
+
+          declare -A accepted=()
+          while read -r lock; do
+            [ -n "$lock" ] && accepted["$(git rev-list -n 1 "$lock")"]="${lock#origin/}"
+          done < <(git for-each-ref --format='%(refname:short)' refs/tags/acceptance/ refs/remotes/origin/acceptance-lock/)
+
+          base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          bad=0
+          for c in $(git rev-list --no-merges "$base..$HEAD_SHA" -- "${paths[@]}"); do
+            if [ -n "${accepted[$c]:-}" ]; then
+              echo "ok   $(git log -1 --format='%h %s' "$c")  [${accepted[$c]}]"
+            else
+              echo "::error::$(git log -1 --format='%h %s' "$c") changes locked acceptance tests and is not an accepted commit"
+              git diff-tree --no-commit-id --name-only -r "$c" -- "${paths[@]}" | sed 's/^/       /'
+              bad=1
+            fi
+          done
+          for m in $(git rev-list --merges "$base..$HEAD_SHA"); do
+            if git diff --quiet "$m^1" "$m" -- "${paths[@]}" || git diff --quiet "$m^2" "$m" -- "${paths[@]}"; then
+              continue
+            fi
+            echo "::error::merge $(git log -1 --format='%h' "$m") changes locked acceptance tests"
+            bad=1
+          done
+
+          if [ "$bad" = 1 ]; then
+            echo
+            echo "Acceptance tests change only through the verifier, and through Iggie if a criterion changes."
+            echo "Undo the change to pepla-web/e2e/acceptance/ in this PR, or ask for the tests to be re-accepted."
+            exit 1
+          fi
+          echo "Acceptance tests are unchanged since they were accepted."
