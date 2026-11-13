@@ -21,7 +21,7 @@ import {
   tfFilesDeep,
   type Block,
 } from './support/ops-05/hcl';
-import { decide, unknownOperators, type Decision, type Policy, type Request } from './support/ops-05/iam-eval';
+import { decide, statements, unknownOperators, type Decision, type Policy, type Request } from './support/ops-05/iam-eval';
 import {
   allNeeds,
   commandLines,
@@ -743,6 +743,18 @@ test.describe('OPS-05 Terraform applies itself, prod on Approve', () => {
 
     const ps = policies();
     expect(unknownOperators(ps.map((p) => p.policy)), 'every condition in the policy is one the checks understand').toEqual([]);
+    // IAM refuses a policy whose resource ARN has a wildcard in the service part ("Resource vendor must be fully
+    // qualified"), which the evaluator alone would accept. Found on the first live prod run.
+    for (const p of ps) {
+      for (const st of statements(p.policy)) {
+        for (const r of [st.Resource ?? [], st.NotResource ?? []].flat()) {
+          if (r === '*') continue;
+          expect(r, `${p.acct}: Sid ${st.Sid ?? '?'} resource "${r}" names one service, no wildcard in its service part`).toMatch(
+            /^arn:aws:[a-z0-9-]+:[a-z0-9-*]*:(\d{12}|\*)?:\S+$/,
+          );
+        }
+      }
+    }
 
     for (const p of ps) {
       const a = p.acct;
