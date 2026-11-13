@@ -3,9 +3,10 @@
 # check fails a PR if any commit in it changes pepla-web/e2e/acceptance/ (or
 # this check) without being an accepted, tagged commit.
 #
-# How a commit is accepted: it carries a tag acceptance/<card>[.n], for example
-# acceptance/onb-01. The verifier tags its own commits; a commit without a tag
-# (the builder's) may not touch these files. Merges may bring in the files as
+# How a commit is accepted: a lock branch acceptance-lock/<card>[.n] points at
+# it, for example acceptance-lock/onb-01 (a tag acceptance/<card> counts too).
+# The verifier makes the lock once Iggie accepts the tests; a commit without a
+# lock (the builder's) may not touch these files. Merges may bring in the files as
 # they are on either side, but may not change them.
 #
 # Runs on pull_request_target so the rule comes from the target branch, not
@@ -39,12 +40,14 @@ jobs:
         run: |
           set -euo pipefail
           paths=(pepla-web/e2e/acceptance/ .github/workflows/acceptance-lock.yml)
-          git fetch --quiet --force origin "+refs/tags/acceptance/*:refs/tags/acceptance/*" || true
+          git fetch --quiet --force origin \
+            "+refs/tags/acceptance/*:refs/tags/acceptance/*" \
+            "+refs/heads/acceptance-lock/*:refs/remotes/origin/acceptance-lock/*" || true
 
           declare -A accepted=()
-          while read -r tag; do
-            [ -n "$tag" ] && accepted["$(git rev-list -n 1 "$tag")"]="$tag"
-          done < <(git tag --list 'acceptance/*')
+          while read -r lock; do
+            [ -n "$lock" ] && accepted["$(git rev-list -n 1 "$lock")"]="${lock#origin/}"
+          done < <(git for-each-ref --format='%(refname:short)' refs/tags/acceptance/ refs/remotes/origin/acceptance-lock/)
 
           base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
           bad=0
