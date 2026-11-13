@@ -17,6 +17,8 @@
 # against the new code, and the new app is included). On a merge that
 # deploy-lambdas.yml will also start, the "gate" job below steps aside.
 # Docs (*.md, docs/, help pictures and videos) start no run at all.
+# Runs wait for pepla-dev in the order they arrive (queue: max, nothing is
+# dropped for being late); only a PR's own newer push cancels its older run.
 #
 # AI cost guardrail: test logins are robots (group e2e-robots), the specs
 # block AI routes in the browser (fixtures/no-ai), and the dev CI role is
@@ -65,6 +67,13 @@ on:
         type: boolean
         default: false
 
+# Only a PR's newer push cancels that PR's own older run. Every other run
+# (merge, Monday, by hand, after-deploy call) gets a group of its own, so it is
+# never replaced. The pepla-dev lock itself is on the e2e-dev job below.
+concurrency:
+  group: app-e2e-dev-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -109,6 +118,7 @@ jobs:
     concurrency:
       group: pepla-dev-e2e
       cancel-in-progress: false
+      queue: max
     # Pinned: the repo's Playwright version has no Chromium build for the
     # newer ubuntu-latest image. Move with the next Playwright upgrade.
     runs-on: ubuntu-24.04
