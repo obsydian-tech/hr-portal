@@ -148,6 +148,12 @@ jobs:
 
       # The new app: its acceptance tests that need a real sign-in, at desktop and phone.
       # Runs even when the old journeys failed, so one report shows both.
+      # The new app is Angular 22, which needs Node 22; the current app above stays on 20.
+      - uses: actions/setup-node@v4
+        if: ${{ !cancelled() }}
+        with:
+          node-version: "22"
+
       - name: Install new app and browser
         if: ${{ !cancelled() }}
         working-directory: pepla-web
@@ -168,9 +174,13 @@ jobs:
         working-directory: pepla-web
         env:
           ACCEPTANCE_TARGET: pepla-dev
-          E2E_BASE_URL: http://localhost:4300
+          E2E_BASE_URL: http://127.0.0.1:4300
           CI: "true"
         run: npm run e2e:acceptance
+
+      - name: Show the new app's server log
+        if: failure()
+        run: tail -n 60 /tmp/ng-serve-pepla-web.log || true
 
       - name: Clean up this run's records
         if: always()
