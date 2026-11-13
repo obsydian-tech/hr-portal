@@ -21,6 +21,10 @@ resource "aws_s3_bucket" "talent_flow_audit_archive" {
     RetentionYears     = "5"
     Ticket             = "NH-108"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "talent_flow_audit_archive" {

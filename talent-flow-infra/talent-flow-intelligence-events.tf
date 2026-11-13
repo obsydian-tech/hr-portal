@@ -22,10 +22,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 resource "aws_dynamodb_table" "intelligence_events" {
-  name         = "talent-flow-intelligence-events"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+  name                        = "talent-flow-intelligence-events"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "PK"
+  range_key                   = "SK"
 
   # ── Primary Key ─────────────────────────────────────────────────────────────
 
@@ -129,6 +130,10 @@ resource "aws_dynamodb_table" "intelligence_events" {
     Ticket  = "INTEL-002"
     Phase   = "7.5"
   })
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ── Output for reference ──────────────────────────────────────────────────────
