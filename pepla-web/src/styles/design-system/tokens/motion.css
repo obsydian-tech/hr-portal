@@ -16,6 +16,17 @@
   --motion-duration-loop-spin-reduced: 2400ms;
   --motion-duration-loop-shimmer: 1600ms;
   --motion-duration-flag-dismiss: 8000ms;
+  --motion-site-easing: cubic-bezier(0.22, 0.7, 0.2, 1);
+  --motion-site-duration-reveal: 700ms;
+  --motion-site-duration-menu: 380ms;
+  --motion-site-duration-header: 300ms;
+  --motion-site-duration-step: 600ms;
+  --motion-site-stagger: 70ms;
+  --motion-site-duration-loop-orb: 28s;
+  --motion-site-duration-loop-orb-reduced: 56s;
+  --motion-site-duration-loop-turn: 70s;
+  --motion-site-duration-loop-sweep: 6s;
+  --motion-site-duration-loop-pulse: 2400ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
