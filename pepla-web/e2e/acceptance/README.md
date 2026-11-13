@@ -17,6 +17,7 @@ feature is built.
 | ONB-12 One new employee's page (NH-156) | `onb-12.spec.ts` | [NH-156](https://obsydian.atlassian.net/browse/NH-156) |
 | HELP-01.3 Release PRs into main skip the AC-10 help pictures rule (NH-157) | `help-01.spec.ts` | [NH-157](https://obsydian.atlassian.net/browse/NH-157) |
 | OPS-06 After-merge test run can't be bumped from the pepla-dev queue (NH-158): checks the workflow files | `ops-06.spec.ts` | [NH-158](https://obsydian.atlassian.net/browse/NH-158) |
+| OPS-07 Code-only merges still deploy and test on pepla-dev (NH-160): plays sample merges through the workflow files | `ops-07.spec.ts` | [NH-160](https://obsydian.atlassian.net/browse/NH-160) |
 | HELP-02 Help pictures: HR sees who is starting (NH-159) | `help-02.spec.ts`, `support/help-02.ts` | [NH-159](https://obsydian.atlassian.net/browse/NH-159) |
 
 ## Locked
