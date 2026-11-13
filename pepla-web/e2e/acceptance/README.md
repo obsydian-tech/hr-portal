@@ -12,6 +12,7 @@ feature is built.
 | HELP-01 Help pictures: HR signs in (NH-149) | `help-01.spec.ts` | [HELP-01 card](https://claude.ai/artifact/2ymwurnoSSuNJZFDZi4VUN) |
 | OPS-02 Dev test run starts after app-only merges (NH-152): checks the workflow files | `ops-02.spec.ts` | [OPS-02 card](https://claude.ai/artifact/RcgsQNdSreMKuSwNJp76BZ) |
 | BE-16 Sign-in groups set up by Terraform (NH-151) | `be-16.spec.ts` | [NH-151](https://obsydian.atlassian.net/browse/NH-151) |
+| HELP-01.2 HR home in the help pictures shows Sunbird Bakery's new employees (with ONB-02) | `support/journey-harness.ts` | ONB-02 spec, Decision 1 |
 
 ## Locked
 
