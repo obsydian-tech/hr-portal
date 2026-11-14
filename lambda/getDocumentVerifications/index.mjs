@@ -31,11 +31,11 @@ function callerOf(event) {
 }
 
 /** Every page of a scan (a DynamoDB scan stops at 1 MB). */
-async function scanAll(TableName) {
+async function scanAll(TableName, ProjectionExpression) {
   const rows = [];
   let ExclusiveStartKey;
   do {
-    const page = await dynamodb.send(new ScanCommand({ TableName, ExclusiveStartKey }));
+    const page = await dynamodb.send(new ScanCommand({ TableName, ProjectionExpression, ExclusiveStartKey }));
     for (const item of page.Items ?? []) rows.push(unmarshall(item));
     ExclusiveStartKey = page.LastEvaluatedKey;
   } while (ExclusiveStartKey);
@@ -46,7 +46,7 @@ const CHECKS = ['READING', 'MATCHES', 'NEEDS_A_LOOK', 'DOESNT_MATCH'];
 
 /** ONB-13: the documents still waiting for an HR decision, oldest first, six fields each. */
 async function waitingDocuments() {
-  const waiting = (await scanAll('documents')).filter((doc) => !doc.hr_reviewed_at);
+  const waiting = (await scanAll('documents', 'employee_id, document_id, document_type, ocr_status, verification_id, hr_reviewed_at, upload_timestamp, uploaded_at')).filter((doc) => !doc.hr_reviewed_at);
 
   const employeeIds = [...new Set(waiting.map((doc) => doc.employee_id))];
   const names = new Map();

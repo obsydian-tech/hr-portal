@@ -3,20 +3,23 @@
  * NH ticket: NH-notification-emails
  *
  * Triggered by EventBridge events on the naleko-onboarding bus:
- *   - document.reviewed  (decision: PASSED | FAILED | MANUAL_REVIEW)
+ *   - document.reviewed  (HR's decision: PASSED | FAILED)
+ *   - document.waiting   (ONB-07: a document was read and waits for HR)
  *   - onboarding.completed
  *
  * Email routing:
  *   PASSED         → employee: "Your [doc type] has been approved ✓"
  *   FAILED         → employee: "Your [doc type] needs attention — please re-upload"
- *   MANUAL_REVIEW  → HR: "Manual review required for [employee name] — [doc type]"
- *   completed      → employee: "🎉 Onboarding complete — you're all set!"
+ *   waiting        → the employee's HR partner, else HR_EMAIL: "Document to check: [name], [doc type]"
+ *                    (nothing for a test employee)
+ *   completed      → employee: "🎉 Onboarding complete — you're all set!", only when the employee is VERIFIED
  */
 
 import { DynamoDBClient, GetItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import postmark from 'postmark';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { isRobotEmail } from '../shared/ai-guard.mjs';
 
 const dynamo = new DynamoDBClient({ region: 'af-south-1' });
 const logger = new Logger({ serviceName: 'sendNotificationEmail' });
@@ -43,7 +46,7 @@ async function getEmployee(employeeId) {
   const result = await dynamo.send(new GetItemCommand({
     TableName: EMPLOYEES_TABLE,
     Key: { employee_id: { S: employeeId } },
-    ProjectionExpression: 'employee_id, email, first_name, last_name',
+    ProjectionExpression: 'employee_id, email, first_name, last_name, hr_staff_email, stage',
   }));
   if (!result.Item) return null;
   return {
@@ -51,6 +54,8 @@ async function getEmployee(employeeId) {
     email:       result.Item.email?.S,
     first_name:  result.Item.first_name?.S || '',
     last_name:   result.Item.last_name?.S  || '',
+    hr_staff_email: result.Item.hr_staff_email?.S || '',
+    stage:       result.Item.stage?.S || '',
   };
 }
 
@@ -78,6 +83,16 @@ function formatDocType(raw) {
   if (!raw) return 'document';
   return raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
+
+const DOC_TYPE_NAMES = {
+  NATIONAL_ID: 'National ID',
+  BANK_CONFIRMATION: 'Bank confirmation',
+  MATRIC_CERTIFICATE: 'Matric certificate',
+  TERTIARY_QUALIFICATION: 'Tertiary qualification',
+};
+const CHECK_WORDS = { MATCHES: 'Matches', NEEDS_A_LOOK: 'Needs a look', DOESNT_MATCH: "Doesn't match" };
+
+const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 async function sendEmail({ to, subject, textBody, htmlBody }) {
   const client = getMailClient();
@@ -178,44 +193,56 @@ async function handleDocumentReviewed(detail) {
       break;
     }
 
-    case 'MANUAL_REVIEW': {
-      await sendEmail({
-        to:      HR_EMAIL,
-        subject: `Manual review required — ${fullName}: ${docTypeLabel}`,
-        textBody: [
-          `Hi,`,
-          '',
-          `A document has been flagged for manual review:`,
-          '',
-          `  Employee: ${fullName} (${employee_id})`,
-          `  Document: ${docTypeLabel}`,
-          `  Document ID: ${document_id || 'N/A'}`,
-          '',
-          `Please log in to the HR portal to review this document.`,
-          '',
-          `Login: ${LOGIN_URL}`,
-          '',
-          'Naleko HR Portal',
-        ].join('\n'),
-        htmlBody: `
-          <p>Hi,</p>
-          <p>A document has been flagged for <strong>manual review</strong>:</p>
-          <ul>
-            <li><strong>Employee:</strong> ${fullName} (${employee_id})</li>
-            <li><strong>Document:</strong> ${docTypeLabel}</li>
-            <li><strong>Document ID:</strong> ${document_id || 'N/A'}</li>
-          </ul>
-          <p>Please log in to the HR portal to review this document.</p>
-          <p><a href="${LOGIN_URL}">Log in to HR Portal</a></p>
-          <p>Naleko HR Portal</p>
-        `,
-      });
-      break;
-    }
-
     default:
       logger.warn('Unknown decision — no email sent', { decision, employee_id, document_id });
   }
+}
+
+/**
+ * ONB-07: HR hears once about every document that arrives, whatever Batsi found. The email carries the
+ * person's name, the document type name and the check word, and nothing read from the document.
+ */
+async function handleDocumentWaiting(detail) {
+  const { employee_id, document_type, check } = detail;
+  if (!employee_id) {
+    logger.warn('document.waiting missing employee_id', { detail });
+    return;
+  }
+
+  const employee = await getEmployee(employee_id);
+  if (!employee) {
+    logger.warn('Employee not found for document.waiting', { employee_id });
+    return;
+  }
+  if (isRobotEmail(employee.email)) {
+    logger.info('HR email skipped: test employee', { employee_id });
+    return;
+  }
+
+  const fullName = `${employee.first_name} ${employee.last_name}`.trim() || 'Employee';
+  const typeName = DOC_TYPE_NAMES[document_type] || formatDocType(document_type);
+  const checkWord = CHECK_WORDS[check] || CHECK_WORDS.NEEDS_A_LOOK;
+  const to = employee.hr_staff_email.trim() || HR_EMAIL;
+
+  await sendEmail({
+    to,
+    subject: `Document to check: ${fullName}, ${typeName}`,
+    textBody: [
+      `${fullName} uploaded a ${typeName}.`,
+      `Batsi's check: ${checkWord}.`,
+      'The document waits for an HR decision before it counts.',
+      `Sign in to Naleko People to decide: ${LOGIN_URL}`,
+      '',
+      'Naleko People',
+    ].join('\n'),
+    htmlBody: `
+      <p>${escapeHtml(fullName)} uploaded a ${escapeHtml(typeName)}.</p>
+      <p>Batsi's check: ${escapeHtml(checkWord)}.</p>
+      <p>The document waits for an HR decision before it counts.</p>
+      <p>Sign in to Naleko People to decide: <a href="${LOGIN_URL}">${LOGIN_URL}</a></p>
+      <p>Naleko People</p>
+    `,
+  });
 }
 
 async function handleOnboardingCompleted(detail) {
@@ -228,6 +255,13 @@ async function handleOnboardingCompleted(detail) {
   const employee = await getEmployee(employee_id);
   if (!employee) {
     logger.warn('Employee not found for onboarding.completed', { employee_id });
+    return;
+  }
+
+  // ONB-07: Step Functions publishes this after the first document is read. Only a VERIFIED
+  // employee (HR accepted the documents) hears that onboarding is complete.
+  if (employee.stage !== 'VERIFIED') {
+    logger.info('Onboarding complete email skipped: not verified', { employee_id, stage: employee.stage });
     return;
   }
 
@@ -269,6 +303,9 @@ export const handler = async (event) => {
     switch (detailType) {
       case 'document.reviewed':
         await handleDocumentReviewed(detail);
+        break;
+      case 'document.waiting':
+        await handleDocumentWaiting(detail);
         break;
       case 'onboarding.completed':
         await handleOnboardingCompleted(detail);

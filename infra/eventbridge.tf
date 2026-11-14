@@ -106,6 +106,38 @@ resource "aws_lambda_permission" "send_notification_email_onboarding_completed" 
 }
 
 # ---------------------------------------------------------------------------
+# ONB-07: document.waiting events tell HR once that a document arrived
+# ---------------------------------------------------------------------------
+
+resource "aws_cloudwatch_event_rule" "document_waiting_notify" {
+  name           = "naleko-document-waiting-notify"
+  description    = "Trigger sendNotificationEmail on document.waiting events"
+  event_bus_name = aws_cloudwatch_event_bus.naleko_onboarding.name
+
+  event_pattern = jsonencode({
+    source      = ["naleko.onboarding"]
+    detail-type = ["document.waiting"]
+  })
+
+  state = "ENABLED"
+}
+
+resource "aws_cloudwatch_event_target" "document_waiting_notify" {
+  rule           = aws_cloudwatch_event_rule.document_waiting_notify.name
+  event_bus_name = aws_cloudwatch_event_bus.naleko_onboarding.name
+  target_id      = "sendNotificationEmail-docWaiting"
+  arn            = aws_lambda_function.send_notification_email.arn
+}
+
+resource "aws_lambda_permission" "send_notification_email_document_waiting" {
+  statement_id  = "AllowEventBridgeInvokeNotifyDocWaiting"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.send_notification_email.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.document_waiting_notify.arn
+}
+
+# ---------------------------------------------------------------------------
 # IT Provisioning EventBridge rules — Ticket IT-003
 #
 # Rule 1: BundleApproved → createItTask

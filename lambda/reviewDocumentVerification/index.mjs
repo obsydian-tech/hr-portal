@@ -1,5 +1,6 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { withIdempotency } from '../shared/idempotency.mjs';
+import { groupsOf } from '../shared/document-check.mjs';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -151,12 +152,15 @@ const handlerFn = async (event) => {
     const processedDocs = (allDocs.Items || []).filter(
       (item) => !['PENDING', 'PROCESSING'].includes(item.ocr_status?.S)
     );
-    // Minimum gate: at least one NATIONAL_ID must be among the passed docs
+    // ONB-07: only a document a person accepted counts. PASSED written by the old
+    // auto-pass has no hr_reviewed_at and does not count.
+    const acceptedByHr = (item) => item.ocr_status?.S === 'PASSED' && !!item.hr_reviewed_at?.S;
+    // Minimum gate: at least one NATIONAL_ID must be among the accepted docs
     const nationalIdPassed = processedDocs.some(
-      (item) => item.document_type?.S === 'NATIONAL_ID' && item.ocr_status?.S === 'PASSED'
+      (item) => item.document_type?.S === 'NATIONAL_ID' && acceptedByHr(item)
     );
     const allPassed = processedDocs.length > 0 &&
-      processedDocs.every((item) => item.ocr_status?.S === 'PASSED') &&
+      processedDocs.every(acceptedByHr) &&
       nationalIdPassed;
 
     let stageUpdated = false;
@@ -242,6 +246,12 @@ const handlerFn = async (event) => {
 // A repeated call with the same key within 24h returns the cached response
 // without re-applying a review decision or re-firing EventBridge events.
 export const handler = async (event) => {
+  // ONB-07 security review: only HR decides. This route shares its authorizer with employee uploads,
+  // so the group is checked here, before any read or write (and before the idempotency cache).
+  const claims = event.requestContext?.authorizer?.jwt?.claims;
+  if (!claims || !groupsOf(claims).includes('hr_staff')) {
+    return respond(403, { error: 'Only HR can decide on a document' });
+  }
   const key = event.headers?.['idempotency-key'];
   return withIdempotency(key, () => handlerFn(event));
 };
