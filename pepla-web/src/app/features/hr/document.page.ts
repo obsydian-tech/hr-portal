@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, viewChild, type ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal, viewChild, type ElementRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -169,6 +169,9 @@ const TYPE_ICON: Record<string, IconName> = {
                   @if (openFailed()) {
                     <pp-inline-message tone="error">The document could not be opened. Try again.</pp-inline-message>
                   }
+                  @if (fileUrl(); as link) {
+                    <p>If no new tab opened, use this link. <a ppLink [href]="link" target="_blank" rel="noopener noreferrer">Open the file</a></p>
+                  }
                 </pp-card-footer>
               </pp-card>
             </div>
@@ -204,6 +207,10 @@ export class DocumentPage {
   protected readonly sending = signal<'accept' | 'ask' | null>(null);
   protected readonly saveFailed = signal(false);
   protected readonly opening = signal(false);
+  /** The file link, kept for 15 minutes so a blocked new tab can be opened by hand. */
+  protected readonly fileUrl = signal<string | null>(null);
+  private fileUrlTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly openFailed = signal(false);
 
   private readonly reasonBox = viewChild<ElementRef<HTMLTextAreaElement>>('reasonBox');
@@ -239,6 +246,7 @@ export class DocumentPage {
   });
 
   constructor() {
+    this.destroyRef.onDestroy(() => clearTimeout(this.fileUrlTimer));
     effect(() => {
       this.id();
       void this.load();
@@ -268,6 +276,7 @@ export class DocumentPage {
       this.reasonError.set(null);
       this.saveFailed.set(false);
       this.openFailed.set(false);
+      this.clearFileUrl();
     }
     try {
       const doc = await this.documents.load(id, this.employeeHint());
@@ -338,14 +347,23 @@ export class DocumentPage {
     if (!d || this.opening()) return;
     this.opening.set(true);
     this.openFailed.set(false);
+    this.clearFileUrl();
     try {
       const url = await this.documents.fileLink(d.id);
       window.open(url, '_blank', 'noopener');
+      this.clearFileUrl();
+      this.fileUrl.set(url);
+      this.fileUrlTimer = setTimeout(() => this.fileUrl.set(null), 15 * 60 * 1000);
     } catch {
       this.openFailed.set(true);
     } finally {
       this.opening.set(false);
     }
+  }
+
+  private clearFileUrl(): void {
+    clearTimeout(this.fileUrlTimer);
+    this.fileUrl.set(null);
   }
 
   protected decisionWord(v: Decided): string {
