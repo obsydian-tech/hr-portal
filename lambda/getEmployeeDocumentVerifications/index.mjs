@@ -4,6 +4,7 @@ import { KMSClient, DecryptCommand } from "@aws-sdk/client-kms";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { groupsOf, checkOf, hrDecisionOf } from '../shared/document-check.mjs';
+import { requiredFor } from '../shared/required-documents.mjs';
 
 const dynamodb = new DynamoDBClient();
 const kms = new KMSClient();
@@ -203,7 +204,8 @@ const handlerFn = async (event) => {
           hr_decision: hrDecisionOf(doc),
           hr_decided_at: doc.hr_reviewed_at || null
         })),
-        summary
+        summary,
+        required_documents: requiredFor(employee)
       })
     };
 

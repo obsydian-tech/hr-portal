@@ -1,6 +1,7 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { withIdempotency } from '../shared/idempotency.mjs';
 import { groupsOf, hrDecisionOf } from '../shared/document-check.mjs';
+import { requiredFor, requiredMissing } from '../shared/required-documents.mjs';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -174,30 +175,31 @@ const handlerFn = async (event) => {
       logger.info('Updated verification', { verificationId, decision });
     }
 
-    // 4. Check if ALL documents for this employee are now PASSED
-    //    If so, auto-progress the employee stage to VERIFIED
-    const allDocs = await dynamo.send(new QueryCommand({
-      TableName: DOCUMENTS_TABLE,
-      KeyConditionExpression: 'employee_id = :empId',
-      ExpressionAttributeValues: { ':empId': { S: employeeId } },
-    }));
+    // 4. ONB-08: Verified when HR has accepted every required document (the newest read copy of each).
+    //    Optional documents never decide it. Follow every page of the Query.
+    const allDocs = [];
+    let docsKey;
+    do {
+      const page = await dynamo.send(new QueryCommand({
+        TableName: DOCUMENTS_TABLE,
+        KeyConditionExpression: 'employee_id = :empId',
+        ExpressionAttributeValues: { ':empId': { S: employeeId } },
+        ...(docsKey ? { ExclusiveStartKey: docsKey } : {}),
+      }));
+      allDocs.push(...(page.Items || []));
+      docsKey = page.LastEvaluatedKey;
+    } while (docsKey);
 
-    // NH-100: exclude PENDING (not yet uploaded) and PROCESSING (in-flight OCR)
-    // from the all-passed check — only consider documents that have reached a
-    // terminal or review-ready state.
-    const processedDocs = (allDocs.Items || []).filter(
-      (item) => !['PENDING', 'PROCESSING'].includes(item.ocr_status?.S)
-    );
-    // ONB-07: only a document a person accepted counts. PASSED written by the old
-    // auto-pass has no hr_reviewed_at and does not count.
-    const acceptedByHr = (item) => item.ocr_status?.S === 'PASSED' && !!item.hr_reviewed_at?.S;
-    // Minimum gate: at least one NATIONAL_ID must be among the accepted docs
-    const nationalIdPassed = processedDocs.some(
-      (item) => item.document_type?.S === 'NATIONAL_ID' && acceptedByHr(item)
-    );
-    const allPassed = processedDocs.length > 0 &&
-      processedDocs.every(acceptedByHr) &&
-      nationalIdPassed;
+    const plainDocs = allDocs.map((item) => ({
+      document_id: item.document_id?.S,
+      document_type: item.document_type?.S,
+      ocr_status: item.ocr_status?.S,
+      hr_reviewed_at: item.hr_reviewed_at?.S,
+      upload_timestamp: item.upload_timestamp?.N ?? item.upload_timestamp?.S,
+    }));
+    const required = requiredFor(null);
+    const missing = requiredMissing(plainDocs, required);
+    const allPassed = missing.length === 0;
 
     let stageUpdated = false;
     if (allPassed) {
@@ -268,6 +270,8 @@ const handlerFn = async (event) => {
       decision,
       can_reupload: decision === 'FAILED',
       all_documents_passed: allPassed,
+      required_documents: required,
+      required_missing: missing,
       employee_stage_updated: stageUpdated,
       hr_decision: hrDecisionOf({ ocr_status: decision, hr_reviewed_at: now }),
       hr_decided_at: now,

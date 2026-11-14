@@ -48,6 +48,8 @@ export interface ApiEmployeeDetail {
     hr_decided_at?: string | null;
     verification?: { id_number?: string | null; id_number_last4?: string | null } | null;
   }>;
+  /** The document types this company needs accepted before Verified (ONB-08). Missing means no marks. */
+  required_documents?: string[];
 }
 
 export interface EmployeeDocument {
@@ -75,7 +77,7 @@ export interface EmployeeDetail {
   startDate: string;
   hrPartner: string;
   /** One entry per document type, in the page's order: its uploads newest first, empty when none. */
-  byType: Array<{ type: DocumentType; name: string; documents: EmployeeDocument[] }>;
+  byType: Array<{ type: DocumentType; name: string; required: boolean; documents: EmployeeDocument[] }>;
 }
 
 const KNOWN = new Set<string>(DOCUMENT_TYPES.map((t) => t.type));
@@ -95,6 +97,7 @@ export function toEmployeeDetail(a: ApiEmployeeDetail): EmployeeDetail {
       idNumber: d.verification?.id_number ?? '',
       idLast4: d.verification?.id_number_last4 ?? '',
     }));
+  const required = new Set<string>(Array.isArray(a.required_documents) ? a.required_documents : []);
   return {
     id: e.employee_id,
     name: [e.first_name, e.last_name].filter(Boolean).join(' ').trim(),
@@ -108,6 +111,7 @@ export function toEmployeeDetail(a: ApiEmployeeDetail): EmployeeDetail {
     byType: DOCUMENT_TYPES.map(({ type, name }) => ({
       type,
       name,
+      required: required.has(type),
       documents: docs.filter((d) => d.type === type).sort((x, y) => y.uploadedAt.localeCompare(x.uploadedAt)),
     })),
   };

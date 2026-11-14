@@ -264,6 +264,10 @@ async function handleOnboardingCompleted(detail) {
     logger.info('Onboarding complete email skipped: not verified', { employee_id, stage: employee.stage });
     return;
   }
+  if (isRobotEmail(employee.email)) {
+    logger.info('Onboarding complete email skipped: test employee', { employee_id });
+    return;
+  }
 
   const firstName = employee.first_name || 'there';
 

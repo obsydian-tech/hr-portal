@@ -587,6 +587,14 @@ paths:
                         type: integer
                       failed:
                         type: integer
+                  required_documents:
+                    type: array
+                    description: |
+                      The document types HR must accept before the employee is Verified, for the employee's company.
+                      Today every company gets NATIONAL_ID and BANK_CONFIRMATION.
+                    items:
+                      type: string
+                      enum: [NATIONAL_ID, BANK_CONFIRMATION, MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION]
         "403":
           description: |
             The caller is neither in the hr_staff group nor the employee (the token email
@@ -1011,7 +1019,9 @@ paths:
         A document is decided once: the decision is one conditional write that records HR's name and the time,
         and a second decision, or a decision while the document is still being read, gets 409.
         `document.reviewed` carries decided_by, decided_by_name, decided_at and actor HUMAN.
-        Auto-promotion: if all documents are now PASSED, employee stage advances to VERIFIED.
+        Auto-promotion: when every required document is accepted, the employee stage advances to VERIFIED
+        (once per person). The newest read copy of each required type decides; optional documents never
+        decide it, either way.
       parameters:
         - name: id
           in: path
@@ -1045,9 +1055,22 @@ paths:
                     type: boolean
                   all_documents_passed:
                     type: boolean
+                    description: |
+                      True when every required document is accepted by HR (the newest read copy of each required
+                      type). Optional documents are not looked at.
+                  required_documents:
+                    type: array
+                    description: The required document types used for this decision.
+                    items:
+                      type: string
+                  required_missing:
+                    type: array
+                    description: Required document types not yet accepted, in the order of required_documents.
+                    items:
+                      type: string
                   employee_stage_updated:
                     type: boolean
-                    description: True if all docs passed and employee was promoted to VERIFIED.
+                    description: True if every required document was accepted and the employee was promoted to VERIFIED.
                   hr_decision:
                     type: string
                     enum: [ACCEPTED, NEW_ONE_ASKED]
