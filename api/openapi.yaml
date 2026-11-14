@@ -336,7 +336,12 @@ components:
           description: PASSED approves the document. FAILED rejects it and allows re-upload.
         notes:
           type: string
-          example: ID number matches employee record.
+          maxLength: 500
+          example: The photo is too dark to read.
+          description: The reason for FAILED, at most 500 characters. The page asks for one.
+        employee_id:
+          type: string
+          description: The document's employee. When given, the document is read with one GetItem instead of a Scan.
 
     Error:
       type: object
@@ -746,6 +751,12 @@ paths:
                     type: integer
                     example: 900
                     description: Seconds until the URL expires.
+        "403":
+          description: Only HR can open documents (the caller is not in the hr_staff group).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: Document not found.
           content:
@@ -831,29 +842,159 @@ paths:
     get:
       tags: [Verifications]
       operationId: getVerification
-      summary: Get the full OCR verification result for a single document
+      summary: Get one document with its verification, the employee and how it compares with the record (HR only)
       description: |
-        Returns the complete record including OCR reasoning and all extracted fields.
+        HR only (the hr_staff group); anyone else gets 403 before anything is read. `{id}` is the document_id.
+        Pass `employee_id` as a query parameter when it is known: the document is then read with one GetItem
+        instead of a Scan.
+
+        Returns the document, Batsi's verification (extracted fields, with the ID number decrypted), the
+        employee's id and name, Batsi's check, how what was read compares with the employee's record
+        (`comparisons`) and HR's decision, when there is one.
         Fields by document type:
-        - NATIONAL_ID: id_number, name, surname, date_of_birth, gender, citizenship
+        - NATIONAL_ID: id_number, id_number_last4, name, surname, date_of_birth, gender, citizenship
         - BANK_CONFIRMATION: account_holder, bank_name, account_number, branch_code, account_type
-        - QUALIFICATION: institution, qualification_name, graduation_year
+        - MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION: no fields beyond the document
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
-            example: ver_1774086781234
+            example: doc_1774086521598
+        - name: employee_id
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
-          description: Full verification detail.
+          description: The document and its verification.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/VerificationDetail"
+                type: object
+                properties:
+                  document:
+                    type: object
+                    properties:
+                      document_id:
+                        type: string
+                      employee_id:
+                        type: string
+                      document_type:
+                        type: string
+                      file_name:
+                        type: string
+                      s3_key:
+                        type: string
+                      uploaded_at:
+                        type: string
+                        format: date-time
+                        description: Falls back to the older upload_timestamp.
+                      ocr_status:
+                        type: string
+                      ocr_completed_at:
+                        type: string
+                  verification:
+                    type: object
+                    nullable: true
+                    properties:
+                      verification_id:
+                        type: string
+                      confidence:
+                        type: number
+                      decision:
+                        type: string
+                      reasoning:
+                        type: string
+                      extracted_data:
+                        type: object
+                        properties:
+                          id_number:
+                            type: string
+                            nullable: true
+                            description: Decrypted for HR.
+                          id_number_last4:
+                            type: string
+                            nullable: true
+                          name:
+                            type: string
+                          surname:
+                            type: string
+                          date_of_birth:
+                            type: string
+                          gender:
+                            type: string
+                          citizenship:
+                            type: string
+                          account_holder:
+                            type: string
+                          bank_name:
+                            type: string
+                          account_number:
+                            type: string
+                          branch_code:
+                            type: string
+                          account_type:
+                            type: string
+                      checks:
+                        type: object
+                      created_at:
+                        type: string
+                  can_reupload:
+                    type: boolean
+                  employee:
+                    type: object
+                    nullable: true
+                    properties:
+                      employee_id:
+                        type: string
+                      first_name:
+                        type: string
+                      last_name:
+                        type: string
+                  check:
+                    type: string
+                    enum: [READING, MATCHES, NEEDS_A_LOOK, DOESNT_MATCH]
+                  hr_decision:
+                    type: string
+                    nullable: true
+                    enum: [ACCEPTED, NEW_ONE_ASKED, null]
+                  hr_decided_at:
+                    type: string
+                    nullable: true
+                  hr_decided_by_name:
+                    type: string
+                    nullable: true
+                  hr_decision_reason:
+                    type: string
+                    nullable: true
+                  comparisons:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                          enum: [SURNAME, ID_NUMBER, ACCOUNT_HOLDER]
+                        result:
+                          type: string
+                          enum: [AGREES, DIFFERS, NOT_READ, NOT_ON_RECORD]
+        "403":
+          description: Only HR can open documents (the caller is not in the hr_staff group).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
-          description: Verification not found.
+          description: Document not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: The document could not be loaded.
           content:
             application/json:
               schema:
@@ -865,8 +1006,11 @@ paths:
       operationId: reviewVerification
       summary: HR officer approves or rejects a document in manual review
       description: |
-        PASSED: approves the document (ocr_status set to PASSED).
+        HR only. PASSED: approves the document (ocr_status set to PASSED).
         FAILED: rejects it (ocr_status set to FAILED, can_reupload set to true).
+        A document is decided once: the decision is one conditional write that records HR's name and the time,
+        and a second decision, or a decision while the document is still being read, gets 409.
+        `document.reviewed` carries decided_by, decided_by_name, decided_at and actor HUMAN.
         Auto-promotion: if all documents are now PASSED, employee stage advances to VERIFIED.
       parameters:
         - name: id
@@ -904,14 +1048,37 @@ paths:
                   employee_stage_updated:
                     type: boolean
                     description: True if all docs passed and employee was promoted to VERIFIED.
+                  hr_decision:
+                    type: string
+                    enum: [ACCEPTED, NEW_ONE_ASKED]
+                  hr_decided_at:
+                    type: string
+                    format: date-time
+                  hr_decided_by_name:
+                    type: string
+                  hr_decision_reason:
+                    type: string
+                    nullable: true
         "400":
-          description: Invalid decision value.
+          description: Invalid decision value, or the reason is longer than 500 characters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Only HR can decide on a document.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Verification not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: This document was already decided or is still being read. Nothing was written.
           content:
             application/json:
               schema:

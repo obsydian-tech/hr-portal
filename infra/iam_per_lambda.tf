@@ -484,6 +484,13 @@ resource "aws_iam_role_policy" "get_single_document_verification" {
         ]
       },
       {
+        # ONB-15: the document page names the employee and compares the record (one GetItem, never a Scan).
+        Sid      = "DynamoDBEmployeesRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
         Sid      = "KMSPIIKey"
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]

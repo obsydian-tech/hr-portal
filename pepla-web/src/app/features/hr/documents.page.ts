@@ -71,7 +71,7 @@ const LOZENGE: Record<Check, Status> = {
                     @for (d of pageRows(); track d.id) {
                       <tr>
                         <td ppCell><a ppLink [routerLink]="['/hr/employees', d.employeeId]">{{ d.employeeName }}</a></td>
-                        <td ppCell label="Document"><a ppLink [routerLink]="['/hr/documents', d.id]" [attr.aria-label]="d.typeName + ', ' + d.employeeName">{{ d.typeName }}</a></td>
+                        <td ppCell label="Document"><a ppLink [routerLink]="['/hr/documents', d.id]" [state]="{ employeeId: d.employeeId }" [attr.aria-label]="d.typeName + ', ' + d.employeeName">{{ d.typeName }}</a></td>
                         <td ppCell label="Check"><pp-lozenge [status]="lozenge(d.check)">{{ d.checkWord }}</pp-lozenge></td>
                         <td ppCell label="Arrived">{{ d.arrived }}</td>
                       </tr>

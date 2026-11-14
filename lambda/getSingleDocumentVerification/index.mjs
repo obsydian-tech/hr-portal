@@ -1,115 +1,153 @@
-import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, GetItemCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { KMSClient, DecryptCommand } from "@aws-sdk/client-kms";
+import { requireHr, checkOf, hrDecisionOf, comparisonsOf } from '../shared/document-check.mjs';
 
 const dynamodb = new DynamoDBClient();
+const kms = new KMSClient();
+
+const HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+const json = (statusCode, body) => ({ statusCode, headers: HEADERS, body: JSON.stringify(body) });
+
+/**
+ * KMS decrypt, returns plain text, or null when there is no ciphertext, it is a sentinel, or it fails.
+ * Same rule as getEmployeeDocumentVerifications.
+ */
+async function kmsDecrypt(ciphertext) {
+  if (!ciphertext || ciphertext === 'NOT_FOUND' || ciphertext === 'KMS_UNAVAILABLE') return null;
+  try {
+    const result = await kms.send(new DecryptCommand({
+      KeyId: process.env.KMS_KEY_ARN,
+      CiphertextBlob: Buffer.from(ciphertext, 'base64'),
+    }));
+    return Buffer.from(result.Plaintext).toString('utf8');
+  } catch (err) {
+    console.warn('KMS decrypt failed, returning null', err?.name);
+    return null;
+  }
+}
+
+/** The document row: one GetItem when the caller gave employee_id, else a Scan that follows every page. */
+async function findDocument(documentId, employeeId) {
+  if (employeeId) {
+    const got = await dynamodb.send(new GetItemCommand({
+      TableName: 'documents',
+      Key: { employee_id: { S: employeeId }, document_id: { S: documentId } },
+    }));
+    return got.Item ? unmarshall(got.Item) : null;
+  }
+  let startKey;
+  do {
+    const page = await dynamodb.send(new ScanCommand({
+      TableName: 'documents',
+      FilterExpression: 'document_id = :id',
+      ExpressionAttributeValues: { ':id': { S: documentId } },
+      ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+    }));
+    if (page.Items?.length) return unmarshall(page.Items[0]);
+    startKey = page.LastEvaluatedKey;
+  } while (startKey);
+  return null;
+}
 
 export const handler = async (event) => {
-  console.log('Event:', JSON.stringify(event, null, 2));
+  // ONB-15: only HR, before any table, key or file is touched.
+  const refused = requireHr(event);
+  if (refused) return refused;
 
   try {
     const documentId = event.pathParameters?.id || event.pathParameters?.document_id;
+    if (!documentId) return json(400, { error: 'document_id is required' });
+    const employeeIdParam = event.queryStringParameters?.employee_id || undefined;
 
-    if (!documentId) {
-      return {
-        statusCode: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ error: 'document_id is required' })
-      };
-    }
+    // 1. The document
+    const document = await findDocument(documentId, employeeIdParam);
+    if (!document) return json(404, { error: 'Document not found' });
 
-    // 1. Find document in documents table
-    const docResult = await dynamodb.send(new ScanCommand({
-      TableName: 'documents',
-      FilterExpression: 'document_id = :id',
-      ExpressionAttributeValues: {
-        ':id': { S: documentId }
-      }
-    }));
+    // 2. The verification row (its key is verificationId) and the employee
+    const verData = document.verification_id
+      ? await dynamodb.send(new GetItemCommand({
+          TableName: 'document-verification',
+          Key: { verificationId: { S: document.verification_id } },
+        })).then((r) => (r.Item ? unmarshall(r.Item) : null))
+      : null;
 
-    if (!docResult.Items || docResult.Items.length === 0) {
-      return {
-        statusCode: 404,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ error: 'Document not found' })
-      };
-    }
+    const employee = document.employee_id
+      ? await dynamodb.send(new GetItemCommand({
+          TableName: 'employees',
+          Key: { employee_id: { S: document.employee_id } },
+          ProjectionExpression: 'employee_id, first_name, last_name, id_number_last4',
+        })).then((r) => (r.Item ? unmarshall(r.Item) : null))
+      : null;
 
-    const document = unmarshall(docResult.Items[0]);
-
-    // 2. Get verification record
+    // 3. What the verification says. The ID number is encrypted since NH-11; old rows hold it plain.
     let verification = null;
-    if (document.verification_id) {
-      const verResult = await dynamodb.send(new ScanCommand({
-        TableName: 'document-verification',
-        FilterExpression: 'verificationId = :id',
-        ExpressionAttributeValues: {
-          ':id': { S: document.verification_id }
-        }
-      }));
-
-      if (verResult.Items && verResult.Items.length > 0) {
-        const verData = unmarshall(verResult.Items[0]);
-        
-        // Parse checks JSON if it's a string
-        let checks = {};
-        try {
-          checks = typeof verData.checks === 'string' 
-            ? JSON.parse(verData.checks) 
-            : verData.checks;
-        } catch (e) {
-          console.error('Failed to parse checks:', e);
-        }
-
-        verification = {
-          verification_id: verData.verificationId,
-          confidence: verData.confidence,
-          decision: verData.decision,
-          reasoning: verData.reasoning,
-          extracted_data: {
-            id_number: verData.idNumber,
-            name: verData.name,
-            surname: verData.surname,
-            date_of_birth: verData.dateOfBirth,
-            gender: verData.gender,
-            citizenship: verData.citizenship
-          },
-          checks: checks,
-          created_at: verData.createdAt
-        };
+    let idNumber = null;
+    if (verData) {
+      let checks = {};
+      try {
+        checks = typeof verData.checks === 'string' ? JSON.parse(verData.checks) : (verData.checks ?? {});
+      } catch (e) {
+        console.error('Failed to parse checks');
       }
+      idNumber = verData.idNumber_encrypted ? await kmsDecrypt(verData.idNumber_encrypted) : (verData.idNumber ?? null);
+      verification = {
+        verification_id: verData.verificationId,
+        confidence: verData.confidence,
+        decision: verData.decision,
+        reasoning: verData.reasoning,
+        extracted_data: {
+          id_number: idNumber,
+          id_number_last4: verData.idNumber_last4 ?? null,
+          name: verData.name,
+          surname: verData.surname,
+          date_of_birth: verData.dateOfBirth,
+          gender: verData.gender,
+          citizenship: verData.citizenship,
+          account_holder: verData.accountHolder,
+          bank_name: verData.bankName,
+          account_number: verData.accountNumber,
+          branch_code: verData.branchCode,
+          account_type: verData.accountType,
+        },
+        checks,
+        created_at: verData.createdAt,
+      };
     }
 
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({
-        document: {
-          document_id: document.document_id,
-          employee_id: document.employee_id,
-          document_type: document.document_type,
-          file_name: document.file_name,
-          s3_key: document.s3_key,
-          uploaded_at: document.uploaded_at,
-          ocr_status: document.ocr_status,
-          ocr_completed_at: document.ocr_completed_at
-        },
-        verification: verification,
-        can_reupload: ['MANUAL_REVIEW', 'FAILED', 'PENDING'].includes(document.ocr_status)
-      })
-    };
+    const decision = hrDecisionOf(document);
+    const notes = String(document.hr_decision_notes ?? '').trim();
+    const comparisons = comparisonsOf(
+      document.document_type,
+      verData ? { idNumber, idLast4: verData.idNumber_last4, surname: verData.surname, accountHolder: verData.accountHolder } : null,
+      { last_name: employee?.last_name, id_number_last4: employee?.id_number_last4 },
+    );
 
-  } catch (error) {
-    console.error('Error:', error);
-    return {
-      statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
+    return json(200, {
+      document: {
+        document_id: document.document_id,
+        employee_id: document.employee_id,
+        document_type: document.document_type,
+        file_name: document.file_name,
+        s3_key: document.s3_key,
+        uploaded_at: document.uploaded_at ?? document.upload_timestamp ?? null,
+        ocr_status: document.ocr_status,
+        ocr_completed_at: document.ocr_completed_at,
       },
-      body: JSON.stringify({ error: error.message })
-    };
+      verification,
+      can_reupload: ['MANUAL_REVIEW', 'FAILED', 'PENDING'].includes(document.ocr_status),
+      employee: employee
+        ? { employee_id: employee.employee_id, first_name: employee.first_name, last_name: employee.last_name }
+        : null,
+      check: checkOf(document, verData),
+      hr_decision: decision,
+      hr_decided_at: document.hr_reviewed_at || null,
+      hr_decided_by_name: document.hr_reviewed_by_name || null,
+      hr_decision_reason: decision === 'NEW_ONE_ASKED' && notes ? notes : null,
+      comparisons,
+    });
+  } catch (error) {
+    console.error('Error loading document', error?.name);
+    return json(500, { error: 'Document could not be loaded' });
   }
 };

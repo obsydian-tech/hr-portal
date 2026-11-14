@@ -218,6 +218,9 @@ def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
             })
         if decided:
             item["hr_reviewed_at"] = {"S": "2026-11-06T08:00:00Z"}
+            # ONB-15: a decision carries who made it, so the decided view has a name on dev.
+            item["hr_reviewed_by"] = {"S": login("hr")}
+            item["hr_reviewed_by_name"] = {"S": "Thandi Demo-HR"}
         ddb.put_item(TableName="documents", Item=item)
     return len(NALEDI_DOCUMENTS)
 

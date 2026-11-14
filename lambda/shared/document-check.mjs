@@ -85,3 +85,45 @@ export function hrDecisionOf(doc) {
   if (doc.ocr_status === 'FAILED') return 'NEW_ONE_ASKED';
   return null;
 }
+
+/**
+ * ONB-15: only HR may open, link or decide a document. Returns null for HR, else the 403 answer.
+ * The check runs before any DynamoDB, S3 or KMS call. Missing claims are refused, and a group named
+ * like "not_hr_staff" is not HR because the groups are split into names.
+ */
+export function requireHr(event, headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }) {
+  const claims = event?.requestContext?.authorizer?.jwt?.claims;
+  if (claims && groupsOf(claims).includes('hr_staff')) return null;
+  return { statusCode: 403, headers, body: JSON.stringify({ error: 'Only HR can open documents' }) };
+}
+
+/**
+ * How what Batsi read compares with the employee's record (ONB-15 spec), worked out beside
+ * checkFromRead with the same name normaliser and "not read" rule, so the lines HR reads and the
+ * check never disagree. `read` holds the fields the model read (idNumber, idLast4, surname,
+ * accountHolder) and `record` the employee (last_name, id_number_last4). Returns
+ * [{ field, result }] with result AGREES, DIFFERS, NOT_READ or NOT_ON_RECORD.
+ */
+export function comparisonsOf(documentType, read, record = {}) {
+  const lastName = normaliseName(record?.last_name);
+  const last4 = String(record?.id_number_last4 ?? '').trim();
+  const compare = (value, onRecord, agrees) => {
+    if (!read || read.skipped || notRead(value)) return 'NOT_READ';
+    if (!onRecord) return 'NOT_ON_RECORD';
+    return agrees() ? 'AGREES' : 'DIFFERS';
+  };
+
+  if (documentType === 'NATIONAL_ID') {
+    const idValue = !notRead(read?.idNumber) ? read.idNumber : read?.idLast4;
+    return [
+      { field: 'SURNAME', result: compare(read?.surname, lastName, () => normaliseName(read.surname) === lastName) },
+      { field: 'ID_NUMBER', result: compare(idValue, last4, () => String(idValue).replace(/\D/g, '').slice(-4) === last4) },
+    ];
+  }
+  if (documentType === 'BANK_CONFIRMATION') {
+    return [
+      { field: 'ACCOUNT_HOLDER', result: compare(read?.accountHolder, lastName, () => normaliseName(read.accountHolder).includes(lastName)) },
+    ];
+  }
+  return [];
+}

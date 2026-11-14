@@ -10,6 +10,7 @@ import {
   LIST_HANDLER_TODAY, REPO, openapiList, row, runList, runPerson, type Caller, type LambdaRun, type Row, type Tables,
 } from './support/onb-13/lambda-harness';
 import { CHECKS, WaitingFake, type Check, type WaitingItem } from './support/onb-13/waiting-fake';
+import { DocumentFake } from './support/onb-15/document-fake';
 
 /**
  * ONB-13 · Documents to check (Jira NH-162, epic NH-150).
@@ -30,7 +31,6 @@ const HEADING = 'Documents to check';
 const NAV_LABEL = 'Documents to check';
 const EMPTY = 'No documents are waiting for a decision.';
 const LOAD_FAILED = 'Documents could not be loaded.';
-const HOLDING_LINE = 'This document opens here once document decisions are built.';
 
 const TYPE_NAME: Record<WaitingItem['document_type'], string> = {
   NATIONAL_ID: 'National ID',
@@ -567,24 +567,40 @@ test.describe('ONB-13 Documents to check', () => {
     expect(waiting!.gets().length, 'no new call to /v1/verifications').toBe(listCalls);
   });
 
-  test('AC-4 The document link opens /hr/documents/<document_id>, the name opens the employee page, by mouse and keyboard; the holding page calls no API', async ({ page, signIn, hr, waiting, docs, baseURL }) => {
+  test('AC-4 The document link opens /hr/documents/<document_id>, the name opens the employee page, by mouse and keyboard; the document page calls only GET /v1/verifications/<id>', async ({ page, context, signIn, hr, waiting, docs, baseURL }) => {
     noBackendOnly();
     const items = everyCheck();
     waiting!.items = items;
     const target = items[3]!; // Naledi's bank letter
     docs!.add({ employee: storedEmployee({ employee_id: target.employee_id, first_name: 'Naledi', last_name: 'Dlamini' }), documents: [] });
+    // Moved by ONB-15 (NH-164), which replaces the holding page: the ONB-15 document fake answers
+    // GET /v1/verifications/<id>. Installed after the list fake, so it is tried first.
+    const one = new DocumentFake(new URL(baseURL!).origin);
+    one.add({
+      document_id: target.document_id,
+      employee: { employee_id: target.employee_id, first_name: 'Naledi', last_name: 'Dlamini' },
+      document_type: 'BANK_CONFIRMATION',
+      file_name: 'bank-confirmation.pdf',
+      uploaded_at: target.arrived_at!,
+      ocr_status: 'MANUAL_REVIEW',
+      ocr_completed_at: target.arrived_at!,
+      verification: { confidence: 72, check: 'NEEDS_A_LOOK', read: { account_holder: 'N Dlamini', bank_name: 'Capitec', account_number: '1234567890', branch_code: '470010', account_type: 'Savings' } },
+    });
+    await one.install(context);
 
-    const seen: URL[] = [];
+    const seen: Array<{ method: string; url: URL }> = [];
     page.on('request', (r) => {
       const url = new URL(r.url());
-      if (url.protocol === 'http:' || url.protocol === 'https:') seen.push(url);
+      if (url.protocol === 'http:' || url.protocol === 'https:') seen.push({ method: r.method(), url });
     });
     const app = new URL(baseURL!).origin;
-    const apiCallsSince = (from: number) => seen.slice(from).filter((u) => u.origin !== app && !['fonts.googleapis.com', 'fonts.gstatic.com'].includes(u.hostname)).map((u) => u.href);
+    const apiCallsSince = (from: number) => seen.slice(from)
+      .filter(({ method, url }) => method !== 'OPTIONS' && url.origin !== app && !['fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname))
+      .map(({ method, url }) => `${method} ${url.origin}${url.pathname}`);
+    const onlyTheDocument = (id: string) => (calls: string[]) => calls.filter((c) => !c.startsWith('GET ') || !c.endsWith(`/v1/verifications/${encodeURIComponent(id)}`));
     const expectHolding = async (id: string) => {
       await expect(page).toHaveURL(new RegExp(`${esc(docPath(id))}$`));
-      await expect(heading1(page)).toHaveText('Document');
-      await expect(page.getByText(HOLDING_LINE, { exact: true })).toBeVisible();
+      await expect(heading1(page)).toHaveText('Bank confirmation, Naledi Dlamini');
     };
 
     // Mouse.
@@ -595,7 +611,8 @@ test.describe('ONB-13 Documents to check', () => {
     await row_.locator(`a[href*="/hr/documents/"]`).click();
     await expectHolding(target.document_id);
     await page.waitForLoadState('networkidle');
-    expect(apiCallsSince(from), 'the holding page calls no API').toEqual([]);
+    expect(apiCallsSince(from).length, 'the document page asks for its document').toBeGreaterThan(0);
+    expect(onlyTheDocument(target.document_id)(apiCallsSince(from)), 'the document page calls only GET /v1/verifications/<id>').toEqual([]);
 
     await page.goBack();
     await expect(docRows(page)).toHaveCount(items.length);
@@ -611,7 +628,8 @@ test.describe('ONB-13 Documents to check', () => {
     await page.keyboard.press('Enter');
     await expectHolding(target.document_id);
     await page.waitForLoadState('networkidle');
-    expect(apiCallsSince(from), 'the holding page calls no API').toEqual([]);
+    expect(apiCallsSince(from).length, 'the document page asks for its document').toBeGreaterThan(0);
+    expect(onlyTheDocument(target.document_id)(apiCallsSince(from)), 'the document page calls only GET /v1/verifications/<id>').toEqual([]);
     await page.goBack();
     await expect(docRows(page)).toHaveCount(items.length);
     await tabTo(page, async () => {
@@ -621,7 +639,7 @@ test.describe('ONB-13 Documents to check', () => {
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`${esc(personPath(target.employee_id))}$`));
 
-    // Opened straight from an address: sign-in, then the holding page, and still no API call.
+    // Opened straight from an address: sign-in, then the document page, and still only its own call.
     await page.context().clearCookies();
     await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
     await page.goto('about:blank');
@@ -632,7 +650,9 @@ test.describe('ONB-13 Documents to check', () => {
     await signIn.signInAs(hr);
     await expectHolding(target.document_id);
     await page.waitForLoadState('networkidle');
-    expect(apiCallsSince(from).filter((h) => !/cognito-idp\.[a-z0-9-]+\.amazonaws\.com/.test(h)), 'opened straight, the holding page calls no API').toEqual([]);
+    const straight = apiCallsSince(from).filter((h) => !/cognito-idp\.[a-z0-9-]+\.amazonaws\.com/.test(h));
+    expect(straight.length, 'opened straight, the document page asks for its document').toBeGreaterThan(0);
+    expect(onlyTheDocument(target.document_id)(straight), 'opened straight, the document page calls only GET /v1/verifications/<id>').toEqual([]);
     expect(waiting!.calls.length, 'and the list is not asked for').toBe(before);
   });
 
