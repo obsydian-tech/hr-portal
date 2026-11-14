@@ -1,7 +1,7 @@
 import { TextractClient, AnalyzeDocumentCommand } from "@aws-sdk/client-textract";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
-import { DynamoDBClient, PutItemCommand, UpdateItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, PutItemCommand, UpdateItemCommand, GetItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { SFNClient, SendTaskSuccessCommand } from "@aws-sdk/client-sfn";
 import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
@@ -9,6 +9,8 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { guardAi, isRobotEmail, markRobot, aiSwitchedOff, AI_SKIPPED_LABEL, AI_OFF_LABEL } from '../shared/ai-guard.mjs';
 import { checkFromRead } from '../shared/document-check.mjs';
+import { requiredFor } from '../shared/required-documents.mjs';
+import { stepFromDocuments, stepsBefore } from '../shared/onboarding-step.mjs';
 
 const textract = guardAi(new TextractClient({ region: "eu-west-1" }), "textract");
 const s3 = new S3Client();
@@ -231,6 +233,60 @@ async function tellHrOnce({ employeeId, documentId, documentType, check }) {
   });
 }
 
+/**
+ * ONB-09: after a document is read, work out the step from the person's documents and write it only
+ * when it moves them forward. A read never moves the step back and never touches a Verified person.
+ * Non-fatal: a failure is logged and the read result, events and HR email stand. Returns the step worked out.
+ */
+async function moveStepForward(employeeId) {
+  try {
+    const rows = [];
+    let startKey;
+    do {
+      const page = await dynamodb.send(new QueryCommand({
+        TableName: 'documents',
+        KeyConditionExpression: 'employee_id = :empId',
+        ExpressionAttributeValues: { ':empId': { S: employeeId } },
+        ConsistentRead: true,
+        ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+      }));
+      rows.push(...(page.Items || []));
+      startKey = page.LastEvaluatedKey;
+    } while (startKey);
+
+    const docs = rows.map((item) => ({
+      document_id: item.document_id?.S,
+      document_type: item.document_type?.S,
+      ocr_status: item.ocr_status?.S,
+      hr_reviewed_at: item.hr_reviewed_at?.S,
+      upload_timestamp: item.upload_timestamp?.N ?? item.upload_timestamp?.S,
+    }));
+    const step = stepFromDocuments(docs, requiredFor(null));
+
+    // A row with no stored step counts as before every step.
+    const before = stepsBefore(step);
+    const values = { ':step': { S: step }, ':verified': { S: 'VERIFIED' } };
+    before.forEach((name, at) => { values[`:b${at}`] = { S: name }; });
+    const beforeList = before.map((_, at) => `:b${at}`).join(', ');
+    try {
+      await dynamodb.send(new UpdateItemCommand({
+        TableName: EMPLOYEES_TABLE(),
+        Key: { employee_id: { S: employeeId } },
+        UpdateExpression: 'SET step = :step',
+        ConditionExpression: `attribute_exists(employee_id) AND stage <> :verified AND (attribute_not_exists(step)${beforeList ? ` OR step IN (${beforeList})` : ''})`,
+        ExpressionAttributeValues: values,
+      }));
+      logger.info('Step moved forward', { employeeId, step });
+    } catch (condErr) {
+      if (condErr.name !== 'ConditionalCheckFailedException') throw condErr;
+    }
+    return step;
+  } catch (stepErr) {
+    logger.warn('Failed to update step', { error: stepErr.message, employeeId });
+    return undefined;
+  }
+}
+
 const handlerFn = async (event) => {
   const bucket = event.Records[0].s3.bucket.name;
   const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
@@ -423,6 +479,9 @@ const handlerFn = async (event) => {
       }
     }
 
+    // 7c2. ONB-09: the step follows the documents (In review when every required document is in).
+    const step = await moveStepForward(employeeId);
+
     // 7d. NH-42: Signal Step Functions that OCR + verification is complete.
     // createEmployee stored a task token on the employee record when it started
     // the StateMachine. We read it here and send SendTaskSuccess so the
@@ -465,6 +524,7 @@ const handlerFn = async (event) => {
         ocrStatus,
         confidence: validationResult.confidence,
         check,
+        step,
       },
     };
   } catch (error) {
@@ -488,8 +548,9 @@ const handlerFn = async (event) => {
         })
       );
       logger.warn('Document could not be read: waits for HR', { documentId });
+      const step = await moveStepForward(employeeId);
       await tellHrOnce({ employeeId, documentId, documentType, check: 'NEEDS_A_LOOK' });
-      return { statusCode: 200, body: { documentId: `doc_${documentId}`, employeeId, ocrStatus: 'MANUAL_REVIEW', check: 'NEEDS_A_LOOK' } };
+      return { statusCode: 200, body: { documentId: `doc_${documentId}`, employeeId, ocrStatus: 'MANUAL_REVIEW', check: 'NEEDS_A_LOOK', step } };
     } catch (updateError) {
       logger.error('Failed to update document status', { error: updateError });
     }

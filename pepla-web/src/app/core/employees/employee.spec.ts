@@ -1,18 +1,18 @@
-import { countBySteps, matchesSearch, orderNewEmployees, stepOfStage, toNewEmployee, type NewEmployee } from './employee';
+import { countBySteps, matchesSearch, orderNewEmployees, stepOfCode, toNewEmployee, type NewEmployee } from './employee';
 
 const person = (name: string, startDate: string, step: NewEmployee['step'] = 'Invited'): NewEmployee => ({ id: name, name, email: '', department: '', step, startDate, hrPartner: '' });
 
-describe('stepOfStage', () => {
-  it('maps today\'s stored stages to the four steps', () => {
-    expect(stepOfStage('INVITED')).toBe('Invited');
-    expect(stepOfStage('ACTIVE')).toBe('Documents');
-    expect(stepOfStage('DOCUMENTS_SUBMITTED')).toBe('In review');
-    for (const s of ['VERIFIED', 'TRAINING', 'ONBOARDED']) expect(stepOfStage(s)).toBe('Verified');
+describe('stepOfCode', () => {
+  it('turns the four API codes into the four words', () => {
+    expect(stepOfCode('INVITED')).toBe('Invited');
+    expect(stepOfCode('DOCUMENTS')).toBe('Documents');
+    expect(stepOfCode('IN_REVIEW')).toBe('In review');
+    expect(stepOfCode('VERIFIED')).toBe('Verified');
   });
-  it('gives no step for an unknown or empty stage', () => {
-    expect(stepOfStage('ARCHIVED')).toBeNull();
-    expect(stepOfStage('')).toBeNull();
-    expect(stepOfStage(undefined)).toBeNull();
+  it('gives no step for any other value or none', () => {
+    for (const other of ['', 'ACTIVE', 'invited', 'toString', '__proto__']) expect(stepOfCode(other)).toBeNull();
+    expect(stepOfCode(null)).toBeNull();
+    expect(stepOfCode(undefined)).toBeNull();
   });
 });
 

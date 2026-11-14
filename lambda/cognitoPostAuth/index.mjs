@@ -110,12 +110,13 @@ export const handler = async (event) => {
     await dynamo.send(new UpdateItemCommand({
       TableName: EMPLOYEES_TABLE,
       Key: { employee_id: { S: employeeId } },
-      UpdateExpression: 'SET stage = :active, activated_at = :now',
+      UpdateExpression: 'SET stage = :active, activated_at = :now, step = :documents',
       ConditionExpression: 'stage = :invited',
       ExpressionAttributeValues: {
         ':active':  { S: 'ACTIVE' },
         ':invited': { S: 'INVITED' },
         ':now':     { S: new Date().toISOString() },
+        ':documents': { S: 'DOCUMENTS' },
       },
     }));
 

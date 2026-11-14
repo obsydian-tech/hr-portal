@@ -1,5 +1,5 @@
 import { CognitoFake } from '../acceptance/support/cognito-fake';
-import { HELP_JOHAN_DETAIL, HELP_NEW_EMPLOYEES, HELP_PEOPLE } from '../fixtures/help-company';
+import { HELP_JOHAN_DETAIL, HELP_NEW_EMPLOYEES, HELP_NEW_EMPLOYEE_STEPS, HELP_PEOPLE } from '../fixtures/help-company';
 import { expect, test } from '../support/help';
 
 /**
@@ -59,7 +59,7 @@ test('HR sees who is starting', async ({ page, context, help, baseURL }) => {
   await context.route(
     (url) => /\/v1\/employees$/.test(url.pathname) && url.host !== appHost,
     answer({
-      items: HELP_NEW_EMPLOYEES.map((p) => ({ ...p, middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: hr.email })),
+      items: HELP_NEW_EMPLOYEES.map((p) => ({ ...p, step: HELP_NEW_EMPLOYEE_STEPS[p.employee_id], middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: hr.email })),
       count: HELP_NEW_EMPLOYEES.length,
     }),
   );

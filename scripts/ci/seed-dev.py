@@ -13,7 +13,7 @@ What it makes, every run, idempotently:
     one per group). Passwords are random, kept in Secrets Manager under
     pepla-dev/e2e/<role> as {"username", "password"}. Logins use the Postmark
     blackhole domain, so no real mailbox can ever receive anything.
-  * Resets the employee persona to a clean start: stage INVITED, no documents.
+  * Resets the employee persona to a clean start: stage INVITED, step INVITED, no documents.
   * Four documents for Naledi Dlamini (ONB-13), written straight to DynamoDB with
     fixed ids: no S3 file, no Textract, no ID number. Three wait for an HR
     decision, the matric certificate is already accepted.
@@ -71,6 +71,16 @@ DEMO_PEOPLE = [
     ("Kagiso", "Nkosi", "Sales", "Store Manager", "ACTIVE"),
     ("Mwila", "Phiri", "Operations", "Driver", "INVITED"),
 ]
+
+# ONB-09: the stored onboarding step of each current stage. Chipo (TRAINING) and Ayesha (ONBOARDED)
+# get none on purpose: pepla-dev keeps two rows like the prod ones, and the API answers their step from
+# the stage.
+STEP_OF_STAGE = {
+    "INVITED": "INVITED",
+    "ACTIVE": "DOCUMENTS",
+    "DOCUMENTS_SUBMITTED": "IN_REVIEW",
+    "VERIFIED": "VERIFIED",
+}
 
 
 def login(role: str) -> str:
@@ -145,7 +155,7 @@ def ensure_user(cognito, pool: str, role: str, password: str,
 
 def employee_item(employee_id: str, first: str, last: str, email: str, dept: str,
                   title: str, stage: str) -> dict:
-    return {
+    item = {
         "employee_id": {"S": employee_id},
         "first_name": {"S": first},
         "middle_name": {"S": ""},
@@ -164,6 +174,9 @@ def employee_item(employee_id: str, first: str, last: str, email: str, dept: str
         "hr_staff_email": {"S": login("hr")},
         "seed": {"S": SEED_TAG},
     }
+    if stage in STEP_OF_STAGE:
+        item["step"] = {"S": STEP_OF_STAGE[stage]}
+    return item
 
 
 def reset_employee_documents(ddb, employee_id: str) -> int:

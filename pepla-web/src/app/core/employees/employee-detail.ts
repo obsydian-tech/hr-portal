@@ -1,4 +1,4 @@
-import { stepOfStage, type Step } from './employee';
+import { stepOfCode, type Step } from './employee';
 
 export type DocumentType = 'NATIONAL_ID' | 'BANK_CONFIRMATION' | 'MATRIC_CERTIFICATE' | 'TERTIARY_QUALIFICATION';
 export type Check = 'READING' | 'MATCHES' | 'NEEDS_A_LOOK' | 'DOESNT_MATCH';
@@ -34,7 +34,7 @@ export interface ApiEmployeeDetail {
     phone?: string;
     department?: string;
     job_title?: string;
-    stage?: string;
+    step?: string | null;
     planned_start_date?: string;
     hr_staff_name?: string;
   };
@@ -105,7 +105,7 @@ export function toEmployeeDetail(a: ApiEmployeeDetail): EmployeeDetail {
     department: e.department ?? '',
     email: e.email ?? '',
     phone: e.phone ?? '',
-    step: stepOfStage(e.stage),
+    step: stepOfCode(e.step),
     startDate: e.planned_start_date ?? '',
     hrPartner: e.hr_staff_name ?? '',
     byType: DOCUMENT_TYPES.map(({ type, name }) => ({

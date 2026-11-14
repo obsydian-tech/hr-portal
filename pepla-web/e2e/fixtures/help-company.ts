@@ -80,6 +80,17 @@ export const HELP_NEW_EMPLOYEES = [
 ] as const;
 
 /**
+ * The step the API answers for each of those people (ONB-09), by employee_id: the same step their
+ * stage gives. A separate export, because HELP_NEW_EMPLOYEES is locked exactly as HELP-01.2 left it.
+ */
+export const HELP_NEW_EMPLOYEE_STEPS: Readonly<Record<string, 'INVITED' | 'DOCUMENTS' | 'IN_REVIEW' | 'VERIFIED'>> = {
+  'sunbird-thandi-mahlangu': 'INVITED',
+  'sunbird-lerato-nkosi': 'DOCUMENTS',
+  'sunbird-johan-botha': 'IN_REVIEW',
+  'sunbird-sipho-mokoena': 'VERIFIED',
+};
+
+/**
  * Johan Botha's page (GET /v1/employees/{id}/verifications), as HELP-02 shows it: In review, two
  * documents uploaded before HELP_TODAY, no phone. Job title comes from HELP_PEOPLE.
  *
@@ -93,7 +104,7 @@ export const HELP_JOHAN_DETAIL = (() => {
   const person = HELP_PEOPLE.find((p) => p.email === 'johan@example.com')!;
   const employee = HELP_NEW_EMPLOYEES.find((e) => e.email === person.email)!;
   return {
-    employee: { ...employee, phone: '', job_title: person.title },
+    employee: { ...employee, step: HELP_NEW_EMPLOYEE_STEPS[employee.employee_id], phone: '', job_title: person.title },
     documents: [
       {
         document_id: 'sunbird-johan-id',

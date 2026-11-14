@@ -5,6 +5,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { groupsOf, checkOf, hrDecisionOf } from '../shared/document-check.mjs';
 import { requiredFor } from '../shared/required-documents.mjs';
+import { stepOf } from '../shared/onboarding-step.mjs';
 
 const dynamodb = new DynamoDBClient();
 const kms = new KMSClient();
@@ -184,6 +185,7 @@ const handlerFn = async (event) => {
           email: employee.email,
           phone: employee.phone || '',
           stage: employee.stage,
+          step: stepOf(employee),
           department: employee.department || '',
           job_title: employee.job_title || '',
           planned_start_date: employee.planned_start_date || '',
