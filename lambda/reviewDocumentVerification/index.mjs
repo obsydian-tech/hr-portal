@@ -1,5 +1,6 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { withIdempotency } from '../shared/idempotency.mjs';
+import { groupsOf } from '../shared/document-check.mjs';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -245,6 +246,12 @@ const handlerFn = async (event) => {
 // A repeated call with the same key within 24h returns the cached response
 // without re-applying a review decision or re-firing EventBridge events.
 export const handler = async (event) => {
+  // ONB-07 security review: only HR decides. This route shares its authorizer with employee uploads,
+  // so the group is checked here, before any read or write (and before the idempotency cache).
+  const claims = event.requestContext?.authorizer?.jwt?.claims;
+  if (!claims || !groupsOf(claims).includes('hr_staff')) {
+    return respond(403, { error: 'Only HR can decide on a document' });
+  }
   const key = event.headers?.['idempotency-key'];
   return withIdempotency(key, () => handlerFn(event));
 };

@@ -62,7 +62,7 @@ export function checkFromRead(read, record = {}) {
   if (read.documentType === 'NATIONAL_ID') {
     const idRead = !notRead(read.idNumber);
     const surnameRead = !notRead(read.surname);
-    if (last4 && idRead && String(read.idNumber).trim().slice(-4) !== last4) return 'DOESNT_MATCH';
+    if (last4 && idRead && String(read.idNumber).replace(/\D/g, '').slice(-4) !== last4) return 'DOESNT_MATCH';
     if (lastName && surnameRead && normaliseName(read.surname) !== lastName) return 'DOESNT_MATCH';
     const agrees = lastName && surnameRead && (!last4 || idRead);
     return confident && agrees ? 'MATCHES' : 'NEEDS_A_LOOK';
