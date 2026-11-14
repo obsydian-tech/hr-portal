@@ -197,6 +197,8 @@ def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
             "document_id": {"S": doc_id},
             "document_type": {"S": doc_type},
             "file_name": {"S": f"{doc_type.lower()}.pdf"},
+            # ONB-15: the file link route needs a key to sign. No file is stored behind it on dev.
+            "s3_key": {"S": f"uploads/{employee_id}/{doc_id}.pdf"},
             "upload_timestamp": {"S": uploaded},
             "ocr_status": {"S": status},
             "seed": {"S": SEED_TAG},
