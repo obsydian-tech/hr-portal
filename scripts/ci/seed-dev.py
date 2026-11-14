@@ -181,7 +181,7 @@ def reset_employee_documents(ddb, employee_id: str) -> int:
 
 # Naledi Dlamini's documents (ONB-13). (document_id, type, uploaded, ocr_status, confidence or None, decided)
 NALEDI_DOCUMENTS = [
-    ("doc_1762156800000", "NATIONAL_ID", "2026-11-03T08:00:00Z", "PASSED", 96, False),
+    ("doc_1762156800000", "NATIONAL_ID", "2026-11-03T08:00:00Z", "MANUAL_REVIEW", 96, False),
     ("doc_1762243200000", "BANK_CONFIRMATION", "2026-11-04T08:00:00Z", "MANUAL_REVIEW", 72, False),
     ("doc_1762329600000", "TERTIARY_QUALIFICATION", "2026-11-05T08:00:00Z", "PENDING", None, False),
     ("doc_1762070400000", "MATRIC_CERTIFICATE", "2026-11-02T08:00:00Z", "PASSED", 95, True),
@@ -211,6 +211,8 @@ def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
                 "documentType": {"S": doc_type},
                 "confidence": {"N": str(confidence)},
                 "decision": {"S": status},
+                # ONB-07: Batsi's check is stored on the row; 90 or more matches, as the screens showed before.
+                "check": {"S": "MATCHES" if confidence >= 90 else "NEEDS_A_LOOK"},
                 "createdAt": {"S": uploaded},
                 "seed": {"S": SEED_TAG},
             })

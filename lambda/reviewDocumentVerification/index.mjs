@@ -151,12 +151,15 @@ const handlerFn = async (event) => {
     const processedDocs = (allDocs.Items || []).filter(
       (item) => !['PENDING', 'PROCESSING'].includes(item.ocr_status?.S)
     );
-    // Minimum gate: at least one NATIONAL_ID must be among the passed docs
+    // ONB-07: only a document a person accepted counts. PASSED written by the old
+    // auto-pass has no hr_reviewed_at and does not count.
+    const acceptedByHr = (item) => item.ocr_status?.S === 'PASSED' && !!item.hr_reviewed_at?.S;
+    // Minimum gate: at least one NATIONAL_ID must be among the accepted docs
     const nationalIdPassed = processedDocs.some(
-      (item) => item.document_type?.S === 'NATIONAL_ID' && item.ocr_status?.S === 'PASSED'
+      (item) => item.document_type?.S === 'NATIONAL_ID' && acceptedByHr(item)
     );
     const allPassed = processedDocs.length > 0 &&
-      processedDocs.every((item) => item.ocr_status?.S === 'PASSED') &&
+      processedDocs.every(acceptedByHr) &&
       nationalIdPassed;
 
     let stageUpdated = false;

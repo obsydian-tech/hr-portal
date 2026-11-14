@@ -8,6 +8,7 @@ import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { guardAi, isRobotEmail, markRobot, aiSwitchedOff, AI_SKIPPED_LABEL, AI_OFF_LABEL } from '../shared/ai-guard.mjs';
+import { checkFromRead } from '../shared/document-check.mjs';
 
 const textract = guardAi(new TextractClient({ region: "eu-west-1" }), "textract");
 const s3 = new S3Client();
@@ -69,7 +70,6 @@ Return this exact JSON structure:
     "hasSurname": true/false
   },
   "confidence": a number between 0 and 100,
-  "decision": "AUTO_APPROVE" if confidence >= 90 or "MANUAL_REVIEW" if confidence < 90,
   "reasoning": "brief explanation"
 }`;
 }
@@ -104,7 +104,6 @@ Return this exact JSON structure:
     "isRecentLetter": true/false
   },
   "confidence": a number between 0 and 100,
-  "decision": "AUTO_APPROVE" if confidence >= 90 or "MANUAL_REVIEW" if confidence < 90,
   "reasoning": "brief explanation"
 }`;
 }
@@ -125,7 +124,6 @@ Return this exact JSON structure:
     "isReadable": true/false
   },
   "confidence": a number between 0 and 100,
-  "decision": "AUTO_APPROVE" if confidence >= 90 or "MANUAL_REVIEW" if confidence < 90,
   "reasoning": "brief explanation"
 }`;
 }
@@ -156,7 +154,7 @@ async function kmsEncrypt(plaintext) {
   return Buffer.from(result.CiphertextBlob).toString('base64');
 }
 
-async function buildVerificationItem({ verificationId, employeeId, documentId, documentType, key, validationResult, ocrCompletedAt }) {
+async function buildVerificationItem({ verificationId, employeeId, documentId, documentType, key, validationResult, check, ocrCompletedAt }) {
   // Common fields for all document types
   const item = {
     verificationId: { S: verificationId },
@@ -166,8 +164,10 @@ async function buildVerificationItem({ verificationId, employeeId, documentId, d
     fileName: { S: key },
     checks: { S: JSON.stringify(validationResult.checks || {}) },
     confidence: { N: String(validationResult.confidence) },
-    decision: { S: validationResult.decision },
-    reasoning: { S: validationResult.reasoning },
+    // ONB-07: every read document waits for HR. The model's own decision is never stored.
+    decision: { S: 'MANUAL_REVIEW' },
+    check: { S: check },
+    reasoning: { S: validationResult.reasoning || '' },
     createdAt: { S: ocrCompletedAt },
   };
 
@@ -201,6 +201,36 @@ async function buildVerificationItem({ verificationId, employeeId, documentId, d
 
 // ─── Main handler ─────────────────────────────────────────────
 
+const EMPLOYEES_TABLE = () => process.env.EMPLOYEES_TABLE ?? 'employees';
+
+/**
+ * ONB-07: tell HR once. hr_told_at is set with a condition that it is not set yet; only the write that
+ * succeeds publishes document.waiting, so a repeat of the same S3 event never tells HR twice.
+ */
+async function tellHrOnce({ employeeId, documentId, documentType, check }) {
+  try {
+    await dynamodb.send(new UpdateItemCommand({
+      TableName: "documents",
+      Key: { employee_id: { S: employeeId }, document_id: { S: `doc_${documentId}` } },
+      UpdateExpression: "SET hr_told_at = :now",
+      ConditionExpression: "attribute_not_exists(hr_told_at)",
+      ExpressionAttributeValues: { ":now": { S: new Date().toISOString() } },
+    }));
+  } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') {
+      logger.info('HR already told about this document', { documentId });
+      return;
+    }
+    throw err;
+  }
+  await publishEvent('document.waiting', {
+    employee_id: employeeId,
+    document_id: `doc_${documentId}`,
+    document_type: documentType,
+    check,
+  });
+}
+
 const handlerFn = async (event) => {
   const bucket = event.Records[0].s3.bucket.name;
   const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));
@@ -208,22 +238,65 @@ const handlerFn = async (event) => {
   logger.info('Processing document', { key, bucket });
   tracer.putAnnotation('operation', 'processDocumentOCR');
 
-  try {
-    // 1. Extract metadata from S3 key
-    // Format: uploads/EMP-0000011/NATIONAL_ID/doc_1774086521598_sarah_id.pdf
-    const keyParts = key.split('/');
-    const employeeId = keyParts[1];
-    const documentType = keyParts[2];
-    const fileName = keyParts[3];
-    const documentId = fileName.split('_')[1]; // Extract doc_1774086521598
+  // Extract metadata from S3 key
+  // Format: uploads/EMP-0000011/NATIONAL_ID/doc_1774086521598_sarah_id.pdf
+  const keyParts = key.split('/');
+  const employeeId = keyParts[1];
+  const documentType = keyParts[2];
+  const fileName = keyParts[3];
+  const documentId = fileName.split('_')[1]; // Extract doc_1774086521598
 
+  try {
     logger.info('Document metadata', { employeeId, documentType, documentId });
     tracer.putAnnotation('employeeId', employeeId);
     tracer.putAnnotation('documentType', documentType);
 
+    // 0. A repeat of an S3 event for a document already read stops here: no file read, no AI, no events.
+    //    One conditional write, so the role needs no extra table permission. It fails when the document
+    //    was already read (ocr_completed_at is set) or has no row.
+    try {
+      await dynamodb.send(new UpdateItemCommand({
+        TableName: "documents",
+        Key: { employee_id: { S: employeeId }, document_id: { S: `doc_${documentId}` } },
+        UpdateExpression: "SET ocr_started_at = :now",
+        ConditionExpression: "attribute_exists(document_id) AND attribute_not_exists(ocr_completed_at)",
+        ExpressionAttributeValues: { ":now": { S: new Date().toISOString() } },
+      }));
+    } catch (repeatErr) {
+      if (repeatErr.name === 'ConditionalCheckFailedException') {
+        logger.info('Document already read or unknown: event ignored', { documentId });
+        return { statusCode: 200, body: { documentId: `doc_${documentId}`, employeeId, repeat: true } };
+      }
+      throw repeatErr;
+    }
+
     // 1b. Publish document.uploaded event (NH-14)
     await publishEvent('document.uploaded', { employee_id: employeeId, document_id: documentId, document_type: documentType });
 
+    // AI cost guardrail: documents of test employees (robots) never reach
+    // Textract or Claude; they go straight to waiting for HR. If the employee
+    // can't be read, play safe and treat it as test data.
+    let robot = true;
+    let record = {};
+    try {
+      const emp = await dynamodb.send(new GetItemCommand({
+        TableName: EMPLOYEES_TABLE(),
+        Key: { employee_id: { S: employeeId } },
+        ProjectionExpression: 'email, last_name, id_number_last4',
+      }));
+      robot = !emp.Item || isRobotEmail(emp.Item.email?.S);
+      record = { last_name: emp.Item?.last_name?.S, id_number_last4: emp.Item?.id_number_last4?.S };
+    } catch (guardErr) {
+      logger.warn('Employee lookup for AI guard failed; skipping AI', { error: guardErr.message });
+    }
+    markRobot(robot);
+    const skipped = robot || aiSwitchedOff();
+    let validationResult;
+    if (skipped) {
+      logger.info('AI skipped: document goes to HR without OCR', { documentType, robot });
+      validationResult = { checks: {}, confidence: 0,
+                           reasoning: robot ? AI_SKIPPED_LABEL : AI_OFF_LABEL };
+    } else {
     // 2. Download file from S3
     const s3Response = await s3.send(
       new GetObjectCommand({ Bucket: bucket, Key: key })
@@ -231,27 +304,6 @@ const handlerFn = async (event) => {
     const fileBytes = await s3Response.Body.transformToByteArray();
     logger.info('File downloaded', { bytes: fileBytes.length });
 
-    // AI cost guardrail: documents of test employees (robots) never reach
-    // Textract or Claude; they go straight to manual review. If the employee
-    // can't be read, play safe and treat it as test data.
-    let robot = true;
-    try {
-      const emp = await dynamodb.send(new GetItemCommand({
-        TableName: process.env.EMPLOYEES_TABLE ?? 'employees',
-        Key: { employee_id: { S: employeeId } },
-        ProjectionExpression: 'email',
-      }));
-      robot = !emp.Item || isRobotEmail(emp.Item.email?.S);
-    } catch (guardErr) {
-      logger.warn('Employee lookup for AI guard failed; skipping AI', { error: guardErr.message });
-    }
-    markRobot(robot);
-    let validationResult;
-    if (robot || aiSwitchedOff()) {
-      logger.info('AI skipped: document goes to manual review without OCR', { documentType, robot });
-      validationResult = { checks: {}, confidence: 0, decision: 'MANUAL_REVIEW',
-                           reasoning: robot ? AI_SKIPPED_LABEL : AI_OFF_LABEL };
-    } else {
     // 3. Extract text with Textract
     const textractResponse = await textract.send(
       new AnalyzeDocumentCommand({
@@ -267,7 +319,7 @@ const handlerFn = async (event) => {
     const extractedText = extractedLines.join("\n");
     // NOTE: extracted text is not logged to avoid PII (may contain names, ID numbers, account details)
 
-    // 4. Send to Claude for validation — prompt varies by document type
+    // 4. Send to Claude to read the fields — prompt varies by document type
     const prompt = getPromptForDocType(documentType, extractedText);
     logger.info('Running Claude validation', { documentType });
 
@@ -293,15 +345,18 @@ const handlerFn = async (event) => {
     validationResult = JSON.parse(claudeText);
     }
 
+    // ONB-07: Batsi's check is worked out here from the record, never by the model.
+    const check = checkFromRead({ ...validationResult, documentType, skipped }, record);
+
     // NOTE: full validation result not logged to avoid PII (may contain idNumber, name, accountHolder, etc.)
-    logger.info('Validation complete', { confidence: validationResult.confidence, decision: validationResult.decision });
+    logger.info('Validation complete', { confidence: validationResult.confidence, check });
 
     // 6. Save to document-verification table — fields vary by document type
     const verificationId = `ver_${Date.now()}`;
     const ocrCompletedAt = new Date().toISOString();
 
     const verificationItem = await buildVerificationItem({
-      verificationId, employeeId, documentId, documentType, key, validationResult, ocrCompletedAt,
+      verificationId, employeeId, documentId, documentType, key, validationResult, check, ocrCompletedAt,
     });
 
     await dynamodb.send(
@@ -313,8 +368,9 @@ const handlerFn = async (event) => {
 
     logger.info('Saved verification record', { verificationId });
 
-    // 7. Update documents table with OCR status
-    const ocrStatus = validationResult.confidence >= 90 ? "PASSED" : "MANUAL_REVIEW";
+    // 7. Update documents table: every read document waits for HR (ONB-07).
+    //    Only HR's Accept writes PASSED and only HR's Ask for a new one writes FAILED.
+    const ocrStatus = "MANUAL_REVIEW";
 
     await dynamodb.send(
       new UpdateItemCommand({
@@ -334,27 +390,21 @@ const handlerFn = async (event) => {
 
     logger.info('Updated document status', { documentId, ocrStatus });
 
-    // 7b. Publish ocr.completed + verification outcome events (NH-14)
+    // 7b. Publish ocr.completed (NH-14), then tell HR once
     await publishEvent('ocr.completed', {
       employee_id: employeeId,
       document_id: documentId,
       document_type: documentType,
       confidence: validationResult.confidence,
-      decision: validationResult.decision,
+      check,
     });
-    const verDetailType = ocrStatus === 'PASSED' ? 'verification.passed' : 'verification.manual_review';
-    await publishEvent(verDetailType, {
-      employee_id: employeeId,
-      document_id: documentId,
-      verification_id: verificationId,
-      decision: ocrStatus,
-    });
+    await tellHrOnce({ employeeId, documentId, documentType, check });
 
     // 7c. NH-80: Bump employee stage INVITED/ACTIVE → DOCUMENTS_SUBMITTED on first doc processed.
     //     Conditional update — only advances, never regresses.
     try {
       await dynamodb.send(new UpdateItemCommand({
-        TableName: process.env.EMPLOYEES_TABLE ?? 'employees',
+        TableName: EMPLOYEES_TABLE(),
         Key: { employee_id: { S: employeeId } },
         UpdateExpression: 'SET stage = :ds, documents_started_at = if_not_exists(documents_started_at, :now)',
         ConditionExpression: 'stage IN (:invited, :active)',
@@ -379,7 +429,7 @@ const handlerFn = async (event) => {
     // WaitForDocumentUpload state can resume and proceed to AssessRisk.
     try {
       const empRecord = await dynamodb.send(new GetItemCommand({
-        TableName: process.env.EMPLOYEES_TABLE ?? 'employees',
+        TableName: EMPLOYEES_TABLE(),
         Key: { employee_id: { S: employeeId } },
         ProjectionExpression: 'sfn_task_token',
       }));
@@ -392,7 +442,7 @@ const handlerFn = async (event) => {
             verificationId,
             ocrStatus,
             confidence: validationResult.confidence,
-            decision: validationResult.decision,
+            check,
           }),
         }));
         logger.info('Step Functions signaled — OCR complete', { employeeId, ocrStatus });
@@ -414,19 +464,15 @@ const handlerFn = async (event) => {
         employeeId,
         ocrStatus,
         confidence: validationResult.confidence,
-        decision: validationResult.decision
+        check,
       },
     };
   } catch (error) {
     logger.error('Error processing document', { error });
-    
-    // Try to mark document as FAILED if we can extract the document_id
+
+    // ONB-07: a file that could not be read waits for HR as Needs a look. A machine never refuses a
+    // document. Stamping ocr_completed_at also stops S3's retries from reading the file again.
     try {
-      const keyParts = key.split('/');
-      const employeeId = keyParts[1];
-      const fileName = keyParts[3];
-      const documentId = fileName.split('_')[1];
-      
       await dynamodb.send(
         new UpdateItemCommand({
           TableName: "documents",
@@ -436,17 +482,18 @@ const handlerFn = async (event) => {
           },
           UpdateExpression: "SET ocr_status = :status, ocr_completed_at = :completedAt",
           ExpressionAttributeValues: {
-            ":status": { S: "FAILED" },
+            ":status": { S: "MANUAL_REVIEW" },
             ":completedAt": { S: new Date().toISOString() }
           }
         })
       );
-      
-      logger.warn('Marked document as FAILED', { documentId });
+      logger.warn('Document could not be read: waits for HR', { documentId });
+      await tellHrOnce({ employeeId, documentId, documentType, check: 'NEEDS_A_LOOK' });
+      return { statusCode: 200, body: { documentId: `doc_${documentId}`, employeeId, ocrStatus: 'MANUAL_REVIEW', check: 'NEEDS_A_LOOK' } };
     } catch (updateError) {
       logger.error('Failed to update document status', { error: updateError });
     }
-    
+
     throw error;
   }
 };

@@ -16,6 +16,7 @@ DEV_ACCOUNT = "424556617428"
 REGION = "af-south-1"
 MARKER = "e2e.run-"
 TF_STATE = "talent-flow-state"
+EMPLOYEE_LOGIN_ID = "E2E-EMP-0001"  # the employee test login (scripts/ci/seed-dev.py)
 
 
 def main() -> None:
@@ -52,8 +53,26 @@ def main() -> None:
                     users += 1
 
     candidates = remove_candidates(ddb)
+    login_docs = remove_login_documents(ddb)
     print(f"cleanup-dev-e2e: employees {employees}; documents {docs}; "
-          f"candidates {candidates}; logins {users}")
+          f"test login documents {login_docs}; candidates {candidates}; logins {users}")
+
+
+def remove_login_documents(ddb) -> int:
+    """ONB-07: the employee test login uploads a document; remove it (and its check) at the end of the run."""
+    removed = 0
+    for page in ddb.get_paginator("query").paginate(
+            TableName="documents",
+            KeyConditionExpression="employee_id = :e",
+            ExpressionAttributeValues={":e": {"S": EMPLOYEE_LOGIN_ID}},
+            ProjectionExpression="employee_id, document_id, verification_id"):
+        for d in page["Items"]:
+            vid = d.get("verification_id", {}).get("S")
+            if vid:
+                ddb.delete_item(TableName="document-verification", Key={"verificationId": {"S": vid}})
+            ddb.delete_item(TableName="documents", Key={"employee_id": d["employee_id"], "document_id": d["document_id"]})
+            removed += 1
+    return removed
 
 
 def remove_candidates(ddb) -> int:
