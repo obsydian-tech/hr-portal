@@ -9,6 +9,8 @@ export const routes: Routes = [
     loadComponent: () => import('./features/hr/hr-shell').then((m) => m.HrShell),
     children: [
       { path: '', loadComponent: () => import('./features/hr/hr-home.page').then((m) => m.HrHomePage), title: 'Today · Naleko People' },
+      { path: 'documents', loadComponent: () => import('./features/hr/documents.page').then((m) => m.DocumentsToCheckPage), title: 'Documents to check · Naleko People' },
+      { path: 'documents/:id', loadComponent: () => import('./features/hr/document-holding.page').then((m) => m.DocumentHoldingPage), title: 'Document · Naleko People' },
       { path: 'employees/:id', loadComponent: () => import('./features/hr/employee-detail.page').then((m) => m.EmployeeDetailPage), title: 'Employee · Naleko People' },
     ],
   },
