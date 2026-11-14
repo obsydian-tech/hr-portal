@@ -184,6 +184,8 @@ const handlerFn = async (event) => {
         TableName: DOCUMENTS_TABLE,
         KeyConditionExpression: 'employee_id = :empId',
         ExpressionAttributeValues: { ':empId': { S: employeeId } },
+        // Read the decision just written, not an older copy of the row.
+        ConsistentRead: true,
         ...(docsKey ? { ExclusiveStartKey: docsKey } : {}),
       }));
       allDocs.push(...(page.Items || []));
