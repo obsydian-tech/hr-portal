@@ -33,6 +33,11 @@ export class DocumentsService {
     return list;
   }
 
+  /** HR decided one document: the count in the sidebar goes down by one, when the list has loaded. */
+  decided(): void {
+    this.waiting.update((n) => (n === null ? null : Math.max(0, n - 1)));
+  }
+
   /** Forget the count, for when someone signs out. */
   forget(): void {
     this.waiting.set(null);

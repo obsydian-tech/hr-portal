@@ -3,6 +3,7 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { requireHr } from '../shared/document-check.mjs';
 
 const dynamodb = new DynamoDBClient({ region: "af-south-1" });
 const s3 = new S3Client({ region: "af-south-1" });
@@ -21,6 +22,10 @@ const handlerFn = async (event) => {
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
+
+  // ONB-15: only HR gets a link to a document file, before any table or file is touched.
+  const refused = requireHr(event, headers);
+  if (refused) return refused;
 
   try {
     // API GW route is GET /v1/documents/{id}/url — passes pathParameters.id

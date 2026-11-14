@@ -1,6 +1,6 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { withIdempotency } from '../shared/idempotency.mjs';
-import { groupsOf } from '../shared/document-check.mjs';
+import { groupsOf, hrDecisionOf } from '../shared/document-check.mjs';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -57,15 +57,26 @@ const handlerFn = async (event) => {
     return respond(400, { error: 'Invalid JSON body' });
   }
 
-  const { decision, notes, employee_id: bodyEmployeeId } = body;
+  const { decision, employee_id: bodyEmployeeId } = body ?? {};
   if (!decision || !['PASSED', 'FAILED'].includes(decision)) {
     return respond(400, { error: 'decision must be "PASSED" or "FAILED"' });
   }
+  // ONB-15: the reason is trimmed, and at most 500 characters. The page asks for one; the server does not
+  // yet (the old app's reject sends none). Nothing is written on a 400.
+  const notes = typeof body?.notes === 'string' ? body.notes.trim() : '';
+  if (notes.length > 500) {
+    return respond(400, { error: 'The reason is too long' });
+  }
+
+  // Who decides, from the ID token: the email, and the given and family name (else the email).
+  const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
+  const decidedBy = String(claims.email ?? '');
+  const decidedByName = `${claims.given_name ?? ''} ${claims.family_name ?? ''}`.trim() || decidedBy;
 
   try {
     // 1. Fetch the document record.
     // NH-101: prefer GetItem (O(1)) when the caller supplies employee_id in the
-    // request body. Fall back to a full-table Scan only when employee_id is absent
+    // request body. Fall back to a Scan (all pages) only when employee_id is absent
     // (e.g., older clients) so backward-compatibility is preserved during rollout.
     let docRecord;
     if (bodyEmployeeId) {
@@ -81,45 +92,70 @@ const handlerFn = async (event) => {
       }
       docRecord = getResult.Item;
     } else {
-      // Fallback: full-table Scan (O(n) — avoid at scale)
-      const docScan = await dynamo.send(new ScanCommand({
-        TableName: DOCUMENTS_TABLE,
-        FilterExpression: 'document_id = :docId',
-        ExpressionAttributeValues: { ':docId': { S: documentId } },
-      }));
-      if (!docScan.Items || docScan.Items.length === 0) {
+      // Fallback: Scan (O(n) — avoid at scale). A Scan returns one page at a time, so follow every page.
+      let startKey;
+      do {
+        const docScan = await dynamo.send(new ScanCommand({
+          TableName: DOCUMENTS_TABLE,
+          FilterExpression: 'document_id = :docId',
+          ExpressionAttributeValues: { ':docId': { S: documentId } },
+          ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+        }));
+        if (docScan.Items && docScan.Items.length > 0) {
+          docRecord = docScan.Items[0];
+          break;
+        }
+        startKey = docScan.LastEvaluatedKey;
+      } while (startKey);
+      if (!docRecord) {
         return respond(404, { error: 'Document not found' });
       }
-      docRecord = docScan.Items[0];
     }
 
     const employeeId = docRecord.employee_id.S;
     const verificationId = docRecord.verification_id?.S;
 
-    // 2. Update the documents table: ocr_status → PASSED/FAILED, can_reupload on FAILED
-    const updateDocParams = {
-      TableName: DOCUMENTS_TABLE,
-      Key: {
-        employee_id: { S: employeeId },
-        document_id: { S: documentId },
-      },
-      UpdateExpression: 'SET ocr_status = :status, hr_reviewed_at = :now, hr_decision_notes = :notes, can_reupload = :reupload',
-      ExpressionAttributeValues: {
-        ':status': { S: decision },
-        ':now': { S: new Date().toISOString() },
-        ':notes': { S: notes || '' },
-        ':reupload': { BOOL: decision === 'FAILED' },
-      },
-    };
-    await dynamo.send(new UpdateItemCommand(updateDocParams));
+    // 2. Decide, with one conditional write: a document is decided once, and never while Batsi is still
+    //    reading it. Two HR users, or two tabs, cannot both win. ONB-15.
+    const now = new Date().toISOString();
+    try {
+      await dynamo.send(new UpdateItemCommand({
+        TableName: DOCUMENTS_TABLE,
+        Key: {
+          employee_id: { S: employeeId },
+          document_id: { S: documentId },
+        },
+        UpdateExpression: 'SET ocr_status = :status, hr_reviewed_at = :now, hr_reviewed_by = :by, hr_reviewed_by_name = :byName, hr_decision_notes = :notes, can_reupload = :reupload',
+        ConditionExpression: 'attribute_not_exists(hr_reviewed_at) AND NOT ocr_status IN (:pending, :processing)',
+        ExpressionAttributeValues: {
+          ':status': { S: decision },
+          ':now': { S: now },
+          ':by': { S: decidedBy },
+          ':byName': { S: decidedByName },
+          ':notes': { S: notes },
+          ':reupload': { BOOL: decision === 'FAILED' },
+          ':pending': { S: 'PENDING' },
+          ':processing': { S: 'PROCESSING' },
+        },
+      }));
+    } catch (err) {
+      if (err?.name === 'ConditionalCheckFailedException') {
+        return respond(409, { error: 'This document was already decided or is still being read' });
+      }
+      throw err;
+    }
     logger.info('Updated document', { documentId, decision });
 
-    // 2b. Publish document.reviewed event (NH-14)
+    // 2b. Publish document.reviewed event (NH-14). The audit log stores it, so it holds who and when.
     await publishEvent('document.reviewed', {
       document_id: documentId,
       employee_id: employeeId,
       decision,
-      notes: notes || '',
+      notes,
+      decided_by: decidedBy,
+      decided_by_name: decidedByName,
+      decided_at: now,
+      actor: 'HUMAN',
     });
 
     // 3. Update the document-verification table if a verification record exists
@@ -130,8 +166,8 @@ const handlerFn = async (event) => {
         UpdateExpression: 'SET decision = :decision, reviewedAt = :now, reviewNotes = :notes',
         ExpressionAttributeValues: {
           ':decision': { S: decision },
-          ':now': { S: new Date().toISOString() },
-          ':notes': { S: notes || '' },
+          ':now': { S: now },
+          ':notes': { S: notes },
         },
       };
       await dynamo.send(new UpdateItemCommand(updateVerParams));
@@ -233,11 +269,15 @@ const handlerFn = async (event) => {
       can_reupload: decision === 'FAILED',
       all_documents_passed: allPassed,
       employee_stage_updated: stageUpdated,
+      hr_decision: hrDecisionOf({ ocr_status: decision, hr_reviewed_at: now }),
+      hr_decided_at: now,
+      hr_decided_by_name: decidedByName,
+      hr_decision_reason: decision === 'FAILED' && notes ? notes : null,
     });
 
   } catch (err) {
     logger.error('Handler error', { error: err });
-    return respond(500, { error: 'Internal server error', details: err.message });
+    return respond(500, { error: 'Internal server error' });
   }
 };
 

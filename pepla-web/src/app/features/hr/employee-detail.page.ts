@@ -92,6 +92,7 @@ function dayOf(iso: string): string {
                 @for (d of group.documents; track d.id) {
                   <pp-verification [heading]="group.name" [subheading]="d.fileName + ' · Uploaded ' + day(d.uploadedAt)" [result]="result(d)">
                     <div class="pp-stack pp-gap-100">
+                      <a ppLink [routerLink]="['/hr/documents', d.id]" [state]="{ employeeId: p.id }">Open {{ group.name }}</a>
                       <p class="pp-text">Check: {{ checkWord(d) }}</p>
                       <p class="pp-text">HR decision: {{ decisionText(d) }}</p>
                       @if (idItems(p, d); as items) { <pp-description-list [items]="items" /> }
