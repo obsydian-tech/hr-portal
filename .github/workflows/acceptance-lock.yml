@@ -6,8 +6,18 @@
 # How a commit is accepted: a lock branch acceptance-lock/<card>[.n] points at
 # it, for example acceptance-lock/onb-01 (a tag acceptance/<card> counts too).
 # The verifier makes the lock once Iggie accepts the tests; a commit without a
-# lock (the builder's) may not touch these files. Merges may bring in the files as
-# they are on either side, but may not change them.
+# lock (the builder's) may not touch these files.
+#
+# A card's notes file, pepla-web/e2e/acceptance/cards/<card>.md, belongs to that
+# card's locks: an accepted commit may change it only under lock <card> or
+# <card>.<n>. A lock named like a card file is that card (help-01.3 is the
+# HELP-01.3 card, not re-lock 3 of HELP-01). Locks named lock-check* may change
+# only this workflow and the folder's README.
+#
+# A merge is judged file by file: a locked file it differs on must be exactly as
+# it is in one of the merge's parents (a file missing on a side counts as that
+# side's state). Bringing other cards' files in from develop passes; a file that
+# matches neither parent fails.
 #
 # Runs on pull_request_target so the rule comes from the target branch, not
 # from the PR: a PR cannot switch the check off. It only reads git history and
@@ -46,26 +56,85 @@ jobs:
 
           declare -A accepted=()
           while read -r lock; do
-            [ -n "$lock" ] && accepted["$(git rev-list -n 1 "$lock")"]="${lock#origin/}"
+            [ -n "$lock" ] || continue
+            sha=$(git rev-list -n 1 "$lock")
+            lock="${lock#origin/}"
+            lock="${lock#acceptance-lock/}"
+            lock="${lock#acceptance/}"
+            accepted["$sha"]="${accepted[$sha]:-} $lock"
           done < <(git for-each-ref --format='%(refname:short)' refs/tags/acceptance/ refs/remotes/origin/acceptance-lock/)
+
+          cards=pepla-web/e2e/acceptance/cards
+          readme=pepla-web/e2e/acceptance/README.md
+          workflow=.github/workflows/acceptance-lock.yml
+
+          # May lock $1 change cards/$2.md? Only the card's own locks may.
+          owns_card() {
+            local lock=$1 card=$2 c=$3
+            [ "$lock" = "$card" ] && return 0
+            case "$lock" in lock-check*) return 1 ;; esac
+            # A lock named like a card file is that card, not a re-lock of a shorter card.
+            if git cat-file -e "$c:$cards/$lock.md" 2>/dev/null || git cat-file -e "$c^:$cards/$lock.md" 2>/dev/null; then
+              return 1
+            fi
+            [[ "$lock" =~ ^(.+)\.[0-9]+$ ]] && [ "${BASH_REMATCH[1]}" = "$card" ] && return 0
+            return 1
+          }
+
+          # May lock $1 change file $2 in commit $3?
+          may_change() {
+            local lock=$1 f=$2 c=$3
+            case "$f" in
+              "$cards"/*.md)
+                owns_card "$lock" "$(basename "$f" .md)" "$c"
+                return ;;
+            esac
+            case "$lock" in
+              lock-check*) [ "$f" = "$workflow" ] || [ "$f" = "$readme" ]; return ;;
+            esac
+            return 0
+          }
 
           base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
           bad=0
           for c in $(git rev-list --no-merges "$base..$HEAD_SHA" -- "${paths[@]}"); do
-            if [ -n "${accepted[$c]:-}" ]; then
-              echo "ok   $(git log -1 --format='%h %s' "$c")  [${accepted[$c]}]"
-            else
+            locks="${accepted[$c]:-}"
+            if [ -z "$locks" ]; then
               echo "::error::$(git log -1 --format='%h %s' "$c") changes locked acceptance tests and is not an accepted commit"
-              git diff-tree --no-commit-id --name-only -r "$c" -- "${paths[@]}" | sed 's/^/       /'
+              git diff-tree --no-commit-id --name-only -r --no-renames "$c" -- "${paths[@]}" | sed 's/^/       /'
               bad=1
-            fi
-          done
-          for m in $(git rev-list --merges "$base..$HEAD_SHA"); do
-            if git diff --quiet "$m^1" "$m" -- "${paths[@]}" || git diff --quiet "$m^2" "$m" -- "${paths[@]}"; then
               continue
             fi
-            echo "::error::merge $(git log -1 --format='%h' "$m") changes locked acceptance tests"
-            bad=1
+            echo "ok   $(git log -1 --format='%h %s' "$c")  [${locks# }]"
+            while read -r f; do
+              [ -n "$f" ] || continue
+              allowed=0
+              for lock in $locks; do
+                if may_change "$lock" "$f" "$c"; then allowed=1; fi
+              done
+              if [ "$allowed" = 0 ]; then
+                echo "::error::$(git log -1 --format='%h' "$c") changes $f under lock${locks}, which is not a lock of that file"
+                bad=1
+              fi
+            done < <(git diff-tree --no-commit-id --name-only -r --no-renames "$c" -- "${paths[@]}")
+          done
+
+          # A blob id for a path at a commit; "missing" when the path is not there.
+          blob() { git rev-parse -q --verify "$1:$2" 2>/dev/null || echo missing; }
+          for m in $(git rev-list --merges "$base..$HEAD_SHA"); do
+            parents=$(git rev-parse "$m^@")
+            while read -r f; do
+              [ -n "$f" ] || continue
+              mine=$(blob "$m" "$f")
+              same=0
+              for p in $parents; do
+                if [ "$(blob "$p" "$f")" = "$mine" ]; then same=1; fi
+              done
+              if [ "$same" = 0 ]; then
+                echo "::error::merge $(git log -1 --format='%h' "$m") changes locked acceptance file $f: it matches neither parent"
+                bad=1
+              fi
+            done < <(git diff --name-only --no-renames "$m^1" "$m" -- "${paths[@]}")
           done
 
           if [ "$bad" = 1 ]; then
