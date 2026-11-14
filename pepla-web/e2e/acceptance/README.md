@@ -5,20 +5,13 @@ One Playwright test per acceptance criterion of a card, named after it
 the verifier, not by the person who builds the feature. They fail until the
 feature is built.
 
-| Card | File | Spec |
-| --- | --- | --- |
-| ONB-01 HR signs in (NH-147) | `onb-01.spec.ts` | [ONB-01 card](https://claude.ai/artifact/6CCqqjLxwN6Jtt2szsKjZC) |
-| ONB-01.1 Sign-in says Email (NH-148): AC-1, AC-2, AC-11 changed, AC-13 new | `onb-01.spec.ts` | [ONB-01.1 card](https://claude.ai/artifact/C6mTFVtoRw4AGnYNVVCuNp) |
-| HELP-01 Help pictures: HR signs in (NH-149) | `help-01.spec.ts` | [HELP-01 card](https://claude.ai/artifact/2ymwurnoSSuNJZFDZi4VUN) |
-| OPS-02 Dev test run starts after app-only merges (NH-152): checks the workflow files | `ops-02.spec.ts` | [OPS-02 card](https://claude.ai/artifact/RcgsQNdSreMKuSwNJp76BZ) |
-| BE-16 Sign-in groups set up by Terraform (NH-151) | `be-16.spec.ts` | [NH-151](https://obsydian.atlassian.net/browse/NH-151) |
-| HELP-01.2 HR home in the help pictures shows Sunbird Bakery's new employees (with ONB-02) | `support/journey-harness.ts` | ONB-02 spec, Decision 1 |
-| ONB-02 HR home: who is starting (NH-155) | `onb-02.spec.ts` | [NH-155](https://obsydian.atlassian.net/browse/NH-155) |
-| ONB-12 One new employee's page (NH-156) | `onb-12.spec.ts` | [NH-156](https://obsydian.atlassian.net/browse/NH-156) |
-| HELP-01.3 Release PRs into main skip the AC-10 help pictures rule (NH-157) | `help-01.spec.ts` | [NH-157](https://obsydian.atlassian.net/browse/NH-157) |
-| OPS-06 After-merge test run can't be bumped from the pepla-dev queue (NH-158): checks the workflow files | `ops-06.spec.ts` | [NH-158](https://obsydian.atlassian.net/browse/NH-158) |
-| OPS-07 Code-only merges still deploy and test on pepla-dev (NH-160): plays sample merges through the workflow files | `ops-07.spec.ts` | [NH-160](https://obsydian.atlassian.net/browse/NH-160) |
-| HELP-02 Help pictures: HR sees who is starting (NH-159) | `help-02.spec.ts`, `support/help-02.ts` | [NH-159](https://obsydian.atlassian.net/browse/NH-159) |
+## Card notes
+
+Each card describes its own tests in `cards/<card>.md`, named in lower case after
+the card id (`cards/onb-01.md`, `cards/help-01.3.md`): the card, its test files, its
+spec, a `Locks:` line naming its lock branches, and anything else about how its tests
+run. A new card adds `cards/<card>.md` in its lock commit. It never edits this README
+or another card's file.
 
 ## Locked
 
@@ -28,6 +21,11 @@ pushed pointing at the commit that adds them (a later accepted change gets
 The `Acceptance tests locked` check (`.github/workflows/acceptance-lock.yml`)
 fails a PR if any other commit changes this folder. A test that looks wrong goes
 back to the verifier, and to Iggie if the criterion itself changes.
+
+A card's file changes only under that card's own locks (`<card>` and `<card>.<n>`). A lock
+named like a card file is that card, so `help-01.3` is the HELP-01.3 card and not a re-lock
+of HELP-01. A merge is judged file by file: it may bring in other cards' files as they are
+on either parent, and fails only on a locked file that matches neither parent.
 
 Builders: bring `develop` in with a merge, not a rebase. A rebase rewrites the
 locked commits and the check fails.
@@ -63,54 +61,23 @@ seeded test logins from Secrets Manager `pepla-dev/e2e/{hr,employee}`
 (`scripts/ci/load-e2e-logins.py` loads them in CI). `E2E_HR_GIVEN_NAME`
 defaults to the seeded HR first name, Thandi.
 
-### Cards about a journey or its help pictures
+### Journey tests
 
-`help-01.spec.ts` checks a journey (`e2e/journeys/*.e2e.ts`) rather than a
-page. `support/journey-harness.ts` runs the journey as its own Playwright
+`support/journey-harness.ts` runs the journey as its own Playwright
 process with the journeys config, normal and help mode, against the app this
 run serves, through a small local proxy that can add a recorder, a forbidden
 request or a renamed button to the page. It puts `help/media` back as it was.
 These tests run once (in `desktop-1280`) and check the journey's desktop and
 phone runs themselves. They need `ffmpeg`, `ffprobe`, ImageMagick `compare`
 and `python3`, like the help retake workflow.
-`help-02.spec.ts` adds a `watcher` to the recorder (`support/help-02.ts`): it
-sees the scroll position, a shown masked value, the full made-up ID number in
-the page text, and every email and phone number the page shows.
 
-### Cards about workflows
-
-`ops-02.spec.ts` checks `.github/workflows/` rather than a page.
-`support/ops-02-workflows.ts` reads the workflows with python3 and PyYAML,
-applies GitHub's path filter rules to sample file lists, and runs the real
-"post results" step of `app-e2e-dev.yml` on the sample results in
-`support/ops-02/` with a fake GitHub API. These tests run once (in
-`desktop-1280`), open no page and call nothing outside the machine.
-
-### Infra cards
-
-`be-16.spec.ts` checks an infra card, so it opens no browser and runs once (in
-`desktop-1280`). `support/infra-harness.ts` reads the Terraform files as text,
-runs a `scripts/ci` script against a fake AWS (`support/be-16/fake-aws`, a
-stand-in `boto3` that records every call and never reaches AWS), and runs one
-step of a workflow with a stub `terraform` and made-up plans. What only real
-AWS can show (the prod plan on the PR, the pepla-dev apply) is read by the
-verifier on the second pass. Needs `python3`, `jq` and `bash`.
+### Shared fakes
 
 Pages that read one person (ONB-12 on) get them from
 `support/documents-fake.ts`: it answers
 `GET <documentUploadApiUrl>/v1/employees/<id>/verifications` in the browser. People
 and documents are given as they are stored; the fake works out `check` and
 `hr_decision` with the card's tables, the same functions the Lambda is held to.
-
-### Cards that change a Lambda
-
-`onb-12.spec.ts` AC-5 and AC-11 run the real `lambda/getEmployeeDocumentVerifications`
-handler in its own Node process against a fake AWS (`support/onb-12/fake-aws`):
-every AWS SDK and Powertools import is answered by a fake, the tables come from
-made-up people, and every DynamoDB and KMS call is recorded. Nothing is installed
-in the Lambda folder and nothing reaches AWS; importing an AI client fails the run.
-They run once (in `desktop-1280`). `support/onb-12/openapi_route.py` reads
-`api/openapi.yaml` (python3 and PyYAML).
 
 No test calls Bedrock or any paid AI: `support/fixtures.ts` refuses AI routes and
 AWS AI hosts in the browser in both runs.
