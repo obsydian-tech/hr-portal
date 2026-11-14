@@ -14,6 +14,9 @@ What it makes, every run, idempotently:
     pepla-dev/e2e/<role> as {"username", "password"}. Logins use the Postmark
     blackhole domain, so no real mailbox can ever receive anything.
   * Resets the employee persona to a clean start: stage INVITED, no documents.
+  * Four documents for Naledi Dlamini (ONB-13), written straight to DynamoDB with
+    fixed ids: no S3 file, no Textract, no ID number. Three wait for an HR
+    decision, the matric certificate is already accepted.
 
 Output is role names and counts only: the repo and its Actions logs are public.
 """
@@ -176,6 +179,47 @@ def reset_employee_documents(ddb, employee_id: str) -> int:
     return removed
 
 
+# Naledi Dlamini's documents (ONB-13). (document_id, type, uploaded, ocr_status, confidence or None, decided)
+NALEDI_DOCUMENTS = [
+    ("doc_1762156800000", "NATIONAL_ID", "2026-11-03T08:00:00Z", "PASSED", 96, False),
+    ("doc_1762243200000", "BANK_CONFIRMATION", "2026-11-04T08:00:00Z", "MANUAL_REVIEW", 72, False),
+    ("doc_1762329600000", "TERTIARY_QUALIFICATION", "2026-11-05T08:00:00Z", "PENDING", None, False),
+    ("doc_1762070400000", "MATRIC_CERTIFICATE", "2026-11-02T08:00:00Z", "PASSED", 95, True),
+]
+
+
+def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
+    """Replace the person's documents with the fixed set. Verification rows carry no extracted data."""
+    reset_employee_documents(ddb, employee_id)
+    for doc_id, doc_type, uploaded, status, confidence, decided in NALEDI_DOCUMENTS:
+        item = {
+            "employee_id": {"S": employee_id},
+            "document_id": {"S": doc_id},
+            "document_type": {"S": doc_type},
+            "file_name": {"S": f"{doc_type.lower()}.pdf"},
+            "upload_timestamp": {"S": uploaded},
+            "ocr_status": {"S": status},
+            "seed": {"S": SEED_TAG},
+        }
+        if confidence is not None:
+            vid = str(uuid.uuid5(ns, f"verification:{doc_id}"))
+            item["verification_id"] = {"S": vid}
+            ddb.put_item(TableName="document-verification", Item={
+                "verificationId": {"S": vid},
+                "employeeId": {"S": employee_id},
+                "documentId": {"S": doc_id},
+                "documentType": {"S": doc_type},
+                "confidence": {"N": str(confidence)},
+                "decision": {"S": status},
+                "createdAt": {"S": uploaded},
+                "seed": {"S": SEED_TAG},
+            })
+        if decided:
+            item["hr_reviewed_at"] = {"S": "2026-11-06T08:00:00Z"}
+        ddb.put_item(TableName="documents", Item=item)
+    return len(NALEDI_DOCUMENTS)
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -197,11 +241,14 @@ def main() -> None:
         ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group, ROBOT_GROUP])
 
     ns = uuid.UUID("6f1c2b1e-5d0a-4c55-9a59-2f1f0e1d7c11")
+    seeded_documents = 0
     for first, last, dept, title, stage in DEMO_PEOPLE:
         email = f"pepla-demo-{first.lower()}.{last.lower().replace(' ', '')}@{MAIL_DOMAIN}"
         eid = str(uuid.uuid5(ns, email))
         ddb.put_item(TableName="employees",
                      Item=employee_item(eid, first, last, email, dept, title, stage))
+        if (first, last) == ("Naledi", "Dlamini"):
+            seeded_documents = seed_documents(ddb, ns, eid)
 
     ddb.put_item(TableName="employees", Item=employee_item(
         EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
@@ -210,7 +257,8 @@ def main() -> None:
 
     print(f"seed-dev: groups created {made_groups}; "
           f"logins {len(NALEKO_PERSONAS) + len(TF_GROUPS)}; "
-          f"demo people {len(DEMO_PEOPLE) + 1}; persona documents reset {docs_removed}")
+          f"demo people {len(DEMO_PEOPLE) + 1}; persona documents reset {docs_removed}; "
+          f"demo documents {seeded_documents}")
 
 
 if __name__ == "__main__":

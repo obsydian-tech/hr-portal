@@ -217,6 +217,45 @@ components:
               nullable: true
               description: When HR decided, or null.
 
+    WaitingDocuments:
+      type: object
+      description: Documents waiting for an HR decision (ONB-13), oldest first.
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              document_id:
+                type: string
+              employee_id:
+                type: string
+              employee_name:
+                type: string
+              document_type:
+                type: string
+              check:
+                type: string
+                enum: [READING, MATCHES, NEEDS_A_LOOK, DOESNT_MATCH]
+              arrived_at:
+                type: string
+                format: date-time
+                nullable: true
+        count:
+          type: integer
+          description: Every waiting document, not one page.
+        counts:
+          type: object
+          properties:
+            READING:
+              type: integer
+            MATCHES:
+              type: integer
+            NEEDS_A_LOOK:
+              type: integer
+            DOESNT_MATCH:
+              type: integer
+
     VerificationSummary:
       type: object
       description: Condensed OCR result used in list views and embedded in Document records.
@@ -721,9 +760,20 @@ paths:
       summary: List document verifications across employees
       description: |
         Returns OCR verification records enriched with employee names.
-        HR partners see only verifications for employees they created.
-        hr-managers see all verifications.
+        Only HR staff (the `hr_staff` group) may call it; any other signed-in caller gets 403.
+        The Agent API route reuses this Lambda and keeps its unfiltered answer.
+
+        With `waiting=true` it returns the documents still waiting for an HR decision
+        (no `hr_reviewed_at`), oldest first, six fields each, plus the full count and a
+        count per check. Nothing read from a document (ID number, name, bank detail,
+        file address) is in that answer.
       parameters:
+        - name: waiting
+          in: query
+          required: false
+          description: When `true`, list documents waiting for an HR decision, oldest first.
+          schema:
+            type: boolean
         - name: status
           in: query
           required: false
@@ -751,18 +801,31 @@ paths:
             maximum: 200
       responses:
         "200":
-          description: List of verification records.
+          description: |
+            List of verification records, or, with `waiting=true`, the documents waiting for an HR decision.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/VerificationSummary"
+                      count:
+                        type: integer
+                  - $ref: "#/components/schemas/WaitingDocuments"
+        "403":
+          description: The caller is not HR staff. Nothing is read.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/VerificationSummary"
-                  count:
-                    type: integer
+                  error:
+                    type: string
+                    example: Forbidden
 
   /v1/verifications/{id}:
     get:

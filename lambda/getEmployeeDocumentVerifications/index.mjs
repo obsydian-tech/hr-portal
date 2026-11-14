@@ -3,6 +3,7 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { KMSClient, DecryptCommand } from "@aws-sdk/client-kms";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { groupsOf, checkOf, hrDecisionOf } from '../shared/document-check.mjs';
 
 const dynamodb = new DynamoDBClient();
 const kms = new KMSClient();
@@ -35,42 +36,12 @@ const json = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
-/**
- * The caller's groups. API Gateway hands a list claim over as one string such as
- * "[hr_staff naleko-onboarding-hr]", so it is split into names (never a substring match).
- */
-function groupsOf(claims) {
-  const raw = claims?.['cognito:groups'];
-  const list = Array.isArray(raw) ? raw : String(raw ?? '').replace(/^\[|\]$/g, '').split(/[\s,]+/);
-  return list.map((g) => String(g).trim()).filter(Boolean);
-}
-
 /** HR staff may read anyone; everyone else may read only their own record (same email, any case). */
 function mayRead(claims, employee) {
   if (groupsOf(claims).includes('hr_staff')) return true;
   const mine = String(claims?.email ?? '').trim().toLowerCase();
   const theirs = String(employee.email ?? '').trim().toLowerCase();
   return mine !== '' && mine === theirs;
-}
-
-/**
- * What the check on a document is, from what is stored (ONB-12 spec). ONB-07 changes the rules here only.
- * A verification at 90% or more matches; under 90 needs a look; a file that could not be read needs a look;
- * a file still being read is being checked.
- */
-function checkOf(doc, verification) {
-  if (verification) return Number(verification.confidence) >= 90 ? 'MATCHES' : 'NEEDS_A_LOOK';
-  if (doc.ocr_status === 'FAILED' || doc.ocr_status === 'MANUAL_REVIEW') return 'NEEDS_A_LOOK';
-  if (doc.ocr_status === 'PASSED') return 'MATCHES';
-  return 'READING';
-}
-
-/** HR's decision overwrites ocr_status with PASSED or FAILED, so only hr_reviewed_at tells it apart. */
-function hrDecisionOf(doc) {
-  if (!doc.hr_reviewed_at) return null;
-  if (doc.ocr_status === 'PASSED') return 'ACCEPTED';
-  if (doc.ocr_status === 'FAILED') return 'NEW_ONE_ASKED';
-  return null;
 }
 
 const handlerFn = async (event) => {
@@ -223,7 +194,7 @@ const handlerFn = async (event) => {
           document_id: doc.document_id,
           document_type: doc.document_type,
           file_name: doc.file_name,
-          uploaded_at: doc.uploaded_at,
+          uploaded_at: doc.uploaded_at ?? doc.upload_timestamp ?? null,
           ocr_status: doc.ocr_status,
           ocr_completed_at: doc.ocr_completed_at,
           verification: doc.verification,
