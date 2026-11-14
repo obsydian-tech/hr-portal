@@ -36,15 +36,20 @@ const handlerFn = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "document_id is required" }) };
     }
 
-    // Look up the document record to get s3_key
-    const scanResult = await dynamodb.send(new ScanCommand({
-      TableName: DOCUMENTS_TABLE,
-      FilterExpression: "document_id = :docId",
-      ExpressionAttributeValues: { ":docId": { S: documentId } },
-      Limit: 100,
-    }));
-
-    const docItem = scanResult.Items?.[0];
+    // Look up the document record to get s3_key. A Scan returns one page at a time, so follow every page
+    // and stop at the first match.
+    let docItem;
+    let startKey;
+    do {
+      const scanResult = await dynamodb.send(new ScanCommand({
+        TableName: DOCUMENTS_TABLE,
+        FilterExpression: "document_id = :docId",
+        ExpressionAttributeValues: { ":docId": { S: documentId } },
+        ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+      }));
+      docItem = scanResult.Items?.[0];
+      startKey = docItem ? undefined : scanResult.LastEvaluatedKey;
+    } while (startKey);
     if (!docItem) {
       return { statusCode: 404, headers, body: JSON.stringify({ error: "Document not found" }) };
     }
