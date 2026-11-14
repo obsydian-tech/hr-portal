@@ -1,4 +1,5 @@
 import type { BrowserContext, Route } from '@playwright/test';
+import { stepOfStage } from './employees-fake';
 
 /**
  * A stand-in for one route of the document upload API,
@@ -15,6 +16,9 @@ import type { BrowserContext, Route } from '@playwright/test';
  *
  * Every call needs `Authorization: Bearer <JWT>`, as the API's Cognito
  * authorizer does, or it gets 401. Every call is recorded in `calls`.
+ * ONB-09: `employee.step` is the person's own `step` when the test gives one
+ * (a value, null, or undefined to leave the field out), else the step the
+ * stored stage gives (employees-fake.ts stepOfStage).
  * Nothing here calls AWS or any AI service.
  */
 
@@ -43,6 +47,8 @@ export type StoredEmployee = {
   hr_staff_id: string;
   hr_staff_name: string;
   hr_staff_email: string;
+  /** ONB-09: the stored step, when the test gives one. */
+  step?: string | null;
 };
 
 /** A document-verification row, as stored (the parts this card reads). */
@@ -180,6 +186,7 @@ export function answerFor(person: FakePerson): unknown {
       email: e.email,
       phone: e.phone,
       stage: e.stage,
+      step: 'step' in e ? e.step : stepOfStage(e.stage),
       department: e.department,
       job_title: e.job_title,
       planned_start_date: e.planned_start_date,

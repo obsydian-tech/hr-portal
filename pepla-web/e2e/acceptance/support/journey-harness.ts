@@ -11,6 +11,7 @@ import { HELP_NEW_EMPLOYEES, HELP_PEOPLE } from '../../fixtures/help-company';
 import { HELP_TODAY } from '../../support/help';
 import { CognitoFake } from './cognito-fake';
 import { SignInPage } from './fixtures';
+import { stepOfStage } from './employees-fake';
 
 /**
  * Runs a journey test (e2e/journeys/*.e2e.ts) from inside an acceptance test,
@@ -553,8 +554,11 @@ export const EMPLOYEES_API = (url: URL): boolean => /\/v1\/employees$/.test(url.
  * employees from e2e/fixtures/help-company.ts, in one page, as the real API
  * answers. Checks first that the list holds only the help company's people,
  * with its HR person as HR partner, so the HR home picture can show no one else.
+ * `steps` (ONB-09): also answer each person's `step`, from the stage, as the
+ * Lambdas do for rows with no stored step. The sign-in reference leaves it off,
+ * because the locked sign-in journey (HELP-02 AC-11 holds its hash) sends none.
  */
-export async function answerHelpEmployees(context: import('@playwright/test').BrowserContext): Promise<void> {
+export async function answerHelpEmployees(context: import('@playwright/test').BrowserContext, opts: { steps?: boolean } = {}): Promise<void> {
   const names = new Set<string>(HELP_PEOPLE.map((p) => p.name));
   for (const p of HELP_NEW_EMPLOYEES) {
     const name = `${p.first_name} ${p.last_name}`;
@@ -569,7 +573,10 @@ export async function answerHelpEmployees(context: import('@playwright/test').Br
     if (req.method() !== 'GET' || !/^Bearer \S+$/.test(req.headers()['authorization'] ?? '')) {
       return route.fulfill({ status: 401, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ message: 'Unauthorized' }) });
     }
-    const items = HELP_NEW_EMPLOYEES.map((p) => ({ ...p, middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: HELP_HR.email }));
+    const items = HELP_NEW_EMPLOYEES.map((p) => ({
+      ...p, middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: HELP_HR.email,
+      ...(opts.steps ? { step: stepOfStage(p.stage) } : {}),
+    }));
     return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ items, count: items.length }) });
   });
 }

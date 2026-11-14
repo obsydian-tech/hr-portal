@@ -1,0 +1,350 @@
+# Baseline for ONB-09 AC-10: the five Lambdas' roles and policies as in infra/iam_per_lambda.tf at develop 3076735.
+
+resource "aws_iam_role" "cognito_post_auth" {
+  name        = "naleko-cognitoPostAuth-role"
+  description = "Execution role for cognitoPostAuth Lambda (NH-80)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "cognito_post_auth" {
+  name = "naleko-cognitoPostAuth-policy"
+  role = aws_iam_role.cognito_post_auth.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/cognitoPostAuth:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # NH-80: Query email-index GSI to find the employee, then bump stage INVITED→ACTIVE
+        Sid      = "EmployeesTableQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
+      },
+      {
+        Sid      = "EmployeesTableUpdate"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = aws_dynamodb_table.employees.arn
+      },
+      # === NEW: TalentFlow User Tracking Permissions ===
+      {
+        Sid      = "TalentFlowUsersTableQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/talent-flow-users/index/EmailIndex"
+      },
+      {
+        Sid      = "TalentFlowUsersTableUpdate"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/talent-flow-users"
+      },
+      {
+        Sid      = "TalentFlowKMSDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = "arn:aws:kms:${var.aws_region}:${var.aws_account_id}:key/${var.talent_flow_kms_key_id}"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "process_document_ocr" {
+  name        = "naleko-processDocumentOCR-role"
+  description = "Execution role for processDocumentOCR Lambda"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "process_document_ocr" {
+  name = "naleko-processDocumentOCR-policy"
+  role = aws_iam_role.process_document_ocr.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/processDocumentOCR:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "S3Read"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "arn:aws:s3:::${local.document_uploads_bucket}/*"
+      },
+      {
+        Sid      = "Textract"
+        Effect   = "Allow"
+        Action   = ["textract:AnalyzeDocument"]
+        Resource = "*"
+      },
+      {
+        # Bedrock InvokeModel — cross-region inference profile requires wildcard resource
+        Sid      = "Bedrock"
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDB"
+        Effect = "Allow"
+        Action = ["dynamodb:PutItem", "dynamodb:UpdateItem"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
+        ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        # NH-42: Read sfn_task_token, NH-80: UpdateItem to bump stage on first OCR
+        Sid      = "ReadUpdateEmployee"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = aws_dynamodb_table.employees.arn
+      },
+      {
+        # NH-42: Signal Step Functions that OCR is complete.
+        # states:SendTaskSuccess cannot be scoped to a specific ARN — IAM requires "*".
+        Sid      = "SendSFNTaskSuccess"
+        Effect   = "Allow"
+        Action   = ["states:SendTaskSuccess"]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "review_document_verification" {
+  name        = "naleko-reviewDocumentVerification-role"
+  description = "Execution role for reviewDocumentVerification Lambda"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "review_document_verification" {
+  name = "naleko-reviewDocumentVerification-policy"
+  role = aws_iam_role.review_document_verification.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/reviewDocumentVerification:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDB"
+        Effect = "Allow"
+        Action = ["dynamodb:Scan", "dynamodb:UpdateItem", "dynamodb:Query", "dynamodb:GetItem"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
+        ]
+      },
+      {
+        Sid      = "CloudWatchMetrics"
+        Effect   = "Allow"
+        Action   = ["cloudwatch:PutMetricData"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "cloudwatch:namespace" = "Naleko/Onboarding"
+          }
+        }
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
+        Sid      = "IdempotencyTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.idempotency_keys.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "get_employees" {
+  name        = "naleko-getEmployees-role"
+  description = "Execution role for getEmployees Lambda"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_employees" {
+  name = "naleko-getEmployees-policy"
+  role = aws_iam_role.get_employees.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getEmployees:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDB"
+        Effect = "Allow"
+        # NH-28: Scan (managers) + Query (non-managers via created_by-index GSI)
+        Action = ["dynamodb:Scan", "dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/created_by-index",
+        ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "get_employee_document_verifications" {
+  name        = "naleko-getEmployeeDocumentVerifications-role"
+  description = "Execution role for getEmployeeDocumentVerifications Lambda"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_employee_document_verifications" {
+  name = "naleko-getEmployeeDocumentVerifications-policy"
+  role = aws_iam_role.get_employee_document_verifications.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getEmployeeDocumentVerifications:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDB"
+        Effect = "Allow"
+        Action = ["dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents",
+          "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/document-verification",
+        ]
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
