@@ -92,6 +92,7 @@ function dayOf(iso: string): string {
                 @for (d of group.documents; track d.id) {
                   <pp-verification [heading]="group.name" [subheading]="d.fileName + ' · Uploaded ' + day(d.uploadedAt)" [result]="result(d)">
                     <div class="pp-stack pp-gap-100">
+                      @if (group.required) { <div><pp-lozenge status="neutral">Required</pp-lozenge></div> }
                       <a ppLink [routerLink]="['/hr/documents', d.id]" [state]="{ employeeId: p.id }">Open {{ group.name }}</a>
                       <p class="pp-text">Check: {{ checkWord(d) }}</p>
                       <p class="pp-text">HR decision: {{ decisionText(d) }}</p>
@@ -100,6 +101,7 @@ function dayOf(iso: string): string {
                   </pp-verification>
                 } @empty {
                   <pp-card [heading]="group.name" [level]="3">
+                    @if (group.required) { <div><pp-lozenge status="neutral">Required</pp-lozenge></div> }
                     <p class="pp-text pp-text--subtle">Not uploaded yet</p>
                   </pp-card>
                 }
