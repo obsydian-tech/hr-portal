@@ -338,18 +338,10 @@ export class DocumentPage {
     if (!d || this.opening()) return;
     this.opening.set(true);
     this.openFailed.set(false);
-    // The tab opens on the press (a popup blocker allows it), then goes to the link when it arrives.
-    const tab = window.open('about:blank', '_blank');
     try {
       const url = await this.documents.fileLink(d.id);
-      if (tab) {
-        tab.opener = null;
-        tab.location.replace(url);
-      } else {
-        window.open(url, '_blank', 'noopener');
-      }
+      window.open(url, '_blank', 'noopener');
     } catch {
-      tab?.close();
       this.openFailed.set(true);
     } finally {
       this.opening.set(false);
