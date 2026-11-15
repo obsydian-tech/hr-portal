@@ -15,8 +15,12 @@ What it makes, every run, idempotently:
     blackhole domain, so no real mailbox can ever receive anything.
   * Resets the employee persona to a clean start: stage INVITED, step INVITED, no documents.
   * Four documents for Naledi Dlamini (ONB-13), written straight to DynamoDB with
-    fixed ids: no S3 file, no Textract, no ID number. Three wait for an HR
-    decision, the matric certificate is already accepted.
+    fixed ids: no Textract, no ID number. Three wait for an HR decision, the
+    matric certificate is already accepted. Each one also gets a one-page sample
+    PDF (fake text only) in the dev upload bucket, so "Open the file" works
+    (seed-dev-files.py puts the files there; this script only writes the keys).
+    The files sit under seed-samples/, not uploads/, because anything under
+    uploads/ starts the OCR Lambda.
 
 Output is role names and counts only: the repo and its Actions logs are public.
 """
@@ -30,6 +34,8 @@ import boto3
 from botocore.exceptions import ClientError
 
 DEV_ACCOUNT = "424556617428"
+NS = uuid.UUID("6f1c2b1e-5d0a-4c55-9a59-2f1f0e1d7c11")
+UPLOAD_BUCKET = f"pepla-dev-document-uploads-{DEV_ACCOUNT}"
 REGION = "af-south-1"
 SECRET_PREFIX = "pepla-dev/e2e/"
 MAIL_DOMAIN = "blackhole.postmarkapp.com"
@@ -201,17 +207,48 @@ NALEDI_DOCUMENTS = [
 ]
 
 
+def sample_key(employee_id: str, doc_id: str) -> str:
+    return f"seed-samples/{employee_id}/{doc_id}.pdf"
+
+
+def sample_pdf(title: str) -> bytes:
+    """A one-page PDF with a fake line of text. Built by hand so the seed needs no extra package."""
+    text = f"({title}) Tj".replace("\\", "\\\\")
+    stream = f"BT /F1 20 Tf 72 720 Td {text} ET\nBT /F1 12 Tf 72 690 Td (Sample document. Fake data for testing only.) Tj ET"
+    objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R "
+        "/Resources << /Font << /F1 5 0 R >> >> >>",
+        f"<< /Length {len(stream)} >>\nstream\n{stream}\nendstream",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += f"{number} 0 obj\n{body}\nendobj\n".encode()
+    xref = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode()
+    for offset in offsets:
+        out += f"{offset:010d} 00000 n \n".encode()
+    out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    return bytes(out)
+
+
 def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
     """Replace the person's documents with the fixed set. Verification rows carry no extracted data."""
     reset_employee_documents(ddb, employee_id)
     for doc_id, doc_type, uploaded, status, confidence, decided in NALEDI_DOCUMENTS:
+        s3_key = sample_key(employee_id, doc_id)
         item = {
             "employee_id": {"S": employee_id},
             "document_id": {"S": doc_id},
             "document_type": {"S": doc_type},
             "file_name": {"S": f"{doc_type.lower()}.pdf"},
-            # ONB-15: the file link route needs a key to sign. No file is stored behind it on dev.
-            "s3_key": {"S": f"uploads/{employee_id}/{doc_id}.pdf"},
+            # ONB-15: the file link route signs this key, so a sample file must sit behind it.
+            # Not under uploads/: that prefix starts the OCR Lambda.
+            "s3_key": {"S": s3_key},
             "upload_timestamp": {"S": uploaded},
             "ocr_status": {"S": status},
             "seed": {"S": SEED_TAG},
@@ -260,7 +297,7 @@ def main() -> None:
         role = f"tf-{group.lower()}"
         ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group, ROBOT_GROUP])
 
-    ns = uuid.UUID("6f1c2b1e-5d0a-4c55-9a59-2f1f0e1d7c11")
+    ns = NS
     seeded_documents = 0
     for first, last, dept, title, stage in DEMO_PEOPLE:
         email = f"pepla-demo-{first.lower()}.{last.lower().replace(' ', '')}@{MAIL_DOMAIN}"
