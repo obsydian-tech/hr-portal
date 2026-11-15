@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""
+Pick which acceptance spec files a pull request needs, so the "Acceptance tests
+(no backend)" check stays short as locked cards pile up (OPS-09).
+
+Runs in the `plan` job of pepla-web.yml and prints lines for GITHUB_OUTPUT:
+  mode=full | selected | none
+  specs=<space separated paths, relative to pepla-web/; empty for full and none>
+  shards=<how many parallel jobs>
+  matrix=<JSON for the shard jobs>
+  media=true|false     the shards need ffmpeg and ImageMagick
+  infra_only=true|false  no spec needs the app, so the shards skip `ng serve`
+  reason=<plain words, shown in the job summary>
+
+Rules (anything unsure runs everything):
+- Not a pull request into develop (nightly, by hand, a release PR into main): full.
+- A card's own files (<card>.spec.ts, cards/<card>.md, support/<card>/) run that card.
+- Any other file under pepla-web/e2e/acceptance/, app-wide code (design system,
+  styles, app shell, package files, environments), this workflow or this script: full.
+- App code under features/, core/, dev/ or the journeys: the cards whose commits
+  touched that file before, the cards this PR is for (branch, title, commit
+  subjects), and every spec that runs a journey (help pictures read pages
+  other cards build). A file no card ever touched: full.
+- infra/, talent-flow-infra/, bootstrap/, scripts/ci/, other workflows: the
+  infra specs (be-*, ops-*), which never open the app.
+- Docs and help pictures only: the journey specs for pictures, nothing for docs.
+
+Standard library only. Test: python3 -B scripts/ci/test_pick_acceptance_specs.py
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ACC = "pepla-web/e2e/acceptance/"
+SPEC_DIR = "e2e/acceptance/"  # relative to pepla-web/
+MAX_SHARDS = 4
+
+CARD_RE = re.compile(r"\b(be|onb|help|ops)-(\d+)(?:\.\d+)?\b", re.I)
+JOURNEY_RE = re.compile(r"helpRun|runJourney")
+MEDIA_RE = re.compile(r"ffmpeg|\bcompare\b")
+
+FULL_PREFIXES = (
+    "pepla-web/src/styles/",
+    "pepla-web/src/environments/",
+    "pepla-web/src/app/ds/",
+    "pepla-web/package",
+    "pepla-web/angular.json",
+    "pepla-web/tsconfig",
+    "pepla-web/scripts/",
+    "pepla-web/public/",
+    ".github/workflows/pepla-web.yml",
+    ".github/workflows/acceptance-lock.yml",
+    "scripts/ci/pick-acceptance-specs.py",
+)
+APP_PREFIXES = (
+    "pepla-web/src/app/features/",
+    "pepla-web/src/app/core/",
+    "pepla-web/src/app/dev/",
+    "pepla-web/e2e/journeys/",
+    "pepla-web/e2e/support/",
+    "pepla-web/e2e/fixtures/",
+)
+INFRA_PREFIXES = ("infra/", "talent-flow-infra/", "bootstrap/", "scripts/ci/", ".github/workflows/")
+
+
+def card_of(text: str) -> set[str]:
+    """Card keys like onb-09 named in a text (a sub-card like help-02.3 counts for help-02)."""
+    return {f"{m.group(1).lower()}-{m.group(2)}" for m in CARD_RE.finditer(text)}
+
+
+def own_card_file(path: str) -> str | None:
+    """The card a file under the acceptance folder belongs to, or None for a shared file."""
+    rest = path[len(ACC):]
+    m = re.fullmatch(r"([a-z]+-\d+)\.spec\.ts", rest)
+    if m:
+        return m.group(1)
+    m = re.fullmatch(r"cards/([a-z]+-\d+)(?:\.\d+)?\.md", rest)
+    if m:
+        return m.group(1)
+    m = re.fullmatch(r"support/([a-z]+-\d+)(?:-[a-z-]+)?(?:\.ts|/.*)", rest)
+    if m:
+        return m.group(1)
+    return None
+
+
+def pick(
+    changed: list[str],
+    specs: dict[str, str],  # card key -> spec text, for every spec file that exists
+    touched_by: dict[str, set[str]],  # file -> cards whose commits changed it before
+    own: set[str],  # cards this PR is for
+    event: str = "pull_request",
+    base_ref: str = "develop",
+) -> tuple[str, set[str], str]:
+    """Return (mode, card keys, reason). mode is full, selected or none."""
+    if event != "pull_request":
+        return "full", set(), f"{event or 'this trigger'} runs every spec"
+    if base_ref != "develop":
+        return "full", set(), f"a pull request into {base_ref} runs every spec"
+
+    journeys = {c for c, text in specs.items() if JOURNEY_RE.search(text)}
+    infra = {c for c in specs if c.startswith(("be-", "ops-"))}
+    cards: set[str] = set()
+    why: list[str] = []
+
+    for path in (p.strip() for p in changed):
+        if not path:
+            continue
+        if path.startswith(FULL_PREFIXES):
+            return "full", set(), f"{path} is shared by every card"
+        if path.startswith(ACC):
+            card = own_card_file(path)
+            if not card:
+                return "full", set(), f"{path} is shared acceptance test support"
+            if card in specs:
+                cards.add(card)
+            else:
+                # a card file whose spec is not there yet (notes only): nothing to run for it
+                why.append(f"{path} has no spec")
+            continue
+        if path.startswith("pepla-web/help/"):
+            if path.endswith(".md"):
+                continue
+            cards |= journeys
+            why.append("help pictures")
+            continue
+        if path.startswith(APP_PREFIXES):
+            before = touched_by.get(path)
+            if not before:
+                return "full", set(), f"no card has touched {path} before"
+            cards |= {c for c in before if c in specs}
+            cards |= journeys
+            why.append("app code")
+            continue
+        if path.startswith("pepla-web/src/"):
+            return "full", set(), f"{path} is app-wide code"
+        if path.startswith("pepla-web/"):
+            if path.endswith(".md"):
+                continue
+            return "full", set(), f"{path} is not one a card owns"
+        if path.startswith(INFRA_PREFIXES):
+            cards |= infra
+            why.append("infra files")
+            continue
+        # docs and anything outside the app and infra
+    cards |= {c for c in own if c in specs}
+    if not cards:
+        return "none", set(), "only docs or files no acceptance test reads"
+    return "selected", cards, ", ".join(dict.fromkeys(why)) or "the cards this change is for"
+
+
+# ---------------------------------------------------------------- git side
+
+
+def git(*args: str) -> str:
+    return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
+
+
+def history_map() -> dict[str, set[str]]:
+    """File -> cards, from the subjects of every non-merge commit before this change."""
+    out = git("log", "--no-merges", "--name-only", "--format=%x01%s", "HEAD^1" if has_two_parents() else "HEAD")
+    touched: dict[str, set[str]] = {}
+    for block in out.split("\x01")[1:]:
+        lines = block.splitlines()
+        cards = card_of(lines[0])
+        if not cards:
+            continue
+        for f in lines[1:]:
+            if f.strip():
+                touched.setdefault(f.strip(), set()).update(cards)
+    return touched
+
+
+def has_two_parents() -> bool:
+    return len(git("rev-list", "--parents", "-n", "1", "HEAD").split()) == 3
+
+
+def main() -> None:
+    root = Path("pepla-web")
+    specs = {
+        p.name[: -len(".spec.ts")]: p.read_text()
+        for p in sorted((root / "e2e" / "acceptance").glob("*.spec.ts"))
+    }
+    event = os.environ.get("EVENT_NAME", "")
+    base_ref = os.environ.get("BASE_REF", "")
+    changed: list[str] = []
+    own: set[str] = set()
+    touched: dict[str, set[str]] = {}
+    if event == "pull_request":
+        if has_two_parents():
+            changed = git("diff", "--name-only", "HEAD^1", "HEAD").splitlines()
+            subjects = git("log", "--no-merges", "--format=%s", "HEAD^1..HEAD^2")
+        else:
+            changed = git("diff", "--name-only", os.environ["BASE_SHA"], "HEAD").splitlines()
+            subjects = git("log", "--no-merges", "--format=%s", f"{os.environ['BASE_SHA']}..HEAD")
+        own = card_of(os.environ.get("PR_TITLE", "") + "\n" + os.environ.get("HEAD_REF", "") + "\n" + subjects)
+        touched = history_map()
+    mode, cards, reason = pick(changed, specs, touched, own, event, base_ref)
+
+    files = sorted(f"{SPEC_DIR}{c}.spec.ts" for c in cards)
+    chosen = cards if mode == "selected" else set(specs)
+    shards = MAX_SHARDS if mode == "full" else min(MAX_SHARDS, len(files)) if mode == "selected" else 0
+    media = any(MEDIA_RE.search(specs[c]) for c in chosen)
+    infra_only = mode == "selected" and all(c.startswith(("be-", "ops-")) for c in cards)
+    matrix = {"include": [{"shard": i, "of": shards} for i in range(1, shards + 1)]}
+    out = {
+        "mode": mode,
+        "specs": " ".join(files) if mode == "selected" else "",
+        "shards": str(shards),
+        "matrix": json.dumps(matrix),
+        "media": str(media).lower(),
+        "infra_only": str(infra_only).lower(),
+        "reason": reason,
+    }
+    for k, v in out.items():
+        print(f"{k}={v}")
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        names = ", ".join(sorted(cards)) if mode == "selected" else mode
+        Path(summary).open("a").write(f"Acceptance specs: **{mode}** ({names}). Why: {reason}.\n")
+
+
+if __name__ == "__main__":
+    sys.exit(main())
