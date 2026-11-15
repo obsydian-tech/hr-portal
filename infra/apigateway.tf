@@ -30,7 +30,7 @@ resource "aws_apigatewayv2_api" "document_upload_api" {
 
   cors_configuration {
     allow_credentials = false
-    allow_headers     = ["authorization", "content-type"]
+    allow_headers     = ["authorization", "content-type", "idempotency-key"]
     allow_methods     = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
     allow_origins     = local.api_allowed_origins
     expose_headers    = ["*"]
