@@ -793,6 +793,13 @@ test.describe('ONB-03 Add a new employee', () => {
         for (const leak of ['items', 'inUse', 'Lerato', 'taken@x.co.za', 'AS00002']) expect(r.raw, `${how}: the 403 does not carry "${leak}"`).not.toContain(leak);
       }
     }
+    // the agent is not HR: refused by all three routes, and nothing is touched (HR only, decided 15 Nov)
+    for (const [route, call] of routes) {
+      const r = call(AGENT);
+      expect(r.error, `${route}, the agent: does not throw`).toBeUndefined();
+      expect(r.status, `${route}, the agent: 403`).toBe(403);
+      expect(aws(r), `${route}, the agent: nothing is touched`).toEqual([]);
+    }
     // no sign-in claims at all
     for (const [route, call] of routes) {
       const r = call({ kind: 'none' });
@@ -816,9 +823,7 @@ test.describe('ONB-03 Add a new employee', () => {
       expect(c.status, `checkEmployeeEmail: HR as ${what} passes`).toBe(200);
       expect(c.body, `checkEmployeeEmail: HR as ${what}: not in use`).toEqual({ inUse: false });
     }
-    const agent = create(world, AGENT, body({ email: 'agent.made@x.co.za' }));
-    expect(agent.status, 'createEmployee: the agent still gets through').toBe(201);
-    expect(aiReached(agent), 'no AI is reached').toEqual([]);
+    expect(aiReached(create(world, HR, body({ email: 'no.ai@x.co.za' }))), 'no AI is reached').toEqual([]);
   });
 
   test('AC-8 A stranger with the Idempotency-Key of an HR registration gets a 403, never the saved answer', async ({}, testInfo) => {
@@ -1064,9 +1069,7 @@ test.describe('ONB-03 Add a new employee', () => {
     const own = create(world, HR, body({ email: 'own.partner@x.co.za' }));
     expect(own.status).toBe(201);
     expect(storedWithEmail(own.world, 'own.partner@x.co.za')?.['hr_staff_id'], 'no hr_staff_id sent: the caller').toBe('E2EHR01');
-    const byAgent = create(world, AGENT, body({ email: 'agent.partner@x.co.za' }));
-    expect(byAgent.status).toBe(201);
-    expect(storedWithEmail(byAgent.world, 'agent.partner@x.co.za')?.['hr_staff_id'], 'the agent: as today').toBe('agent');
+    expect(create(world, AGENT, body({ email: 'agent.partner@x.co.za' })).status, 'the agent: refused, HR only').toBe(403);
   });
 
   // -------------------------------------------------------------- AC-12
