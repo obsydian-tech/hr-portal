@@ -129,3 +129,52 @@ export const HELP_JOHAN_DETAIL = (() => {
     ],
   };
 })();
+
+/**
+ * HELP-03 · HR checks a document. Johan Botha's two HELP-02 documents as Documents to check and the
+ * document page answer them, and HR's two decisions. Built from HELP_JOHAN_DETAIL, nothing typed twice.
+ * The bank letter was a dark photo: nothing but the account holder was read, so no account number or
+ * bank name exists here.
+ */
+const JOHAN_CHECKED = JOHAN_UPLOADED;
+export const HELP_DOCUMENT_REASON = 'The account number cannot be read. Upload a clearer copy of the bank letter.';
+export const HELP_DOCUMENT_DECIDED_AT: Readonly<Record<string, string>> = {
+  'sunbird-johan-id': '2026-03-02T07:00:00Z',
+  'sunbird-johan-bank': '2026-03-02T07:05:00Z',
+};
+
+export const HELP_WAITING_DOCUMENTS = (() => {
+  const e = HELP_JOHAN_DETAIL.employee;
+  return HELP_JOHAN_DETAIL.documents.map((d) => ({
+    document_id: d.document_id,
+    employee_id: e.employee_id,
+    employee_name: `${e.first_name} ${e.last_name}`,
+    document_type: d.document_type,
+    check: d.check,
+    arrived_at: d.uploaded_at,
+  }));
+})();
+
+export const HELP_DOCUMENT_PAGES = (() => {
+  const e = HELP_JOHAN_DETAIL.employee;
+  const [id, bank] = HELP_JOHAN_DETAIL.documents;
+  const base = (d: typeof id | typeof bank) => ({
+    document: { document_id: d!.document_id, employee_id: e.employee_id, document_type: d!.document_type, file_name: d!.file_name, uploaded_at: d!.uploaded_at, ocr_completed_at: JOHAN_CHECKED },
+    employee: { employee_id: e.employee_id, first_name: e.first_name, last_name: e.last_name },
+    check: d!.check,
+    hr_decision: null,
+    hr_decided_at: null,
+  });
+  return {
+    [id!.document_id]: {
+      ...base(id),
+      verification: { confidence: 96, extracted_data: { name: e.first_name, surname: e.last_name, id_number: id!.verification!.id_number, id_number_last4: id!.verification!.id_number_last4 } },
+      comparisons: [{ field: 'SURNAME', result: 'AGREES' }, { field: 'ID_NUMBER', result: 'AGREES' }],
+    },
+    [bank!.document_id]: {
+      ...base(bank),
+      verification: { confidence: 40, extracted_data: { account_holder: `${e.first_name[0]} ${e.last_name}`, bank_name: null, account_number: null, branch_code: null, account_type: null } },
+      comparisons: [{ field: 'ACCOUNT_HOLDER', result: 'AGREES' }],
+    },
+  } as Record<string, unknown>;
+})();
