@@ -2,6 +2,7 @@ import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCo
 import { withIdempotency } from '../shared/idempotency.mjs';
 import { groupsOf, hrDecisionOf } from '../shared/document-check.mjs';
 import { requiredFor, requiredMissing } from '../shared/required-documents.mjs';
+import { stepFromDocuments } from '../shared/onboarding-step.mjs';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -212,11 +213,12 @@ const handlerFn = async (event) => {
         await dynamo.send(new UpdateItemCommand({
           TableName: EMPLOYEES_TABLE,
           Key: { employee_id: { S: employeeId } },
-          UpdateExpression: 'SET stage = :stage, verified_at = :now',
+          UpdateExpression: 'SET stage = :stage, verified_at = :now, step = :stepVerified',
           ConditionExpression: 'stage = :ds OR stage = :active OR stage = :invited',
           ExpressionAttributeValues: {
             ':stage':   { S: 'VERIFIED' },
             ':now':     { S: new Date().toISOString() },
+            ':stepVerified': { S: 'VERIFIED' },
             ':ds':      { S: 'DOCUMENTS_SUBMITTED' },
             ':active':  { S: 'ACTIVE' },
             ':invited': { S: 'INVITED' },
@@ -261,6 +263,27 @@ const handlerFn = async (event) => {
         }
       } catch (stageErr) {
         logger.error('Failed to update employee stage', { employeeId, error: stageErr });
+        // Non-fatal — the document review itself succeeded
+      }
+    }
+    else {
+      // ONB-09: not Verified yet. Keep the step right: In review while every required document is in,
+      // Documents when one was sent back. The stage is not touched here. A Verified person stays Verified.
+      try {
+        await dynamo.send(new UpdateItemCommand({
+          TableName: EMPLOYEES_TABLE,
+          Key: { employee_id: { S: employeeId } },
+          UpdateExpression: 'SET step = :step',
+          ConditionExpression: 'attribute_exists(employee_id) AND stage <> :verified AND (attribute_not_exists(step) OR step <> :verified)',
+          ExpressionAttributeValues: {
+            ':step': { S: stepFromDocuments(plainDocs, required) },
+            ':verified': { S: 'VERIFIED' },
+          },
+        }));
+      } catch (stepErr) {
+        if (stepErr?.name !== 'ConditionalCheckFailedException') {
+          logger.warn('Failed to update employee step', { employeeId, error: stepErr });
+        }
         // Non-fatal — the document review itself succeeded
       }
     }

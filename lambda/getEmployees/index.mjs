@@ -3,6 +3,7 @@ import { DynamoDBClient, ScanCommand, QueryCommand } from "@aws-sdk/client-dynam
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { stepOf } from '../shared/onboarding-step.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -130,6 +131,7 @@ const handlerFn = async (event) => {
       department:         item.department,
       job_title:          item.job_title || '',
       stage:              item.stage,
+      step:               stepOf(item),
       offer_accept_date:  item.offer_accept_date || '',
       planned_start_date: item.planned_start_date || '',
       created_at:         item.created_at,

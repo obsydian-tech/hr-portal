@@ -10,6 +10,11 @@ import type { BrowserContext, Route } from '@playwright/test';
  * than `limit`. Every call needs `Authorization: Bearer <JWT>`, as the API's
  * Cognito authorizer does, or it gets 401.
  *
+ * Each person also carries `step` (ONB-09): the person's own `step` when the
+ * test gives one (a value, null, or undefined to leave the field out), else the
+ * step the stored stage gives (stepOfStage below), as lambda/getEmployees does for
+ * a row written before ONB-09.
+ *
  * Every call is recorded in `calls`. Nothing here calls AWS or any AI service.
  */
 
@@ -32,7 +37,30 @@ export type ApiPerson = {
   hr_staff_name: string;
   hr_staff_email: string;
   id_number_last4: string;
+  /** ONB-09: set it to answer this step instead of the one the stage gives. */
+  step?: string | null;
 };
+
+/** ONB-09's step codes, in order. */
+export const STEP_CODES = ['INVITED', 'DOCUMENTS', 'IN_REVIEW', 'VERIFIED'] as const;
+
+/** ONB-09: the step a row with no stored step answers, from its stage (the table ONB-02 and ONB-12 locked). */
+export function stepOfStage(stage: string | undefined | null): string | null {
+  switch (stage) {
+    case 'INVITED': return 'INVITED';
+    case 'ACTIVE': return 'DOCUMENTS';
+    case 'DOCUMENTS_SUBMITTED': return 'IN_REVIEW';
+    case 'VERIFIED':
+    case 'TRAINING':
+    case 'ONBOARDED': return 'VERIFIED';
+    default: return null;
+  }
+}
+
+/** A person as the API answers them: with `step`. */
+export function answered(p: ApiPerson): ApiPerson {
+  return { ...p, step: 'step' in p ? p.step : stepOfStage(p.stage) };
+}
 
 export type ApiCall = { method: string; url: URL; authorization: string | null };
 
@@ -128,7 +156,7 @@ export class EmployeesFake {
     const key = url.searchParams.get('lastKey');
     const index = key === null ? 0 : pageOfKey(key);
     if (index === null || index >= pages.length) return json(route, 400, { error: 'Bad lastKey' });
-    const items = pages[index]!;
+    const items = pages[index]!.map(answered);
     const body: Record<string, unknown> = { items, count: items.length };
     if (index + 1 < pages.length) body['lastKey'] = keyOfPage(index + 1);
     return json(route, 200, body);

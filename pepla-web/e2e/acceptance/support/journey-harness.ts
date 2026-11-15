@@ -11,6 +11,8 @@ import { HELP_NEW_EMPLOYEES, HELP_PEOPLE } from '../../fixtures/help-company';
 import { HELP_TODAY } from '../../support/help';
 import { CognitoFake } from './cognito-fake';
 import { SignInPage } from './fixtures';
+import { stepOfStage } from './employees-fake';
+import { settleFonts } from './fonts';
 
 /**
  * Runs a journey test (e2e/journeys/*.e2e.ts) from inside an acceptance test,
@@ -494,12 +496,14 @@ export async function signInReference(browser: Browser, width: Width, passwordLe
   try {
     const fake = new CognitoFake([{ email: HELP_HR.email, givenName: HELP_HR.givenName, familyName: HELP_HR.familyName, groups: ['hr_staff'] }]);
     await fake.install(context);
-    await answerHelpEmployees(context);
+    // HELP-02.3: the sign-in journey sends each person's step (ONB-09), so the reference does too.
+    await answerHelpEmployees(context, { steps: true });
     const page = await context.newPage();
     await page.clock.setFixedTime(HELP_TODAY);
     const signIn = new SignInPage(page);
     const shot = async () => {
       await page.waitForLoadState('networkidle');
+      await settleFonts(page);
       return page.screenshot({ animations: 'disabled', caret: 'hide' });
     };
     const box = async (loc: import('@playwright/test').Locator): Promise<Box> => {
@@ -553,8 +557,11 @@ export const EMPLOYEES_API = (url: URL): boolean => /\/v1\/employees$/.test(url.
  * employees from e2e/fixtures/help-company.ts, in one page, as the real API
  * answers. Checks first that the list holds only the help company's people,
  * with its HR person as HR partner, so the HR home picture can show no one else.
+ * `steps` (ONB-09): also answer each person's `step`, from the stage, as the
+ * Lambdas do for rows with no stored step. Both help journeys send it
+ * (HELP-02.3), so both references ask for it.
  */
-export async function answerHelpEmployees(context: import('@playwright/test').BrowserContext): Promise<void> {
+export async function answerHelpEmployees(context: import('@playwright/test').BrowserContext, opts: { steps?: boolean } = {}): Promise<void> {
   const names = new Set<string>(HELP_PEOPLE.map((p) => p.name));
   for (const p of HELP_NEW_EMPLOYEES) {
     const name = `${p.first_name} ${p.last_name}`;
@@ -569,7 +576,10 @@ export async function answerHelpEmployees(context: import('@playwright/test').Br
     if (req.method() !== 'GET' || !/^Bearer \S+$/.test(req.headers()['authorization'] ?? '')) {
       return route.fulfill({ status: 401, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ message: 'Unauthorized' }) });
     }
-    const items = HELP_NEW_EMPLOYEES.map((p) => ({ ...p, middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: HELP_HR.email }));
+    const items = HELP_NEW_EMPLOYEES.map((p) => ({
+      ...p, middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: HELP_HR.email,
+      ...(opts.steps ? { step: stepOfStage(p.stage) } : {}),
+    }));
     return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ items, count: items.length }) });
   });
 }

@@ -59,3 +59,18 @@ export function requiredMissing(docs, required = REQUIRED_DOCUMENT_TYPES) {
 export function verifiedReady(docs, required = REQUIRED_DOCUMENT_TYPES) {
   return requiredMissing(docs, required).length === 0;
 }
+
+/** True when the newest read upload of this type is not sent back: being read, waiting for HR, or accepted (ONB-09). */
+export function requiredIn(docs, type) {
+  let newest = null;
+  for (const doc of docs ?? []) {
+    if (doc?.document_type !== type || !isRead(doc)) continue;
+    if (newest === null || isNewer(doc, newest)) newest = doc;
+  }
+  return newest !== null && newest.ocr_status !== 'FAILED';
+}
+
+/** True when every required type is in (ONB-09). */
+export function allRequiredIn(docs, required = REQUIRED_DOCUMENT_TYPES) {
+  return required.every((type) => requiredIn(docs, type));
+}

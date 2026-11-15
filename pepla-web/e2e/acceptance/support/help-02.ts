@@ -5,6 +5,8 @@ import { HELP_TODAY } from '../../support/help';
 import { CognitoFake } from './cognito-fake';
 import { SignInPage } from './fixtures';
 import { HELP_HR, answerHelpEmployees, projectUse, type Box, type Width } from './journey-harness';
+import { stepOfStage } from './employees-fake';
+import { settleFonts } from './fonts';
 
 /**
  * HELP-02 · Help pictures: HR sees who is starting (Jira NH-159).
@@ -156,6 +158,8 @@ function johanAnswer(idNumber: string): unknown {
       email: e.email,
       phone: '',
       stage: e.stage,
+      // ONB-09: the API answers the step; Johan's row has none stored, so the stage gives it.
+      step: stepOfStage(e.stage),
       department: e.department,
       job_title: p.title,
       planned_start_date: e.planned_start_date,
@@ -207,7 +211,7 @@ export async function whoIsStartingReference(
   try {
     const fake = new CognitoFake([{ email: HELP_HR.email, givenName: HELP_HR.givenName, familyName: HELP_HR.familyName, groups: ['hr_staff'] }]);
     await fake.install(context);
-    await answerHelpEmployees(context);
+    await answerHelpEmployees(context, { steps: true });
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, OPTIONS' };
     await context.route(JOHAN_API, (route) =>
       route.request().method() === 'OPTIONS'
@@ -219,6 +223,7 @@ export async function whoIsStartingReference(
     await page.clock.setFixedTime(HELP_TODAY);
     const shot = async () => {
       await page.waitForLoadState('networkidle');
+      await settleFonts(page);
       return page.screenshot({ animations: 'disabled', caret: 'hide' });
     };
 

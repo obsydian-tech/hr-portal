@@ -9,7 +9,8 @@ export interface ApiEmployee {
   last_name?: string;
   email?: string;
   department?: string;
-  stage?: string;
+  /** INVITED, DOCUMENTS, IN_REVIEW or VERIFIED; null or missing when the API has none. */
+  step?: string | null;
   planned_start_date?: string;
   hr_staff_name?: string;
 }
@@ -20,27 +21,24 @@ export interface NewEmployee {
   name: string;
   email: string;
   department: string;
-  /** Null when the stored stage is not one of the four (it counts in no step). */
+  /** Null when the API gives no step, or one that is not of the four (it counts in no step). */
   step: Step | null;
   /** YYYY-MM-DD, or empty when not set. */
   startDate: string;
   hrPartner: string;
 }
 
-/**
- * The stored stage as one of the four steps. Until ONB-09 gives the backend the four steps,
- * this is the only place that knows how today's stages map. ONB-09 removes it.
- */
-export function stepOfStage(stage: string | undefined | null): Step | null {
-  switch (stage) {
-    case 'INVITED': return 'Invited';
-    case 'ACTIVE': return 'Documents';
-    case 'DOCUMENTS_SUBMITTED': return 'In review';
-    case 'VERIFIED':
-    case 'TRAINING':
-    case 'ONBOARDED': return 'Verified';
-    default: return null;
-  }
+/** The API's step codes and the words HR sees: one row each. */
+const STEP_WORDS: Readonly<Record<string, Step>> = {
+  INVITED: 'Invited',
+  DOCUMENTS: 'Documents',
+  IN_REVIEW: 'In review',
+  VERIFIED: 'Verified',
+};
+
+/** The API's step code as the words on screen. Any other value, or none, is null. */
+export function stepOfCode(code: string | undefined | null): Step | null {
+  return typeof code === 'string' && Object.hasOwn(STEP_WORDS, code) ? STEP_WORDS[code]! : null;
 }
 
 export function toNewEmployee(a: ApiEmployee): NewEmployee {
@@ -49,7 +47,7 @@ export function toNewEmployee(a: ApiEmployee): NewEmployee {
     name: [a.first_name, a.last_name].filter(Boolean).join(' ').trim(),
     email: a.email ?? '',
     department: a.department ?? '',
-    step: stepOfStage(a.stage),
+    step: stepOfCode(a.step),
     startDate: a.planned_start_date ?? '',
     hrPartner: a.hr_staff_name ?? '',
   };

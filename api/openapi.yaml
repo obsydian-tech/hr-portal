@@ -123,8 +123,21 @@ components:
           type: string
         stage:
           type: string
-          enum: [INVITED, DOCUMENTS_SUBMITTED, MANUAL_REVIEW, VERIFIED]
-          description: Onboarding stage. Advances automatically when all documents are verified.
+          enum: [INVITED, ACTIVE, DOCUMENTS_SUBMITTED, VERIFIED, TRAINING, ONBOARDED]
+          description: |
+            The stored stage of the old app. Kept next to `step` for the old app until OPS-04 switches it off;
+            new screens read `step`.
+        step:
+          type: string
+          nullable: true
+          enum: [INVITED, DOCUMENTS, IN_REVIEW, VERIFIED, null]
+          description: |
+            Where the person is in onboarding. INVITED: added by HR, has not signed in yet.
+            DOCUMENTS: signed in, and at least one required document is not in yet or was sent back.
+            IN_REVIEW: every required document is in and HR has not accepted all of them.
+            VERIFIED: HR has accepted every required document.
+            Rows written before the step existed answer from their stage; null when the stage is not one of the
+            six stored values.
         offer_accept_date:
           type: string
           format: date

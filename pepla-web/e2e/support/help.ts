@@ -2,6 +2,7 @@ import { test as base, expect, type Locator, type Page, type TestInfo } from '@p
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { settleFonts } from '../acceptance/support/fonts';
 
 /**
  * Help mode for journey tests.
@@ -102,6 +103,8 @@ export class Help {
     if (!this.on) return;
     await this.hideCaption();
     await this.page.waitForLoadState('networkidle');
+    // Every web font the text uses is loaded and painted, so retakes draw the same letters.
+    await settleFonts(this.page);
     const path = join(MEDIA, this.info.project.name, `${name}.png`);
     mkdirSync(dirname(path), { recursive: true });
     await this.page.screenshot({ path, animations: 'disabled', caret: 'hide' });

@@ -352,6 +352,13 @@ resource "aws_iam_role_policy" "process_document_ocr" {
         ]
       },
       {
+        # ONB-09: read the person's documents to work out the step (In review when every required one is in)
+        Sid      = "QueryDocuments"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents"
+      },
+      {
         Sid      = "KMSPIIKey"
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
