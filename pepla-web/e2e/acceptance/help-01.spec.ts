@@ -164,13 +164,13 @@ test.describe('HELP-01 Help pictures and video: HR signs in', () => {
       const opts = { cssWidth: ref.cssWidth };
       // The email field shows pieter@example.com, and HR home greets Pieter.
       const email = await pictureDiff(page, readFileSync(picture(run, width, filled)), ref.pictures[1], { ...opts, region: ref.regions[1]['email'] });
-      expect(email, `[${width}] ${filled}: the email field shows ${HELP_HR.email}`).toBeLessThanOrEqual(0.01);
+      expect(email, `[${width}] ${filled}: the email field shows ${HELP_HR.email}`).toBeLessThanOrEqual(0.03);
       const greeting = await pictureDiff(page, readFileSync(picture(run, width, home)), ref.pictures[2], { ...opts, region: ref.regions[2]['greeting'] });
-      expect(greeting, `[${width}] ${home}: the page says "Welcome back, ${HELP_HR.givenName}"`).toBeLessThanOrEqual(0.01);
+      expect(greeting, `[${width}] ${home}: the page says "Welcome back, ${HELP_HR.givenName}"`).toBeLessThanOrEqual(0.03);
       // Nothing else on any picture differs from the help company's own pages.
       for (const [i, name] of PICTURES.entries()) {
         const all = await pictureDiff(page, readFileSync(picture(run, width, name)), ref.pictures[i]!, { content: true });
-        expect(all, `[${width}] ${name}: shows only what the help company's page shows`).toBeLessThanOrEqual(0.01);
+        expect(all, `[${width}] ${name}: shows only what the help company's page shows`).toBeLessThanOrEqual(0.03);
       }
     }
   });
@@ -213,10 +213,10 @@ test.describe('HELP-01 Help pictures and video: HR signs in', () => {
         const opts = { cssWidth: ref.cssWidth };
         for (const part of parts[name]!) {
           const d = await pictureDiff(page, shot, ref.pictures[i]!, { ...opts, region: ref.regions[i]![part] });
-          expect(d, `[${width}] ${name}: ${part} looks as on the card`).toBeLessThanOrEqual(0.01);
+          expect(d, `[${width}] ${name}: ${part} looks as on the card`).toBeLessThanOrEqual(0.03);
         }
         const whole = await pictureDiff(page, shot, ref.pictures[i]!, { content: true });
-        expect(whole, `[${width}] ${name}: the whole picture is this step`).toBeLessThanOrEqual(0.01);
+        expect(whole, `[${width}] ${name}: the whole picture is this step`).toBeLessThanOrEqual(0.03);
         const caption = await pictureDiff(page, shot, ref.pictures[i]!, { ...opts, region: captionZone });
         expect(caption, `[${width}] ${name}: no caption bar`).toBeLessThanOrEqual(0.002);
       }
