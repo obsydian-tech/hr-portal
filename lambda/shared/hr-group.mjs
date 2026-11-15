@@ -1,0 +1,44 @@
+/**
+ * ONB-03: who may add an employee, and who the HR partners are.
+ *  */
+import { groupsOf } from './document-check.mjs';
+
+export const HR_GROUP = 'hr_staff';
+const JSON_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+
+export function json(statusCode, body) {
+  return { statusCode, headers: JSON_HEADERS, body: JSON.stringify(body) };
+}
+
+/** null for HR, else the 403 answer. Groups are split into names, never a substring match. */
+export function hrOnly(event, message) {
+  const claims = event?.requestContext?.authorizer?.jwt?.claims;
+  if (claims && groupsOf(claims).includes(HR_GROUP)) return null;
+  return json(403, { error: message });
+}
+
+const attr = (user, name) => (user.Attributes ?? user.UserAttributes ?? []).find((a) => a.Name === name)?.Value ?? '';
+
+/**
+ * Every member of hr_staff in the pool, every page. The caller passes its own Cognito client and
+ * ListUsersInGroupCommand, so this shared file needs no AWS package of its own.
+ */
+export async function listHrMembers(client, ListUsersInGroupCommand, poolId) {
+  const out = [];
+  let token;
+  do {
+    const page = await client.send(new ListUsersInGroupCommand({ UserPoolId: poolId, GroupName: HR_GROUP, Limit: 60, NextToken: token }));
+    out.push(...(page.Users ?? []));
+    token = page.NextToken;
+  } while (token);
+  return out;
+}
+
+/** One member as the screens and createEmployee see them. */
+export function toPartner(user) {
+  const email = attr(user, 'email');
+  const name = [attr(user, 'given_name'), attr(user, 'family_name')].filter(Boolean).join(' ').trim() || email || user.Username;
+  const staffId = attr(user, 'custom:staff_id') || user.Username;
+  // id is what createEmployee accepts as hr_staff_id: the staff ID, or the Cognito username when there is none.
+  return { id: staffId, name, staffId, email };
+}

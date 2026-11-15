@@ -61,6 +61,8 @@ resource "aws_iam_role_policy" "create_employee" {
           "cognito-idp:AdminCreateUser",
           "cognito-idp:AdminAddUserToGroup",
           "cognito-idp:AdminSetUserPassword",
+          # ONB-03: read the HR staff group, so the HR partner comes from the pool and not the browser
+          "cognito-idp:ListUsersInGroup",
         ]
         Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
       },
@@ -865,6 +867,96 @@ resource "aws_iam_role_policy" "get_employee_by_email" {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
+      }
+    ]
+  })
+}
+
+# ─── ONB-03: getHrPartners ───────────────────────────────────────────────────
+resource "aws_iam_role" "get_hr_partners" {
+  name        = "naleko-getHrPartners-role"
+  description = "Execution role for getHrPartners Lambda (ONB-03)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_hr_partners" {
+  name = "naleko-getHrPartners-policy"
+  role = aws_iam_role.get_hr_partners.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getHrPartners:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "ListHrStaffGroup"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:ListUsersInGroup"]
+        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
+      }
+    ]
+  })
+}
+
+# ─── ONB-03: checkEmployeeEmail ──────────────────────────────────────────────
+resource "aws_iam_role" "check_employee_email" {
+  name        = "naleko-checkEmployeeEmail-role"
+  description = "Execution role for checkEmployeeEmail Lambda (ONB-03)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "check_employee_email" {
+  name = "naleko-checkEmployeeEmail-policy"
+  role = aws_iam_role.check_employee_email.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/checkEmployeeEmail:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "DynamoDBEmailIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
       }
     ]
   })
