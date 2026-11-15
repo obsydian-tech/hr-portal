@@ -7,7 +7,7 @@ import { blocks, tfFiles } from './support/infra-harness';
 import { policyOf, resourcesNamed } from './support/onb-15/tf-policy';
 import type { Statement } from './support/ops-05/iam-eval';
 import {
-  AGENT, EMPLOYEE, EMAIL_CHECK, HR, PAGE, PARTNERS, POOL, REPO, aiReached, aws, body, cognitoCalls, create, createEvent, dynamoCalls, emailCheck,
+  AGENT, CREATE, EMPLOYEE, EMAIL_CHECK, HR, PAGE, PARTNERS, POOL, REPO, aiReached, aws, body, cognitoCalls, create, createEvent, dynamoCalls, emailCheck,
   emailCheckEvent, emptyWorld, employeeRow, member, partners, partnersEvent, published, runHandler, saId, stored, storedWithEmail, withBadCheck, writesTo,
   type Caller, type JwtCaller, type CognitoUser, type GroupsForm, type Run, type World,
 } from './support/onb-03/lambda-harness';
@@ -819,6 +819,38 @@ test.describe('ONB-03 Add a new employee', () => {
     const agent = create(world, AGENT, body({ email: 'agent.made@x.co.za' }));
     expect(agent.status, 'createEmployee: the agent still gets through').toBe(201);
     expect(aiReached(agent), 'no AI is reached').toEqual([]);
+  });
+
+  test('AC-8 A stranger with the Idempotency-Key of an HR registration gets a 403, never the saved answer', async ({}, testInfo) => {
+    lambdaOnce(testInfo);
+    const env = { IDEMPOTENCY_TABLE: 'idempotency-keys' };
+    const key = { 'idempotency-key': 'a3c1f0de-0000-4000-8000-000000000001' };
+    const world: World = { ...emptyWorld(), cognito: { users: [] } };
+    world.tables['idempotency-keys'] = [];
+    const run = (caller: Caller, payload: unknown, headers = key) => runHandler(CREATE, world, createEvent(caller, payload, headers), env);
+    const first = run(HR, body({ email: 'keyed.person@x.co.za' }));
+    expect(first.status, `HR registers with a key (${first.raw.slice(0, 120)})`).toBe(201);
+    expect(first.world.tables['idempotency-keys'].length, 'the answer was saved under the key').toBe(1);
+    const saved = first.world;
+
+    // the same key from someone who is not HR: refused, and nothing of the saved answer comes out
+    for (const [who, caller] of [['an employee', EMPLOYEE], ['no claims', { kind: 'none' } as Caller], ['not_hr_staff', { ...EMPLOYEE, groups: ['not_hr_staff'] } as Caller]] as const) {
+      const r = runHandler(CREATE, saved, createEvent(caller, body({ email: 'keyed.person@x.co.za' }), key), env);
+      expect([401, 403], `${who}: refused (${r.status})`).toContain(r.status);
+      for (const leak of ['keyed.person', 'employee_id', 'Employee created', 'cognito']) expect(r.raw, `${who}: the 403 does not carry "${leak}"`).not.toContain(leak);
+      expect(writesTo(r, 'employees'), `${who}: nothing written`).toBe(0);
+      expect(cognitoCalls(r), `${who}: Cognito untouched`).toEqual([]);
+    }
+    // an empty body with the key too (the answer must not come back for it either)
+    const empty = runHandler(CREATE, saved, createEvent(EMPLOYEE, undefined, key), env);
+    expect(empty.status, 'an employee with the key and no body').toBe(403);
+    expect(empty.raw).not.toContain('keyed.person');
+
+    // HR with the same key still gets the saved answer, and no second person
+    const again = runHandler(CREATE, saved, createEvent(HR, body({ email: 'keyed.person@x.co.za' }), key), env);
+    expect(again.status, 'HR with the same key: the saved 201').toBe(201);
+    expect(writesTo(again, 'employees'), 'and no second person').toBe(0);
+    expect(cognitoCalls(again, 'AdminCreateUser'), 'and no second sign-in').toEqual([]);
   });
 
   // -------------------------------------------------------------- AC-9

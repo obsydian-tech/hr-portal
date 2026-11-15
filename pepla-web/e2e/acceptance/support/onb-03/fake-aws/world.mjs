@@ -11,6 +11,7 @@ world.cognito ??= { users: [] };
 export const calls = [];
 export const KEYS = {
   employees: ['employee_id'],
+  'idempotency-keys': ['idempotencyKey'],
   documents: ['employee_id', 'document_id'],
   'document-verification': ['verificationId'],
   'talent-flow-users': ['PK', 'SK'],
