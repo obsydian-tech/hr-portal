@@ -88,16 +88,23 @@ components:
           type: string
           format: date
           example: "2026-05-01"
+        id_number:
+          type: string
+          pattern: '^[0-9]{13}$'
+          description: Optional South African ID number, 13 digits with a valid date and check digit. Kept encrypted; only the last four digits are stored in clear.
         hr_staff_id:
           type: string
           example: HR-00042
+          description: The id of a member of the hr_staff group, as GET /v1/hr-partners lists it. The partner's name and email are taken from the pool, not from the request.
         hr_staff_name:
           type: string
           example: Thabo Mokoena
+          description: Ignored when hr_staff_id is sent.
         hr_staff_email:
           type: string
           format: email
           example: thabo@naleko.co.za
+          description: Ignored when hr_staff_id is sent.
 
     Employee:
       type: object
@@ -510,13 +517,118 @@ paths:
                       sent:
                         type: boolean
         "400":
-          description: Missing required fields.
+          description: The body is missing or not valid, or a field is wrong. `fields` names each wrong field.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  missing:
+                    type: array
+                    items:
+                      type: string
+                  fields:
+                    type: object
+                    additionalProperties:
+                      type: string
+        "401":
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: The caller is not in the hr_staff group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: An employee with this email already exists (any capitals). Code DUPLICATE_EMAIL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/hr-partners:
+    get:
+      tags: [Employees]
+      operationId: getHrPartners
+      summary: List the HR staff who can be an employee's HR partner
+      description: HR only. Every member of the hr_staff group, sorted by name.
+      responses:
+        "200":
+          description: The HR partners.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: What createEmployee accepts as hr_staff_id.
+                        name:
+                          type: string
+                        staffId:
+                          type: string
+                        email:
+                          type: string
+        "401":
+          description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: The caller is not in the hr_staff group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/employees/email-check:
+    get:
+      tags: [Employees]
+      operationId: checkEmployeeEmail
+      summary: Ask whether an email is already in use
+      description: HR only. Capitals and spaces around the address do not matter. Answers inUse and nothing else.
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Whether the email is in use.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inUse:
+                    type: boolean
+        "400":
+          description: The email is missing or not an email address.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
         "401":
           description: Missing or invalid JWT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: The caller is not in the hr_staff group.
           content:
             application/json:
               schema:

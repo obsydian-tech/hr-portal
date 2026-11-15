@@ -162,6 +162,56 @@ resource "aws_lambda_permission" "get_employee_by_email" {
 }
 
 # ---------------------------------------------------------------------------
+# ONB-03: GET /v1/hr-partners and GET /v1/employees/email-check  (employees_api)
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "get_hr_partners" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_hr_partners.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_hr_partners" {
+  api_id             = aws_apigatewayv2_api.employees_api.id
+  route_key          = "GET /v1/hr-partners"
+  target             = "integrations/${aws_apigatewayv2_integration.get_hr_partners.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.employees_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_hr_partners" {
+  statement_id  = "AllowEmployeesAPIInvokeGetHrPartners"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_hr_partners.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "check_employee_email" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.check_employee_email.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "check_employee_email" {
+  api_id             = aws_apigatewayv2_api.employees_api.id
+  route_key          = "GET /v1/employees/email-check"
+  target             = "integrations/${aws_apigatewayv2_integration.check_employee_email.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.employees_api_cognito.id
+}
+
+resource "aws_lambda_permission" "check_employee_email" {
+  statement_id  = "AllowEmployeesAPIInvokeCheckEmployeeEmail"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.check_employee_email.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------------------------
 # NH-13: POST /verifications/{id}/external  (document_upload_api)
 # ---------------------------------------------------------------------------
 

@@ -1,11 +1,14 @@
 import { DynamoDBClient, PutItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
 import { withIdempotency } from './shared/idempotency.mjs';
+import { hrOnly, listHrMembers, toPartner } from '../shared/hr-group.mjs';
+import { validateEmployee } from '../shared/employee-input.mjs';
 import {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
   AdminAddUserToGroupCommand,
   AdminSetUserPasswordCommand,
+  ListUsersInGroupCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
@@ -78,6 +81,14 @@ function getMailClient() {
   return mailClient;
 }
 
+function badRequest(message) {
+  return {
+    statusCode: 400,
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ error: message }),
+  };
+}
+
 const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, httpMethod: event.httpMethod });
   tracer.putAnnotation('operation', 'createEmployee');
@@ -92,48 +103,64 @@ const handlerFn = async (event) => {
 
     logger.info('Auth resolved', { staffMemberId, actor });
 
-    // 2. Parse request body
-    const body = JSON.parse(event.body);
-    
-    // Validate required fields
-    const requiredFields = ['first_name', 'last_name', 'email', 'phone', 'department'];
-    const missingFields = requiredFields.filter(field => !body[field]);
-    
-    if (missingFields.length > 0) {
+    // 2. Parse and check the request body (ONB-03: a bad request is a 400, never a 500)
+    let body;
+    try { body = event.body ? JSON.parse(event.body) : undefined; } catch { body = undefined; }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return badRequest('The request body is missing or not valid');
+    }
+    const checked = validateEmployee(body);
+    if (checked.problems) {
       return {
         statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({ 
-          error: 'Missing required fields',
-          missing: missingFields
-        })
-      };
-    }
-
-    // 3. Check for duplicate email using email-index GSI (prevents duplicate employee records)
-    const emailCheck = await dynamodb.send(new QueryCommand({
-      TableName: 'employees',
-      IndexName: 'email-index',
-      KeyConditionExpression: 'email = :email',
-      ExpressionAttributeValues: { ':email': { S: body.email } },
-      Limit: 1,
-      ProjectionExpression: 'employee_id',
-    }));
-
-    if (emailCheck.Count > 0) {
-      logger.warn('Duplicate email rejected', { email: body.email, existingId: emailCheck.Items[0]?.employee_id?.S });
-      return {
-        statusCode: 409,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         body: JSON.stringify({
-          error: 'An employee with this email address already exists.',
-          code: 'DUPLICATE_EMAIL',
-          existingEmployeeId: emailCheck.Items[0]?.employee_id?.S,
+          error: 'Check the highlighted fields',
+          ...(checked.missing.length ? { missing: checked.missing } : {}),
+          fields: checked.problems,
         }),
       };
+    }
+    body = { ...body, ...checked.clean };
+
+    // 2b. The HR partner comes from the pool, never from the browser
+    let partner = null;
+    if (body.hr_staff_id) {
+      const members = (await listHrMembers(cognito, ListUsersInGroupCommand, USER_POOL_ID)).map((u) => toPartner(u));
+      partner = members.find((m) => m.id === String(body.hr_staff_id)) ?? null;
+      if (!partner) {
+        return {
+          statusCode: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({ error: 'Choose an HR partner from the list', fields: { hr_staff_id: 'Choose an HR partner from the list' } }),
+        };
+      }
+    }
+
+    // 3. Check for duplicate email using email-index GSI (prevents duplicate employee records).
+    // The address is one person whatever the capitals; rows stored before this card may hold capitals.
+    const typedForms = [...new Set([body.email, checked.typedEmail])];
+    for (const candidate of typedForms) {
+      const emailCheck = await dynamodb.send(new QueryCommand({
+        TableName: 'employees',
+        IndexName: 'email-index',
+        KeyConditionExpression: 'email = :email',
+        ExpressionAttributeValues: { ':email': { S: candidate } },
+        Limit: 1,
+        ProjectionExpression: 'employee_id',
+      }));
+      if (emailCheck.Count > 0) {
+        logger.warn('Duplicate email rejected', { existingId: emailCheck.Items[0]?.employee_id?.S });
+        return {
+          statusCode: 409,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({
+            error: 'An employee with this email address already exists.',
+            code: 'DUPLICATE_EMAIL',
+            existingEmployeeId: emailCheck.Items[0]?.employee_id?.S,
+          }),
+        };
+      }
     }
 
     // 4. Generate UUID v4 employee ID (NH-28: replaces sequential EMP-NNNNNNN scan anti-pattern)
@@ -165,9 +192,9 @@ const handlerFn = async (event) => {
       planned_start_date: { S: body.planned_start_date || '' },
       created_at: { S: timestamp },
       created_by: { S: staffMemberId }, // Track who created this employee
-      hr_staff_id: { S: body.hr_staff_id || staffMemberId },
-      hr_staff_name: { S: body.hr_staff_name || '' },
-      hr_staff_email: { S: body.hr_staff_email || '' },
+      hr_staff_id: { S: partner ? partner.staffId : (body.hr_staff_id || staffMemberId) },
+      hr_staff_name: { S: partner ? partner.name : (body.hr_staff_name || '') },
+      hr_staff_email: { S: partner ? partner.email : (body.hr_staff_email || '') },
       // PII fields — SA ID stored encrypted; only last 4 digits stored in clear
       ...(idNumberEncrypted ? { id_number_encrypted: { S: idNumberEncrypted } } : {}),
       ...(idNumberLast4     ? { id_number_last4:     { S: idNumberLast4 }     } : {}),
@@ -362,6 +389,10 @@ const handlerFn = async (event) => {
 // A repeated call with the same key within 24h returns the cached 201 response
 // without creating a duplicate employee record in DynamoDB.
 export const handler = async (event) => {
+  // ONB-03: only HR may add an employee. The agent is refused too (decided 15 Nov). This runs before the
+  // body is read and before an Idempotency-Key can hand back an earlier answer.
+  const refused = hrOnly(event, 'Only HR can add an employee');
+  if (refused) return refused;
   const key = event.headers?.['idempotency-key'];
   return withIdempotency(key, () => handlerFn(event));
 };

@@ -32,6 +32,7 @@ jest.unstable_mockModule('@aws-sdk/client-cognito-identity-provider', () => ({
   AdminCreateUserCommand: jest.fn((a) => ({ _type: 'AdminCreateUser', ...a })),
   AdminSetUserPasswordCommand: jest.fn((a) => ({ _type: 'AdminSetUserPassword', ...a })),
   AdminAddUserToGroupCommand: jest.fn((a) => ({ _type: 'AdminAddUserToGroup', ...a })),
+  ListUsersInGroupCommand: jest.fn((a) => ({ _type: 'ListUsersInGroup', ...a })),
 }));
 
 const SETTINGS = {
@@ -94,6 +95,8 @@ describe('AC-3 createEmployee uses its own pool', () => {
     const { handler } = await import('./index.mjs');
     const res = await handler({
       headers: {},
+      // ONB-03: only HR may add an employee
+      requestContext: { authorizer: { jwt: { claims: { 'cognito:groups': '[hr_staff]', 'custom:staff_id': 'HR1' } } } },
       body: JSON.stringify({
         first_name: 'John', last_name: 'Doe', email: 'e2e.run-1@example.test',
         phone: '0820000000', department: 'Bakery',

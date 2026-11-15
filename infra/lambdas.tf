@@ -385,6 +385,60 @@ resource "aws_lambda_function" "get_employee_by_email" {
   }
 }
 
+# ─── ONB-03: getHrPartners ───────────────────────────────────────────────────
+resource "aws_lambda_function" "get_hr_partners" {
+  function_name = "getHrPartners"
+  role          = aws_iam_role.get_hr_partners.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      COGNITO_POOL_ID = aws_cognito_user_pool.naleko_dev.id
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getHrPartners"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── ONB-03: checkEmployeeEmail ──────────────────────────────────────────────
+resource "aws_lambda_function" "check_employee_email" {
+  function_name = "checkEmployeeEmail"
+  role          = aws_iam_role.check_employee_email.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/checkEmployeeEmail"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
 # ─── NH-13: triggerExternalVerification ──────────────────────────────────────
 resource "aws_lambda_function" "trigger_external_verification" {
   function_name = "triggerExternalVerification"
