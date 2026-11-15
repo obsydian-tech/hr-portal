@@ -1,5 +1,5 @@
 import { CognitoFake } from '../acceptance/support/cognito-fake';
-import { HELP_NEW_EMPLOYEES, HELP_PEOPLE } from '../fixtures/help-company';
+import { HELP_NEW_EMPLOYEES, HELP_NEW_EMPLOYEE_STEPS, HELP_PEOPLE } from '../fixtures/help-company';
 import { expect, test } from '../support/help';
 
 /**
@@ -18,7 +18,8 @@ import { expect, test } from '../support/help';
  * tests (read only, never copied). Any request to another host fails the
  * journey, except the Inter and Manrope font files from Google Fonts.
  * The employees API is answered the same way, with Sunbird Bakery's new employees from
- * e2e/fixtures/help-company.ts, so HR home shows the help company's people and counts.
+ * e2e/fixtures/help-company.ts and each person's step (ONB-09), so HR home shows the help
+ * company's people, their steps and the counts.
  * Nothing here calls an AI service.
  */
 
@@ -58,7 +59,7 @@ test('HR signs in', async ({ page, context, help, baseURL }) => {
       if (req.method() !== 'GET' || !/^Bearer \S+$/.test(req.headers()['authorization'] ?? '')) {
         return route.fulfill({ status: 401, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ message: 'Unauthorized' }) });
       }
-      const items = HELP_NEW_EMPLOYEES.map((p) => ({ ...p, middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: hr.email }));
+      const items = HELP_NEW_EMPLOYEES.map((p) => ({ ...p, step: HELP_NEW_EMPLOYEE_STEPS[p.employee_id], middle_name: '', phone: '', job_title: '', id_number_last4: '', hr_staff_email: hr.email }));
       return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ items, count: items.length }) });
     },
   );
