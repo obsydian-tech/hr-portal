@@ -12,6 +12,7 @@ import { HELP_TODAY } from '../../support/help';
 import { CognitoFake } from './cognito-fake';
 import { SignInPage } from './fixtures';
 import { stepOfStage } from './employees-fake';
+import { settleFonts } from './fonts';
 
 /**
  * Runs a journey test (e2e/journeys/*.e2e.ts) from inside an acceptance test,
@@ -495,12 +496,14 @@ export async function signInReference(browser: Browser, width: Width, passwordLe
   try {
     const fake = new CognitoFake([{ email: HELP_HR.email, givenName: HELP_HR.givenName, familyName: HELP_HR.familyName, groups: ['hr_staff'] }]);
     await fake.install(context);
-    await answerHelpEmployees(context);
+    // HELP-02.3: the sign-in journey sends each person's step (ONB-09), so the reference does too.
+    await answerHelpEmployees(context, { steps: true });
     const page = await context.newPage();
     await page.clock.setFixedTime(HELP_TODAY);
     const signIn = new SignInPage(page);
     const shot = async () => {
       await page.waitForLoadState('networkidle');
+      await settleFonts(page);
       return page.screenshot({ animations: 'disabled', caret: 'hide' });
     };
     const box = async (loc: import('@playwright/test').Locator): Promise<Box> => {
@@ -555,8 +558,8 @@ export const EMPLOYEES_API = (url: URL): boolean => /\/v1\/employees$/.test(url.
  * answers. Checks first that the list holds only the help company's people,
  * with its HR person as HR partner, so the HR home picture can show no one else.
  * `steps` (ONB-09): also answer each person's `step`, from the stage, as the
- * Lambdas do for rows with no stored step. The sign-in reference leaves it off,
- * because the locked sign-in journey (HELP-02 AC-11 holds its hash) sends none.
+ * Lambdas do for rows with no stored step. Both help journeys send it
+ * (HELP-02.3), so both references ask for it.
  */
 export async function answerHelpEmployees(context: import('@playwright/test').BrowserContext, opts: { steps?: boolean } = {}): Promise<void> {
   const names = new Set<string>(HELP_PEOPLE.map((p) => p.name));

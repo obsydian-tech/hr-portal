@@ -66,8 +66,11 @@ import {
 const FILE = 'who-is-starting.e2e.ts';
 const JOURNEY = join(WEB, 'e2e', 'journeys', FILE);
 const SIGN_IN_JOURNEY = join(WEB, 'e2e', 'journeys', 'sign-in.e2e.ts');
-/** sign-in.e2e.ts as HELP-01 locked it (develop d2ee800). It must not change. */
-const SIGN_IN_SHA256 = '83035aeeb9bfc145595006d382883dc72b52c1b0ba5d69b783acd229bdb6b6be';
+/**
+ * sign-in.e2e.ts as HELP-02.3 re-locked it: HELP-01's journey (develop d2ee800) plus each
+ * person's step from HELP_NEW_EMPLOYEE_STEPS (ONB-09). It must not change.
+ */
+const SIGN_IN_SHA256 = '5c8e0cb4b4e4cfab5737c7b1c578e1f728cb266db5fa3f69d4e8feba0cd48e21';
 const FOLDER = 'who-is-starting';
 const PICTURES = ['01-hr-home', '02-employee-page', '03-documents'] as const;
 const VIDEO = 'hr-opens-new-employee';
@@ -407,7 +410,7 @@ test.describe('HELP-02 Help pictures: HR sees who is starting', () => {
 
   test('AC-11 Nothing locked moves: sign-in.e2e.ts unchanged, the locked Cognito fake imported, not copied', async () => {
     const signIn = existsSync(SIGN_IN_JOURNEY) ? readFileSync(SIGN_IN_JOURNEY) : Buffer.from('');
-    expect(createHash('sha256').update(signIn).digest('hex'), 'sign-in.e2e.ts is exactly as HELP-01 locked it').toBe(SIGN_IN_SHA256);
+    expect(createHash('sha256').update(signIn).digest('hex'), 'sign-in.e2e.ts is exactly as HELP-02.3 locked it').toBe(SIGN_IN_SHA256);
 
     const src = source();
     expect(src, `${FILE} exists`).not.toBe('');

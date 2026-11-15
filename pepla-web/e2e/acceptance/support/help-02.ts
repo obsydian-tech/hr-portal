@@ -6,6 +6,7 @@ import { CognitoFake } from './cognito-fake';
 import { SignInPage } from './fixtures';
 import { HELP_HR, answerHelpEmployees, projectUse, type Box, type Width } from './journey-harness';
 import { stepOfStage } from './employees-fake';
+import { settleFonts } from './fonts';
 
 /**
  * HELP-02 · Help pictures: HR sees who is starting (Jira NH-159).
@@ -222,6 +223,7 @@ export async function whoIsStartingReference(
     await page.clock.setFixedTime(HELP_TODAY);
     const shot = async () => {
       await page.waitForLoadState('networkidle');
+      await settleFonts(page);
       return page.screenshot({ animations: 'disabled', caret: 'hide' });
     };
 
