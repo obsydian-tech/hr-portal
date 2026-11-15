@@ -36,6 +36,7 @@ on:
       - "scripts/ci/deploy-lambdas.sh"
       - ".github/workflows/deploy-lambdas.yml"
       - "scripts/ci/seed-dev.py"
+      - "scripts/ci/seed-dev-files.py"
       - "scripts/ci/cleanup-dev-e2e.py"
       - "scripts/ci/load-e2e-logins.py"
       - "scripts/ci/dev-frontend-env.sh"

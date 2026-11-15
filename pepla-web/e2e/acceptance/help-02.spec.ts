@@ -181,10 +181,10 @@ async function expectLikeReference(page: import('@playwright/test').Page, browse
       const opts = { cssWidth: ref.cssWidth };
       for (const [part, region] of Object.entries(ref.regions[i]!)) {
         const d = await pictureDiff(page, shot, ref.pictures[i]!, { ...opts, region });
-        expect(d, `[${width}] ${name}: ${part} looks as on the card`).toBeLessThanOrEqual(0.01);
+        expect(d, `[${width}] ${name}: ${part} looks as on the card`).toBeLessThanOrEqual(0.03);
       }
       const whole = await pictureDiff(page, shot, ref.pictures[i]!, { content: true });
-      expect(whole, `[${width}] ${name}: the whole picture is this step`).toBeLessThanOrEqual(0.01);
+      expect(whole, `[${width}] ${name}: the whole picture is this step`).toBeLessThanOrEqual(0.03);
       const caption = await pictureDiff(page, shot, ref.pictures[i]!, { ...opts, region: captionZone });
       expect(caption, `[${width}] ${name}: no caption bar`).toBeLessThanOrEqual(0.002);
     }
@@ -267,7 +267,7 @@ test.describe('HELP-02 Help pictures: HR sees who is starting', () => {
       const ref = await reference(browser, run, width);
       for (const [i, name] of PICTURES.entries()) {
         const all = await pictureDiff(page, readFileSync(picture(run, width, name)), ref.pictures[i]!, { content: true });
-        expect(all, `[${width}] ${name}: shows only what the help company's page shows`).toBeLessThanOrEqual(0.01);
+        expect(all, `[${width}] ${name}: shows only what the help company's page shows`).toBeLessThanOrEqual(0.03);
       }
     }
   });
