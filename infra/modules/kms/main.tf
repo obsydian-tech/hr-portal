@@ -88,6 +88,27 @@ data "aws_iam_policy_document" "key_policy" {
       resources = ["*"]
     }
   }
+
+  # 5. Read-only DynamoDB consumers — decrypt only, and only through DynamoDB
+  # (no direct Decrypt of stored ciphertext, no encrypt or data-key rights).
+  dynamic "statement" {
+    for_each = length(var.dynamodb_read_role_arns) > 0 ? [1] : []
+    content {
+      sid    = "AllowDynamoDBReadRolesViaDynamoDBOnly"
+      effect = "Allow"
+      principals {
+        type        = "AWS"
+        identifiers = var.dynamodb_read_role_arns
+      }
+      actions   = ["kms:Decrypt", "kms:DescribeKey"]
+      resources = ["*"]
+      condition {
+        test     = "StringEquals"
+        variable = "kms:ViaService"
+        values   = ["dynamodb.${var.aws_region}.amazonaws.com"]
+      }
+    }
+  }
 }
 
 resource "aws_kms_key" "this" {

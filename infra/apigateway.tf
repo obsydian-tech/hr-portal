@@ -15,7 +15,7 @@ resource "aws_apigatewayv2_api" "employees_api" {
 
   cors_configuration {
     allow_credentials = false
-    allow_headers     = ["authorization", "content-type"]
+    allow_headers     = ["authorization", "content-type", "idempotency-key"]
     allow_methods     = ["GET", "OPTIONS", "POST"]
     allow_origins     = local.api_allowed_origins
     expose_headers    = []
