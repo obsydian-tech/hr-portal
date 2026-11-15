@@ -94,10 +94,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       mode: ${{ steps.pick.outputs.mode }}
-      specs: ${{ steps.pick.outputs.specs }}
       matrix: ${{ steps.pick.outputs.matrix }}
-      media: ${{ steps.pick.outputs.media }}
-      infra_only: ${{ steps.pick.outputs.infra_only }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -140,18 +137,18 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # The help picture and video specs run the retake script, which needs these.
       - name: Install ffmpeg and ImageMagick
-        if: needs.plan.outputs.media == 'true'
+        if: matrix.media == 'true'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg imagemagick
       - name: Run acceptance tests
         env:
-          SPECS: ${{ needs.plan.outputs.specs }}
-          INFRA_ONLY: ${{ needs.plan.outputs.infra_only }}
+          SPECS: ${{ matrix.specs }}
+          INFRA_ONLY: ${{ matrix.infra_only }}
         run: |
           # Specs that never open the app (infra checks) skip `ng serve`.
           if [ "$INFRA_ONLY" = true ]; then export E2E_BASE_URL=http://localhost:1; fi
           if ! ls e2e/acceptance/*.spec.ts >/dev/null 2>&1; then echo "No acceptance tests yet."; exit 0; fi
           # shellcheck disable=SC2086
-          npm run e2e:acceptance -- --shard=${{ matrix.shard }}/${{ matrix.of }} --pass-with-no-tests $SPECS
+          npm run e2e:acceptance -- $SPECS
       # Failure pictures show fake people only. Short-lived. include-hidden-files:
       # the output folder is .output, which the upload skipped before, so a failed run kept nothing.
       - name: Upload failure evidence

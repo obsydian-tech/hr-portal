@@ -5,11 +5,8 @@ Pick which acceptance spec files a pull request needs, so the "Acceptance tests
 
 Runs in the `plan` job of pepla-web.yml and prints lines for GITHUB_OUTPUT:
   mode=full | selected | none
-  specs=<space separated paths, relative to pepla-web/; empty for full and none>
-  shards=<how many parallel jobs>
-  matrix=<JSON for the shard jobs>
-  media=true|false     the shards need ffmpeg and ImageMagick
-  infra_only=true|false  no spec needs the app, so the shards skip `ng serve`
+  matrix=<JSON for the shard jobs: per shard its spec files (relative to pepla-web/),
+          whether it needs ffmpeg and ImageMagick, whether it never opens the app>
   reason=<plain words, shown in the job summary>
 
 Rules (anything unsure runs everything):
@@ -156,6 +153,23 @@ def pick(
 # ---------------------------------------------------------------- git side
 
 
+def weight(text: str) -> int:
+    """Rough minutes-ish cost of a spec: journeys with pictures and video dominate the run."""
+    return 10 if JOURNEY_RE.search(text) else 1
+
+
+def balance(cards: list[str], specs: dict[str, str], shards: int) -> list[list[str]]:
+    """Spread specs over shards, heaviest first onto the lightest shard (Playwright's own
+    --shard splits by test count, which put every journey spec in one 16 minute shard)."""
+    groups: list[list[str]] = [[] for _ in range(shards)]
+    load = [0] * shards
+    for c in sorted(cards, key=lambda c: (-weight(specs[c]), c)):
+        i = load.index(min(load))
+        groups[i].append(c)
+        load[i] += weight(specs[c])
+    return [sorted(g) for g in groups]
+
+
 def git(*args: str) -> str:
     return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
 
@@ -201,21 +215,24 @@ def main() -> None:
         touched = history_map()
     mode, cards, reason = pick(changed, specs, touched, own, event, base_ref)
 
-    files = sorted(f"{SPEC_DIR}{c}.spec.ts" for c in cards)
-    chosen = cards if mode == "selected" else set(specs)
-    shards = MAX_SHARDS if mode == "full" else min(MAX_SHARDS, len(files)) if mode == "selected" else 0
-    media = any(MEDIA_RE.search(specs[c]) for c in chosen)
-    infra_only = mode == "selected" and all(c.startswith(("be-", "ops-")) for c in cards)
-    matrix = {"include": [{"shard": i, "of": shards} for i in range(1, shards + 1)]}
-    out = {
-        "mode": mode,
-        "specs": " ".join(files) if mode == "selected" else "",
-        "shards": str(shards),
-        "matrix": json.dumps(matrix),
-        "media": str(media).lower(),
-        "infra_only": str(infra_only).lower(),
-        "reason": reason,
+    chosen = sorted(cards) if mode == "selected" else sorted(specs)
+    n = 0 if mode == "none" else min(MAX_SHARDS, len(chosen))
+    groups = balance(chosen, specs, n)
+    matrix = {
+        "include": [
+            {
+                "shard": i + 1,
+                "of": n,
+                "specs": " ".join(f"{SPEC_DIR}{c}.spec.ts" for c in g),
+                "media": str(any(MEDIA_RE.search(specs[c]) for c in g)).lower(),
+                "infra_only": str(all(c.startswith(("be-", "ops-")) for c in g)).lower(),
+            }
+            for i, g in enumerate(groups)
+        ]
     }
+    out = {"mode": mode, "matrix": json.dumps(matrix), "reason": reason}
+    for g in groups:
+        print("shard:", " ".join(g), file=sys.stderr)
     for k, v in out.items():
         print(f"{k}={v}")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")

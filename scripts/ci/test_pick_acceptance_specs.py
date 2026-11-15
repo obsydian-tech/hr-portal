@@ -62,5 +62,17 @@ class Pick(unittest.TestCase):
         self.assertEqual(m.card_of("feat(help-02.3): x (NH-166) and ONB-09"), {"help-02", "onb-09"})
 
 
+
+class Balance(unittest.TestCase):
+    def test_journey_specs_do_not_share_a_shard(self):
+        specs = {"help-01": "helpRun", "help-02": "helpRun", "help-03": "runJourney", "onb-02": "runJourney",
+                 "onb-09": "x", "onb-13": "x", "ops-05": "x", "be-16": "x"}
+        groups = m.balance(sorted(specs), specs, 4)
+        self.assertEqual(len(groups), 4)
+        for g in groups:
+            self.assertLessEqual(sum(1 for c in g if m.JOURNEY_RE.search(specs[c])), 1)
+        self.assertEqual(sorted(c for g in groups for c in g), sorted(specs))
+
+
 if __name__ == "__main__":
     unittest.main()
