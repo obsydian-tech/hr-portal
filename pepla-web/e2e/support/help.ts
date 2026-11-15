@@ -73,19 +73,23 @@ export class Help {
    * Scroll a heading, by its exact name, to the top of the window. Caption: "Scroll to <name>".
    * A fixed or sticky top bar (the phone's) would hide it, so it stops just below that bar.
    */
-  async scrollTo(heading: string, within: Page | Locator = this.page): Promise<void> {
+  async scrollTo(heading: string, within: Page | Locator = this.page, opts: { inner?: boolean } = {}): Promise<void> {
     const target = within.getByRole('heading', { name: heading, exact: true });
     await expect(target).toBeVisible();
     await this.step(`Scroll to ${heading}`, async () => {
-      await target.evaluate((el) => {
+      await target.evaluate((el, inner) => {
         const bar = Math.max(
           0,
           ...[...document.querySelectorAll('[role=banner]')]
             .filter((b) => ['fixed', 'sticky'].includes(getComputedStyle(b).position))
             .map((b) => b.getBoundingClientRect().bottom),
         );
-        window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - bar - 16, behavior: 'instant' });
-      });
+        // inner: the page scrolls inside the app's main area on desktop, not the window.
+        let box: HTMLElement | null = inner ? el.parentElement : null;
+        while (box && !(/(auto|scroll)/.test(getComputedStyle(box).overflowY) && box.scrollHeight > box.clientHeight)) box = box.parentElement;
+        if (box) box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - Math.max(bar, box.getBoundingClientRect().top) - 16, behavior: 'instant' });
+        else window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - bar - 16, behavior: 'instant' });
+      }, !!opts.inner);
       await this.page.waitForTimeout(200);
     });
   }
