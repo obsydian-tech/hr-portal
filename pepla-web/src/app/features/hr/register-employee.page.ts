@@ -275,9 +275,8 @@ export class RegisterEmployeePage {
   });
 
   constructor() {
-    // A reload on a later step comes back to it; a draft with no partner list yet loads it.
-    effect(() => { if (this.step() === 3 && this.partnerStatus() === 'loading') void this.loadPartners(); });
-    if (this.step() === 3) void this.loadPartners();
+    // A reload or a return on step 3 or 4 comes back to it; step 4 shows the chosen partner, so the list is loaded there too.
+    effect(() => { if (this.step() >= 3 && this.partnerStatus() === 'loading') void this.loadPartners(); });
   }
 
   protected val(e: Event): string { return (e.target as HTMLInputElement).value; }
@@ -366,6 +365,24 @@ export class RegisterEmployeePage {
     this.go(step + 1);
   }
 
+  /** The server named fields: put each message beside its field and go to the earliest step that has one. */
+  private showServerProblems(fields: Record<string, string> | undefined): boolean {
+    const map: Record<string, [string, number]> = {
+      first_name: ['first', 1], last_name: ['last', 1], email: ['email', 1], phone: ['phone', 1], id_number: ['id', 1],
+      department: ['department', 2], job_title: ['job', 2], planned_start_date: ['start', 2], hr_staff_id: ['partner', 3],
+    };
+    const found: Array<{ key: string; text: string; step: number }> = [];
+    for (const [name, text] of Object.entries(fields ?? {})) {
+      const hit = map[name];
+      if (hit) found.push({ key: hit[0], text, step: hit[1] });
+    }
+    if (!found.length) return false;
+    const step = Math.min(...found.map((f) => f.step));
+    this.reg.patch({ step });
+    this.problems.set(Object.fromEntries(found.filter((f) => f.step === step).map((f) => [f.key, f.text])));
+    return true;
+  }
+
   protected async register(): Promise<void> {
     if (this.registering()) return;
     this.registering.set(true);
@@ -373,6 +390,7 @@ export class RegisterEmployeePage {
     const result = await this.reg.register();
     this.registering.set(false);
     if (result.ok) { this.registered.set(result.registered); return; }
+    if (result.reason === 'invalid' && this.showServerProblems(result.fields)) return;
     if (result.reason === 'duplicate') { this.reg.patch({ step: 1 }); this.problems.set({ email: 'This email is already in use' }); this.emailState.set('inUse'); return; }
     this.registerFailed.set(true);
   }
