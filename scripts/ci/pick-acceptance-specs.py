@@ -12,15 +12,16 @@ Runs in the `plan` job of pepla-web.yml and prints lines for GITHUB_OUTPUT:
 Rules (anything unsure runs everything):
 - Not a pull request into develop (nightly, by hand, a release PR into main): full.
 - A card's own files (<card>.spec.ts, cards/<card>.md, support/<card>/) run that card.
-- Any other file under pepla-web/e2e/acceptance/, app-wide code (design system,
-  styles, app shell, package files, environments), this workflow or this script: full.
+- Any other file under pepla-web/e2e/acceptance/ (shared support, helpers one card
+  imports from another, config), app-wide code (design system, styles, app shell,
+  package files, environments), this workflow or this script: full.
 - App code under features/, core/, dev/ or the journeys: the cards whose commits
   touched that file before, the cards this PR is for (branch, title, commit
   subjects), and every spec that runs a journey (help pictures read pages
   other cards build). A file no card ever touched: full.
-- infra/, talent-flow-infra/, bootstrap/, scripts/ci/, other workflows: the
-  infra specs (be-*, ops-*), which never open the app.
-- Docs and help pictures only: the journey specs for pictures, nothing for docs.
+- Docs (*.md, docs/, pictures and videos) run nothing; help pictures run the journey specs.
+- Everything else (lambda/, api/, infra/, scripts/ci/, workflows, a path nobody
+  planned for): full. Specs read all of them, so only a known-safe list is skipped.
 
 Standard library only. Test: python3 -B scripts/ci/test_pick_acceptance_specs.py
 """
@@ -37,7 +38,10 @@ ACC = "pepla-web/e2e/acceptance/"
 SPEC_DIR = "e2e/acceptance/"  # relative to pepla-web/
 MAX_SHARDS = 4
 
-CARD_RE = re.compile(r"\b(be|onb|help|ops)-(\d+)(?:\.\d+)?\b", re.I)
+# Any "<prefix>-<number>" token; which prefixes are cards comes from the spec files
+# (be, onb, help, ops, and whatever comes next), not from a list here.
+CARD_RE = re.compile(r"\b([a-z]{2,6})-(\d+)(?:\.\d+)?\b", re.I)
+NOT_CARDS = {"nh"}  # Jira keys in commit subjects
 JOURNEY_RE = re.compile(r"helpRun|runJourney")
 MEDIA_RE = re.compile(r"ffmpeg|\bcompare\b")
 
@@ -62,16 +66,21 @@ APP_PREFIXES = (
     "pepla-web/e2e/support/",
     "pepla-web/e2e/fixtures/",
 )
-INFRA_PREFIXES = ("infra/", "talent-flow-infra/", "bootstrap/", "scripts/ci/", ".github/workflows/")
 
 
 def card_of(text: str) -> set[str]:
-    """Card keys like onb-09 named in a text (a sub-card like help-02.3 counts for help-02)."""
-    return {f"{m.group(1).lower()}-{m.group(2)}" for m in CARD_RE.finditer(text)}
+    """Card-like keys such as onb-09 named in a text (help-02.3 counts for help-02)."""
+    return {
+        f"{m.group(1).lower()}-{m.group(2)}"
+        for m in CARD_RE.finditer(text)
+        if m.group(1).lower() not in NOT_CARDS
+    }
 
 
 def own_card_file(path: str) -> str | None:
-    """The card a file under the acceptance folder belongs to, or None for a shared file."""
+    """The card a file under the acceptance folder belongs to, or None for anything else.
+    Only <card>.spec.ts and cards/<card>.md are a card's own: support files are imported
+    across cards (onb-09 uses onb-15's and onb-07's, ops-06 uses ops-02's)."""
     rest = path[len(ACC):]
     m = re.fullmatch(r"([a-z]+-\d+)\.spec\.ts", rest)
     if m:
@@ -79,10 +88,10 @@ def own_card_file(path: str) -> str | None:
     m = re.fullmatch(r"cards/([a-z]+-\d+)(?:\.\d+)?\.md", rest)
     if m:
         return m.group(1)
-    m = re.fullmatch(r"support/([a-z]+-\d+)(?:-[a-z-]+)?(?:\.ts|/.*)", rest)
-    if m:
-        return m.group(1)
     return None
+
+
+DOC_SUFFIXES = (".md", ".png", ".jpg", ".jpeg", ".gif", ".webm", ".mp4", ".svg")
 
 
 def pick(
@@ -100,7 +109,7 @@ def pick(
         return "full", set(), f"a pull request into {base_ref} runs every spec"
 
     journeys = {c for c, text in specs.items() if JOURNEY_RE.search(text)}
-    infra = {c for c in specs if c.startswith(("be-", "ops-"))}
+    prefixes = {c.split("-")[0] for c in specs}
     cards: set[str] = set()
     why: list[str] = []
 
@@ -129,6 +138,9 @@ def pick(
             before = touched_by.get(path)
             if not before:
                 return "full", set(), f"no card has touched {path} before"
+            strange = sorted(c for c in before if c.split("-")[0] not in prefixes)
+            if strange:
+                return "full", set(), f"{path} was touched for {strange[0]}, a kind of card with no spec here"
             cards |= {c for c in before if c in specs}
             cards |= journeys
             why.append("app code")
@@ -139,11 +151,10 @@ def pick(
             if path.endswith(".md"):
                 continue
             return "full", set(), f"{path} is not one a card owns"
-        if path.startswith(INFRA_PREFIXES):
-            cards |= infra
-            why.append("infra files")
-            continue
-        # docs and anything outside the app and infra
+        if path.endswith(DOC_SUFFIXES) or path.startswith("docs/"):
+            continue  # docs, pictures and videos outside the app: no spec reads them
+        # lambda/, api/, infra/, scripts/ci/, workflows, anything new: specs read these
+        return "full", set(), f"{path} is read by specs or is not a known-safe path"
     cards |= {c for c in own if c in specs}
     if not cards:
         return "none", set(), "only docs or files no acceptance test reads"

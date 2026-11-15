@@ -44,13 +44,31 @@ class Pick(unittest.TestCase):
         self.assertEqual((mode, cards), ("selected", {"onb-09", "onb-13", "help-02", "onb-02"}))
 
     def test_own_card_files_run_that_card_only(self):
-        mode, cards, _ = run([A + "onb-09.spec.ts", A + "cards/onb-09.md", A + "support/onb-09/a.ts"])
+        mode, cards, _ = run([A + "onb-09.spec.ts", A + "cards/onb-09.md"])
         self.assertEqual((mode, cards), ("selected", {"onb-09"}))
         self.assertEqual(run([A + "cards/help-02.3.md"])[1], {"help-02"})
+        self.assertEqual(run([A + "support/onb-09/a.ts"])[0], "full")
 
-    def test_infra_runs_infra_specs(self):
-        mode, cards, _ = run(["infra/main.tf"])
-        self.assertEqual((mode, cards), ("selected", {"ops-05", "be-16"}))
+    def test_unknown_paths_run_everything(self):
+        for f in ("lambda/getEmployees/index.mjs", "api/openapi.yaml", "infra/main.tf", "scripts/ci/seed-dev.py",
+                  ".github/workflows/terraform-apply.yml", "mcp/server.py", "Dockerfile"):
+            self.assertEqual(run([f])[0], "full", f)
+        self.assertEqual(run([HR, "lambda/getEmployees/index.mjs"], own=["onb-13"])[0], "full")
+
+    def test_support_files_run_everything(self):
+        for f in (A + "support/onb-15/lambda-harness.ts", A + "support/ops-02-workflows.ts", A + "support/help-03.ts"):
+            self.assertEqual(run([f])[0], "full", f)
+
+    def test_a_new_kind_of_card_is_never_skipped(self):
+        touched = {**TOUCHED, HR: {"onb-09", "adm-01"}}  # adm-01 touched this file, no adm spec yet
+        self.assertEqual(m.pick([HR], SPECS, touched, set())[0], "full")
+        specs = {**SPECS, "adm-01": "page.goto"}
+        mode, cards, _ = m.pick([HR], specs, touched, set())
+        self.assertEqual((mode, "adm-01" in cards), ("selected", True))
+        self.assertEqual(m.pick([A + "adm-01.spec.ts"], specs, TOUCHED, set())[1], {"adm-01"})
+
+    def test_jira_keys_are_not_cards(self):
+        self.assertEqual(m.card_of("feat(onb-09): x (NH-166)"), {"onb-09"})
 
     def test_docs_run_nothing(self):
         self.assertEqual(run(["pepla-web/README.md", "docs/a.md"])[0], "none")
