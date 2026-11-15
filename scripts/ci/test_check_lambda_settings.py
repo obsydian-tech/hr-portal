@@ -83,9 +83,9 @@ class StaticChecks(unittest.TestCase):
                      "LOGIN_URL is not read with requireSetting()")
 
     def test_terraform_missing_setting_fails(self):
-        self.planted("infra/lambdas.tf", "      COGNITO_POOL_ID       = aws_cognito_user_pool.naleko_dev.id\n", "",
+        self.planted("infra/lambdas.tf", "COGNITO_POOL_ID", "COGNITO_POOL_ID_X",
                      "createEmployee does not get COGNITO_POOL_ID")
-        self.planted("infra/lambdas.tf", "      ENVIRONMENT       = var.environment", "      X = 1",
+        self.planted("infra/lambdas.tf", "ENVIRONMENT ", "ENVIRONMENT_X ",
                      "reviewDocumentVerification does not get ENVIRONMENT")
 
     def test_terraform_literal_url_fails(self):
