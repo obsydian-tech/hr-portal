@@ -112,6 +112,12 @@ const radios = (page: Page) => main(page).getByRole('radio');
 const registerButton = (page: Page, first: string) => page.getByRole('button', { name: new RegExp(`^Register( ${esc(first)})?$`) });
 const alertBox = (page: Page) => main(page).locator('[role="alert"]').first();
 
+/** The design system's tile label covers the whole tile, so a radio is chosen by pressing its label. */
+async function choose(radio: Locator): Promise<void> {
+  await radio.locator('xpath=../label').click();
+  await expect(radio).toBeChecked();
+}
+
 /** HR is on this step (the tracker says so). */
 async function expectStep(page: Page, n: 1 | 2 | 3 | 4): Promise<void> {
   await expect(currentStep(page), `step ${n}: ${STEPS[n - 1]}`).toContainText(STEPS[n - 1]!, { timeout: 20_000 });
@@ -166,7 +172,7 @@ async function toConfirmation(page: Page, p: Person, o: { id?: boolean; partner?
   await fillStep2(page, p);
   await next(page, 2);
   await expectStep(page, 3);
-  if (o.partner) await page.getByRole('radio', { name: o.partner }).check();
+  if (o.partner) await choose(page.getByRole('radio', { name: o.partner }));
   await next(page, 3);
   await expectStep(page, 4);
 }
@@ -579,7 +585,7 @@ test.describe('ONB-03 Add a new employee', () => {
 
     // choose someone else, whose id and staff id differ
     const sipho = list.find((p) => p.id === 'pool-user-17')!;
-    await page.getByRole('radio', { name: /Sipho Ndlovu/ }).check();
+    await choose(page.getByRole('radio', { name: /Sipho Ndlovu/ }));
     await next(page, 3);
     await expectStep(page, 4);
     const card = main(page).getByRole('heading', { name: /HR partner/ }).first().locator('xpath=ancestor::*[self::article or self::section or self::pp-card or contains(concat(" ", normalize-space(@class), " "), " card ")][1]');
@@ -1198,7 +1204,7 @@ test.describe('ONB-03 Add a new employee', () => {
     await expectStep(page, 3);
     const mine = page.getByRole('radio', { name: /Demo-HR/ });
     await expect(mine, 'the HR test login is in the list').toHaveCount(1, { timeout: 30_000 });
-    await mine.check();
+    await choose(mine);
     await next(page, 3);
     await expectStep(page, 4);
     await register(page, person);
