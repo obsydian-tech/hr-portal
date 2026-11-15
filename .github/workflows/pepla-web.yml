@@ -83,7 +83,8 @@ jobs:
     # faked in the browser. Locked once accepted (acceptance-lock.yml).
     # Nothing here calls an AI service.
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 40: each help card adds a few minutes of journeys; 20 cut off the run when HELP-03 landed.
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: pepla-web
