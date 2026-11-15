@@ -21,6 +21,7 @@ on:
       - "bootstrap/**"
       - "lambda/**"
       - "scripts/ci/tf-gate.py"
+      - "scripts/ci/check-lambda-settings.py"
       - ".github/workflows/terraform-plan.yml"
       - ".github/workflows/deploy-lambdas.yml"
       - ".github/workflows/terraform-apply.yml"
@@ -139,6 +140,11 @@ jobs:
             fi
             python3 "$GITHUB_WORKSPACE/scripts/ci/tf-gate.py" summary "$ROOT" plan.json | sed '1s/^### Terraform plan:/#### Details:/'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # BE-15 (AC-5): the prod plan may not change the value of any Lambda
+      # setting. Prints setting names only, never a value (the repo is public).
+      - name: Check Lambda settings in the plan
+        run: python3 -B "$GITHUB_WORKSPACE/scripts/ci/check-lambda-settings.py" plan plan.json
 
       - name: Remove plan files
         if: always()
