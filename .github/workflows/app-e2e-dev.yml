@@ -240,6 +240,13 @@ jobs:
           CI: "true"
         run: npm run e2e:acceptance
 
+      - name: Probe the ONB-03 routes (temporary diagnostic)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/probe-onb03-routes.py
+
       # BE-15 AC-6: a new employee gets a sign-in in the dev pool (the real
       # POST /v1/employees, then the pool is read). Cleanup below removes it.
       - name: New employee gets a dev sign-in
