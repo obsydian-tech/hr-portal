@@ -69,10 +69,10 @@ export const isEmployeesApi = (url: URL, appOrigin: string): boolean => /\/v1\/e
 
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-headers': 'authorization, content-type',
-  'access-control-allow-methods': 'GET, OPTIONS',
+  'access-control-allow-headers': 'authorization, content-type, idempotency-key',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
 };
-const JWT = /^Bearer eyJ[\w-]+\.eyJ[\w-]+\.[\w-]*$/;
+export const JWT = /^Bearer eyJ[\w-]+\.eyJ[\w-]+\.[\w-]*$/;
 
 let serial = 0;
 
@@ -109,7 +109,7 @@ export class EmployeesFake {
   mode: 'ok' | 'error' | 'offline' | 'hold' = 'ok';
   private held: Array<() => void> = [];
 
-  constructor(private readonly appOrigin: string) {}
+  constructor(protected readonly appOrigin: string) {}
 
   /** GET calls the page made, in order. */
   gets(): ApiCall[] {
@@ -123,7 +123,12 @@ export class EmployeesFake {
   }
 
   async install(context: BrowserContext): Promise<void> {
-    await context.route((url) => isEmployeesApi(url, this.appOrigin), (route) => this.handle(route));
+    await context.route((url) => this.matches(url), (route) => this.handle(route));
+  }
+
+  /** The calls this fake answers. ONB-03's RegistrationFake adds its routes by overriding this. */
+  protected matches(url: URL): boolean {
+    return isEmployeesApi(url, this.appOrigin);
   }
 
   /** The pages the API would answer with: [people of page 1, people of page 2, ...]. */
@@ -139,7 +144,7 @@ export class EmployeesFake {
     return out.length ? out : [[]];
   }
 
-  private async handle(route: Route): Promise<void> {
+  protected async handle(route: Route): Promise<void> {
     const request = route.request();
     const url = new URL(request.url());
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
@@ -176,6 +181,6 @@ function pageOfKey(key: string): number | null {
   }
 }
 
-function json(route: Route, status: number, body: unknown): Promise<void> {
+export function json(route: Route, status: number, body: unknown): Promise<void> {
   return route.fulfill({ status, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(body) });
 }

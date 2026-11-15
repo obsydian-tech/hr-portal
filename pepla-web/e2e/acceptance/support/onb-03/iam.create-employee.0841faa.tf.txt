@@ -1,0 +1,89 @@
+# createEmployee's role and policy as at develop 0841faa (before ONB-03), for AC-12.
+
+resource "aws_iam_role" "create_employee" {
+  name        = "naleko-createEmployee-role"
+  description = "Execution role for createEmployee Lambda"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "create_employee" {
+  name = "naleko-createEmployee-policy"
+  role = aws_iam_role.create_employee.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/createEmployee:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDB"
+        Effect = "Allow"
+        # NH-28: PutItem only — Scan removed (UUID v4 replaces sequential scan)
+        Action   = ["dynamodb:PutItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid    = "DynamoDBEmailIndexQuery"
+        Effect = "Allow"
+        # NH-79: Query email-index GSI to detect duplicate emails before write
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
+      },
+      {
+        Sid    = "Cognito"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:AdminCreateUser",
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminSetUserPassword",
+        ]
+        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
+      },
+      {
+        Sid      = "KMSPIIKey"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        # NH-44: Idempotency — GetItem to check cache, PutItem to reserve slot + cache response
+        Sid      = "IdempotencyTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.idempotency_keys.arn
+      },
+      {
+        # NH-42: Start the naleko-onboarding-flow execution after employee is written to DynamoDB
+        Sid      = "StartSFNExecution"
+        Effect   = "Allow"
+        Action   = ["states:StartExecution"]
+        Resource = aws_sfn_state_machine.onboarding.arn
+      }
+    ]
+  })
+}
