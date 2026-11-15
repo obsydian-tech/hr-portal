@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
-  PpButton, PpCard, PpCell, PpEmptyState, PpEmptyStateActions, PpLink, PpPageHeader, PpPagination, PpSearch,
+  PpButton, PpCard, PpCell, PpEmptyState, PpEmptyStateActions, PpLink, PpPageHeader, PpPageHeaderActions, PpPagination, PpSearch,
   PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpStat, PpStatRow, PpTableDirective, PpTableWrap, formatDate,
 } from '../../ds';
 import { AuthService } from '../../core/auth/auth.service';
@@ -19,13 +19,17 @@ const PAGE_SIZE = 20;
 @Component({
   selector: 'app-hr-home',
   imports: [
-    RouterLink, PpButton, PpCard, PpCell, PpEmptyState, PpEmptyStateActions, PpLink, PpPageHeader, PpPagination, PpSearch,
+    RouterLink, PpButton, PpCard, PpCell, PpEmptyState, PpEmptyStateActions, PpLink, PpPageHeader, PpPageHeaderActions, PpPagination, PpSearch,
     PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpStat, PpStatRow, PpTableDirective, PpTableWrap,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-300">
-      <pp-page-header [heading]="'Welcome back, ' + firstName()" description="Your team's onboarding progress." />
+      <pp-page-header [heading]="'Welcome back, ' + firstName()" description="Your team's onboarding progress.">
+        <pp-page-header-actions>
+          <a ppButton appearance="primary" icon="user-plus" routerLink="/hr/employees/new">Add new employee</a>
+        </pp-page-header-actions>
+      </pp-page-header>
 
       @if (status() === 'failed') {
         <pp-section-message tone="danger" heading="New employees could not be loaded.">

@@ -3,6 +3,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { NavSection, PpAppShell, PpDropdownMenu, PpMenuItem, PpMenuSection, PpSideNavigation, PpTopNavigation } from '../../ds';
 import { AuthService } from '../../core/auth/auth.service';
 import { DocumentsService } from '../../core/documents/documents.service';
+import { RegistrationService } from '../../core/employees/registration.service';
 
 /**
  * The frame for every HR page: sidebar, top bar with the account menu, and the page. ONB-01 gives it
@@ -31,6 +32,7 @@ export class HrShell {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   private readonly documents = inject(DocumentsService);
+  private readonly registration = inject(RegistrationService);
 
   /** The number waiting shows once the list has loaded; HR home and the employee page never ask for it. */
   protected readonly sections = computed<NavSection[]>(() => {
@@ -54,6 +56,7 @@ export class HrShell {
   protected async signOut(): Promise<void> {
     await this.auth.signOut();
     this.documents.forget();
+    this.registration.clear();
     await this.router.navigateByUrl('/sign-in');
   }
 }
