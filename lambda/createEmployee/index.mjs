@@ -39,10 +39,22 @@ async function publishEvent(detailType, detail) {
 const logger = new Logger({ serviceName: 'createEmployee' });
 const tracer = new Tracer({ serviceName: 'createEmployee' });
 
-const USER_POOL_ID = "af-south-1_2LdAGFnw2";
+// BE-15: a setting that names one environment has no fallback value. A missing
+// one stops the Lambda when it starts, with one clear line in the log.
+function requireSetting(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing setting ${name}`);
+    throw new Error(`Missing setting ${name}`);
+  }
+  return value;
+}
+
+const USER_POOL_ID = requireSetting("COGNITO_POOL_ID");
 // NH: LOGIN_URL is injected via env var so Vercel→CloudFront migration (NH-38) requires
 // only a Terraform env var change — no Lambda code redeploy needed.
-const LOGIN_URL = process.env.LOGIN_URL || "https://hr-portal-beryl-three.vercel.app/login";
+const LOGIN_URL = requireSetting("LOGIN_URL");
+const SENDER_EMAIL = requireSetting("POSTMARK_SENDER_EMAIL");
 
 /**
  * KMS envelope encryption — stores ciphertext as base64 string.
@@ -276,7 +288,7 @@ const handlerFn = async (event) => {
           });
 
           await client.sendEmail({
-            From: process.env.POSTMARK_SENDER_EMAIL || "noreply@naleko.co.za",
+            From: SENDER_EMAIL,
             To: body.email,
             Subject: `Welcome to Naleko — Your Employee Portal Access`,
             HtmlBody: htmlBody,

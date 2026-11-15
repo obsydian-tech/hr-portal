@@ -71,3 +71,9 @@ variable "talent_flow_kms_key_id" {
   type        = string
   default     = "87842eae-1ee4-43d1-8bf8-9dd92415ea68"
 }
+
+variable "login_url" {
+  description = "Sign-in address that welcome and notification emails link to (LOGIN_URL on createEmployee and sendNotificationEmail). Defaults to prod; env/dev.tfvars overrides."
+  type        = string
+  default     = "https://hr-portal-beryl-three.vercel.app/login"
+}

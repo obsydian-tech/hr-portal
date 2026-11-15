@@ -297,3 +297,21 @@ Today: single Vercel project `naleko-hr-portal` serving everything including the
 4. **Module routing is group-based** — never hardcode which module a user goes to. Always read `cognito:groups` from the JWT.
 5. **`/talent-flow/*` routes are LEGACY** — do not add new routes there. New TalentFlow pages go to `/platform/talentflow/*` once `PlatformShellComponent` is built.
 6. **Epic 5 is the prerequisite** for any cross-module work. Do not attempt unified login testing until `PlatformShellComponent` + `PlatformHomeComponent` + `moduleGuard` are built and deployed.
+
+---
+
+## 12. Lambda settings (BE-15)
+
+A setting that names one environment (a sign-in pool, a web address, the environment label, a sender or HR email) is never a value in Lambda code. The Lambda reads it with no fallback; if it is missing or empty, the Lambda stops when it loads with `Missing setting <NAME>`. Terraform sets it, and the value differs per environment only through variables.
+
+| Setting | Lambdas | Set by |
+|---|---|---|
+| `COGNITO_POOL_ID` | createEmployee, adminCreateUser, adminUpdateUser, adminDeactivateUser, getPanelMembers | `infra/lambdas.tf` (createEmployee: `aws_cognito_user_pool.naleko_dev.id`); `talent-flow-infra/talent-flow-lambdas.tf` (the rest: `var.naleko_pool_id`) |
+| `HM_COGNITO_POOL_ID` | getHiringManagers | `infra/talentflow-hiring-managers.tf` |
+| `LOGIN_URL` | createEmployee, sendNotificationEmail | `infra/lambdas.tf` from `var.login_url` (prod default; pepla-dev in `infra/env/dev.tfvars`) |
+| `FRONTEND_URL` | generateScoringLink | `talent-flow-infra/talent-flow-lambdas.tf` from `var.frontend_url` (prod default; pepla-dev in `talent-flow-infra/env/dev.tfvars`) |
+| `POSTMARK_SENDER_EMAIL` | createEmployee, sendNotificationEmail, sendTalentFlowNotification | both roots |
+| `HR_EMAIL` | sendNotificationEmail | `infra/lambdas.tf` |
+| `ENVIRONMENT` | reviewDocumentVerification, talentFlowApproveAction | both roots, from `var.environment` |
+
+Adding a setting: read it with `requireSetting('NAME')` (a copy of the three-line helper sits in each Lambda), set it in Terraform on every Lambda that reads it, and add the row to `LAMBDAS` in `scripts/ci/check-lambda-settings.py`. That script runs in the "Lambda unit tests" workflow and, in plan mode, on the prod plan in "Terraform plan". Terraform applies before the code deploys, so a new setting is on the function before the code that needs it arrives.

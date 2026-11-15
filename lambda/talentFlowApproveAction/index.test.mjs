@@ -5,6 +5,9 @@
 
 import { jest, describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
 
+// BE-15: the Lambda reads ENVIRONMENT with no fallback, so the test sets it.
+process.env.ENVIRONMENT = 'test';
+
 // ─── Shared mock function ─────────────────────────────────────────────────────
 
 const mockDbSend = jest.fn();

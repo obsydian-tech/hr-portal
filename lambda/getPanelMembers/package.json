@@ -1,10 +1,16 @@
 {
   "name": "get-panel-members-lambda",
   "version": "1.0.0",
-  "description": "TalentFlow getPanelMembers Lambda — Cognito group directory lookup (D005/D041)",
+  "description": "TalentFlow getPanelMembers Lambda \u2014 Cognito group directory lookup (D005/D041)",
   "private": true,
   "dependencies": {},
   "devDependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.0.0"
+    "@aws-sdk/client-cognito-identity-provider": "^3.0.0",
+    "jest": "^29.7.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/util-dynamodb": "^3.0.0"
+  },
+  "scripts": {
+    "test": "jest --no-coverage"
   }
 }

@@ -33,10 +33,12 @@ resource "aws_lambda_function" "create_employee" {
     variables = {
       POSTMARK_API_TOKEN    = data.aws_ssm_parameter.postmark_token.value
       POSTMARK_SENDER_EMAIL = "ignecious@obsydiantechnologies.com"
-      LOGIN_URL             = "https://hr-portal-beryl-three.vercel.app/login"
-      KMS_KEY_ARN           = module.kms_pii.key_arn
-      EVENT_BUS_NAME        = aws_cloudwatch_event_bus.naleko_onboarding.name
-      IDEMPOTENCY_TABLE     = aws_dynamodb_table.idempotency_keys.name
+      LOGIN_URL             = var.login_url
+      # BE-15: the sign-in pool of this account, never a literal in the code.
+      COGNITO_POOL_ID   = aws_cognito_user_pool.naleko_dev.id
+      KMS_KEY_ARN       = module.kms_pii.key_arn
+      EVENT_BUS_NAME    = aws_cloudwatch_event_bus.naleko_onboarding.name
+      IDEMPOTENCY_TABLE = aws_dynamodb_table.idempotency_keys.name
       # NH-42: ARN injected so createEmployee can start the onboarding execution
       SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.onboarding.arn
     }
@@ -248,6 +250,7 @@ resource "aws_lambda_function" "review_document_verification" {
       KMS_KEY_ARN       = module.kms_pii.key_arn
       EVENT_BUS_NAME    = aws_cloudwatch_event_bus.naleko_onboarding.name
       IDEMPOTENCY_TABLE = aws_dynamodb_table.idempotency_keys.name
+      ENVIRONMENT       = var.environment # BE-15: metric label, was a 'prod' fallback in code
     }
   }
 
@@ -662,7 +665,7 @@ resource "aws_lambda_function" "send_notification_email" {
       HR_EMAIL              = "ignecious@obsydiantechnologies.com"
       EMPLOYEES_TABLE       = aws_dynamodb_table.employees.name
       DOCUMENTS_TABLE       = aws_dynamodb_table.documents.name
-      LOGIN_URL             = "https://hr-portal-beryl-three.vercel.app/login"
+      LOGIN_URL             = var.login_url
     }
   }
 

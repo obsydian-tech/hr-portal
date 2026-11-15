@@ -7,3 +7,6 @@ naleko_pool_id                 = "af-south-1_gUjFTe9bn"
 naleko_client_id               = "5mki8rhp1cujgk53ro4r219bnr"
 naleko_agent_api_id            = "k0832ravif"
 naleko_agent_jwt_authorizer_id = "4aeqy7"
+
+# BE-15: scoring links from pepla-dev point at the local app, not prod.
+frontend_url = "http://localhost:4200"

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --no-coverage"
   },
   "keywords": [],
   "author": "",
@@ -14,5 +14,17 @@
     "@aws-lambda-powertools/tracer": "^2.18.0",
     "@aws-sdk/client-cloudwatch": "^3.1024.0",
     "@aws-sdk/client-dynamodb": "^3.1024.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@jest/globals": "^29.7.0",
+    "@aws-sdk/client-eventbridge": "^3.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/?(*.)+(spec|test).[jt]s?(x)",
+      "**/?(*.)+(spec|test).mjs"
+    ]
   }
 }

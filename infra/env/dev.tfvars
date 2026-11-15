@@ -7,3 +7,7 @@ enable_prod_monitoring = false # Config, dashboards, alarms: prod only
 talent_flow_api_id                = "qoftdyvp76"
 talent_flow_cognito_authorizer_id = "lda7mq"
 talent_flow_kms_key_id            = "68d7f1a9-2f46-452b-bda4-c0e319b48e15" # alias/talent-flow/state
+
+# BE-15: pepla-web has no address on AWS yet (OPS-01 parked), so dev emails
+# link to the local app instead of the live prod site.
+login_url = "http://localhost:4300/sign-in"

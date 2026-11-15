@@ -7,5 +7,24 @@
     "@aws-lambda-powertools/logger": "^2.18.0",
     "@aws-lambda-powertools/tracer": "^2.18.0",
     "postmark": "^4.0.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@jest/globals": "^29.7.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/client-sfn": "^3.0.0",
+    "@aws-sdk/client-kms": "^3.0.0",
+    "@aws-sdk/client-eventbridge": "^3.0.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.0.0"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --no-coverage"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/?(*.)+(spec|test).[jt]s?(x)",
+      "**/?(*.)+(spec|test).mjs"
+    ]
   }
 }
