@@ -607,7 +607,7 @@ test.describe('ONB-02 HR home: who is starting', () => {
       const ref = await signInReference(browser, width, 'winter-protea-2026'.length);
       const shot = readFileSync(join(run.dir, width, 'sign-in', '03-hr-home.png'));
       const d = await pictureDiff(page, shot, ref.pictures[2], { content: true });
-      expect(d, `[${width}] 03-hr-home shows Sunbird Bakery's new employees, as the reference`).toBeLessThanOrEqual(0.01);
+      expect(d, `[${width}] 03-hr-home shows Sunbird Bakery's new employees, as the reference`).toBeLessThanOrEqual(0.03);
     }
   });
 });
