@@ -26,8 +26,12 @@ module "kms_pii" {
     aws_iam_role.review_document_verification.arn,
     aws_iam_role.lookup_employee_email.arn,
     aws_iam_role.get_document_presigned_url.arn,
-    # NH-169: checkEmployeeEmail queries the encrypted employees table; its
-    # role may hold no KMS IAM statement (locked AC-12), so access is granted here.
+  ]
+
+  # NH-169: checkEmployeeEmail queries the encrypted employees table. Its role
+  # may hold no KMS IAM statement (locked AC-12), so the key policy grants
+  # Decrypt/DescribeKey only, and only via DynamoDB.
+  dynamodb_read_role_arns = [
     aws_iam_role.check_employee_email.arn,
   ]
 

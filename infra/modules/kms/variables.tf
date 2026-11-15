@@ -30,3 +30,9 @@ variable "deletion_window_in_days" {
   type        = number
   default     = 30
 }
+
+variable "dynamodb_read_role_arns" {
+  description = "IAM role ARNs that may only Decrypt/DescribeKey with this key, and only via DynamoDB (kms:ViaService)."
+  type        = list(string)
+  default     = []
+}
