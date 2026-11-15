@@ -2,6 +2,11 @@
 name: Pepla web
 
 on:
+  # Nightly full run of every acceptance spec on develop (02:30 SAST). A merge into
+  # develop no longer repeats the pull request's run (OPS-09).
+  schedule:
+    - cron: "30 0 * * *"
+  workflow_dispatch:
   pull_request:
     branches: [develop, main]
     paths:
@@ -24,8 +29,8 @@ on:
       - ".github/workflows/**"
 
 concurrency:
-  group: pepla-web-${{ github.ref }}
-  cancel-in-progress: true
+  group: pepla-web-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
   contents: read
@@ -33,6 +38,7 @@ permissions:
 jobs:
   build:
     name: verify:design, tests, build
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,6 +56,7 @@ jobs:
 
   journeys:
     name: Journeys (no backend)
+    if: github.event_name != 'schedule'
     # Normal mode: checks the journeys, no help pictures. Help mode runs in
     # help-retake.yml after merges. Nothing here calls an AI service.
     runs-on: ubuntu-latest
@@ -77,14 +84,45 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  acceptance:
-    name: Acceptance tests (no backend)
+  plan:
+    name: Pick acceptance specs
+    # A pull request into develop runs the cards it can affect; nightly, by hand and
+    # release pull requests run every spec; a push runs none (the pull request did).
+    # scripts/ci/pick-acceptance-specs.py says why, in the job summary. Unsure = all.
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.pick.outputs.mode }}
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Picker tests
+        run: python3 -B scripts/ci/test_pick_acceptance_specs.py
+      - id: pick
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: python3 scripts/ci/pick-acceptance-specs.py | tee -a "$GITHUB_OUTPUT"
+
+  acceptance-shard:
+    name: Acceptance shard ${{ matrix.shard }}/${{ matrix.of }}
     # One test per acceptance criterion, at 1280 and 390 wide, with Cognito
     # faked in the browser. Locked once accepted (acceptance-lock.yml).
     # Nothing here calls an AI service.
+    needs: plan
+    if: needs.plan.outputs.mode == 'full' || needs.plan.outputs.mode == 'selected'
     runs-on: ubuntu-latest
-    # 40: each help card adds a few minutes of journeys; 20 cut off the run when HELP-03 landed.
-    timeout-minutes: 40
+    # A shard of a full run takes about a quarter of the old single job (26 min on 15 Nov).
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     defaults:
       run:
         working-directory: pepla-web
@@ -97,18 +135,53 @@ jobs:
           cache-dependency-path: pepla-web/package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # HELP-01 and later help cards run the help journeys and the retake script, which need these.
+      # The help picture and video specs run the retake script, which needs these.
       - name: Install ffmpeg and ImageMagick
+        if: matrix.media == 'true'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg imagemagick
       - name: Run acceptance tests
+        env:
+          SPECS: ${{ matrix.specs }}
+          INFRA_ONLY: ${{ matrix.infra_only }}
         run: |
-          if ls e2e/acceptance/*.spec.ts >/dev/null 2>&1; then npm run e2e:acceptance; else echo "No acceptance tests yet."; fi
-      # Failure pictures show fake people only. Short-lived.
+          # Specs that never open the app (infra checks) skip `ng serve`.
+          if [ "$INFRA_ONLY" = true ]; then export E2E_BASE_URL=http://localhost:1; fi
+          if ! ls e2e/acceptance/*.spec.ts >/dev/null 2>&1; then echo "No acceptance tests yet."; exit 0; fi
+          # shellcheck disable=SC2086
+          npm run e2e:acceptance -- $SPECS
+      # Failure pictures show fake people only. Short-lived. include-hidden-files:
+      # the output folder is .output, which the upload skipped before, so a failed run kept nothing.
       - name: Upload failure evidence
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: pepla-web-acceptance-${{ github.run_id }}
+          name: pepla-web-acceptance-${{ matrix.shard }}-${{ github.run_id }}
           path: pepla-web/e2e/acceptance/.output/
           retention-days: 7
+          include-hidden-files: true
           if-no-files-found: ignore
+
+  acceptance:
+    # The name branch rules and Iggie already know. Green when every shard is green,
+    # or when no spec was needed.
+    name: Acceptance tests (no backend)
+    needs: [plan, acceptance-shard]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Judge the shards
+        env:
+          PLAN: ${{ needs.plan.result }}
+          SHARDS: ${{ needs.acceptance-shard.result }}
+          MODE: ${{ needs.plan.outputs.mode }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          echo "event=$EVENT plan=$PLAN mode=$MODE shards=$SHARDS"
+          if [ "$EVENT" = push ]; then echo "A merge does not repeat the pull request's run; the nightly run covers develop."; exit 0; fi
+          [ "$PLAN" = success ] || { echo "::error::The spec picker did not finish"; exit 1; }
+          case "$MODE" in
+            none) echo "No acceptance spec reads this change."; exit 0 ;;
+            full|selected) [ "$SHARDS" = success ] || { echo "::error::An acceptance shard failed or was cancelled"; exit 1; } ;;
+            *) echo "::error::Unknown mode '$MODE'"; exit 1 ;;
+          esac
