@@ -954,7 +954,7 @@ resource "aws_lambda_function" "generate_scoring_link" {
   environment {
     variables = {
       STATE_TABLE_NAME = local.tf_table_state
-      FRONTEND_URL     = "https://hr-portal-beryl-three.vercel.app"
+      FRONTEND_URL     = var.frontend_url
       TOKEN_TTL_DAYS   = "7"
       ENVIRONMENT      = var.environment
     }

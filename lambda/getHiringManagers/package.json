@@ -1,10 +1,14 @@
 {
   "name": "get-hiring-managers-lambda",
   "version": "1.0.0",
-  "description": "TalentFlow getHiringManagers Lambda — list HiringManager Cognito group for TA HM selector",
+  "description": "TalentFlow getHiringManagers Lambda \u2014 list HiringManager Cognito group for TA HM selector",
   "private": true,
   "dependencies": {},
   "devDependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.0.0"
+    "@aws-sdk/client-cognito-identity-provider": "^3.0.0",
+    "jest": "^29.7.0"
+  },
+  "scripts": {
+    "test": "jest --no-coverage"
   }
 }

@@ -26,7 +26,18 @@ const {
 const cognito    = new CognitoIdentityProviderClient({});
 // After pool consolidation, use the Naleko (HR Portal) Cognito pool.
 // The TF API GW authorizer validates against this pool, so subs must match.
-const HM_POOL_ID  = process.env.HM_COGNITO_POOL_ID || 'af-south-1_2LdAGFnw2';
+// BE-15: a setting that names one environment has no fallback value. A missing
+// one stops the Lambda when it starts, with one clear line in the log.
+function requireSetting(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing setting ${name}`);
+    throw new Error(`Missing setting ${name}`);
+  }
+  return value;
+}
+
+const HM_POOL_ID  = requireSetting('HM_COGNITO_POOL_ID');
 const HM_GROUP    = process.env.HM_GROUP_NAME      || 'naleko-talentflow-hiringmanager';
 
 function respond(statusCode, body) {

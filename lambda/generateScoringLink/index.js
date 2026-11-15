@@ -37,7 +37,7 @@
  *
  * Env vars:
  *   STATE_TABLE_NAME  — talent-flow-state
- *   FRONTEND_URL      — base URL used to build the scoring link (e.g. https://hr-portal-beryl-three.vercel.app)
+ *   FRONTEND_URL      — base URL used to build the scoring link (set per environment by Terraform)
  *   TOKEN_TTL_DAYS    — days before token expires (default: 7)
  */
 
@@ -53,7 +53,18 @@ const { randomUUID } = require('crypto');
 const dynamo = new DynamoDBClient({});
 
 const STATE_TABLE  = process.env.STATE_TABLE_NAME || 'talent-flow-state';
-const FRONTEND_URL = process.env.FRONTEND_URL     || 'https://hr-portal-beryl-three.vercel.app';
+// BE-15: a setting that names one environment has no fallback value. A missing
+// one stops the Lambda when it starts, with one clear line in the log.
+function requireSetting(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing setting ${name}`);
+    throw new Error(`Missing setting ${name}`);
+  }
+  return value;
+}
+
+const FRONTEND_URL = requireSetting('FRONTEND_URL');
 const TTL_DAYS     = parseInt(process.env.TOKEN_TTL_DAYS || '7', 10);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

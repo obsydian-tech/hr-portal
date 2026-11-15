@@ -56,3 +56,9 @@ variable "naleko_agent_jwt_authorizer_id" {
   type        = string
   default     = "uhi317"
 }
+
+variable "frontend_url" {
+  description = "Base web address used to build scoring links (FRONTEND_URL on generateScoringLink). Defaults to prod; env/dev.tfvars overrides."
+  type        = string
+  default     = "https://hr-portal-beryl-three.vercel.app"
+}

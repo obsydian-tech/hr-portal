@@ -39,7 +39,18 @@ const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig } = require('../shared/config-reader');
 
-const SENDER_EMAIL = process.env.POSTMARK_SENDER_EMAIL || 'ignecious@obsydiantechnologies.com';
+// BE-15: a setting that names one environment has no fallback value. A missing
+// one stops the Lambda when it starts, with one clear line in the log.
+function requireSetting(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing setting ${name}`);
+    throw new Error(`Missing setting ${name}`);
+  }
+  return value;
+}
+
+const SENDER_EMAIL = requireSetting('POSTMARK_SENDER_EMAIL');
 const MVP1_RECIPIENT = process.env.MVP1_RECIPIENT_OVERRIDE || null;
 const NOTIFICATIONS_TABLE = process.env.NOTIFICATIONS_TABLE_NAME;
 

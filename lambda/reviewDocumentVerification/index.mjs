@@ -8,6 +8,19 @@ import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
+// BE-15: a setting that names one environment has no fallback value. A missing
+// one stops the Lambda when it starts, with one clear line in the log.
+function requireSetting(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing setting ${name}`);
+    throw new Error(`Missing setting ${name}`);
+  }
+  return value;
+}
+
+const ENVIRONMENT = requireSetting('ENVIRONMENT');
+
 const dynamo = new DynamoDBClient({ region: 'af-south-1' });
 const cloudwatch = new CloudWatchClient({ region: 'af-south-1' });
 const eb = new EventBridgeClient({ region: 'af-south-1' });
@@ -252,7 +265,7 @@ const handlerFn = async (event) => {
                 MetricName: 'TimeToComplete',
                 Value: durationMinutes,
                 Unit: 'None',
-                Dimensions: [{ Name: 'Environment', Value: process.env.ENVIRONMENT || 'prod' }],
+                Dimensions: [{ Name: 'Environment', Value: ENVIRONMENT }],
               }],
             }));
             logger.info('Published TimeToComplete metric', { employeeId, durationMinutes });

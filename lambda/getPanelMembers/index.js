@@ -19,7 +19,7 @@
  *   GET /v1/panel-members?candidateId= — merged list for a specific candidate
  *
  * Env vars:
- *   COGNITO_POOL_ID  — Naleko user pool id (af-south-1_2LdAGFnw2)
+ *   COGNITO_POOL_ID  — Naleko user pool id of this account (set by Terraform)
  *   STATE_TABLE_NAME — talent-flow-state
  *   TENANT_ID        — NALEKO
  */
@@ -34,7 +34,18 @@ const { marshall, unmarshall }         = require('@aws-sdk/util-dynamodb');
 const cognito = new CognitoIdentityProviderClient({});
 const dynamo  = new DynamoDBClient({});
 
-const POOL_ID     = process.env.COGNITO_POOL_ID   || 'af-south-1_2LdAGFnw2';
+// BE-15: a setting that names one environment has no fallback value. A missing
+// one stops the Lambda when it starts, with one clear line in the log.
+function requireSetting(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing setting ${name}`);
+    throw new Error(`Missing setting ${name}`);
+  }
+  return value;
+}
+
+const POOL_ID     = requireSetting('COGNITO_POOL_ID');
 const STATE_TABLE = process.env.STATE_TABLE_NAME   || 'talent-flow-state';
 const TENANT_ID   = process.env.TENANT_ID          || 'NALEKO';
 

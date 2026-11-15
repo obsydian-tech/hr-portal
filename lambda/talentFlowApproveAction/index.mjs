@@ -35,12 +35,23 @@ import {
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 
+// BE-15: a setting that names one environment has no fallback value. A missing
+// one stops the Lambda when it starts, with one clear line in the log.
+function requireSetting(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing setting ${name}`);
+    throw new Error(`Missing setting ${name}`);
+  }
+  return value;
+}
+
 const db  = new DynamoDBClient({});
 const eb  = new EventBridgeClient({});
 
 const TABLE    = process.env.PENDING_ACTIONS_TABLE_NAME ?? 'talent-flow-pending-actions';
 const BUS_NAME = process.env.EVENTBRIDGE_BUS_NAME       ?? 'talent-flow-bus';
-const ENV      = process.env.ENVIRONMENT                 ?? 'prod';
+const ENV      = requireSetting('ENVIRONMENT');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

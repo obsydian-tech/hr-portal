@@ -32,7 +32,18 @@ const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const cognito     = new CognitoIdentityProviderClient({});
 const dynamo      = new DynamoDBClient({});
 const USERS_TABLE = process.env.USERS_TABLE_NAME || 'talent-flow-users';
-const POOL_ID     = process.env.COGNITO_POOL_ID  || 'af-south-1_2LdAGFnw2';
+// BE-15: a setting that names one environment has no fallback value. A missing
+// one stops the Lambda when it starts, with one clear line in the log.
+function requireSetting(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing setting ${name}`);
+    throw new Error(`Missing setting ${name}`);
+  }
+  return value;
+}
+
+const POOL_ID     = requireSetting('COGNITO_POOL_ID');
 
 const ROLE_TO_GROUP = {
   ADMIN: 'TalentFlowAdmin',

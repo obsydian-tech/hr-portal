@@ -38,6 +38,7 @@ on:
       - "hr-portal/tsconfig*.json"
       - "pepla-web/**"
       - "scripts/ci/dev-frontend-env.sh"
+      - "scripts/ci/check-dev-signin.py"
       - ".github/workflows/app-e2e-dev.yml"
       - "!**/*.md"
       - "!docs/**"
@@ -52,6 +53,7 @@ on:
       - "hr-portal/tsconfig*.json"
       - "pepla-web/**"
       - "scripts/ci/dev-frontend-env.sh"
+      - "scripts/ci/check-dev-signin.py"
       - ".github/workflows/app-e2e-dev.yml"
       - "!**/*.md"
       - "!docs/**"
@@ -236,6 +238,14 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:4300
           CI: "true"
         run: npm run e2e:acceptance
+
+      # BE-15 AC-6: a new employee gets a sign-in in the dev pool (the real
+      # POST /v1/employees, then the pool is read). Cleanup below removes it.
+      - name: New employee gets a dev sign-in
+        if: ${{ !cancelled() }}
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/check-dev-signin.py
 
       - name: Show the new app's server log
         if: failure()

@@ -25,11 +25,22 @@ const dynamo = new DynamoDBClient({ region: 'af-south-1' });
 const logger = new Logger({ serviceName: 'sendNotificationEmail' });
 const tracer = new Tracer({ serviceName: 'sendNotificationEmail' });
 
+// BE-15: a setting that names one environment has no fallback value. A missing
+// one stops the Lambda when it starts, with one clear line in the log.
+function requireSetting(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing setting ${name}`);
+    throw new Error(`Missing setting ${name}`);
+  }
+  return value;
+}
+
 const EMPLOYEES_TABLE = process.env.EMPLOYEES_TABLE || 'employees';
 const DOCUMENTS_TABLE = process.env.DOCUMENTS_TABLE || 'documents';
-const HR_EMAIL = process.env.HR_EMAIL || 'ignecious@obsydiantechnologies.com';
-const SENDER_EMAIL = process.env.POSTMARK_SENDER_EMAIL || 'ignecious@obsydiantechnologies.com';
-const LOGIN_URL = process.env.LOGIN_URL || 'https://hr-portal-beryl-three.vercel.app/login';
+const HR_EMAIL = requireSetting('HR_EMAIL');
+const SENDER_EMAIL = requireSetting('POSTMARK_SENDER_EMAIL');
+const LOGIN_URL = requireSetting('LOGIN_URL');
 
 // Lazy-initialised Postmark client
 let mailClient = null;
