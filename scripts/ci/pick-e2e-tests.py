@@ -40,6 +40,7 @@ RUN_ALL = (
     "hr-portal/tsconfig",
     ".github/workflows/app-e2e-dev.yml",
     "scripts/ci/seed-dev.py",
+    "scripts/ci/seed-dev-files.py",
     "scripts/ci/load-e2e-logins.py",
     "scripts/ci/cleanup-dev-e2e.py",
     "scripts/ci/pick-e2e-tests.py",

@@ -17,7 +17,8 @@ What it makes, every run, idempotently:
   * Four documents for Naledi Dlamini (ONB-13), written straight to DynamoDB with
     fixed ids: no Textract, no ID number. Three wait for an HR decision, the
     matric certificate is already accepted. Each one also gets a one-page sample
-    PDF (fake text only) in the dev upload bucket, so "Open the file" works.
+    PDF (fake text only) in the dev upload bucket, so "Open the file" works
+    (seed-dev-files.py puts the files there; this script only writes the keys).
     The files sit under seed-samples/, not uploads/, because anything under
     uploads/ starts the OCR Lambda.
 
@@ -33,6 +34,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 DEV_ACCOUNT = "424556617428"
+NS = uuid.UUID("6f1c2b1e-5d0a-4c55-9a59-2f1f0e1d7c11")
 UPLOAD_BUCKET = f"pepla-dev-document-uploads-{DEV_ACCOUNT}"
 REGION = "af-south-1"
 SECRET_PREFIX = "pepla-dev/e2e/"
@@ -205,6 +207,10 @@ NALEDI_DOCUMENTS = [
 ]
 
 
+def sample_key(employee_id: str, doc_id: str) -> str:
+    return f"seed-samples/{employee_id}/{doc_id}.pdf"
+
+
 def sample_pdf(title: str) -> bytes:
     """A one-page PDF with a fake line of text. Built by hand so the seed needs no extra package."""
     text = f"({title}) Tj".replace("\\", "\\\\")
@@ -230,13 +236,11 @@ def sample_pdf(title: str) -> bytes:
     return bytes(out)
 
 
-def seed_documents(ddb, s3, ns: uuid.UUID, employee_id: str) -> int:
+def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
     """Replace the person's documents with the fixed set. Verification rows carry no extracted data."""
     reset_employee_documents(ddb, employee_id)
     for doc_id, doc_type, uploaded, status, confidence, decided in NALEDI_DOCUMENTS:
-        s3_key = f"seed-samples/{employee_id}/{doc_id}.pdf"
-        s3.put_object(Bucket=UPLOAD_BUCKET, Key=s3_key, ContentType="application/pdf",
-                      Body=sample_pdf(doc_type.replace("_", " ").title()))
+        s3_key = sample_key(employee_id, doc_id)
         item = {
             "employee_id": {"S": employee_id},
             "document_id": {"S": doc_id},
@@ -281,7 +285,6 @@ def main() -> None:
     cognito = boto3.client("cognito-idp", region_name=REGION)
     sm = boto3.client("secretsmanager", region_name=REGION)
     ddb = boto3.client("dynamodb", region_name=REGION)
-    s3 = boto3.client("s3", region_name=REGION)
 
     naleko = pool_id(cognito, NALEKO_POOL)
     tf = pool_id(cognito, TF_POOL)
@@ -294,7 +297,7 @@ def main() -> None:
         role = f"tf-{group.lower()}"
         ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group, ROBOT_GROUP])
 
-    ns = uuid.UUID("6f1c2b1e-5d0a-4c55-9a59-2f1f0e1d7c11")
+    ns = NS
     seeded_documents = 0
     for first, last, dept, title, stage in DEMO_PEOPLE:
         email = f"pepla-demo-{first.lower()}.{last.lower().replace(' ', '')}@{MAIL_DOMAIN}"
@@ -302,7 +305,7 @@ def main() -> None:
         ddb.put_item(TableName="employees",
                      Item=employee_item(eid, first, last, email, dept, title, stage))
         if (first, last) == ("Naledi", "Dlamini"):
-            seeded_documents = seed_documents(ddb, s3, ns, eid)
+            seeded_documents = seed_documents(ddb, ns, eid)
 
     ddb.put_item(TableName="employees", Item=employee_item(
         EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
