@@ -2,12 +2,12 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, signal } from '
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { PpButton, PpField, PpForm, PpPassword, PpSectionMessage, PpSignInActions, PpSignInPage, PpTextField } from '../../ds';
-import { isEmail, safeReturnUrl } from '../../core/auth/auth.errors';
+import { isEmail, landingFor } from '../../core/auth/auth.errors';
 import { SIGN_IN_MESSAGES, SignInProblem } from '../../core/auth/auth.messages';
 import { AuthService } from '../../core/auth/auth.service';
 
 /**
- * ONB-01: HR signs in with a work email and password. Spec: the ONB-01 card (NH-147).
+ * ONB-01 and ONB-23: HR and employees sign in here with an email and password. Spec: the ONB-01 card (NH-147).
  * The email and password are checked here before anything is sent. Every problem from Cognito
  * becomes one of a few plain messages; a wrong password and an unknown email read the same.
  */
@@ -64,7 +64,7 @@ export class SignInPage {
     const result = await this.auth.signIn(this.email(), this.password());
     this.busy.set(false);
     if (result.ok) {
-      await this.router.navigateByUrl(safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'), '/hr'));
+      await this.router.navigateByUrl(landingFor(this.auth.isHr(), this.route.snapshot.queryParamMap.get('returnUrl')));
       return;
     }
     this.problem.set(result.problem);
