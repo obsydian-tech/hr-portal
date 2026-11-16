@@ -254,7 +254,7 @@ resource "aws_config_config_rule" "restricted_ssh" {
 # Lambda function for the custom rule
 resource "aws_lambda_function" "config_region_check" {
   function_name = "configRegionCheck"
-  role          = var.lambda_role_arn
+  role          = aws_iam_role.config_region_check.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = var.config_lambda_zip

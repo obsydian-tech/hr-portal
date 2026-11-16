@@ -14,8 +14,6 @@ data "aws_ssm_parameter" "postmark_token" {
 }
 
 locals {
-  # Retained for the AWS Config region-enforcement Lambda in config.tf
-  lambda_role_arn = "arn:aws:iam::${var.aws_account_id}:role/doc-verification-lambda-role"
   placeholder_zip = "${path.root}/../placeholder.zip"
 }
 

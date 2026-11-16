@@ -18,11 +18,6 @@ variable "ops_sns_topic_arn" {
   type        = string
 }
 
-variable "lambda_role_arn" {
-  description = "ARN of the Lambda execution role used by the custom Config rule Lambda."
-  type        = string
-}
-
 variable "placeholder_zip" {
   description = "Path to the placeholder zip used for Lambda function source until code is deployed."
   type        = string
