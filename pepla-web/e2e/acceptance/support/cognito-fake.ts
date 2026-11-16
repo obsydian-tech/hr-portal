@@ -214,7 +214,9 @@ export class CognitoFake {
   private tokens(account: FakeAccount & { sub: string }, clientId: string, withRefresh: boolean) {
     const now = Math.floor(Date.now() / 1000);
     const iss = 'https://cognito-idp.af-south-1.amazonaws.com/af-south-1_FakeOnb01';
-    const common = { sub: account.sub, iss, 'cognito:groups': account.groups, auth_time: now, iat: now, exp: now + 3600 };
+    // ONB-23: like Cognito, a person in no group gets no cognito:groups claim at all.
+    const groups = account.groups.length ? { 'cognito:groups': account.groups } : {};
+    const common = { sub: account.sub, iss, ...groups, auth_time: now, iat: now, exp: now + 3600 };
     const idToken = jwt({
       ...common,
       aud: clientId,
