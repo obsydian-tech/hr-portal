@@ -15,6 +15,8 @@ module "dashboards" {
     "createEmployee",
     "getHrPartners",
     "checkEmployeeEmail",
+    "lookupInvite",
+    "redeemInvite",
     "getEmployees",
     "uploadDocumentToS3",
     "processDocumentOCR",

@@ -1146,9 +1146,12 @@ test.describe('ONB-03 Add a new employee', () => {
     const before = flat(policyOf(resourcesNamed('aws_iam_role_policy', 'create_employee', [baselineFile])[0]!).Statement).map((r) => `${r.effect} ${r.action} ${r.resource}`).sort();
     const now = flat(policyOf(resourcesNamed('aws_iam_role_policy', 'create_employee')[0]!).Statement);
     const after = now.map((r) => `${r.effect} ${r.action} ${r.resource}`).sort();
-    const added = after.filter((x) => !before.includes(x));
-    const removed = before.filter((x) => !after.includes(x));
-    expect(removed, 'createEmployee\'s policy loses nothing').toEqual([]);
+    // ONB-04 (re-lock onb-03.4): createEmployee stops setting passwords and writes invite rows. Those lines are
+    // ONB-04's to judge (its AC-11); here they are left out, and nothing else may change.
+    const onb04 = (x: string) => /employee_invites/.test(x);
+    const added = after.filter((x) => !before.includes(x) && !onb04(x));
+    const removed = before.filter((x) => !after.includes(x) && !/^Allow cognito-idp:AdminSetUserPassword /.test(x));
+    expect(removed, 'createEmployee\'s policy loses nothing (but AdminSetUserPassword, ONB-04)').toEqual([]);
     expect(added, 'createEmployee\'s policy gains exactly ListUsersInGroup on the pool').toHaveLength(1);
     expect(added[0], 'on the user pool the function already has').toMatch(/^Allow cognito-idp:ListUsersInGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool\/\$\{aws_cognito_user_pool\.naleko_dev\.id\}$/);
     for (const r of now) {

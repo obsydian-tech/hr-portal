@@ -6,7 +6,7 @@ Test files: `onb-03.spec.ts`, `support/onb-03/`, and the shared `support/employe
 
 Spec: [NH-169](https://obsydian.atlassian.net/browse/NH-169)
 
-Locks: acceptance-lock/onb-03
+Locks: acceptance-lock/onb-03, acceptance-lock/onb-03.1, acceptance-lock/onb-03.2, acceptance-lock/onb-03.3, acceptance-lock/onb-03.4
 
 AC-1 to AC-7 run at 1280 and 390 wide with no backend. `support/onb-03/registration-fake.ts` (a
 subclass of the shared `EmployeesFake`) answers `GET /v1/hr-partners`, `GET /v1/employees/email-check`
@@ -44,3 +44,11 @@ Nothing the earlier cards rely on behaves differently.
 The ID number field is optional and was in the spec. To drop it, delete the two tests whose names start with
 "AC-4", the `id_number` cases in AC-9 and AC-12's `id_number` lines, and the `id: true` option in the
 AC-6 and AC-7 fill steps. Nothing else changes.
+
+## Re-lock onb-03.4 (ONB-04, 16 Nov 2026)
+
+ONB-04 replaces the emailed password with an invite link. createEmployee now reads two more settings and
+writes a row in `employee_invites` on every registration, so three lines changed here, and nothing else:
+`support/onb-03/lambda-harness.ts` sets `COMPANY_NAME` and `APP_URL`; `support/onb-03/fake-aws/world.mjs`
+knows the `employee_invites` table and its `employee-index`; AC-12 leaves out of its createEmployee policy
+comparison the lines that are ONB-04's to judge (`AdminSetUserPassword` removed, invite table lines added).
