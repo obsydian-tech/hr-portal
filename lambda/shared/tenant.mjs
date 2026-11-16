@@ -36,6 +36,7 @@ export function requireTenant(event) {
 }
 
 export function stampTenant(item, tenantId) {
+  if (!valid(tenantId)) throw new Error('Not a company id');
   if (item.tenant_id !== undefined && item.tenant_id !== tenantId) throw new TenantMismatch();
   return { ...item, tenant_id: tenantId };
 }
@@ -47,6 +48,7 @@ export function ownsRow(row, tenantId) {
 }
 
 export function tenantFilter(tenantId) {
+  if (!valid(tenantId)) throw new Error('Not a company id');
   const withLegacy = legacy() !== null && tenantId === legacy();
   return {
     FilterExpression: withLegacy ? '(#tenant_id = :tenant_id OR attribute_not_exists(#tenant_id))' : '#tenant_id = :tenant_id',
@@ -56,9 +58,10 @@ export function tenantFilter(tenantId) {
 }
 
 export function andFilter(existing, tenantPart) {
-  if (!existing?.FilterExpression) return tenantPart;
   return {
-    FilterExpression: `(${existing.FilterExpression}) AND (${tenantPart.FilterExpression})`,
+    FilterExpression: existing?.FilterExpression
+      ? `(${existing.FilterExpression}) AND (${tenantPart.FilterExpression})`
+      : tenantPart.FilterExpression,
     ExpressionAttributeNames: { ...(existing.ExpressionAttributeNames ?? {}), ...tenantPart.ExpressionAttributeNames },
     ExpressionAttributeValues: { ...(existing.ExpressionAttributeValues ?? {}), ...tenantPart.ExpressionAttributeValues },
   };
