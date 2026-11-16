@@ -34,6 +34,8 @@ export const FAKE = {
     groups: ['hr_staff'],
     newPasswordRequired: true,
   },
+  // ONB-23: an account in neither hr_staff nor employee. It may not use Naleko People at all.
+  noAccess: { email: 'lee.ndlovu@mokoena-logistics.co.za', givenName: 'Lee', familyName: 'Ndlovu', groups: [] },
 } satisfies Record<string, FakeAccount>;
 
 const FAKE_PASSWORD = 'winter-protea-2026';
@@ -66,6 +68,7 @@ type Fixtures = {
   employee: Login;
   newHr: Login;
   hrGmail: Login;
+  noAccess: Login;
   signIn: SignInPage;
 };
 
@@ -96,6 +99,10 @@ export const test = base.extend<Fixtures>({
   },
   newHr: async ({}, use) => {
     await use({ ...FAKE.newHr, password: FAKE_PASSWORD });
+  },
+  // ONB-23. No-backend run only: pepla-dev has no seeded login in neither group.
+  noAccess: async ({}, use) => {
+    await use({ ...FAKE.noAccess, password: FAKE_PASSWORD });
   },
 
   // Depends on `cognito` so the fake is in place before the first page load.

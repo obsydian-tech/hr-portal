@@ -16,6 +16,7 @@ import {
  * One test per acceptance criterion, written from the card before any code.
  * Spec: https://claude.ai/artifact/6CCqqjLxwN6Jtt2szsKjZC
  * ONB-01.1 (label "Email", any address): https://claude.ai/artifact/C6mTFVtoRw4AGnYNVVCuNp
+ * ONB-23 (NH-189, employees sign in on the same page) changed AC-4 and the end of AC-11, and added AC-4b.
  * Board: journey "HR adds a new employee", step 1, desktop and phone.
  *
  * Each test runs at 1280 and 390 wide (projects in ./playwright.config.ts).
@@ -24,7 +25,9 @@ import {
  * These files are locked once Iggie accepts them: see ./README.md.
  */
 
-const NOT_HR = 'This sign-in is for HR. New employees use the link in their welcome email.';
+// ONB-23: employees sign in here too. Only an account in neither group is refused.
+const NO_ACCESS = "This account can't use Naleko People yet. Ask your HR team.";
+const START = /\/start$/;
 const WRONG = 'Email or password is incorrect.';
 const TOO_MANY = 'Too many attempts. Try again in a few minutes.';
 const OFFLINE = "We can't reach Naleko People. Check your connection and try again.";
@@ -119,10 +122,24 @@ test.describe('ONB-01 HR sign-in', () => {
     await expect(page.getByRole('heading', { name: `Welcome back, ${hr.givenName}`, exact: true })).toBeVisible();
   });
 
-  test('AC-4 An account outside hr_staff is refused and keeps no session @pepla-dev', async ({ page, signIn, employee }) => {
+  // ONB-23 changed this test: an employee used to be refused here.
+  test('AC-4 An employee signs in here and lands on their own page, never an HR page @pepla-dev', async ({ page, signIn, employee }) => {
     await signIn.open();
     await signIn.signInAs(employee);
-    await expect(signIn.message(NOT_HR)).toBeVisible();
+    await expect(page).toHaveURL(START);
+    await expect(page.getByRole('heading', { name: `Welcome, ${employee.givenName}`, exact: true })).toBeVisible();
+
+    await page.goto(HR_HOME);
+    await expect(page).toHaveURL(START);
+    await expect(page.getByRole('heading', { name: `Welcome, ${employee.givenName}`, exact: true })).toBeVisible();
+  });
+
+  // ONB-23: the old safety of AC-4, now for an account in neither hr_staff nor employee.
+  test('AC-4b An account in neither group is refused and keeps no session', async ({ page, signIn, noAccess }) => {
+    noBackendOnly();
+    await signIn.open();
+    await signIn.signInAs(noAccess);
+    await expect(signIn.message(NO_ACCESS)).toBeVisible();
     await expect(page).toHaveURL(ON_SIGN_IN);
     await expectNoSession(page);
 
@@ -213,7 +230,7 @@ test.describe('ONB-01 HR sign-in', () => {
     await expect(page).toHaveURL(ON_SIGN_IN);
   });
 
-  test('AC-11 Keyboard only: visible focus in order, Enter submits, messages are announced', async ({ page, signIn, cognito, hr, employee }) => {
+  test('AC-11 Keyboard only: visible focus in order, Enter submits, messages are announced', async ({ page, signIn, cognito, hr, noAccess }) => {
     noBackendOnly();
     await signIn.open();
 
@@ -267,10 +284,11 @@ test.describe('ONB-01 HR sign-in', () => {
     await signIn.password.press('Enter');
     await expectAnnounced(page, TOO_MANY);
 
-    await signIn.email.fill(employee.email);
-    await signIn.password.fill(employee.password);
+    // ONB-23: an account in neither group (an employee now signs in here).
+    await signIn.email.fill(noAccess.email);
+    await signIn.password.fill(noAccess.password);
     await signIn.password.press('Enter');
-    await expectAnnounced(page, NOT_HR);
+    await expectAnnounced(page, NO_ACCESS);
   });
 
   test('AC-12 axe finds no serious or critical issues', async ({ page, signIn, cognito, hr }) => {

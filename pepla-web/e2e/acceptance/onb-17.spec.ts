@@ -44,7 +44,8 @@ const COULD_NOT = 'Could not set the password. Try again.';
 const OFFLINE = "We can't reach Naleko People. Check your connection and try again.";
 const SIGN_IN_FAILED = 'Your password is set, but signing in did not work. Try again.';
 const EXPIRED = 'This link has expired';
-const NOT_HR = 'This sign-in is for HR. New employees use the link in their welcome email.';
+// ONB-23 (NH-189): employees sign in at /sign-in too; only an account in neither group is refused.
+const NO_ACCESS = "This account can't use Naleko People yet. Ask your HR team.";
 const START_LEAD = 'Your password is set. Your onboarding steps will show here.';
 
 // ---------------------------------------------------------------- the people
@@ -587,17 +588,28 @@ test.describe('ONB-17 Set your password, and an expired link', () => {
   });
 
   // -------------------------------------------------------------- AC-8
-  test('AC-8 HR sign-in is unchanged: an employee at /sign-in is refused and keeps no session, so /start stays shut', async ({ page, signIn, employee }) => {
+  // ONB-23 (NH-189) changed this test: an employee at /sign-in used to be refused. Re-locked as acceptance-lock/onb-17.2.
+  test('AC-8 Sign-in at /sign-in: an employee lands on /start, an account in neither group is refused and keeps no session', async ({ page, signIn, employee, noAccess }) => {
     noBackendOnly();
+
+    // An employee who comes back signs in at /sign-in and lands on their own page.
     await signIn.open();
     await signIn.signInAs(employee);
-    await expect(signIn.message(NOT_HR)).toBeVisible();
+    await expectStart(page, employee.givenName);
+    await page.goto(HR_HOME);
+    await expect(page, 'an employee session never opens an HR page').toHaveURL(START);
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
     await expect(page).toHaveURL(ON_SIGN_IN);
     await expectNoSession(page);
 
-    // Now that an employee session can be kept (restore), the HR page still keeps none.
+    // Now that an employee session can be kept (restore), an account in neither group still keeps none.
+    await signIn.open();
+    await signIn.signInAs(noAccess);
+    await expect(signIn.message(NO_ACCESS)).toBeVisible();
+    await expect(page).toHaveURL(ON_SIGN_IN);
+    await expectNoSession(page);
     await page.goto('/start');
-    await expect(page, 'no employee session from /sign-in: /start goes to /sign-in').toHaveURL(ON_SIGN_IN);
+    await expect(page, 'no session from /sign-in: /start goes to /sign-in').toHaveURL(ON_SIGN_IN);
     await page.goto(HR_HOME);
     await expect(page).toHaveURL(ON_SIGN_IN);
     await expectNoSession(page);

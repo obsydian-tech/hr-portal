@@ -23,8 +23,8 @@ export const EMPLOYEE_GROUP = 'employee';
 /**
  * Signing in and out, and who is signed in. The only place that talks to Cognito.
  * Uses amazon-cognito-identity-js (SRP sign-in) against the Naleko pool and the pepla-web app client.
- * Signing in is by work email and password only. A person outside hr_staff is signed out again
- * before this returns, so no token is kept for them.
+ * Signing in is by email and password only. A person in neither hr_staff nor employee is signed out
+ * again before this returns, so no token is kept for them (ONB-23).
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -70,9 +70,9 @@ export class AuthService {
       return { ok: false, problem: outcome.problem };
     }
     const user = toUser(outcome.session);
-    if (!user.groups.includes(HR_GROUP)) {
+    if (!user.groups.includes(HR_GROUP) && !user.groups.includes(EMPLOYEE_GROUP)) {
       this.forget(cognitoUser);
-      return { ok: false, problem: 'notHr' };
+      return { ok: false, problem: 'noAccess' };
     }
     this.restoring = Promise.resolve();
     this.current.set(user);
