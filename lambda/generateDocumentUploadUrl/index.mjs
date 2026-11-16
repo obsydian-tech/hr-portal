@@ -3,6 +3,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { isHrOrOwner } from '../shared/hr-group.mjs';
+import { groupsOf } from '../shared/document-check.mjs';
 
 // Newer AWS SDK versions (the Lambda runtime's) add a CRC32 checksum of an
 // EMPTY body to presigned URLs by default. The browser then PUTs the real file,
@@ -32,6 +34,9 @@ const handlerFn = async (event) => {
     httpMethod: event.requestContext?.http?.method,
   });
   tracer.putAnnotation('operation', 'generateDocumentUploadUrl');
+  const claims = event.requestContext?.authorizer?.jwt?.claims;
+  const NOT_YOURS = 'You can only upload documents to your own record';
+  if (!claims) return errorResponse(403, NOT_YOURS);
 
   try {
     const employeeId = event.pathParameters?.employee_id;
@@ -51,11 +56,13 @@ const handlerFn = async (event) => {
       return errorResponse(400, `Unsupported content type: ${resolvedContentType}. Allowed: ${ALLOWED_CONTENT_TYPES.join(', ')}`);
     }
 
-    // Validate employee exists
-    const employeeExists = await checkEmployeeExists(employeeId);
-    if (!employeeExists) {
-      return errorResponse(404, `Employee ${employeeId} not found`);
+    // Validate employee exists, and that the caller is HR or that person
+    const employee = await readEmployee(employeeId);
+    const isHr = groupsOf(claims).includes('hr_staff');
+    if (!employee) {
+      return isHr ? errorResponse(404, `Employee ${employeeId} not found`) : errorResponse(403, NOT_YOURS);
     }
+    if (!isHrOrOwner(claims, employee)) return errorResponse(403, NOT_YOURS);
 
     // Generate document ID and S3 key
     const documentId = `doc_${Date.now()}`;
@@ -103,23 +110,19 @@ const handlerFn = async (event) => {
 
   } catch (err) {
     logger.error('Unexpected error', { errorMessage: err.message, errorName: err.name });
-    return errorResponse(500, err.message || "Internal server error");
+    return errorResponse(500, "Internal server error");
   }
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function checkEmployeeExists(employeeId) {
-  try {
-    const result = await dynamodb.send(new GetItemCommand({
-      TableName: EMPLOYEES_TABLE,
-      Key: { employee_id: { S: employeeId } },
-    }));
-    return !!result.Item;
-  } catch (err) {
-    logger.warn('Employee lookup failed', { employeeId, errorMessage: err.message });
-    return false;
-  }
+async function readEmployee(employeeId) {
+  const result = await dynamodb.send(new GetItemCommand({
+    TableName: EMPLOYEES_TABLE,
+    Key: { employee_id: { S: employeeId } },
+    ProjectionExpression: 'email',
+  }));
+  return result.Item ? { email: result.Item.email?.S ?? '' } : null;
 }
 
 function deriveContentType(fileName) {

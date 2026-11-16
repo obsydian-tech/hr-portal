@@ -1,6 +1,7 @@
 import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { hrOnly } from '../shared/hr-group.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -20,6 +21,8 @@ const EMPLOYEES_TABLE = "employees";
  * Only employee_id is returned — no extra PII exposed.
  */
 const handlerFn = async (event) => {
+  const refused = hrOnly(event, 'Only HR can look up employees');
+  if (refused) return { ...refused, headers: corsHeaders() };
   const email = event.queryStringParameters?.email;
   logger.info('Handler invoked', { email });
   tracer.putAnnotation('operation', 'getEmployeeByEmail');
@@ -56,7 +59,7 @@ const handlerFn = async (event) => {
 
   } catch (err) {
     logger.error('Unexpected error', { errorMessage: err.message });
-    return errorResponse(500, err.message || "Internal server error");
+    return errorResponse(500, "Internal server error");
   }
 };
 
