@@ -10,6 +10,7 @@ const cognitoCalls = [];
 jest.unstable_mockModule('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: jest.fn(() => ({ send: jest.fn(async (c) => (c._type === 'Query' ? { Count: 0, Items: [] } : {})) })),
   PutItemCommand: jest.fn((a) => ({ _type: 'Put', ...a })),
+  UpdateItemCommand: jest.fn((a) => ({ _type: 'Update', ...a })),
   QueryCommand: jest.fn((a) => ({ _type: 'Query', ...a })),
   GetItemCommand: jest.fn((a) => ({ _type: 'Get', ...a })),
 }));
@@ -39,6 +40,8 @@ const SETTINGS = {
   COGNITO_POOL_ID: 'test-pool-1',
   LOGIN_URL: 'http://localhost:4300/sign-in',
   POSTMARK_SENDER_EMAIL: 'sender@example.test',
+  COMPANY_NAME: 'Test Bakery',
+  APP_URL: 'http://localhost:4300',
 };
 const SAVED = { ...process.env };
 
@@ -88,7 +91,7 @@ describe('AC-2 a missing setting stops createEmployee at start', () => {
 });
 
 describe('AC-3 createEmployee uses its own pool', () => {
-  test('create, set password and add to group all carry COGNITO_POOL_ID', async () => {
+  test('create and add to group both carry COGNITO_POOL_ID (ONB-04: no password is set)', async () => {
     applySettings();
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'info').mockImplementation(() => {});
@@ -103,9 +106,9 @@ describe('AC-3 createEmployee uses its own pool', () => {
       }),
     });
     expect(res.statusCode).toBe(201);
-    expect(cognitoCalls.map((c) => c._type)).toEqual(['AdminCreateUser', 'AdminSetUserPassword', 'AdminAddUserToGroup']);
+    expect(cognitoCalls.map((c) => c._type)).toEqual(['AdminCreateUser', 'AdminAddUserToGroup']);
     for (const c of cognitoCalls) expect(c.UserPoolId).toBe('test-pool-1');
-    expect(cognitoCalls[2].GroupName).toBe('employee');
+    expect(cognitoCalls[1].GroupName).toBe('employee');
     expect(JSON.stringify(cognitoCalls)).not.toContain('af-south-1_2LdAGFnw2');
   });
 });

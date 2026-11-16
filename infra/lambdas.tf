@@ -41,6 +41,11 @@ resource "aws_lambda_function" "create_employee" {
       IDEMPOTENCY_TABLE = aws_dynamodb_table.idempotency_keys.name
       # NH-42: ARN injected so createEmployee can start the onboarding execution
       SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.onboarding.arn
+      # ONB-04: invite links
+      COMPANY_NAME     = var.company_name
+      APP_URL          = var.app_url
+      INVITES_TABLE    = aws_dynamodb_table.employee_invites.name
+      INVITE_TEST_LINK = var.environment == "dev" ? "true" : "false"
     }
   }
 
@@ -996,4 +1001,66 @@ resource "aws_lambda_permission" "cognito_post_auth" {
   function_name = aws_lambda_function.cognito_post_auth.function_name
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.naleko_dev.arn
+}
+
+# ─── ONB-04: lookupInvite ───────────────────────────────────────────────────
+resource "aws_lambda_function" "lookup_invite" {
+  function_name = "lookupInvite"
+  role          = aws_iam_role.lookup_invite.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      COMPANY_NAME  = var.company_name
+      INVITES_TABLE = aws_dynamodb_table.employee_invites.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/lookupInvite"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── ONB-04: redeemInvite ───────────────────────────────────────────────────
+resource "aws_lambda_function" "redeem_invite" {
+  function_name = "redeemInvite"
+  role          = aws_iam_role.redeem_invite.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      COGNITO_POOL_ID = aws_cognito_user_pool.naleko_dev.id
+      INVITES_TABLE   = aws_dynamodb_table.employee_invites.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/redeemInvite"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
 }

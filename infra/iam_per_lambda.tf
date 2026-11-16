@@ -48,6 +48,19 @@ resource "aws_iam_role_policy" "create_employee" {
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
       },
       {
+        # ONB-04: invite links
+        Sid      = "InviteWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem", "dynamodb:UpdateItem"]
+        Resource = aws_dynamodb_table.employee_invites.arn
+      },
+      {
+        Sid      = "InviteIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "${aws_dynamodb_table.employee_invites.arn}/index/employee-index"
+      },
+      {
         Sid    = "DynamoDBEmailIndexQuery"
         Effect = "Allow"
         # NH-79: Query email-index GSI to detect duplicate emails before write
@@ -60,7 +73,6 @@ resource "aws_iam_role_policy" "create_employee" {
         Action = [
           "cognito-idp:AdminCreateUser",
           "cognito-idp:AdminAddUserToGroup",
-          "cognito-idp:AdminSetUserPassword",
           # ONB-03: read the HR staff group, so the HR partner comes from the pool and not the browser
           "cognito-idp:ListUsersInGroup",
         ]
@@ -1733,6 +1745,114 @@ resource "aws_iam_role_policy" "archive_audit_log" {
         Action   = ["kms:Decrypt", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
       },
+    ]
+  })
+}
+
+# ─── ONB-04: lookupInvite ───────────────────────────────────────────────────
+resource "aws_iam_role" "lookup_invite" {
+  name        = "naleko-lookupInvite-role"
+  description = "Execution role for lookupInvite Lambda (ONB-04)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "lookup_invite" {
+  name = "naleko-lookupInvite-policy"
+  role = aws_iam_role.lookup_invite.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/lookupInvite:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "InviteRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = aws_dynamodb_table.employee_invites.arn
+      },
+      {
+        Sid      = "EmployeeRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      }
+    ]
+  })
+}
+
+# ─── ONB-04: redeemInvite ───────────────────────────────────────────────────
+resource "aws_iam_role" "redeem_invite" {
+  name        = "naleko-redeemInvite-role"
+  description = "Execution role for redeemInvite Lambda (ONB-04)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "redeem_invite" {
+  name = "naleko-redeemInvite-policy"
+  role = aws_iam_role.redeem_invite.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/redeemInvite:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "InviteReadClaim"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = aws_dynamodb_table.employee_invites.arn
+      },
+      {
+        Sid      = "EmployeeRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "SetPassword"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminSetUserPassword"]
+        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
+      }
     ]
   })
 }

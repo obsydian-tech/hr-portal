@@ -16,6 +16,8 @@ module "alarms" {
     "createEmployee",
     "getHrPartners",
     "checkEmployeeEmail",
+    "lookupInvite",
+    "redeemInvite",
     "getEmployees",
     "uploadDocumentToS3",
     "processDocumentOCR",

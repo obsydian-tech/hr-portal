@@ -87,6 +87,19 @@ resource "aws_apigatewayv2_stage" "employees_api_default" {
     throttling_rate_limit  = 50
   }
 
+  # ONB-04: the two public invite routes
+  route_settings {
+    route_key              = "POST /v1/invites/lookup"
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
+  }
+
+  route_settings {
+    route_key              = "POST /v1/invites/redeem"
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
+  }
+
   lifecycle {
     ignore_changes = [deployment_id]
   }
@@ -517,4 +530,48 @@ resource "aws_lambda_permission" "classify_onboarding_risk" {
   function_name = aws_lambda_function.classify_onboarding_risk.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
+}
+
+# ONB-04: POST /v1/invites/lookup  (employees_api, public: the person has no sign-in yet)
+resource "aws_apigatewayv2_integration" "lookup_invite" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.lookup_invite.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "lookup_invite" {
+  api_id    = aws_apigatewayv2_api.employees_api.id
+  route_key = "POST /v1/invites/lookup"
+  target    = "integrations/${aws_apigatewayv2_integration.lookup_invite.id}"
+}
+
+resource "aws_lambda_permission" "lookup_invite" {
+  statement_id  = "AllowEmployeesAPIInvokeLookupInvite"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.lookup_invite.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}
+
+# ONB-04: POST /v1/invites/redeem  (employees_api, public: the person has no sign-in yet)
+resource "aws_apigatewayv2_integration" "redeem_invite" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.redeem_invite.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "redeem_invite" {
+  api_id    = aws_apigatewayv2_api.employees_api.id
+  route_key = "POST /v1/invites/redeem"
+  target    = "integrations/${aws_apigatewayv2_integration.redeem_invite.id}"
+}
+
+resource "aws_lambda_permission" "redeem_invite" {
+  statement_id  = "AllowEmployeesAPIInvokeRedeemInvite"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.redeem_invite.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
 }
