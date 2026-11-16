@@ -34,6 +34,7 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { groupsOf } from '../shared/document-check.mjs';
 
 // BE-15: a setting that names one environment has no fallback value. A missing
 // one stops the Lambda when it starts, with one clear line in the log.
@@ -205,6 +206,10 @@ export const handler = async (event) => {
 
   // HR-staff list-pending route (JWT-authenticated, specific path)
   if (method === 'GET' && rawPath.endsWith('/actions/pending')) {
+    const groups = groupsOf(event.requestContext?.authorizer?.jwt?.claims);
+    if (!groups.includes('hr_staff') && !groups.includes('naleko-talentflow-hr')) {
+      return response(403, { error: 'Only HR can see pending actions' });
+    }
     return handleListPending();
   }
 

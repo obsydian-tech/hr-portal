@@ -23,6 +23,7 @@ import { resolveToolCall, TOOL_DEFINITIONS } from './tool-resolver.mjs';
 import { sanitisePii } from './pii-sanitiser.mjs';
 import { classifyIntent, selectModel } from './intent-classifier.mjs';
 import { buildCacheKey, getCached, setCached } from './cache.mjs';
+import { hrOnly } from '../shared/hr-group.mjs';
 
 const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
@@ -588,6 +589,8 @@ async function runAgenticLoop(messages, context, modelId) {
 // ─── Lambda handler ───────────────────────────────────────────────────────────
 
 export const handler = async (event) => {
+  const refused = hrOnly(event, 'Only HR can use Batsi chat');
+  if (refused) return refused;
   const start = Date.now();
 
   // ── 1. Extract staffId from Cognito JWT (NH-53) ──────────────────────────

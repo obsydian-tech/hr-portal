@@ -755,6 +755,12 @@ resource "aws_iam_role_policy" "get_document_presigned_url" {
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents"
       },
       {
+        Sid      = "EmployeeEmail"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
         Sid      = "S3Get"
         Effect   = "Allow"
         Action   = ["s3:GetObject"]

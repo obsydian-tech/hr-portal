@@ -4,6 +4,7 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { stepOf } from '../shared/onboarding-step.mjs';
+import { hrOrAgent, inGroup } from '../shared/hr-group.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -32,6 +33,8 @@ function decodeKey(cursor) {
 }
 
 const handlerFn = async (event) => {
+  const refused = hrOrAgent(event, 'Only HR can look up employees');
+  if (refused) return { ...refused, headers: CORS_HEADERS };
   logger.info('Handler invoked', { path: event.path, httpMethod: event.httpMethod });
   tracer.putAnnotation('operation', 'getEmployees');
 
@@ -42,9 +45,8 @@ const handlerFn = async (event) => {
 
     const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
     const staffMemberId = isAgent ? 'agent' : (claims['custom:staff_id'] || claims['sub'] || '');
-    const groups = (claims['cognito:groups'] ?? '').toString();
     // Agents get full manager-level access (scan all employees)
-    const isManager = isAgent || groups.includes('hr_staff');
+    const isManager = isAgent || inGroup(claims, 'hr_staff');
 
     if (!isAgent && !staffMemberId) {
       return {
@@ -164,7 +166,7 @@ const handlerFn = async (event) => {
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: error.message, details: 'Failed to retrieve employees' }),
+      body: JSON.stringify({ error: 'Failed to retrieve employees' }),
     };
   }
 };

@@ -1,6 +1,7 @@
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { guardAi, isRobotCaller, markRobot } from '../shared/ai-guard.mjs';
+import { hrOrAgent } from '../shared/hr-group.mjs';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -55,6 +56,8 @@ const handlerFn = async (event) => {
   if (event.requestContext?.http?.method === 'OPTIONS') {
     return respond(204, {});
   }
+  const refused = hrOrAgent(event, 'Only HR can check documents');
+  if (refused) return { ...refused, headers: CORS_HEADERS };
 
   markRobot(isRobotCaller(event.requestContext?.authorizer?.jwt?.claims));
   logger.info('Handler invoked', { verificationId: event.pathParameters?.id });
