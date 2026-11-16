@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 import { DocumentsFake, storedDocument, storedEmployee, type FakePerson } from './support/documents-fake';
 import { ON_DEV, expect, test as base, type Login, type SignInPage } from './support/fixtures';
+import { forgetSignIn } from './support/sign-in-again';
 import { WaitingFake, type WaitingItem } from './support/onb-13/waiting-fake';
 import {
   COMPARISON_WORDS, DocumentFake, SERVER_TEXT, TYPE_NAME, type Compared, type ComparedField, type Comparison, type DocumentType,
@@ -870,8 +871,7 @@ test.describe('ONB-15 HR accepts a document or asks for a new one', () => {
         const text = await r.text();
         for (const leak of ['Dlamini', 's3_key', 'extracted_data', 'X-Amz', 'https://']) expect(text, `${route}: the 403 carries no "${leak}"`).not.toContain(leak);
       }
-      await page.context().clearCookies();
-      await page.goto('about:blank');
+      await forgetSignIn(page); // ONB-23.1: the employee's session is kept, so it is forgotten before HR signs in
       const hrToken = await signInForToken(page, signIn, hr);
       const asHr = { Authorization: `Bearer ${hrToken}` };
       const one_ = await page.request.get(`${api}/v1/verifications/${id}`, { headers: asHr });
