@@ -52,6 +52,11 @@ function walkFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+// Both pages are drawn the same way on every machine: no sub-pixel (LCD) text and no font hinting. A page whose text sits on a
+// see-through layer is drawn with grey edges and one that does not with coloured ones on a runner whose fonts allow it, which
+// shows as a few percent of "different" pixels with every box in place.
+test.use({ launchOptions: { args: ['--disable-lcd-text', '--font-render-hinting=none'] } });
+
 test.describe('SITE-02 Angular site components, 1:1 with the design system kits', () => {
   test.beforeEach(() => noBackendOnly());
 
