@@ -34,6 +34,8 @@ jest.unstable_mockModule('@aws-sdk/client-cognito-identity-provider', () => ({
   AdminSetUserPasswordCommand: jest.fn((a) => ({ _type: 'AdminSetUserPassword', ...a })),
   AdminAddUserToGroupCommand: jest.fn((a) => ({ _type: 'AdminAddUserToGroup', ...a })),
   ListUsersInGroupCommand: jest.fn((a) => ({ _type: 'ListUsersInGroup', ...a })),
+  AdminGetUserCommand: jest.fn((a) => ({ _type: 'AdminGetUser', ...a })),
+  AdminListGroupsForUserCommand: jest.fn((a) => ({ _type: 'AdminListGroupsForUser', ...a })),
 }));
 
 const SETTINGS = {

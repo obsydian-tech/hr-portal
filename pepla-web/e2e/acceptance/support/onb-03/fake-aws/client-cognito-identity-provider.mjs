@@ -3,6 +3,9 @@
 // AdminSetUserPassword, AdminAddUserToGroup and ListUsersInGroup (60 users a page at most, NextToken to
 // carry on, as Cognito does; a Limit over 60 is refused as Cognito refuses it). Every call is recorded.
 // The pool is the one in COGNITO_POOL_ID; any other pool is ResourceNotFoundException.
+// ONB-04.2 (re-lock onb-03.5) adds two reads createEmployee's invite helper makes when the address already has a
+// sign-in: AdminGetUser (UserStatus is the user's `status`, CONFIRMED when none is given) and
+// AdminListGroupsForUser (the user's groups). UserNotFoundException when there is no such user.
 import { world, calls, awsError } from './world.mjs';
 world.cognito ??= { users: [] };
 world.cognito.users ??= [];
@@ -12,6 +15,8 @@ export class AdminCreateUserCommand extends Command { get op() { return 'AdminCr
 export class AdminSetUserPasswordCommand extends Command { get op() { return 'AdminSetUserPassword'; } }
 export class AdminAddUserToGroupCommand extends Command { get op() { return 'AdminAddUserToGroup'; } }
 export class ListUsersInGroupCommand extends Command { get op() { return 'ListUsersInGroup'; } }
+export class AdminGetUserCommand extends Command { get op() { return 'AdminGetUser'; } }
+export class AdminListGroupsForUserCommand extends Command { get op() { return 'AdminListGroupsForUser'; } }
 
 const byName = (name) => world.cognito.users.find((u) => u.username === name);
 const attrs = (u) => Object.entries(u.attributes ?? {}).map(([Name, Value]) => ({ Name, Value }));
@@ -26,6 +31,12 @@ export class CognitoIdentityProviderClient {
       if (byName(i.Username)) throw awsError('UsernameExistsException', 'User account already exists');
       world.cognito.users.push({ username: i.Username, enabled: true, attributes: Object.fromEntries((i.UserAttributes ?? []).map((a) => [a.Name, a.Value])), groups: [] });
       return { User: { Username: i.Username } };
+    }
+    if (cmd.op === 'AdminGetUser' || cmd.op === 'AdminListGroupsForUser') {
+      const u = world.cognito.users.find((x) => String(x.username).toLowerCase() === String(i.Username ?? '').toLowerCase());
+      if (!u) throw awsError('UserNotFoundException', 'User does not exist.');
+      if (cmd.op === 'AdminGetUser') return { Username: u.username, UserAttributes: attrs(u), Enabled: u.enabled !== false, UserStatus: u.status ?? 'CONFIRMED' };
+      return { Groups: (u.groups ?? []).map((GroupName) => ({ GroupName, UserPoolId: i.UserPoolId })) };
     }
     if (cmd.op === 'AdminSetUserPassword') {
       if (!byName(i.Username)) throw awsError('UserNotFoundException', 'User does not exist.');
