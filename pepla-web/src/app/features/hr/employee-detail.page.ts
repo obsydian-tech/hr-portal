@@ -102,7 +102,7 @@ function when(iso: string): string {
                     @if (inv.status !== 'none') { <pp-description-list [items]="inviteItems(inv)" /> }
                     @if (notSent()) { <pp-inline-message tone="error">The welcome email was not sent.</pp-inline-message> }
                   </div>
-                  <p class="pp-text">Resending closes this link and sends a new one that works for 7 days.</p>
+                  @if (inv.status !== 'none') { <p class="pp-text">Resending closes this link and sends a new one that works for 7 days.</p> }
                   <div><button ppButton type="button" size="large" [busy]="sending()" [disabled]="sending()" (click)="resend(p.id)">Resend link</button></div>
                 </div>
               </pp-card>
@@ -211,6 +211,7 @@ export class EmployeeDetailPage {
     this.sending.set(true);
     const r = await this.invites.resend(id);
     this.sending.set(false);
+    if (id !== this.id()) return; // HR moved to another person while the call was out
     if (r.kind === 'not-invited') { void this.load(); return; }
     if (r.kind === 'failed') { this.notSent.set(true); return; }
     this.invite.set({ status: 'ok', sentAt: r.sentAt, expiresAt: r.expiresAt, sentTo: r.sentTo });
