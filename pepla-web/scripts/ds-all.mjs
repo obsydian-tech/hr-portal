@@ -5,7 +5,7 @@ import path from 'path';
 const root = 'src/app/ds';
 const skip = new Set(['PpFlags', 'PpRevealLog']);
 const files = [];
-const walk = (d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) walk(p); else if (p.endsWith('.ts') && !p.endsWith('.spec.ts') && !/all\.ts$|index\.ts$|registry\.ts$/.test(p)) files.push(p); } };
+const walk = (d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) { if (p !== path.join(root, 'site')) walk(p); } /* site/ is the public site's own group: signed-in pages never import it */ else if (p.endsWith('.ts') && !p.endsWith('.spec.ts') && !/all\.ts$|index\.ts$|registry\.ts$/.test(p)) files.push(p); } };
 walk(root);
 const imports = [], names = [];
 for (const f of files.sort()) {

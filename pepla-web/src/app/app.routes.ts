@@ -32,4 +32,5 @@ export const routes: Routes = [
   },
   { path: 'dev/design-system', loadComponent: () => import('./dev/design-system.page').then((m) => m.DesignSystemPage), title: 'Design system · Naleko People' },
   { path: 'dev/parity', loadComponent: () => import('./dev/parity.page').then((m) => m.ParityPage), title: 'Parity · Naleko People' },
+  { path: 'dev/site', loadComponent: () => import('./ds/site/gallery.page').then((m) => m.SiteGalleryPage), title: 'Site parts · Naleko People' },
 ];
