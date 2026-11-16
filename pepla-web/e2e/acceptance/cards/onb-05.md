@@ -29,6 +29,9 @@ the consent table's name from `CONSENTS_TABLE`, `CONSENT_TABLE` or `EMPLOYEE_CON
 The notice's words are `support/onb-05/notice.ts`: version `2026-11-1` from the spec's appendix with the kit's
 wording in sections 1 and 5 ("runs the service", "keep the service running", kit PR #29). AC-4 pins its SHA-256
 over a fixed form (title, intro, terms as icon, term, text; full as heading, text; `{company}` not filled in).
+The declaration and notice name no service provider (Iggie, 16 Nov: the notice is a draft, polished before
+go-live). Polishing it means adding a new version to `NOTICES` and making it `CURRENT_NOTICE_VERSION`: the Lambda
+tests follow the current version, and only `2026-11-1` is pinned, so a released version can't be edited in place.
 `notice_sha256` in a consent row is the SHA-256 (hex or base64) of the `notice` object GET /v1/me serves, as
 JSON, with or without its `version`.
 

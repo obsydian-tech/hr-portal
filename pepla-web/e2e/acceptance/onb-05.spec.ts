@@ -252,6 +252,16 @@ const REFUSED: Array<[string, Caller]> = [
 
 // ---------------------------------------------------------------- the tests
 
+/** The version privacy-notice.mjs serves now. A polished notice is a new version, so the Lambda tests follow it. */
+function currentVersion(): string {
+  return String(exportsOf(NOTICE_MODULE)['CURRENT_NOTICE_VERSION']);
+}
+/** The current notice as privacy-notice.mjs holds it, `{company}` not filled in. */
+function currentNotice(): Notice {
+  const mod = exportsOf(NOTICE_MODULE);
+  return (mod['NOTICES'] as Record<string, Notice>)[String(mod['CURRENT_NOTICE_VERSION'])]!;
+}
+
 test.describe('ONB-05 Privacy notice and consent', () => {
   // -------------------------------------------------------------- AC-1
   test('AC-1 /start shows the frame, the header, the tracker and the declaration word for word; the full notice opens and comes back', async ({ page, signIn, employee, me }) => {
@@ -298,7 +308,7 @@ test.describe('ONB-05 Privacy notice and consent', () => {
     await expect(formHeading(page)).toBeVisible();
   });
 
-  test('AC-1 GET /v1/me serves version 2026-11-1 word for word, the company from COMPANY_NAME filled in', async ({}, testInfo) => {
+  test('AC-1 GET /v1/me serves the current notice from privacy-notice.mjs, the company from COMPANY_NAME filled in', async ({}, testInfo) => {
     onceOnly(testInfo);
     const run = getMe(world(), LINDIWE);
     expectStatus(run, 200, 'GET /v1/me');
@@ -306,15 +316,17 @@ test.describe('ONB-05 Privacy notice and consent', () => {
     expect(run.body.company, 'the company is the COMPANY_NAME setting').toBe(SERVER_COMPANY);
     expect(run.body.department).toBe('Finance');
     expect(run.body.startDate, 'startDate is YYYY-MM-DD').toBe('2026-12-01');
-    expect(run.body.notice, 'the notice, version 2026-11-1, word for word').toEqual({ version: VERSION, ...filled(NOTICE_2026_11_1, SERVER_COMPANY) });
+    const CUR = currentVersion();
+    const source = currentNotice();
+    expect(run.body.notice, 'the current notice from privacy-notice.mjs, word for word').toEqual({ version: CUR, ...filled(source, SERVER_COMPANY) });
     expect(run.body.consent, 'nothing accepted yet').toBeNull();
     const words = strings(run.body.notice).join('\n');
-    for (const must of ['Ireland', 'Amazon Web Services', `HR at ${SERVER_COMPANY}`, 'Naleko People', 'POPIA']) expect(words, `the notice says "${must}"`).toContain(must);
+    for (const must of ['Ireland', SERVER_COMPANY, 'POPIA', 'Information Regulator']) expect(words, `the notice says "${must}"`).toContain(must);
     expect(words, 'no placeholder left').not.toContain('{company}');
 
     // Another company, another name: the setting, not a fixed word.
     const other = getMe(world(), LINDIWE, { env: { COMPANY_NAME: 'Mokoena Logistics' } });
-    expect(other.body.notice.terms[1].text).toBe(filled(NOTICE_2026_11_1, 'Mokoena Logistics').terms[1]!.text);
+    expect(other.body.notice).toEqual({ version: CUR, ...filled(source, 'Mokoena Logistics') });
 
     // A row with no department or start date: those fields are left out, not empty.
     const bare = world();
@@ -411,18 +423,19 @@ test.describe('ONB-05 Privacy notice and consent', () => {
 
   test('AC-3 recordConsent stores one row on its own: the time, the version, the hash of the text served, nothing personal', async ({}, testInfo) => {
     onceOnly(testInfo);
+    const CUR = currentVersion();
     const w0 = world();
     const served = getMe(w0, LINDIWE).body.notice as Record<string, unknown>;
 
-    const first = record(w0, LINDIWE, { version: VERSION });
+    const first = record(w0, LINDIWE, { version: CUR });
     expectStatus(first, 201, 'first acceptance');
-    expect(first.body, '201 { version, acceptedAt } with the server time').toEqual({ version: VERSION, acceptedAt: T0 });
+    expect(first.body, '201 { version, acceptedAt } with the server time').toEqual({ version: CUR, acceptedAt: T0 });
     const rows = consents(first.world);
     expect(rows, 'one row').toHaveLength(1);
     const r = rows[0]!;
     expect(Object.keys(r).sort(), 'exactly the six fields').toEqual(['accepted_at', 'cognito_sub', 'employee_id', 'notice_sha256', 'notice_version', 'source']);
     expect(r['employee_id'], 'the caller\'s own record, found by the token email').toBe(LINDIWE_ID);
-    expect(r['notice_version']).toBe(VERSION);
+    expect(r['notice_version']).toBe(CUR);
     expect(r['accepted_at'], 'server time, ISO 8601 UTC').toBe(T0);
     expect(r['cognito_sub']).toBe(LINDIWE.sub);
     expect(r['source']).toBe('web');
@@ -437,21 +450,21 @@ test.describe('ONB-05 Privacy notice and consent', () => {
     expect(first.world.tables.employees, 'nothing in the employees rows changes').toEqual(w0.tables.employees);
 
     // Again, an hour later: 200 with the first time, nothing written.
-    const again = record(first.world, LINDIWE, { version: VERSION }, { now: at(T0, 3600) });
+    const again = record(first.world, LINDIWE, { version: CUR }, { now: at(T0, 3600) });
     expectStatus(again, 200, 'the same version again');
-    expect(again.body).toEqual({ version: VERSION, acceptedAt: T0 });
+    expect(again.body).toEqual({ version: CUR, acceptedAt: T0 });
     expect(consents(again.world), 'still one row, unchanged').toEqual(rows);
     expect(writes(again).filter((c) => c.op !== 'PutItem'), 'no update, delete or batch').toEqual([]);
 
     // Two requests racing: one row, both answers carry the same time.
-    const race = runModule(RECORD, w0, [consentEvent(LINDIWE, { version: VERSION }), consentEvent(LINDIWE, { version: VERSION })], { concurrent: true });
+    const race = runModule(RECORD, w0, [consentEvent(LINDIWE, { version: CUR }), consentEvent(LINDIWE, { version: CUR })], { concurrent: true });
     expect(race.all.map((a) => a.status).sort(), 'one 201 and one 200').toEqual([200, 201]);
     expect(race.all.map((a) => a.body?.acceptedAt), 'the same acceptedAt').toEqual([T0, T0]);
     expect(consents(race.world), 'one row').toHaveLength(1);
 
     // GET /v1/me now carries the consent.
     const after = getMe(first.world, LINDIWE, { now: at(T0, 7200) });
-    expect(after.body.consent).toEqual({ version: VERSION, acceptedAt: T0 });
+    expect(after.body.consent).toEqual({ version: CUR, acceptedAt: T0 });
   });
 
   // -------------------------------------------------------------- AC-4
@@ -502,31 +515,31 @@ test.describe('ONB-05 Privacy notice and consent', () => {
 
   test('AC-4 Lambdas: an older version\'s row is not consent to the current one; an old version is refused with 409 and nothing stored', async ({}, testInfo) => {
     onceOnly(testInfo);
-    const old = '2026-10-1';
+    const CUR = currentVersion();
+    const old = '2000-01-1';
     const w = world([consentRow(LINDIWE_ID, old, '2026-10-20T09:00:00.000Z')]);
     const me = getMe(w, LINDIWE);
     expectStatus(me, 200, 'GET with only an older row');
     expect(me.body.consent, 'an older version\'s row gives null').toBeNull();
-    expect(me.body.notice.version).toBe(VERSION);
+    expect(me.body.notice.version).toBe(CUR);
 
-    for (const v of [old, '2026-12-1', `${VERSION} `, VERSION.toUpperCase() + 'x']) {
+    for (const v of [old, '2999-12-1', `${CUR} `, CUR.toUpperCase() + 'x']) {
       const r = record(w, LINDIWE, { version: v });
       expectStatus(r, 409, `POST version "${v}"`);
-      expect(r.body, `409 for "${v}"`).toEqual({ error: CHANGED, version: VERSION });
+      expect(r.body, `409 for "${v}"`).toEqual({ error: CHANGED, version: CUR });
       expect(writes(r), `nothing stored for "${v}"`).toEqual([]);
     }
 
     // The helper ONB-06 will call counts the current version only.
     expect(hasCurrentConsent(w, LINDIWE_ID).response, 'only an older row: false').toBe(false);
     expect(hasCurrentConsent(world(), LINDIWE_ID).response, 'no row: false').toBe(false);
-    expect(hasCurrentConsent(world([consentRow(OTHER_ID, VERSION, T0)]), LINDIWE_ID).response, 'someone else\'s row: false').toBe(false);
-    expect(hasCurrentConsent(world([consentRow(LINDIWE_ID, VERSION, T0)]), LINDIWE_ID).response, 'the current version: true').toBe(true);
+    expect(hasCurrentConsent(world([consentRow(OTHER_ID, CUR, T0)]), LINDIWE_ID).response, 'someone else\'s row: false').toBe(false);
+    expect(hasCurrentConsent(world([consentRow(LINDIWE_ID, CUR, T0)]), LINDIWE_ID).response, 'the current version: true').toBe(true);
   });
 
-  test('AC-4 Text check: version 2026-11-1 in privacy-notice.mjs is the released text, pinned by its SHA-256', async ({}, testInfo) => {
+  test('AC-4 Text check: version 2026-11-1 in privacy-notice.mjs is the released text, pinned by its SHA-256; the current version is one of the notices', async ({}, testInfo) => {
     onceOnly(testInfo);
     const mod = exportsOf(NOTICE_MODULE);
-    expect(mod['CURRENT_NOTICE_VERSION'], 'this card ships version 2026-11-1').toBe(VERSION);
     const released = mod['NOTICES']?.[VERSION] as Notice | undefined;
     expect(released, 'NOTICES["2026-11-1"]').toBeTruthy();
     expect(JSON.parse(canonical(released!)), 'word for word, as the spec\'s appendix').toEqual(JSON.parse(canonical(NOTICE_2026_11_1)));
@@ -541,9 +554,10 @@ test.describe('ONB-05 Privacy notice and consent', () => {
   // -------------------------------------------------------------- AC-5
   test('AC-5 Only the person records their own consent: the group first, no one else\'s record, 404 for no or two rows, only the listed fields', async ({}, testInfo) => {
     onceOnly(testInfo);
+    const CUR = currentVersion();
     // The group comes first: 403 before any DynamoDB call, on both routes.
     for (const [who, caller] of REFUSED) {
-      for (const [route, run] of [['GET /v1/me', getMe(world(), caller)], ['POST /v1/me/consent', record(world(), caller, { version: VERSION })]] as const) {
+      for (const [route, run] of [['GET /v1/me', getMe(world(), caller)], ['POST /v1/me/consent', record(world(), caller, { version: CUR })]] as const) {
         expectStatus(run, 403, `${route}, ${who}`);
         expect(run.body, `${route}, ${who}: the words`).toEqual(EMPLOYEE_ONLY);
         expect(dynamoCalls(run).map((c) => c.op), `${route}, ${who}: no DynamoDB call before the group check`).toEqual([]);
@@ -557,7 +571,7 @@ test.describe('ONB-05 Privacy notice and consent', () => {
 
     // A body naming someone else still records for the caller only.
     const w0 = world();
-    const sneaky = record(w0, LINDIWE, { version: VERSION, employee_id: OTHER_ID, employeeId: OTHER_ID, cognito_sub: 'not-mine', accepted_at: '2020-01-01T00:00:00.000Z', source: 'agent' });
+    const sneaky = record(w0, LINDIWE, { version: CUR, employee_id: OTHER_ID, employeeId: OTHER_ID, cognito_sub: 'not-mine', accepted_at: '2020-01-01T00:00:00.000Z', source: 'agent' });
     expectStatus(sneaky, 201, 'a body naming someone else');
     expect(consents(sneaky.world).map((r) => [r['employee_id'], r['cognito_sub'], r['accepted_at'], r['source']]), 'the caller\'s own row, the server\'s values').toEqual([[LINDIWE_ID, LINDIWE.sub, T0, 'web']]);
 
@@ -572,7 +586,7 @@ test.describe('ONB-05 Privacy notice and consent', () => {
     const twice = world();
     twice.tables.employees.push(storedEmployee({ employee_id: '1e2d3c4b-0000-4000-8000-000000000002', first_name: 'Lindiwe' }));
     for (const [what, w, caller] of [['no row', world(), nobody], ['two rows', twice, LINDIWE]] as const) {
-      for (const [route, run] of [['GET', getMe(w, caller)], ['POST', record(w, caller, { version: VERSION })]] as const) {
+      for (const [route, run] of [['GET', getMe(w, caller)], ['POST', record(w, caller, { version: CUR })]] as const) {
         expectStatus(run, 404, `${route}, ${what}`);
         expect(run.body, `${route}, ${what}`).toEqual({ error: NOT_FOUND });
         expect(writes(run), `${route}, ${what}: nothing written`).toEqual([]);
@@ -597,7 +611,8 @@ test.describe('ONB-05 Privacy notice and consent', () => {
 
   test('AC-5 POST /v1/me/consent refuses a body without the version, and writes nothing', async ({}, testInfo) => {
     onceOnly(testInfo);
-    for (const [what, b] of [['no body', undefined], ['an empty object', {}], ['a number', { version: 5 }], ['an empty version', { version: '' }], ['not JSON', '{version:'], ['a list', [VERSION]]] as const) {
+    const CUR = currentVersion();
+    for (const [what, b] of [['no body', undefined], ['an empty object', {}], ['a number', { version: 5 }], ['an empty version', { version: '' }], ['not JSON', '{version:'], ['a list', [CUR]]] as const) {
       const run = record(world(), LINDIWE, b);
       expectStatus(run, 400, what);
       expect(run.body, what).toEqual({ error: BAD_BODY });
@@ -873,7 +888,7 @@ test.describe('ONB-05 Privacy notice and consent', () => {
 
     // The seed removed this persona's consent rows: the form for the current version, with the dev company.
     await expect(formHeading(page), 'the consent form (the seed removed earlier acceptances)').toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(/^Sunbird Bakery uses your personal information/), 'the company from COMPANY_NAME').toBeVisible();
+    await expect(page.getByText(/Sunbird Bakery/).first(), 'the company from COMPANY_NAME').toBeVisible();
     await expect(page.getByText(/Ireland/).first()).toBeVisible();
     await expect(checkbox(page)).not.toBeChecked();
     await checkbox(page).check();

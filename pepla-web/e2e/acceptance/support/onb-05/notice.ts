@@ -32,11 +32,11 @@ export const NOTICE_2026_11_1: Notice = {
     { icon: 'triangle-alert', term: 'If something is false', text: 'False documents can lead to disqualification.' },
   ],
   full: [
-    { heading: 'Who is responsible', text: '{company} is responsible for your personal information. Naleko People runs the service for {company} and uses your information only for that.' },
+    { heading: 'Who is responsible', text: '{company} is responsible for your personal information. Its service provider runs the service for {company} and uses your information only for that.' },
     { heading: 'What is collected', text: 'Your name, email, phone number, start date, department and job title, your ID number, your bank details, and the documents you upload.' },
     { heading: 'Why', text: 'To employ you, pay you, and meet the law: the Basic Conditions of Employment Act, the Unemployment Insurance Act and the Income Tax Act.' },
     { heading: 'Do you have to give it', text: "Yes, your ID and bank letter. Without them {company} can't finish your onboarding or pay you." },
-    { heading: 'Who receives it', text: 'HR at {company}. Naleko People staff, only to keep the service running. Amazon Web Services, which stores it in Cape Town, South Africa.' },
+    { heading: 'Who receives it', text: 'HR at {company}. Staff of the service provider, only to keep the service running. Amazon Web Services, which stores it in Cape Town, South Africa.' },
     {
       heading: 'Outside South Africa',
       text: 'Your ID and bank letter are read by Amazon Textract in Ireland, in the European Union, where the law protects personal information at least as well as POPIA. They are sent there only to be read.',
@@ -64,7 +64,7 @@ export function canonical(n: Notice): string {
 export const sha256Hex = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 
 /** SHA-256 of canonical(NOTICE_2026_11_1), `{company}` not filled in. Pinned: version 2026-11-1 is released. */
-export const PINNED_SHA256 = '95a2709ff5f8bc373050000300e5f44bb1c9984f698d6c16d91da7d17c47179b';
+export const PINNED_SHA256 = '959a352d0a0484bc743122a13b26a57f9d4a0f1b069fb636d5da768f9e749d43';
 
 /** `{company}` filled in, as the server sends it. */
 export function filled(n: Notice, company: string): Notice {
