@@ -6,6 +6,7 @@ import type { Locator, Page } from '@playwright/test';
 import { DocumentsFake, storedEmployee, type FakePerson } from './support/documents-fake';
 import { EmployeesFake, apiPerson } from './support/employees-fake';
 import { HR_HOME, ON_DEV, expect, test as base, type Login, type SignInPage } from './support/fixtures';
+import { forgetSignIn } from './support/sign-in-again';
 import {
   LIST_HANDLER_TODAY, REPO, openapiList, row, runList, runPerson, type Caller, type LambdaRun, type Row, type Tables,
 } from './support/onb-13/lambda-harness';
@@ -666,8 +667,7 @@ test.describe('ONB-13 Documents to check', () => {
       const text = await refused.text();
       for (const leak of ['Naledi', 'Dlamini', '"items"', 'document_id']) expect(text, `the 403 carries no "${leak}"`).not.toContain(leak);
 
-      await page.context().clearCookies();
-      await page.goto('about:blank');
+      await forgetSignIn(page); // ONB-23.1: the employee's session is kept, so it is forgotten before HR signs in
       const hrToken = await signInForToken(page, signIn, hr);
       const ok = await get(hrToken);
       expect(ok.status(), 'the HR login gets 200').toBe(200);
