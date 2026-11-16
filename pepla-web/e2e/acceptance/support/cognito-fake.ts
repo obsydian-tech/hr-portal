@@ -66,6 +66,28 @@ export class CognitoFake {
     this.scripted.push(error);
   }
 
+  /**
+   * ONB-17: a person who joins after the run started (a new employee with an invite link).
+   * Give `newPasswordRequired: true` for someone whose first password is not set yet.
+   */
+  addAccount(account: FakeAccount): void {
+    this.accounts.set(account.email.toLowerCase(), { ...account, sub: randomUUID() });
+  }
+
+  /**
+   * ONB-17: the person's password was set for them (what AdminSetUserPassword with Permanent does,
+   * called by the invite fake on a good redeem). From now on they sign in without the first-password step.
+   */
+  setPassword(email: string): void {
+    const account = this.accounts.get(email.toLowerCase());
+    if (account) account.newPasswordRequired = false;
+  }
+
+  /** ONB-17: the Cognito id (sub) of an account, to tell whose session the browser keeps. */
+  subOf(email: string): string | undefined {
+    return this.accounts.get(email.toLowerCase())?.sub;
+  }
+
   /** Calls the app made to Cognito that try to sign someone in. */
   signInCalls(): CognitoCall[] {
     return this.calls.filter((c) => c.target === 'InitiateAuth' || c.target === 'RespondToAuthChallenge');
