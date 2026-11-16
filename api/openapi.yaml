@@ -551,7 +551,7 @@ paths:
             maximum: 500
       responses:
         '403':
-          description: Not allowed for this caller (BE-17)
+          description: Only HR can look up employees.
         "200":
           description: List of employee records.
           content:
@@ -756,7 +756,7 @@ paths:
             format: email
       responses:
         '403':
-          description: Not allowed for this caller (BE-17)
+          description: Only HR can look up employees.
         "200":
           description: Employee found.
           content:
@@ -880,7 +880,7 @@ paths:
                   enum: [image/jpeg, image/png, application/pdf]
       responses:
         '403':
-          description: Not allowed for this caller (BE-17)
+          description: You can only upload documents to your own record.
         "200":
           description: Pre-signed URL ready.
           content:
@@ -933,7 +933,7 @@ paths:
             example: EMP-0000014
       responses:
         '403':
-          description: Not allowed for this caller (BE-17)
+          description: Only HR can check documents.
         "200":
           description: Risk classified and saved to employee record.
           content:
@@ -998,7 +998,7 @@ paths:
                     example: 900
                     description: Seconds until the URL expires.
         "403":
-          description: Only HR can open documents (the caller is not in the hr_staff group).
+          description: Only HR can open documents, or you can only open your own.
           content:
             application/json:
               schema:
@@ -1369,7 +1369,7 @@ paths:
             example: ver_1774086781234
       responses:
         '403':
-          description: Not allowed for this caller (BE-17)
+          description: Only HR can check documents.
         "200":
           description: AI summary generated.
           content:
