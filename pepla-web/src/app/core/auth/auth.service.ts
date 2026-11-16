@@ -17,6 +17,8 @@ export type SignInResult = { ok: true; user: SignedInUser } | { ok: false; probl
 
 /** The group that may use HR pages. */
 export const HR_GROUP = 'hr_staff';
+/** New employees (ONB-17). */
+export const EMPLOYEE_GROUP = 'employee';
 
 /**
  * Signing in and out, and who is signed in. The only place that talks to Cognito.
@@ -36,12 +38,13 @@ export class AuthService {
 
   readonly user = this.current.asReadonly();
   readonly isHr = computed(() => this.current()?.groups.includes(HR_GROUP) ?? false);
+  readonly isEmployee = computed(() => this.current()?.groups.includes(EMPLOYEE_GROUP) ?? false);
 
   /** Resolves once a session left in this browser has been checked. Safe to call again and again. */
   restore(): Promise<void> {
     this.restoring ??= this.readSession().then(async (session) => {
       const user = session ? toUser(session) : null;
-      if (user?.groups.includes(HR_GROUP)) this.current.set(user);
+      if (user?.groups.includes(HR_GROUP) || user?.groups.includes(EMPLOYEE_GROUP)) this.current.set(user);
       else if (session) (await this.library).pool.getCurrentUser()?.signOut();
     });
     return this.restoring;
@@ -74,6 +77,41 @@ export class AuthService {
     this.restoring = Promise.resolve();
     this.current.set(user);
     return { ok: true, user };
+  }
+
+  /** ONB-17: signs a new employee in right after their password is set. Ends any session already here first. */
+  async signInNewEmployee(email: string, password: string): Promise<boolean> {
+    const { lib, pool } = await this.library;
+    const existing = pool.getCurrentUser();
+    if (existing) {
+      this.current.set(null);
+      existing.signOut();
+    }
+    const cognitoUser = new lib.CognitoUser({ Username: email.trim(), Pool: pool });
+    const session = await new Promise<CognitoUserSession | null>((resolve) => {
+      cognitoUser.authenticateUser(new lib.AuthenticationDetails({ Username: email.trim(), Password: password }), {
+        onSuccess: (s) => resolve(s),
+        onFailure: () => resolve(null),
+        newPasswordRequired: () => resolve(null),
+        mfaRequired: () => resolve(null),
+        totpRequired: () => resolve(null),
+        mfaSetup: () => resolve(null),
+        selectMFAType: () => resolve(null),
+        customChallenge: () => resolve(null),
+      });
+    });
+    if (!session) {
+      this.forget(cognitoUser);
+      return false;
+    }
+    const user = toUser(session);
+    if (!user.groups.includes(EMPLOYEE_GROUP)) {
+      this.forget(cognitoUser);
+      return false;
+    }
+    this.restoring = Promise.resolve();
+    this.current.set(user);
+    return true;
   }
 
   /** The signed-in person's ID token, for calls to our own APIs. Null when nobody is signed in. */
