@@ -61,7 +61,7 @@ function makeEvent({ staffId = 'STAFF-001', body = {}, noStaffId = false } = {})
     requestContext: {
       authorizer: {
         jwt: {
-          claims: noStaffId ? {} : { 'custom:staff_id': staffId },
+          claims: noStaffId ? { 'cognito:groups': 'hr_staff' } : { 'custom:staff_id': staffId, 'cognito:groups': 'hr_staff' },
         },
       },
     },
