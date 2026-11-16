@@ -1,7 +1,7 @@
 import { DynamoDBClient, GetItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { CognitoIdentityProviderClient, AdminSetUserPasswordCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { Logger } from '@aws-lambda-powertools/logger';
-import { INVITES_TABLE, MAX_FAILED, answer, bodyOf, hashToken, readInvite } from '../shared/invite.mjs';
+import { INVITES_TABLE, MAX_FAILED, answer, bodyOf, hashToken, readInvite, signInState } from '../shared/invite.mjs';
 
 const logger = new Logger({ serviceName: 'redeemInvite' });
 const ddb = new DynamoDBClient();
@@ -51,6 +51,12 @@ export const handler = async (event) => {
       throw e;
     }
     try {
+      // ONB-04.2: a link only finishes a sign-in nobody has used yet. Refusing keeps the link used.
+      const state = await signInState(process.env.COGNITO_POOL_ID, emp.email.S);
+      if (!state.ok) {
+        logger.warn('Invite redeem refused', { employeeId: found.row.employee_id.S, reason: state.reason });
+        return answer(410, { status: 'used' });
+      }
       await cognito.send(new AdminSetUserPasswordCommand({ UserPoolId: process.env.COGNITO_POOL_ID, Username: emp.email.S, Password: body.password, Permanent: true }));
     } catch (e) {
       logger.error('Setting the password failed', { error: e.name });

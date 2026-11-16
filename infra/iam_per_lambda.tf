@@ -75,6 +75,9 @@ resource "aws_iam_role_policy" "create_employee" {
           "cognito-idp:AdminAddUserToGroup",
           # ONB-03: read the HR staff group, so the HR partner comes from the pool and not the browser
           "cognito-idp:ListUsersInGroup",
+          # ONB-04.2: read an existing sign-in before an invite may reuse it
+          "cognito-idp:AdminGetUser",
+          "cognito-idp:AdminListGroupsForUser",
         ]
         Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
       },
@@ -1850,7 +1853,7 @@ resource "aws_iam_role_policy" "redeem_invite" {
       {
         Sid      = "SetPassword"
         Effect   = "Allow"
-        Action   = ["cognito-idp:AdminSetUserPassword"]
+        Action   = ["cognito-idp:AdminSetUserPassword", "cognito-idp:AdminGetUser", "cognito-idp:AdminListGroupsForUser"]
         Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
       }
     ]
