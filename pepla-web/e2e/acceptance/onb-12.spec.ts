@@ -9,6 +9,7 @@ import {
 } from './support/documents-fake';
 import { EmployeesFake, apiPerson } from './support/employees-fake';
 import { HR_HOME, ON_DEV, expect, test as base, type Login, type SignInPage } from './support/fixtures';
+import { forgetSignIn } from './support/sign-in-again';
 import { REPO, openapiRoute, runLambda, type Caller } from './support/onb-12/lambda-harness';
 
 /**
@@ -434,8 +435,7 @@ test.describe('ONB-12 One new employee\'s page', () => {
       expect(own.status(), 'the employee login reading its own record gets 200').toBe(200);
       expect(((await own.json()) as { employee?: { employee_id?: string } }).employee?.employee_id).toBe(DEV_EMPLOYEE_ID);
 
-      await page.context().clearCookies();
-      await page.goto('about:blank');
+      await forgetSignIn(page); // ONB-23.1: the employee's session is kept, so it is forgotten before HR signs in
       const hrToken = await signInForToken(page, signIn, hr);
       for (const id of [naledi, DEV_EMPLOYEE_ID]) {
         const r = await get(hrToken, id);
