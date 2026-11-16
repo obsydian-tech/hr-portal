@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Locator, Page, TestInfo } from '@playwright/test';
 import { ON_DEV, FAKE, expect, test as base, type Login, type SignInPage } from './support/fixtures';
+import { forgetSignIn } from './support/sign-in-again';
 import { blocks, tfFiles } from './support/infra-harness';
 import { policyOf, resourcesNamed } from './support/onb-15/tf-policy';
 import type { Statement } from './support/ops-05/iam-eval';
@@ -1221,8 +1222,7 @@ test.describe('ONB-03 Add a new employee', () => {
       const text = await r.text();
       for (const leak of ['"items"', 'inUse', 'Demo-HR', 'E2EHR01']) expect(text, `a 403 carries no ${leak}`).not.toContain(leak);
     }
-    await page.context().clearCookies();
-    await page.goto('about:blank');
+    await forgetSignIn(page); // ONB-23.1: the employee's session is kept, so it is forgotten before HR signs in
 
     // HR: the four steps
     const stamp = `${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
