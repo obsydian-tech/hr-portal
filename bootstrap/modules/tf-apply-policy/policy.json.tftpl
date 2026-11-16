@@ -157,6 +157,16 @@
       "Condition": { "StringEquals": { "kms:ViaService": ["secretsmanager.${region}.amazonaws.com", "ssm.${region}.amazonaws.com"] } }
     },
     {
+      "Sid": "GrantKeyToDynamoDbTables",
+      "Effect": "Allow",
+      "Action": ["kms:CreateGrant", "kms:DescribeKey"],
+      "Resource": "arn:aws:kms:${region}:${account_id}:key/*",
+      "Condition": {
+        "StringEquals": { "kms:ViaService": "dynamodb.${region}.amazonaws.com" },
+        "Bool": { "kms:GrantIsForAWSResource": "true" }
+      }
+    },
+    {
       "Sid": "AiSpendBudget",
       "Effect": "Allow",
       "Action": [
