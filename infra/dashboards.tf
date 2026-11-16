@@ -28,6 +28,8 @@ module "dashboards" {
     "reviewDocumentVerification",
     "lookupEmployeeEmail",
     "getDocumentPresignedUrl",
+    "cognitoEmailSender",
+    "cognitoPostConfirmation",
   ]
 
   employees_api_id = aws_apigatewayv2_api.employees_api.id

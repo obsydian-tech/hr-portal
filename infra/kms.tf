@@ -42,5 +42,25 @@ module "kms_pii" {
     aws_iam_role.record_consent.arn,
   ]
 
+  # ONB-24: Cognito encrypts reset codes under a grant the deploy role makes (RootFullAdmin covers it).
+  # Only the sender may decrypt them, only for this pool. The pool id comes from a lookup by name, not
+  # from aws_cognito_user_pool.naleko_dev: the pool needs this key, so that would be a cycle.
+  cognito_sender_decrypt_role_arns = [aws_iam_role.cognito_email_sender.arn]
+  cognito_pool_id                  = one(data.aws_cognito_user_pools.naleko.ids)
+
   deletion_window_in_days = 30
+}
+
+# ONB-24: the pool's id for the sender's decrypt condition, looked up by name (no link to the resource).
+data "aws_cognito_user_pools" "naleko" {
+  name = "naleko-dev-user-pool"
+}
+
+# ONB-24: fails the plan if the pool is ever renamed without this lookup, so the decrypt condition
+# can never point at another pool. (A check block, not a reference in the data source: that would be a cycle.)
+check "cognito_lookup_matches_pool" {
+  assert {
+    condition     = data.aws_cognito_user_pools.naleko.name == aws_cognito_user_pool.naleko_dev.name
+    error_message = "The KMS key policy looks up a different user pool name than the pool's own name."
+  }
 }

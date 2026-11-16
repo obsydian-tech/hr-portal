@@ -99,6 +99,13 @@ resource "aws_cognito_user_pool" "naleko_dev" {
   # Bumps employee stage INVITED → ACTIVE on first login.
   lambda_config {
     post_authentication = aws_lambda_function.cognito_post_auth.arn
+    post_confirmation   = aws_lambda_function.cognito_post_confirmation.arn
+    kms_key_id          = module.kms_pii.key_arn
+
+    custom_email_sender {
+      lambda_arn     = aws_lambda_function.cognito_email_sender.arn
+      lambda_version = "V1_0"
+    }
   }
 
   lifecycle {

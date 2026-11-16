@@ -4,10 +4,11 @@ import {
   PpSkeleton, PpSkeletonGroup, formatDate, type ConsentTerm, type Step,
 } from '../../ds';
 import { AuthService } from '../../core/auth/auth.service';
+import { SIGN_IN_MESSAGES } from '../../core/auth/auth.messages';
 import { StartService } from '../../core/start/start.service';
 
 const UNTICKED = 'Tick the box to agree before you continue.';
-const OFFLINE = "We can't reach Naleko People. Check your connection and try again.";
+const OFFLINE = SIGN_IN_MESSAGES.offline;
 const NOTICE_CHANGED = 'The privacy notice has changed. Read it and agree again.';
 
 /**

@@ -341,3 +341,68 @@ resource "aws_cloudwatch_metric_alarm" "invite_failed" {
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.naleko_ops.arn]
 }
+
+# ONB-24: the reset code email and the sign-out after a reset.
+resource "aws_cloudwatch_log_metric_filter" "reset_email_failed" {
+  name           = "ResetEmailFailed"
+  log_group_name = "/aws/lambda/cognitoEmailSender"
+  pattern        = "{ $.message = \"Reset email failed\" }"
+  metric_transformation {
+    name          = "ResetEmailFailed"
+    namespace     = "Naleko/Onboarding"
+    value         = "1"
+    default_value = 0
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "reset_email_failed" {
+  alarm_name          = "naleko-cognitoEmailSender-ResetEmailFailed"
+  namespace           = "Naleko/Onboarding"
+  metric_name         = "ResetEmailFailed"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.naleko_ops.arn]
+}
+
+resource "aws_cloudwatch_log_metric_filter" "reset_sign_out_failed" {
+  name           = "ResetSignOutFailed"
+  log_group_name = "/aws/lambda/cognitoPostConfirmation"
+  pattern        = "{ $.message = \"Reset sign-out failed\" }"
+  metric_transformation {
+    name          = "ResetSignOutFailed"
+    namespace     = "Naleko/Onboarding"
+    value         = "1"
+    default_value = 0
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "reset_sign_out_failed" {
+  alarm_name          = "naleko-cognitoPostConfirmation-ResetSignOutFailed"
+  namespace           = "Naleko/Onboarding"
+  metric_name         = "ResetSignOutFailed"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.naleko_ops.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "reset_emails_high" {
+  alarm_name          = "naleko-cognitoEmailSender-ResetEmailsHigh"
+  namespace           = "AWS/Lambda"
+  metric_name         = "Invocations"
+  dimensions          = { FunctionName = "cognitoEmailSender" }
+  statistic           = "Sum"
+  period              = 3600
+  evaluation_periods  = 1
+  threshold           = 100
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.naleko_ops.arn]
+}

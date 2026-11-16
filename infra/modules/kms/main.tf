@@ -109,6 +109,51 @@ data "aws_iam_policy_document" "key_policy" {
       }
     }
   }
+
+  # 6. ONB-24: Cognito encrypts custom email sender codes, nothing else.
+  dynamic "statement" {
+    for_each = length(var.cognito_encrypt_pool_arns) > 0 ? [1] : []
+    content {
+      sid    = "AllowCognitoEncryptOnly"
+      effect = "Allow"
+      principals {
+        type        = "Service"
+        identifiers = ["cognito-idp.amazonaws.com"]
+      }
+      actions   = ["kms:Encrypt"]
+      resources = ["*"]
+      condition {
+        test     = "ArnEquals"
+        variable = "aws:SourceArn"
+        values   = var.cognito_encrypt_pool_arns
+      }
+      condition {
+        test     = "StringEquals"
+        variable = "aws:SourceAccount"
+        values   = [var.aws_account_id]
+      }
+    }
+  }
+
+  # 7. ONB-24: the sender decrypts codes, only those Cognito made for this pool.
+  dynamic "statement" {
+    for_each = length(var.cognito_sender_decrypt_role_arns) > 0 ? [1] : []
+    content {
+      sid    = "AllowCognitoSenderDecryptOnly"
+      effect = "Allow"
+      principals {
+        type        = "AWS"
+        identifiers = var.cognito_sender_decrypt_role_arns
+      }
+      actions   = ["kms:Decrypt"]
+      resources = ["*"]
+      condition {
+        test     = "StringEquals"
+        variable = "kms:EncryptionContext:userpool-id"
+        values   = [var.cognito_pool_id]
+      }
+    }
+  }
 }
 
 resource "aws_kms_key" "this" {
