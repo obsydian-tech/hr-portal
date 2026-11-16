@@ -25,14 +25,15 @@ export class PpSiteTitle {}
 export class PpSiteAnchor {}
 
 /**
- * The block every landing section is built from: a full-width ground, content at most 1200px wide, then the section's own demo.
- * `<section ppSiteSection ground="cream" titleId="recruitment-title">` holds a `<div ppSiteSectionHead>` first.
+ * The block every landing section is built from: a full-width ground, then the section's own content inside a `<div ppSiteWrap>`
+ * (content at most 1200px wide). `<section ppSiteSection ground="cream" titleId="recruitment-title">` holds a `<div ppSiteWrap>` that
+ * starts with a `<div ppSiteSectionHead>`. Lights may sit beside the wrap.
  * Spec: project/components/site/site-section.md
  */
 @Component({
   selector: 'section[ppSiteSection]',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div class="pp-site-wrap"><ng-content /></div>`,
+  template: '<ng-content />',
   host: {
     '[class]': 'classes()',
     '[attr.aria-labelledby]': 'titleId() ?? null',

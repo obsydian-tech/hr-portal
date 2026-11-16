@@ -45,5 +45,6 @@ export class SiteGalleryPage {
     'Sample page content. The header stays at the top while this scrolls.',
     'Sample page content.', 'Sample page content.', 'Sample page content.', 'Sample page content.', 'Sample page content.', 'Sample page content.',
   ];
+  protected readonly spacer = Array.from({ length: 14 }, () => 'Sample page content.');
   protected readonly footerFiller = ['Sample page content. John Doe asked for leave and Jane Smith approved it.', 'Sample page content.'];
 }

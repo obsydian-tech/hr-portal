@@ -67,7 +67,9 @@
   <div data-example-body>
     <div ppSiteStage>
       <section ppSiteSection>
-        <h2 ppSiteTitle>Every employee <span ppSiteShine text="hired, onboarded and compliant."></span></h2>
+        <div ppSiteWrap>
+          <h2 ppSiteTitle>Every employee <span ppSiteShine text="hired, onboarded and compliant."></span></h2>
+        </div>
       </section>
     </div>
   </div>
@@ -198,6 +200,7 @@
       <header ppSiteHeader></header>
       @for (text of footerFiller; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
       <footer ppSiteFooter></footer>
+      <div ppSiteSheet></div>
     </div>
   </div>
 </section>
@@ -232,8 +235,10 @@
   <div data-example-body>
     <div ppSiteStage>
       <section ppSiteSection>
-        <div ppSiteSectionHead eyebrow="Recruitment" title="Every candidate tracked from application to signed offer."
-             lead="One hiring board per role. Batsi watches each stage for candidates who go quiet and drafts the follow-up for HR to send."></div>
+        <div ppSiteWrap>
+          <div ppSiteSectionHead eyebrow="Recruitment" title="Every candidate tracked from application to signed offer."
+               lead="One hiring board per role. Batsi watches each stage for candidates who go quiet and drafts the follow-up for HR to send."></div>
+        </div>
       </section>
     </div>
   </div>
@@ -242,9 +247,9 @@
   <h2 class="pp-text-heading-small">Cream, violet wash and mint wash</h2>
   <div data-example-body>
     <div class="pp-stack pp-gap-200">
-      <div ppSiteStage><section ppSiteSection ground="cream"><div ppSiteSectionHead eyebrow="Onboarding and Offboarding" title="Offer accepted to day one, in one record."></div></section></div>
-      <div ppSiteStage><section ppSiteSection ground="violet"><div ppSiteSectionHead eyebrow="Ask Batsi" title="Ask Batsi about any employee or candidate."></div></section></div>
-      <div ppSiteStage><section ppSiteSection ground="mint"><div ppSiteSectionHead eyebrow="Compliance Management" title="Every certificate tracked to its expiry date."></div></section></div>
+      <div ppSiteStage><section ppSiteSection ground="cream"><div ppSiteWrap><p ppSiteEyebrow>Onboarding and Offboarding</p><h2 ppSiteTitle>Offer accepted to day one, in one record.</h2></div></section></div>
+      <div ppSiteStage><section ppSiteSection ground="violet"><div ppSiteWrap><p ppSiteEyebrow>Ask Batsi</p><h2 ppSiteTitle>Ask Batsi about any employee or candidate.</h2></div></section></div>
+      <div ppSiteStage><section ppSiteSection ground="mint"><div ppSiteWrap><p ppSiteEyebrow>Compliance Management</p><h2 ppSiteTitle>Every certificate tracked to its expiry date.</h2></div></section></div>
     </div>
   </div>
 </section>
@@ -253,7 +258,9 @@
   <div data-example-body>
     <div ppSiteStage device="desktop">
       <section ppSiteSection>
-        <ul ppSiteCaps [items]="caps"></ul>
+        <div ppSiteWrap>
+          <ul ppSiteCaps [items]="caps"></ul>
+        </div>
       </section>
     </div>
   </div>
@@ -276,6 +283,27 @@
   <div data-example-body>
     <div ppSiteStage device="phone">
       <section ppSiteBand id="demo-ex-phone" [lights]="bandPhone" eyebrow="Book a demo" title="Naleko" accent="People."
+               lead="Every employee hired, onboarded and compliant. One app for Recruitment, Onboarding and Offboarding, Leave Management and Compliance Management, with Ask Batsi built in."
+               note="Get started creates a company account. The Naleko team calls every new company.">
+        <a ppSiteButton large href="#demo">Book a demo</a>
+        <a ppSiteButton variant="line" large href="#get-started">Get started</a>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="arrival-live" data-part="motion" data-example="Arrival on scroll">
+  <h2 class="pp-text-heading-small">Arrival on scroll</h2>
+  <div data-example-body class="pp-stack pp-gap-200">
+    @for (text of spacer; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+    <div ppSiteStage device="desktop">
+      <section ppSiteSection titleId="arrival-recruitment">
+        <div ppSiteWrap>
+          <div ppSiteSectionHead reveal titleId="arrival-recruitment" eyebrow="Recruitment" title="Every candidate tracked from application to signed offer."
+               lead="One hiring board per role. Batsi watches each stage for candidates who go quiet and drafts the follow-up for HR to send."></div>
+          <ul ppSiteCaps reveal [items]="caps"></ul>
+        </div>
+      </section>
+      <section ppSiteBand reveal [lights]="bandDesktop" eyebrow="Book a demo" title="Naleko" accent="People."
                lead="Every employee hired, onboarded and compliant. One app for Recruitment, Onboarding and Offboarding, Leave Management and Compliance Management, with Ask Batsi built in."
                note="Get started creates a company account. The Naleko team calls every new company.">
         <a ppSiteButton large href="#demo">Book a demo</a>
