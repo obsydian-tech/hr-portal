@@ -2,7 +2,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { json } from '../shared/hr-group.mjs';
 import { groupsOf } from '../shared/document-check.mjs';
 import { CURRENT_NOTICE_VERSION, renderNotice } from '../shared/privacy-notice.mjs';
-import { NEW_EMPLOYEES_ONLY, NOT_FOUND, findEmployee, readConsent } from '../shared/consent.mjs';
+import { NEW_EMPLOYEES_ONLY, NOT_FOUND, emailIsVerified, findEmployee, readConsent } from '../shared/consent.mjs';
 
 const logger = new Logger({ serviceName: 'getMyStart' });
 const COMPANY = (() => { const v = process.env.COMPANY_NAME; if (!v) throw new Error('Missing setting COMPANY_NAME'); return v; })();
@@ -15,6 +15,11 @@ export const handler = async (event) => {
   // The group comes first: nothing is read for anyone who is not an employee.
   const claims = event?.requestContext?.authorizer?.jwt?.claims;
   if (!claims || !groupsOf(claims).includes('employee')) return json(403, { error: NEW_EMPLOYEES_ONLY });
+  // The record is found by the token's email, so the email must be a verified one: nothing is read before this.
+  if (!emailIsVerified(claims)) {
+    logger.warn('The sign-in email is not verified', { sub: claims.sub });
+    return json(404, { error: NOT_FOUND });
+  }
 
   try {
     const found = await findEmployee(claims.email);

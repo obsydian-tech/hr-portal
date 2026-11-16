@@ -17,6 +17,15 @@ export const NEW_EMPLOYEES_ONLY = 'This page is for new employees';
 export const NOT_FOUND = "We can't find your record. Ask your HR team.";
 
 /**
+ * True only when Cognito says the token's email is verified (the claim is the string "true" or the boolean true).
+ * The person is found by that email, so an address someone has typed in but not proven is never looked up.
+ */
+export function emailIsVerified(claims) {
+  const v = claims?.email_verified;
+  return v === true || v === 'true';
+}
+
+/**
  * The caller's employee row, found by the token's email on email-index (trimmed, lower case).
  * Returns { row } for exactly one match, or { count } (0, or 2 or more) when there is no single record.
  */
