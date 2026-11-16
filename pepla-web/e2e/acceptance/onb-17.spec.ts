@@ -46,7 +46,8 @@ const SIGN_IN_FAILED = 'Your password is set, but signing in did not work. Try a
 const EXPIRED = 'This link has expired';
 // ONB-23 (NH-189): employees sign in at /sign-in too; only an account in neither group is refused.
 const NO_ACCESS = "This account can't use Naleko People yet. Ask your HR team.";
-const START_LEAD = 'Your password is set. Your onboarding steps will show here.';
+// ONB-05 (NH-174) replaced the holding page: /start shows the consent form, and Sign out moved into the account menu.
+const CONSENT_HEADING = 'Declaration and consent';
 
 // ---------------------------------------------------------------- the people
 const COMPANY = 'Mokoena Logistics';
@@ -255,6 +256,15 @@ async function expectStart(page: Page, givenName: string): Promise<void> {
   await expect(page.getByRole('heading', { name: `Welcome, ${givenName}`, exact: true })).toBeVisible();
 }
 
+/** ONB-05: Sign out is in the "Your account" menu, as for HR. */
+async function signOutEmployee(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /^Your account/ }).click();
+  await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
+}
+
+/** ONB-05: the employee's page asks GET /v1/me, and nothing else. */
+const notMe = (calls: string[]) => calls.filter((c) => !/^GET \S+\/v1\/me$/.test(c));
+
 async function expectExpired(sp: SetPassword, lead: string, what: string): Promise<void> {
   await expect(sp.expired, `${what}: "${EXPIRED}"`).toBeVisible();
   await expect(sp.message(lead), `${what}: the lead`).toBeVisible();
@@ -425,7 +435,7 @@ test.describe('ONB-17 Set your password, and an expired link', () => {
 
     await expectStart(page, STARTER.givenName);
     await expect(page).toHaveTitle('Welcome · Naleko People');
-    await expect(page.getByText(START_LEAD, { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: CONSENT_HEADING, exact: true })).toBeVisible();
     expect(invite!.redeems(), 'one redeem for a double tap').toHaveLength(1);
     expect(invite!.redeems()[0]!.body).toEqual({ token, password: GOOD_PASSWORD });
 
@@ -572,10 +582,10 @@ test.describe('ONB-17 Set your password, and an expired link', () => {
     }
     await page.goto('/sign-in');
     await expect(page, 'a signed-in employee who opens /sign-in lands on /start').toHaveURL(START);
-    expect(watch.apiCalls(appOrigin, from), 'no HR API (or any API) is called for the employee').toEqual([]);
+    expect(notMe(watch.apiCalls(appOrigin, from)), 'no HR API (or any API but GET /v1/me) is called for the employee').toEqual([]);
 
-    // Sign out from the holding page; nobody signed in who opens /start lands on /sign-in.
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    // Sign out from the account menu; nobody signed in who opens /start lands on /sign-in.
+    await signOutEmployee(page);
     await expect(page).toHaveURL(ON_SIGN_IN);
     await expectNoSession(page);
     await page.goto('/start');
@@ -598,7 +608,7 @@ test.describe('ONB-17 Set your password, and an expired link', () => {
     await expectStart(page, employee.givenName);
     await page.goto(HR_HOME);
     await expect(page, 'an employee session never opens an HR page').toHaveURL(START);
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await signOutEmployee(page);
     await expect(page).toHaveURL(ON_SIGN_IN);
     await expectNoSession(page);
 
@@ -669,7 +679,7 @@ test.describe('ONB-17 Set your password, and an expired link', () => {
     await expectStart(page, STARTER.givenName);
 
     // A lookup with no answer is announced too.
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await signOutEmployee(page);
     await expect(page).toHaveURL(ON_SIGN_IN);
     invite!.nextLookups.push('offline');
     await sp.open(invite!.add(link({ person: SECOND })));
@@ -716,7 +726,7 @@ test.describe('ONB-17 Set your password, and an expired link', () => {
     await sp.openForm(invite!.add(link()));
     await sp.setPassword(GOOD_PASSWORD);
     await expectStart(page, STARTER.givenName);
-    await check('/start', [page.getByRole('heading', { name: `Welcome, ${STARTER.givenName}`, exact: true }), page.getByText(START_LEAD, { exact: true })], [page.getByRole('button', { name: 'Sign out', exact: true })]);
+    await check('/start', [page.getByRole('heading', { name: `Welcome, ${STARTER.givenName}`, exact: true }), page.getByRole('heading', { name: CONSENT_HEADING, exact: true })], [page.getByRole('button', { name: 'Accept and continue', exact: true })]);
   });
 
   // -------------------------------------------------------------- AC-11

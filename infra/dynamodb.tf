@@ -481,3 +481,41 @@ resource "aws_dynamodb_table" "employee_invites" {
     prevent_destroy = true
   }
 }
+
+# ONB-05: who accepted which version of the privacy notice, and when. Rows are only added, never changed or
+# deleted (a conditional put), and hold no email, name or ID number. Kept: no time to live.
+resource "aws_dynamodb_table" "employee_consents" {
+  name                        = "employee_consents"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "employee_id"
+  range_key                   = "notice_version"
+
+  attribute {
+    name = "employee_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "notice_version"
+    type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = module.kms_pii.key_arn
+  }
+
+  tags = {
+    Ticket             = "NH-174"
+    DataClassification = "Personal"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}

@@ -22,7 +22,8 @@ const SRC = join(HERE, '..', '..', 'src');
 
 const NO_ACCESS = "This account can't use Naleko People yet. Ask your HR team.";
 const OLD_WORDS = 'This sign-in is for HR';
-const START_LEAD = 'Your password is set. Your onboarding steps will show here.';
+// ONB-05 (NH-174) replaced the holding page: /start shows the consent form, and Sign out moved into the account menu.
+const CONSENT_HEADING = 'Declaration and consent';
 
 const START = /\/start$/;
 const ON_START = /\/start(\?.*)?$/;
@@ -78,9 +79,20 @@ async function expectStart(page: Page, givenName: string): Promise<void> {
   await expect(welcome(page, givenName)).toBeVisible();
 }
 
-function signOutButton(page: Page): Locator {
-  return page.getByRole('button', { name: 'Sign out', exact: true });
+/** ONB-05: Sign out is in the "Your account" menu, as for HR. */
+function accountButton(page: Page): Locator {
+  return page.getByRole('button', { name: /^Your account/ });
 }
+function signOutItem(page: Page): Locator {
+  return page.getByRole('menuitem', { name: 'Sign out', exact: true });
+}
+async function signOutEmployee(page: Page): Promise<void> {
+  await accountButton(page).click();
+  await signOutItem(page).click();
+}
+
+/** ONB-05: the employee's page asks GET /v1/me, and nothing else. */
+const notMe = (calls: string[]) => calls.filter((c) => !/^GET \S+\/v1\/me$/.test(c));
 
 /** Every file under a folder. */
 function walk(dir: string): string[] {
@@ -98,13 +110,13 @@ test.describe('ONB-23 Employees sign in on the same page', () => {
     await expect(signIn.heading).toBeVisible();
     await signIn.signInAs(employee);
     await expectStart(page, employee.givenName);
-    await expect(page.getByText(START_LEAD, { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: CONSENT_HEADING, exact: true })).toBeVisible();
     await expect(signIn.message(NO_ACCESS)).toHaveCount(0);
 
     await page.reload();
     await expectStart(page, employee.givenName);
 
-    expect(watch.apiCalls(appOrigin), 'no call to an HR API (or any API of ours)').toEqual([]);
+    expect(notMe(watch.apiCalls(appOrigin)), 'no call to an HR API (or any API of ours but GET /v1/me)').toEqual([]);
   });
 
   // -------------------------------------------------------------- AC-2
@@ -123,7 +135,7 @@ test.describe('ONB-23 Employees sign in on the same page', () => {
     // The sign-in page itself sends a signed-in employee home.
     await page.goto('/sign-in');
     await expect(page, '/sign-in lands on /start').toHaveURL(START);
-    await signOutButton(page).click();
+    await signOutEmployee(page);
     await expect(page).toHaveURL(ON_SIGN_IN);
     await expectNoSession(page);
 
@@ -134,7 +146,7 @@ test.describe('ONB-23 Employees sign in on the same page', () => {
       await signIn.signInAs(employee);
       await expect(page, `employee with returnUrl=${returnUrl} lands on /start`).toHaveURL(START, { timeout: 20_000 });
       await expect(welcome(page, employee.givenName)).toBeVisible();
-      await signOutButton(page).click();
+      await signOutEmployee(page);
       await expect(page).toHaveURL(ON_SIGN_IN);
     }
 
@@ -143,10 +155,10 @@ test.describe('ONB-23 Employees sign in on the same page', () => {
     await signIn.signInAs(employee);
     await expect(page).toHaveURL(ON_START, { timeout: 20_000 });
     await expect(welcome(page, employee.givenName)).toBeVisible();
-    await signOutButton(page).click();
+    await signOutEmployee(page);
     await expect(page).toHaveURL(ON_SIGN_IN);
 
-    expect(watch.apiCalls(appOrigin), 'the employee never called an HR API').toEqual([]);
+    expect(notMe(watch.apiCalls(appOrigin)), 'the employee never called an HR API (only GET /v1/me)').toEqual([]);
 
     // HR signing in with returnUrl=/hr/documents still lands there (ONB-01 AC-9 unchanged).
     await page.goto(`/sign-in?returnUrl=${encodeURIComponent('/hr/documents')}`);
@@ -211,7 +223,7 @@ test.describe('ONB-23 Employees sign in on the same page', () => {
     await signIn.signInAs(employee);
     await expectStart(page, employee.givenName);
 
-    await signOutButton(page).click();
+    await signOutEmployee(page);
     await expect(page).toHaveURL(ON_SIGN_IN);
     await expectNoSession(page);
     await page.goto('/start');
@@ -237,8 +249,11 @@ test.describe('ONB-23 Employees sign in on the same page', () => {
     await page.keyboard.press('Enter');
     await expectStart(page, employee.givenName);
 
-    // Sign out by keyboard.
-    await signOutButton(page).focus();
+    // Sign out by keyboard, from the account menu.
+    await accountButton(page).focus();
+    await page.keyboard.press('Enter');
+    await expect(signOutItem(page)).toBeVisible();
+    await signOutItem(page).focus();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(ON_SIGN_IN);
     await expectNoSession(page);
@@ -287,7 +302,7 @@ test.describe('ONB-23 Employees sign in on the same page', () => {
 
     await signIn.signInAs(employee);
     await expectStart(page, employee.givenName);
-    await check('/start', [welcome(page, employee.givenName), signOutButton(page)]);
+    await check('/start', [welcome(page, employee.givenName), accountButton(page)]);
   });
 
   // -------------------------------------------------------------- AC-7
@@ -302,7 +317,7 @@ test.describe('ONB-23 Employees sign in on the same page', () => {
     await expect(page).toHaveURL(START);
     await expect(welcome(page, employee.givenName)).toBeVisible();
 
-    await signOutButton(page).click();
+    await signOutEmployee(page);
     await expect(page).toHaveURL(ON_SIGN_IN);
     await expectNoSession(page);
   });

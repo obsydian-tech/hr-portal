@@ -185,6 +185,23 @@ def employee_item(employee_id: str, first: str, last: str, email: str, dept: str
     return item
 
 
+def reset_employee_consents(ddb, employee_id: str) -> int:
+    """ONB-05: the test persona starts every run without having accepted the privacy notice (dev only)."""
+    removed = 0
+    try:
+        for page in ddb.get_paginator("query").paginate(
+                TableName="employee_consents",
+                KeyConditionExpression="employee_id = :e",
+                ExpressionAttributeValues={":e": {"S": employee_id}},
+                ProjectionExpression="employee_id, notice_version"):
+            for item in page["Items"]:
+                ddb.delete_item(TableName="employee_consents", Key=item)
+                removed += 1
+    except ddb.exceptions.ResourceNotFoundException:
+        return 0  # the table arrives with the apply after the merge; nothing to remove before then
+    return removed
+
+
 def reset_employee_documents(ddb, employee_id: str) -> int:
     removed = 0
     for page in ddb.get_paginator("query").paginate(
@@ -311,10 +328,12 @@ def main() -> None:
         EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
         "Operations", "New Starter", "INVITED"))
     docs_removed = reset_employee_documents(ddb, EMPLOYEE_ID)
+    consents_removed = reset_employee_consents(ddb, EMPLOYEE_ID)
 
     print(f"seed-dev: groups created {made_groups}; "
           f"logins {len(NALEKO_PERSONAS) + len(TF_GROUPS)}; "
           f"demo people {len(DEMO_PEOPLE) + 1}; persona documents reset {docs_removed}; "
+          f"persona consents reset {consents_removed}; "
           f"demo documents {seeded_documents}")
 
 
