@@ -4,7 +4,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { DynamoDBClient, PutItemCommand, QueryCommand, UpdateItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
-import { CognitoIdentityProviderClient, AdminCreateUserCommand, AdminAddUserToGroupCommand } from '@aws-sdk/client-cognito-identity-provider';
+import { CognitoIdentityProviderClient, AdminCreateUserCommand, AdminAddUserToGroupCommand, AdminGetUserCommand, AdminListGroupsForUserCommand } from '@aws-sdk/client-cognito-identity-provider';
 
 export const INVITES_TABLE = process.env.INVITES_TABLE || 'employee_invites';
 export const MAX_FAILED = 5;
@@ -17,6 +17,31 @@ const cognito = new CognitoIdentityProviderClient({ region: 'af-south-1' });
 
 export const hashToken = (token) => createHash('sha256').update(token, 'utf8').digest('hex');
 export const looksLikeToken = (t) => typeof t === 'string' && SHAPE.test(t);
+
+/**
+ * ONB-04.2: whether an invite may finish setting up this sign-in. Only one that nobody has used yet (FORCE_CHANGE_PASSWORD)
+ * and that belongs to no group except `employee` qualifies. Returns { ok: true } or { ok: false, reason: 'missing' | 'status' | 'group' }.
+ * A Cognito error other than UserNotFoundException is thrown.
+ */
+export async function signInState(pool, email) {
+  let user;
+  try {
+    user = await cognito.send(new AdminGetUserCommand({ UserPoolId: pool, Username: email }));
+  } catch (e) {
+    if (e?.name === 'UserNotFoundException') return { ok: false, reason: 'missing' };
+    throw e;
+  }
+  if (user?.UserStatus !== 'FORCE_CHANGE_PASSWORD') return { ok: false, reason: 'status' };
+  const groups = [];
+  let next;
+  do {
+    const page = await cognito.send(new AdminListGroupsForUserCommand({ UserPoolId: pool, Username: email, NextToken: next }));
+    for (const g of page?.Groups ?? []) groups.push(g.GroupName);
+    next = page?.NextToken;
+  } while (next);
+  if (groups.some((g) => g !== 'employee')) return { ok: false, reason: 'group' };
+  return { ok: true };
+}
 
 function setting(name) {
   const v = process.env[name];
@@ -45,6 +70,14 @@ export async function issueInvite({ employee, hrPartner, sentBy }) {
     }));
   } catch (e) {
     if (e?.name !== 'UsernameExistsException') throw e;
+    // The address already has a sign-in. Carry on only when nobody has used it yet (the resend case); otherwise stop
+    // before any group change, invite row or email.
+    const state = await signInState(pool, email);
+    if (!state.ok) {
+      const refused = new Error('This address already has a sign-in that is in use');
+      refused.name = 'InviteRefused';
+      throw refused;
+    }
   }
   await cognito.send(new AdminAddUserToGroupCommand({ UserPoolId: pool, Username: email, GroupName: 'employee' }));
 
