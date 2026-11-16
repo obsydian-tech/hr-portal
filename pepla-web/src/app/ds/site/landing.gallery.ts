@@ -7,6 +7,9 @@ import { PpSiteLandOnboarding } from './sections/onboarding';
 import { PpSiteLandPilot } from './sections/pilot';
 import { PpSiteLandRecruitment } from './sections/recruitment';
 import { PpSiteLandAbout } from './sections/about';
+import { PpSiteLandIntegrations } from './sections/integrations';
+import { PpSiteLandPlatform } from './sections/platform';
+import { PpSiteLandTrust } from './sections/trust';
 import { PpSiteLandCompliance } from './sections/compliance';
 import { PpSiteLandLeave } from './sections/leave';
 
@@ -17,7 +20,7 @@ import { PpSiteLandLeave } from './sections/leave';
  */
 @Component({
   selector: 'app-site-landing-gallery',
-  imports: [PpSiteStage, PpSiteLandPilot, PpSiteLandHero, PpSiteLandModules, PpSiteLandBatsi, PpSiteLandRecruitment, PpSiteLandOnboarding, PpSiteLandCompliance, PpSiteLandLeave, PpSiteLandAbout],
+  imports: [PpSiteStage, PpSiteLandPilot, PpSiteLandHero, PpSiteLandModules, PpSiteLandBatsi, PpSiteLandRecruitment, PpSiteLandOnboarding, PpSiteLandCompliance, PpSiteLandLeave, PpSiteLandTrust, PpSiteLandIntegrations, PpSiteLandPlatform, PpSiteLandAbout],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="pp-stack pp-gap-600" aria-label="Landing sections">
@@ -39,6 +42,12 @@ import { PpSiteLandLeave } from './sections/leave';
           <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandCompliance></section></div></div></section>
         <section class="pp-stack pp-gap-200" [id]="'land-leave-' + d.id" [attr.data-example]="'Leave Management, ' + d.id" data-part="landing"><h2 class="pp-text-heading-small">Leave Management, {{ d.id }}</h2>
           <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandLeave></section></div></div></section>
+        <section class="pp-stack pp-gap-200" [id]="'land-trust-' + d.id" [attr.data-example]="'Trust and POPIA, ' + d.id" data-part="landing"><h2 class="pp-text-heading-small">Trust and POPIA, {{ d.id }}</h2>
+          <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandTrust></section></div></div></section>
+        <section class="pp-stack pp-gap-200" [id]="'land-integrations-' + d.id" [attr.data-example]="'Integrations, ' + d.id" data-part="landing"><h2 class="pp-text-heading-small">Integrations, {{ d.id }}</h2>
+          <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandIntegrations></section></div></div></section>
+        <section class="pp-stack pp-gap-200" [id]="'land-platform-' + d.id" [attr.data-example]="'Platform, ' + d.id" data-part="landing"><h2 class="pp-text-heading-small">Platform, {{ d.id }}</h2>
+          <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandPlatform></section></div></div></section>
         <section class="pp-stack pp-gap-200" [id]="'land-about-' + d.id" [attr.data-example]="'About, ' + d.id" data-part="landing"><h2 class="pp-text-heading-small">About, {{ d.id }}</h2>
           <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandAbout></section></div></div></section>
       }

@@ -32,7 +32,7 @@ export const LANDING_LIGHTS_PHONE: readonly SiteLight[] = [
   providers: [DemoClock],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section ppSiteHero id="main" reveal [lights]="lights()" [chips]="chips" eyebrow="People, risk and compliance platform" line="Every employee"
+    <section ppSiteHero reveal [lights]="lights()" [chips]="chips" eyebrow="People, risk and compliance platform" line="Every employee"
       accent="hired, onboarded and compliant." lead="One employee record across every module, with Batsi doing the follow-ups and checks in between.">
       <p ppHeroIntro><strong>Naleko People</strong> runs recruitment, onboarding, leave and compliance for South African organisations. Batsi follows up, reads documents and flags risks. HR approves every action.</p>
       <a class="pp-site-button pp-site-button--dark pp-site-button--large" href="#demo"><span>Book a demo</span><svg ppIcon="arrow-right" /></a>

@@ -214,6 +214,7 @@ export class PpSiteLandOnboarding {
   private readonly clock = inject(DemoClock);
   private readonly el = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly win = inject(DOCUMENT).defaultView;
+  private readonly destroyRef = inject(DestroyRef);
   /** The step whose top is above 55% of the window is the current one; -1 before the first. */
   protected readonly idx = signal(-1);
   protected readonly live = signal(false);
@@ -232,7 +233,7 @@ export class PpSiteLandOnboarding {
       this.live.set(true);
       const onScroll = (): void => this.scrolled();
       win.addEventListener('scroll', onScroll, { passive: true });
-      inject(DestroyRef).onDestroy(() => win.removeEventListener('scroll', onScroll));
+      this.destroyRef.onDestroy(() => win.removeEventListener('scroll', onScroll));
       this.scrolled();
     });
   }
