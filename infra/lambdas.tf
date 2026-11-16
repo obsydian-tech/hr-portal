@@ -1128,3 +1128,67 @@ resource "aws_lambda_function" "record_consent" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+
+# ─── ONB-18: getInvite ──────────────────────────────────────────────────────
+resource "aws_lambda_function" "get_invite" {
+  function_name = "getInvite"
+  role          = aws_iam_role.get_invite.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      INVITES_TABLE = aws_dynamodb_table.employee_invites.name
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getInvite"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── ONB-18: resendInvite ───────────────────────────────────────────────────
+resource "aws_lambda_function" "resend_invite" {
+  function_name = "resendInvite"
+  role          = aws_iam_role.resend_invite.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 256
+  timeout       = 15
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      POSTMARK_API_TOKEN    = data.aws_ssm_parameter.postmark_token.value
+      POSTMARK_SENDER_EMAIL = "ignecious@obsydiantechnologies.com"
+      COGNITO_POOL_ID       = aws_cognito_user_pool.naleko_dev.id
+      COMPANY_NAME          = var.company_name
+      APP_URL               = var.app_url
+      INVITES_TABLE         = aws_dynamodb_table.employee_invites.name
+      INVITE_TEST_LINK      = var.environment == "dev" ? "true" : "false"
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/resendInvite"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
