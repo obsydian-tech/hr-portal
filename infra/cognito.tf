@@ -43,6 +43,10 @@ resource "aws_cognito_user_pool" "naleko_dev" {
     default_email_option = "CONFIRM_WITH_CODE"
   }
 
+  user_attribute_update_settings {
+    attributes_require_verification_before_update = ["email"]
+  }
+
   sign_in_policy {
     allowed_first_auth_factors = ["PASSWORD"]
   }
@@ -172,9 +176,10 @@ resource "aws_cognito_user_group" "e2e_robots" {
 }
 
 # ── Web app client ───────────────────────────────────────────────────────────
-# Prod's app client (1pk5rd58glsohfplnlr63tg0qb) was created by hand and is not
-# in Terraform yet. Other accounts (pepla-dev) get a managed one here.
-# Follow-up: import the prod client and drop the count.
+# Other accounts (pepla-dev) get a managed client here. Prod's client
+# (1pk5rd58glsohfplnlr63tg0qb) was created by hand; web_prod below describes it
+# and cognito-client-imports.tf imports it. People can write only given_name and
+# family_name: never email or custom attributes (BE-17.1).
 resource "aws_cognito_user_pool_client" "web" {
   count = var.environment == "prod" ? 0 : 1
 
@@ -189,8 +194,27 @@ resource "aws_cognito_user_pool_client" "web" {
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
   prevent_user_existence_errors = "ENABLED"
+  write_attributes              = ["given_name", "family_name"]
+}
+
+# The prod plan must show this client imported and updated in place, with only
+# write_attributes (and possibly prevent_user_existence_errors) changing. Any other
+# change, or a replace, means these settings do not match the real client: fix them
+# here before the release.
+resource "aws_cognito_user_pool_client" "web_prod" {
+  count = var.environment == "prod" ? 1 : 0
+
+  name            = "pepla-web"
+  user_pool_id    = aws_cognito_user_pool.naleko_dev.id
+  generate_secret = false
+  explicit_auth_flows = [
+    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+  ]
+  prevent_user_existence_errors = "ENABLED"
+  write_attributes              = ["given_name", "family_name"]
 }
 
 locals {
-  naleko_web_client_id = var.environment == "prod" ? "1pk5rd58glsohfplnlr63tg0qb" : aws_cognito_user_pool_client.web[0].id
+  naleko_web_client_id = var.environment == "prod" ? aws_cognito_user_pool_client.web_prod[0].id : aws_cognito_user_pool_client.web[0].id
 }
