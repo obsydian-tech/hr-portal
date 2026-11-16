@@ -112,8 +112,8 @@
 <section class="pp-stack pp-gap-200" id="header-at-the-top-of-the-page-desktop" data-part="header" data-example="At the top of the page (desktop)">
   <h2 class="pp-text-heading-small">At the top of the page (desktop)</h2>
   <div data-example-body>
-    <div ppSiteFrame device="desktop">
-      <header ppSiteHeader></header>
+    <div ppSiteFrame mainId="main-1" device="desktop">
+      <header ppSiteHeader mainId="main-1"></header>
       @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
     </div>
   </div>
@@ -121,8 +121,8 @@
 <section class="pp-stack pp-gap-200" id="header-after-scrolling-frosted-and-shorter" data-part="header" data-example="After scrolling: frosted and shorter">
   <h2 class="pp-text-heading-small">After scrolling: frosted and shorter</h2>
   <div data-example-body>
-    <div ppSiteFrame device="desktop" scrolled>
-      <header ppSiteHeader></header>
+    <div ppSiteFrame mainId="main-2" device="desktop" scrolled>
+      <header ppSiteHeader mainId="main-2"></header>
       @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
     </div>
   </div>
@@ -130,8 +130,8 @@
 <section class="pp-stack pp-gap-200" id="header-phone-logo-book-a-demo-hidden-under-520px-menu-button" data-part="header" data-example="Phone: logo, Book a demo hidden under 520px, menu button">
   <h2 class="pp-text-heading-small">Phone: logo, Book a demo hidden under 520px, menu button</h2>
   <div data-example-body>
-    <div ppSiteFrame device="phone">
-      <header ppSiteHeader></header>
+    <div ppSiteFrame mainId="main-3" device="phone">
+      <header ppSiteHeader mainId="main-3"></header>
       @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
     </div>
   </div>
@@ -139,8 +139,8 @@
 <section class="pp-stack pp-gap-200" id="menu-product-list-open-wide-two-columns" data-part="menu" data-example="Product list open (wide, two columns)">
   <h2 class="pp-text-heading-small">Product list open (wide, two columns)</h2>
   <div data-example-body>
-    <div ppSiteFrame device="desktop">
-      <header ppSiteHeader openList="product"></header>
+    <div ppSiteFrame mainId="main-4" device="desktop">
+      <header ppSiteHeader mainId="main-4" openList="product"></header>
       @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
     </div>
   </div>
@@ -148,8 +148,8 @@
 <section class="pp-stack pp-gap-200" id="menu-integrations-list-open-medium-one-column" data-part="menu" data-example="Integrations list open (medium, one column)">
   <h2 class="pp-text-heading-small">Integrations list open (medium, one column)</h2>
   <div data-example-body>
-    <div ppSiteFrame device="desktop">
-      <header ppSiteHeader openList="integrations"></header>
+    <div ppSiteFrame mainId="main-5" device="desktop">
+      <header ppSiteHeader mainId="main-5" openList="integrations"></header>
       @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
     </div>
   </div>
@@ -157,8 +157,8 @@
 <section class="pp-stack pp-gap-200" id="menu-resources-list-open-narrow" data-part="menu" data-example="Resources list open (narrow)">
   <h2 class="pp-text-heading-small">Resources list open (narrow)</h2>
   <div data-example-body>
-    <div ppSiteFrame device="desktop">
-      <header ppSiteHeader openList="resources"></header>
+    <div ppSiteFrame mainId="main-6" device="desktop">
+      <header ppSiteHeader mainId="main-6" openList="resources"></header>
       @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
     </div>
   </div>
@@ -166,8 +166,8 @@
 <section class="pp-stack pp-gap-200" id="sheet-closed-phone" data-part="sheet" data-example="Closed (phone)">
   <h2 class="pp-text-heading-small">Closed (phone)</h2>
   <div data-example-body>
-    <div ppSiteFrame device="phone">
-      <header ppSiteHeader></header>
+    <div ppSiteFrame mainId="main-7" device="phone">
+      <header ppSiteHeader mainId="main-7"></header>
       @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
       <div ppSiteSheet></div>
     </div>
@@ -176,8 +176,8 @@
 <section class="pp-stack pp-gap-200" id="sheet-open-phone" data-part="sheet" data-example="Open (phone)">
   <h2 class="pp-text-heading-small">Open (phone)</h2>
   <div data-example-body>
-    <div ppSiteFrame device="phone" sheetOpen>
-      <header ppSiteHeader></header>
+    <div ppSiteFrame mainId="main-8" device="phone" sheetOpen>
+      <header ppSiteHeader mainId="main-8"></header>
       @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
       <div ppSiteSheet></div>
     </div>
@@ -186,8 +186,8 @@
 <section class="pp-stack pp-gap-200" id="footer-desktop-brand-five-lists-and-the-legal-row" data-part="footer" data-example="Desktop: brand, five lists and the legal row">
   <h2 class="pp-text-heading-small">Desktop: brand, five lists and the legal row</h2>
   <div data-example-body>
-    <div ppSiteFrame device="desktop">
-      <header ppSiteHeader></header>
+    <div ppSiteFrame mainId="main-9" device="desktop">
+      <header ppSiteHeader mainId="main-9"></header>
       @for (text of footerFiller; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
       <footer ppSiteFooter></footer>
     </div>
@@ -196,8 +196,8 @@
 <section class="pp-stack pp-gap-200" id="footer-phone-two-columns-links-stacked" data-part="footer" data-example="Phone: two columns, links stacked">
   <h2 class="pp-text-heading-small">Phone: two columns, links stacked</h2>
   <div data-example-body>
-    <div ppSiteFrame device="phone">
-      <header ppSiteHeader></header>
+    <div ppSiteFrame mainId="main-10" device="phone">
+      <header ppSiteHeader mainId="main-10"></header>
       @for (text of footerFiller; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
       <footer ppSiteFooter></footer>
       <div ppSiteSheet></div>
@@ -295,7 +295,13 @@
   <h2 class="pp-text-heading-small">Arrival on scroll</h2>
   <div data-example-body class="pp-stack pp-gap-200">
     @for (text of spacer; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
-    <div ppSiteStage device="desktop">
+    <div ppSiteStage>
+      <section ppSiteHero reveal [lights]="heroDesktop" [chips]="chips" eyebrow="People, risk and compliance platform" line="Every employee"
+               accent="hired, onboarded and compliant." lead="One employee record across every module, with Batsi doing the follow-ups and checks in between.">
+        <p ppHeroIntro><strong>Naleko People</strong> runs recruitment, onboarding, leave and compliance for South African organisations. Batsi follows up, reads documents and flags risks. HR approves every action.</p>
+        <a ppSiteButton large href="#demo">Book a demo</a>
+        <button ppSiteButton variant="line" large icon="sparkles" type="button">Ask Batsi</button>
+      </section>
       <section ppSiteSection titleId="arrival-recruitment">
         <div ppSiteWrap>
           <div ppSiteSectionHead reveal titleId="arrival-recruitment" eyebrow="Recruitment" title="Every candidate tracked from application to signed offer."

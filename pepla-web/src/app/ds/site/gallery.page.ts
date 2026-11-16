@@ -15,8 +15,19 @@ import { PP_SITE, SiteCap, SiteLight } from './index';
   imports: [...PP_SITE, PpCard, PpCardBody, PpIcon, PpLozenge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './gallery.page.html',
+  host: { '(click)': 'noNavigate($event)' },
 })
 export class SiteGalleryPage {
+  /**
+   * The links in the kit examples have no real target (`#`, `#demo`, `#batsi`). Under `<base href="/">` a bare hash
+   * would load `/`, so a tap on one is cancelled unless its target is on this page (the skip link's own `#main-n`).
+   */
+  protected noNavigate(event: Event): void {
+    const a = (event.target as Element | null)?.closest?.('a[href^="#"]');
+    if (!a) return;
+    const id = a.getAttribute('href')!.slice(1);
+    if (!id || !document.getElementById(id)) event.preventDefault();
+  }
   protected readonly three: SiteLight[] = [
     { tone: 'violet', x: '70%', y: '30%', index: 0 }, { tone: 'mint', x: '88%', y: '85%', size: '34cqw', index: 1 }, { tone: 'coral', x: '15%', y: '85%', size: '36cqw', index: 2 },
   ];
