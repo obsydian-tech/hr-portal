@@ -100,6 +100,13 @@ resource "aws_apigatewayv2_stage" "employees_api_default" {
     throttling_rate_limit  = 5
   }
 
+  # ONB-18: resend
+  route_settings {
+    route_key              = "POST /v1/employees/{id}/invite"
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
+  }
+
   lifecycle {
     ignore_changes = [deployment_id]
   }
@@ -572,6 +579,54 @@ resource "aws_lambda_permission" "redeem_invite" {
   statement_id  = "AllowEmployeesAPIInvokeRedeemInvite"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.redeem_invite.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}
+
+# ONB-18: GET /v1/employees/{id}/invite  (employees_api, HR only)
+resource "aws_apigatewayv2_integration" "get_invite" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_invite.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_invite" {
+  api_id             = aws_apigatewayv2_api.employees_api.id
+  route_key          = "GET /v1/employees/{id}/invite"
+  target             = "integrations/${aws_apigatewayv2_integration.get_invite.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.employees_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_invite" {
+  statement_id  = "AllowEmployeesAPIInvokeGetInvite"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_invite.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}
+
+# ONB-18: POST /v1/employees/{id}/invite  (employees_api, HR only)
+resource "aws_apigatewayv2_integration" "resend_invite" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.resend_invite.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "resend_invite" {
+  api_id             = aws_apigatewayv2_api.employees_api.id
+  route_key          = "POST /v1/employees/{id}/invite"
+  target             = "integrations/${aws_apigatewayv2_integration.resend_invite.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.employees_api_cognito.id
+}
+
+resource "aws_lambda_permission" "resend_invite" {
+  statement_id  = "AllowEmployeesAPIInvokeResendInvite"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.resend_invite.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
 }

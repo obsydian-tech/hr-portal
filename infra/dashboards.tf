@@ -17,6 +17,8 @@ module "dashboards" {
     "checkEmployeeEmail",
     "lookupInvite",
     "redeemInvite",
+    "getInvite",
+    "resendInvite",
     "getEmployees",
     "uploadDocumentToS3",
     "processDocumentOCR",

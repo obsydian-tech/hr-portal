@@ -419,6 +419,99 @@ paths:
                     type: string
         "400":
           description: The body is missing or not JSON.
+  /v1/employees/{id}/invite:
+    get:
+      tags: [Invites]
+      operationId: getInvite
+      summary: The invite link of one Invited person (HR only, ONB-18)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The latest link. sentAt, expiresAt and sentTo are left out when status is none.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, expired, used, none]
+                  sentAt:
+                    type: string
+                    format: date-time
+                  expiresAt:
+                    type: string
+                    format: date-time
+                  sentTo:
+                    type: string
+        "403":
+          description: Only HR can see the invite link.
+        "404":
+          description: No such employee.
+    post:
+      tags: [Invites]
+      operationId: resendInvite
+      summary: Close the link and send a new one (HR only, ONB-18)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A new link is made and the old one is closed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  sentAt:
+                    type: string
+                    format: date-time
+                  expiresAt:
+                    type: string
+                    format: date-time
+                  sentTo:
+                    type: string
+                  email:
+                    type: object
+                    properties:
+                      sent:
+                        type: boolean
+                      skipped:
+                        type: string
+        "403":
+          description: Only HR can send a new link.
+        "404":
+          description: No such employee.
+        "409":
+          description: The person is not Invited, or the sign-in is already in use or disabled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [not-invited, refused]
+        "502":
+          description: The link could not be made.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [failed]
   /v1/invites/redeem:
     post:
       tags: [Invites]

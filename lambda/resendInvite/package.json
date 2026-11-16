@@ -1,0 +1,9 @@
+{
+  "name": "resendInvite-lambda",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0",
+    "postmark": "^4.0.5"
+  }
+}
