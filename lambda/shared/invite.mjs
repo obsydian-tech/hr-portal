@@ -31,6 +31,8 @@ export async function signInState(pool, email) {
     if (e?.name === 'UserNotFoundException') return { ok: false, reason: 'missing' };
     throw e;
   }
+  // ONB-18 (L-1): a disabled sign-in is never finished by a link.
+  if (user?.Enabled === false) return { ok: false, reason: 'disabled' };
   if (user?.UserStatus !== 'FORCE_CHANGE_PASSWORD') return { ok: false, reason: 'status' };
   const groups = [];
   let next;
@@ -114,7 +116,7 @@ export async function issueInvite({ employee, hrPartner, sentBy }) {
     },
     ConditionExpression: 'attribute_not_exists(token_hash)',
   }));
-  return { token, expiresAt: expires.toISOString(), link: `${appUrl}/set-password#token=${token}` };
+  return { token, sentAt: createdAt, expiresAt: expires.toISOString(), link: `${appUrl}/set-password#token=${token}` };
 }
 
 /** The invite row for a token and what state it is in: 'ok' | 'expired' | 'used' | 'invalid'. */

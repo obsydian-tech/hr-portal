@@ -329,6 +329,20 @@ resource "aws_cloudwatch_log_metric_filter" "invite_failed" {
   }
 }
 
+# ONB-18: resendInvite could not send a new link; counted by the same alarm.
+resource "aws_cloudwatch_log_metric_filter" "invite_failed_resend" {
+  name           = "InviteFailedResend"
+  log_group_name = "/aws/lambda/resendInvite"
+  pattern        = "{ $.message = \"Invite failed\" }"
+
+  metric_transformation {
+    name          = "InviteFailed"
+    namespace     = "Naleko/Onboarding"
+    value         = "1"
+    default_value = 0
+  }
+}
+
 resource "aws_cloudwatch_metric_alarm" "invite_failed" {
   alarm_name          = "naleko-createEmployee-InviteFailed"
   namespace           = "Naleko/Onboarding"

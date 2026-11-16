@@ -37,6 +37,8 @@ module "kms_pii" {
     aws_iam_role.check_employee_email.arn,
     aws_iam_role.lookup_invite.arn,
     aws_iam_role.redeem_invite.arn,
+    aws_iam_role.get_invite.arn,
+    aws_iam_role.resend_invite.arn,
     # ONB-05: both routes read the encrypted employees table (email-index) and employee_consents.
     aws_iam_role.get_my_start.arn,
     aws_iam_role.record_consent.arn,

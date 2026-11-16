@@ -1968,6 +1968,120 @@ resource "aws_iam_role_policy" "record_consent" {
   })
 }
 
+# ─── ONB-18: getInvite ──────────────────────────────────────────────────────
+resource "aws_iam_role" "get_invite" {
+  name        = "naleko-getInvite-role"
+  description = "Execution role for getInvite Lambda (ONB-18)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_invite" {
+  name = "naleko-getInvite-policy"
+  role = aws_iam_role.get_invite.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getInvite:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "EmployeeRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "InviteIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "${aws_dynamodb_table.employee_invites.arn}/index/employee-index"
+      }
+    ]
+  })
+}
+
+# ─── ONB-18: resendInvite ───────────────────────────────────────────────────
+resource "aws_iam_role" "resend_invite" {
+  name        = "naleko-resendInvite-role"
+  description = "Execution role for resendInvite Lambda (ONB-18)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "resend_invite" {
+  name = "naleko-resendInvite-policy"
+  role = aws_iam_role.resend_invite.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/resendInvite:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "EmployeeRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "InviteWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem", "dynamodb:UpdateItem"]
+        Resource = aws_dynamodb_table.employee_invites.arn
+      },
+      {
+        Sid      = "InviteIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "${aws_dynamodb_table.employee_invites.arn}/index/employee-index"
+      },
+      {
+        Sid      = "Cognito"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminCreateUser", "cognito-idp:AdminAddUserToGroup", "cognito-idp:AdminGetUser", "cognito-idp:AdminListGroupsForUser"]
+        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
+      }
+    ]
+  })
+}
+
 # ─── ONB-24 ──────────────────────────────────────────────────────────────────
 resource "aws_iam_role" "cognito_email_sender" {
   name = "naleko-cognitoEmailSender-role"

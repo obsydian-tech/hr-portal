@@ -11,6 +11,7 @@ import { KMSClient, EncryptCommand } from "@aws-sdk/client-kms";
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
 import { randomUUID } from "crypto";
 import { issueInvite } from '../shared/invite.mjs';
+import { inviteEmail } from '../shared/invite-email.mjs';
 import { isRobotEmail, isRobotCaller } from '../shared/ai-guard.mjs';
 import postmark from "postmark";
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -267,13 +268,13 @@ const handlerFn = async (event) => {
       try {
         const client = getMailClient();
         if (client) {
-          const words = { first: body.first_name, hr: hrName, hrFirst: hrName.split(' ')[0], link: invite.link, sent: saDate(new Date()), expires: saDate(new Date(invite.expiresAt)) };
+          const m = inviteEmail({ company: COMPANY_NAME, firstName: body.first_name, hrName, link: invite.link, sentAt: invite.sentAt, expiresAt: invite.expiresAt });
           await client.sendEmail({
             From: SENDER_EMAIL,
             To: body.email,
-            Subject: `${COMPANY_NAME}: set your password for Naleko People`,
-            HtmlBody: buildInviteEmail(words),
-            TextBody: buildInviteText(words),
+            Subject: m.subject,
+            HtmlBody: m.html,
+            TextBody: m.text,
             MessageStream: "outbound",
           });
           emailSent = true;
@@ -345,42 +346,6 @@ export const handler = async (event) => {
   const key = event.headers?.['idempotency-key'];
   return withIdempotency(key, () => handlerFn(event));
 };
-
-const SA_DATE = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Johannesburg', day: 'numeric', month: 'short', year: 'numeric' });
-function saDate(d) { return SA_DATE.format(d).replace('Sept', 'Sep'); }
-const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-function footerText(w) {
-  return `Sent by ${w.hr}, HR at ${COMPANY_NAME}, on ${w.sent}. The link works once and expires on ${w.expires}. If it has expired, ask ${w.hrFirst} for a new one.`;
-}
-function leadText(w) {
-  return `Hi ${w.first}. ${COMPANY_NAME} uses Naleko People for new employees. Set your password, then upload your ID and bank letter.`;
-}
-
-function buildInviteEmail(w) {
-  return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${esc(COMPANY_NAME)}</title></head>
-<body style="margin:0;padding:0;background:#f7f3ec;font-family:Arial,sans-serif;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:24px 12px;"><tr><td align="center">
-<table role="presentation" cellspacing="0" cellpadding="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px;"><tr><td style="padding:24px;">
-<h1 style="margin:0 0 12px;font-size:24px;color:#1a1a2e;">Get ready for your first day</h1>
-<p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:#333;">${esc(leadText(w))}</p>
-<p style="margin:0 0 24px;"><a href="${esc(w.link)}" style="display:inline-block;background:#6d4aff;color:#fff;font-size:16px;font-weight:700;text-decoration:none;padding:14px 28px;line-height:20px;border-radius:8px;">Set your password</a></p>
-<p style="margin:0;font-size:13px;line-height:1.5;color:#666;">${esc(footerText(w))}</p>
-</td></tr></table></td></tr></table></body></html>`;
-}
-
-function buildInviteText(w) {
-  return `Get ready for your first day
-
-${leadText(w)}
-
-Set your password:
-${w.link}
-
-${footerText(w)}
-`;
-}
 
 // NH-28: generateEmployeeId() removed — replaced with randomUUID() inline.
 // UUID v4 eliminates the O(n) full-table Scan that was needed to derive the

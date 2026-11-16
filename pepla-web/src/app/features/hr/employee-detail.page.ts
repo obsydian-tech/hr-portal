@@ -5,12 +5,13 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import {
   PpBreadcrumbs, PpButton, PpCard, PpDescriptionList, PpEmptyState, PpEmptyStateActions, PpLink, PpLozenge, PpPersonHeader,
-  PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpVerification, formatDate, mask,
+  PpInlineMessage, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpVerification, formatDate, mask,
   type Crumb, type DlItem, type IconName, type PersonFact, type Status,
 } from '../../ds';
 import { EmployeeDetailError, EmployeeDetailService } from '../../core/employees/employee-detail.service';
 import { CHECK_WORD, DECISION_WORD, type Check, type EmployeeDetail, type EmployeeDocument } from '../../core/employees/employee-detail';
 import type { Step } from '../../core/employees/employee';
+import { InviteService, type InviteInfo } from '../../core/employees/invite.service';
 
 const SOUTH_AFRICA = 'Africa/Johannesburg';
 const TITLE = 'Naleko People';
@@ -35,6 +36,13 @@ function dayOf(iso: string): string {
   return formatDate(`${day}T12:00:00`, { year: true });
 }
 
+const WHEN = new Intl.DateTimeFormat('en-GB', { timeZone: SOUTH_AFRICA, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+/** "11 Nov 2026, 14:32" in South Africa time. */
+function when(iso: string): string {
+  const parts = Object.fromEntries(WHEN.formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return `${parts['day']} ${String(parts['month']).replace('Sept', 'Sep')} ${parts['year']}, ${parts['hour']}:${parts['minute']}`;
+}
+
 /**
  * One new employee: who they are, their step, and every document with Batsi's check and HR's decision.
  * The ID number shows its last four digits until HR presses Show. Reads one answer from the document
@@ -44,7 +52,7 @@ function dayOf(iso: string): string {
   selector: 'app-employee-detail',
   imports: [
     RouterLink, PpBreadcrumbs, PpButton, PpCard, PpDescriptionList, PpEmptyState, PpEmptyStateActions, PpLink, PpLozenge, PpPersonHeader,
-    PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpVerification,
+    PpInlineMessage, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpVerification,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -86,6 +94,20 @@ function dayOf(iso: string): string {
               }
             </pp-person-header>
 
+            @if (invite(); as inv) {
+              <pp-card heading="Invite link" [level]="2">
+                <div class="pp-stack pp-gap-200">
+                  <p class="pp-text">{{ firstName(p) }} sets their own password from this link</p>
+                  <div aria-live="polite">
+                    @if (inv.status !== 'none') { <pp-description-list [items]="inviteItems(inv)" /> }
+                    @if (notSent()) { <pp-inline-message tone="error">The welcome email was not sent.</pp-inline-message> }
+                  </div>
+                  @if (inv.status !== 'none') { <p class="pp-text">Resending closes this link and sends a new one that works for 7 days.</p> }
+                  <div><button ppButton type="button" size="large" [busy]="sending()" [disabled]="sending()" (click)="resend(p.id)">Resend link</button></div>
+                </div>
+              </pp-card>
+            }
+
             <section class="pp-stack pp-gap-200" aria-labelledby="documents-heading">
               <h2 id="documents-heading" class="pp-heading pp-heading--medium">Documents</h2>
               @for (group of p.byType; track group.type) {
@@ -122,6 +144,10 @@ export class EmployeeDetailPage {
   protected readonly placeholders = [1, 2, 3, 4];
   protected readonly status = signal<'loading' | 'ready' | 'not-found' | 'failed'>('loading');
   protected readonly person = signal<EmployeeDetail | null>(null);
+  private readonly invites = inject(InviteService);
+  protected readonly invite = signal<InviteInfo | null>(null);
+  protected readonly sending = signal(false);
+  protected readonly notSent = signal(false);
 
   protected readonly facts = computed<PersonFact[]>(() => {
     const p = this.person();
@@ -153,11 +179,43 @@ export class EmployeeDetailPage {
       this.person.set(person);
       this.title.setTitle(`${person.name} · ${TITLE}`);
       this.status.set('ready');
+      this.invite.set(null);
+      this.notSent.set(false);
+      if (person.step === 'Invited') {
+        const inv = await this.invites.load(id);
+        if (id === this.id() && inv && (inv.status === 'ok' || inv.status === 'expired' || inv.status === 'none')) {
+          this.invite.set(inv);
+          this.notSent.set(inv.status === 'none');
+        }
+      }
     } catch (err) {
       if (id !== this.id()) return;
       this.title.setTitle(`Employee · ${TITLE}`);
       this.status.set(err instanceof EmployeeDetailError && err.reason === 'not-found' ? 'not-found' : 'failed');
     }
+  }
+
+  protected firstName(p: EmployeeDetail): string {
+    return p.name.split(' ')[0] ?? '';
+  }
+
+  protected inviteItems(inv: InviteInfo): DlItem[] {
+    return [
+      { term: 'Link sent', value: `${when(inv.sentAt!)}, to ${inv.sentTo ?? ''}` },
+      { term: inv.status === 'expired' ? 'Link expired' : 'Link expires', value: when(inv.expiresAt!) },
+    ];
+  }
+
+  protected async resend(id: string): Promise<void> {
+    if (this.sending()) return;
+    this.sending.set(true);
+    const r = await this.invites.resend(id);
+    this.sending.set(false);
+    if (id !== this.id()) return; // HR moved to another person while the call was out
+    if (r.kind === 'not-invited') { void this.load(); return; }
+    if (r.kind === 'failed') { this.notSent.set(true); return; }
+    this.invite.set({ status: 'ok', sentAt: r.sentAt, expiresAt: r.expiresAt, sentTo: r.sentTo });
+    this.notSent.set(!r.emailSent && !r.skipped);
   }
 
   protected stepLozenge(step: Step) {

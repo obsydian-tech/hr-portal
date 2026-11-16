@@ -8,6 +8,9 @@ module "alarms" {
 
   source = "./modules/alarms"
 
+  # ONB-18: the InviteFailed filter for resendInvite names its log group, which cloudwatch.tf creates.
+  depends_on = [aws_cloudwatch_log_group.lambda]
+
   region      = var.aws_region
   environment = var.environment
   ops_email   = var.ops_email
