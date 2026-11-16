@@ -29,6 +29,15 @@ function broken(p: string): string[] {
   return out;
 }
 
+/** A mangled link (a stray % in the address) is a broken link, not a crash. */
+function safeDecode(value: string): string | null {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+}
+
 type State = 'loading' | 'unreachable' | 'form' | 'expired' | 'signInFailed';
 
 @Component({
@@ -88,7 +97,9 @@ export class SetPasswordPage {
   protected readonly companyLine = computed(() => {
     const d = this.startDate();
     if (!d) return this.company();
-    const when = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`));
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T00:00:00Z`) : null;
+    if (!parsed || Number.isNaN(parsed.getTime())) return this.company();
+    const when = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(parsed);
     return `${this.company()} · Starts ${when}`;
   });
   protected readonly expiredLead = computed(() =>
@@ -99,7 +110,7 @@ export class SetPasswordPage {
 
   constructor() {
     const m = /(?:^#|&)token=([^&]*)/.exec(window.location.hash);
-    this.token = m && m[1] ? decodeURIComponent(m[1]) : null;
+    this.token = m && m[1] ? safeDecode(m[1]) : null;
     void firstValueFrom(this.router.events.pipe(filter((e) => e instanceof NavigationEnd || e instanceof NavigationCancel || e instanceof NavigationError), take(1))).then(() => {
       history.replaceState(history.state, '', window.location.pathname + window.location.search);
       if (!this.token) return this.state.set('expired');
