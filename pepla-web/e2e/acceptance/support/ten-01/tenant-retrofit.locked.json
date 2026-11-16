@@ -1,0 +1,30 @@
+{
+  "about": "TEN-01 locked copy of lambda/shared/tenant-retrofit.json: every Lambda folder that may go without lambda/shared/tenant.mjs. The builder's list may hold any of these names and no other. 'develop' is every Lambda folder on develop at 71fe5b8 whose own source names an onboarding table or its setting and does not import the helper: the spec's 22, plus lookupEmployeeEmail (reads employees by name) and ONB-18's getInvite and resendInvite, less nalekoAiChat (reaches the tables only through the Agent API). Nothing is pending: ONB-24, ONB-05 and ONB-18 have merged.",
+  "develop": [
+    "checkEmployeeEmail",
+    "classifyOnboardingRisk",
+    "cognitoPostAuth",
+    "createEmployee",
+    "generateDocumentUploadUrl",
+    "getBatchRiskReport",
+    "getDocumentPresignedUrl",
+    "getDocumentVerifications",
+    "getEmployee",
+    "getEmployeeByEmail",
+    "getEmployeeDocumentVerifications",
+    "getEmployees",
+    "getInvite",
+    "getSingleDocumentVerification",
+    "lookupEmployeeEmail",
+    "lookupInvite",
+    "processDocumentOCR",
+    "redeemInvite",
+    "resendInvite",
+    "reviewDocumentVerification",
+    "sendNotificationEmail",
+    "summariseVerification",
+    "triggerExternalVerification",
+    "uploadDocumentToS3"
+  ],
+  "pending": []
+}
