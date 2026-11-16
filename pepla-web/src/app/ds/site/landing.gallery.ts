@@ -7,6 +7,8 @@ import { PpSiteLandOnboarding } from './sections/onboarding';
 import { PpSiteLandPilot } from './sections/pilot';
 import { PpSiteLandRecruitment } from './sections/recruitment';
 import { PpSiteLandAbout } from './sections/about';
+import { PpSiteLandCompliance } from './sections/compliance';
+import { PpSiteLandLeave } from './sections/leave';
 
 /**
  * /dev/site-landing: each landing section on its own, desktop and phone, as the kit's "Site landing page" shows it, so the tests,
@@ -15,7 +17,7 @@ import { PpSiteLandAbout } from './sections/about';
  */
 @Component({
   selector: 'app-site-landing-gallery',
-  imports: [PpSiteStage, PpSiteLandPilot, PpSiteLandHero, PpSiteLandModules, PpSiteLandBatsi, PpSiteLandRecruitment, PpSiteLandOnboarding, PpSiteLandAbout],
+  imports: [PpSiteStage, PpSiteLandPilot, PpSiteLandHero, PpSiteLandModules, PpSiteLandBatsi, PpSiteLandRecruitment, PpSiteLandOnboarding, PpSiteLandCompliance, PpSiteLandLeave, PpSiteLandAbout],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="pp-stack pp-gap-600" aria-label="Landing sections">
@@ -33,6 +35,10 @@ import { PpSiteLandAbout } from './sections/about';
           <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandRecruitment></section></div></div></section>
         <section class="pp-stack pp-gap-200" [id]="'land-onboarding-' + d.id" [attr.data-example]="'Onboarding and Offboarding, ' + d.id" data-part="landing"><h2 class="pp-text-heading-small">Onboarding and Offboarding, {{ d.id }}</h2>
           <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandOnboarding></section></div></div></section>
+        <section class="pp-stack pp-gap-200" [id]="'land-compliance-' + d.id" [attr.data-example]="'Compliance Management, ' + d.id" data-part="landing"><h2 class="pp-text-heading-small">Compliance Management, {{ d.id }}</h2>
+          <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandCompliance></section></div></div></section>
+        <section class="pp-stack pp-gap-200" [id]="'land-leave-' + d.id" [attr.data-example]="'Leave Management, ' + d.id" data-part="landing"><h2 class="pp-text-heading-small">Leave Management, {{ d.id }}</h2>
+          <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandLeave></section></div></div></section>
         <section class="pp-stack pp-gap-200" [id]="'land-about-' + d.id" [attr.data-example]="'About, ' + d.id" data-part="landing"><h2 class="pp-text-heading-small">About, {{ d.id }}</h2>
           <div data-example-body><div ppSiteStage [device]="d.id"><section ppSiteLandAbout></section></div></div></section>
       }
