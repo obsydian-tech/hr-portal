@@ -34,3 +34,8 @@ An extra AC-9 test folds in the ONB-23 security review's probes (findings L-1 an
 - `support/cognito-fake.ts`, add only: `ForgotPassword` and `ConfirmForgotPassword` as the real pool answers
   them with PreventUserExistenceErrors on, `failNext`, `hold`, `codeFor`, `expireCode` and `callsTo`. A
   password set by a reset is checked for real at sign-in (SRP); every other account signs in as before.
+
+## Changed with BE-17.1 (lock onb-24.2)
+
+AC-13's pool check also leaves out `user_attribute_update_settings` (BE-17.1's change to the same pool,
+checked by be-17.1.spec.ts AC-4). Nothing else changes.

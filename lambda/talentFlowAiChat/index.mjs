@@ -22,6 +22,7 @@ import { DynamoDBClient, PutItemCommand, UpdateItemCommand }   from '@aws-sdk/cl
 import { createHash }                                          from 'node:crypto';
 import { marshall }                                            from '@aws-sdk/util-dynamodb';
 import { resolveToolCall, TOOL_DEFINITIONS }                   from './tool-resolver.mjs';
+import { inGroup } from '../shared/hr-group.mjs';
 import { sanitisePii }                                         from './pii-sanitiser.mjs';
 import { classifyIntent, selectModel }                         from './intent-classifier.mjs';
 import { buildCacheKey, getCached, setCached }                 from './cache.mjs';
@@ -462,6 +463,9 @@ export const handler = async (event) => {
 
   // 1. Extract staffId from Cognito JWT
   const claims  = event.requestContext?.authorizer?.jwt?.claims ?? {};
+  if (!inGroup(claims, 'hr_staff', 'naleko-talentflow-hr')) {
+    return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: "You don't have access to Ask Batsi." }) };
+  }
   const staffId = claims['custom:staff_id'];
   if (!staffId) {
     console.warn(JSON.stringify({ event: 'missing_staff_id' }));

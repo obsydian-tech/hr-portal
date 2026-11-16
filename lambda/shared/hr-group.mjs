@@ -19,6 +19,9 @@ export function inGroup(claims, ...names) {
 /** HR may act on anyone; everyone else only on the record whose email is theirs (trimmed, any case; empty never matches). */
 export function isHrOrOwner(claims, employee) {
   if (claims && groupsOf(claims).includes(HR_GROUP)) return true;
+  const v = claims?.email_verified;
+  const verified = v === true || (typeof v === 'string' && v.toLowerCase() === 'true');
+  if (!verified) return false;
   const mine = String(claims?.email ?? '').trim().toLowerCase();
   const theirs = String(employee?.email ?? '').trim().toLowerCase();
   return mine !== '' && mine === theirs;
