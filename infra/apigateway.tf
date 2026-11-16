@@ -107,6 +107,14 @@ resource "aws_apigatewayv2_stage" "employees_api_default" {
     throttling_rate_limit  = 5
   }
 
+  # A route setting needs its route to exist first, or the first apply fails
+  # with "Unable to find Route by key".
+  depends_on = [
+    aws_apigatewayv2_route.lookup_invite,
+    aws_apigatewayv2_route.redeem_invite,
+    aws_apigatewayv2_route.resend_invite,
+  ]
+
   lifecycle {
     ignore_changes = [deployment_id]
   }
