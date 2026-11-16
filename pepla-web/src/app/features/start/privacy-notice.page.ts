@@ -2,8 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { PpButton, PpCard, PpLink, PpPageHeader, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup } from '../../ds';
 import { RouterLink } from '@angular/router';
 import { StartService } from '../../core/start/start.service';
+import { SIGN_IN_MESSAGES } from '../../core/auth/auth.messages';
 
-const OFFLINE = "We can't reach Naleko People. Check your connection and try again.";
+const OFFLINE = SIGN_IN_MESSAGES.offline;
 
 /**
  * The full privacy notice (ONB-05), in the words the server sends for the current version.
