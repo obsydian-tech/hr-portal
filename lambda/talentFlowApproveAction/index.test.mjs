@@ -50,11 +50,12 @@ const PENDING_ACTION = {
   createdAt: '2026-05-17T10:00:00.000Z',
 };
 
-function makeEvent({ method, path, body = {}, staffId = null } = {}) {
+function makeEvent({ method, path, body = {}, staffId = null, groups = null } = {}) {
   return {
     requestContext: {
       http: { method },
       ...(staffId ? { authorizer: { lambda: { staffId } } } : {}),
+      ...(groups ? { authorizer: { jwt: { claims: { 'cognito:groups': groups } } } } : {}),
     },
     rawPath: path,
     body: Object.keys(body).length ? JSON.stringify(body) : null,
@@ -77,7 +78,7 @@ describe('talentFlowApproveAction', () => {
   test('GET /actions/pending lists only PENDING_APPROVAL actions', async () => {
     mockDbSend.mockResolvedValueOnce({ Items: [{ ...PENDING_ACTION }] });
 
-    const res = await handler(makeEvent({ method: 'GET', path: '/agent/actions/pending' }));
+    const res = await handler(makeEvent({ method: 'GET', path: '/agent/actions/pending', groups: '[hr_staff]' }));
 
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ actions: [PENDING_ACTION], count: 1 });
@@ -87,6 +88,20 @@ describe('talentFlowApproveAction', () => {
     expect(cmd.ExpressionAttributeValues).toEqual({ ':pending': 'PENDING_APPROVAL' });
   });
 
+  test('GET /actions/pending refuses anyone outside HR and reads nothing (BE-17)', async () => {
+    for (const groups of ['[employee]', '[not_hr_staff]', null]) {
+      const res = await handler(makeEvent({ method: 'GET', path: '/agent/actions/pending', groups }));
+      expect(res.statusCode).toBe(403);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Only HR can see pending actions' });
+    }
+    expect(mockDbSend).not.toHaveBeenCalled();
+  });
+
+  test('GET /actions/pending answers a Talent Flow HR caller', async () => {
+    mockDbSend.mockResolvedValueOnce({ Items: [] });
+    const res = await handler(makeEvent({ method: 'GET', path: '/agent/actions/pending', groups: '[naleko-talentflow-hr]' }));
+    expect(res.statusCode).toBe(200);
+  });
 
   test('GET /actions/{id} returns 200 with action data', async () => {
     mockDbSend.mockResolvedValueOnce({ Item: { ...PENDING_ACTION } });
