@@ -1,4 +1,4 @@
-// ONB-24 (THROWAWAY, not committed): after a password reset, sign the person out everywhere.
+// ONB-24: after a password reset, sign the person out everywhere.
 import { CognitoIdentityProviderClient, AdminUserGlobalSignOutCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';

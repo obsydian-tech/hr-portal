@@ -18,7 +18,7 @@ import { AuthService } from '../../core/auth/auth.service';
 
 const WAIT = 30;
 
-/** ONB-24 (THROWAWAY, not committed): forgot your password, two steps on one address. */
+/** ONB-24: forgot your password, two steps on one address. */
 @Component({
   selector: 'app-forgot-password',
   imports: [FormsModule, RouterLink, PpSignInPage, PpSignInActions, PpForm, PpField, PpTextField, PpPassword, PpButton, PpLink, PpSectionMessage],

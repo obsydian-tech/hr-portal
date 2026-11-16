@@ -1,4 +1,4 @@
-// ONB-24 (THROWAWAY, not committed): Cognito custom email sender. Sends the forgot-password code by Postmark.
+// ONB-24: Cognito custom email sender. Sends the forgot-password code by Postmark.
 import { KmsKeyringNode, buildClient, CommitmentPolicy } from '@aws-crypto/client-node';
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
