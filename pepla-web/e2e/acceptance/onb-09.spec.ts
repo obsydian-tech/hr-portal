@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import type { Locator, Page, TestInfo } from '@playwright/test';
 import { DocumentsFake, storedEmployee, type FakePerson } from './support/documents-fake';
 import { EmployeesFake, apiPerson, type ApiPerson } from './support/employees-fake';
@@ -749,7 +749,9 @@ test.describe('ONB-09 Four steps everywhere', () => {
     for (const f of filesUnder(src, /\.(ts|html|scss|css|json)$/)) {
       const text = readFileSync(f, 'utf8');
       for (const word of ['TRAINING', 'ONBOARDED', 'DOCUMENTS_SUBMITTED', 'stepOfStage']) if (text.includes(word)) found.push(`${relative(REPO, f)}: ${word}`);
-      for (const word of ['Training', 'Onboarded']) if (new RegExp(`\\b${word}\\b`).test(text)) found.push(`${relative(REPO, f)}: "${word}"`);
+      // The landing page's approved kit copy ("Onboarded, leave approved, certificate expiring.") lives under app/ds/site/ and is the one place "Onboarded" may appear.
+      const landingCopy = relative(src, f).split(sep).join('/').startsWith('app/ds/site/');
+      for (const word of ['Training', 'Onboarded']) if (!(landingCopy && word === 'Onboarded') && new RegExp(`\\b${word}\\b`).test(text)) found.push(`${relative(REPO, f)}: "${word}"`);
     }
     expect(found, 'pepla-web/src holds none of TRAINING, ONBOARDED, DOCUMENTS_SUBMITTED, stepOfStage, "Training", "Onboarded"').toEqual([]);
     const reads: string[] = [];
