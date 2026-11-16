@@ -47,6 +47,7 @@ locals {
     "/aws/lambda/summariseVerification",
     "/aws/lambda/triggerExternalVerification",
     "/aws/lambda/uploadDocumentToS3",
+    "/aws/lambda/tenantPreToken",
   ])
 
   # Log groups that already exist in AWS (auto-created by Lambda on first invocation).

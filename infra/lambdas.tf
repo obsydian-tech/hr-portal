@@ -752,6 +752,7 @@ resource "aws_lambda_function" "agent_api_authorizer" {
   environment {
     variables = {
       AGENT_API_KEY_SECRET_NAME = aws_secretsmanager_secret.agent_api_key.name
+      AGENT_TENANT_ID           = var.founding_tenant_id
     }
   }
 
@@ -1273,4 +1274,42 @@ resource "aws_dynamodb_table" "reset_test_sink" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+# ─── TEN-01: tenantPreToken ───────────────────────────────────────────────────
+resource "aws_lambda_function" "tenant_pre_token" {
+  function_name = "tenantPreToken"
+  role          = aws_iam_role.tenant_pre_token.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      TENANTS_TABLE    = aws_dynamodb_table.tenants.name
+      LEGACY_TENANT_ID = var.founding_tenant_id
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/tenantPreToken"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+resource "aws_lambda_permission" "tenant_pre_token" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.tenant_pre_token.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.naleko_dev.arn
 }

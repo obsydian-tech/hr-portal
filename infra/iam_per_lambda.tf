@@ -2171,3 +2171,47 @@ resource "aws_iam_role_policy" "cognito_post_confirmation" {
     ]
   })
 }
+
+# ─── TEN-01: tenantPreToken ───────────────────────────────────────────────────
+resource "aws_iam_role" "tenant_pre_token" {
+  name        = "naleko-tenantPreToken-role"
+  description = "Execution role for tenantPreToken Lambda (TEN-01)"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "tenant_pre_token" {
+  name = "naleko-tenantPreToken-policy"
+  role = aws_iam_role.tenant_pre_token.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/tenantPreToken:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "TenantsQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = aws_dynamodb_table.tenants.arn
+      }
+    ]
+  })
+}

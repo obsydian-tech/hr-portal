@@ -42,6 +42,7 @@ module "kms_pii" {
     # ONB-05: both routes read the encrypted employees table (email-index) and employee_consents.
     aws_iam_role.get_my_start.arn,
     aws_iam_role.record_consent.arn,
+    aws_iam_role.tenant_pre_token.arn,
   ]
 
   # ONB-24: Cognito encrypts reset codes under a grant the deploy role makes (RootFullAdmin covers it).

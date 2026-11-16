@@ -110,6 +110,12 @@ resource "aws_cognito_user_pool" "naleko_dev" {
       lambda_arn     = aws_lambda_function.cognito_email_sender.arn
       lambda_version = "V1_0"
     }
+
+    # TEN-01: the company claim on every ID and access token.
+    pre_token_generation_config {
+      lambda_arn     = aws_lambda_function.tenant_pre_token.arn
+      lambda_version = "V2_0"
+    }
   }
 
   lifecycle {

@@ -26,6 +26,16 @@ import { Logger } from '@aws-lambda-powertools/logger';
 const sm = new SecretsManagerClient({ region: 'af-south-1' });
 const logger = new Logger({ serviceName: 'agentAuthorizer' });
 
+// TEN-01: every agent call carries the company its key belongs to.
+const AGENT_TENANT_ID = (() => {
+  const v = process.env.AGENT_TENANT_ID;
+  if (!v || !/^ten_[0-9a-z]{26}$/.test(v)) {
+    console.error('Missing setting AGENT_TENANT_ID');
+    throw new Error('Missing setting AGENT_TENANT_ID');
+  }
+  return v;
+})();
+
 // In-process key cache to minimise SM calls between Lambda warm starts.
 // API GW authorizer TTL caching (300s) provides the primary cache.
 // NH-70: cache a Set of valid keys (AWSCURRENT + AWSPENDING if in rotation).
@@ -105,7 +115,7 @@ export const handler = async (event) => {
     return {
       isAuthorized: true,
       // context is merged into event.requestContext.authorizer.lambda in downstream Lambdas
-      context: { actor: 'AGENT' },
+      context: { actor: 'AGENT', tenant_id: AGENT_TENANT_ID },
     };
   } catch (err) {
     logger.error('Authorizer error — rejecting', { error: err.message });
