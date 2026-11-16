@@ -13,7 +13,7 @@ import { PpLogo } from '../core/logo';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="pp-site-header">
-      <a class="pp-site-header__skip" href="#main">Skip to content</a>
+      <a class="pp-site-header__skip" href="#main" (click)="skip($event)">Skip to content</a>
       <div class="pp-site-header__bar">
         <a ppLogo class="pp-site-header__logo" routerLink="/"></a>
         <div class="pp-site-header__actions">
@@ -26,4 +26,13 @@ import { PpLogo } from '../core/logo';
   styles: `pp-site-header { display: contents; } body:has(.pp-site-header) { margin: 0; }`,
   encapsulation: ViewEncapsulation.None,
 })
-export class PpSiteHeader {}
+export class PpSiteHeader {
+  /** Moves focus to <main> without leaving the page: a bare #main would resolve against <base href="/"> and load `/`. */
+  protected skip(event: Event): void {
+    const main = document.getElementById('main');
+    if (!main) return;
+    event.preventDefault();
+    main.focus();
+    main.scrollIntoView();
+  }
+}
