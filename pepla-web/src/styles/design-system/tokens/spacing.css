@@ -48,11 +48,24 @@
   --layout-site-header-height: 72px;
   --layout-site-header-height-shrunk: 56px;
   --layout-site-subnav-height: 56px;
+  --layout-site-menu-perspective: 1200px;
   --layout-site-menu-max: 720px;
   --layout-site-menu-height-max: 360px;
   --layout-site-sheet-width: 380px;
   --layout-site-breakpoint-nav: 1280px;
   --layout-site-frame-height: 560px;
+  --layout-site-button-height: 44px;
+  --layout-site-button-height-large: 58px;
+  --layout-site-button-dot: 32px;
+  --layout-site-button-dot-large: 44px;
   --layout-site-frame-phone: 390px;
+  --layout-site-phone-width: 330px;
+  --layout-site-request-width: 300px;
+  --layout-site-peek-width: 380px;
+  --layout-site-radar: 980px;
+  --layout-site-rings: 1100px;
+  --layout-site-story-views: 276px;
+  --layout-site-chat-tall: 520px;
+  --layout-site-hiring-side: 290px;
 }
 /* Breakpoints (min-width, px), for media queries: xxs 0, xs 480, sm 768, md 1024, lg 1440, xl 1768 */

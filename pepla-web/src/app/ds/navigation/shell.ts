@@ -151,7 +151,7 @@ export class PpSideNavigation {
     @if (collapsible()) {
       <button ppButton appearance="subtle" icon="panel-left" [iconOnly]="true" [attr.aria-label]="collapsed() ? 'Expand menu' : 'Collapse menu'" [attr.aria-expanded]="!collapsed()" aria-controls="pp-side-navigation" (click)="collapse.emit()"></button>
     }
-    <a class="pp-top-navigation__brand" routerLink="/" aria-label="Naleko People home"><svg ppMark /></a>
+    <a class="pp-top-navigation__brand" [routerLink]="home()" aria-label="Naleko People home"><svg ppMark /></a>
     <label class="pp-top-navigation__search">
       <svg ppIcon="search" />
       <input #searchBox class="pp-top-navigation__search-input" type="search" [placeholder]="searchPlaceholder()" [attr.aria-label]="searchPlaceholder()" (keydown.enter)="search.emit($any($event.target).value)">
@@ -170,6 +170,8 @@ export class PpSideNavigation {
 })
 export class PpTopNavigation {
   readonly userName = input.required<string>();
+  /** Where "Naleko People home" goes: the signed-in person's own home (`/hr`, `/start`), since `/` is the public site. */
+  readonly home = input('/');
   readonly unread = input(0);
   /** Desktop only: shows the button that collapses the sidebar to icons. */
   readonly collapsible = input(false);

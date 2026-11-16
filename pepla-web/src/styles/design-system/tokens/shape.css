@@ -11,4 +11,7 @@
   --border-width-selected: 2px;
   --border-width-focused: 2px;
   --focus-ring-offset: 2px;
+  --radius-site-phone: 42px;
+  --radius-site-request: 36px;
+  --radius-site-request-screen: 28px;
 }
