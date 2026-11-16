@@ -1148,7 +1148,9 @@ test.describe('ONB-03 Add a new employee', () => {
     const after = now.map((r) => `${r.effect} ${r.action} ${r.resource}`).sort();
     // ONB-04 (re-lock onb-03.4): createEmployee stops setting passwords and writes invite rows. Those lines are
     // ONB-04's to judge (its AC-11); here they are left out, and nothing else may change.
-    const onb04 = (x: string) => /employee_invites/.test(x);
+    const onb04 = (x: string) => /employee_invites/.test(x)
+      // ONB-04.2 (re-lock onb-03.5): createEmployee reads an existing sign-in and its groups before it invites. ONB-04.2's AC-5 judges these.
+      || /^Allow cognito-idp:(AdminGetUser|AdminListGroupsForUser) arn:aws:cognito-idp:af-south-1:000000000000:userpool\/\$\{aws_cognito_user_pool\.naleko_dev\.id\}$/.test(x);
     const added = after.filter((x) => !before.includes(x) && !onb04(x));
     const removed = before.filter((x) => !after.includes(x) && !/^Allow cognito-idp:AdminSetUserPassword /.test(x));
     expect(removed, 'createEmployee\'s policy loses nothing (but AdminSetUserPassword, ONB-04)').toEqual([]);

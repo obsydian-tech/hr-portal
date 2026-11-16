@@ -6,7 +6,7 @@ Test files: `onb-03.spec.ts`, `support/onb-03/`, and the shared `support/employe
 
 Spec: [NH-169](https://obsydian.atlassian.net/browse/NH-169)
 
-Locks: acceptance-lock/onb-03, acceptance-lock/onb-03.1, acceptance-lock/onb-03.2, acceptance-lock/onb-03.3, acceptance-lock/onb-03.4
+Locks: acceptance-lock/onb-03, acceptance-lock/onb-03.1, acceptance-lock/onb-03.2, acceptance-lock/onb-03.3, acceptance-lock/onb-03.4, acceptance-lock/onb-03.5
 
 AC-1 to AC-7 run at 1280 and 390 wide with no backend. `support/onb-03/registration-fake.ts` (a
 subclass of the shared `EmployeesFake`) answers `GET /v1/hr-partners`, `GET /v1/employees/email-check`
@@ -52,3 +52,11 @@ writes a row in `employee_invites` on every registration, so three lines changed
 `support/onb-03/lambda-harness.ts` sets `COMPANY_NAME` and `APP_URL`; `support/onb-03/fake-aws/world.mjs`
 knows the `employee_invites` table and its `employee-index`; AC-12 leaves out of its createEmployee policy
 comparison the lines that are ONB-04's to judge (`AdminSetUserPassword` removed, invite table lines added).
+
+## Re-lock onb-03.5 (ONB-04.2, 16 Nov 2026)
+
+ONB-04.2 (NH-191) stops an invite from taking over a sign-in that is already in use. createEmployee's invite
+helper now reads an existing sign-in and its groups first, so two things changed here, and nothing else:
+`support/onb-03/fake-aws/client-cognito-identity-provider.mjs` also answers `AdminGetUser` and
+`AdminListGroupsForUser` (code added only); AC-12 leaves out of its createEmployee policy comparison the two
+lines that are ONB-04.2's to judge (`AdminGetUser` and `AdminListGroupsForUser` on the pool).

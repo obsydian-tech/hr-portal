@@ -10,7 +10,7 @@ import {
   APP_URL, COMPANY, DAY, GOOD_PASSWORD, HR, INVITES, LINK, LINK_IN_TEXT, LOOKUP, OTHER_PASSWORD, PARTNER, REDEEM, REPO, ROBOT_ADDRESS, ROBOT_HR, T0,
   at, cognitoCalls, create, current, dynamoCalls, employees, invites, issue, issueArgs, logLines, lookup, mails, plain, publicEvent, published, redeem, runModule,
   sha256, storedEmployee, tokenOf, validBody, worldWithPool, type Run, type World,
-} from './support/onb-04/lambda-harness';
+} from './support/onb-04.2/lambda-harness';
 import { EMPLOYEE } from './support/onb-03/lambda-harness';
 
 /**
@@ -25,6 +25,10 @@ import { EMPLOYEE } from './support/onb-03/lambda-harness';
  * once, in desktop-1280. AC-11 reads infra/*.tf, the Lambda folders, scripts and the API description as text.
  * AC-12 renders the email at 1280 and 390. AC-5's last test runs on pepla-dev only, red until merge.
  * Nothing here calls AWS, Postmark or any AI service.
+ *
+ * ONB-04.2 (NH-191, lock onb-04.2) changed three things here: the tests run on support/onb-04.2 (the same fake AWS
+ * plus Cognito's AdminListGroupsForUser); AC-7 expects a new link for a sign-in already in use to be refused; and
+ * AC-11 lets redeemInvite and createEmployee read a sign-in and its groups (AdminGetUser, AdminListGroupsForUser).
  *
  * These files are locked once the lock check accepts them: see ./README.md and cards/onb-04.md.
  */
@@ -454,11 +458,13 @@ test.describe('ONB-04 Invite link instead of a password', () => {
     expect(current(w), 'three links in a row leave only the last usable').toHaveLength(1);
     expect(invites(w), 'every link has its own row').toHaveLength(3);
 
-    // A used link is not "replaced" later.
+    // A used link is not "replaced" later. ONB-04.2: once the password is set, a new link is refused (InviteRefused).
     const used = redeem(w, t3, GOOD_PASSWORD);
     expectStatus(used, 204, 'redeem of the third link');
     w = used.world;
-    issueOnce('a link after the last one was used');
+    const late = issue(w, issueArgs(person));
+    expect(late.error?.name, 'a link after the last one was used is refused: the sign-in is in use (ONB-04.2)').toBe('InviteRefused');
+    w = late.world;
     expect(lookup(w, t3).body?.status, 'the used link still says used').toBe('used');
     const t3row = invites(w).find((r) => sha256(t3).includes(String(r['token_hash'])));
     expect(t3row?.['replaced_at'] ?? '', 'the used row is not marked replaced').toBeFalsy();
@@ -652,7 +658,8 @@ test.describe('ONB-04 Invite link instead of a password', () => {
     // 2. Two new Lambdas, each with its own role, its exact actions, a public route with a rate limit.
     const NEW = [
       { fn: 'lookupInvite', route: 'POST /v1/invites/lookup', want: [['dynamodb:GetItem', isTable], ['dynamodb:GetItem', isEmployees]] as const },
-      { fn: 'redeemInvite', route: 'POST /v1/invites/redeem', want: [['dynamodb:GetItem', isTable], ['dynamodb:UpdateItem', isTable], ['dynamodb:GetItem', isEmployees], ['cognito-idp:AdminSetUserPassword', isPool]] as const },
+      // ONB-04.2: redeemInvite also reads the sign-in and its groups before it sets a password.
+      { fn: 'redeemInvite', route: 'POST /v1/invites/redeem', want: [['dynamodb:GetItem', isTable], ['dynamodb:UpdateItem', isTable], ['dynamodb:GetItem', isEmployees], ['cognito-idp:AdminSetUserPassword', isPool], ['cognito-idp:AdminGetUser', isPool], ['cognito-idp:AdminListGroupsForUser', isPool]] as const },
     ];
     const stage = res('aws_apigatewayv2_stage').find((b) => b.labels[1] === 'employees_api_default');
     expect(stage, 'the employees API stage').toBeTruthy();
@@ -705,7 +712,8 @@ test.describe('ONB-04 Invite link instead of a password', () => {
       expect(limit, `${n.route}: 5 per second`).toMatch(/throttling_rate_limit\s*=\s*5\b/);
     }
 
-    // 3. createEmployee: loses AdminSetUserPassword, gains PutItem, Query (index) and UpdateItem on the invite table, nothing else.
+    // 3. createEmployee: loses AdminSetUserPassword, gains PutItem, Query (index) and UpdateItem on the invite table, and
+    //    (ONB-04.2) AdminGetUser and AdminListGroupsForUser on the pool, nothing else.
     const baselineFile = join(__dirname, 'support', 'onb-04', 'iam.create-employee.ae7bba4.tf.txt');
     const show = (r: { effect: string; action: string; resource: string }) => `${r.effect} ${r.action} ${r.resource}`;
     const before = flat(policyOf(resourcesNamed('aws_iam_role_policy', 'create_employee', [baselineFile])[0]!).Statement).map(show).sort();
@@ -716,8 +724,8 @@ test.describe('ONB-04 Invite link instead of a password', () => {
     expect(removed, 'createEmployee loses exactly AdminSetUserPassword on the pool').toEqual([
       'Allow cognito-idp:AdminSetUserPassword arn:aws:cognito-idp:af-south-1:000000000000:userpool/aws_cognito_user_pool.naleko_dev.id',
     ]);
-    const wantAdded = [['dynamodb:PutItem', isTable], ['dynamodb:Query', isIndex], ['dynamodb:UpdateItem', isTable]] as const;
-    for (const [action, on] of wantAdded) expect(added.some((r) => r.action === action && on(r.resource)), `createEmployee gains ${action} on the invite table${action === 'dynamodb:Query' ? '\'s employee-index' : ''}`).toBe(true);
+    const wantAdded = [['dynamodb:PutItem', isTable], ['dynamodb:Query', isIndex], ['dynamodb:UpdateItem', isTable], ['cognito-idp:AdminGetUser', isPool], ['cognito-idp:AdminListGroupsForUser', isPool]] as const;
+    for (const [action, on] of wantAdded) expect(added.some((r) => r.action === action && on(r.resource)), `createEmployee gains ${action} on ${action.startsWith('cognito-idp:') ? 'the pool' : 'the invite table'}${action === 'dynamodb:Query' ? '\'s employee-index' : ''}`).toBe(true);
     expect(added.filter((r) => !wantAdded.some(([action, on]) => r.action === action && on(r.resource))).map(show), 'and nothing else').toEqual([]);
     for (const r of now) {
       expect(r.action, `createEmployee: no wildcard action (${r.action})`).not.toMatch(/\*/);
