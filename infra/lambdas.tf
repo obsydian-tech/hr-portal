@@ -1130,6 +1130,8 @@ resource "aws_dynamodb_table" "reset_test_sink" {
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "email"
 
+  deletion_protection_enabled = true
+
   attribute {
     name = "email"
     type = "S"
@@ -1138,5 +1140,9 @@ resource "aws_dynamodb_table" "reset_test_sink" {
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
