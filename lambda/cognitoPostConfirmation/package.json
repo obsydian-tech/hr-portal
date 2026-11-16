@@ -1,0 +1,2 @@
+{ "name": "cognitoPostConfirmation", "version": "1.0.0", "type": "module", "main": "index.mjs",
+  "dependencies": { "@aws-lambda-powertools/logger": "^2.18.0", "@aws-lambda-powertools/metrics": "^2.18.0" } }

@@ -36,3 +36,21 @@ variable "dynamodb_read_role_arns" {
   type        = list(string)
   default     = []
 }
+
+variable "cognito_encrypt_pool_arns" {
+  description = "ONB-24: user pools whose custom email sender codes Cognito encrypts with this key (Encrypt only)."
+  type        = list(string)
+  default     = []
+}
+
+variable "cognito_sender_decrypt_role_arns" {
+  description = "ONB-24: custom email sender roles that may Decrypt codes, only for the pool's encryption context."
+  type        = list(string)
+  default     = []
+}
+
+variable "cognito_pool_id" {
+  description = "ONB-24: the pool id Cognito puts in the encryption context (userpool-id)."
+  type        = string
+  default     = ""
+}

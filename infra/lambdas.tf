@@ -1192,3 +1192,85 @@ resource "aws_lambda_function" "resend_invite" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+
+# ─── ONB-24: cognitoEmailSender and cognitoPostConfirmation ──────────────────
+resource "aws_lambda_function" "cognito_email_sender" {
+  function_name = "cognitoEmailSender"
+  role          = aws_iam_role.cognito_email_sender.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 256
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = merge({
+      KMS_KEY_ARN           = module.kms_pii.key_arn
+      POSTMARK_API_TOKEN    = data.aws_ssm_parameter.postmark_token.value
+      POSTMARK_SENDER_EMAIL = "ignecious@obsydiantechnologies.com"
+    }, var.environment != "prod" ? { RESET_TEST_SINK_TABLE = aws_dynamodb_table.reset_test_sink[0].name } : {})
+  }
+
+  tracing_config { mode = "Active" }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+resource "aws_lambda_permission" "cognito_email_sender" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cognito_email_sender.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.naleko_dev.arn
+}
+
+resource "aws_lambda_function" "cognito_post_confirmation" {
+  function_name = "cognitoPostConfirmation"
+  role          = aws_iam_role.cognito_post_confirmation.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 5
+  architectures = ["x86_64"]
+
+  tracing_config { mode = "Active" }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+resource "aws_lambda_permission" "cognito_post_confirmation" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cognito_post_confirmation.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.naleko_dev.arn
+}
+
+resource "aws_dynamodb_table" "reset_test_sink" {
+  count        = var.environment != "prod" ? 1 : 0
+  name         = "naleko-people-dev-reset-test-sink"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "email"
+
+  deletion_protection_enabled = true
+
+  attribute {
+    name = "email"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}

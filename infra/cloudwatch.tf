@@ -8,6 +8,8 @@
 
 locals {
   lambda_log_groups = toset([
+    "/aws/lambda/cognitoEmailSender",
+    "/aws/lambda/cognitoPostConfirmation",
     "/aws/lambda/agentAuthorizer",
     "/aws/lambda/approveAgentAction",
     "/aws/lambda/archiveAuditLog",
