@@ -77,3 +77,15 @@ variable "login_url" {
   type        = string
   default     = "https://hr-portal-beryl-three.vercel.app/login"
 }
+
+variable "company_name" {
+  description = "ONB-04: the company named in invite emails and on the set-password page. Prod placeholder until a pilot company is chosen."
+  type        = string
+  default     = "Naleko"
+}
+
+variable "app_url" {
+  description = "ONB-04: the address invite links start with (no trailing slash). Defaults to prod; env/dev.tfvars overrides."
+  type        = string
+  default     = "https://hr-portal-beryl-three.vercel.app"
+}

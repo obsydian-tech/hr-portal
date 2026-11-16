@@ -41,6 +41,13 @@ def main() -> None:
                 for d in dpage["Items"]:
                     ddb.delete_item(TableName="documents", Key=d)
                     docs += 1
+            for ipage in ddb.get_paginator("query").paginate(
+                    TableName="employee_invites", IndexName="employee-index",
+                    KeyConditionExpression="employee_id = :e",
+                    ExpressionAttributeValues={":e": item["employee_id"]},
+                    ProjectionExpression="token_hash"):
+                for i in ipage["Items"]:
+                    ddb.delete_item(TableName="employee_invites", Key=i)
             ddb.delete_item(TableName="employees", Key={"employee_id": item["employee_id"]})
             employees += 1
 

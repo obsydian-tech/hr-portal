@@ -444,3 +444,40 @@ resource "aws_dynamodb_table" "prompt_cache" {
     prevent_destroy = true
   }
 }
+
+# ONB-04: invite links. Only the SHA-256 of a token is stored, with the employee id.
+resource "aws_dynamodb_table" "employee_invites" {
+  name                        = "employee_invites"
+  deletion_protection_enabled = true
+  billing_mode                = "PAY_PER_REQUEST"
+  hash_key                    = "token_hash"
+
+  attribute {
+    name = "token_hash"
+    type = "S"
+  }
+
+  attribute {
+    name = "employee_id"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "employee-index"
+    hash_key        = "employee_id"
+    projection_type = "ALL"
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}

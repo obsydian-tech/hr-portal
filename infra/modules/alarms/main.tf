@@ -314,3 +314,30 @@ resource "aws_cloudwatch_composite_alarm" "naleko_critical" {
     Severity    = "critical"
   }
 }
+
+# ONB-04: createEmployee could not make an invite (Cognito or the invite table failed).
+resource "aws_cloudwatch_log_metric_filter" "invite_failed" {
+  name           = "InviteFailed"
+  log_group_name = "/aws/lambda/createEmployee"
+  pattern        = "{ $.message = \"Invite failed\" }"
+
+  metric_transformation {
+    name          = "InviteFailed"
+    namespace     = "Naleko/Onboarding"
+    value         = "1"
+    default_value = 0
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "invite_failed" {
+  alarm_name          = "naleko-createEmployee-InviteFailed"
+  namespace           = "Naleko/Onboarding"
+  metric_name         = "InviteFailed"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.naleko_ops.arn]
+}

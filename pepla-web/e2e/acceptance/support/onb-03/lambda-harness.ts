@@ -144,6 +144,9 @@ export const ENV = {
   COGNITO_POOL_ID: POOL,
   LOGIN_URL: 'http://localhost:4300/sign-in',
   POSTMARK_SENDER_EMAIL: 'sender@example.test',
+  // ONB-04 (re-lock onb-03.4): createEmployee now reads these two settings and writes an invite row.
+  COMPANY_NAME: 'Sunbird Bakery',
+  APP_URL: 'http://localhost:4300',
 };
 
 /** Calls `handler` once with `event` in a fresh process against `world`. */

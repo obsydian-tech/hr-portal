@@ -33,6 +33,8 @@ module "kms_pii" {
   # Decrypt/DescribeKey only, and only via DynamoDB.
   dynamodb_read_role_arns = [
     aws_iam_role.check_employee_email.arn,
+    aws_iam_role.lookup_invite.arn,
+    aws_iam_role.redeem_invite.arn,
   ]
 
   deletion_window_in_days = 30
