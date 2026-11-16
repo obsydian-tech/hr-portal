@@ -30,7 +30,7 @@ export const handler = async (event) => {
     const inUse = (await used(lower)) || (typed !== lower && (await used(typed)));
     return json(200, { inUse });
   } catch (error) {
-    logger.error('Email check failed', { error: error.message });
+    logger.error('Email check failed', { errorName: error?.name ?? 'Error' });
     return json(500, { error: 'The email could not be checked' });
   }
 };

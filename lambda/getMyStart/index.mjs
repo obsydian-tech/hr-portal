@@ -1,5 +1,5 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { json } from '../shared/hr-group.mjs';
+import { isIdToken, json } from '../shared/hr-group.mjs';
 import { groupsOf } from '../shared/document-check.mjs';
 import { CURRENT_NOTICE_VERSION, renderNotice } from '../shared/privacy-notice.mjs';
 import { NEW_EMPLOYEES_ONLY, NOT_FOUND, emailIsVerified, findEmployee, readConsent } from '../shared/consent.mjs';
@@ -14,7 +14,7 @@ const COMPANY = (() => { const v = process.env.COMPANY_NAME; if (!v) throw new E
 export const handler = async (event) => {
   // The group comes first: nothing is read for anyone who is not an employee.
   const claims = event?.requestContext?.authorizer?.jwt?.claims;
-  if (!claims || !groupsOf(claims).includes('employee')) return json(403, { error: NEW_EMPLOYEES_ONLY });
+  if (!claims || !isIdToken(claims) || !groupsOf(claims).includes('employee')) return json(403, { error: NEW_EMPLOYEES_ONLY });
   // The record is found by the token's email, so the email must be a verified one: nothing is read before this.
   if (!emailIsVerified(claims)) {
     logger.warn('The sign-in email is not verified', { sub: claims.sub });
@@ -40,7 +40,7 @@ export const handler = async (event) => {
       consent,
     });
   } catch (error) {
-    logger.error('Could not load the start page', { sub: claims.sub, error: error.message });
+    logger.error('Could not load the start page', { sub: claims.sub, errorName: error?.name ?? 'Error' });
     return json(500, { error: 'Something went wrong' });
   }
 };

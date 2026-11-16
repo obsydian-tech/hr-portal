@@ -35,14 +35,17 @@ export const handler = async (event) => {
     }
 
     // 1. Look up employee by email via the email-index GSI
-    const queryResult = await dynamo.send(new QueryCommand({
+    const byEmail = (value) => dynamo.send(new QueryCommand({
       TableName: EMPLOYEES_TABLE,
       IndexName: 'email-index',
       KeyConditionExpression: 'email = :email',
-      ExpressionAttributeValues: { ':email': { S: email } },
+      ExpressionAttributeValues: { ':email': { S: value } },
       ProjectionExpression: 'employee_id, stage',
       Limit: 1,
     }));
+    const lower = String(email).trim().toLowerCase();
+    let queryResult = await byEmail(lower);
+    if (!queryResult.Items?.length && email !== lower) queryResult = await byEmail(email);
 
     if (!queryResult.Items || queryResult.Items.length === 0) {
       logger.info('No Naleko employee record found — checking if TalentFlow user', { email });
@@ -84,8 +87,7 @@ export const handler = async (event) => {
         }
       } catch (tfErr) {
         logger.error('Failed to track TalentFlow-only user login', {
-          errorMessage: tfErr.message,
-          errorName: tfErr.name,
+                    errorName: tfErr.name,
           email
         });
       }
@@ -161,8 +163,7 @@ export const handler = async (event) => {
     } catch (tfErr) {
       // Log error but don't block login — tracking is nice-to-have, not critical
       logger.error('Failed to update TalentFlow lastLoginAt — login will still succeed', {
-        errorMessage: tfErr.message,
-        errorName: tfErr.name,
+                errorName: tfErr.name,
         email
       });
     }
@@ -175,8 +176,7 @@ export const handler = async (event) => {
       logger.info('Conditional update skipped — stage already updated by concurrent call');
     } else {
       logger.error('Unexpected error bumping stage — login will still succeed', {
-        errorMessage: err.message,
-        errorName: err.name,
+                errorName: err.name,
       });
     }
   }

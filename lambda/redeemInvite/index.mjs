@@ -65,7 +65,7 @@ export const handler = async (event) => {
     }
     return { statusCode: 204, headers: { 'Access-Control-Allow-Origin': '*' }, body: '' };
   } catch (error) {
-    logger.error('Redeem failed', { error: error.message });
+    logger.error('Redeem failed', { errorName: error?.name ?? 'Error' });
     return answer(500, { error: 'Something went wrong' });
   }
 };

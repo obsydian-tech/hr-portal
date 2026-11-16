@@ -21,7 +21,7 @@ export const handler = async (event) => {
     if (found.status !== 'ok') return answer(200, { status: found.status, company: COMPANY, hrPartnerName });
     return answer(200, { status: 'ok', company: COMPANY, firstName: e.first_name?.S ?? '', email: e.email?.S ?? '', startDate: e.planned_start_date?.S ?? '', hrPartnerName });
   } catch (error) {
-    logger.error('Invite lookup failed', { error: error.message });
+    logger.error('Invite lookup failed', { errorName: error?.name ?? 'Error' });
     return answer(500, { error: 'Something went wrong' });
   }
 };
