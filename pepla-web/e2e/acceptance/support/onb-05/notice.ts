@@ -22,14 +22,14 @@ export const NOTICE_2026_11_1: Notice = {
     {
       icon: 'users',
       term: 'Who uses your information',
-      text: '{company} uses your personal information to employ and pay you, as the Protection of Personal Information Act (POPIA) allows. Naleko People stores it in Cape Town. Your ID and bank letter are sent to an Amazon service in Ireland only to be read.',
+      text: '{company} uses your personal information to employ and pay you, as the Protection of Personal Information Act (POPIA) allows. It is stored in Cape Town. Your ID and bank letter are sent to an Amazon service in Ireland only to be read.',
     },
     {
       icon: 'shield-check',
       term: 'How it is checked',
-      text: 'Batsi reads your ID and bank letter to check them. A person in HR at {company} decides every document. Nothing is accepted by a machine alone.',
+      text: 'Your ID and bank letter are checked by Batsi and reviewed by HR.',
     },
-    { icon: 'triangle-alert', term: 'If something is false', text: 'A fake document can lead to disciplinary action, or the offer being withdrawn.' },
+    { icon: 'triangle-alert', term: 'If something is false', text: 'False documents can lead to disqualification.' },
   ],
   full: [
     { heading: 'Who is responsible', text: '{company} is responsible for your personal information. Naleko People runs the service for {company} and uses your information only for that.' },
@@ -64,7 +64,7 @@ export function canonical(n: Notice): string {
 export const sha256Hex = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 
 /** SHA-256 of canonical(NOTICE_2026_11_1), `{company}` not filled in. Pinned: version 2026-11-1 is released. */
-export const PINNED_SHA256 = '870764c490cb8c7bf1230cd639c09abe764b77ffddcffb5fe5e8648ef29beb3d';
+export const PINNED_SHA256 = '95a2709ff5f8bc373050000300e5f44bb1c9984f698d6c16d91da7d17c47179b';
 
 /** `{company}` filled in, as the server sends it. */
 export function filled(n: Notice, company: string): Notice {
@@ -84,7 +84,7 @@ export const NOTICE_NEXT: Notice = {
   intro: 'This notice changed on 1 Dec 2026. Before you upload your documents, read and accept the following.',
   terms: NOTICE_2026_11_1.terms.map((t) =>
     t.term === 'Who uses your information'
-      ? { ...t, text: '{company} uses your personal information to employ and pay you, as the Protection of Personal Information Act (POPIA) allows. Naleko People stores it in Cape Town, and your documents are read there too.' }
+      ? { ...t, text: '{company} uses your personal information to employ and pay you, as the Protection of Personal Information Act (POPIA) allows. It is stored in Cape Town, and your documents are read there too.' }
       : t,
   ),
 };
