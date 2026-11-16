@@ -635,7 +635,7 @@ test.describe('OPS-05 Terraform applies itself, prod on Approve', () => {
         expect.soft(attributes(t.body).get('deletion_protection_enabled'), `${rel(t.file)}: ${t.labels[1]} deletion_protection_enabled`).toBe('true');
       }
     }
-    expect(resources(tfFilesDeep(INFRA), 'aws_dynamodb_table').length + resources(tfFilesDeep(TALENT), 'aws_dynamodb_table').length, 'all 24 tables').toBe(24);
+    expect(resources(tfFilesDeep(INFRA), 'aws_dynamodb_table').length + resources(tfFilesDeep(TALENT), 'aws_dynamodb_table').length, 'all 25 tables (ONB-04 added employee_invites, re-lock ops-05.5)').toBe(25);
 
     // The CI check: passes on the repo, fails when a protected kind lacks prevent_destroy, and runs in CI.
     expect(existsSync(PD_CHECK), rel(PD_CHECK)).toBe(true);

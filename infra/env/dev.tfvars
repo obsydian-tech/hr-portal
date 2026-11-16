@@ -11,3 +11,7 @@ talent_flow_kms_key_id            = "68d7f1a9-2f46-452b-bda4-c0e319b48e15" # ali
 # BE-15: pepla-web has no address on AWS yet (OPS-01 parked), so dev emails
 # link to the local app instead of the live prod site.
 login_url = "http://localhost:4300/sign-in"
+
+# ONB-04: invite links point at the local app; the email names the help-picture company.
+company_name = "Sunbird Bakery"
+app_url      = "http://localhost:4300"

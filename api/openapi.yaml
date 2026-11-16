@@ -380,6 +380,102 @@ security:
   - CognitoJWT: []
 
 paths:
+  /v1/invites/lookup:
+    post:
+      tags: [Invites]
+      operationId: lookupInvite
+      summary: Look up an invite link (public, ONB-04)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        "200":
+          description: The state of the link. invalid carries no other field.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, expired, used, invalid]
+                  company:
+                    type: string
+                  firstName:
+                    type: string
+                  email:
+                    type: string
+                  startDate:
+                    type: string
+                  hrPartnerName:
+                    type: string
+        "400":
+          description: The body is missing or not JSON.
+  /v1/invites/redeem:
+    post:
+      tags: [Invites]
+      operationId: redeemInvite
+      summary: Set the password with an invite link (public, ONB-04)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "204":
+          description: The password is set; the link is used.
+        "400":
+          description: The body is missing, or the password breaks a rule.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  fields:
+                    type: object
+                    properties:
+                      password:
+                        type: array
+                        items:
+                          type: string
+                          enum: [minLength, maxLength, lower, upper, number, symbol]
+        "410":
+          description: The link is expired, used or invalid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [expired, used, invalid]
+        "502":
+          description: Cognito could not set the password; the link still works.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 
   # =========================================================================
   # EMPLOYEES API  (ndksa9ec0k)
@@ -516,6 +612,15 @@ paths:
                     properties:
                       sent:
                         type: boolean
+                      skipped:
+                        type: string
+                        enum: [test]
+                  invite:
+                    type: object
+                    description: pepla-dev test logins only.
+                    properties:
+                      link:
+                        type: string
         "400":
           description: The body is missing or not valid, or a field is wrong. `fields` names each wrong field.
           content:

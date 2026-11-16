@@ -25,6 +25,9 @@
     "testMatch": [
       "**/?(*.)+(spec|test).[jt]s?(x)",
       "**/?(*.)+(spec|test).mjs"
+    ],
+    "modulePaths": [
+      "<rootDir>/node_modules"
     ]
   }
 }

@@ -7,6 +7,8 @@
 import { readFileSync } from 'node:fs';
 export const world = JSON.parse(readFileSync(process.env.ONB03_WORLD, 'utf8'));
 world.tables ??= {};
+// ONB-04 (re-lock onb-03.4): createEmployee writes an invite row on every registration.
+world.tables.employee_invites ??= [];
 world.cognito ??= { users: [] };
 export const calls = [];
 export const KEYS = {
@@ -15,11 +17,13 @@ export const KEYS = {
   documents: ['employee_id', 'document_id'],
   'document-verification': ['verificationId'],
   'talent-flow-users': ['PK', 'SK'],
+  employee_invites: ['token_hash'],
 };
 /** Secondary indexes: table -> index name -> its key attribute. */
 export const INDEXES = {
   employees: { 'email-index': 'email', 'created_by-index': 'created_by' },
   'talent-flow-users': { EmailIndex: 'GSI1PK' },
+  employee_invites: { 'employee-index': 'employee_id' },
 };
 export function table(name) {
   const t = world.tables[name];
