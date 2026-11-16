@@ -129,7 +129,7 @@ export class SignInPage {
     this.email = page.getByLabel('Email', { exact: true });
     this.password = page.getByLabel('Password', { exact: true });
     this.submit = page.getByRole('button', { name: 'Sign in', exact: true });
-    this.forgot = page.getByText(/Forgot your password\?\s*Your Admin can send you a new link\./);
+    this.forgot = page.getByRole('link', { name: 'Forgot your password?', exact: true });
   }
 
   async open(): Promise<void> {
