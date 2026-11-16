@@ -188,14 +188,17 @@ def employee_item(employee_id: str, first: str, last: str, email: str, dept: str
 def reset_employee_consents(ddb, employee_id: str) -> int:
     """ONB-05: the test persona starts every run without having accepted the privacy notice (dev only)."""
     removed = 0
-    for page in ddb.get_paginator("query").paginate(
-            TableName="employee_consents",
-            KeyConditionExpression="employee_id = :e",
-            ExpressionAttributeValues={":e": {"S": employee_id}},
-            ProjectionExpression="employee_id, notice_version"):
-        for item in page["Items"]:
-            ddb.delete_item(TableName="employee_consents", Key=item)
-            removed += 1
+    try:
+        for page in ddb.get_paginator("query").paginate(
+                TableName="employee_consents",
+                KeyConditionExpression="employee_id = :e",
+                ExpressionAttributeValues={":e": {"S": employee_id}},
+                ProjectionExpression="employee_id, notice_version"):
+            for item in page["Items"]:
+                ddb.delete_item(TableName="employee_consents", Key=item)
+                removed += 1
+    except ddb.exceptions.ResourceNotFoundException:
+        return 0  # the table arrives with the apply after the merge; nothing to remove before then
     return removed
 
 
