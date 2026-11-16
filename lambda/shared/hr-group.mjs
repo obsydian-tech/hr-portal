@@ -12,6 +12,7 @@ export function json(statusCode, body) {
 
 /** True when the claims carry one of the group names (exact names, through groupsOf). */
 export function inGroup(claims, ...names) {
+  if (!isIdToken(claims)) return false; // BE-18: an access token is in no group here
   const groups = groupsOf(claims);
   return names.some((n) => groups.includes(n));
 }

@@ -171,7 +171,7 @@ const handlerFn = async (event) => {
         }
         return { ...item, employee_hr_staff_id: '' };
       } catch (err) {
-        logger.error('Failed to get employee', { error: err });
+        logger.error('Failed to get employee', { errorName: err?.name ?? 'Error' });
         return { ...item, employee_hr_staff_id: '' };
       }
     }));
@@ -203,7 +203,7 @@ const handlerFn = async (event) => {
     };
 
   } catch (error) {
-    logger.error('Handler error', { error });
+    logger.error('Handler error', { errorName: error?.name ?? 'Error' });
     return {
       statusCode: 500,
       headers: {
@@ -212,7 +212,7 @@ const handlerFn = async (event) => {
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,OPTIONS'
       },
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: 'Something went wrong' })
     };
   }
 };
