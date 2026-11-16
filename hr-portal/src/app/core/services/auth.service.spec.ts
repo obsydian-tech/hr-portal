@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { Router } from '@angular/router';
+import { CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
 import { AuthService, AuthUser } from './auth.service';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -177,17 +178,25 @@ describe('AuthService', () => {
     expect((result as { status: string; message: string }).message).toContain('No pending');
   });
 
-  it('login with unknown AS ID returns ERROR without HTTP call', async () => {
-    const result = await svc.login('AS99999', 'pass');
+  it('login sends the trimmed email to Cognito and makes no HTTP call', async () => {
+    const spy = spyOn(CognitoUser.prototype, 'authenticateUser').and.callFake((_d: any, cb: any) =>
+      cb.onFailure({ code: 'NotAuthorizedException' }));
+    const result = await svc.login(' john.doe@example.com ', 'pass');
     expect(result.status).toBe('ERROR');
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect((spy.calls.mostRecent().args[0] as AuthenticationDetails).getUsername()).toBe('john.doe@example.com');
     httpMock.expectNone(() => true);
   });
 
-  it('login with EMP- ID that returns 404 returns ERROR', async () => {
-    const p = svc.login('EMP-9999999', 'pass');
-    httpMock.expectOne((r) => r.url.includes('/v1/employees/lookup'))
-      .flush({}, { status: 404, statusText: 'Not Found' });
-    const result = await p;
-    expect(result.status).toBe('ERROR');
+  it('login with an AS or EMP number sends it to Cognito as typed, no lookup', async () => {
+    const spy = spyOn(CognitoUser.prototype, 'authenticateUser').and.callFake((_d: any, cb: any) =>
+      cb.onFailure({ code: 'NotAuthorizedException' }));
+    for (const input of ['AS00001', 'EMP-0000001']) {
+      const result = await svc.login(input, 'pass');
+      expect(result.status).toBe('ERROR');
+      expect((spy.calls.mostRecent().args[0] as AuthenticationDetails).getUsername()).toBe(input);
+    }
+    expect(spy).toHaveBeenCalledTimes(2);
+    httpMock.expectNone(() => true);
   });
 });
