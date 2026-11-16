@@ -21,9 +21,10 @@ export const handler = async (event) => {
   logger.info('Custom email sender', { triggerSource: source, sub });
   if (source !== 'CustomEmailSender_ForgotPassword') return;
   const email = event.request.userAttributes.email;
-  const { plaintext } = await decrypt(keyring, Buffer.from(event.request.code, 'base64'));
-  const code = Buffer.from(plaintext).toString('utf8');
+  let code;
   try {
+    const { plaintext } = await decrypt(keyring, Buffer.from(event.request.code, 'base64'));
+    code = Buffer.from(plaintext).toString('utf8');
     const client = new postmark.ServerClient(process.env.POSTMARK_API_TOKEN);
     const r = await client.sendEmail({
       From: process.env.POSTMARK_SENDER_EMAIL,
