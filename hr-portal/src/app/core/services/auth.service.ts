@@ -1,6 +1,5 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import {
   CognitoUserPool,
   CognitoUser,
@@ -8,8 +7,6 @@ import {
   CognitoUserSession,
 } from 'amazon-cognito-identity-js';
 import { environment } from '../../../environments/environment';
-import { getHrStaffById } from '../../shared/constants/hr-staff';
-import { firstValueFrom } from 'rxjs';
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -38,7 +35,6 @@ export type AuthResult =
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly router = inject(Router);
-  private readonly http = inject(HttpClient);
   private readonly userPool: CognitoUserPool;
   private cognitoUser: CognitoUser | null = null;
 
@@ -67,54 +63,11 @@ export class AuthService {
   // ─── Public API ────────────────────────────────────────
 
   /**
-   * Resolve login input to an email address.
-   * - AS##### → local HR staff registry lookup
-   * - EMP-####### → backend API lookup
-   * - Otherwise treated as email
-   */
-  private async resolveUsername(input: string): Promise<string> {
-    const trimmed = input.trim();
-
-    // HR Staff ID (local lookup)
-    if (/^AS\d{5}$/i.test(trimmed)) {
-      const staff = getHrStaffById(trimmed.toUpperCase());
-      if (staff) return staff.email;
-      throw new Error('Staff ID not found. Please check your AS number.');
-    }
-
-    // Employee ID (API lookup)
-    if (/^EMP-\d{7}$/i.test(trimmed)) {
-      try {
-        const resp = await firstValueFrom(
-          this.http.get<{ email: string }>(
-            `${environment.employeesApiUrl}/v1/employees/lookup`,
-            { params: { employeeId: trimmed.toUpperCase() } }
-          )
-        );
-        if (resp?.email) return resp.email;
-        throw new Error('Employee not found.');
-      } catch (err: any) {
-        if (err?.status === 404) {
-          throw new Error('Employee ID not found. Please check your EMP number.');
-        }
-        throw new Error(err?.message || 'Failed to look up employee. Please try again.');
-      }
-    }
-
-    return trimmed; // Treat as email
-  }
-
-  /**
    * Authenticate user with Cognito.
-   * Accepts email, HR staff ID (AS#####), or employee ID (EMP-#######).
+   * Accepts an email address only. The input is trimmed and sent to Cognito as typed.
    */
   async login(usernameInput: string, password: string): Promise<AuthResult> {
-    let email: string;
-    try {
-      email = await this.resolveUsername(usernameInput);
-    } catch (err: any) {
-      return { status: 'ERROR', message: err.message };
-    }
+    const email = usernameInput.trim();
 
     return new Promise((resolve) => {
       const authDetails = new AuthenticationDetails({
