@@ -303,11 +303,16 @@ resource "aws_budgets_budget" "monthly" {
 # ── 4. Seed parameters read at plan time ────────────────────────────────────
 
 # Postmark's documented test token: accepted by the API, sends nothing.
-# Dev never emails real people.
+# It is only the starting value. Once a real token is stored here by hand,
+# later bootstrap runs must leave it alone, so changes to the value are ignored.
 resource "aws_ssm_parameter" "postmark_token" {
   name  = "/naleko/postmark/api_token"
   type  = "SecureString"
   value = "POSTMARK_API_TEST"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 output "deploy_role_arn" {
