@@ -1,0 +1,287 @@
+<main class="pp-stack pp-gap-600" aria-label="Site parts">
+<h1 class="pp-text-heading-large">Public site parts</h1>
+<section class="pp-stack pp-gap-200" id="button-dark-and-line-default-size" data-part="button" data-example="Dark and line, default size">
+  <h2 class="pp-text-heading-small">Dark and line, default size</h2>
+  <div data-example-body>
+    <div class="pp-inline pp-gap-200" data-theme="light">
+      <a ppSiteButton href="#demo">Book a demo</a>
+      <a ppSiteButton variant="line" href="#get-started">Get started</a>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="button-large-with-ask-batsi" data-part="button" data-example="Large, with Ask Batsi">
+  <h2 class="pp-text-heading-small">Large, with Ask Batsi</h2>
+  <div data-example-body>
+    <div class="pp-inline pp-gap-200" data-theme="light">
+      <a ppSiteButton large href="#demo">Book a demo</a>
+      <button ppSiteButton variant="line" large icon="sparkles" type="button">Ask Batsi</button>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="motion-arrival-staggered-resting-state" data-part="motion" data-example="Arrival, staggered (resting state)">
+  <h2 class="pp-text-heading-small">Arrival, staggered (resting state)</h2>
+  <div data-example-body>
+    <div class="pp-columns">
+      @for (m of modules; track m) {
+        <div class="pp-card pp-site-reveal pp-site-reveal--in" [style.--_i]="$index"><div class="pp-card__body">{{ m }}</div></div>
+      }
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="motion-loops" data-part="motion" data-example="Loops">
+  <h2 class="pp-text-heading-small">Loops</h2>
+  <div data-example-body>
+    <div class="pp-inline pp-gap-200">
+      <pp-lozenge status="agent" icon="sparkles" ppSitePulse>Batsi is checking</pp-lozenge>
+      <span class="pp-tag" ppSiteDrift>Drifting light</span>
+      <svg ppIcon="sparkles" ppSiteTurn></svg>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="motion-still-mode-nothing-moves" data-part="motion" data-example="Still mode (nothing moves)">
+  <h2 class="pp-text-heading-small">Still mode (nothing moves)</h2>
+  <div data-example-body>
+    <div data-site-still="end" class="pp-inline pp-gap-200">
+      <pp-lozenge status="agent" icon="sparkles" ppSitePulse>Batsi is checking</pp-lozenge>
+      <span class="pp-tag" ppSiteDrift>Drifting light</span>
+      <svg ppIcon="sparkles" ppSiteTurn></svg>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="lights-three-lights-behind-a-headline" data-part="lights" data-example="Three lights behind a headline">
+  <h2 class="pp-text-heading-small">Three lights behind a headline</h2>
+  <div data-example-body>
+    <div ppSiteStage>
+      <section ppSiteSection clip>
+        <div ppSiteLights [lights]="three"></div>
+        <div ppSiteWrap>
+          <p ppSiteEyebrow>People, risk and compliance platform</p>
+          <h2 ppSiteTitle>Lights drift behind the words.</h2>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="shine-accent-line-a-block" data-part="shine" data-example="Accent line (a block)">
+  <h2 class="pp-text-heading-small">Accent line (a block)</h2>
+  <div data-example-body>
+    <div ppSiteStage>
+      <section ppSiteSection>
+        <h2 ppSiteTitle>Every employee <span ppSiteShine text="hired, onboarded and compliant."></span></h2>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="shine-inline" data-part="shine" data-example="Inline">
+  <h2 class="pp-text-heading-small">Inline</h2>
+  <div data-example-body>
+    <h2 class="pp-text-display">Naleko <span ppSiteShine inline text="People."></span></h2>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="shine-still-mode-no-glow" data-part="shine" data-example="Still mode (no glow)">
+  <h2 class="pp-text-heading-small">Still mode (no glow)</h2>
+  <div data-example-body>
+    <div data-site-still="end">
+      <h2 class="pp-text-display">Naleko <span ppSiteShine inline text="People."></span></h2>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="gradient-company-name" data-part="gradient" data-example="Company name">
+  <h2 class="pp-text-heading-small">Company name</h2>
+  <div data-example-body>
+    <h2 class="pp-text-heading-xxlarge">Built by <span ppSiteGradientText>Naleko Digital Solutions.</span></h2>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="gradient-hairline" data-part="gradient" data-example="Hairline">
+  <h2 class="pp-text-heading-small">Hairline</h2>
+  <div data-example-body>
+    <div class="pp-stack pp-gap-200">
+      <span ppSiteGradientLine></span>
+      <p class="pp-text-body-large">© 2026 Naleko Digital Solutions</p>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="gradient-company-name-flowing" data-part="gradient" data-example="Company name, flowing">
+  <h2 class="pp-text-heading-small">Company name, flowing</h2>
+  <div data-example-body>
+    <h2 class="pp-text-heading-xxlarge">Built by <span ppSiteGradientText flow>Naleko Digital Solutions.</span></h2>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="header-at-the-top-of-the-page-desktop" data-part="header" data-example="At the top of the page (desktop)">
+  <h2 class="pp-text-heading-small">At the top of the page (desktop)</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="desktop">
+      <header ppSiteHeader></header>
+      @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="header-after-scrolling-frosted-and-shorter" data-part="header" data-example="After scrolling: frosted and shorter">
+  <h2 class="pp-text-heading-small">After scrolling: frosted and shorter</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="desktop" scrolled>
+      <header ppSiteHeader></header>
+      @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="header-phone-logo-book-a-demo-hidden-under-520px-menu-button" data-part="header" data-example="Phone: logo, Book a demo hidden under 520px, menu button">
+  <h2 class="pp-text-heading-small">Phone: logo, Book a demo hidden under 520px, menu button</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="phone">
+      <header ppSiteHeader></header>
+      @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="menu-product-list-open-wide-two-columns" data-part="menu" data-example="Product list open (wide, two columns)">
+  <h2 class="pp-text-heading-small">Product list open (wide, two columns)</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="desktop">
+      <header ppSiteHeader openList="product"></header>
+      @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="menu-integrations-list-open-medium-one-column" data-part="menu" data-example="Integrations list open (medium, one column)">
+  <h2 class="pp-text-heading-small">Integrations list open (medium, one column)</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="desktop">
+      <header ppSiteHeader openList="integrations"></header>
+      @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="menu-resources-list-open-narrow" data-part="menu" data-example="Resources list open (narrow)">
+  <h2 class="pp-text-heading-small">Resources list open (narrow)</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="desktop">
+      <header ppSiteHeader openList="resources"></header>
+      @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="sheet-closed-phone" data-part="sheet" data-example="Closed (phone)">
+  <h2 class="pp-text-heading-small">Closed (phone)</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="phone">
+      <header ppSiteHeader></header>
+      @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+      <div ppSiteSheet></div>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="sheet-open-phone" data-part="sheet" data-example="Open (phone)">
+  <h2 class="pp-text-heading-small">Open (phone)</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="phone" sheetOpen>
+      <header ppSiteHeader></header>
+      @for (text of filler; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+      <div ppSiteSheet></div>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="footer-desktop-brand-five-lists-and-the-legal-row" data-part="footer" data-example="Desktop: brand, five lists and the legal row">
+  <h2 class="pp-text-heading-small">Desktop: brand, five lists and the legal row</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="desktop">
+      <header ppSiteHeader></header>
+      @for (text of footerFiller; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+      <footer ppSiteFooter></footer>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="footer-phone-two-columns-links-stacked" data-part="footer" data-example="Phone: two columns, links stacked">
+  <h2 class="pp-text-heading-small">Phone: two columns, links stacked</h2>
+  <div data-example-body>
+    <div ppSiteFrame device="phone">
+      <header ppSiteHeader></header>
+      @for (text of footerFiller; track $index) { <pp-card><div ppCardBody>{{ text }}</div></pp-card> }
+      <footer ppSiteFooter></footer>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="hero-hero-desktop-width" data-part="hero" data-example="Hero, desktop width">
+  <h2 class="pp-text-heading-small">Hero, desktop width</h2>
+  <div data-example-body>
+    <div ppSiteStage device="desktop">
+      <section ppSiteHero [lights]="heroDesktop" [chips]="chips" eyebrow="People, risk and compliance platform" line="Every employee"
+               accent="hired, onboarded and compliant." lead="One employee record across every module, with Batsi doing the follow-ups and checks in between.">
+        <p ppHeroIntro><strong>Naleko People</strong> runs recruitment, onboarding, leave and compliance for South African organisations. Batsi follows up, reads documents and flags risks. HR approves every action.</p>
+        <a ppSiteButton large href="#demo">Book a demo</a>
+        <button ppSiteButton variant="line" large icon="sparkles" type="button">Ask Batsi</button>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="hero-hero-phone-width" data-part="hero" data-example="Hero, phone width">
+  <h2 class="pp-text-heading-small">Hero, phone width</h2>
+  <div data-example-body>
+    <div ppSiteStage device="phone">
+      <section ppSiteHero [lights]="heroPhone" [chips]="chips" eyebrow="People, risk and compliance platform" line="Every employee"
+               accent="hired, onboarded and compliant." lead="One employee record across every module, with Batsi doing the follow-ups and checks in between.">
+        <p ppHeroIntro><strong>Naleko People</strong> runs recruitment, onboarding, leave and compliance for South African organisations. Batsi follows up, reads documents and flags risks. HR approves every action.</p>
+        <a ppSiteButton large href="#demo">Book a demo</a>
+        <button ppSiteButton variant="line" large icon="sparkles" type="button">Ask Batsi</button>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="section-section-on-white" data-part="section" data-example="Section on white">
+  <h2 class="pp-text-heading-small">Section on white</h2>
+  <div data-example-body>
+    <div ppSiteStage>
+      <section ppSiteSection>
+        <div ppSiteSectionHead eyebrow="Recruitment" title="Every candidate tracked from application to signed offer."
+             lead="One hiring board per role. Batsi watches each stage for candidates who go quiet and drafts the follow-up for HR to send."></div>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="section-cream-violet-wash-and-mint-wash" data-part="section" data-example="Cream, violet wash and mint wash">
+  <h2 class="pp-text-heading-small">Cream, violet wash and mint wash</h2>
+  <div data-example-body>
+    <div class="pp-stack pp-gap-200">
+      <div ppSiteStage><section ppSiteSection ground="cream"><div ppSiteSectionHead eyebrow="Onboarding and Offboarding" title="Offer accepted to day one, in one record."></div></section></div>
+      <div ppSiteStage><section ppSiteSection ground="violet"><div ppSiteSectionHead eyebrow="Ask Batsi" title="Ask Batsi about any employee or candidate."></div></section></div>
+      <div ppSiteStage><section ppSiteSection ground="mint"><div ppSiteSectionHead eyebrow="Compliance Management" title="Every certificate tracked to its expiry date."></div></section></div>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="caps-four-columns-two-with-the-batsi-tag" data-part="caps" data-example="Four columns, two with the Batsi tag">
+  <h2 class="pp-text-heading-small">Four columns, two with the Batsi tag</h2>
+  <div data-example-body>
+    <div ppSiteStage device="desktop">
+      <section ppSiteSection>
+        <ul ppSiteCaps [items]="caps"></ul>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="band-closing-band-desktop-width" data-part="band" data-example="Closing band, desktop width">
+  <h2 class="pp-text-heading-small">Closing band, desktop width</h2>
+  <div data-example-body>
+    <div ppSiteStage device="desktop">
+      <section ppSiteBand id="demo-ex" [lights]="bandDesktop" eyebrow="Book a demo" title="Naleko" accent="People."
+               lead="Every employee hired, onboarded and compliant. One app for Recruitment, Onboarding and Offboarding, Leave Management and Compliance Management, with Ask Batsi built in."
+               note="Get started creates a company account. The Naleko team calls every new company.">
+        <a ppSiteButton large href="#demo">Book a demo</a>
+        <a ppSiteButton variant="line" large href="#get-started">Get started</a>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="pp-stack pp-gap-200" id="band-closing-band-phone-width" data-part="band" data-example="Closing band, phone width">
+  <h2 class="pp-text-heading-small">Closing band, phone width</h2>
+  <div data-example-body>
+    <div ppSiteStage device="phone">
+      <section ppSiteBand id="demo-ex-phone" [lights]="bandPhone" eyebrow="Book a demo" title="Naleko" accent="People."
+               lead="Every employee hired, onboarded and compliant. One app for Recruitment, Onboarding and Offboarding, Leave Management and Compliance Management, with Ask Batsi built in."
+               note="Get started creates a company account. The Naleko team calls every new company.">
+        <a ppSiteButton large href="#demo">Book a demo</a>
+        <a ppSiteButton variant="line" large href="#get-started">Get started</a>
+      </section>
+    </div>
+  </div>
+</section>
+</main>
