@@ -1,0 +1,2 @@
+{ "name": "cognitoEmailSender", "version": "1.0.0", "type": "module", "main": "index.mjs",
+  "dependencies": { "@aws-crypto/client-node": "^4.0.0", "@aws-lambda-powertools/logger": "^2.18.0", "@aws-lambda-powertools/metrics": "^2.18.0", "postmark": "^4.0.0" } }

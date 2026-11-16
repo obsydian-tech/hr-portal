@@ -3,31 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { NavigationCancel, NavigationEnd, NavigationError, Router } from '@angular/router';
 import { filter, firstValueFrom, take } from 'rxjs';
 import { PpButton, PpField, PpForm, PpPassword, PpSectionMessage, PpSignInActions, PpSignInPage, PpSkeleton, PpSkeletonGroup, PpTextField } from '../../ds';
-import { SIGN_IN_MESSAGES } from '../../core/auth/auth.messages';
+import { PASSWORD_EMPTY, PASSWORD_GENERAL, PASSWORD_HELP, PASSWORD_RULE_LINES, PASSWORD_RULE_ORDER, SIGN_IN_MESSAGES, brokenRules } from '../../core/auth/auth.messages';
 import { AuthService } from '../../core/auth/auth.service';
 import { InviteService } from '../../core/auth/invite.service';
 
-const RULE_LINES: Record<string, string> = {
-  minLength: 'Use at least 12 characters.',
-  maxLength: 'Use 256 characters or fewer.',
-  upper: 'Add an upper case letter.',
-  lower: 'Add a lower case letter.',
-  number: 'Add a number.',
-  symbol: 'Add a symbol, such as ! or #.',
-};
-const ORDER = ['minLength', 'maxLength', 'upper', 'lower', 'number', 'symbol'];
-const GENERAL = 'Check the password against the rules under the field.';
-
-function broken(p: string): string[] {
-  const out: string[] = [];
-  if (p.length < 12) out.push('minLength');
-  if (p.length > 256) out.push('maxLength');
-  if (!/[A-Z]/.test(p)) out.push('upper');
-  if (!/[a-z]/.test(p)) out.push('lower');
-  if (!/[0-9]/.test(p)) out.push('number');
-  if (!/[^A-Za-z0-9]/.test(p)) out.push('symbol');
-  return out;
-}
+const RULE_LINES = PASSWORD_RULE_LINES;
+const ORDER = PASSWORD_RULE_ORDER;
+const GENERAL = PASSWORD_GENERAL;
+const broken = brokenRules;
 
 /** A mangled link (a stray % in the address) is a broken link, not a crash. */
 function safeDecode(value: string): string | null {
@@ -63,7 +46,7 @@ type State = 'loading' | 'unreachable' | 'form' | 'expired' | 'signInFailed';
             <pp-field label="Email">
               <input ppTextField type="email" name="email" autocomplete="username" readonly [value]="email()" />
             </pp-field>
-            <pp-field label="New password" help="At least 12 characters, with an upper case letter, a lower case letter, a number and a symbol." [error]="passwordError()">
+            <pp-field label="New password" [help]="help" [error]="passwordError()">
               <pp-password autocomplete="new-password" [value]="password()" (valueChange)="password.set($event)" />
             </pp-field>
             @if (problem(); as p) { <pp-section-message tone="danger">{{ p }}</pp-section-message> }
@@ -83,6 +66,7 @@ export class SetPasswordPage {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   protected readonly offline = SIGN_IN_MESSAGES.offline;
+  protected readonly help = PASSWORD_HELP;
   private readonly token: string | null;
   protected readonly state = signal<State>('loading');
   protected readonly email = signal('');
@@ -143,7 +127,7 @@ export class SetPasswordPage {
     if (this.busy() || !this.token) return;
     this.problem.set(null);
     const p = this.password();
-    if (!p) return this.showRules(null, 'Enter a new password.');
+    if (!p) return this.showRules(null, PASSWORD_EMPTY);
     const rules = broken(p);
     if (rules.length) return this.showRules(rules);
     this.passwordError.set(null);

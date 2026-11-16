@@ -2,7 +2,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import type { CognitoUser, CognitoUserSession } from 'amazon-cognito-identity-js';
 import { environment } from '../../../environments/environment';
 import { problemFor } from './auth.errors';
-import { SignInProblem } from './auth.messages';
+import { ResetProblem, SignInProblem } from './auth.messages';
 
 export interface SignedInUser {
   sub: string;
@@ -112,6 +112,46 @@ export class AuthService {
     this.restoring = Promise.resolve();
     this.current.set(user);
     return true;
+  }
+
+  /**
+   * ONB-24: asks Cognito to email a reset code. Any answer but no network or a limit counts as sent, so
+   * the page reads the same whether or not the email has an account.
+   */
+  async requestPasswordReset(email: string): Promise<{ ok: true } | { ok: false; problem: ResetProblem }> {
+    const { lib, pool } = await this.library;
+    const cognitoUser = new lib.CognitoUser({ Username: email.trim(), Pool: pool });
+    return new Promise((resolve) => {
+      cognitoUser.forgotPassword({
+        onSuccess: () => resolve({ ok: true }),
+        inputVerificationCode: () => resolve({ ok: true }),
+        onFailure: (error) => {
+          const p = problemFor(error);
+          if (p === 'offline' || p === 'tooMany') return resolve({ ok: false, problem: p });
+          resolve({ ok: true });
+        },
+      });
+    });
+  }
+
+  /** ONB-24: sets the new password with the emailed code. Returns a problem name, never Cognito's words. */
+  async confirmPasswordReset(email: string, code: string, newPassword: string): Promise<{ ok: true } | { ok: false; problem: ResetProblem }> {
+    const { lib, pool } = await this.library;
+    const cognitoUser = new lib.CognitoUser({ Username: email.trim(), Pool: pool });
+    return new Promise((resolve) => {
+      cognitoUser.confirmPassword(code, newPassword, {
+        onSuccess: () => resolve({ ok: true }),
+        onFailure: (error: { code?: string; name?: string; message?: string }) => {
+          const name = error?.code ?? error?.name ?? '';
+          const p = problemFor(error);
+          if (p === 'offline' || p === 'tooMany') return resolve({ ok: false, problem: p });
+          if (name === 'CodeMismatchException') return resolve({ ok: false, problem: 'wrongCode' });
+          if (name === 'ExpiredCodeException') return resolve({ ok: false, problem: 'expired' });
+          if (name === 'InvalidPasswordException') return resolve({ ok: false, problem: 'badPassword' });
+          resolve({ ok: false, problem: 'other' });
+        },
+      });
+    });
   }
 
   /** The signed-in person's ID token, for calls to our own APIs. Null when nobody is signed in. */

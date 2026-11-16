@@ -4,7 +4,7 @@ import { PpLogo } from '../core/logo';
 /**
  * The layout for every screen before sign-in: the logo, one narrow card with the form, and a footer line.
  * ```html
- * <pp-sign-in-page heading="Sign in" footer="Forgot your password? Your Admin can send you a new link.">
+ * <pp-sign-in-page heading="Sign in" footer="Haven't set a password yet? Use the link in your welcome email.">
  *   <form ppForm aria-label="Sign in"> … <pp-sign-in-actions><button ppButton appearance="primary" type="submit">Sign in</button></pp-sign-in-actions></form>
  * </pp-sign-in-page>
  * ```

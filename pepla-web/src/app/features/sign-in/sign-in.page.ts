@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { PpButton, PpField, PpForm, PpPassword, PpSectionMessage, PpSignInActions, PpSignInPage, PpTextField } from '../../ds';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { PpButton, PpField, PpForm, PpLink, PpPassword, PpSectionMessage, PpSignInActions, PpSignInPage, PpTextField } from '../../ds';
 import { isEmail, landingFor } from '../../core/auth/auth.errors';
-import { SIGN_IN_MESSAGES, SignInProblem } from '../../core/auth/auth.messages';
+import { RESET_MESSAGES, SIGN_IN_MESSAGES, SignInProblem } from '../../core/auth/auth.messages';
 import { AuthService } from '../../core/auth/auth.service';
 
 /**
@@ -13,10 +13,10 @@ import { AuthService } from '../../core/auth/auth.service';
  */
 @Component({
   selector: 'app-sign-in',
-  imports: [FormsModule, PpSignInPage, PpSignInActions, PpForm, PpField, PpTextField, PpPassword, PpButton, PpSectionMessage],
+  imports: [FormsModule, RouterLink, PpLink, PpSignInPage, PpSignInActions, PpForm, PpField, PpTextField, PpPassword, PpButton, PpSectionMessage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <pp-sign-in-page heading="Sign in" footer="Forgot your password? Your Admin can send you a new link.">
+    <pp-sign-in-page heading="Sign in">
       <form ppForm aria-label="Sign in" (ngSubmit)="submit()">
         <pp-field label="Email" [error]="emailError()">
           <input ppTextField type="email" name="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" [ngModel]="email()" (ngModelChange)="email.set($event)" />
@@ -24,6 +24,9 @@ import { AuthService } from '../../core/auth/auth.service';
         <pp-field label="Password" [error]="passwordError()">
           <pp-password autocomplete="current-password" [required]="true" [value]="password()" (valueChange)="password.set($event)" />
         </pp-field>
+        @if (changed()) {
+          <div role="status"><pp-section-message tone="success">{{ changedText }}</pp-section-message></div>
+        }
         @if (problem(); as p) {
           @if (p === 'setPassword') {
             <div role="status"><pp-section-message tone="information">{{ messages[p] }}</pp-section-message></div>
@@ -33,6 +36,7 @@ import { AuthService } from '../../core/auth/auth.service';
         }
         <pp-sign-in-actions>
           <button ppButton appearance="primary" type="submit" [busy]="busy()">Sign in</button>
+          <a ppLink routerLink="/forgot-password" [state]="{ email: email() }">Forgot your password?</a>
         </pp-sign-in-actions>
       </form>
     </pp-sign-in-page>
@@ -51,10 +55,19 @@ export class SignInPage {
   protected readonly passwordError = signal<string | null>(null);
   protected readonly problem = signal<SignInProblem | null>(null);
   protected readonly busy = signal(false);
+  protected readonly changedText = RESET_MESSAGES.changed;
+  protected readonly changed = signal(false);
+
+  constructor() {
+    const state = this.router.getCurrentNavigation()?.extras.state as { email?: unknown; changed?: unknown } | undefined;
+    if (typeof state?.email === 'string') this.email.set(state.email);
+    if (state?.changed === true) this.changed.set(true);
+  }
 
   protected async submit(): Promise<void> {
     if (this.busy()) return;
     this.problem.set(null);
+    this.changed.set(false);
     this.emailError.set(isEmail(this.email()) ? null : SIGN_IN_MESSAGES.badEmail);
     this.passwordError.set(this.password() ? null : SIGN_IN_MESSAGES.noPassword);
     if (this.emailError()) return this.focus('input[type="email"]');

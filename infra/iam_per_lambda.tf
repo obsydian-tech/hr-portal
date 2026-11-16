@@ -1859,3 +1859,93 @@ resource "aws_iam_role_policy" "redeem_invite" {
     ]
   })
 }
+
+# ─── ONB-24 ──────────────────────────────────────────────────────────────────
+resource "aws_iam_role" "cognito_email_sender" {
+  name = "naleko-cognitoEmailSender-role"
+  path = "/naleko/"
+  assume_role_policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [{ Action = "sts:AssumeRole", Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" } }]
+  })
+}
+
+resource "aws_iam_role_policy" "cognito_email_sender" {
+  name = "naleko-cognitoEmailSender-policy"
+  role = aws_iam_role.cognito_email_sender.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/cognitoEmailSender:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "PostmarkToken"
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter"]
+        Resource = "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/naleko/postmark/api_token"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "cognito_email_sender_sink" {
+  count = var.environment != "prod" ? 1 : 0
+  name  = "naleko-cognitoEmailSender-dev-sink"
+  role  = aws_iam_role.cognito_email_sender.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "DevSink"
+      Effect   = "Allow"
+      Action   = ["dynamodb:PutItem"]
+      Resource = aws_dynamodb_table.reset_test_sink[0].arn
+    }]
+  })
+}
+
+resource "aws_iam_role" "cognito_post_confirmation" {
+  name = "naleko-cognitoPostConfirmation-role"
+  path = "/naleko/"
+  assume_role_policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [{ Action = "sts:AssumeRole", Effect = "Allow", Principal = { Service = "lambda.amazonaws.com" } }]
+  })
+}
+
+resource "aws_iam_role_policy" "cognito_post_confirmation" {
+  name = "naleko-cognitoPostConfirmation-policy"
+  role = aws_iam_role.cognito_post_confirmation.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/cognitoPostConfirmation:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "SignOutEverywhere"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminUserGlobalSignOut"]
+        Resource = aws_cognito_user_pool.naleko_dev.arn
+      }
+    ]
+  })
+}
