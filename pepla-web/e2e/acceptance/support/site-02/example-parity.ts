@@ -1,5 +1,5 @@
 import { icons as LUCIDE } from 'lucide';
-import type { Page } from '@playwright/test';
+import { test, type Page } from '@playwright/test';
 import { PEPLA_WEB, dsFile, exampleId, type KitExample } from './site';
 import { join, normalize, sep, extname } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
@@ -18,7 +18,7 @@ import { existsSync, readFileSync } from 'node:fs';
 const DS = join(PEPLA_WEB, 'src', 'styles', 'design-system');
 const PREFIX = '/__site-02-kit__/';
 const FONTS = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap';
-const STILL = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}';
+export const STILL = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}';
 const TYPES: Record<string, string> = { '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json' };
 
 const pascal = (n: string) => n.split('-').map((w) => w[0]!.toUpperCase() + w.slice(1)).join('');
@@ -160,6 +160,12 @@ export async function compareExample(page: Page, kitPage: Page, ex: KitExample, 
     const shotK = await kitPage.screenshot({ clip: clipK, fullPage: true, animations: 'disabled' });
     const shotA = await page.screenshot({ clip: clipA, fullPage: true, animations: 'disabled' });
     pixelRatio = await diff(kitPage, shotK, shotA);
+    // A failure keeps what both pages drew, so a run on another machine can be read without running it again.
+    if (pixelRatio > 0.01) {
+      await test.info().attach(`${ex.id}-kit.png`, { body: shotK, contentType: 'image/png' });
+      await test.info().attach(`${ex.id}-page.png`, { body: shotA, contentType: 'image/png' });
+      await test.info().attach(`${ex.id}-ratio.txt`, { body: `${(pixelRatio * 100).toFixed(2)}% of pixels differ; clip kit ${JSON.stringify(clipK)} page ${JSON.stringify(clipA)}`, contentType: 'text/plain' });
+    }
   }
   return { name: ex.name, pass: !unmatched.length && !moved.length && pixelRatio <= 0.01, unmatched, moved, pixelRatio, kitElements: k.items.length };
 }

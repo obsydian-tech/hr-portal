@@ -4,7 +4,7 @@ import { join, relative, sep } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { compareExample, serveKit } from './support/site-02/example-parity';
+import { STILL, compareExample, serveKit } from './support/site-02/example-parity';
 import {
   ARRIVAL,
   ARRIVAL_ID,
@@ -114,6 +114,12 @@ test.describe('SITE-02 Angular site components, 1:1 with the design system kits'
     once('the comparison sets its own window width: 1440 for desktop examples, 390 for phone examples');
     test.setTimeout(600_000);
     const examples = kitExamples();
+    // Motion is stopped on the gallery from the first moment, as it is on the kit page (whose freeze is in its head), so no loop has
+    // been promoted to its own layer before the pictures are taken (a slower machine otherwise draws the two pages differently).
+    await page.context().addInitScript((css) => {
+      const add = () => { const st = document.createElement('style'); st.setAttribute('data-test-still', ''); st.textContent = css; (document.head ?? document.documentElement).appendChild(st); };
+      if (document.head) add(); else new MutationObserver((_m, o) => { if (document.head) { o.disconnect(); add(); } }).observe(document, { childList: true, subtree: true });
+    }, STILL);
     const kitPage = await page.context().newPage();
     const failed: string[] = [];
     try {
