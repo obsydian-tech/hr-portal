@@ -38,7 +38,8 @@ export async function main(args) {
     start = page.LastEvaluatedKey;
   } while (start);
 
-  const withEmail = rows.filter((r) => typeof r.email?.S === 'string' && r.email.S !== '');
+  // An address that is only spaces is left alone: lower-casing it would write an empty index key.
+  const withEmail = rows.filter((r) => typeof r.email?.S === 'string' && r.email.S.trim() !== '');
   const byLower = new Map();
   for (const r of withEmail) {
     const lower = r.email.S.trim().toLowerCase();
@@ -56,23 +57,27 @@ export async function main(args) {
 
   let changed = 0;
   let skipped = 0;
-  for (const r of toChange) {
-    try {
-      await ddb.send(new UpdateItemCommand({
-        TableName: TABLE,
-        Key: { employee_id: r.employee_id },
-        UpdateExpression: 'SET #e = :new',
-        ConditionExpression: '#e = :old',
-        ExpressionAttributeNames: { '#e': 'email' },
-        ExpressionAttributeValues: { ':new': { S: r.email.S.trim().toLowerCase() }, ':old': { S: r.email.S } },
-      }));
-      changed += 1;
-    } catch (e) {
-      if (e?.name !== 'ConditionalCheckFailedException') throw e;
-      skipped += 1;
+  try {
+    for (const r of toChange) {
+      try {
+        await ddb.send(new UpdateItemCommand({
+          TableName: TABLE,
+          Key: { employee_id: r.employee_id },
+          UpdateExpression: 'SET #e = :new',
+          ConditionExpression: '#e = :old',
+          ExpressionAttributeNames: { '#e': 'email' },
+          ExpressionAttributeValues: { ':new': { S: r.email.S.trim().toLowerCase() }, ':old': { S: r.email.S } },
+        }));
+        changed += 1;
+      } catch (e) {
+        if (e?.name !== 'ConditionalCheckFailedException') throw e;
+        skipped += 1;
+      }
     }
+  } finally {
+    // Printed even when a write fails part-way, so whoever runs it knows how far it got.
+    console.log(`Lower-cased: ${changed}. Skipped (changed since the scan): ${skipped}.`);
   }
-  console.log(`Lower-cased: ${changed}. Skipped (changed since the scan): ${skipped}.`);
   return { exitCode: 0 };
 }
 

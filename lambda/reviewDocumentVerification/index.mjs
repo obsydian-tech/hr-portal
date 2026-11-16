@@ -1,6 +1,7 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { withIdempotency } from '../shared/idempotency.mjs';
 import { groupsOf, hrDecisionOf } from '../shared/document-check.mjs';
+import { isIdToken } from '../shared/hr-group.mjs';
 import { requiredFor, requiredMissing } from '../shared/required-documents.mjs';
 import { stepFromDocuments } from '../shared/onboarding-step.mjs';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
@@ -331,7 +332,7 @@ export const handler = async (event) => {
   // ONB-07 security review: only HR decides. This route shares its authorizer with employee uploads,
   // so the group is checked here, before any read or write (and before the idempotency cache).
   const claims = event.requestContext?.authorizer?.jwt?.claims;
-  if (!claims || !groupsOf(claims).includes('hr_staff')) {
+  if (!claims || !isIdToken(claims) || !groupsOf(claims).includes('hr_staff')) {
     return respond(403, { error: 'Only HR can decide on a document' });
   }
   const key = event.headers?.['idempotency-key'];

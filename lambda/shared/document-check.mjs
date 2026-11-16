@@ -2,6 +2,8 @@
  * What a document check is, shared by the Lambdas that list documents (ONB-12, ONB-13).
  * ONB-07 changed the rules here.
  */
+// hr-group.mjs imports groupsOf from here; the cycle is safe because both sides only call each other inside functions.
+import { isIdToken } from './hr-group.mjs';
 
 /**
  * The caller's groups. API Gateway hands a list claim over as one string such as
@@ -93,7 +95,7 @@ export function hrDecisionOf(doc) {
  */
 export function requireHr(event, headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }) {
   const claims = event?.requestContext?.authorizer?.jwt?.claims;
-  if (claims && groupsOf(claims).includes('hr_staff')) return null;
+  if (claims && isIdToken(claims) && groupsOf(claims).includes('hr_staff')) return null;
   return { statusCode: 403, headers, body: JSON.stringify({ error: 'Only HR can open documents' }) };
 }
 

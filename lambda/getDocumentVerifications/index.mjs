@@ -3,6 +3,7 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { groupsOf, checkOf } from '../shared/document-check.mjs';
+import { isIdToken } from '../shared/hr-group.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -26,7 +27,7 @@ const json = (statusCode, body) => ({ statusCode, headers: CORS, body: JSON.stri
 function callerOf(event) {
   const auth = event.requestContext?.authorizer;
   if (auth?.lambda?.actor === 'AGENT') return 'AGENT';
-  if (auth?.jwt?.claims && groupsOf(auth.jwt.claims).includes('hr_staff')) return 'HR';
+  if (auth?.jwt?.claims && isIdToken(auth.jwt.claims) && groupsOf(auth.jwt.claims).includes('hr_staff')) return 'HR';
   return null;
 }
 

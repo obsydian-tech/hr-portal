@@ -21,7 +21,6 @@ const TALENT_FLOW_USERS_TABLE = process.env.TALENT_FLOW_USERS_TABLE ?? 'talent-f
 
 export const handler = async (event) => {
   logger.info('PostAuthentication trigger fired', {
-    userName: event.userName,
     triggerSource: event.triggerSource,
   });
 
@@ -41,14 +40,20 @@ export const handler = async (event) => {
       KeyConditionExpression: 'email = :email',
       ExpressionAttributeValues: { ':email': { S: value } },
       ProjectionExpression: 'employee_id, stage',
-      Limit: 1,
+      Limit: 2,
     }));
     const lower = String(email).trim().toLowerCase();
     let queryResult = await byEmail(lower);
     if (!queryResult.Items?.length && email !== lower) queryResult = await byEmail(email);
 
+    if ((queryResult.Items?.length ?? 0) > 1) {
+      // BE-18: two rows share this address (legacy case differences). Change neither.
+      logger.warn('More than one employee row has this address — no stage update');
+      return event;
+    }
+
     if (!queryResult.Items || queryResult.Items.length === 0) {
-      logger.info('No Naleko employee record found — checking if TalentFlow user', { email });
+      logger.info('No Naleko employee record found — checking if TalentFlow user');
 
       // User might be TalentFlow-only (no Naleko employee record)
       // Still track their login
@@ -58,7 +63,7 @@ export const handler = async (event) => {
           IndexName: 'EmailIndex',
           KeyConditionExpression: 'GSI1PK = :emailKey',
           ExpressionAttributeValues: {
-            ':emailKey': { S: `EMAIL#${email.toLowerCase()}` }
+            ':emailKey': { S: `EMAIL#${lower}` }
           },
           ProjectionExpression: 'userId, PK, SK',
           Limit: 1,
@@ -81,14 +86,13 @@ export const handler = async (event) => {
             },
           }));
 
-          logger.info('Updated TalentFlow-only user lastLoginAt', { userId, email });
+          logger.info('Updated TalentFlow-only user lastLoginAt', { userId });
         } else {
-          logger.warn('No user found in either employees or talent-flow-users', { email });
+          logger.warn('No user found in either employees or talent-flow-users');
         }
       } catch (tfErr) {
         logger.error('Failed to track TalentFlow-only user login', {
-                    errorName: tfErr.name,
-          email
+          errorName: tfErr.name,
         });
       }
 
@@ -122,7 +126,7 @@ export const handler = async (event) => {
       },
     }));
 
-    logger.info('Stage bumped INVITED → ACTIVE', { employeeId, email });
+    logger.info('Stage bumped INVITED → ACTIVE', { employeeId });
 
     // === NEW: TalentFlow User Login Tracking ===
     // Check if this email also belongs to a TalentFlow user and update lastLoginAt
@@ -132,7 +136,7 @@ export const handler = async (event) => {
         IndexName: 'EmailIndex',
         KeyConditionExpression: 'GSI1PK = :emailKey',
         ExpressionAttributeValues: {
-          ':emailKey': { S: `EMAIL#${email.toLowerCase()}` }
+          ':emailKey': { S: `EMAIL#${lower}` }
         },
         ProjectionExpression: 'userId, PK, SK',
         Limit: 1,
@@ -156,15 +160,14 @@ export const handler = async (event) => {
           },
         }));
 
-        logger.info('Updated TalentFlow user lastLoginAt', { userId, email });
+        logger.info('Updated TalentFlow user lastLoginAt', { userId });
       } else {
-        logger.debug('No TalentFlow user found for email — skipping login tracking', { email });
+        logger.debug('No TalentFlow user found for email — skipping login tracking');
       }
     } catch (tfErr) {
       // Log error but don't block login — tracking is nice-to-have, not critical
       logger.error('Failed to update TalentFlow lastLoginAt — login will still succeed', {
-                errorName: tfErr.name,
-        email
+        errorName: tfErr.name,
       });
     }
     // === END: TalentFlow User Login Tracking ===
