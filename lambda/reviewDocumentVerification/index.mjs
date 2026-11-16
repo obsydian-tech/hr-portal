@@ -41,7 +41,7 @@ async function publishEvent(detailType, detail) {
       }],
     }));
   } catch (err) {
-    logger.warn('EventBridge publish failed', { detailType, error: err.message });
+    logger.warn('EventBridge publish failed', { detailType, errorName: err?.name ?? 'Error' });
   }
 }
 
@@ -273,10 +273,10 @@ const handlerFn = async (event) => {
           }
         } catch (metricErr) {
           // Non-fatal — metric failure must not block the review response
-          logger.warn('Failed to publish TimeToComplete metric', { employeeId, error: metricErr });
+          logger.warn('Failed to publish TimeToComplete metric', { employeeId, errorName: metricErr?.name ?? 'Error' });
         }
       } catch (stageErr) {
-        logger.error('Failed to update employee stage', { employeeId, error: stageErr });
+        logger.error('Failed to update employee stage', { employeeId, errorName: stageErr?.name ?? 'Error' });
         // Non-fatal — the document review itself succeeded
       }
     }
@@ -296,7 +296,7 @@ const handlerFn = async (event) => {
         }));
       } catch (stepErr) {
         if (stepErr?.name !== 'ConditionalCheckFailedException') {
-          logger.warn('Failed to update employee step', { employeeId, error: stepErr });
+          logger.warn('Failed to update employee step', { employeeId, errorName: stepErr?.name ?? 'Error' });
         }
         // Non-fatal — the document review itself succeeded
       }
@@ -319,7 +319,7 @@ const handlerFn = async (event) => {
     });
 
   } catch (err) {
-    logger.error('Handler error', { error: err });
+    logger.error('Handler error', { errorName: err?.name ?? 'Error' });
     return respond(500, { error: 'Internal server error' });
   }
 };

@@ -43,8 +43,14 @@ export const handler = async (event) => {
       Limit: 2,
     }));
     const lower = String(email).trim().toLowerCase();
-    let queryResult = await byEmail(lower);
-    if (!queryResult.Items?.length && email !== lower) queryResult = await byEmail(email);
+    // BE-18: lower case first. An address with capitals is also looked up as typed, so a legacy row stored
+    // that way is found, and two rows (one per form) are seen as two. Never more than two queries.
+    const queryResult = await byEmail(lower);
+    if (email !== lower) {
+      const typed = await byEmail(email);
+      const seen = new Set((queryResult.Items ?? []).map((i) => i.employee_id?.S));
+      queryResult.Items = [...(queryResult.Items ?? []), ...(typed.Items ?? []).filter((i) => !seen.has(i.employee_id?.S))];
+    }
 
     if ((queryResult.Items?.length ?? 0) > 1) {
       // BE-18: two rows share this address (legacy case differences). Change neither.

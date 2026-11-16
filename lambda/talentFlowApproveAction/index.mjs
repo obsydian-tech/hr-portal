@@ -159,7 +159,7 @@ async function handleApprove(actionId, approverStaffId) {
   } catch (err) {
     // EventBridge dispatch failure is non-fatal — status already APPROVED in DDB
     console.error(JSON.stringify({
-      event: 'approve_dispatch_error', actionId, toolName: action.toolName, error: err.message,
+      event: 'approve_dispatch_error', actionId, toolName: action.toolName, errorName: err?.name ?? 'Error',
     }));
   }
 
