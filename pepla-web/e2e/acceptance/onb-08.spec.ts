@@ -8,6 +8,7 @@ import type { Page, TestInfo } from '@playwright/test';
 import { DOCUMENT_TYPES, TYPE_NAME, storedDocument, storedEmployee, type DocumentType, type FakePerson } from './support/documents-fake';
 import { EmployeesFake } from './support/employees-fake';
 import { ON_DEV, expect, test as base, type Login, type SignInPage } from './support/fixtures';
+import { forgetSignIn } from './support/sign-in-again';
 import { EmployeeAnswerFake, type Required } from './support/onb-08/employee-fake';
 import {
   REPO, REVIEW, eventFor, plain, published, review, row, runHandler, writes, type Caller, type Run, type Tables,
@@ -650,8 +651,7 @@ test.describe('ONB-08 Required documents and when Verified is reached', () => {
       ids[type] = document_id;
     }
 
-    await page.context().clearCookies();
-    await page.goto('about:blank');
+    await forgetSignIn(page); // ONB-23.1: the employee's session is kept, so it is forgotten before HR signs in
     const hrToken = await signInForToken(page, signIn, hr);
     const auth = { Authorization: `Bearer ${hrToken}` };
 

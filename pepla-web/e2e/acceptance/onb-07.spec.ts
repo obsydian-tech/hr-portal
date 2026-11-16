@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { ON_DEV, expect, test, type Login, type SignInPage } from './support/fixtures';
+import { forgetSignIn } from './support/sign-in-again';
 import { attributes, blocks, stripComments, tfFiles } from './support/infra-harness';
 import { row, type Row } from './support/onb-13/lambda-harness';
 import {
@@ -550,8 +551,7 @@ test.describe('ONB-07 Batsi checks, HR decides', () => {
     const put = await page.request.put(url, { headers: { 'Content-Type': 'application/pdf' }, data: PDF });
     expect(put.ok(), `the test PDF uploads (${put.status()})`).toBe(true);
 
-    await page.context().clearCookies();
-    await page.goto('about:blank');
+    await forgetSignIn(page); // ONB-23.1: the employee's session is kept, so it is forgotten before HR signs in
     const hrToken = await signInForToken(page, signIn, hr);
     const auth = { Authorization: `Bearer ${hrToken}` };
     let check = '';
