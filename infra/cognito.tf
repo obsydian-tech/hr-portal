@@ -204,15 +204,20 @@ resource "aws_cognito_user_pool_client" "web" {
 resource "aws_cognito_user_pool_client" "web_prod" {
   count = var.environment == "prod" ? 1 : 0
 
-  name            = "pepla-web"
-  user_pool_id    = aws_cognito_user_pool.naleko_dev.id
-  generate_secret = false
+  name         = "pepla-web"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
   explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
   prevent_user_existence_errors = "ENABLED"
   write_attributes              = ["given_name", "family_name"]
+
+  # Replacing this client would delete the id both web apps have built in and sign
+  # everyone out. Never let a plan do that.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 locals {
