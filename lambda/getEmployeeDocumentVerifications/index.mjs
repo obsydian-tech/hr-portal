@@ -28,7 +28,7 @@ async function kmsDecrypt(ciphertext) {
     }));
     return Buffer.from(result.Plaintext).toString('utf8');
   } catch (err) {
-    logger.warn('KMS decrypt failed — returning null', { error: err.message });
+    logger.warn('KMS decrypt failed — returning null', { errorName: err?.name ?? 'Error' });
     return null;
   }
 }
@@ -150,7 +150,7 @@ const handlerFn = async (event) => {
           check: checkOf(doc, verification)
         };
       } catch (err) {
-        logger.error('Failed to get verification', { error: err });
+        logger.error('Failed to get verification', { errorName: err?.name ?? 'Error' });
         return { ...doc, verification: null, can_reupload: true, check: checkOf(doc, null) };
       }
     }));

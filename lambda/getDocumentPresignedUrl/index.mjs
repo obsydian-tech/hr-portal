@@ -4,7 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { requireHr, groupsOf } from '../shared/document-check.mjs';
-import { isHrOrOwner } from '../shared/hr-group.mjs';
+import { isHrOrOwner, isIdToken } from '../shared/hr-group.mjs';
 
 const dynamodb = new DynamoDBClient({ region: "af-south-1" });
 const s3 = new S3Client({ region: "af-south-1" });
@@ -27,7 +27,7 @@ const handlerFn = async (event) => {
   // BE-17: no claims, no call. HR as before; anyone else only for their own document.
   const claims = event.requestContext?.authorizer?.jwt?.claims;
   if (!claims) return requireHr(event, headers);
-  const isHr = groupsOf(claims).includes('hr_staff');
+  const isHr = isIdToken(claims) && groupsOf(claims).includes('hr_staff');
   const notYours = { statusCode: 403, headers, body: JSON.stringify({ error: "You can only open your own documents" }) };
 
   try {
@@ -102,7 +102,7 @@ const handlerFn = async (event) => {
       }),
     };
   } catch (error) {
-    logger.error('Error generating pre-signed URL', { error });
+    logger.error('Error generating pre-signed URL', { errorName: error?.name ?? 'Error' });
     return {
       statusCode: 500,
       headers,
