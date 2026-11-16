@@ -10,6 +10,26 @@ export function json(statusCode, body) {
   return { statusCode, headers: JSON_HEADERS, body: JSON.stringify(body) };
 }
 
+/** True when the claims carry one of the group names (exact names, through groupsOf). */
+export function inGroup(claims, ...names) {
+  const groups = groupsOf(claims);
+  return names.some((n) => groups.includes(n));
+}
+
+/** HR may act on anyone; everyone else only on the record whose email is theirs (trimmed, any case; empty never matches). */
+export function isHrOrOwner(claims, employee) {
+  if (claims && groupsOf(claims).includes(HR_GROUP)) return true;
+  const mine = String(claims?.email ?? '').trim().toLowerCase();
+  const theirs = String(employee?.email ?? '').trim().toLowerCase();
+  return mine !== '' && mine === theirs;
+}
+
+/** null for the Agent API (actor AGENT) or HR, else the 403 answer. */
+export function hrOrAgent(event, message) {
+  if (event?.requestContext?.authorizer?.lambda?.actor === 'AGENT') return null;
+  return hrOnly(event, message);
+}
+
 /** null for HR, else the 403 answer. Groups are split into names, never a substring match. */
 export function hrOnly(event, message) {
   const claims = event?.requestContext?.authorizer?.jwt?.claims;

@@ -1,5 +1,6 @@
 import { test as base, expect, type Locator, type Page } from '@playwright/test';
 import { CognitoFake, type FakeAccount } from './cognito-fake';
+import { MeFake } from './onb-05/me-fake';
 
 /**
  * Shared set-up for acceptance tests.
@@ -70,6 +71,7 @@ type Fixtures = {
   hrGmail: Login;
   noAccess: Login;
   signIn: SignInPage;
+  me: MeFake | null;
 };
 
 export const test = base.extend<Fixtures>({
@@ -104,6 +106,18 @@ export const test = base.extend<Fixtures>({
   noAccess: async ({}, use) => {
     await use({ ...FAKE.noAccess, password: FAKE_PASSWORD });
   },
+
+  // ONB-05: GET /v1/me and POST /v1/me/consent, answered for every employee page in the no-backend run, so any
+  // card whose test lands an employee on /start finds the page's one call answered. Add-only: no earlier route.
+  me: [
+    async ({ context, baseURL }, use) => {
+      if (ON_DEV) return use(null);
+      const fake = new MeFake(new URL(baseURL!).origin);
+      await fake.install(context);
+      await use(fake);
+    },
+    { auto: true },
+  ],
 
   // Depends on `cognito` so the fake is in place before the first page load.
   signIn: async ({ page, cognito }, use) => {

@@ -9,6 +9,7 @@ import {
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
 import { guardAi, isRobotCaller, isRobotEmail, markRobot } from '../shared/ai-guard.mjs';
+import { hrOrAgent } from '../shared/hr-group.mjs';
 
 const dynamo = new DynamoDBClient({});
 const bedrock = guardAi(new BedrockRuntimeClient({ region: 'af-south-1' }), 'bedrock');
@@ -25,6 +26,8 @@ const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'global.anthropic.claud
  * NH-41 — Uses Bedrock (Claude 3 Haiku). No PII is sent to the model.
  */
 export const handler = async (event) => {
+  const refused = hrOrAgent(event, 'Only HR can check documents');
+  if (refused) return refused;
   const employeeId = event.pathParameters?.id;
 
   if (!employeeId) {

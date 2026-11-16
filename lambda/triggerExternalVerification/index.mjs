@@ -1,6 +1,7 @@
 import { DynamoDBClient, GetItemCommand, ScanCommand, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { hrOnly } from '../shared/hr-group.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -32,6 +33,8 @@ const PROVIDER_MAP = {
  * this endpoint closes the client-side mock and provides a real audit trail.
  */
 const handlerFn = async (event) => {
+  const refused = hrOnly(event, 'Only HR can check documents');
+  if (refused) return { ...refused, headers: corsHeaders() };
   const documentId = event.pathParameters?.id;
   logger.info('Handler invoked', { documentId });
   tracer.putAnnotation('operation', 'triggerExternalVerification');
@@ -101,7 +104,7 @@ const handlerFn = async (event) => {
 
   } catch (err) {
     logger.error('Unexpected error', { errorMessage: err.message, errorName: err.name });
-    return errorResponse(500, err.message || "Internal server error");
+    return errorResponse(500, "Internal server error");
   }
 };
 

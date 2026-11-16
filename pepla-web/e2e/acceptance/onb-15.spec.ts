@@ -887,21 +887,31 @@ test.describe('ONB-15 HR accepts a document or asks for a new one', () => {
       { id: 'doc_1763500000002', type: 'NATIONAL_ID', status: 'MANUAL_REVIEW', upload_timestamp: '2026-11-04T08:00:00Z', v: idRow() },
     ]);
     const leaks = ['Dlamini', 'NALEDI', ACCOUNT_NUMBER, ID_NUMBER, 'uploads/', 's3_key', 'X-Amz', 'Ubuntu Mutual'];
-    const routes: Array<[string, (c: Caller) => Run, string]> = [
+    // BE-17 (re-locked as onb-15.2): the file link opens to the document's own person, so its row uses a
+    // document that belongs to none of the strangers (EMP-1599's, first in scan order). A signed-in stranger
+    // gets BE-17's words after reading only the documents and employees rows, and never a signed link.
+    const OWN_FILE = 'You can only open your own documents';
+    const routes: Array<[string, (c: Caller) => Run, string, boolean?]> = [
       ['GET /v1/verifications/{id}', (c) => getOne(t, 'doc_1763500000002', c), 'Only HR can open documents'],
       ['GET /v1/verifications/{id} with employee_id', (c) => getOne(t, 'doc_1763500000002', c, E), 'Only HR can open documents'],
-      ['GET /v1/documents/{id}/url', (c) => fileUrl(t, 'doc_1763500000001', c), 'Only HR can open documents'],
+      ['GET /v1/documents/{id}/url', (c) => fileUrl(t, 'doc_1760000000000', c), 'Only HR can open documents', true],
       ['PATCH /v1/verifications/{id}/review', (c) => review(t, 'doc_1763500000001', c, { decision: 'PASSED', notes: '', employee_id: E }, { 'idempotency-key': 'onb15-stranger' }), 'Only HR can decide on a document'],
     ];
-    for (const [route, call, words] of routes) {
+    for (const [route, call, words, ownerRule] of routes) {
       for (const [who, caller] of STRANGERS) {
         const r = call(caller);
         const how = `${route}, ${who}`;
+        const signedInStranger = ownerRule && caller.kind === 'jwt';
+        const expected = signedInStranger ? OWN_FILE : words;
         expect(r.error, `${how}: does not throw`).toBeUndefined();
         expect(r.status, `${how}: 403`).toBe(403);
-        expect(r.body, `${how}: { "error": "${words}" }`).toEqual({ error: words });
-        expect(awsCalls(r), `${how}: no DynamoDB, S3, KMS or EventBridge call`).toEqual([]);
-        for (const leak of leaks) expect(r.raw, `${how}: the 403 carries no "${leak}"`).not.toContain(leak);
+        expect(r.body, `${how}: { "error": "${expected}" }`).toEqual({ error: expected });
+        if (signedInStranger) {
+          expect(awsCalls(r).filter((c) => !/^dynamodb (GetItem|Query|Scan|BatchGetItem) (documents|employees)$/.test(c)), `${how}: no S3 call, and only reads of documents and employees`).toEqual([]);
+        } else {
+          expect(awsCalls(r), `${how}: no DynamoDB, S3, KMS or EventBridge call`).toEqual([]);
+        }
+        for (const leak of [...leaks, 'other.pdf', 'EMP-1599']) expect(r.raw, `${how}: the 403 carries no "${leak}"`).not.toContain(leak);
       }
       const both: Caller = { kind: 'jwt', email: 'jane.smith@mokoena-logistics.co.za', groups: ['naleko-onboarding-hr', 'hr_staff'], givenName: 'Jane', familyName: 'Smith' };
       for (const caller of [HR_CALLER, both]) {

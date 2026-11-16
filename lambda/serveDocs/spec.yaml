@@ -458,6 +458,8 @@ paths:
             minimum: 1
             maximum: 500
       responses:
+        '403':
+          description: Only HR can look up employees.
         "200":
           description: List of employee records.
           content:
@@ -556,6 +558,8 @@ paths:
             type: string
             format: email
       responses:
+        '403':
+          description: Only HR can look up employees.
         "200":
           description: Employee found.
           content:
@@ -661,6 +665,8 @@ paths:
                   type: string
                   enum: [image/jpeg, image/png, application/pdf]
       responses:
+        '403':
+          description: You can only upload documents to your own record.
         "200":
           description: Pre-signed URL ready.
           content:
@@ -712,6 +718,8 @@ paths:
             type: string
             example: EMP-0000014
       responses:
+        '403':
+          description: Only HR can check documents.
         "200":
           description: Risk classified and saved to employee record.
           content:
@@ -757,6 +765,8 @@ paths:
             type: string
             example: doc_1774086521598
       responses:
+        '403':
+          description: Only HR can open documents, or you can only open your own.
         "200":
           description: Pre-signed URL generated.
           content:
@@ -851,6 +861,8 @@ paths:
             type: string
             example: ver_1774086781234
       responses:
+        '403':
+          description: Only HR can open documents.
         "200":
           description: Full verification detail.
           content:
@@ -945,6 +957,8 @@ paths:
             type: string
             example: ver_1774086781234
       responses:
+        '403':
+          description: Only HR can check documents.
         "200":
           description: AI summary generated.
           content:

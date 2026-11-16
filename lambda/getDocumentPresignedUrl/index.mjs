@@ -1,9 +1,10 @@
-import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, ScanCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { requireHr } from '../shared/document-check.mjs';
+import { requireHr, groupsOf } from '../shared/document-check.mjs';
+import { isHrOrOwner } from '../shared/hr-group.mjs';
 
 const dynamodb = new DynamoDBClient({ region: "af-south-1" });
 const s3 = new S3Client({ region: "af-south-1" });
@@ -23,9 +24,11 @@ const handlerFn = async (event) => {
     "Access-Control-Allow-Headers": "Content-Type",
   };
 
-  // ONB-15: only HR gets a link to a document file, before any table or file is touched.
-  const refused = requireHr(event, headers);
-  if (refused) return refused;
+  // BE-17: no claims, no call. HR as before; anyone else only for their own document.
+  const claims = event.requestContext?.authorizer?.jwt?.claims;
+  if (!claims) return requireHr(event, headers);
+  const isHr = groupsOf(claims).includes('hr_staff');
+  const notYours = { statusCode: 403, headers, body: JSON.stringify({ error: "You can only open your own documents" }) };
 
   try {
     // API GW route is GET /v1/documents/{id}/url — passes pathParameters.id
@@ -51,7 +54,15 @@ const handlerFn = async (event) => {
       startKey = docItem ? undefined : scanResult.LastEvaluatedKey;
     } while (startKey);
     if (!docItem) {
-      return { statusCode: 404, headers, body: JSON.stringify({ error: "Document not found" }) };
+      return isHr ? { statusCode: 404, headers, body: JSON.stringify({ error: "Document not found" }) } : notYours;
+    }
+    if (!isHr) {
+      const emp = await dynamodb.send(new GetItemCommand({
+        TableName: "employees",
+        Key: { employee_id: { S: docItem.employee_id?.S ?? "" } },
+        ProjectionExpression: "email",
+      }));
+      if (!emp.Item || !isHrOrOwner(claims, { email: emp.Item.email?.S ?? "" })) return notYours;
     }
 
     const s3Key = docItem.s3_key?.S;

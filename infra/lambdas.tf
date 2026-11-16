@@ -14,8 +14,6 @@ data "aws_ssm_parameter" "postmark_token" {
 }
 
 locals {
-  # Retained for the AWS Config region-enforcement Lambda in config.tf
-  lambda_role_arn = "arn:aws:iam::${var.aws_account_id}:role/doc-verification-lambda-role"
   placeholder_zip = "${path.root}/../placeholder.zip"
 }
 
@@ -1058,6 +1056,72 @@ resource "aws_lambda_function" "redeem_invite" {
   logging_config {
     log_format = "JSON"
     log_group  = "/aws/lambda/redeemInvite"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── ONB-05: getMyStart ─────────────────────────────────────────────────────────
+resource "aws_lambda_function" "get_my_start" {
+  function_name = "getMyStart"
+  role          = aws_iam_role.get_my_start.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      COMPANY_NAME            = var.company_name
+      EMPLOYEES_TABLE         = "employees"
+      EMPLOYEE_CONSENTS_TABLE = aws_dynamodb_table.employee_consents.name
+      CONSENTS_TABLE          = aws_dynamodb_table.employee_consents.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getMyStart"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── ONB-05: recordConsent ─────────────────────────────────────────────────────────
+resource "aws_lambda_function" "record_consent" {
+  function_name = "recordConsent"
+  role          = aws_iam_role.record_consent.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      COMPANY_NAME            = var.company_name
+      EMPLOYEES_TABLE         = "employees"
+      EMPLOYEE_CONSENTS_TABLE = aws_dynamodb_table.employee_consents.name
+      CONSENTS_TABLE          = aws_dynamodb_table.employee_consents.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/recordConsent"
   }
 
   lifecycle {

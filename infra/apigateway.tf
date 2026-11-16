@@ -575,3 +575,51 @@ resource "aws_lambda_permission" "redeem_invite" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
 }
+
+# ONB-05: GET /v1/me  (employees_api, Cognito JWT: only a signed-in employee)
+resource "aws_apigatewayv2_integration" "get_my_start" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_my_start.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_my_start" {
+  api_id             = aws_apigatewayv2_api.employees_api.id
+  route_key          = "GET /v1/me"
+  target             = "integrations/${aws_apigatewayv2_integration.get_my_start.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.employees_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_my_start" {
+  statement_id  = "AllowEmployeesAPIInvokeGetMyStart"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_my_start.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}
+
+# ONB-05: POST /v1/me/consent  (employees_api, Cognito JWT: only a signed-in employee)
+resource "aws_apigatewayv2_integration" "record_consent" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.record_consent.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "record_consent" {
+  api_id             = aws_apigatewayv2_api.employees_api.id
+  route_key          = "POST /v1/me/consent"
+  target             = "integrations/${aws_apigatewayv2_integration.record_consent.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.employees_api_cognito.id
+}
+
+resource "aws_lambda_permission" "record_consent" {
+  statement_id  = "AllowEmployeesAPIInvokeRecordConsent"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.record_consent.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}

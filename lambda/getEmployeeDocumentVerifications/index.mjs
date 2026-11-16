@@ -1,3 +1,4 @@
+import { isHrOrOwner } from '../shared/hr-group.mjs';
 import { DynamoDBClient, QueryCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { KMSClient, DecryptCommand } from "@aws-sdk/client-kms";
@@ -38,13 +39,6 @@ const json = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
-/** HR staff may read anyone; everyone else may read only their own record (same email, any case). */
-function mayRead(claims, employee) {
-  if (groupsOf(claims).includes('hr_staff')) return true;
-  const mine = String(claims?.email ?? '').trim().toLowerCase();
-  const theirs = String(employee.email ?? '').trim().toLowerCase();
-  return mine !== '' && mine === theirs;
-}
 
 const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, employeeId: event.pathParameters?.id || event.pathParameters?.employee_id });
@@ -84,7 +78,7 @@ const handlerFn = async (event) => {
 
     // Only HR or the person themselves. Nothing about the employee or their documents is read or sent before this.
     const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
-    if (!mayRead(claims, employee)) {
+    if (!isHrOrOwner(claims, employee)) {
       logger.warn('Refused: caller is neither HR nor the employee');
       return json(403, { error: 'Forbidden' });
     }
