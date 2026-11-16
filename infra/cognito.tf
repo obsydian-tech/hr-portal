@@ -193,8 +193,11 @@ resource "aws_cognito_user_pool_client" "web" {
     "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
+  # Cognito refuses a list without "email" (it is a required attribute: "Invalid write attributes").
+  # A new email only replaces the old one after its code is entered (user_attribute_update_settings),
+  # and the owner rule needs email_verified, so a pending address never grants access.
   prevent_user_existence_errors = "ENABLED"
-  write_attributes              = ["given_name", "family_name"]
+  write_attributes              = ["email", "given_name", "family_name"]
 }
 
 # The prod plan must show this client imported and updated in place, with only
@@ -210,8 +213,11 @@ resource "aws_cognito_user_pool_client" "web_prod" {
     "ALLOW_USER_SRP_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
+  # Cognito refuses a list without "email" (it is a required attribute: "Invalid write attributes").
+  # A new email only replaces the old one after its code is entered (user_attribute_update_settings),
+  # and the owner rule needs email_verified, so a pending address never grants access.
   prevent_user_existence_errors = "ENABLED"
-  write_attributes              = ["given_name", "family_name"]
+  write_attributes              = ["email", "given_name", "family_name"]
 
   # Replacing this client would delete the id both web apps have built in and sign
   # everyone out. Never let a plan do that.
