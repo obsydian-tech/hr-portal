@@ -26,6 +26,8 @@ module "kms_pii" {
     aws_iam_role.review_document_verification.arn,
     aws_iam_role.lookup_employee_email.arn,
     aws_iam_role.get_document_presigned_url.arn,
+    # ONB-05: recordConsent writes the encrypted employee_consents table, so it needs data keys.
+    aws_iam_role.record_consent.arn,
   ]
 
   # NH-169: checkEmployeeEmail queries the encrypted employees table. Its role
@@ -37,6 +39,9 @@ module "kms_pii" {
     aws_iam_role.redeem_invite.arn,
     aws_iam_role.get_invite.arn,
     aws_iam_role.resend_invite.arn,
+    # ONB-05: both routes read the encrypted employees table (email-index) and employee_consents.
+    aws_iam_role.get_my_start.arn,
+    aws_iam_role.record_consent.arn,
   ]
 
   deletion_window_in_days = 30

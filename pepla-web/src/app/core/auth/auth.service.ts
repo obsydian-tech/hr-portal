@@ -19,6 +19,8 @@ export type SignInResult = { ok: true; user: SignedInUser } | { ok: false; probl
 export const HR_GROUP = 'hr_staff';
 /** New employees (ONB-17). */
 export const EMPLOYEE_GROUP = 'employee';
+/** Where the HR registration form keeps what HR has typed, for the tab. Any session end clears it (ONB-05). */
+export const REGISTRATION_DRAFT_KEY = 'naleko.registration.draft';
 
 /**
  * Signing in and out, and who is signed in. The only place that talks to Cognito.
@@ -45,7 +47,10 @@ export class AuthService {
     this.restoring ??= this.readSession().then(async (session) => {
       const user = session ? toUser(session) : null;
       if (user?.groups.includes(HR_GROUP) || user?.groups.includes(EMPLOYEE_GROUP)) this.current.set(user);
-      else if (session) (await this.library).pool.getCurrentUser()?.signOut();
+      else if (session) {
+        this.endSession();
+        (await this.library).pool.getCurrentUser()?.signOut();
+      }
     });
     return this.restoring;
   }
@@ -84,7 +89,7 @@ export class AuthService {
     const { lib, pool } = await this.library;
     const existing = pool.getCurrentUser();
     if (existing) {
-      this.current.set(null);
+      this.endSession();
       existing.signOut();
     }
     const cognitoUser = new lib.CognitoUser({ Username: email.trim(), Pool: pool });
@@ -123,7 +128,7 @@ export class AuthService {
   /** Ends the session here and, as far as the network allows, in Cognito. */
   async signOut(): Promise<void> {
     const cognitoUser = (await this.library).pool.getCurrentUser();
-    this.current.set(null);
+    this.endSession();
     this.restoring = Promise.resolve();
     if (!cognitoUser) return;
     await new Promise<void>((resolve) => {
@@ -137,6 +142,15 @@ export class AuthService {
 
   private forget(cognitoUser: CognitoUser): void {
     cognitoUser.signOut();
+  }
+
+  /**
+   * The one place a session ends here: nobody is signed in, and what HR had typed into the registration form
+   * goes with it, so the next person on this tab never sees it (ONB-17 security note, ONB-05 AC-8).
+   */
+  private endSession(): void {
+    this.current.set(null);
+    try { sessionStorage.removeItem(REGISTRATION_DRAFT_KEY); } catch { /* storage may be off */ }
   }
 
   private async readSession(): Promise<CognitoUserSession | null> {

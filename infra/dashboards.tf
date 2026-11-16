@@ -19,6 +19,8 @@ module "dashboards" {
     "redeemInvite",
     "getInvite",
     "resendInvite",
+    "getMyStart",
+    "recordConsent",
     "getEmployees",
     "uploadDocumentToS3",
     "processDocumentOCR",

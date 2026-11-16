@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthService } from '../auth/auth.service';
+import { AuthService, REGISTRATION_DRAFT_KEY } from '../auth/auth.service';
 
 export interface HrPartner { id: string; name: string; staffId: string; email: string }
 
@@ -27,7 +27,7 @@ export type RegisterResult =
   | { ok: true; registered: Registered }
   | { ok: false; reason: 'duplicate' | 'invalid' | 'failed'; fields?: Record<string, string> };
 
-const KEY = 'naleko.registration.draft';
+const KEY = REGISTRATION_DRAFT_KEY;
 const EMPTY: Draft = { step: 1, firstName: '', middleName: '', lastName: '', email: '', phone: '', department: '', jobTitle: '', startDate: '', offerDate: '', partnerId: '' };
 
 export function savedTime(now = new Date()): string {

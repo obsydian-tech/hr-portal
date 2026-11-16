@@ -18,6 +18,8 @@ module "alarms" {
     "checkEmployeeEmail",
     "lookupInvite",
     "redeemInvite",
+    "getMyStart",
+    "recordConsent",
     "getEmployees",
     "uploadDocumentToS3",
     "processDocumentOCR",

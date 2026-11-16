@@ -48,6 +48,7 @@ def main() -> None:
                     ProjectionExpression="token_hash"):
                 for i in ipage["Items"]:
                     ddb.delete_item(TableName="employee_invites", Key=i)
+            remove_consents(ddb, item["employee_id"]["S"])
             ddb.delete_item(TableName="employees", Key={"employee_id": item["employee_id"]})
             employees += 1
 
@@ -61,8 +62,26 @@ def main() -> None:
 
     candidates = remove_candidates(ddb)
     login_docs = remove_login_documents(ddb)
+    login_consents = remove_consents(ddb, EMPLOYEE_LOGIN_ID)
     print(f"cleanup-dev-e2e: employees {employees}; documents {docs}; "
-          f"test login documents {login_docs}; candidates {candidates}; logins {users}")
+          f"test login documents {login_docs}; test login consents {login_consents}; candidates {candidates}; logins {users}")
+
+
+def remove_consents(ddb, employee_id: str) -> int:
+    """ONB-05: the privacy notice acceptances (employee_consents) of an employee this run created, or of the test login."""
+    removed = 0
+    try:
+        for page in ddb.get_paginator("query").paginate(
+                TableName="employee_consents",
+                KeyConditionExpression="employee_id = :e",
+                ExpressionAttributeValues={":e": {"S": employee_id}},
+                ProjectionExpression="employee_id, notice_version"):
+            for row in page["Items"]:
+                ddb.delete_item(TableName="employee_consents", Key=row)
+                removed += 1
+    except ddb.exceptions.ResourceNotFoundException:
+        return 0  # the table arrives with the apply after the merge; nothing to remove before then
+    return removed
 
 
 def remove_login_documents(ddb) -> int:

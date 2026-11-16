@@ -1866,6 +1866,108 @@ resource "aws_iam_role_policy" "redeem_invite" {
   })
 }
 
+# ─── ONB-05: getMyStart ───────────────────────────────────────────────────────
+resource "aws_iam_role" "get_my_start" {
+  name        = "naleko-getMyStart-role"
+  description = "Execution role for getMyStart Lambda (ONB-05)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_my_start" {
+  name = "naleko-getMyStart-policy"
+  role = aws_iam_role.get_my_start.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getMyStart:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "EmployeeByEmail"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
+      },
+      {
+        Sid      = "ConsentRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = aws_dynamodb_table.employee_consents.arn
+      },
+    ]
+  })
+}
+
+# ─── ONB-05: recordConsent ───────────────────────────────────────────────────────
+resource "aws_iam_role" "record_consent" {
+  name        = "naleko-recordConsent-role"
+  description = "Execution role for recordConsent Lambda (ONB-05)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "record_consent" {
+  name = "naleko-recordConsent-policy"
+  role = aws_iam_role.record_consent.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/recordConsent:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "EmployeeByEmail"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
+      },
+      {
+        Sid      = "ConsentReadAdd"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.employee_consents.arn
+      },
+    ]
+  })
+}
+
 # ─── ONB-18: getInvite ──────────────────────────────────────────────────────
 resource "aws_iam_role" "get_invite" {
   name        = "naleko-getInvite-role"
