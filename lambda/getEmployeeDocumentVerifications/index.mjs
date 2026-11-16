@@ -206,14 +206,14 @@ const handlerFn = async (event) => {
     };
 
   } catch (error) {
-    logger.error('Handler error', { error });
+    logger.error('Handler error', { errorName: error?.name ?? 'Error' });
     return {
       statusCode: 500,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
       },
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: 'Something went wrong' })
     };
   }
 };
