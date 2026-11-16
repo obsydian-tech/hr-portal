@@ -1,6 +1,10 @@
 import { Routes } from '@angular/router';
 import { employeeGuard, hrGuard, signedOutGuard } from './core/auth/auth.guard';
 
+/**
+ * The signed-in app and the sign-in pages. Since SITE-01 these load lazily under site.routes.ts, after `/`
+ * (the public page) and before the not-found page, so `/` carries none of this code.
+ */
 export const routes: Routes = [
   { path: 'sign-in', canActivate: [signedOutGuard], loadComponent: () => import('./features/sign-in/sign-in.page').then((m) => m.SignInPage), title: 'Sign in · Naleko People' },
   { path: 'forgot-password', canActivate: [signedOutGuard], loadComponent: () => import('./features/forgot-password/forgot-password.page').then((m) => m.ForgotPasswordPage), title: 'Reset your password · Naleko People' },
@@ -28,6 +32,4 @@ export const routes: Routes = [
   },
   { path: 'dev/design-system', loadComponent: () => import('./dev/design-system.page').then((m) => m.DesignSystemPage), title: 'Design system · Naleko People' },
   { path: 'dev/parity', loadComponent: () => import('./dev/parity.page').then((m) => m.ParityPage), title: 'Parity · Naleko People' },
-  { path: '', pathMatch: 'full', redirectTo: 'hr' },
-  { path: '**', redirectTo: 'hr' },
 ];

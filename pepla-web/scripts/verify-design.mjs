@@ -181,7 +181,7 @@ export function checkTokens(dest = DEST, manifest = MANIFEST) {
   for (const f of owned()) {
     const p = join(dest, f);
     if (!existsSync(p)) out.push({ line: 1, rule: 'tokens', text: `${f} is missing; run the sync` });
-    else if (sha256(readFileSync(p, 'utf8')) !== files[f]) out.push({ line: 1, rule: 'tokens', text: `${f} was edited by hand; the design system only changes through npm run design-system:sync` });
+    else if (sha256(readFileSync(p)) !== files[f]) out.push({ line: 1, rule: 'tokens', text: `${f} was edited by hand; the design system only changes through npm run design-system:sync` });
   }
   for (const p of walk(dest)) {
     const f = relative(dest, p).split(sep).join('/');

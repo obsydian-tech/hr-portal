@@ -16,7 +16,7 @@ import { StartService } from '../../core/start/start.service';
   template: `
     <pp-app-shell>
       <pp-side-navigation [company]="company()" [sections]="sections" [(open)]="menuOpen" />
-      <pp-top-navigation [userName]="userName()" [menuOpen]="menuOpen()" [accountOpen]="accountOpen()" (menu)="menuOpen.set(!menuOpen())" (account)="accountOpen.set(!accountOpen())" />
+      <pp-top-navigation home="/start" [userName]="userName()" [menuOpen]="menuOpen()" [accountOpen]="accountOpen()" (menu)="menuOpen.set(!menuOpen())" (account)="accountOpen.set(!accountOpen())" />
       <pp-dropdown-menu [trigger]="false" [(open)]="accountOpen" [origin]="avatar()" [returnTo]="avatar()" label="Your account">
         <pp-menu-section [heading]="userName()">
           <button ppMenuItem icon="log-out" (click)="signOut()">Sign out</button>

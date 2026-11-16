@@ -17,6 +17,11 @@ Pages for checking the components:
 - `/dev/design-system`: every component, with live versions of the interactive ones.
 - `/dev/parity`: each design system example rebuilt with the Angular components. `node scripts/parity.cjs <design system URL> <app URL> <out dir>` compares the two by structure and pixels.
 
+## Public routes (SITE-01)
+
+`/` and the not-found page are public, prerendered at build time (`src/app/site.routes.ts`, `app.routes.server.ts`); every signed-in page loads lazily from `app.routes.ts` and renders in the browser.
+`npm run build` runs `verify-public-names` after the build (no "pepla" in public output), and `npm run parity:kit` fetches the kit screens for `e2e/parity/kit-parity.ts`.
+
 ## Rules for building screens
 
 - Read `src/app/ds/README.md` first. Screens use only `pp-*` components from `src/app/ds` and Layout classes.

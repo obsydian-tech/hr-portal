@@ -1,16 +1,18 @@
 {
   "repo": "obsydian-tech/pepla-design-system",
-  "ref": "7c86e1d",
+  "ref": "6c63ab0b571e2ad377517f9eaf6cebe11cf8fb7d",
   "files": {
     "tokens/palette.css": "7e52116852dc514a5715d3218fbca047c30c54939a4605c8f40c656334dfdb66",
-    "tokens/colors.css": "a6160864be8cc899d24cdca32a313c14be48cab4db22a43b69b2b1fad0585b10",
-    "tokens/typography.css": "53b5487ea8b7df042e9ca0b1513d9e11a2777ac2c7be17aea8456089acd17dd0",
-    "tokens/spacing.css": "1c2f45b5822b60098e21aadb843e77141d71326196c5946bc6f38d8c52fde0c7",
-    "tokens/shape.css": "0c3400e783bb91e0a445f20c82df90762fffdc4cfd8826eb8a9c64adb8df0659",
-    "tokens/motion.css": "09dde0ebde9f8ccfeb252f9243235de8ca2b229ef242cdd0337a9f4b67c59ac3",
+    "tokens/colors.css": "60316015cc9a3fd292d88e073ae6fb8370721c324010ac8ec467e56432dbbb72",
+    "tokens/typography.css": "4a5a968033cb62e1af3e5057a8265cc012f46afcf423bcbad22042a8e51f3979",
+    "tokens/spacing.css": "3246147c2394851b1295b96ea8792eae1778fce6556b0ce46e66a438732732aa",
+    "tokens/shape.css": "98f29552007d1406666859dce0b27aefcb431200892dd9405612e2f27efd0717",
+    "tokens/motion.css": "3bd1ab0f628f1e3b3796d9416bddae1eb089f64867b97d9d5535e49462b9f879",
     "tokens/layers.css": "f3269beec620258b95fe70773ca17f0d1609a6da214338230b1984765756e56a",
     "tokens/base.css": "e0746031564084301268c62e767cb63802d332a71bed74ec2679b2048c0b0ad0",
-    "components.css": "99701ad3a634c8fc44b868b7a2d0c20e5a8c712514258a4880f04df3f875ac34",
+    "components.css": "c60d98499e5588289d924cf635e0ac446398a7f791c5c530e75b5e04d5b21cb5",
+    "assets/site-signature.svg": "59c95dfcfb27da53363c4a7e20329ae653b6620efec93457f6cb041382407219",
+    "assets/site-grain.png": "bf8ab2e967a1cf73be254c7767eef4f048c3198774206854dc350cecd6a8f404",
     "icons.json": "89214a25e3fa836ad1a868b1171510115ca8f0ae7676358e01e7580dcb2b4e17",
     "index.css": "645e849d81ed62821ff75bc81975609120167bf0f06597ad25c37a47fa6e6a99"
   }

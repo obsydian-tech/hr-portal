@@ -24,12 +24,15 @@ const REPO = 'obsydian-tech/pepla-design-system';
 // Token files in cascade order (palette first, base last), then the component bundle.
 const TOKEN_FILES = ['palette.css', 'colors.css', 'typography.css', 'spacing.css', 'shape.css', 'motion.css', 'layers.css', 'base.css'];
 
-export const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+// Text or bytes: a synced image is hashed as its bytes, so a string and a Buffer of the same file agree.
+export const sha256 = (data) => createHash('sha256').update(data).digest('hex');
+// Files components.css points at with url(); copied byte for byte next to it.
+export const ASSET_FILES = ['site-signature.svg', 'site-grain.png'];
 
 // Every file the sync owns, relative to DEST.
 export function owned() {
   const list = TOKEN_FILES.map((f) => `tokens/${f}`);
-  return [...list, 'components.css', 'icons.json', 'index.css'];
+  return [...list, 'components.css', ...ASSET_FILES.map((f) => `assets/${f}`), 'icons.json', 'index.css'];
 }
 
 function fetchRef(ref) {
@@ -59,10 +62,12 @@ export function sync(src, ref) {
   if (!existsSync(join(P, 'components.css'))) throw new Error(`${src} is not a pepla-design-system checkout (no project/components.css)`);
   rmSync(DEST, { recursive: true, force: true });
   mkdirSync(join(DEST, 'tokens'), { recursive: true });
+  mkdirSync(join(DEST, 'assets'), { recursive: true });
   const files = {};
   const put = (rel, text) => { writeFileSync(join(DEST, rel), text); files[rel] = sha256(text); };
   for (const f of TOKEN_FILES) put(`tokens/${f}`, readFileSync(join(P, 'tokens', f), 'utf8'));
   put('components.css', readFileSync(join(P, 'components.css'), 'utf8'));
+  for (const f of ASSET_FILES) put(`assets/${f}`, readFileSync(join(P, 'assets', f)));
   put('icons.json', existsSync(join(P, 'icons.json')) ? readFileSync(join(P, 'icons.json'), 'utf8') : iconsFromReadme(readFileSync(join(P, 'readme.md'), 'utf8')));
   put('index.css', [
     '/* Naleko People design system, synced by scripts/design-system-sync.mjs. Do not edit. */',
@@ -80,8 +85,14 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const i = args.indexOf('--from');
   if (i >= 0) {
     const src = resolve(args[i + 1] || '');
+    // A clean checkout records its full commit, so the sync names a real design system ref; anything
+    // else is marked local.
     let ref = 'local';
-    try { ref = `local:${execFileSync('git', ['-C', src, 'rev-parse', '--short', 'HEAD']).toString().trim()}`; } catch { /* not a git checkout */ }
+    try {
+      const sha = execFileSync('git', ['-C', src, 'rev-parse', 'HEAD']).toString().trim();
+      const dirty = execFileSync('git', ['-C', src, 'status', '--porcelain', '--', 'project']).toString().trim();
+      ref = dirty ? `local:${sha.slice(0, 7)}` : sha;
+    } catch { /* not a git checkout */ }
     console.log(`Naleko People design system: synced ${sync(src, ref)} files from ${src} (${ref})`);
   } else if (args[0]) {
     const dir = fetchRef(args[0]);

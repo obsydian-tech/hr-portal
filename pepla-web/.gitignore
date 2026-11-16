@@ -46,3 +46,4 @@ Thumbs.db
 /e2e/acceptance/.output/
 /test-results/
 /playwright-report/
+/e2e/parity/.kit/

@@ -18,9 +18,6 @@
           "options": {
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
-            "polyfills": [
-              "src/polyfills.ts"
-            ],
             "assets": [
               {
                 "glob": "**/*",
@@ -30,7 +27,9 @@
             "styles": [
               "node_modules/@angular/cdk/overlay-prebuilt.css",
               "src/styles.css"
-            ]
+            ],
+            "server": "src/main.server.ts",
+            "outputMode": "static"
           },
           "configurations": {
             "production": {

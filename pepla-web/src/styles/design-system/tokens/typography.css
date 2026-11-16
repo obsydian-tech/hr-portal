@@ -47,6 +47,30 @@
   --font-metric-small-tracking: 0;
   --font-code: 400 13px/20px var(--font-family-code);
   --font-code-tracking: 0;
+  --font-site-hero: 700 clamp(46px, 9.6cqw, 140px)/.98 var(--font-family-display);
+  --font-site-hero-tracking: -0.04em;
+  --font-site-band: 800 clamp(52px, 11cqw, 168px)/.98 var(--font-family-display);
+  --font-site-band-tracking: -0.045em;
+  --font-site-page: 700 clamp(40px, 6.2cqw, 84px)/1.02 var(--font-family-display);
+  --font-site-page-tracking: -0.035em;
+  --font-site-demo: 700 clamp(30px, 3.8cqw, 48px)/1.08 var(--font-family-display);
+  --font-site-demo-tracking: -0.025em;
+  --font-site-faq: 700 clamp(28px, 3.4cqw, 40px)/1.55 var(--font-family-display);
+  --font-site-faq-tracking: -0.025em;
+  --font-site-title: 700 clamp(32px, 4.6cqw, 56px)/1.08 var(--font-family-display);
+  --font-site-title-tracking: -0.025em;
+  --font-site-lead: 400 18px/28px var(--font-family-body);
+  --font-site-lead-tracking: 0;
+  --font-site-eyebrow: 700 12px/16px var(--font-family-body);
+  --font-site-eyebrow-tracking: 0.16em;
+  --font-site-group: 700 12px/16px var(--font-family-body);
+  --font-site-group-tracking: 0.08em;
+  --font-site-code: 400 13.5px/1.75 var(--font-family-code);
+  --font-site-code-tracking: 0;
+  --font-site-tile: 700 18px/1.2 var(--font-family-display);
+  --font-site-tile-tracking: -0.01em;
+  --font-site-mark: 800 26px/1.2 var(--font-family-display);
+  --font-site-mark-tracking: -0.02em;
 }
 
 /* Optional utility classes; components use the variables directly. */
