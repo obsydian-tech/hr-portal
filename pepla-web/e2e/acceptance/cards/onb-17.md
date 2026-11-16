@@ -6,7 +6,7 @@ Test files: `onb-17.spec.ts`, `support/onb-17/`, and the shared `support/cognito
 
 Spec: [NH-171](https://obsydian.atlassian.net/browse/NH-171)
 
-Locks: acceptance-lock/onb-17
+Locks: acceptance-lock/onb-17, acceptance-lock/onb-17.2
 
 AC-1 to AC-10 run at 1280 and 390 wide with no backend (AC-10, the phone criterion, at 390 only).
 `support/onb-17/invite-fake.ts` answers `POST <employeesApiUrl>/v1/invites/lookup` and
@@ -35,9 +35,10 @@ behaves differently.
 
 ## Later cards
 
-AC-8 checks that an employee who signs in at `/sign-in` is still refused and keeps no session, as ONB-01
-AC-4 does. A card that lets employees sign in at `/sign-in` (Iggie's open decision) changes ONB-01 AC-4
-and this test together, with re-locks of both cards.
+AC-8 was changed by ONB-23 (NH-189, Iggie's decision of 16 Nov 2026: one sign-in page for everyone) and
+re-locked as `acceptance-lock/onb-17.2`. It used to check that an employee at `/sign-in` is refused; it now
+checks that the employee signs in there and lands on `/start`, and that an account in neither group is
+refused and keeps no session. See `cards/onb-23.md`.
 
 ONB-05 replaces the `/start` holding page. AC-4, AC-6, AC-7, AC-9 and AC-10 look for the heading
 "Welcome, <given name>" there, AC-7, AC-9 and AC-10 for its "Sign out" button, and AC-4 and AC-10 for

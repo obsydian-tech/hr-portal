@@ -32,3 +32,11 @@ export function safeReturnUrl(value: string | null | undefined, fallback: string
   if (/^\/sign-in(?:[?#]|$)/.test(value)) return fallback;
   return value;
 }
+
+/**
+ * ONB-23: where a person lands after signing in. HR may follow a returnUrl inside the app.
+ * An employee never follows one: their only page is /start, whatever the link says.
+ */
+export function landingFor(isHr: boolean, returnUrl: string | null | undefined): string {
+  return isHr ? safeReturnUrl(returnUrl, '/hr') : '/start';
+}
