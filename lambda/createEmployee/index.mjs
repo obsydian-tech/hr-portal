@@ -279,7 +279,8 @@ const handlerFn = async (event) => {
           emailSent = true;
         }
       } catch (emailError) {
-        logger.error('Failed to send invite email', { employeeId, error: emailError?.name });
+        // Same line the InviteFailed alarm watches, so a failed send is noticed too
+        logger.error('Invite failed', { employeeId, step: 'email', error: emailError?.name ?? 'Error' });
       }
     }
     const showLink = invite && process.env.INVITE_TEST_LINK === 'true' && isRobotEmail(body.email) && isRobotCaller(claims);

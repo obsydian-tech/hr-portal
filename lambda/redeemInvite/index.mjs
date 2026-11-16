@@ -34,6 +34,9 @@ export const handler = async (event) => {
       }));
       return answer(400, { error: 'Check the password', fields: { password: rules } });
     }
+    // Read the person first: a missing or unreadable row must not use the link up.
+    const emp = (await ddb.send(new GetItemCommand({ TableName: 'employees', Key: { employee_id: found.row.employee_id }, ProjectionExpression: 'email' }))).Item;
+    if (!emp?.email?.S) return answer(410, { status: 'invalid' });
     const key = { token_hash: { S: hashToken(body.token) } };
     const now = new Date().toISOString();
     try {
@@ -47,7 +50,6 @@ export const handler = async (event) => {
       if (e?.name === 'ConditionalCheckFailedException') return answer(410, { status: 'used' });
       throw e;
     }
-    const emp = (await ddb.send(new GetItemCommand({ TableName: 'employees', Key: { employee_id: found.row.employee_id }, ProjectionExpression: 'email' }))).Item;
     try {
       await cognito.send(new AdminSetUserPasswordCommand({ UserPoolId: process.env.COGNITO_POOL_ID, Username: emp.email.S, Password: body.password, Permanent: true }));
     } catch (e) {
