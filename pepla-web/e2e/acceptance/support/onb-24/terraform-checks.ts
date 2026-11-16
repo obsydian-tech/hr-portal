@@ -7,7 +7,7 @@ import { policyOf, type TfResource } from '../onb-15/tf-policy';
 /**
  * ONB-24 AC-13: infra/*.tf read as text (there is no Terraform here; the PR's required Terraform check runs
  * the real plan). "Updated in place" is checked against develop at f56421a: the pool's block is unchanged
- * apart from lambda_config, and every key policy statement there is still there word for word.
+ * apart from lambda_config (and BE-17.1's user_attribute_update_settings, re-lock onb-24.2), and every key policy statement there is still there word for word.
  */
 
 const HERE = __dirname;
@@ -133,8 +133,11 @@ export const terraformChecks = {
     expect(pools.length, 'aws_cognito_user_pool.naleko_dev is still there, under the same name').toBe(1);
     const pool = pools[0]!;
     const base = blocks([POOL_BASELINE], 'resource').find((b) => b.labels[0] === 'aws_cognito_user_pool' && b.labels[1] === 'naleko_dev')!;
-    expect(squash(without(pool.body, 'lambda_config')), 'the pool changes only in lambda_config (in place: name, schema, policy, email, lifecycle all as on develop)').toBe(
-      squash(without(base.body, 'lambda_config')),
+    // BE-17.1 (lock onb-24.2): user_attribute_update_settings is BE-17.1's change to the same pool, judged
+    // by be-17.1.spec.ts AC-4; it is left out here on both sides, so the two cards can merge in either order.
+    const others = (b: string) => without(without(b, 'lambda_config'), 'user_attribute_update_settings');
+    expect(squash(others(pool.body)), 'the pool changes only in lambda_config (and BE-17.1\'s user_attribute_update_settings); name, schema, policy, email, lifecycle all as on develop').toBe(
+      squash(others(base.body)),
     );
     expect(pool.body, 'prevent_destroy stays').toMatch(/prevent_destroy\s*=\s*true/);
     expect(pool.body, 'email_configuration stays COGNITO_DEFAULT').toMatch(/email_sending_account\s*=\s*"COGNITO_DEFAULT"/);
