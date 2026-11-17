@@ -1049,7 +1049,7 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
     const hrB = { email: env('E2E_HR_B_EMAIL'), password: env('E2E_HR_B_PASSWORD') };
     const hrA = { email: env('E2E_HR_EMAIL'), password: env('E2E_HR_PASSWORD') };
     expect(hrB.email, 'the seed made a company B HR login (E2E_HR_B_EMAIL)').toBeTruthy();
-    const { api, clientId, region } = devEnv();
+    const { api, docApi, clientId, region } = devEnv();
     const signIn = async (login: { email: string; password: string }) => {
       const r = await page.request.post(`https://cognito-idp.${region}.amazonaws.com/`, {
         headers: { 'content-type': 'application/x-amz-json-1.1', 'x-amz-target': 'AWSCognitoIdentityProviderService.InitiateAuth' },
@@ -1060,7 +1060,7 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
     };
     const tokB = await signIn(hrB);
     const tokA = await signIn(hrA);
-    const get = (path: string, tok: string) => page.request.get(`${api}${path}`, { headers: { Authorization: `Bearer ${tok}` } });
+    const get = (path: string, tok: string, base = api) => page.request.get(`${base}${path}`, { headers: { Authorization: `Bearer ${tok}` } });
     const seeded = JSON.parse(readFileSync(join(__dirname, 'support', 'ten-02', 'dev-ids.json'), 'utf8')) as { naledi: string; naledi_bank_doc: string };
     const listB = await get('/v1/employees', tokB);
     expect(listB.status(), 'GET /v1/employees as HR of B: 200').toBe(200);
@@ -1072,10 +1072,10 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
     expect(idsA, 'HR of A still lists Naledi').toContain(seeded.naledi);
     // B's list is empty or B's own: none of the people HR of A lists.
     for (const id of idsA) expect.soft(bodyB, `B's list holds none of A's people (${id})`).not.toContain(id);
-    expect((await get(`/v1/employees/${seeded.naledi}`, tokB)).status(), 'GET /v1/employees/<Naledi> as HR of B: 404').toBe(404);
-    expect((await get(`/v1/documents/${seeded.naledi_bank_doc}/url`, tokB)).status(), 'GET /v1/documents/<Naledi\'s bank doc>/url as HR of B: 404').toBe(404);
-    expect((await get(`/v1/employees/${seeded.naledi}`, tokA)).status(), 'as HR of A: 200 as before').toBe(200);
-    expect((await get(`/v1/documents/${seeded.naledi_bank_doc}/url`, tokA)).status(), 'as HR of A: 200 as before').toBe(200);
+    expect((await get(`/v1/employees/${seeded.naledi}/verifications`, tokB, docApi)).status(), 'GET /v1/employees/<Naledi>/verifications as HR of B: 404').toBe(404);
+    expect((await get(`/v1/documents/${seeded.naledi_bank_doc}/url`, tokB, docApi)).status(), 'GET /v1/documents/<Naledi\'s bank doc>/url as HR of B: 404').toBe(404);
+    expect((await get(`/v1/employees/${seeded.naledi}/verifications`, tokA, docApi)).status(), 'GET /v1/employees/<Naledi>/verifications as HR of A: 200 as before').toBe(200);
+    expect((await get(`/v1/documents/${seeded.naledi_bank_doc}/url`, tokA, docApi)).status(), 'as HR of A: 200 as before').toBe(200);
   });
 
   test('AC-15 Everything carries a company @pepla-dev', async ({}, testInfo) => {
