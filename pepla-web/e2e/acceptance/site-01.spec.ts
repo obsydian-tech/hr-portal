@@ -309,9 +309,10 @@ test.describe('SITE-01 Public routes and prerender, latest design system, no "pe
     const extra = walk(DS).filter((e) => !e.dir && e.rel !== 'sync.json' && !(e.rel in files)).map((e) => e.rel);
     expect(extra, 'nothing under src/styles/design-system/ is outside the sync').toEqual([]);
 
-    const css = readFileSync(join(DS, 'components.css'), 'utf8');
-    expect(css, 'components.css holds the site classes').toContain('pp-site-header');
-    for (const cls of SINCE_6C63AB0) expect(css, `components.css holds ${cls}, added in 6c63ab0`).toContain(cls);
+    // SITE-07: the site rules live in site.css, split out of components.css.
+    const css = readFileSync(join(DS, 'site.css'), 'utf8');
+    expect(css, 'site.css holds the site classes').toContain('pp-site-header');
+    for (const cls of SINCE_6C63AB0) expect(css, `site.css holds ${cls}, added in 6c63ab0`).toContain(cls);
 
     const verify = run('npm', ['run', 'verify:design']);
     expect(verify.code, `npm run verify:design exits 0:\n${verify.out.slice(-3000)}`).toBe(0);
