@@ -22,9 +22,13 @@ What it makes, every run, idempotently:
     The files sit under seed-samples/, not uploads/, because anything under
     uploads/ starts the OCR Lambda.
 
+  * TEN-01: the first company's row (TENANT#<id> / PROFILE) in the tenants table,
+    written once and never changed after. The id comes from infra/env/dev.tfvars.
 Output is role names and counts only: the repo and its Actions logs are public.
 """
 import json
+import pathlib
+import re
 import secrets
 import string
 import sys
@@ -294,6 +298,33 @@ def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
     return len(NALEDI_DOCUMENTS)
 
 
+TENANTS_TABLE = "naleko-people-dev-tenants"
+DEV_TFVARS = pathlib.Path(__file__).resolve().parents[2] / "infra" / "env" / "dev.tfvars"
+
+
+def founding_tenant_id() -> str:
+    m = re.search(r'^\s*founding_tenant_id\s*=\s*"(ten_[0-9a-z]{26})"', DEV_TFVARS.read_text(), re.M)
+    if not m:
+        sys.exit("::error::infra/env/dev.tfvars has no founding_tenant_id")
+    return m.group(1)
+
+
+def ensure_founding_company(ddb) -> int:
+    """TEN-01: the first company's row. Written once; an existing row is left as it is."""
+    tid = founding_tenant_id()
+    try:
+        ddb.put_item(TableName=TENANTS_TABLE, Item={
+            "pk": {"S": f"TENANT#{tid}"}, "sk": {"S": "PROFILE"}, "tenant_id": {"S": tid},
+            "name": {"S": "Founding client"}, "status": {"S": "ACTIVE"}, "country": {"S": "ZA"},
+            "founding": {"BOOL": True}, "created_at": {"S": "2026-11-16T00:00:00Z"},
+        }, ConditionExpression="attribute_not_exists(pk)")
+        return 1
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return 0
+        raise
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -313,6 +344,8 @@ def main() -> None:
     for group in TF_GROUPS:
         role = f"tf-{group.lower()}"
         ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group, ROBOT_GROUP])
+
+    founding_written = ensure_founding_company(ddb)
 
     ns = NS
     seeded_documents = 0
@@ -334,7 +367,7 @@ def main() -> None:
           f"logins {len(NALEKO_PERSONAS) + len(TF_GROUPS)}; "
           f"demo people {len(DEMO_PEOPLE) + 1}; persona documents reset {docs_removed}; "
           f"persona consents reset {consents_removed}; "
-          f"demo documents {seeded_documents}")
+          f"demo documents {seeded_documents}; founding company row written {founding_written}")
 
 
 if __name__ == "__main__":
