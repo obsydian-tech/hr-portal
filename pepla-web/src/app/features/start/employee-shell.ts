@@ -3,6 +3,9 @@ import { Router, RouterOutlet } from '@angular/router';
 import { NavSection, PpAppShell, PpDropdownMenu, PpMenuItem, PpMenuSection, PpSideNavigation, PpTopNavigation } from '../../ds';
 import { AuthService } from '../../core/auth/auth.service';
 import { StartService } from '../../core/start/start.service';
+import { navEntries, sectionsFor } from '../../core/nav';
+import { ModulesService } from '../../core/modules.service';
+import { rolesOf } from '../../core/roles';
 
 /**
  * The frame for a new employee's own pages: sidebar, top bar with the account menu, and the page.
@@ -15,7 +18,7 @@ import { StartService } from '../../core/start/start.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <pp-app-shell>
-      <pp-side-navigation [company]="company()" [sections]="sections" [(open)]="menuOpen" />
+      <pp-side-navigation [company]="company()" [sections]="sections()" [(open)]="menuOpen" />
       <pp-top-navigation home="/start" [userName]="userName()" [menuOpen]="menuOpen()" [accountOpen]="accountOpen()" (menu)="menuOpen.set(!menuOpen())" (account)="accountOpen.set(!accountOpen())" />
       <pp-dropdown-menu [trigger]="false" [(open)]="accountOpen" [origin]="avatar()" [returnTo]="avatar()" label="Your account">
         <pp-menu-section [heading]="userName()">
@@ -33,7 +36,11 @@ export class EmployeeShell {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   /** Only pages that exist: Documents, My onboarding, My details and Help come with their cards. */
-  protected readonly sections: NavSection[] = [{ items: [{ label: 'Today', icon: 'house', link: '/start' }] }];
+  private readonly modulesService = inject(ModulesService);
+  protected readonly sections = computed<NavSection[]>(() => {
+    const { roles, perms } = rolesOf(this.auth.user()?.groups);
+    return sectionsFor(navEntries(), { roles, perms, modules: this.modulesService.modules() });
+  });
   protected readonly company = computed(() => this.start.company());
   protected readonly menuOpen = signal(false);
   protected readonly accountOpen = signal(false);

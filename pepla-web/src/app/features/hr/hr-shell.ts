@@ -4,6 +4,9 @@ import { NavSection, PpAppShell, PpDropdownMenu, PpMenuItem, PpMenuSection, PpSi
 import { AuthService } from '../../core/auth/auth.service';
 import { DocumentsService } from '../../core/documents/documents.service';
 import { RegistrationService } from '../../core/employees/registration.service';
+import { navEntries, sectionsFor } from '../../core/nav';
+import { ModulesService } from '../../core/modules.service';
+import { rolesOf } from '../../core/roles';
 
 /**
  * The frame for every HR page: sidebar, top bar with the account menu, and the page. ONB-01 gives it
@@ -35,14 +38,12 @@ export class HrShell {
   private readonly registration = inject(RegistrationService);
 
   /** The number waiting shows once the list has loaded; HR home and the employee page never ask for it. */
+  private readonly modulesService = inject(ModulesService);
   protected readonly sections = computed<NavSection[]>(() => {
     const waiting = this.documents.waitingCount();
-    return [{
-      items: [
-        { label: 'Today', icon: 'house', link: '/hr' },
-        { label: 'Documents to check', icon: 'files', link: '/hr/documents', ...(waiting !== null ? { count: waiting, countLabel: 'waiting' } : {}) },
-      ],
-    }];
+    const { roles, perms } = rolesOf(this.auth.user()?.groups);
+    return sectionsFor(navEntries(), { roles, perms, modules: this.modulesService.modules() }, (e) =>
+      e.route === '/hr/documents' && waiting !== null ? { count: waiting, countLabel: 'waiting' } : null);
   });
   protected readonly menuOpen = signal(false);
   protected readonly accountOpen = signal(false);
