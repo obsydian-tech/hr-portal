@@ -30,23 +30,6 @@ resource "aws_dynamodb_table" "tenants" {
   }
 }
 
-resource "aws_dynamodb_table_item" "founding_tenant" {
-  table_name = aws_dynamodb_table.tenants.name
-  hash_key   = aws_dynamodb_table.tenants.hash_key
-  range_key  = aws_dynamodb_table.tenants.range_key
-
-  item = jsonencode({
-    pk         = { S = "TENANT#${var.founding_tenant_id}" }
-    sk         = { S = "PROFILE" }
-    tenant_id  = { S = var.founding_tenant_id }
-    name       = { S = "Founding client" }
-    status     = { S = "ACTIVE" }
-    country    = { S = "ZA" }
-    founding   = { BOOL = true }
-    created_at = { S = "2026-11-16T00:00:00Z" }
-  })
-
-  lifecycle {
-    ignore_changes = [item]
-  }
-}
+# The first company's row (TENANT#<id> / PROFILE) is data, not infrastructure. The OPS-05 apply role
+# may not read or write table data (DenyRunningOrReadingData), so Terraform does not manage it.
+# pepla-dev: scripts/ci/seed-dev.py writes it. prod: the TEN-02 backfill writes it.
