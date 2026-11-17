@@ -1,0 +1,4055 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: ang-01.spec.ts >> ANG-01 Board asks first, and the Modules button >> AC-12 It emits on click, Enter and Space, and it is in the Tab order before search (desktop) and after the menu button (phone)
+- Location: e2e/acceptance/ang-01.spec.ts:470:7
+
+# Error details
+
+```
+Error: /dev/parity has exactly one section named "Modules button"
+
+expect(locator).toHaveCount(expected) failed
+
+Locator:  locator('[data-parity$="|Modules button"]')
+Expected: 1
+Received: 0
+Timeout:  10000ms
+
+Call log:
+  - /dev/parity has exactly one section named "Modules button" locator('[data-parity$="|Modules button"]') with timeout 10000ms
+  - waiting for locator('[data-parity$="|Modules button"]')
+    24 × locator resolved to 0 elements
+       - unexpected value "0"
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - button "Send contract" [ref=e7] [cursor=pointer]
+    - button "Edit" [ref=e8] [cursor=pointer]
+    - button "Skip for now" [ref=e9] [cursor=pointer]
+    - button "More options" [ref=e10] [cursor=pointer]
+    - button "Withdraw offer" [ref=e11] [cursor=pointer]
+    - button "View history" [ref=e12] [cursor=pointer]
+  - generic [ref=e14]:
+    - button "Add new employee" [ref=e15] [cursor=pointer]
+    - button "Upload document" [ref=e20] [cursor=pointer]
+    - button "Review" [ref=e25] [cursor=pointer]
+    - button "More actions for Thandeka Dlamini" [ref=e27] [cursor=pointer]
+  - generic [ref=e33]:
+    - button "Sending"
+    - 'button "Filtered: overdue" [pressed] [ref=e34] [cursor=pointer]'
+    - button "Send contract" [disabled] [ref=e35]
+  - generic [ref=e37]:
+    - button "Approve" [ref=e38] [cursor=pointer]
+    - button "Edit" [ref=e42] [cursor=pointer]
+    - button "Decline" [ref=e43] [cursor=pointer]
+  - generic [ref=e45]:
+    - button "Keep offer" [ref=e46] [cursor=pointer]
+    - button "Withdraw offer" [ref=e47] [cursor=pointer]
+  - generic [ref=e49]:
+    - text: Sipho still needs to upload his proof of address. You can
+    - link "see what he has sent so far" [ref=e50] [cursor=pointer]:
+      - /url: "#"
+    - text: or read the
+    - link "SARS guide to tax numbers (opens in a new tab)" [ref=e51] [cursor=pointer]:
+      - /url: "#"
+      - text: SARS guide to tax numbers
+      - generic [ref=e57]: (opens in a new tab)
+    - text: .
+  - generic [ref=e59]:
+    - link "View all new employees" [ref=e60] [cursor=pointer]:
+      - /url: "#"
+    - link "Audit trail for Thandeka Dlamini" [ref=e64] [cursor=pointer]:
+      - /url: "#"
+    - link "Department of Employment and Labour (opens in a new tab)" [ref=e70] [cursor=pointer]:
+      - /url: "#"
+      - generic [ref=e71]: Department of Employment and Labour
+      - generic [ref=e76]: (opens in a new tab)
+  - generic [ref=e78]:
+    - text: Last changed by
+    - link "Lerato Mokoena" [ref=e79] [cursor=pointer]:
+      - /url: "#"
+    - text: ", 28 Oct 2026, 15:42"
+  - generic [ref=e81]:
+    - generic [ref=e82]: Not started
+    - generic [ref=e92]: In review
+    - generic [ref=e95]: Matches
+    - generic [ref=e99]: Due in 2 days
+    - generic [ref=e103]: Overdue by 1 day
+    - generic [ref=e107]: Checked by Batsi
+  - generic [ref=e112]:
+    - generic [ref=e113]: Locked
+    - generic [ref=e117]: Offer sent
+    - generic [ref=e120]: Hired
+    - generic [ref=e124]: Needs a look
+    - generic [ref=e127]: Contract not signed
+    - generic [ref=e130]: Drafted by Batsi
+  - generic [ref=e135]:
+    - generic [ref=e136]: Onboarding, day 3 of 10
+    - generic [ref=e142]: Batsi suggests 3 changes
+  - generic [ref=e147]:
+    - generic [ref=e148]: "4"
+    - generic [ref=e149]: "12"
+    - generic [ref=e150]: "3"
+    - generic [ref=e151]: "5"
+    - generic [ref=e152]: "28"
+    - generic [ref=e153]: 99+
+  - generic [ref=e155]:
+    - generic [ref=e156]:
+      - generic [ref=e157]: Approvals
+      - generic [ref=e158]:
+        - text: "5"
+        - generic [ref=e159]: proposals from Batsi waiting for you
+    - generic [ref=e160]:
+      - generic [ref=e161]: Overdue documents
+      - generic [ref=e162]:
+        - text: "3"
+        - generic [ref=e163]: overdue
+    - generic [ref=e164]:
+      - generic [ref=e165]: Candidates
+      - generic [ref=e166]: "28"
+  - generic [ref=e168]:
+    - generic [ref=e169]:
+      - button "Help desk, 2 new questions" [ref=e170] [cursor=pointer]
+      - generic [aria-hidden]: "2"
+    - button "Batsi's proposals, new since you last looked" [ref=e179] [cursor=pointer]
+  - list "Departments" [ref=e184]:
+    - listitem [ref=e185]:
+      - generic [ref=e186]: Finance
+    - listitem [ref=e187]:
+      - generic [ref=e188]: People and culture
+    - listitem [ref=e189]:
+      - generic [ref=e190]: Operations
+    - listitem [ref=e191]:
+      - generic [ref=e192]: Sales
+    - listitem [ref=e193]:
+      - generic [ref=e194]: Warehouse
+    - listitem [ref=e195]:
+      - generic [ref=e196]: Customer care
+    - listitem [ref=e197]:
+      - generic [ref=e198]: Unassigned
+  - generic [ref=e200]:
+    - generic [ref=e201]: Sipho's skills
+    - list "Sipho's skills" [ref=e202]:
+      - listitem [ref=e203]:
+        - generic [ref=e204]: Payroll
+        - button "Remove Payroll" [ref=e205] [cursor=pointer]
+      - listitem [ref=e209]:
+        - generic [ref=e210]: SARS eFiling
+        - button "Remove SARS eFiling" [ref=e211] [cursor=pointer]
+      - listitem [ref=e215]:
+        - generic [ref=e216]: Sage 300
+        - button "Remove Sage 300" [ref=e217] [cursor=pointer]
+      - listitem [ref=e221]:
+        - generic [ref=e222]: isiZulu
+        - button "Remove isiZulu" [ref=e223] [cursor=pointer]
+    - button "Add skill" [ref=e228] [cursor=pointer]
+  - generic [ref=e237]:
+    - generic [ref=e238]:
+      - generic [ref=e239]:
+        - generic [ref=e240]: Lerato's documents
+        - generic [ref=e241]: 3 of 5 received
+      - progressbar "Lerato's documents" [ref=e242]: 3 of 5
+    - generic [ref=e243]:
+      - generic [ref=e244]:
+        - generic [ref=e245]: Sipho's onboarding
+        - generic [ref=e246]: All 8 steps done
+      - progressbar "Sipho's onboarding" [ref=e247]: 8 of 8
+      - generic [ref=e248]: Done 3 Nov
+  - generic [ref=e254]:
+    - generic [ref=e255]:
+      - generic [ref=e256]:
+        - generic [ref=e257]: Batsi is checking the documents
+        - generic [ref=e258]: 4 of 6 checked
+      - progressbar "Batsi is checking the documents" [ref=e259]: 4 of 6
+      - generic [ref=e260]: You approve the results when Batsi is done
+    - generic [ref=e265]:
+      - generic [ref=e266]:
+        - generic [ref=e267]: Annual leave used
+        - generic [ref=e268]: 13 of 15 days
+      - progressbar "Annual leave used" [ref=e269]: 13 of 15
+      - generic [ref=e270]: 2 days left until 31 Dec
+    - generic [ref=e274]:
+      - generic [ref=e275]:
+        - generic [ref=e276]: Thabo's documents
+        - generic [ref=e277]: 1 of 5 received
+      - progressbar "Thabo's documents" [ref=e278]: 1 of 5
+      - generic [ref=e279]: Overdue by 1 day
+  - navigation "Policies to read" [ref=e285]:
+    - link "Leave policy" [ref=e286] [cursor=pointer]:
+      - /url: "#"
+    - link "Code of conduct" [ref=e287] [cursor=pointer]:
+      - /url: "#"
+    - link "POPIA and your personal data" [ref=e288] [cursor=pointer]:
+      - /url: "#"
+    - link "Remote work policy" [ref=e289]:
+      - /url: "#"
+  - generic [ref=e291]:
+    - generic [ref=e292]:
+      - generic [ref=e293]: Thandeka Dlamini, ID
+      - generic [ref=e294]: Checked by Batsi
+    - generic [ref=e298]:
+      - generic [ref=e299]: Sipho Ndlovu, bank letter
+      - generic [ref=e300]: Due in 2 days
+    - generic [ref=e304]:
+      - generic [ref=e305]: Lerato Mokoena, qualifications
+      - generic [ref=e306]: Does not match
+    - generic [ref=e309]:
+      - generic [ref=e310]: Thabo Khumalo, ID
+      - generic [ref=e311]: Approved 3 Nov
+  - generic [ref=e316]:
+    - link "Finance" [ref=e317] [cursor=pointer]:
+      - /url: ./
+    - link "Johannesburg" [ref=e319] [cursor=pointer]:
+      - /url: ./
+    - link "Harare" [ref=e321] [cursor=pointer]:
+      - /url: ./
+    - link "Lusaka" [ref=e323] [cursor=pointer]:
+      - /url: ./
+  - status [ref=e326]:
+    - generic [ref=e328]: Checking the ID with Home Affairs
+  - generic [ref=e330]:
+    - generic [ref=e331]: Thandeka Dlamini
+    - progressbar "Thandeka's onboarding, 6 of 10 steps" [ref=e333]: 6 of 10
+    - generic [ref=e334]: 6 of 10 steps
+  - generic [ref=e336]:
+    - img "Thandeka Dlamini" [ref=e337]: TD
+    - img "Sipho Ndlovu" [ref=e338]: SN
+    - img "Lerato Mokoena" [ref=e339]: LM
+    - img "Kagiso Molefe" [ref=e340]: KM
+    - img "Chipo Banda" [ref=e341]: CB
+    - img "Tariro Moyo" [ref=e342]: TM
+  - generic [ref=e344]:
+    - img "Batsi" [ref=e345]
+    - img "Finance team" [ref=e349]
+    - img "Sipho Ndlovu, online" [ref=e355]: SN
+  - generic [ref=e358]:
+    - generic [ref=e359]:
+      - generic [aria-hidden] [ref=e360]: TD
+      - generic [ref=e361]:
+        - generic [ref=e362]: Thandeka Dlamini
+        - generic [ref=e363]: Bookkeeper · Starts 17 Nov
+    - 'group "Interview panel: Sipho Ndlovu, Lerato Mokoena, Kagiso Molefe and 2 more" [ref=e364]':
+      - generic [aria-hidden] [ref=e365]: SN
+      - generic [aria-hidden] [ref=e366]: LM
+      - generic [aria-hidden] [ref=e367]: KM
+      - generic [aria-hidden] [ref=e368]: "+2"
+  - generic [ref=e370]:
+    - heading "Thandeka Dlamini" [level=1] [ref=e371]
+    - heading "New employees starting in November" [level=2] [ref=e372]
+    - heading "Documents to review" [level=2] [ref=e373]
+    - heading "Employment details" [level=3] [ref=e374]
+    - heading "Banking" [level=3] [ref=e375]
+    - heading "Emergency contact" [level=4] [ref=e376]
+    - heading "Recent activity" [level=4] [ref=e377]
+  - generic [ref=e379]:
+    - generic [ref=e380]: Checked by Batsi
+    - generic [ref=e384]: Matches
+    - generic [ref=e388]: Due in 2 days
+    - generic [ref=e392]: Contract not signed
+    - generic [ref=e395]: Hidden
+  - generic [ref=e429]:
+    - link "Naleko People home" [ref=e430] [cursor=pointer]:
+      - /url: "#home"
+      - generic [ref=e435]:
+        - generic [ref=e436]: Naleko People
+        - generic [ref=e437]: by Naleko
+    - generic [ref=e443]:
+      - generic [ref=e444]: Naleko People
+      - generic [ref=e445]: by Naleko
+    - generic [ref=e446]: Naleko People
+  - generic [ref=e460]:
+    - generic [ref=e461]: Naleko People
+    - generic [ref=e462]: by Naleko
+  - status [ref=e474]:
+    - generic [ref=e475]: Loading the job description
+  - status [ref=e481]:
+    - generic [ref=e482]: Loading people
+  - generic [ref=e501]:
+    - status [ref=e502]:
+      - generic [ref=e503]: Loading onboarding summary
+    - status [ref=e506]:
+      - generic [ref=e507]: Loading the registration form
+  - list "Lerato's onboarding" [ref=e517]:
+    - listitem [ref=e518]:
+      - generic [ref=e522]:
+        - generic [ref=e523]:
+          - generic [ref=e524]: "Done:"
+          - text: Offer signed
+        - generic [ref=e525]: Done 28 Oct
+    - listitem [ref=e526]:
+      - generic [ref=e531]:
+        - generic [ref=e532]:
+          - generic [ref=e533]: "Done by Batsi:"
+          - text: Documents checked
+        - generic [ref=e534]: Checked by Batsi, 3 Nov
+    - listitem [ref=e535]:
+      - generic [ref=e537]:
+        - generic [ref=e538]:
+          - generic [ref=e539]: "Current step:"
+          - text: Laptop and access
+        - generic [ref=e540]: Due in 2 days
+    - listitem [ref=e541]:
+      - generic [ref=e543]:
+        - generic [ref=e544]:
+          - generic [ref=e545]: "Not started:"
+          - text: First day
+        - generic [ref=e546]: 23 Nov
+    - listitem [ref=e547]:
+      - generic [ref=e550]:
+        - generic [ref=e551]: "Not started:"
+        - text: 30-day check-in
+  - list "Sipho Ndlovu's hiring stages" [ref=e554]:
+    - listitem [ref=e555]:
+      - generic [ref=e560]:
+        - generic [ref=e561]: "Done:"
+        - text: Applied
+    - listitem [ref=e562]:
+      - generic [ref=e567]:
+        - generic [ref=e568]: "Done:"
+        - text: Interviews
+    - listitem [ref=e569]:
+      - generic [ref=e573]:
+        - generic [ref=e574]:
+          - generic [ref=e575]: "Blocked:"
+          - text: Background check
+        - generic [ref=e576]: ID does not match. Ask Sipho for a new copy.
+    - listitem [ref=e577]:
+      - generic [ref=e580]:
+        - generic [ref=e581]: "Not started:"
+        - text: Offer
+    - listitem [ref=e582]:
+      - generic [ref=e585]:
+        - generic [ref=e586]: "Not started:"
+        - text: Hired
+  - list "Thandeka's registration" [ref=e589]:
+    - listitem [ref=e590]:
+      - generic [ref=e594]:
+        - generic [ref=e595]:
+          - generic [ref=e596]: "Done:"
+          - text: Personal details
+        - generic [ref=e597]: Done 9 Nov
+    - listitem [ref=e598]:
+      - generic [ref=e600]:
+        - generic [ref=e601]:
+          - generic [ref=e602]: "Current step:"
+          - text: Banking and tax
+        - generic [ref=e603]: 2 fields left
+    - listitem [ref=e604]:
+      - generic [ref=e607]:
+        - generic [ref=e608]: "Not started:"
+        - text: Contract
+  - region [ref=e610]:
+    - generic [ref=e613]:
+      - heading "Lerato's contract is waiting on her tax number" [level=3] [ref=e614]
+      - generic [ref=e615]: Batsi can send the contract once Lerato adds her SARS tax number in the portal.
+      - generic [ref=e616]:
+        - button "Remind Lerato" [ref=e617] [cursor=pointer]
+        - link "Open profile" [ref=e618] [cursor=pointer]:
+          - /url: "#"
+  - region [ref=e620]:
+    - generic [ref=e624]:
+      - heading "Sipho Ndlovu's ID is verified" [level=3] [ref=e625]
+      - generic [ref=e626]: Home Affairs confirmed the ID on 9 Nov 2026, 10:14.
+  - region [ref=e628]:
+    - generic [ref=e631]:
+      - heading "2 documents expire this month" [level=3] [ref=e632]
+      - generic [ref=e633]: Thandeka Dlamini's work permit expires in 12 days. Sipho Ndlovu's first aid certificate expires in 20 days.
+      - button "Request renewals" [ref=e635] [cursor=pointer]
+  - alert [ref=e637]:
+    - generic [ref=e640]:
+      - heading "November payslips could not sync" [level=3] [ref=e641]
+      - generic [ref=e642]: SimplePay refused the connection because the API key was revoked on 10 Nov 2026. Add a new key to sync again.
+      - generic [ref=e643]:
+        - button "Update API key" [ref=e644] [cursor=pointer]
+        - link "View sync history" [ref=e645] [cursor=pointer]:
+          - /url: "#"
+    - button "Dismiss" [ref=e646] [cursor=pointer]
+  - region [ref=e651]:
+    - generic [ref=e655]:
+      - heading "Batsi drafted 3 offer letters" [level=3] [ref=e656]
+      - generic [ref=e657]: Drafted from the approved salary bands for Lerato Mokoena, Kagiso Molefe and Nomvula Khumalo. Nothing is sent until you approve each one.
+      - button "Review drafts" [ref=e659] [cursor=pointer]
+  - generic [ref=e661]:
+    - generic [ref=e662]: Only Thandeka and payroll admins can see salaries.
+    - generic [ref=e666]: Bank details verified on 4 Nov 2026
+    - generic [ref=e671]: Due in 2 days
+    - generic [ref=e676]: Overdue by 1 day
+    - generic [ref=e681]: Batsi filled this from Sipho's CV. Check it before you save.
+  - generic [ref=e688]:
+    - generic [ref=e689]: Work permit
+    - generic [ref=e690]: Expires in 12 days
+  - alert [ref=e695]:
+    - paragraph [ref=e698]:
+      - text: The payroll connection stopped at 06:00. November payslips won't sync until you
+      - link "reconnect payroll" [ref=e699] [cursor=pointer]:
+        - /url: "#"
+      - text: .
+  - alert [ref=e701]:
+    - paragraph [ref=e704]:
+      - text: "You can't send contracts: the company registration expired on 31 Oct 2026."
+      - link "Upload the new one" [ref=e705] [cursor=pointer]:
+        - /url: "#"
+  - region "Announcement" [ref=e707]:
+    - paragraph [ref=e710]:
+      - text: Naleko People now handles leave requests for teams in Zambia.
+      - link "See what changed" [ref=e711] [cursor=pointer]:
+        - /url: "#"
+    - button "Dismiss announcement" [ref=e712] [cursor=pointer]
+  - generic [ref=e717]:
+    - heading "No candidates yet" [level=3] [ref=e724]
+    - paragraph [ref=e725]: When people apply for Bookkeeper, they show up here.
+    - button "Share job link" [ref=e727] [cursor=pointer]
+  - status [ref=e729]:
+    - heading "Nothing needs you today" [level=2] [ref=e733]
+    - paragraph [ref=e734]: You approved everything that was waiting. New requests show up here.
+    - paragraph [ref=e735]:
+      - generic [ref=e739]:
+        - text: Batsi handled 12 tasks this week.
+        - link "See them in the audit trail" [ref=e740] [cursor=pointer]:
+          - /url: "#"
+  - generic [ref=e743]:
+    - heading "No one matches \"Ndlovo\"" [level=3] [ref=e748]
+    - paragraph [ref=e749]: Check the spelling, or search by employee number.
+    - button "Clear search" [ref=e751] [cursor=pointer]
+  - generic [ref=e753]:
+    - heading "You can't see payroll" [level=3] [ref=e758]
+    - paragraph [ref=e759]: Payroll is open to people with the Payroll role. Thandeka Dlamini can give it to you.
+    - button "Ask Thandeka for access" [ref=e761] [cursor=pointer]
+  - status [ref=e764]:
+    - generic [ref=e768]:
+      - paragraph [ref=e769]: Contract sent to Lerato Mokoena
+      - paragraph [ref=e770]: She'll get an email and an SMS. You'll see here when she signs.
+      - button "Undo" [ref=e772] [cursor=pointer]
+    - button "Dismiss" [ref=e774] [cursor=pointer]
+  - generic [ref=e779]:
+    - status [ref=e780]:
+      - generic [ref=e783]:
+        - paragraph [ref=e784]: Sipho's bank details need a second look
+        - paragraph [ref=e785]: The account holder name doesn't match his ID.
+        - link "Open bank details" [ref=e787] [cursor=pointer]:
+          - /url: "#"
+      - button "Dismiss" [ref=e788] [cursor=pointer]
+    - alert [ref=e792]:
+      - generic [ref=e795]:
+        - paragraph [ref=e796]: Couldn't send the contract
+        - paragraph [ref=e797]: The connection dropped. Your draft is saved.
+        - button "Try again" [ref=e799] [cursor=pointer]
+      - button "Dismiss" [ref=e800] [cursor=pointer]
+  - generic [ref=e805]:
+    - status [ref=e806]:
+      - generic [ref=e809]:
+        - paragraph [ref=e810]: Thandeka removed from the interview panel
+        - button "Undo" [ref=e812] [cursor=pointer]
+      - button "Dismiss" [ref=e813] [cursor=pointer]
+    - status [ref=e817]:
+      - generic [ref=e821]:
+        - paragraph [ref=e822]: Batsi drafted 4 leave requests
+        - paragraph [ref=e823]: From the emails Thandeka forwarded this morning. Each waits for your approval.
+        - link "Review requests" [ref=e825] [cursor=pointer]:
+          - /url: "#"
+      - button "Dismiss" [ref=e826] [cursor=pointer]
+  - generic [ref=e831]:
+    - generic [ref=e832]: ID number*
+    - textbox "ID number" [ref=e833]
+    - generic [ref=e834]: 13 digits, as on the green ID book or smart card
+  - generic [ref=e836]:
+    - generic [ref=e837]: Start date*
+    - textbox "Start date" [invalid] [ref=e838]
+    - generic [ref=e839]: Enter the start date, for example 3 Nov 2026
+    - generic [ref=e843]: Their first working day
+  - form "Register a new employee" [ref=e845]:
+    - generic [ref=e846]: All fields are required unless marked optional.
+    - group "Personal details" [ref=e847]:
+      - generic [ref=e849]:
+        - generic [ref=e850]:
+          - generic [ref=e851]: First name
+          - textbox "First name" [ref=e852]: Lerato
+        - generic [ref=e853]:
+          - generic [ref=e854]: Surname
+          - textbox "Surname" [ref=e855]: Mokoena
+      - generic [ref=e856]:
+        - generic [ref=e857]: Preferred name(optional)
+        - textbox "Preferred name(optional)" [ref=e858]
+        - generic [ref=e859]: What the team calls them, if it is not their first name
+    - group "Employment" [ref=e860]:
+      - generic [ref=e862]:
+        - generic [ref=e863]:
+          - generic [ref=e864]: Job title
+          - textbox "Job title" [ref=e865]: Payroll administrator
+        - generic [ref=e866]:
+          - generic [ref=e867]: Monthly salary
+          - generic [ref=e868]:
+            - generic [aria-hidden] [ref=e869]: R
+            - textbox "Monthly salary" [ref=e870]: 18 500
+    - generic [ref=e871]:
+      - button "Save draft" [ref=e872] [cursor=pointer]
+      - button "Register employee" [ref=e873] [cursor=pointer]
+  - group "Contract type" [ref=e876]:
+    - generic [ref=e877]: Contract type*
+    - generic [ref=e879]:
+      - generic [ref=e880]:
+        - radio "Permanent" [checked] [ref=e881] [cursor=pointer]
+        - generic [ref=e882] [cursor=pointer]: Permanent
+      - generic [ref=e883]:
+        - radio "Fixed term" [ref=e884] [cursor=pointer]
+        - generic [ref=e885] [cursor=pointer]: Fixed term
+  - generic [ref=e887]:
+    - generic [ref=e888]:
+      - generic [ref=e889]:
+        - generic [ref=e890]: First name*
+        - textbox "First name" [ref=e891]: Thandeka
+      - generic [ref=e892]:
+        - generic [ref=e893]: Surname*
+        - textbox "Surname" [ref=e894]: Dlamini
+    - generic [ref=e895]:
+      - generic [ref=e896]: Personal email(optional)
+      - textbox "Personal email(optional)" [ref=e897]:
+        - /placeholder: name@example.co.za
+      - generic [ref=e898]: We send the welcome pack here before their work email is set up.
+  - generic [ref=e901]:
+    - generic [ref=e902]:
+      - generic [ref=e903]: Monthly salary
+      - generic [ref=e904]:
+        - generic [aria-hidden] [ref=e905]: R
+        - textbox "Monthly salary" [ref=e906]: 18 500
+      - generic [ref=e907]: Before tax, in rand
+    - generic [ref=e908]:
+      - generic [ref=e909]: Hours per week
+      - generic [ref=e910]:
+        - textbox "Hours per week" [ref=e911]: "40"
+        - generic [ref=e912]: hours
+  - generic [ref=e914]:
+    - generic [ref=e915]:
+      - generic [ref=e916]: ID number
+      - generic [ref=e918]:
+        - textbox "ID number" [ref=e925]: •••••••••0876
+        - button "Show ID number" [ref=e926] [cursor=pointer]
+      - generic [ref=e930]: Hidden to protect Sipho's privacy. Showing it is logged.
+    - generic [ref=e931]:
+      - generic [ref=e932]: ID number
+      - generic [ref=e934]:
+        - textbox "ID number" [ref=e935]: "9203145800876"
+        - button "Hide ID number" [pressed] [ref=e936] [cursor=pointer]
+      - generic [ref=e942]: Shown to you, 11 Nov 2026, 14:30. Hides again in 2 minutes.
+  - generic [ref=e949]:
+    - generic [ref=e950]:
+      - generic [ref=e951]: ID number*
+      - textbox "ID number" [invalid] [ref=e952]: "920314580087"
+      - generic [ref=e953]: That ID number has 12 digits. South African IDs have 13.
+      - generic [ref=e957]: As on the green ID book or smart card
+    - generic [ref=e958]:
+      - generic [ref=e959]:
+        - generic [ref=e960]: Employee number
+        - textbox "Employee number" [disabled] [ref=e961]: PEP-0142
+        - generic [ref=e962]: Set by payroll
+      - generic [ref=e963]:
+        - generic [ref=e964]: Tax number
+        - textbox "Tax number" [ref=e965]: ••••••4471
+  - generic [ref=e967]:
+    - generic [ref=e968]: Note for the hiring manager(optional)
+    - textbox "Note for the hiring manager(optional)" [ref=e969]: Sipho was strong on payroll reconciliations. Worth asking about his SARS eFiling experience in the second interview.
+    - generic [ref=e970]:
+      - generic [ref=e971]: Only the hiring team can see this
+      - generic [ref=e972]: 118 of 500
+  - generic [ref=e974]:
+    - generic [ref=e975]: Reason for declining*
+    - textbox "Reason for declining" [invalid] [ref=e976]
+    - generic [ref=e977]: Add a reason. It goes into the audit trail with your name.
+    - generic [ref=e981]: Batsi keeps this with the declined proposal.
+  - generic [ref=e983]:
+    - generic [ref=e984]:
+      - generic [ref=e985]: Short bio for the team page
+      - textbox "Short bio for the team page" [invalid] [ref=e986]: Lerato joins us from a logistics firm in Midrand where she ran payroll for 80 people across three sites, and before that she studied accounting at Wits. Outside work she runs the Saturday parkrun at Delta Park.
+      - generic [ref=e987]:
+        - generic [ref=e988]: Shorten this by 12 characters to fit the team page.
+        - generic [ref=e992]: 212 of 200
+    - generic [ref=e993]:
+      - generic [ref=e994]:
+        - generic [ref=e995]: Original reason (3 Nov 2026)
+        - textbox "Original reason (3 Nov 2026)" [ref=e996]: Start date moved to 1 Dec at the candidate's request.
+      - generic [ref=e997]:
+        - generic [ref=e998]: Exit interview notes
+        - textbox "Exit interview notes" [disabled] [ref=e999]
+        - generic [ref=e1000]: Opens on their last working day
+  - generic [ref=e1002]:
+    - checkbox "Send Lerato her contract by email as well" [checked] [ref=e1003] [cursor=pointer]
+    - generic [ref=e1004] [cursor=pointer]: Send Lerato her contract by email as well
+  - group "Documents to request from Sipho" [ref=e1007]:
+    - generic [ref=e1009]:
+      - generic [ref=e1010]:
+        - checkbox "Copy of ID Smart card both sides, or the green ID book photo page" [checked] [ref=e1011] [cursor=pointer]
+        - generic [ref=e1012] [cursor=pointer]:
+          - text: Copy of ID
+          - generic [ref=e1013]: Smart card both sides, or the green ID book photo page
+      - generic [ref=e1014]:
+        - checkbox "Bank confirmation letter Stamped, less than 3 months old" [checked] [ref=e1015] [cursor=pointer]
+        - generic [ref=e1016] [cursor=pointer]:
+          - text: Bank confirmation letter
+          - generic [ref=e1017]: Stamped, less than 3 months old
+      - generic [ref=e1018]:
+        - checkbox "Qualifications" [ref=e1019] [cursor=pointer]
+        - generic [ref=e1020] [cursor=pointer]: Qualifications
+      - generic [ref=e1021]:
+        - checkbox "Tax number Always required for payroll" [checked] [disabled] [ref=e1022]
+        - generic [ref=e1023]:
+          - text: Tax number
+          - generic [ref=e1024]: Always required for payroll
+  - generic [ref=e1026]:
+    - group "Approve documents" [ref=e1028]:
+      - generic [ref=e1030]:
+        - checkbox "All 3 documents (2 chosen)" [checked=mixed] [ref=e1031] [cursor=pointer]
+        - generic [ref=e1032] [cursor=pointer]: All 3 documents (2 chosen)
+      - generic [ref=e1033]:
+        - generic [ref=e1034]:
+          - checkbox "ID copy" [checked] [ref=e1035] [cursor=pointer]
+          - generic [ref=e1036] [cursor=pointer]: ID copy
+        - generic [ref=e1037]:
+          - checkbox "Bank letter" [checked] [ref=e1038] [cursor=pointer]
+          - generic [ref=e1039] [cursor=pointer]: Bank letter
+        - generic [ref=e1040]:
+          - checkbox "Signed contract" [ref=e1041] [cursor=pointer]
+          - generic [ref=e1042] [cursor=pointer]: Signed contract
+    - generic [ref=e1043]:
+      - generic [ref=e1044]:
+        - checkbox "Thandeka agreed that Batsi may keep her ID copy for 5 years after she leaves" [invalid] [ref=e1045] [cursor=pointer]
+        - generic [ref=e1046] [cursor=pointer]: Thandeka agreed that Batsi may keep her ID copy for 5 years after she leaves
+      - generic [ref=e1047]: Confirm her consent before you save the ID copy
+  - group "Contract type" [ref=e1053]:
+    - generic [ref=e1054]: Contract type*
+    - radiogroup [ref=e1056]:
+      - generic [ref=e1057]:
+        - radio "Permanent" [checked] [ref=e1058] [cursor=pointer]
+        - generic [ref=e1059] [cursor=pointer]: Permanent
+      - generic [ref=e1060]:
+        - radio "Fixed term You will be asked for the end date next" [ref=e1061] [cursor=pointer]
+        - generic [ref=e1062] [cursor=pointer]:
+          - text: Fixed term
+          - generic [ref=e1063]: You will be asked for the end date next
+      - generic [ref=e1064]:
+        - radio "Learnership or internship" [ref=e1065] [cursor=pointer]
+        - generic [ref=e1066] [cursor=pointer]: Learnership or internship
+      - generic [ref=e1067]:
+        - radio "Independent contractor Not on your plan yet" [disabled] [ref=e1068]
+        - generic [ref=e1069]:
+          - text: Independent contractor
+          - generic [ref=e1070]: Not on your plan yet
+  - group "Has Sipho worked for you before?" [ref=e1073]:
+    - generic [ref=e1074]: Has Sipho worked for you before?*
+    - generic [ref=e1076]:
+      - generic [ref=e1077]:
+        - radio "Yes" [ref=e1078] [cursor=pointer]
+        - generic [ref=e1079] [cursor=pointer]: "Yes"
+      - generic [ref=e1080]:
+        - radio "No" [ref=e1081] [cursor=pointer]
+        - generic [ref=e1082] [cursor=pointer]: "No"
+    - generic [ref=e1083]: Choose yes or no. It decides whether his old leave balance carries over.
+  - group "How should Batsi collect Lerato's documents?" [ref=e1089]:
+    - generic [ref=e1092]:
+      - generic [ref=e1093]:
+        - radio "New employee portal She uploads them from her phone. Batsi checks each one." [checked] [ref=e1094] [cursor=pointer]
+        - generic [ref=e1095] [cursor=pointer]:
+          - text: New employee portal
+          - generic [ref=e1096]: She uploads them from her phone. Batsi checks each one.
+      - generic [ref=e1097]:
+        - radio "You upload them For people without a smartphone or email." [ref=e1098] [cursor=pointer]
+        - generic [ref=e1099] [cursor=pointer]:
+          - text: You upload them
+          - generic [ref=e1100]: For people without a smartphone or email.
+  - generic [ref=e1102]:
+    - generic [ref=e1103]:
+      - switch "Remind new employees about missing documents Batsi sends a WhatsApp message 2 days before the deadline" [checked] [ref=e1104] [cursor=pointer]
+      - generic [ref=e1105] [cursor=pointer]:
+        - text: Remind new employees about missing documents
+        - generic [ref=e1106]: Batsi sends a WhatsApp message 2 days before the deadline
+    - generic [ref=e1107]:
+      - switch "Weekly summary email to managers" [ref=e1108] [cursor=pointer]
+      - generic [ref=e1109] [cursor=pointer]: Weekly summary email to managers
+    - generic [ref=e1110]:
+      - switch "Send new employees to payroll automatically Connect your payroll first in Settings" [disabled] [ref=e1111]
+      - generic [ref=e1112]:
+        - text: Send new employees to payroll automatically
+        - generic [ref=e1113]: Connect your payroll first in Settings
+  - generic [ref=e1115]:
+    - generic [ref=e1116]:
+      - switch "Show Thandeka's birthday to the team" [checked] [ref=e1117] [cursor=pointer]
+      - generic [ref=e1118] [cursor=pointer]: Show Thandeka's birthday to the team
+    - generic [ref=e1119]:
+      - switch "Allow half-day leave Saving" [checked] [ref=e1120]
+      - generic [ref=e1121] [cursor=pointer]:
+        - text: Allow half-day leave
+        - status [ref=e1122]: Saving
+  - generic [ref=e1125]:
+    - generic [ref=e1126]:
+      - generic [ref=e1127]: Department*
+      - combobox "Department" [ref=e1129] [cursor=pointer]:
+        - option "Finance"
+        - option "People and culture" [selected]
+        - option "Operations"
+        - option "Sales"
+    - generic [ref=e1130]:
+      - generic [ref=e1131]: Country of work
+      - combobox "Country of work" [ref=e1133] [cursor=pointer]:
+        - option "South Africa" [selected]
+        - option "Zimbabwe"
+        - option "Zambia"
+      - generic [ref=e1134]: Sets the tax rules and public holidays
+  - generic [ref=e1136]:
+    - generic [ref=e1137]:
+      - generic [ref=e1138]: Reports to*
+      - combobox "Reports to" [invalid] [ref=e1140] [cursor=pointer]:
+        - option "Choose a manager" [disabled] [selected]
+        - option "Sipho Ndlovu"
+        - option "Thandeka Dlamini"
+      - generic [ref=e1141]: Choose who Lerato reports to
+    - generic [ref=e1145]:
+      - generic [ref=e1146]: Pay frequency
+      - combobox "Pay frequency" [disabled] [ref=e1148]:
+        - option "Monthly, on the 25th" [selected]
+      - generic [ref=e1149]: Set for everyone in payroll settings
+  - search [ref=e1151]:
+    - generic [ref=e1152]: Search verifications
+    - searchbox "Search verifications" [ref=e1158]: Mokoena
+    - status [ref=e1160]: Searching
+  - generic [ref=e1162]:
+    - search [ref=e1163]:
+      - generic [ref=e1164]: Filter this list
+      - searchbox "Filter this list" [ref=e1170]
+    - button "Overdue" [ref=e1171] [cursor=pointer]
+  - search [ref=e1173]:
+    - generic [ref=e1174]: Search people
+    - generic [ref=e1175]:
+      - searchbox "Search people" [ref=e1180]: Thembi
+      - button "Clear search" [ref=e1181] [cursor=pointer]
+    - status [ref=e1185]: No one called "Thembi". Check the spelling, or search by job title.
+  - generic [ref=e1188]:
+    - generic [ref=e1189]:
+      - generic [ref=e1190]: Start date*
+      - generic [ref=e1192]:
+        - textbox "Start date" [ref=e1193]: 23 Nov 2026
+        - button "Choose start date" [ref=e1194] [cursor=pointer]
+      - generic [ref=e1197]: Monday, in 12 days
+    - generic [ref=e1198]:
+      - generic [ref=e1199]: Date of birth
+      - textbox "Date of birth" [ref=e1202]: 14 Mar 1992
+      - generic [ref=e1203]: Read from the ID number
+  - dialog [ref=e1206]:
+    - generic [ref=e1207]:
+      - button "Previous month, October 2026" [disabled] [ref=e1208]
+      - generic [ref=e1211]: November 2026
+      - button "Next month, December 2026" [ref=e1212] [cursor=pointer]
+    - grid "November 2026" [ref=e1215]:
+      - row [ref=e1216]:
+        - columnheader "Mo" [ref=e1217]
+        - columnheader "Tu" [ref=e1218]
+        - columnheader "We" [ref=e1219]
+        - columnheader "Th" [ref=e1220]
+        - columnheader "Fr" [ref=e1221]
+        - columnheader "Sa" [ref=e1222]
+        - columnheader "Su" [ref=e1223]
+      - row [ref=e1224]:
+        - gridcell [ref=e1225]:
+          - button "Monday 26 October 2026" [disabled] [ref=e1226]: "26"
+        - gridcell [ref=e1227]:
+          - button "Tuesday 27 October 2026" [disabled] [ref=e1228]: "27"
+        - gridcell [ref=e1229]:
+          - button "Wednesday 28 October 2026" [disabled] [ref=e1230]: "28"
+        - gridcell [ref=e1231]:
+          - button "Thursday 29 October 2026" [disabled] [ref=e1232]: "29"
+        - gridcell [ref=e1233]:
+          - button "Friday 30 October 2026" [disabled] [ref=e1234]: "30"
+        - gridcell [ref=e1235]:
+          - button "Saturday 31 October 2026" [disabled] [ref=e1236]: "31"
+        - gridcell [ref=e1237]:
+          - button "Sunday 1 November 2026" [disabled] [ref=e1238]: "1"
+      - row [ref=e1239]:
+        - gridcell [ref=e1240]:
+          - button "Monday 2 November 2026" [disabled] [ref=e1241]: "2"
+        - gridcell [ref=e1242]:
+          - button "Tuesday 3 November 2026" [disabled] [ref=e1243]: "3"
+        - gridcell [ref=e1244]:
+          - button "Wednesday 4 November 2026" [disabled] [ref=e1245]: "4"
+        - gridcell [ref=e1246]:
+          - button "Thursday 5 November 2026" [disabled] [ref=e1247]: "5"
+        - gridcell [ref=e1248]:
+          - button "Friday 6 November 2026" [disabled] [ref=e1249]: "6"
+        - gridcell [ref=e1250]:
+          - button "Saturday 7 November 2026" [disabled] [ref=e1251]: "7"
+        - gridcell [ref=e1252]:
+          - button "Sunday 8 November 2026" [disabled] [ref=e1253]: "8"
+      - row [ref=e1254]:
+        - gridcell [ref=e1255]:
+          - button "Monday 9 November 2026" [disabled] [ref=e1256]: "9"
+        - gridcell [ref=e1257]:
+          - button "Tuesday 10 November 2026" [disabled] [ref=e1258]: "10"
+        - gridcell [ref=e1259]:
+          - button "Wednesday 11 November 2026" [ref=e1260] [cursor=pointer]: "11"
+        - gridcell [ref=e1261]:
+          - button "Thursday 12 November 2026" [ref=e1262] [cursor=pointer]: "12"
+        - gridcell [ref=e1263]:
+          - button "Friday 13 November 2026" [ref=e1264] [cursor=pointer]: "13"
+        - gridcell [ref=e1265]:
+          - button "Saturday 14 November 2026" [ref=e1266] [cursor=pointer]: "14"
+        - gridcell [ref=e1267]:
+          - button "Sunday 15 November 2026" [ref=e1268] [cursor=pointer]: "15"
+      - row [ref=e1269]:
+        - gridcell [ref=e1270]:
+          - button "Monday 16 November 2026" [ref=e1271] [cursor=pointer]: "16"
+        - gridcell [ref=e1272]:
+          - button "Tuesday 17 November 2026, today" [ref=e1273] [cursor=pointer]: "17"
+        - gridcell [ref=e1274]:
+          - button "Wednesday 18 November 2026" [ref=e1275] [cursor=pointer]: "18"
+        - gridcell [ref=e1276]:
+          - button "Thursday 19 November 2026" [ref=e1277] [cursor=pointer]: "19"
+        - gridcell [ref=e1278]:
+          - button "Friday 20 November 2026" [ref=e1279] [cursor=pointer]: "20"
+        - gridcell [ref=e1280]:
+          - button "Saturday 21 November 2026" [ref=e1281] [cursor=pointer]: "21"
+        - gridcell [ref=e1282]:
+          - button "Sunday 22 November 2026" [ref=e1283] [cursor=pointer]: "22"
+      - row [ref=e1284]:
+        - gridcell [ref=e1285]:
+          - button "Monday 23 November 2026" [pressed] [ref=e1286] [cursor=pointer]: "23"
+        - gridcell [ref=e1287]:
+          - button "Tuesday 24 November 2026" [ref=e1288] [cursor=pointer]: "24"
+        - gridcell [ref=e1289]:
+          - button "Wednesday 25 November 2026" [ref=e1290] [cursor=pointer]: "25"
+        - gridcell [ref=e1291]:
+          - button "Thursday 26 November 2026" [ref=e1292] [cursor=pointer]: "26"
+        - gridcell [ref=e1293]:
+          - button "Friday 27 November 2026" [ref=e1294] [cursor=pointer]: "27"
+        - gridcell [ref=e1295]:
+          - button "Saturday 28 November 2026" [ref=e1296] [cursor=pointer]: "28"
+        - gridcell [ref=e1297]:
+          - button "Sunday 29 November 2026" [ref=e1298] [cursor=pointer]: "29"
+      - row [ref=e1299]:
+        - gridcell [ref=e1300]:
+          - button "Monday 30 November 2026" [ref=e1301] [cursor=pointer]: "30"
+        - gridcell [ref=e1302]:
+          - button "Tuesday 1 December 2026" [ref=e1303] [cursor=pointer]: "1"
+        - gridcell [ref=e1304]:
+          - button "Wednesday 2 December 2026" [ref=e1305] [cursor=pointer]: "2"
+        - gridcell [ref=e1306]:
+          - button "Thursday 3 December 2026" [ref=e1307] [cursor=pointer]: "3"
+        - gridcell [ref=e1308]:
+          - button "Friday 4 December 2026" [ref=e1309] [cursor=pointer]: "4"
+        - gridcell [ref=e1310]:
+          - button "Saturday 5 December 2026" [ref=e1311] [cursor=pointer]: "5"
+        - gridcell [ref=e1312]:
+          - button "Sunday 6 December 2026" [ref=e1313] [cursor=pointer]: "6"
+    - generic [ref=e1314]:
+      - generic [ref=e1315]: Earliest start is today
+      - button "Today" [ref=e1316] [cursor=pointer]
+  - generic [ref=e1318]:
+    - generic [ref=e1319]:
+      - generic [ref=e1320]: Password
+      - generic [ref=e1322]:
+        - textbox "Password" [ref=e1323]: winter-protea-2026
+        - button "Show password" [ref=e1324] [cursor=pointer]
+    - generic [ref=e1328]:
+      - generic [ref=e1329]: Password
+      - generic [ref=e1331]:
+        - textbox "Password" [ref=e1332]: winter-protea-2026
+        - button "Hide password" [pressed] [ref=e1333] [cursor=pointer]
+  - generic [ref=e1340]:
+    - generic [ref=e1341]:
+      - generic [ref=e1342]: New password
+      - generic [ref=e1344]:
+        - textbox "New password" [ref=e1345]: sipho123
+        - button "Show password" [ref=e1346] [cursor=pointer]
+      - generic [ref=e1350]: At least 12 characters. A short sentence is easy to remember.
+      - generic [ref=e1360]:
+        - strong [ref=e1361]: Too short.
+        - text: 8 of 12 characters.
+    - generic [ref=e1362]:
+      - generic [ref=e1363]: New password
+      - generic [ref=e1365]:
+        - textbox "New password" [ref=e1366]: password2026
+        - button "Show password" [ref=e1367] [cursor=pointer]
+      - generic [ref=e1371]: At least 12 characters. A short sentence is easy to remember.
+      - generic [ref=e1381]:
+        - strong [ref=e1382]: Weak.
+        - text: It is a common password. Add a few words.
+    - generic [ref=e1383]:
+      - generic [ref=e1384]: New password
+      - generic [ref=e1386]:
+        - textbox "New password" [ref=e1387]: my dog naps at the braai
+        - button "Hide password" [pressed] [ref=e1388] [cursor=pointer]
+      - generic [ref=e1394]: At least 12 characters. A short sentence is easy to remember.
+      - generic [ref=e1405]:
+        - strong [ref=e1406]: Strong.
+        - text: 24 characters.
+  - generic [ref=e1408]:
+    - generic [ref=e1409]:
+      - generic [ref=e1410]:
+        - generic [ref=e1411]: Technical skills
+        - status [ref=e1412]: 7 out of 10, strong
+      - slider "Technical skills" [ref=e1413] [cursor=pointer]: "7"
+      - generic [aria-hidden] [ref=e1414]:
+        - generic [ref=e1415]: 1 Weak
+        - generic [ref=e1416]: 10 Excellent
+      - generic [ref=e1417]: How well Lerato did on the take-home task
+    - generic [ref=e1418]:
+      - generic [ref=e1419]:
+        - generic [ref=e1420]: Communication
+        - status [ref=e1421]: 4 out of 10, fair
+      - slider "Communication" [ref=e1422] [cursor=pointer]: "4"
+      - generic [aria-hidden] [ref=e1423]:
+        - generic [ref=e1424]: 1 Weak
+        - generic [ref=e1425]: 10 Excellent
+  - generic [ref=e1428]:
+    - generic [ref=e1429]:
+      - generic [ref=e1430]: Weight of the interview score
+      - status [ref=e1431]: 40%
+    - slider "Weight of the interview score" [ref=e1432] [cursor=pointer]: "40"
+    - generic [aria-hidden] [ref=e1433]:
+      - generic [ref=e1434]: 0%
+      - generic [ref=e1435]: 100%
+    - generic [ref=e1436]: The four weights add up to 100%. 20% is left to share.
+  - generic [ref=e1439]:
+    - generic [ref=e1440]:
+      - generic [ref=e1441]: Cultural fit
+      - status [ref=e1442]: 6 out of 10, good
+    - slider "Cultural fit" [disabled] [ref=e1443]: "6"
+    - generic [ref=e1444]: Scores lock once Sipho Ndlovu sends his review
+  - generic [ref=e1446]:
+    - generic [ref=e1447]: Copy of ID*
+    - generic [ref=e1448]:
+      - generic [ref=e1453]: choose a file
+      - generic [ref=e1454]: PDF, JPG or PNG, up to 5 MB. A phone photo is fine if all four corners show.
+      - button "Copy of ID" [ref=e1455]
+      - generic [ref=e1456] [cursor=pointer]: Choose file
+  - list "Lerato's documents" [ref=e1462]:
+    - listitem [ref=e1463]:
+      - generic [ref=e1468]:
+        - generic [ref=e1469]: payslip-october-2026.pdf
+        - generic [ref=e1470]:
+          - generic [ref=e1471]: 1.2 MB
+          - generic [ref=e1472]: Uploading, 64%
+      - button "Cancel upload of payslip-october-2026.pdf" [ref=e1474] [cursor=pointer]
+      - progressbar "Uploading payslip-october-2026.pdf" [ref=e1479]: 64%
+    - listitem [ref=e1480]:
+      - generic [ref=e1485]:
+        - generic [ref=e1486]: matric-certificate.pdf
+        - generic [ref=e1487]:
+          - generic [ref=e1488]: 840 KB
+          - generic [ref=e1489]: Uploaded
+      - button "Remove matric-certificate.pdf" [ref=e1494] [cursor=pointer]
+    - listitem [ref=e1498]:
+      - generic [ref=e1504]:
+        - generic [ref=e1505]: id-smart-card-front.jpg
+        - generic [ref=e1506]:
+          - generic [ref=e1507]: 2.1 MB
+          - generic [ref=e1508]: Checked by Batsi
+      - button "Remove id-smart-card-front.jpg" [ref=e1513] [cursor=pointer]
+    - listitem [ref=e1517]:
+      - generic [ref=e1522]:
+        - generic [ref=e1523]: proof-of-address-scan.pdf
+        - generic [ref=e1524]:
+          - generic [ref=e1525]: 12.4 MB
+          - generic [ref=e1526]: Too big. The limit is 5 MB.
+      - generic [ref=e1529]:
+        - button "Try again" [ref=e1530] [cursor=pointer]
+        - button "Remove proof-of-address-scan.pdf" [ref=e1531] [cursor=pointer]
+  - generic [ref=e1536]:
+    - generic [ref=e1541]:
+      - generic [ref=e1542]: Tax number letter from SARS
+      - generic [ref=e1543]: PDF or photo, up to 5 MB. Due in 2 days.
+    - button "Tax number letter from SARS" [ref=e1544]
+    - generic [ref=e1545] [cursor=pointer]: Upload
+  - generic [ref=e1552]:
+    - term [ref=e1553]: SA ID number
+    - definition [ref=e1554]:
+      - generic [ref=e1555]:
+        - generic [ref=e1556]: •••••••••0876
+        - button "Show" [ref=e1557] [cursor=pointer]
+        - generic [ref=e1558]: Revealing is recorded
+    - term [ref=e1564]: Bank account
+    - definition [ref=e1565]:
+      - generic [ref=e1566]:
+        - generic [ref=e1567]: •••• •••• 4821
+        - button "Show" [ref=e1568] [cursor=pointer]
+    - term [ref=e1569]: Monthly salary
+    - definition [ref=e1570]:
+      - generic [ref=e1571]:
+        - generic "Salary hidden" [ref=e1572]: R •• •••
+        - button "Show" [ref=e1573] [cursor=pointer]
+    - term [ref=e1574]: Health
+    - definition [ref=e1575]:
+      - generic [ref=e1576]:
+        - generic [ref=e1577]: 1 medical note, hidden
+        - button "Show" [ref=e1583] [cursor=pointer]
+  - generic [ref=e1586]:
+    - term [ref=e1587]: Bank account
+    - definition [ref=e1588]:
+      - generic [ref=e1589]:
+        - generic [ref=e1590]: •••• •••• 4821
+        - button "Show"
+    - term [ref=e1591]: Bank account
+    - definition [ref=e1592]:
+      - generic [ref=e1593]:
+        - generic [ref=e1594]: 6278 110 4821
+        - button "Hide" [ref=e1595] [cursor=pointer]
+        - status [ref=e1596]:
+          - generic [ref=e1601]: Shown to you, 11 Nov 2026, 14:30. Hides again in 2 minutes.
+    - term [ref=e1602]: SA ID number
+    - definition [ref=e1603]:
+      - generic [ref=e1604]:
+        - generic [ref=e1605]: •••••••••0876
+        - button "Try again" [ref=e1606] [cursor=pointer]
+        - alert [ref=e1607]:
+          - generic [ref=e1610]: Batsi could not record the reveal, so the number stays hidden.
+  - generic [ref=e1612]:
+    - generic [ref=e1613]:
+      - generic [ref=e1614]: Bank account number
+      - generic [ref=e1616]:
+        - textbox "Bank account number" [ref=e1623]: •••• •••• 4821
+        - button "Show bank account number" [ref=e1624] [cursor=pointer]
+      - generic [ref=e1628]:
+        - text: Hidden to protect Kagiso's privacy. Revealing is recorded.
+        - button "Change account" [ref=e1629] [cursor=pointer]
+    - generic [ref=e1630]:
+      - generic [ref=e1631]: New bank account number
+      - textbox "New bank account number" [ref=e1632]
+      - generic [ref=e1633]: You see what you type. It is hidden again once saved.
+  - dialog [ref=e1638]:
+    - generic [ref=e1639]:
+      - generic [ref=e1640]:
+        - heading "Edit routing rule" [level=2] [ref=e1641]
+        - paragraph [ref=e1642]: Decides which queue a help desk request goes to.
+      - button "Close" [ref=e1643] [cursor=pointer]
+    - generic [ref=e1648]:
+      - generic [ref=e1649]:
+        - generic [ref=e1650]: Rule name
+        - textbox "Rule name" [ref=e1651]: Payslip questions
+      - generic [ref=e1652]:
+        - generic [ref=e1653]: When the request mentions
+        - textbox "When the request mentions" [ref=e1654]: payslip, salary, deduction, UIF
+      - generic [ref=e1655]:
+        - generic [ref=e1656]: Send to queue
+        - combobox "Send to queue" [ref=e1658] [cursor=pointer]:
+          - option "Payroll questions" [selected]
+          - option "General HR"
+      - generic [ref=e1659]:
+        - generic [ref=e1660]: Escalate to
+        - combobox "Escalate to" [ref=e1662] [cursor=pointer]:
+          - option "Thandeka Dlamini" [selected]
+          - option "Sipho Ndlovu"
+    - generic [ref=e1663]:
+      - generic [ref=e1664]: Last changed by Sipho Ndlovu, 3 Nov 2026
+      - button "Cancel" [ref=e1665] [cursor=pointer]
+      - button "Save rule" [ref=e1666] [cursor=pointer]
+  - dialog [ref=e1672]:
+    - generic [ref=e1673]:
+      - generic [ref=e1674]:
+        - heading "Bank details changed" [level=2] [ref=e1675]
+        - paragraph [ref=e1676]: Lerato Mokoena, 4 Nov 2026, 14:30
+      - button "Close" [ref=e1677] [cursor=pointer]
+    - generic [ref=e1683]:
+      - term [ref=e1684]: Changed by
+      - definition [ref=e1685]: Lerato Mokoena, in the employee portal
+      - term [ref=e1686]: Approved by
+      - definition [ref=e1687]: Thandeka Dlamini, 4 Nov 2026, 15:02
+      - term [ref=e1688]: Before
+      - definition [ref=e1689]: FNB, account ••••4417
+      - term [ref=e1690]: After
+      - definition [ref=e1691]: Capitec, account ••••0921
+      - term [ref=e1692]: Reason
+      - definition [ref=e1693]: "\"Moved my salary account to Capitec.\""
+  - generic [ref=e1696]:
+    - button "More actions for Thandeka Dlamini" [expanded] [ref=e1697] [cursor=pointer]
+    - menu "Actions for Thandeka Dlamini" [ref=e1702]:
+      - group [ref=e1703]:
+        - menuitem "Edit details" [ref=e1704] [cursor=pointer]
+        - menuitem "Send document" [ref=e1709] [cursor=pointer]
+        - menuitem "View audit trail" [ref=e1714] [cursor=pointer]
+        - menuitem "Copy employee number EMP-0142" [ref=e1720] [cursor=pointer]:
+          - generic [ref=e1724]: Copy employee number
+          - generic [ref=e1725]: EMP-0142
+      - group "Move and exit" [ref=e1726]:
+        - menuitem "Start exit" [ref=e1728] [cursor=pointer]
+        - menuitem "Change salary" [disabled] [ref=e1733]
+        - menuitem "Remove access" [ref=e1738] [cursor=pointer]
+  - generic [ref=e1746]:
+    - 'button "Sort: start date" [expanded] [ref=e1747] [cursor=pointer]'
+    - menu "Sort people by" [ref=e1751]:
+      - group [ref=e1752]:
+        - menuitemradio "Name" [ref=e1753] [cursor=pointer]
+        - menuitemradio "Start date" [checked] [ref=e1755] [cursor=pointer]
+        - menuitemradio "Team" [ref=e1760] [cursor=pointer]
+  - menu "Your account" [ref=e1764]:
+    - group "Thandeka Dlamini, HR admin" [ref=e1765]:
+      - menuitem "Your profile" [ref=e1767] [cursor=pointer]
+      - menuitem "Settings" [ref=e1772] [cursor=pointer]
+      - menuitem "Get help" [ref=e1777] [cursor=pointer]
+    - group [ref=e1786]:
+      - menuitem "Sign out" [ref=e1787] [cursor=pointer]
+  - generic [ref=e1793]:
+    - button "SMS reminders" [expanded] [ref=e1794] [cursor=pointer]
+    - dialog [ref=e1799]:
+      - generic [ref=e1800]:
+        - heading "Remind new employees by SMS?" [level=3] [ref=e1801]
+        - button "Close" [ref=e1802] [cursor=pointer]
+      - generic [ref=e1806]: Batsi sends one SMS the day before a document is due. Most new employees sign on their phone.
+      - generic [ref=e1807]:
+        - button "Not now" [ref=e1808] [cursor=pointer]
+        - button "Turn on reminders" [ref=e1809] [cursor=pointer]
+  - generic [ref=e1811]:
+    - 'button "Start date: 17 Nov 2026" [expanded] [ref=e1812] [cursor=pointer]'
+    - dialog [ref=e1816]:
+      - heading "Batsi suggests 1 Dec 2026" [level=3] [ref=e1821]
+      - generic [ref=e1822]: Kagiso Molefe's resignation letter says his notice at his current job ends on 28 Nov.
+      - generic [ref=e1823]:
+        - button "Keep 17 Nov" [ref=e1824] [cursor=pointer]
+        - button "Use 1 Dec" [ref=e1825] [cursor=pointer]
+  - generic [ref=e1831]:
+    - button "Skip ID check" [expanded] [ref=e1832] [cursor=pointer]
+    - dialog [ref=e1833]:
+      - heading "Skip the ID check for Tariro?" [level=3] [ref=e1835]
+      - generic [ref=e1836]: Her onboarding will show the step as skipped, with your name. You can turn it back on later.
+      - generic [ref=e1837]:
+        - button "Keep step" [ref=e1838] [cursor=pointer]
+        - button "Skip step" [ref=e1839] [cursor=pointer]
+  - alertdialog [ref=e1844]:
+    - heading "Withdraw Lerato Mokoena's offer?" [level=2] [ref=e1848]
+    - generic [ref=e1849]:
+      - paragraph [ref=e1850]: Lerato will get an email saying the Bookkeeper offer is withdrawn. Her signed documents stay in the audit trail.
+      - paragraph [ref=e1851]: You can't undo this.
+    - generic [ref=e1852]:
+      - button "Keep offer" [ref=e1853] [cursor=pointer]
+      - button "Withdraw offer" [ref=e1854] [cursor=pointer]
+  - dialog [ref=e1860]:
+    - generic [ref=e1861]:
+      - heading "Send contract to Kagiso Molefe" [level=2] [ref=e1862]
+      - button "Close" [ref=e1863] [cursor=pointer]
+    - generic [ref=e1867]:
+      - paragraph [ref=e1868]: Kagiso gets a link by email and SMS to read and sign the contract on his phone. The link works for 7 days.
+      - paragraph [ref=e1869]: Employment contract, Junior bookkeeper, starts 1 Dec 2026, R 18 500 a month.
+    - generic [ref=e1870]:
+      - button "Cancel" [ref=e1871] [cursor=pointer]
+      - button "Send contract" [ref=e1872] [cursor=pointer]
+  - dialog [ref=e1878]:
+    - heading "Remove Sipho from the interview panel?" [level=2] [ref=e1880]
+    - paragraph [ref=e1882]: Sipho won't see the Bookkeeper candidates any more. You can add him back later.
+    - generic [ref=e1883]:
+      - button "Keep Sipho" [disabled] [ref=e1884]
+      - button "Remove Sipho"
+  - dialog [ref=e1890]:
+    - heading "Approve Thandeka's leave?" [level=2] [ref=e1892]
+    - paragraph [ref=e1894]: Annual leave, 15 to 19 Dec 2026, 5 days. She will have 7 days left this year.
+    - generic [ref=e1895]:
+      - button "Not now" [ref=e1896] [cursor=pointer]
+      - button "Approve leave" [ref=e1897] [cursor=pointer]
+  - generic [ref=e1900]:
+    - button "Country" [expanded] [ref=e1901] [cursor=pointer]
+    - dialog "Filter by country" [ref=e1906]:
+      - heading "Show people in" [level=3] [ref=e1908]
+      - generic [ref=e1909]:
+        - generic [ref=e1910]:
+          - checkbox "South Africa (31)" [checked] [ref=e1911] [cursor=pointer]
+          - generic [ref=e1912] [cursor=pointer]: South Africa (31)
+        - generic [ref=e1913]:
+          - checkbox "Zimbabwe (5)" [ref=e1914] [cursor=pointer]
+          - generic [ref=e1915] [cursor=pointer]: Zimbabwe (5)
+        - generic [ref=e1916]:
+          - checkbox "Zambia (2)" [ref=e1917] [cursor=pointer]
+          - generic [ref=e1918] [cursor=pointer]: Zambia (2)
+      - generic [ref=e1919]:
+        - button "Clear" [ref=e1920] [cursor=pointer]
+        - button "Show 31 people" [ref=e1921] [cursor=pointer]
+  - generic [ref=e1924]:
+    - button "Why is this hidden?" [expanded] [ref=e1925] [cursor=pointer]
+    - dialog [ref=e1933]:
+      - heading "ID numbers stay hidden" [level=3] [ref=e1934]
+      - paragraph [ref=e1935]: POPIA asks us to show personal data only when it's needed. Showing Sipho's ID number is logged with your name and the time.
+  - navigation "Breadcrumb" [ref=e1939]:
+    - list [ref=e1940]:
+      - listitem [ref=e1941]:
+        - link "Candidates" [ref=e1942] [cursor=pointer]:
+          - /url: /dev/candidates
+  - navigation "Breadcrumb" [ref=e1945]:
+    - list [ref=e1946]:
+      - listitem [ref=e1947]:
+        - link "Payroll questions" [ref=e1948] [cursor=pointer]:
+          - /url: /dev/pq
+  - generic [ref=e1950]:
+    - navigation "Breadcrumb" [ref=e1952]:
+      - list [ref=e1953]:
+        - listitem [ref=e1954]:
+          - link "Finance team" [ref=e1955] [cursor=pointer]:
+            - /url: /dev/finance
+    - heading "Thandeka Dlamini" [level=1] [ref=e1956]
+  - generic [ref=e1958]:
+    - tablist "Kagiso Molefe" [ref=e1959]:
+      - tab "Profile" [ref=e1960] [cursor=pointer]
+      - tab "CV" [ref=e1961] [cursor=pointer]
+      - tab "Interviews 2" [selected] [ref=e1962] [cursor=pointer]:
+        - text: Interviews
+        - generic [ref=e1963]: "2"
+      - tab "Offer" [ref=e1964] [cursor=pointer]
+      - tab "Notes 5" [ref=e1965] [cursor=pointer]:
+        - text: Notes
+        - generic [ref=e1966]: "5"
+    - tabpanel "Interviews 2" [ref=e1967]:
+      - paragraph [ref=e1968]: Panel interview with Sipho Ndlovu and Thandeka Dlamini
+      - paragraph [ref=e1969]: Thu 13 Nov 2026, 10:00, in 2 days
+  - tablist "Lerato Mokoena" [ref=e1972]:
+    - tab "Overview" [selected] [ref=e1973] [cursor=pointer]
+    - tab "Documents 4" [ref=e1977] [cursor=pointer]:
+      - text: Documents
+      - generic [ref=e1981]: "4"
+    - tab "Leave" [ref=e1982] [cursor=pointer]
+    - tab "Payroll" [disabled] [ref=e1985]
+    - tab "History" [ref=e1989] [cursor=pointer]
+  - navigation "People pages" [ref=e1996]:
+    - paragraph [ref=e1997]:
+      - text: Showing
+      - strong [ref=e1998]: 21–40
+      - text: of
+      - strong [ref=e1999]: "132"
+      - text: people
+    - list [ref=e2000]:
+      - listitem [ref=e2001]:
+        - link "Previous page" [ref=e2002] [cursor=pointer]:
+          - /url: /dev/parity?page=1
+          - generic [ref=e2005]: Previous
+      - listitem [ref=e2006]: Page 2 of 7
+      - listitem [ref=e2007]:
+        - link "Next page" [ref=e2008] [cursor=pointer]:
+          - /url: /dev/parity?page=3
+          - generic [ref=e2009]: Next
+  - navigation "Candidate pages" [ref=e2014]:
+    - paragraph [ref=e2015]:
+      - text: Showing
+      - strong [ref=e2016]: 1–20
+      - text: of
+      - strong [ref=e2017]: "46"
+      - text: candidates
+    - list [ref=e2018]:
+      - listitem [ref=e2019]:
+        - button "Previous page" [disabled] [ref=e2020]:
+          - generic [ref=e2023]: Previous
+      - listitem [ref=e2024]: Page 1 of 3
+      - listitem [ref=e2025]:
+        - button "Next page" [ref=e2026] [cursor=pointer]:
+          - generic [ref=e2027]: Next
+  - generic [ref=e2031]:
+    - table [ref=e2033]:
+      - caption [ref=e2034]: People, page 3
+      - rowgroup [ref=e2035]:
+        - row [ref=e2036]:
+          - columnheader "Name" [ref=e2037]
+          - columnheader "Team" [ref=e2038]
+      - rowgroup [ref=e2039]:
+        - row [ref=e2040]:
+          - cell "Lerato Mokoena" [ref=e2041]
+          - cell "Operations" [ref=e2042]
+        - row [ref=e2043]:
+          - cell "Sipho Ndlovu" [ref=e2044]
+          - cell "Finance" [ref=e2045]
+        - row [ref=e2046]:
+          - cell "Thandeka Dlamini" [ref=e2047]
+          - cell "People" [ref=e2048]
+    - navigation "People pages" [ref=e2050]:
+      - paragraph [ref=e2051]:
+        - text: Showing
+        - strong [ref=e2052]: 41–43
+        - text: of
+        - strong [ref=e2053]: "43"
+        - text: people
+      - list [ref=e2054]:
+        - listitem [ref=e2055]:
+          - button "Previous page" [ref=e2056] [cursor=pointer]:
+            - generic [ref=e2059]: Previous
+        - listitem [ref=e2060]: Page 3 of 3
+        - listitem [ref=e2061]:
+          - button "Next page" [disabled] [ref=e2062]:
+            - generic [ref=e2063]: Next
+  - generic [ref=e2067]:
+    - navigation "Breadcrumb" [ref=e2069]:
+      - list [ref=e2070]:
+        - listitem [ref=e2071]:
+          - link "Finance team" [ref=e2072] [cursor=pointer]:
+            - /url: /dev/finance
+    - generic [ref=e2073]:
+      - generic [ref=e2074]:
+        - heading "Thandeka Dlamini" [level=1] [ref=e2075]
+        - paragraph [ref=e2076]:
+          - generic [ref=e2077]: Finance manager
+          - generic [ref=e2081]: Started 3 Feb 2025
+      - generic [ref=e2087]:
+        - button "Edit details" [ref=e2088] [cursor=pointer]
+        - button "Send document" [ref=e2089] [cursor=pointer]
+        - button "More actions for Thandeka Dlamini" [ref=e2091] [cursor=pointer]
+    - tablist "Thandeka Dlamini" [ref=e2097]:
+      - tab "Overview" [selected] [ref=e2098] [cursor=pointer]
+      - tab "Documents 4" [ref=e2099] [cursor=pointer]:
+        - text: Documents
+        - generic [ref=e2100]: "4"
+      - tab "Leave" [ref=e2101] [cursor=pointer]
+      - tab "History" [ref=e2102] [cursor=pointer]
+  - generic [ref=e2105]:
+    - generic [ref=e2106]:
+      - heading "People" [level=1] [ref=e2107]
+      - paragraph [ref=e2108]: 38 people across South Africa, Zimbabwe and Zambia.
+    - button "Add new employee" [ref=e2110] [cursor=pointer]
+  - navigation "Main" [ref=e2116]:
+    - button "Naleko People Mokoena Logistics Switch company" [ref=e2118] [cursor=pointer]:
+      - generic [ref=e2123]:
+        - generic [ref=e2124]: Naleko People
+        - generic [ref=e2125]: Mokoena Logistics
+      - generic [ref=e2129]: Switch company
+    - generic [ref=e2130]:
+      - list [ref=e2131]:
+        - listitem [ref=e2132]:
+          - link "Today" [ref=e2133] [cursor=pointer]:
+            - /url: /dev/today
+        - listitem [ref=e2138]:
+          - link "People" [ref=e2139] [cursor=pointer]:
+            - /url: /dev/people
+      - list "Hire" [ref=e2146]:
+        - listitem [ref=e2147]:
+          - generic [ref=e2148]: Hire
+        - listitem [ref=e2149]:
+          - link "Pipeline" [ref=e2150] [cursor=pointer]:
+            - /url: /dev/parity
+        - listitem [ref=e2154]:
+          - link "Candidates" [ref=e2155] [cursor=pointer]:
+            - /url: /dev/candidates
+        - listitem [ref=e2162]:
+          - link "Offers" [ref=e2163] [cursor=pointer]:
+            - /url: /dev/offers
+      - list "Onboard" [ref=e2170]:
+        - listitem [ref=e2171]:
+          - generic [ref=e2172]: Onboard
+        - listitem [ref=e2173]:
+          - link "New starters" [ref=e2174] [cursor=pointer]:
+            - /url: /dev/starters
+        - listitem [ref=e2179]:
+          - link "Verifications 4 waiting" [ref=e2180] [cursor=pointer]:
+            - /url: /dev/verifications
+            - generic [ref=e2184]: Verifications
+            - generic "4 waiting" [ref=e2185]: "4"
+      - list "Requests" [ref=e2186]:
+        - listitem [ref=e2187]:
+          - generic [ref=e2188]: Requests
+        - listitem [ref=e2189]:
+          - link "IT setup" [ref=e2190] [cursor=pointer]:
+            - /url: /dev/it
+      - list "Help desk" [ref=e2194]:
+        - listitem [ref=e2195]:
+          - generic [ref=e2196]: Help desk
+        - listitem [ref=e2197]:
+          - link "Inbox 3 waiting" [ref=e2198] [cursor=pointer]:
+            - /url: /dev/inbox
+            - generic [ref=e2206]: Inbox
+            - generic "3 waiting" [ref=e2207]: "3"
+    - link "Settings" [ref=e2209] [cursor=pointer]:
+      - /url: /dev/settings
+  - navigation "Main" [ref=e2215]:
+    - button "Switch company, Mokoena Logistics" [ref=e2217] [cursor=pointer]
+    - generic [ref=e2222]:
+      - list [ref=e2223]:
+        - listitem [ref=e2224]:
+          - link "Today" [ref=e2225] [cursor=pointer]:
+            - /url: /dev/today
+        - listitem [ref=e2230]:
+          - link "Approvals 3 waiting" [ref=e2231] [cursor=pointer]:
+            - /url: /dev/parity
+            - generic [ref=e2235]: Approvals
+            - generic "3 waiting" [ref=e2236]: "3"
+        - listitem [ref=e2237]:
+          - link "People" [ref=e2238] [cursor=pointer]:
+            - /url: /dev/people
+      - list "Work" [ref=e2245]:
+        - listitem [ref=e2246]:
+          - generic [ref=e2247]: Work
+        - listitem [ref=e2248]:
+          - link "Hire" [ref=e2249] [cursor=pointer]:
+            - /url: /dev/hire
+        - listitem [ref=e2254]:
+          - link "Onboard 2 waiting" [ref=e2255] [cursor=pointer]:
+            - /url: /dev/onboard
+            - generic [ref=e2261]: Onboard
+            - generic "2 waiting" [ref=e2262]: "2"
+        - listitem [ref=e2263]:
+          - link "Leave" [ref=e2264] [cursor=pointer]:
+            - /url: /dev/time-off
+        - listitem [ref=e2268]:
+          - link "Help desk 5 open" [ref=e2269] [cursor=pointer]:
+            - /url: /dev/help
+            - generic [ref=e2277]: Help desk
+            - generic "5 open" [ref=e2278]: "5"
+        - listitem [ref=e2279]:
+          - link "Move and exit" [ref=e2280] [cursor=pointer]:
+            - /url: /dev/exit
+      - list "Admin" [ref=e2285]:
+        - listitem [ref=e2286]:
+          - generic [ref=e2287]: Admin
+        - listitem [ref=e2288]:
+          - link "Payroll connection" [ref=e2289] [cursor=pointer]:
+            - /url: /dev/payroll
+        - listitem [ref=e2293]:
+          - link "Audit trail" [ref=e2294] [cursor=pointer]:
+            - /url: /dev/audit
+    - link "Settings" [ref=e2301] [cursor=pointer]:
+      - /url: /dev/settings
+  - banner [ref=e2307]:
+    - button "Open menu" [ref=e2308] [cursor=pointer]
+    - link "Naleko People home" [ref=e2310] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e2315]:
+      - button "Search" [ref=e2316] [cursor=pointer]
+      - button "Notifications, 4 unread" [ref=e2320] [cursor=pointer]:
+        - generic [aria-hidden]: "4"
+      - button "Your account, Thandeka Dlamini" [ref=e2324] [cursor=pointer]:
+        - generic [aria-hidden] [ref=e2325]: TD
+  - banner [ref=e2327]:
+    - button "Open menu" [ref=e2328] [cursor=pointer]
+    - link "Naleko People home" [ref=e2330] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e2335]:
+      - button "Search" [ref=e2336] [cursor=pointer]
+      - button "Notifications, 4 unread" [ref=e2340] [cursor=pointer]:
+        - generic [aria-hidden]: "4"
+      - button "Your account, Thandeka Dlamini" [ref=e2344] [cursor=pointer]:
+        - generic [aria-hidden] [ref=e2345]: TD
+  - table [ref=e2348]:
+    - caption [ref=e2349]: New starters
+    - rowgroup [ref=e2350]:
+      - row [ref=e2351]:
+        - columnheader [ref=e2352]:
+          - button "Person" [ref=e2353] [cursor=pointer]
+        - columnheader "Start date" [ref=e2356]
+        - columnheader "Documents" [ref=e2357]
+        - columnheader "ID number" [ref=e2358]
+        - columnheader "Salary" [ref=e2359]
+        - columnheader "Actions" [ref=e2360]
+    - rowgroup [ref=e2362]:
+      - row [ref=e2363]:
+        - cell "Thandeka Dlamini Bookkeeper" [ref=e2364]:
+          - generic [ref=e2365]:
+            - generic [aria-hidden] [ref=e2366]: TD
+            - generic [ref=e2367]:
+              - link "Thandeka Dlamini" [ref=e2368] [cursor=pointer]:
+                - /url: /dev/thandeka
+              - generic [ref=e2369]: Bookkeeper
+        - cell "Start date 17 Nov 2026" [ref=e2370]
+        - cell "Documents 4 of 6" [ref=e2371]
+        - cell "ID number •••••••••0876" [ref=e2372]
+        - cell [ref=e2373]:
+          - text: Salary
+          - generic [ref=e2374]: Hidden
+        - cell [ref=e2379]:
+          - button "Actions for Thandeka Dlamini" [ref=e2381] [cursor=pointer]
+      - row [selected] [ref=e2386]:
+        - cell "Sipho Ndlovu Sales rep" [ref=e2387]:
+          - generic [ref=e2388]:
+            - generic [aria-hidden] [ref=e2389]: SN
+            - generic [ref=e2390]:
+              - link "Sipho Ndlovu" [ref=e2391] [cursor=pointer]:
+                - /url: /dev/sipho
+              - generic [ref=e2392]: Sales rep
+        - cell "Start date 1 Dec 2026" [ref=e2393]
+        - cell "Documents 6 of 6" [ref=e2394]
+        - cell "ID number •••••••••4412" [ref=e2395]
+        - cell "Salary R 22 000" [ref=e2396]
+        - cell [ref=e2397]:
+          - button "Actions for Sipho Ndlovu" [ref=e2399] [cursor=pointer]
+  - table [ref=e2406]:
+    - rowgroup [ref=e2407]:
+      - row [ref=e2408]:
+        - columnheader "Person" [ref=e2409]
+        - columnheader "Start date" [ref=e2410]
+    - rowgroup [ref=e2411]:
+      - row [ref=e2412]:
+        - cell "No new starters yet. Add one and Batsi will send their welcome pack." [ref=e2413]
+  - generic [ref=e2416]:
+    - term [ref=e2417]: Full name
+    - definition [ref=e2418]:
+      - text: Thandeka Nomsa Dlamini
+      - generic [ref=e2419]: From ID document
+    - term [ref=e2423]: Role
+    - definition [ref=e2424]: Bookkeeper
+    - term [ref=e2425]: Start date
+    - definition [ref=e2426]: 17 Nov 2026
+    - term [ref=e2427]: Manager
+    - definition [ref=e2428]:
+      - link "Sipho Ndlovu" [ref=e2429] [cursor=pointer]:
+        - /url: /dev/sipho
+    - term [ref=e2430]: ID number
+    - definition [ref=e2431]:
+      - generic [ref=e2432]:
+        - generic [ref=e2433]: •••••••••0876
+        - button "Show" [ref=e2434] [cursor=pointer]
+        - generic [ref=e2435]: Revealing is recorded
+    - term [ref=e2441]: Tax number
+    - definition [ref=e2442]: Not set
+  - generic [ref=e2445]:
+    - term [ref=e2446]: Changed by
+    - definition [ref=e2447]: Lerato Mokoena
+    - term [ref=e2448]: When
+    - definition [ref=e2449]: 3 Nov 2026, 14:30
+    - term [ref=e2450]: What
+    - definition [ref=e2451]: Start date moved from 10 Nov to 17 Nov 2026
+  - generic [ref=e2453]:
+    - generic [ref=e2454]:
+      - generic [ref=e2458]:
+        - heading "Laptop and email setup" [level=3] [ref=e2459]
+        - paragraph [ref=e2460]: For Thandeka Dlamini · Starts 17 Nov
+      - generic [ref=e2461]:
+        - generic [ref=e2462]: In progress
+        - button "More actions for laptop and email setup" [ref=e2474] [cursor=pointer]
+    - generic [ref=e2479]: Dell Latitude 5440, Microsoft 365 account and access to Xero. Sipho in IT has the request.
+    - button "View request" [ref=e2481] [cursor=pointer]
+  - generic [ref=e2483]:
+    - link "Office starter Laptop, email, Xero, building access" [ref=e2484] [cursor=pointer]:
+      - /url: /dev/template-office
+      - generic [ref=e2485]: Office starter
+      - generic [ref=e2486]: Laptop, email, Xero, building access
+    - link "Field sales Phone, CRM, fuel card" [ref=e2487] [cursor=pointer]:
+      - /url: /dev/template-field
+      - generic [ref=e2488]: Field sales
+      - generic [ref=e2489]: Phone, CRM, fuel card
+    - link "Remote Laptop by courier, email, VPN" [ref=e2490] [cursor=pointer]:
+      - /url: /dev/template-remote
+      - generic [ref=e2491]: Remote
+      - generic [ref=e2492]: Laptop by courier, email, VPN
+  - generic [ref=e2494]:
+    - link "New starters this month 3 All documents in" [ref=e2496] [cursor=pointer]:
+      - /url: /dev/starters
+      - generic [ref=e2497]: New starters this month
+      - generic [ref=e2503]: "3"
+      - generic [ref=e2504]: All documents in
+    - link "Documents waiting 12 2 due tomorrow" [ref=e2509] [cursor=pointer]:
+      - /url: /dev/documents
+      - generic [ref=e2510]: Documents waiting
+      - generic [ref=e2514]: "12"
+      - generic [ref=e2515]: 2 due tomorrow
+    - link "ID checks 8 1 doesn't match" [ref=e2520] [cursor=pointer]:
+      - /url: /dev/checks
+      - generic [ref=e2521]: ID checks
+      - generic [ref=e2525]: "8"
+      - generic [ref=e2526]: 1 doesn't match
+    - link "Chased by Batsi 5 This week" [ref=e2531] [cursor=pointer]:
+      - /url: /dev/agent
+      - generic [ref=e2532]: Chased by Batsi
+      - generic [ref=e2536]: "5"
+      - generic [ref=e2537]: This week
+  - list "History for Kagiso Molefe" [ref=e2543]:
+    - listitem [ref=e2544]:
+      - heading "Today" [level=3] [ref=e2545]
+    - listitem [ref=e2546]:
+      - generic [ref=e2552]:
+        - generic [ref=e2553]:
+          - strong [ref=e2554]: Batsi
+          - text: drafted Kagiso's offer letter
+        - generic [ref=e2555]: Approved by Thandeka Dlamini, 10 min ago
+        - time [ref=e2556]: 2 hours ago
+    - listitem [ref=e2557]:
+      - generic [aria-hidden] [ref=e2559]: LM
+      - generic [ref=e2560]:
+        - generic [ref=e2561]:
+          - strong [ref=e2562]: Lerato Mokoena
+          - text: moved Kagiso to Offer
+        - generic [ref=e2563]:
+          - generic [ref=e2564]: Stage changed from
+          - deletion [ref=e2565]: Interview
+          - generic [ref=e2568]: to
+          - insertion [ref=e2569]: Offer
+        - time [ref=e2570]: 3 hours ago
+    - listitem [ref=e2571]:
+      - heading "3 Nov 2026" [level=3] [ref=e2572]
+    - listitem [ref=e2573]:
+      - generic [aria-hidden] [ref=e2575]: SN
+      - generic [ref=e2576]:
+        - generic [ref=e2577]:
+          - strong [ref=e2578]: Sipho Ndlovu
+          - text: scored the panel interview
+        - generic [ref=e2579]: Strong on month-end reconciliations. Wants to grow into payroll.
+        - time [ref=e2580]: 3 Nov 2026, 15:05
+    - listitem [ref=e2581]:
+      - generic [ref=e2587]:
+        - generic [ref=e2588]:
+          - text: ID check came back
+          - strong [ref=e2589]: everything matches
+        - generic [ref=e2590]: SA ID ending 0876
+        - time [ref=e2591]: 3 Nov 2026, 10:20
+    - listitem [ref=e2592]:
+      - button "Show older events" [ref=e2593] [cursor=pointer]
+  - list "Changes to Thandeka Dlamini's record" [ref=e2596]:
+    - listitem [ref=e2597]:
+      - generic [aria-hidden] [ref=e2599]: LM
+      - generic [ref=e2600]:
+        - generic [ref=e2601]:
+          - strong [ref=e2602]: Lerato Mokoena
+          - text: corrected the start date
+        - generic [ref=e2603]:
+          - generic [ref=e2604]: Changed from
+          - deletion [ref=e2605]: 17 Nov 2026
+          - generic [ref=e2608]: to
+          - insertion [ref=e2609]: 1 Dec 2026
+        - generic [ref=e2610]: Her notice period at her old job runs to 28 Nov.
+        - time [ref=e2611]: Just now
+    - listitem [ref=e2612]:
+      - generic [ref=e2618]:
+        - generic [ref=e2619]:
+          - text: Tax form is
+          - strong [ref=e2620]: overdue by 1 day
+        - time [ref=e2621]: Yesterday, 17:00
+    - listitem [ref=e2622]:
+      - generic [aria-hidden] [ref=e2624]: CB
+      - generic [ref=e2625]:
+        - generic [ref=e2626]:
+          - strong [ref=e2627]: Chipo Banda
+          - text: revealed the bank details
+        - generic [ref=e2628]: Account ending 4471, for the payroll run
+        - time [ref=e2632]: 7 Nov 2026, 09:30
+  - list "Activity for Tariro Moyo" [ref=e2635]:
+    - listitem [ref=e2636]:
+      - generic [ref=e2642]:
+        - generic [ref=e2643]:
+          - strong [ref=e2644]: Batsi
+          - text: booked the panel interview
+        - generic [ref=e2645]: Approved by Sipho Ndlovu
+        - time [ref=e2646]: 20 min ago
+    - listitem [ref=e2647]:
+      - generic [aria-hidden] [ref=e2649]: KM
+      - generic [ref=e2650]:
+        - generic [ref=e2651]:
+          - strong [ref=e2652]: Kagiso Molefe
+          - text: added a note
+        - time [ref=e2653]: Yesterday, 14:30
+    - listitem [ref=e2654]:
+      - generic [ref=e2660]:
+        - generic [ref=e2661]: CV received from the careers page
+        - time [ref=e2662]: 3 Nov 2026, 08:15
+  - generic [ref=e2664]:
+    - status "Loading history" [ref=e2666]
+    - list [ref=e2683]:
+      - listitem [ref=e2684]: No changes yet. Edits to Thandeka's record will show here.
+  - generic [ref=e2686]:
+    - group [ref=e2687]:
+      - generic "Locale and currency South Africa · ZAR" [ref=e2688] [cursor=pointer]:
+        - generic [ref=e2689]: Locale and currency
+        - generic [ref=e2690]: South Africa · ZAR
+      - generic [ref=e2693]: Dates show as 17 Nov 2026, money as R 18 500. Public holidays follow the South African calendar.
+    - group [ref=e2694]:
+      - generic "Approval chains 2 chains" [ref=e2695] [cursor=pointer]:
+        - generic [ref=e2696]: Approval chains
+        - generic [ref=e2697]: 2 chains
+    - group [ref=e2700]:
+      - generic "Branding 1 accent colour" [ref=e2701] [cursor=pointer]:
+        - generic [ref=e2702]: Branding
+        - generic [ref=e2703]: 1 accent colour
+  - generic [ref=e2707]:
+    - generic [ref=e2708]: Batsi
+    - generic [ref=e2713]: Suggested by Batsi
+    - img "Filled in by Batsi" [ref=e2718]
+    - generic [ref=e2722]:
+      - tooltip "Batsi read this from the bank letter, 3 Nov 2026, 10:20. Approved by Thandeka Dlamini."
+  - generic [ref=e2725]:
+    - term [ref=e2726]: Bank
+    - definition [ref=e2727]: FNB, cheque account
+    - term [ref=e2728]: Account number
+    - definition [ref=e2729]:
+      - generic [ref=e2730]: •••• •••• 4821
+      - generic [ref=e2731]:
+        - generic [ref=e2732]: Batsi
+        - generic [ref=e2737]: Batsi read this from the bank letter, 3 Nov 2026, 10:20. Approved by Thandeka Dlamini.
+    - term [ref=e2738]: Start date
+    - definition [ref=e2739]: 1 Dec 2026
+    - term [ref=e2740]: Laptop and access
+    - definition [ref=e2741]:
+      - generic [ref=e2742]: Office starter
+      - generic [ref=e2743]:
+        - generic [ref=e2744]: Suggested by Batsi
+        - generic [ref=e2749]: Batsi picked this from the role, 11 Nov 2026, 08:05. Not approved yet.
+  - table [ref=e2752]:
+    - caption [ref=e2753]: New employees starting in November
+    - rowgroup [ref=e2754]:
+      - row [ref=e2755]:
+        - columnheader "Name" [ref=e2756]
+        - columnheader "Tax number" [ref=e2757]
+        - columnheader "Starts" [ref=e2758]
+    - rowgroup [ref=e2759]:
+      - row [ref=e2760]:
+        - cell "Kagiso Molefe" [ref=e2761]
+        - cell "••••••3307 Filled in by Batsi" [ref=e2762]:
+          - generic [ref=e2763]:
+            - generic [ref=e2764]: ••••••3307
+            - img "Filled in by Batsi" [ref=e2765]
+        - cell "16 Nov 2026" [ref=e2769]
+      - row [ref=e2770]:
+        - cell "Tariro Moyo" [ref=e2771]
+        - cell "••••••8812" [ref=e2772]
+        - cell "1 Dec 2026" [ref=e2773]
+  - generic [ref=e2775]:
+    - button "High confidence · 3 sources" [ref=e2777] [cursor=pointer]
+    - button "Check this · 2 sources" [ref=e2785] [cursor=pointer]
+    - button "Batsi could not tell · 1 source" [ref=e2792] [cursor=pointer]
+  - generic [ref=e2800]:
+    - button "High confidence · 3 sources" [expanded] [ref=e2801] [cursor=pointer]
+    - dialog "What Batsi read" [ref=e2809]:
+      - generic [ref=e2810]:
+        - generic [ref=e2811]: What Batsi read
+        - generic [ref=e2812]: The name, date of birth and photo match on all three.
+        - list [ref=e2813]:
+          - listitem [ref=e2814]:
+            - link "SA ID ending 0876" [ref=e2819] [cursor=pointer]:
+              - /url: /dev/doc-id
+            - generic [ref=e2820]: Name and date of birth match the offer
+          - listitem [ref=e2821]:
+            - link "Selfie, 3 Nov 2026" [ref=e2825] [cursor=pointer]:
+              - /url: /dev/doc-selfie
+            - generic [ref=e2826]: Face matches the ID photo
+          - listitem [ref=e2827]:
+            - link "Signed offer letter" [ref=e2831] [cursor=pointer]:
+              - /url: /dev/doc-offer
+            - generic [ref=e2832]: Name matches
+  - generic [ref=e2835]:
+    - button "Check this · 2 sources" [expanded] [ref=e2836] [cursor=pointer]
+    - dialog "What Batsi read" [ref=e2843]:
+      - generic [ref=e2844]:
+        - generic [ref=e2845]: What Batsi read
+        - generic [ref=e2846]: The surnames differ. Check the bank letter before you approve.
+        - list [ref=e2847]:
+          - listitem [ref=e2848]:
+            - link "Bank letter, FNB" [ref=e2852] [cursor=pointer]:
+              - /url: /dev/doc-bank
+            - generic [ref=e2853]: "Does not match: surname is Moyo-Ncube"
+          - listitem [ref=e2854]:
+            - link "Zimbabwe ID ending 47K" [ref=e2859] [cursor=pointer]:
+              - /url: /dev/doc-zim-id
+            - generic [ref=e2860]: Surname is Moyo
+  - article [ref=e2863]:
+    - generic [ref=e2864]:
+      - generic [ref=e2865]:
+        - generic [ref=e2866]: Batsi suggests
+        - heading "Send Kagiso Molefe's bank details to payroll" [level=3] [ref=e2871]
+      - generic [ref=e2872]: Expires in 2 days
+    - generic [ref=e2877]:
+      - term [ref=e2878]: Why now
+      - definition [ref=e2879]: Kagiso starts on 16 Nov. Payroll closes for November on 20 Nov.
+      - term [ref=e2880]: What Batsi read
+      - definition [ref=e2881]:
+        - generic [ref=e2882]:
+          - link "Bank letter, FNB" [ref=e2883] [cursor=pointer]:
+            - /url: /dev/bank-letter
+          - link "Signed offer" [ref=e2888] [cursor=pointer]:
+            - /url: /dev/offer
+          - link "Kagiso's profile" [ref=e2893] [cursor=pointer]:
+            - /url: /dev/profile
+      - term [ref=e2898]: Where it goes
+      - definition [ref=e2899]:
+        - list [ref=e2900]:
+          - listitem [ref=e2901]:
+            - generic [ref=e2905]:
+              - strong [ref=e2906]: Payroll system, South Africa
+              - text: ": name, ID ending 0876, account ending 4821"
+          - listitem [ref=e2907]:
+            - generic [ref=e2912]:
+              - strong [ref=e2913]: Naleko People, Cape Town
+              - text: ": a record of this change"
+      - term [ref=e2914]: How sure
+      - definition [ref=e2915]:
+        - button "High confidence · 3 sources" [ref=e2917] [cursor=pointer]
+    - generic [ref=e2924]:
+      - generic [ref=e2925]:
+        - button "Approve" [ref=e2926] [cursor=pointer]
+        - button "Edit" [ref=e2930] [cursor=pointer]
+        - button "Decline" [ref=e2931] [cursor=pointer]
+      - generic [ref=e2932]: Your choice is recorded with your name and the time.
+  - article [ref=e2938]:
+    - generic [ref=e2939]:
+      - generic [ref=e2940]:
+        - generic [ref=e2941]: Batsi suggests
+        - heading "Send Kagiso Molefe's bank details to payroll" [level=3] [ref=e2946]
+      - generic [ref=e2947]: Working
+    - generic [ref=e2954]:
+      - generic [ref=e2955]:
+        - button "Approve"
+        - button "Edit" [disabled] [ref=e2956]
+        - button "Decline" [disabled] [ref=e2957]
+      - status [ref=e2958]: Sending to payroll
+  - article [ref=e2960]:
+    - generic [ref=e2961]:
+      - generic [ref=e2962]:
+        - generic [ref=e2963]: Batsi suggested
+        - heading "Send Kagiso Molefe's bank details to payroll" [level=3] [ref=e2968]
+      - generic [ref=e2969]: Approved
+    - generic [ref=e2974]:
+      - generic [ref=e2978]:
+        - generic [ref=e2979]: Approved by Thandeka Dlamini. Payroll has the details.
+        - time [ref=e2980]: 11 Nov 2026, 09:12
+      - link "View in audit trail" [ref=e2982] [cursor=pointer]:
+        - /url: /dev/audit
+  - article [ref=e2984]:
+    - generic [ref=e2985]:
+      - generic [ref=e2986]:
+        - generic [ref=e2987]: Batsi suggests
+        - heading "Order the Office starter laptop and access for Tariro Moyo" [level=3] [ref=e2992]
+      - generic [ref=e2993]: Waiting for you
+    - generic [ref=e2997]:
+      - generic [ref=e2998]:
+        - generic [ref=e2999]: Why are you declining?(optional)
+        - textbox "Why are you declining?(optional)" [ref=e3000]: Tariro is field sales. She needs the Field sales laptop and access with a phone.
+        - generic [ref=e3001]: Batsi uses this to suggest better next time. It is kept with the decision.
+      - generic [ref=e3002]:
+        - button "Decline proposal" [ref=e3003] [cursor=pointer]
+        - button "Back" [ref=e3004] [cursor=pointer]
+  - generic [ref=e3006]:
+    - article [ref=e3007]:
+      - generic [ref=e3008]:
+        - generic [ref=e3009]:
+          - generic [ref=e3010]: Batsi suggested
+          - heading "Order the Office starter laptop and access for Tariro Moyo" [level=3] [ref=e3015]
+        - generic [ref=e3016]: Declined
+      - generic [ref=e3027]:
+        - generic [ref=e3028]: Declined by Sipho Ndlovu. Batsi did nothing.
+        - generic [ref=e3029]: Tariro is field sales. She needs the Field sales laptop and access with a phone.
+        - time [ref=e3030]: 10 Nov 2026, 15:40
+    - article [ref=e3031]:
+      - generic [ref=e3032]:
+        - generic [ref=e3033]:
+          - generic [ref=e3034]: Batsi suggested
+          - heading "Remind Chipo Banda to upload her tax form" [level=3] [ref=e3039]
+        - generic [ref=e3040]: Expired
+      - generic [ref=e3049]:
+        - generic [ref=e3050]: No one decided in time, so Batsi did nothing. Chipo uploaded the form herself on 9 Nov.
+        - time [ref=e3051]: Expired 9 Nov 2026, 17:00
+    - article [ref=e3052]:
+      - generic [ref=e3053]:
+        - generic [ref=e3054]:
+          - generic [ref=e3055]: Batsi suggested
+          - heading "Send Nomvula Zulu's bank details to payroll" [level=3] [ref=e3060]
+        - generic [ref=e3061]: Did not go through
+      - alert [ref=e3065]:
+        - generic [ref=e3068]:
+          - generic [ref=e3069]: Approved by Thandeka Dlamini, but payroll refused the account number. It has 9 digits; FNB accounts have 11.
+          - time [ref=e3070]: 11 Nov 2026, 10:05
+        - button "Fix and try again" [ref=e3072] [cursor=pointer]
+  - list "Batsi suggests" [ref=e3074]:
+    - listitem "Remind 3 new employees to upload bank letters" [ref=e3075]:
+      - generic [ref=e3076]:
+        - generic [ref=e3077]: Batsi suggests
+        - generic [ref=e3082]: Remind 3 new employees to upload bank letters
+        - generic [ref=e3083]: Payroll needs them 5 working days before the first pay run · Emails to 3 people
+      - generic [ref=e3084]:
+        - button "Approve" [ref=e3085] [cursor=pointer]
+        - button "Review" [ref=e3086] [cursor=pointer]
+    - listitem "Mark Kagiso Molefe's ID as verified" [ref=e3087]:
+      - generic [ref=e3088]:
+        - generic [ref=e3089]: Batsi suggests
+        - generic [ref=e3094]: Mark Kagiso Molefe's ID as verified
+        - generic [ref=e3095]: Kagiso starts 16 Nov · Nothing leaves Naleko People
+      - generic [ref=e3096]:
+        - button "Check this · 2 sources" [ref=e3098] [cursor=pointer]
+        - button "Review" [ref=e3104] [cursor=pointer]
+    - listitem "Send Nomvula Zulu's bank details to payroll" [ref=e3105]:
+      - generic [ref=e3106]:
+        - generic [ref=e3107]: Batsi suggests
+        - generic [ref=e3112]: Send Nomvula Zulu's bank details to payroll
+        - generic [ref=e3113]: "Goes to another company: payroll system, South Africa"
+      - button "Review" [ref=e3115] [cursor=pointer]
+    - listitem "Book Tariro Moyo's panel interview" [ref=e3116]:
+      - generic [ref=e3117]:
+        - generic [ref=e3118]: Batsi suggested
+        - generic [ref=e3123]: Book Tariro Moyo's panel interview
+        - generic [ref=e3124]: Approved by Sipho Ndlovu, 20 min ago
+      - generic [ref=e3125]: Approved
+  - article [ref=e3131]:
+    - generic [ref=e3132]:
+      - generic [ref=e3133]:
+        - generic [ref=e3134]: Batsi suggests
+        - heading "Mark 3 documents as verified" [level=3] [ref=e3139]
+      - generic [ref=e3140]: Waiting for you
+    - group "Untick any you want to check yourself" [ref=e3144]:
+      - generic [ref=e3146]:
+        - generic [ref=e3147]:
+          - generic [ref=e3148]:
+            - checkbox "Kagiso Molefe, SA ID ending 0876" [checked] [ref=e3149] [cursor=pointer]
+            - generic [ref=e3150] [cursor=pointer]: Kagiso Molefe, SA ID ending 0876
+          - button "High confidence · 3 sources" [ref=e3152] [cursor=pointer]
+        - generic [ref=e3159]:
+          - generic [ref=e3160]:
+            - checkbox "Nomvula Zulu, bank letter" [checked] [ref=e3161] [cursor=pointer]
+            - generic [ref=e3162] [cursor=pointer]: Nomvula Zulu, bank letter
+          - button "High confidence · 2 sources" [ref=e3164] [cursor=pointer]
+        - generic [ref=e3171]:
+          - generic [ref=e3172]:
+            - checkbox "Mwila Phiri, NRC copy" [checked] [ref=e3173] [cursor=pointer]
+            - generic [ref=e3174] [cursor=pointer]: Mwila Phiri, NRC copy
+          - button "High confidence · 2 sources" [ref=e3176] [cursor=pointer]
+    - generic [ref=e3183]:
+      - term [ref=e3184]: Why now
+      - definition [ref=e3185]: All three start before 1 Dec.
+      - term [ref=e3186]: Where it goes
+      - definition [ref=e3187]: Nothing leaves Naleko People. Kept in Cape Town.
+    - generic [ref=e3188]:
+      - generic [ref=e3189]:
+        - button "Approve 3 documents" [ref=e3190] [cursor=pointer]
+        - button "Decline all" [ref=e3194] [cursor=pointer]
+      - generic [ref=e3195]: Each document gets its own audit entry with your name.
+  - generic [ref=e3201]:
+    - generic [ref=e3202]:
+      - tooltip "View audit trail"
+    - generic [ref=e3203]:
+      - tooltip "Search people/"
+    - generic [ref=e3204]:
+      - tooltip "Thandeka Dlamini, Finance manager, Johannesburg"
+  - generic [ref=e3206]:
+    - generic [ref=e3207]:
+      - button "Audit trail" [ref=e3208] [cursor=pointer]
+      - generic [ref=e3213]: View audit trail
+    - generic [ref=e3214]:
+      - button "Show ID number" [ref=e3215] [cursor=pointer]
+      - generic [ref=e3219]: Showing the ID is logged
+    - button "More actions for Sipho Ndlovu" [ref=e3221] [cursor=pointer]
+  - generic [ref=e3227]:
+    - button "Top" [ref=e3229] [cursor=pointer]
+    - button "Bottom" [ref=e3231] [cursor=pointer]
+  - generic [ref=e3233]:
+    - time [ref=e3234]: Due in 12 days
+    - time [ref=e3238]: Due in 2 days
+    - time [ref=e3242]: Due in 3 hours
+    - time [ref=e3246]: Due today
+    - time [ref=e3250]: Overdue by 1 day
+    - time [ref=e3254]: Done 3 Nov
+    - generic [ref=e3258]: Paused until Lerato replies
+  - generic [ref=e3262]:
+    - generic [ref=e3263]:
+      - generic [ref=e3264]: Kagiso Molefe, bank letter
+      - time [ref=e3265]: Due in 2 days
+    - generic [ref=e3269]:
+      - generic [ref=e3270]: Bongani Mthembu, interview feedback
+      - time [ref=e3271]: Overdue by 1 day
+    - generic [ref=e3275]:
+      - generic [ref=e3276]: Chipo Banda, laptop
+      - time [ref=e3277]: Due in 23 days
+  - generic [ref=e3282]:
+    - generic [ref=e3283]:
+      - text: Asked 3 Nov ·
+      - time [ref=e3284]: Due in 2 days
+    - generic [ref=e3288]:
+      - text: Offer sent 4 Nov ·
+      - time [ref=e3289]: Reply overdue by 1 day
+  - list "Roles in Naleko People" [ref=e3295]:
+    - listitem [ref=e3296]:
+      - generic [ref=e3297]: HR admin
+    - listitem [ref=e3311]:
+      - generic [ref=e3312]: Hiring manager
+    - listitem [ref=e3317]:
+      - generic [ref=e3318]: IT
+    - listitem [ref=e3322]:
+      - generic [ref=e3323]: Employee
+  - generic [ref=e3329]:
+    - generic [ref=e3330]:
+      - generic [ref=e3331]:
+        - generic [aria-hidden] [ref=e3332]: TD
+        - generic [ref=e3333]:
+          - generic [ref=e3334]: Thandeka Dlamini
+          - generic [ref=e3335]: HR director
+      - list "Thandeka Dlamini's roles" [ref=e3337]:
+        - listitem [ref=e3338]:
+          - generic [ref=e3339]:
+            - generic [ref=e3352]: HR admin
+            - generic [ref=e3353]: (acting as)
+        - listitem [ref=e3354]:
+          - generic [ref=e3355]: Hiring manager
+    - generic [ref=e3360]:
+      - generic [ref=e3361]:
+        - generic [aria-hidden] [ref=e3362]: SN
+        - generic [ref=e3363]:
+          - generic [ref=e3364]: Sipho Ndlovu
+          - generic [ref=e3365]: IT and sales lead
+      - list "Sipho Ndlovu's roles" [ref=e3367]:
+        - listitem [ref=e3368]:
+          - generic [ref=e3369]: Hiring manager
+        - listitem [ref=e3374]:
+          - generic [ref=e3375]: IT
+    - generic [ref=e3379]:
+      - generic [ref=e3380]:
+        - generic [aria-hidden] [ref=e3381]: NK
+        - generic [ref=e3382]:
+          - generic [ref=e3383]: Nomvula Khumalo
+          - generic [ref=e3384]: Driver
+      - list "Nomvula Khumalo's roles" [ref=e3386]:
+        - listitem [ref=e3387]:
+          - generic [ref=e3388]: Employee
+  - generic [ref=e3394]:
+    - term [ref=e3395]: Job title
+    - definition [ref=e3396]: Bookkeeper
+    - term [ref=e3397]: Monthly salary
+    - definition [ref=e3398]:
+      - generic [ref=e3399]:
+        - generic [ref=e3400]: Restricted
+        - generic [ref=e3404]: Only payroll admins see salaries.
+        - link "Request access" [ref=e3405] [cursor=pointer]:
+          - /url: /dev/parity
+    - term [ref=e3406]: Disciplinary record
+    - definition [ref=e3407]:
+      - generic [ref=e3408]:
+        - generic [ref=e3409]: Restricted
+        - generic [ref=e3413]: Only Kagiso's manager and HR see this.
+  - generic [ref=e3415]:
+    - term [ref=e3416]: Monthly salary
+    - definition [ref=e3417]:
+      - generic [ref=e3418]:
+        - generic [ref=e3419]: Restricted
+        - status [ref=e3423]: You asked Lerato Mokoena for access, 11 Nov 2026, 10:20
+  - region [ref=e3428]:
+    - heading "Health information is restricted" [level=3] [ref=e3432]
+    - generic [ref=e3433]: Only the HR manager sees medical notes and sick-leave reasons. Ask Thandeka Dlamini if you need them for this case.
+    - generic [ref=e3434]:
+      - button "Request access" [ref=e3435] [cursor=pointer]
+      - link "Why some data is restricted" [ref=e3436] [cursor=pointer]:
+        - /url: /dev/parity
+  - generic [ref=e3438]:
+    - generic [ref=e3439]: Version 4
+    - generic [ref=e3444]: Live
+    - generic [ref=e3448]: Published by Thandeka Dlamini, 3 Nov 2026, 14:30
+    - generic [ref=e3449]:
+      - button "Compare with version 3" [ref=e3450] [cursor=pointer]
+      - button "Roll back" [ref=e3457] [cursor=pointer]
+  - generic [ref=e3463]:
+    - generic [ref=e3464]:
+      - generic [ref=e3465]: Version 5
+      - generic [ref=e3470]: Draft
+      - generic [ref=e3474]: Edited by Lerato Mokoena, 10 Nov 2026, 16:05 · Not live yet
+      - generic [ref=e3475]:
+        - button "Compare with live" [ref=e3476] [cursor=pointer]
+        - button "Publish" [ref=e3483] [cursor=pointer]
+    - generic [ref=e3484]:
+      - generic [ref=e3485]: Version 5
+      - generic [ref=e3490]: Drafted by Batsi
+      - generic [ref=e3494]: From 6 months of hiring data, 11 Nov 2026, 06:00 · Not live yet
+      - generic [ref=e3495]:
+        - button "Compare with live" [ref=e3496] [cursor=pointer]
+        - button "Review changes" [ref=e3503] [cursor=pointer]
+  - generic [ref=e3505]:
+    - generic [ref=e3506]: Version 2
+    - generic [ref=e3511]: Live
+    - generic [ref=e3515]: Rolled back from version 3 by Thandeka Dlamini, 28 Oct 2026, 09:10
+  - generic [ref=e3518]:
+    - generic [aria-hidden] [ref=e3519]: TD
+    - generic:
+      - generic:
+        - heading "Thandeka Dlamini" [level=1] [ref=e3520]
+        - generic [ref=e3521]:
+          - generic [ref=e3522]: Onboarding, day 3 of 10
+          - generic [ref=e3528]: Batsi is chasing 2 documents
+      - generic: Bookkeeper · Finance
+      - list:
+        - listitem [ref=e3532]:
+          - generic [ref=e3535]:
+            - generic [ref=e3536]: "Start date:"
+            - text: Starts 17 Nov 2026
+        - listitem [ref=e3537]:
+          - generic [ref=e3541]:
+            - generic [ref=e3542]: Works in
+            - text: Johannesburg
+        - listitem [ref=e3543]:
+          - generic [ref=e3547]:
+            - text: Reports to
+            - link "Sipho Ndlovu" [ref=e3548] [cursor=pointer]:
+              - /url: /dev/parity
+    - generic [ref=e3549]:
+      - button "Message" [ref=e3550] [cursor=pointer]
+      - button "Plan first week" [ref=e3555] [cursor=pointer]
+      - button "More actions for Thandeka Dlamini" [ref=e3557] [cursor=pointer]
+  - generic [ref=e3564]:
+    - generic [aria-hidden] [ref=e3565]: KM
+    - generic:
+      - generic:
+        - heading "Kagiso Molefe" [level=1] [ref=e3566]
+        - generic [ref=e3567]:
+          - generic [ref=e3568]: Interview
+          - time [ref=e3572]: Interview feedback due today
+      - generic: Candidate for Sales rep · Sales
+      - list:
+        - listitem [ref=e3576]:
+          - generic [ref=e3579]: Applied 28 Oct 2026
+        - listitem [ref=e3580]:
+          - generic [ref=e3584]: Durban
+        - listitem [ref=e3585]:
+          - generic [ref=e3591]: Referred by Lerato Mokoena
+    - generic [ref=e3592]:
+      - button "Edit details" [ref=e3593] [cursor=pointer]
+      - button "Move to offer" [ref=e3594] [cursor=pointer]
+      - button "More actions for Kagiso Molefe" [ref=e3599] [cursor=pointer]
+  - generic [ref=e3606]:
+    - generic [aria-hidden] [ref=e3607]: NK
+    - generic [ref=e3608]:
+      - generic [ref=e3609]:
+        - heading "Nomvula Khumalo" [level=1] [ref=e3610]
+        - generic [ref=e3611]: Active
+      - generic [ref=e3616]: Driver · Operations
+      - list [ref=e3617]:
+        - listitem [ref=e3618]:
+          - generic [ref=e3621]: Started 1 Dec 2025
+        - listitem [ref=e3622]:
+          - generic [ref=e3626]: Harare
+    - generic [ref=e3627]:
+      - button "Message" [ref=e3628] [cursor=pointer]
+      - button "More actions for Nomvula Khumalo" [ref=e3634] [cursor=pointer]
+  - generic [ref=e3640]:
+    - generic [ref=e3641]:
+      - generic [aria-hidden] [ref=e3642]: KM
+      - generic [ref=e3643]:
+        - heading "Kagiso Molefe starts Monday" [level=2] [ref=e3644]
+        - paragraph [ref=e3645]: Bookkeeper · Reports to you
+    - generic [ref=e3646]:
+      - generic [ref=e3647]:
+        - heading "Ready for day 1" [level=3] [ref=e3648]
+        - generic [ref=e3649]: 4 of 6 ready
+      - progressbar "Ready for day 1" [ref=e3651]: 4 of 6 ready
+      - list "Ready for day 1" [ref=e3652]:
+        - listitem [ref=e3653]:
+          - generic [ref=e3658]:
+            - generic [ref=e3659]: Contract signed
+            - generic [ref=e3660]: Kagiso
+          - generic [ref=e3661]: Done 3 Nov
+        - listitem [ref=e3665]:
+          - generic [ref=e3670]:
+            - generic [ref=e3671]: ID checked
+            - generic [ref=e3672]: Batsi
+          - generic [ref=e3673]: Done by Batsi 9 Nov
+        - listitem [ref=e3677]:
+          - generic [ref=e3682]:
+            - generic [ref=e3683]: Tax number added
+            - generic [ref=e3684]: Kagiso
+          - generic [ref=e3685]: Done 4 Nov
+        - listitem [ref=e3689]:
+          - generic [ref=e3694]:
+            - generic [ref=e3695]: Desk and access card
+            - generic [ref=e3696]: Office, Sizwe Zulu
+          - generic [ref=e3697]: Done 10 Nov
+        - listitem [ref=e3701]:
+          - generic [ref=e3712]:
+            - generic [ref=e3713]: Bank letter
+            - generic [ref=e3714]: Kagiso
+          - time [ref=e3715]: Due in 2 days
+        - listitem [ref=e3719]:
+          - generic [ref=e3730]:
+            - generic [ref=e3731]: Laptop and accounts
+            - generic [ref=e3732]: IT, Sipho Ndlovu
+          - time [ref=e3733]: Overdue by 1 day
+  - generic [ref=e3738]:
+    - generic [ref=e3739]:
+      - heading "Ready for day 1" [level=3] [ref=e3740]
+      - generic [ref=e3741]: All 3 ready
+    - list "Ready for day 1" [ref=e3742]:
+      - listitem [ref=e3743]:
+        - generic [ref=e3748]: Contract signed
+        - generic [ref=e3750]: Done 28 Oct
+      - listitem [ref=e3754]:
+        - generic [ref=e3759]: Phone and SIM
+        - generic [ref=e3761]: Done 2 Nov
+      - listitem [ref=e3765]:
+        - generic [ref=e3770]: Safety induction booked
+        - generic [ref=e3772]: Done 5 Nov
+  - list "Audit log" [ref=e3777]:
+    - listitem [ref=e3778]:
+      - group [ref=e3779]:
+        - generic "11 Nov 2026, 09:12 Batsi sent Kagiso Molefe's offer letter, approved by Thandeka Dlamini Batsi · Offers Done" [ref=e3780] [cursor=pointer]:
+          - time [ref=e3781]: 11 Nov 2026, 09:12
+          - generic [ref=e3787]:
+            - strong [ref=e3788]: Batsi
+            - text: sent Kagiso Molefe's offer letter, approved by Thandeka Dlamini
+          - generic [ref=e3789]: Batsi · Offers
+          - generic [ref=e3790]: Done
+        - generic [ref=e3798]:
+          - term [ref=e3799]: Record
+          - definition [ref=e3800]:
+            - link "Kagiso Molefe" [ref=e3801] [cursor=pointer]:
+              - /url: /dev/parity
+            - text: ", offer for Sales rep"
+          - term [ref=e3802]: Done by
+          - definition [ref=e3803]:
+            - generic [ref=e3804]: Batsi
+            - text: after approval by Thandeka Dlamini, 09:10
+          - term [ref=e3808]: What Batsi read
+          - definition [ref=e3809]: The approved offer, Kagiso's email address
+          - term [ref=e3810]: Sent to
+          - definition [ref=e3811]: k•••••@gmail.com
+          - term [ref=e3812]: Event ID
+          - definition [ref=e3813]: evt_8F2K91
+    - listitem [ref=e3814]:
+      - group [ref=e3815]:
+        - generic "10 Nov 2026, 16:05 Lerato Mokoena changed the start date on Kagiso Molefe's record Web app · Durban Done" [ref=e3816] [cursor=pointer]:
+          - time [ref=e3817]: 10 Nov 2026, 16:05
+          - generic [ref=e3818]:
+            - generic [aria-hidden] [ref=e3819]: LM
+            - generic [ref=e3820]:
+              - strong [ref=e3821]: Lerato Mokoena
+              - text: changed the start date on Kagiso Molefe's record
+          - generic [ref=e3822]: Web app · Durban
+          - generic [ref=e3823]: Done
+        - generic [ref=e3830]:
+          - generic [ref=e3831]:
+            - generic [ref=e3832]: Start date changed from
+            - deletion [ref=e3833]: 9 Nov 2026
+            - generic [ref=e3836]: to
+            - insertion [ref=e3837]: 16 Nov 2026
+          - generic [ref=e3838]:
+            - term [ref=e3839]: Why
+            - definition [ref=e3840]: Kagiso asked for one more week at his old job.
+            - term [ref=e3841]: From
+            - definition [ref=e3842]: Chrome on Windows · IP 102.65.•••.•••
+    - listitem [ref=e3843]:
+      - group [ref=e3844]:
+        - generic "10 Nov 2026, 11:40 Thandeka Dlamini showed Chipo Banda's salary Web app · Johannesburg Done" [ref=e3845] [cursor=pointer]:
+          - time [ref=e3846]: 10 Nov 2026, 11:40
+          - generic [ref=e3847]:
+            - generic [aria-hidden] [ref=e3848]: TD
+            - generic [ref=e3849]:
+              - strong [ref=e3850]: Thandeka Dlamini
+              - text: showed Chipo Banda's salary
+          - generic [ref=e3851]: Web app · Johannesburg
+          - generic [ref=e3852]: Done
+    - listitem [ref=e3859]:
+      - group [ref=e3860]:
+        - generic "9 Nov 2026, 22:15 Sipho Ndlovu tried to open the payroll settings Phone app · Harare Not allowed" [ref=e3861] [cursor=pointer]:
+          - time [ref=e3862]: 9 Nov 2026, 22:15
+          - generic [ref=e3863]:
+            - generic [aria-hidden] [ref=e3864]: SN
+            - generic [ref=e3865]:
+              - strong [ref=e3866]: Sipho Ndlovu
+              - text: tried to open the payroll settings
+          - generic [ref=e3867]: Phone app · Harare
+          - generic [ref=e3868]: Not allowed
+    - listitem [ref=e3875]:
+      - group [ref=e3876]:
+        - generic "9 Nov 2026, 06:00 Batsi created email accounts for 3 new starters Batsi · IT setup 2 of 3 done" [ref=e3877] [cursor=pointer]:
+          - time [ref=e3878]: 9 Nov 2026, 06:00
+          - generic [ref=e3884]:
+            - strong [ref=e3885]: Batsi
+            - text: created email accounts for 3 new starters
+          - generic [ref=e3886]: Batsi · IT setup
+          - generic [ref=e3887]: 2 of 3 done
+  - generic [ref=e3894]:
+    - generic [ref=e3895]:
+      - generic [ref=e3896]:
+        - heading "Kagiso's documents" [level=2] [ref=e3897]
+        - generic [ref=e3898]: Bookkeeper · Starts Mon 16 Nov
+      - generic [ref=e3899]:
+        - generic [ref=e3900]:
+          - generic [ref=e3901]: Checked
+          - generic [ref=e3902]: 2 of 6 documents
+        - progressbar "Checked" [ref=e3903]: 2 of 6
+    - list [ref=e3904]:
+      - listitem [ref=e3905]:
+        - generic [ref=e3911]:
+          - generic [ref=e3912]: South African ID
+          - generic [ref=e3913]:
+            - generic [ref=e3914]: Uploaded by Kagiso, 9 Nov 2026, 08:02
+            - generic [ref=e3915]: Checked by Batsi
+        - generic [ref=e3919]: Matches
+        - button "View South African ID" [ref=e3924] [cursor=pointer]:
+          - text: View
+          - generic [ref=e3925]: South African ID
+      - listitem [ref=e3926]:
+        - generic [ref=e3931]:
+          - generic [ref=e3932]: Signed contract
+          - generic [ref=e3933]: Signed by Kagiso, 3 Nov 2026, 17:40 · Checked by Lerato Mokoena
+        - generic [ref=e3934]: Matches
+        - button "View signed contract" [ref=e3939] [cursor=pointer]:
+          - text: View
+          - generic [ref=e3940]: signed contract
+      - listitem [ref=e3941]:
+        - generic [ref=e3945]:
+          - generic [ref=e3946]: Bank confirmation letter
+          - generic [ref=e3947]:
+            - generic [ref=e3948]: Uploaded 10 Nov 2026, 19:15
+            - generic [ref=e3949]: Batsi is checking
+        - generic [ref=e3953]: Checking
+        - button "View bank confirmation letter" [ref=e3958] [cursor=pointer]:
+          - text: View
+          - generic [ref=e3959]: bank confirmation letter
+      - listitem [ref=e3960]:
+        - generic [ref=e3965]:
+          - generic [ref=e3966]: Matric certificate
+          - generic [ref=e3967]: Uploaded 10 Nov 2026, 19:20 · Waiting for HR to check
+        - generic [ref=e3968]: Uploaded
+        - button "View matric certificate" [ref=e3973] [cursor=pointer]:
+          - text: View
+          - generic [ref=e3974]: matric certificate
+      - listitem [ref=e3975]:
+        - generic [ref=e3980]:
+          - generic [ref=e3981]: Tax number letter (SARS)
+          - generic [ref=e3982]: Uploaded 8 Nov 2026 · Rejected by Lerato Mokoena, 9 Nov 2026
+          - generic [ref=e3983]: The tax number is cut off at the edge. Ask for a full copy.
+        - generic [ref=e3987]: Rejected
+        - generic [ref=e3992]:
+          - button "View tax number letter" [ref=e3993] [cursor=pointer]:
+            - text: View
+            - generic [ref=e3994]: tax number letter
+          - button "Request again" [ref=e3995] [cursor=pointer]
+      - listitem [ref=e3996]:
+        - generic [ref=e4001]:
+          - generic [ref=e4002]: Driver's licence
+          - generic [ref=e4003]:
+            - generic [ref=e4004]: Asked 3 Nov
+            - time [ref=e4005]: Due in 2 days
+        - generic [ref=e4009]: Requested
+        - button "Send reminder" [ref=e4020] [cursor=pointer]
+      - listitem [ref=e4021]:
+        - generic [ref=e4026]:
+          - generic [ref=e4027]: Work permit
+          - generic [ref=e4028]: Valid until 2 Oct 2026 · Uploaded 14 Jan 2025
+        - generic [ref=e4029]: Expired 2 Oct
+        - generic [ref=e4033]:
+          - button "View work permit" [ref=e4034] [cursor=pointer]:
+            - text: View
+            - generic [ref=e4035]: work permit
+          - button "Request again" [ref=e4036] [cursor=pointer]
+  - generic [ref=e4038]:
+    - generic [ref=e4040]:
+      - heading "Your documents" [level=2] [ref=e4041]
+      - generic [ref=e4042]: 4 of 6 done
+    - list [ref=e4043]:
+      - listitem [ref=e4044]:
+        - generic [ref=e4048]:
+          - generic [ref=e4049]: Bank confirmation letter
+          - generic [ref=e4050]: So we can pay you on 25 Nov
+        - time [ref=e4051]: Due in 2 days
+        - button "Upload bank letter" [ref=e4056] [cursor=pointer]
+      - listitem [ref=e4061]:
+        - generic [ref=e4067]:
+          - generic [ref=e4068]: ID document
+          - generic [ref=e4069]: ID ending 0876
+        - generic [ref=e4070]: Matches, 9 Nov
+  - article [ref=e4075]:
+    - generic [ref=e4076]:
+      - generic [ref=e4082]:
+        - heading "ID check" [level=3] [ref=e4083]
+        - generic [ref=e4084]: Kagiso Molefe · South African ID
+      - generic [ref=e4085]: Matches
+    - list "What was compared" [ref=e4090]:
+      - listitem [ref=e4091]:
+        - generic [ref=e4094]: Name matches
+      - listitem [ref=e4095]:
+        - generic [ref=e4098]: ID number matches
+      - listitem [ref=e4099]:
+        - generic [ref=e4102]: Date of birth matches
+    - generic [ref=e4103]:
+      - term [ref=e4104]: Checked
+      - definition [ref=e4105]:
+        - generic [ref=e4106]:
+          - generic "SA ID ending 0876" [ref=e4107]: SA ID •••••••••0876
+          - button "Show" [ref=e4108] [cursor=pointer]
+      - term [ref=e4109]: Against
+      - definition [ref=e4110]: Home Affairs identity record
+      - term [ref=e4111]: When
+      - definition [ref=e4112]: 9 Nov 2026, 08:15
+      - term [ref=e4113]: By
+      - definition [ref=e4114]:
+        - generic [ref=e4115]:
+          - generic [ref=e4116]: Checked by Batsi
+          - generic [ref=e4120]: Approved by Lerato Mokoena, 9 Nov 2026, 09:02
+  - article [ref=e4122]:
+    - generic [ref=e4123]:
+      - generic [ref=e4127]:
+        - heading "Bank account check" [level=3] [ref=e4128]
+        - generic [ref=e4129]: Chipo Banda · Bank confirmation letter
+      - generic [ref=e4130]: Needs a look
+    - list "What was compared" [ref=e4134]:
+      - listitem [ref=e4135]:
+        - generic [ref=e4138]: Account number matches
+      - listitem [ref=e4139]:
+        - generic [ref=e4142]: Account is open
+      - listitem [ref=e4143]:
+        - generic [ref=e4146]: Account holder is "C Banda". The full name could not be confirmed.
+    - generic [ref=e4147]:
+      - term [ref=e4148]: Checked
+      - definition [ref=e4149]:
+        - generic [ref=e4150]:
+          - generic "Account ending 4521" [ref=e4151]: Account ••••••4521
+          - button "Show" [ref=e4152] [cursor=pointer]
+      - term [ref=e4153]: Against
+      - definition [ref=e4154]: The bank's account check
+      - term [ref=e4155]: When
+      - definition [ref=e4156]: 10 Nov 2026, 19:40
+      - term [ref=e4157]: By
+      - definition [ref=e4158]:
+        - generic [ref=e4159]: Checked by Batsi
+    - generic [ref=e4163]:
+      - button "Ask for a new letter" [ref=e4164] [cursor=pointer]
+      - button "Accept the letter" [ref=e4165] [cursor=pointer]
+  - article [ref=e4167]:
+    - generic [ref=e4168]:
+      - generic [ref=e4173]:
+        - heading "Qualification check" [level=3] [ref=e4174]
+        - generic [ref=e4175]: Tariro Moyo · National Diploma in Logistics
+      - generic [ref=e4176]: Doesn't match
+    - list "What was compared" [ref=e4180]:
+      - listitem [ref=e4181]:
+        - generic [ref=e4184]: Name matches
+      - listitem [ref=e4185]:
+        - generic [ref=e4189]: Certificate number not found. The college has no record of ••••3390.
+    - generic [ref=e4190]:
+      - term [ref=e4191]: Checked
+      - definition [ref=e4192]: Certificate ••••3390
+      - term [ref=e4193]: Against
+      - definition [ref=e4194]: The college's register of graduates
+      - term [ref=e4195]: When
+      - definition [ref=e4196]: 6 Nov 2026, 11:20
+      - term [ref=e4197]: By
+      - definition [ref=e4198]:
+        - generic [ref=e4199]:
+          - generic [aria-hidden] [ref=e4200]: LM
+          - generic [ref=e4201]: Lerato Mokoena
+    - generic [ref=e4203]:
+      - button "Accept document" [ref=e4204] [cursor=pointer]
+      - button "Ask for a new one" [ref=e4205] [cursor=pointer]
+  - list "Activity for Kagiso Molefe" [ref=e4208]:
+    - listitem [ref=e4209]:
+      - generic [aria-hidden] [ref=e4211]: TD
+      - generic [ref=e4212]:
+        - generic [ref=e4213]:
+          - strong [ref=e4214]: Thandeka Dlamini
+          - text: sent the offer letter
+          - generic [ref=e4215]: Drafted by Batsi
+        - time [ref=e4220]: 2 hours ago
+  - generic [ref=e4222]:
+    - alert [ref=e4223]:
+      - paragraph [ref=e4226]:
+        - text: Your trial ends in 3 days.
+        - link "Choose a plan" [ref=e4227] [cursor=pointer]:
+          - /url: /dev/parity
+        - text: to keep your records.
+    - generic [ref=e4231]:
+      - heading "People" [level=1] [ref=e4232]
+      - paragraph [ref=e4233]: 38 people across 3 countries
+  - generic [ref=e4235]:
+    - heading "Lerato Mokoena" [level=1] [ref=e4236]
+    - generic [ref=e4237]: Payroll administrator, starts 3 Nov 2026
+    - heading "Contract" [level=2] [ref=e4238]
+    - generic [ref=e4239]: Permanent, R 18 500 a month before tax.
+    - heading "Documents" [level=2] [ref=e4240]
+    - generic [ref=e4241]: 3 of 4 received. Her tax number is still missing.
+  - generic [ref=e4243]:
+    - generic [ref=e4244]: Welcome to the team, Sipho. Your first day is Monday 3 Nov 2026.
+    - generic [ref=e4245]: Batsi sent Sipho's contract on 28 Oct 2026. He signed it the same day.
+    - generic [ref=e4246]: Last changed by Lerato Mokoena, 28 Oct 2026, 15:42
+    - generic [ref=e4247]: Bring your green ID book or smart card on your first day.
+  - generic [ref=e4249]:
+    - generic [ref=e4250]: Thandeka Dlamini
+    - generic [ref=e4251]: Payroll administrator, Finance
+    - generic [ref=e4252]: Joined 1 Mar 2024
+  - generic [ref=e4253]:
+    - generic [ref=e4254]:
+      - generic [ref=e4255]:
+        - generic [ref=e4256]: Lerato Mokoena
+        - generic [ref=e4257]: R 18 500
+      - generic [ref=e4258]:
+        - generic [ref=e4259]: Sipho Ndlovu
+        - generic [ref=e4260]: R 21 100
+      - generic [ref=e4261]:
+        - generic [ref=e4262]: Thandeka Dlamini
+        - generic [ref=e4263]: R 9 870
+    - generic [ref=e4264]:
+      - generic [ref=e4265]:
+        - generic [ref=e4266]: "14"
+        - generic [ref=e4267]: People on the team
+      - generic [ref=e4268]:
+        - generic [ref=e4269]: "3"
+        - generic [ref=e4270]: Starting this month
+      - generic [ref=e4271]:
+        - generic [ref=e4272]: R 241 300
+        - generic [ref=e4273]: Payroll this month
+  - generic [ref=e4275]:
+    - generic [ref=e4276]:
+      - generic [ref=e4277]: One line
+      - generic "Employment equity report, third quarter 2026, signed copy.pdf" [ref=e4278]
+    - generic [ref=e4279]:
+      - generic [ref=e4280]: Two lines
+      - generic [ref=e4281]: Sipho asked to move his start date to 10 Nov 2026 because his notice period at his current employer ends on 7 Nov. His manager agreed on a call on Tuesday.
+      - button "Show all" [ref=e4282] [cursor=pointer]
+  - generic [ref=e4285]:
+    - generic [ref=e4286]:
+      - generic [ref=e4287]: Lerato Mokoena
+      - time [ref=e4288]: Due in 2 days
+    - paragraph [ref=e4292]: Bank letter and tax number still to come. Batsi reminded her yesterday.
+    - generic [ref=e4293]:
+      - button "Remind again" [ref=e4294] [cursor=pointer]
+      - button "Open profile" [ref=e4295] [cursor=pointer]
+  - generic [ref=e4297]:
+    - generic [ref=e4299]:
+      - generic [ref=e4300]: Main column
+      - paragraph [ref=e4301]: The record, the list or the form. Takes the free width.
+    - generic [ref=e4303]:
+      - generic [ref=e4304]: Side column
+      - paragraph [ref=e4305]: "340px: what Batsi suggests, the activity, the people involved."
+  - generic [ref=e4307]:
+    - generic [ref=e4309]:
+      - generic [ref=e4310]: People
+      - generic [ref=e4316]: "38"
+    - generic [ref=e4318]:
+      - generic [ref=e4319]: Starting soon
+      - generic [ref=e4325]: "5"
+    - generic [ref=e4327]:
+      - generic [ref=e4328]: Overdue
+      - generic [ref=e4332]: "2"
+    - generic [ref=e4334]:
+      - generic [ref=e4335]: Batsi suggests
+      - generic [ref=e4339]: "4"
+  - generic [ref=e4341]:
+    - generic [ref=e4342]:
+      - generic [ref=e4343]: gap-050
+      - generic [ref=e4345]: 4px
+    - generic [ref=e4347]:
+      - generic [ref=e4348]: gap-100
+      - generic [ref=e4350]: 8px
+    - generic [ref=e4352]:
+      - generic [ref=e4353]: gap-200
+      - generic [ref=e4355]: 16px
+    - generic [ref=e4357]:
+      - generic [ref=e4358]: gap-300
+      - generic [ref=e4360]: 24px
+  - generic [ref=e4363]:
+    - generic [ref=e4364]: South African ID number
+    - textbox "South African ID number" [invalid] [ref=e4365]: "900514512408"
+    - generic [ref=e4366]: That ID number has 12 digits. South African IDs have 13.
+  - generic [ref=e4371]:
+    - search [ref=e4372]:
+      - generic [ref=e4373]: Search people
+      - searchbox "Search people" [ref=e4379]
+    - search [ref=e4380]:
+      - generic [ref=e4381]: Search candidates
+      - generic [ref=e4382]:
+        - searchbox "Search candidates" [ref=e4387]: Ndlovu
+        - button "Clear search" [ref=e4388] [cursor=pointer]
+      - status [ref=e4392]: 3 candidates match "Ndlovu"
+  - generic [ref=e4394]:
+    - generic [ref=e4395]: Contract end date*
+    - generic [ref=e4397]:
+      - textbox "Contract end date" [invalid] [ref=e4398]: 31 Nov 2026
+      - button "Choose contract end date" [ref=e4399] [cursor=pointer]
+    - generic [ref=e4402]: November has 30 days. Check the date, for example 30 Nov 2026.
+  - generic [ref=e4407]:
+    - generic [ref=e4408]:
+      - generic [ref=e4413]: Drop to upload
+      - generic [ref=e4414]: PDF, JPG or PNG, up to 5 MB
+    - generic [ref=e4415]:
+      - generic [ref=e4416]: Bank confirmation letter
+      - generic [ref=e4417]:
+        - generic [ref=e4422]: choose a file
+        - generic [ref=e4423]: PDF only, up to 5 MB, less than 3 months old
+        - button "Bank confirmation letter" [ref=e4424]
+        - generic [ref=e4425] [cursor=pointer]: Choose file
+      - generic [ref=e4430]: bank-letter.docx is a Word file. Save it as a PDF and try again.
+  - generic [ref=e4436]:
+    - generic [ref=e4437]: Confirm new password
+    - generic [ref=e4439]:
+      - textbox "Confirm new password" [invalid] [ref=e4440]: my dog naps at the brai
+      - button "Show password" [ref=e4441] [cursor=pointer]
+    - generic [ref=e4445]: The passwords do not match. Check both, or show them to compare.
+    - generic [ref=e4449]: Caps Lock is on
+  - region "Example form, scrolls" [ref=e4454]:
+    - form [ref=e4455]:
+      - heading "Add a new employee" [level=1] [ref=e4456]
+      - generic [ref=e4457]: All fields are required unless marked optional.
+      - group "Personal details" [ref=e4458]:
+        - generic [ref=e4460]: As on their ID book or smart card.
+        - generic [ref=e4461]:
+          - generic [ref=e4462]:
+            - generic [ref=e4463]: First name
+            - textbox "First name" [ref=e4464]: Sipho
+          - generic [ref=e4465]:
+            - generic [ref=e4466]: Surname
+            - textbox "Surname" [ref=e4467]: Ndlovu
+          - generic [ref=e4468]:
+            - generic [ref=e4469]: Preferred name(optional)
+            - textbox "Preferred name(optional)" [ref=e4470]
+            - generic [ref=e4471]: What the team calls him, if it is not his first name
+      - group "Employment" [ref=e4472]:
+        - generic [ref=e4474]:
+          - generic [ref=e4475]:
+            - generic [ref=e4476]: Job title
+            - textbox "Job title" [ref=e4477]: Warehouse supervisor
+          - generic [ref=e4478]:
+            - generic [ref=e4479]: Start date
+            - textbox "Start date" [ref=e4480]: 3 Nov 2026
+        - generic [ref=e4481]:
+          - generic [ref=e4482]: Monthly salary
+          - generic [ref=e4483]:
+            - generic [aria-hidden] [ref=e4484]: R
+            - textbox "Monthly salary" [ref=e4485]: 21 100
+          - generic [ref=e4486]: Before tax, in rand
+      - generic [ref=e4487]:
+        - status [ref=e4488]:
+          - generic [ref=e4491]: Draft saved 14:30
+        - generic [ref=e4492]:
+          - button "Cancel" [ref=e4493] [cursor=pointer]
+          - button "Add new employee" [ref=e4494] [cursor=pointer]
+  - form "Add a new employee" [ref=e4496]:
+    - alert [ref=e4498]:
+      - generic [ref=e4501]:
+        - heading "Fix 2 things to add Lerato" [level=2] [ref=e4502]
+        - list [ref=e4503]:
+          - listitem [ref=e4504]:
+            - link "Enter Lerato's ID number" [ref=e4505] [cursor=pointer]:
+              - /url: "#fl-e-id"
+          - listitem [ref=e4506]:
+            - link "Start date must be after 11 Nov 2026" [ref=e4507] [cursor=pointer]:
+              - /url: "#fl-e-start"
+    - generic [ref=e4508]:
+      - generic [ref=e4509]:
+        - generic [ref=e4510]: ID number
+        - textbox "ID number" [invalid] [ref=e4511]
+        - generic [ref=e4512]: Enter Lerato's ID number
+      - generic [ref=e4516]:
+        - generic [ref=e4517]: Start date
+        - textbox "Start date" [invalid] [ref=e4518]: 1 Nov 2026
+        - generic [ref=e4519]: Start date must be after 11 Nov 2026
+    - generic [ref=e4524]:
+      - button "Cancel" [ref=e4525] [cursor=pointer]
+      - button "Add new employee" [ref=e4526] [cursor=pointer]
+  - form "Emergency contact" [ref=e4528]:
+    - generic [ref=e4529]:
+      - text: Fields marked *
+      - generic [ref=e4530]: with a star
+      - text: are required.
+    - generic [ref=e4531]:
+      - generic [ref=e4532]:
+        - generic [ref=e4533]: Contact name*
+        - textbox "Contact name" [ref=e4534]: Nomsa Ndlovu
+      - generic [ref=e4535]:
+        - generic [ref=e4536]: Mobile number*
+        - textbox "Mobile number" [ref=e4537]: 082 555 0142
+      - generic [ref=e4538]:
+        - generic [ref=e4539]: Relationship
+        - textbox "Relationship" [ref=e4540]: Sister
+      - generic [ref=e4541]:
+        - generic [ref=e4542]: Other number
+        - textbox "Other number" [ref=e4543]
+  - generic [ref=e4545]:
+    - group "Send contract" [ref=e4546]:
+      - button "Send contract" [ref=e4547] [cursor=pointer]
+      - button "More ways to send the contract" [expanded] [ref=e4548] [cursor=pointer]
+    - menu "More ways to send the contract" [ref=e4552]:
+      - group [ref=e4553]:
+        - menuitem "Send on start date" [ref=e4554] [cursor=pointer]
+        - menuitem "Send to Sipho for approval first" [ref=e4559] [cursor=pointer]
+        - menuitem "Download as PDF" [ref=e4566] [cursor=pointer]
+  - generic [ref=e4572]:
+    - group "Save changes" [ref=e4574]:
+      - button "Save changes" [ref=e4575] [cursor=pointer]
+      - button "More ways to save" [ref=e4576] [cursor=pointer]
+    - group "Approve" [ref=e4580]:
+      - button "Approve" [ref=e4581] [cursor=pointer]
+      - button "More ways to approve" [ref=e4582] [cursor=pointer]
+  - generic [ref=e4586]:
+    - group "Send contract" [ref=e4588]:
+      - button "Sending"
+      - button "More ways to send the contract" [disabled]
+    - group "Send contract" [ref=e4590]:
+      - button "Send contract" [disabled] [ref=e4591]
+      - button "More ways to send the contract" [disabled] [ref=e4592]
+  - group "Approve leave" [ref=e4598]:
+    - button "Approve leave" [ref=e4599] [cursor=pointer]
+    - button "More ways to approve leave" [ref=e4600] [cursor=pointer]
+  - region [ref=e4604]:
+    - generic [ref=e4605]:
+      - heading "Notifications" [level=2] [ref=e4606]
+      - button "Mark all as read" [ref=e4607] [cursor=pointer]
+    - list [ref=e4608]:
+      - listitem [ref=e4609]:
+        - generic [ref=e4614]:
+          - generic [ref=e4615]:
+            - generic [ref=e4616]: Unread.
+            - strong [ref=e4617]: Batsi
+            - text: checked Kagiso Molefe's ID. Everything matches.
+          - generic [ref=e4618]:
+            - time [ref=e4619]: 20 min ago
+            - link "Approve result" [ref=e4620] [cursor=pointer]:
+              - /url: /dev/parity
+      - listitem [ref=e4622]:
+        - generic [ref=e4627]:
+          - generic [ref=e4628]:
+            - generic [ref=e4629]: Unread.
+            - strong [ref=e4630]: Bongani Mthembu's
+            - text: interview feedback is overdue by 1 day.
+          - generic [ref=e4631]:
+            - time [ref=e4632]: 2 hours ago
+            - link "Add interview feedback" [ref=e4633] [cursor=pointer]:
+              - /url: /dev/parity
+      - listitem [ref=e4635]:
+        - generic [aria-hidden] [ref=e4636]: LM
+        - generic [ref=e4637]:
+          - generic [ref=e4638]:
+            - strong [ref=e4639]: Lerato Mokoena
+            - text: asked you to approve Rudo Nyathi's offer.
+          - generic [ref=e4640]:
+            - time [ref=e4641]: Yesterday
+            - link "Open offer" [ref=e4642] [cursor=pointer]:
+              - /url: /dev/parity
+      - listitem [ref=e4644]:
+        - generic [ref=e4649]:
+          - generic [ref=e4650]:
+            - strong [ref=e4651]: Chipo Banda
+            - text: uploaded her bank letter.
+          - time [ref=e4653]: 2 days ago
+    - link "See all notifications" [ref=e4656] [cursor=pointer]:
+      - /url: /dev/parity
+  - region [ref=e4658]:
+    - heading "Notifications" [level=2] [ref=e4660]
+    - generic [ref=e4661]:
+      - heading "You are all caught up" [level=3] [ref=e4662]
+      - paragraph [ref=e4663]: New notifications show up here.
+  - generic [ref=e4665]:
+    - banner [ref=e4666]:
+      - button "Open menu" [ref=e4667] [cursor=pointer]
+      - link "Naleko People home" [ref=e4669] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e4674]:
+        - button "Search" [ref=e4675] [cursor=pointer]
+        - button "Notifications, 3 unread" [expanded] [pressed] [ref=e4679] [cursor=pointer]:
+          - generic [aria-hidden]: "3"
+        - button "Your account, Thandeka Dlamini" [ref=e4683] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e4684]: TD
+    - region [ref=e4686]:
+      - generic [ref=e4687]:
+        - heading "Notifications" [level=2] [ref=e4688]
+        - button "Mark all as read" [ref=e4689] [cursor=pointer]
+      - list [ref=e4690]:
+        - listitem [ref=e4691]:
+          - generic [ref=e4696]:
+            - generic [ref=e4697]:
+              - generic [ref=e4698]: Unread.
+              - strong [ref=e4699]: Batsi
+              - text: drafted 3 offer letters for you to check.
+            - time [ref=e4701]: 20 min ago
+        - listitem [ref=e4703]:
+          - generic [ref=e4708]:
+            - generic [ref=e4709]:
+              - generic [ref=e4710]: Unread.
+              - strong [ref=e4711]: Lerato Mokoena
+              - text: signed her contract.
+            - time [ref=e4713]: 2 hours ago
+        - listitem [ref=e4715]:
+          - generic [ref=e4720]:
+            - generic [ref=e4721]:
+              - generic [ref=e4722]: Unread.
+              - strong [ref=e4723]: Sipho Ndlovu's
+              - text: tax form is overdue by 1 day.
+            - time [ref=e4725]: 3 hours ago
+      - link "See all notifications" [ref=e4728] [cursor=pointer]:
+        - /url: /dev/parity
+  - list "Approvals for Lerato Mokoena's offer" [ref=e4730]:
+    - listitem [ref=e4731]:
+      - generic [ref=e4735]:
+        - generic [ref=e4736]:
+          - strong [ref=e4737]: Sipho Ndlovu
+          - text: ", hiring manager"
+        - generic [ref=e4738]: Approved 3 Nov 2026, 10:12
+      - generic [ref=e4739]: Approved
+    - listitem [ref=e4743]:
+      - generic [aria-hidden] [ref=e4744]: "2"
+      - generic [ref=e4745]:
+        - generic [ref=e4746]:
+          - strong [ref=e4747]: Thandeka Dlamini
+          - text: ", HR director"
+        - generic [ref=e4748]:
+          - text: Asked 3 Nov 2026, 10:12 ·
+          - generic [ref=e4749]: Batsi reminded her today
+      - generic [ref=e4753]: Waiting 8 days
+    - listitem [ref=e4757]:
+      - generic [aria-hidden] [ref=e4758]: "3"
+      - generic [ref=e4759]:
+        - generic [ref=e4760]:
+          - strong [ref=e4761]: Chipo Banda
+          - text: ", finance"
+        - generic [ref=e4762]: After Thandeka
+      - generic [ref=e4763]: Not yet
+  - list "Approvals for Bongani Mthembu's offer" [ref=e4774]:
+    - listitem [ref=e4775]:
+      - generic [ref=e4779]:
+        - generic [ref=e4780]:
+          - strong [ref=e4781]: Thabo Khumalo
+          - text: ", TA specialist"
+        - generic [ref=e4782]: Skipped by Thandeka Dlamini, 4 Nov 2026. Thabo is on leave.
+      - generic [ref=e4783]: Skipped
+    - listitem [ref=e4786]:
+      - generic [ref=e4790]:
+        - generic [ref=e4791]:
+          - strong [ref=e4792]: Sipho Ndlovu
+          - text: ", hiring manager"
+        - generic [ref=e4793]: Approved 4 Nov 2026, 15:30
+      - generic [ref=e4794]: Approved
+    - listitem [ref=e4798]:
+      - generic [ref=e4803]:
+        - generic [ref=e4804]:
+          - strong [ref=e4805]: Chipo Banda
+          - text: ", finance"
+        - generic [ref=e4806]: Declined 5 Nov 2026, 09:05
+        - generic [ref=e4807]: The salary is above the band for this role. Please offer R 18 500 or ask for an exception.
+      - generic [ref=e4808]: Declined
+  - article [ref=e4814]:
+    - generic [ref=e4815]:
+      - generic [aria-hidden] [ref=e4816]: LM
+      - generic [ref=e4817]:
+        - heading "Offer for Lerato Mokoena" [level=3] [ref=e4818]
+        - generic [ref=e4819]: Sales rep, Durban · Created 3 Nov 2026
+      - generic [ref=e4820]: Waiting for approval
+    - generic [ref=e4825]:
+      - term [ref=e4826]: Role
+      - definition [ref=e4827]: Sales rep, reporting to Sipho Ndlovu
+      - term [ref=e4828]: Start date
+      - definition [ref=e4829]: 1 Dec 2026
+      - term [ref=e4830]: Salary
+      - definition [ref=e4831]:
+        - generic [ref=e4832]:
+          - generic "Salary hidden" [ref=e4833]: R ••• ••• a month
+          - button "Show" [ref=e4834] [cursor=pointer]
+      - term [ref=e4835]: Benefits
+      - definition [ref=e4836]: Medical aid, pension fund, 18 days' leave, cellphone allowance
+      - term [ref=e4837]: Offer expires
+      - definition [ref=e4838]: 7 days after it is sent
+    - generic [ref=e4839]:
+      - heading "Approvals" [level=4] [ref=e4840]
+      - list "Approvals for Lerato Mokoena's offer" [ref=e4841]:
+        - listitem [ref=e4842]:
+          - generic [ref=e4847]:
+            - strong [ref=e4848]: Sipho Ndlovu
+            - text: ", hiring manager"
+          - generic [ref=e4849]: Approved 3 Nov
+        - listitem [ref=e4853]:
+          - generic [aria-hidden] [ref=e4854]: "2"
+          - generic [ref=e4856]:
+            - strong [ref=e4857]: Thandeka Dlamini
+            - text: ", HR director"
+          - generic [ref=e4858]: Waiting 8 days
+    - generic [ref=e4862]:
+      - button "Edit offer" [ref=e4863] [cursor=pointer]
+      - button "Remind Thandeka" [ref=e4864] [cursor=pointer]
+  - article [ref=e4866]:
+    - generic [ref=e4867]:
+      - generic [aria-hidden] [ref=e4868]: CB
+      - generic [ref=e4869]:
+        - heading "Offer for Chipo Banda" [level=3] [ref=e4870]
+        - generic [ref=e4871]: Sales rep, Lusaka · Sent 9 Nov 2026
+      - generic [ref=e4872]: Sent
+    - generic [ref=e4877]:
+      - term [ref=e4878]: Role
+      - definition [ref=e4879]: Sales rep, reporting to Sipho Ndlovu
+      - term [ref=e4880]: Start date
+      - definition [ref=e4881]: 7 Dec 2026
+      - term [ref=e4882]: Salary
+      - definition [ref=e4883]:
+        - generic [ref=e4884]:
+          - generic [ref=e4885]: ZK 24 000 a month
+          - button "Hide" [ref=e4886] [cursor=pointer]
+          - status [ref=e4887]:
+            - generic [ref=e4892]: Shown to you, 11 Nov 2026, 14:02. Hides again in 2 minutes.
+      - term [ref=e4893]: Benefits
+      - definition [ref=e4894]: Medical cover, NAPSA, 24 days' leave
+      - term [ref=e4895]: Reply
+      - definition [ref=e4896]:
+        - time [ref=e4897]: Reply due in 2 days
+    - generic [ref=e4901]:
+      - button "Withdraw offer" [ref=e4902] [cursor=pointer]
+      - button "Mark as accepted" [ref=e4903] [cursor=pointer]
+  - generic [ref=e4905]:
+    - generic [ref=e4906]:
+      - generic [ref=e4907]:
+        - heading "Starting soon" [level=2] [ref=e4908]
+        - paragraph [ref=e4909]: Next 30 days
+      - link "See all" [ref=e4911] [cursor=pointer]:
+        - /url: /dev/parity
+    - list [ref=e4912]:
+      - listitem [ref=e4913]:
+        - generic [ref=e4914]:
+          - generic [aria-hidden] [ref=e4915]: KM
+          - generic [ref=e4916]:
+            - link "Kagiso Molefe" [ref=e4917] [cursor=pointer]:
+              - /url: /dev/parity
+            - generic [ref=e4918]: Bookkeeper · Starts Mon 16 Nov
+        - generic [ref=e4919]:
+          - generic [ref=e4920]:
+            - generic [ref=e4921]: Documents
+            - generic [ref=e4922]: "5 of 6 · Next: bank letter"
+          - progressbar "Documents" [ref=e4923]: 5 of 6
+        - time [ref=e4924]:
+          - generic [ref=e4928]: Due in 2 days
+      - listitem [ref=e4929]:
+        - generic [ref=e4930]:
+          - generic [aria-hidden] [ref=e4931]: NK
+          - generic [ref=e4932]:
+            - link "Nomvula Khumalo" [ref=e4933] [cursor=pointer]:
+              - /url: /dev/parity
+            - generic [ref=e4934]: Driver, Harare · Starts 1 Dec
+        - generic [ref=e4935]:
+          - generic [ref=e4936]:
+            - generic [ref=e4937]: Documents
+            - generic [ref=e4938]: 3 of 6 documents
+          - progressbar "Documents" [ref=e4939]: 3 of 6
+        - time [ref=e4940]:
+          - generic [ref=e4944]: Due in 13 days
+      - listitem [ref=e4945]:
+        - generic [ref=e4946]:
+          - generic [aria-hidden] [ref=e4947]: CB
+          - generic [ref=e4948]:
+            - link "Chipo Banda" [ref=e4949] [cursor=pointer]:
+              - /url: /dev/parity
+            - generic [ref=e4950]: Sales rep, Lusaka · Starts 7 Dec
+        - generic [ref=e4951]:
+          - generic [ref=e4952]:
+            - generic [ref=e4953]: Documents
+            - generic [ref=e4954]: 1 of 6 documents
+          - progressbar "Documents" [ref=e4955]: 1 of 6
+        - time [ref=e4956]:
+          - generic [ref=e4960]: ID overdue by 1 day
+      - listitem [ref=e4961]:
+        - generic [ref=e4962]:
+          - generic [aria-hidden] [ref=e4963]: TM
+          - generic [ref=e4964]:
+            - link "Tariro Moyo" [ref=e4965] [cursor=pointer]:
+              - /url: /dev/parity
+            - generic [ref=e4966]: Storeman, Bulawayo · Starts 14 Dec
+        - generic [ref=e4967]:
+          - generic [ref=e4968]:
+            - generic [ref=e4969]: Documents
+            - generic [ref=e4970]: All 6 documents
+          - progressbar "Documents" [ref=e4971]: 6 of 6
+        - generic [ref=e4972]: Ready
+  - list [ref=e4979]:
+    - listitem [ref=e4980]:
+      - generic [ref=e4981]:
+        - generic [aria-hidden] [ref=e4982]: KM
+        - generic [ref=e4983]:
+          - link "Kagiso Molefe" [ref=e4984] [cursor=pointer]:
+            - /url: /dev/parity
+          - generic [ref=e4985]: Starts Mon 16 Nov
+      - generic [ref=e4986]:
+        - generic [ref=e4987]:
+          - generic [ref=e4988]: Documents
+          - generic [ref=e4989]: 5 of 6 documents
+        - progressbar "Documents" [ref=e4990]: 5 of 6
+      - time [ref=e4991]:
+        - generic [ref=e4995]: Due in 2 days
+    - listitem [ref=e4996]:
+      - generic [ref=e4997]:
+        - generic [aria-hidden] [ref=e4998]: CB
+        - generic [ref=e4999]:
+          - link "Chipo Banda" [ref=e5000] [cursor=pointer]:
+            - /url: /dev/parity
+          - generic [ref=e5001]: Starts 7 Dec
+      - generic [ref=e5002]:
+        - generic [ref=e5003]:
+          - generic [ref=e5004]: Documents
+          - generic [ref=e5005]: 1 of 6 documents
+        - progressbar "Documents" [ref=e5006]: 1 of 6
+      - time [ref=e5007]:
+        - generic [ref=e5011]: Overdue by 1 day
+  - generic [ref=e5013]:
+    - generic [ref=e5014]:
+      - generic [ref=e5015]:
+        - heading "Panel interview" [level=3] [ref=e5016]
+        - paragraph [ref=e5017]: Bongani Mthembu for Sales rep
+      - generic [ref=e5018]: Yes, hire
+    - generic [ref=e5022]:
+      - generic [ref=e5023]:
+        - generic [ref=e5024]:
+          - generic [ref=e5025]: "7.4"
+          - generic [ref=e5026]: out of 10
+        - generic [ref=e5027]: Strong overall
+      - list "Scores by criterion" [ref=e5028]:
+        - listitem [ref=e5029]:
+          - generic [ref=e5030]:
+            - generic [ref=e5031]: Technical ability
+            - generic [ref=e5032]: Counts for 30%
+          - generic [ref=e5035]:
+            - strong [ref=e5036]: "8"
+            - text: of 10, strong
+        - listitem [ref=e5037]:
+          - generic [ref=e5038]:
+            - generic [ref=e5039]: Communication
+            - generic [ref=e5040]: Counts for 25%
+          - generic [ref=e5043]:
+            - strong [ref=e5044]: "9"
+            - text: of 10, excellent
+        - listitem [ref=e5045]:
+          - generic [ref=e5046]:
+            - generic [ref=e5047]: Culture fit
+            - generic [ref=e5048]: Counts for 25%
+          - generic [ref=e5051]:
+            - strong [ref=e5052]: "7"
+            - text: of 10, strong
+        - listitem [ref=e5053]:
+          - generic [ref=e5054]:
+            - generic [ref=e5055]: Problem solving
+            - generic [ref=e5056]: Counts for 20%
+          - generic [ref=e5059]:
+            - strong [ref=e5060]: "5"
+            - text: of 10, fair
+      - generic [ref=e5061]: Knows the Durban market well. Needs coaching on pricing questions.
+      - generic [ref=e5062]:
+        - generic [ref=e5063]:
+          - generic [aria-hidden] [ref=e5064]: SN
+          - generic [ref=e5065]:
+            - generic [ref=e5066]: Sipho Ndlovu
+            - generic [ref=e5067]: Hiring manager
+        - time [ref=e5068]: Scored 3 Nov 2026, 15:05
+  - generic [ref=e5070]:
+    - generic [ref=e5071]:
+      - generic [ref=e5072]:
+        - heading "Panel scores" [level=3] [ref=e5073]
+        - paragraph [ref=e5074]: 3 of 4 interview feedback forms in
+      - time [ref=e5076]: 1 overdue by 1 day
+    - generic [ref=e5080]:
+      - generic [ref=e5081]:
+        - generic [ref=e5082]:
+          - generic [ref=e5083]: "7.1"
+          - generic [ref=e5084]: out of 10, average of 3
+        - generic [ref=e5085]: 2 say yes
+        - generic [ref=e5088]: 1 says no
+      - list "Average scores by criterion" [ref=e5091]:
+        - listitem [ref=e5092]:
+          - generic [ref=e5093]: Technical ability
+          - generic [ref=e5097]:
+            - strong [ref=e5098]: "7.7"
+            - text: of 10, strong
+        - listitem [ref=e5099]:
+          - generic [ref=e5100]: Communication
+          - generic [ref=e5104]:
+            - strong [ref=e5105]: "8.3"
+            - text: of 10, strong
+        - listitem [ref=e5106]:
+          - generic [ref=e5107]: Culture fit
+          - generic [ref=e5111]:
+            - strong [ref=e5112]: "6.3"
+            - text: of 10, fair
+        - listitem [ref=e5113]:
+          - generic [ref=e5114]: Problem solving
+          - generic [ref=e5118]:
+            - strong [ref=e5119]: "5.7"
+            - text: of 10, fair
+      - generic [ref=e5120]:
+        - group "Scored by Sipho Ndlovu, Lerato Mokoena and Thabo Khumalo. Waiting for Kagiso Molefe." [ref=e5121]:
+          - generic [aria-hidden] [ref=e5122]: SN
+          - generic [aria-hidden] [ref=e5123]: LM
+          - generic [aria-hidden] [ref=e5124]: TK
+        - button "Remind Kagiso" [ref=e5125] [cursor=pointer]
+  - form [ref=e5127]:
+    - generic [ref=e5128]:
+      - heading "How Mokoena Accounting uses your information" [level=2] [ref=e5129]
+      - generic [ref=e5130]: Before you upload documents, here is what we keep and why. You can read the full notice at any time.
+    - generic [ref=e5131]:
+      - term [ref=e5132]: What we collect
+      - definition [ref=e5136]: Your ID number, contact details, bank account, tax number and an emergency contact.
+      - term [ref=e5137]: Why
+      - definition [ref=e5140]: To pay you, to register you with SARS and UIF, and to reach someone if you are hurt at work.
+      - term [ref=e5141]: Who receives it
+      - definition [ref=e5147]: The HR team at Mokoena Accounting. The payroll system (South Africa) gets your name, ID, bank and tax details. SARS gets your tax details. Naleko People stores it all in Cape Town.
+      - term [ref=e5148]: How long we keep it
+      - definition [ref=e5152]: While you work here, and 5 years after you leave. Then it is deleted.
+    - group "Your choices" [ref=e5153]:
+      - generic [ref=e5155]:
+        - generic [ref=e5156]:
+          - checkbox "I agree that Mokoena Accounting may use my information as described above Needed to employ and pay you" [ref=e5157] [cursor=pointer]
+          - generic [ref=e5158] [cursor=pointer]:
+            - text: I agree that Mokoena Accounting may use my information as described above
+            - generic [ref=e5159]: Needed to employ and pay you
+        - generic [ref=e5160]:
+          - checkbox "Share my name and contact details with the company medical aid Optional. You can join the medical aid later instead." [ref=e5161] [cursor=pointer]
+          - generic [ref=e5162] [cursor=pointer]:
+            - text: Share my name and contact details with the company medical aid
+            - generic [ref=e5163]: Optional. You can join the medical aid later instead.
+    - generic [ref=e5164]:
+      - link "Read the full privacy notice" [ref=e5165] [cursor=pointer]:
+        - /url: /dev/parity
+      - button "Agree and continue" [ref=e5166] [cursor=pointer]
+  - generic [ref=e5168]:
+    - generic [ref=e5169]:
+      - checkbox "I agree that Mokoena Accounting may use my information as described above" [invalid] [ref=e5170] [cursor=pointer]
+      - generic [ref=e5171] [cursor=pointer]: I agree that Mokoena Accounting may use my information as described above
+    - generic [ref=e5172]: Tick this to carry on. If you have questions first, ask Thandeka Dlamini in HR.
+  - generic [ref=e5177]:
+    - status [ref=e5179]:
+      - generic [ref=e5183]:
+        - generic [ref=e5184]: You agreed to the privacy notice, version 3 (2 Nov 2026). You did not agree to share with the medical aid.
+        - generic [ref=e5185]:
+          - text: 11 Nov 2026, 08:42 ·
+          - link "Change or withdraw" [ref=e5186] [cursor=pointer]:
+            - /url: /dev/parity
+    - generic [ref=e5192]:
+      - generic [ref=e5193]: Tariro Moyo agreed to the privacy notice, version 3 (2 Nov 2026). She did not agree to share with the medical aid.
+      - generic [ref=e5194]:
+        - text: 11 Nov 2026, 08:42, in the new employee portal ·
+        - link "View consent history" [ref=e5195] [cursor=pointer]:
+          - /url: /dev/parity
+  - article [ref=e5197]:
+    - generic [ref=e5198]:
+      - generic [ref=e5202]:
+        - heading "IT setup for Kagiso Molefe" [level=3] [ref=e5203]
+        - generic [ref=e5204]: Office starter laptop and access · Starts Mon 16 Nov
+      - time [ref=e5206]: 1 item overdue
+    - generic [ref=e5210]:
+      - generic [ref=e5211]:
+        - generic [ref=e5212]: Ready
+        - generic [ref=e5213]: 3 of 5 items
+      - progressbar "Ready" [ref=e5214]: 3 of 5
+    - list "Items in this bundle" [ref=e5215]:
+      - listitem [ref=e5216]:
+        - generic [ref=e5221]:
+          - generic [ref=e5222]: Email and Microsoft 365
+          - generic [ref=e5223]: kagiso.molefe@mokoena-logistics.co.za
+        - generic [ref=e5224]: Batsi
+        - generic [ref=e5232]: Created by Batsi 9 Nov
+      - listitem [ref=e5237]:
+        - generic [ref=e5242]:
+          - generic [ref=e5243]: Building access card
+          - generic [ref=e5244]: Durban office, all floors
+        - generic [ref=e5246]:
+          - generic [aria-hidden] [ref=e5247]: SZ
+          - generic [ref=e5248]: Sizwe Zulu
+        - generic [ref=e5250]: Ready 10 Nov
+      - listitem [ref=e5255]:
+        - generic [ref=e5259]:
+          - generic [ref=e5260]: Xero
+          - generic [ref=e5261]: Standard user
+        - generic [ref=e5263]:
+          - generic [aria-hidden] [ref=e5264]: SN
+          - generic [ref=e5265]: Sipho Ndlovu
+        - generic [ref=e5267]: Ready 10 Nov
+      - listitem [ref=e5272]:
+        - generic [ref=e5276]:
+          - generic [ref=e5277]: Laptop
+          - generic [ref=e5278]: Dell Latitude 5440, Windows 11
+        - generic [ref=e5280]:
+          - generic [aria-hidden] [ref=e5281]: SN
+          - generic [ref=e5282]: Sipho Ndlovu
+        - generic [ref=e5284]:
+          - generic [ref=e5285]: In progress
+          - time [ref=e5296]: Due in 2 days
+      - listitem [ref=e5300]:
+        - generic [ref=e5305]:
+          - generic [ref=e5306]: Payroll system access
+          - generic [ref=e5307]: Read only, needs finance approval
+        - generic [ref=e5308]: No owner yet
+        - generic [ref=e5315]:
+          - generic [ref=e5316]: Not started
+          - time [ref=e5326]: Overdue by 1 day
+    - generic [ref=e5330]:
+      - button "Assign payroll access" [ref=e5331] [cursor=pointer]
+      - button "View request" [ref=e5332] [cursor=pointer]
+  - article [ref=e5334]:
+    - generic [ref=e5336]:
+      - heading "IT setup for Chipo Banda" [level=3] [ref=e5337]
+      - generic [ref=e5338]: Field sales laptop and access · Starts 7 Dec
+    - list "Items in this bundle" [ref=e5339]:
+      - listitem [ref=e5340]:
+        - generic [ref=e5344]:
+          - generic [ref=e5345]: Phone and SIM
+          - generic [ref=e5346]: Samsung A35, Airtel contract
+        - generic [ref=e5348]:
+          - generic [aria-hidden] [ref=e5349]: SN
+          - generic [ref=e5350]: Sipho Ndlovu
+        - generic [ref=e5352]:
+          - generic [ref=e5353]: Waiting for review
+          - time [ref=e5363]: Due in 9 days
+    - button "Review laptop and access" [ref=e5368] [cursor=pointer]
+  - generic [ref=e5370]:
+    - generic [ref=e5372]:
+      - generic [ref=e5373]: Stage
+      - combobox "Stage" [ref=e5375] [cursor=pointer]:
+        - option "Applied (3)"
+        - option "Interview (3)" [selected]
+        - option "Offer (1)"
+        - option "Hired (0)"
+    - list "Hiring stages for Sales rep" [ref=e5376]:
+      - listitem [ref=e5377]:
+        - generic [ref=e5378]:
+          - heading "Interview" [level=3] [ref=e5379]
+          - generic [ref=e5380]: 1 interview feedback overdue
+        - list [ref=e5384]:
+          - listitem [ref=e5385]:
+            - generic [ref=e5386]:
+              - generic [ref=e5387]:
+                - generic [aria-hidden] [ref=e5388]: BM
+                - generic [ref=e5389]:
+                  - link "Bongani Mthembu" [ref=e5390] [cursor=pointer]:
+                    - /url: /dev/parity
+                  - generic [ref=e5391]: Interviewed 3 Nov
+              - time [ref=e5392]: Interview feedback overdue by 1 day
+            - button "Move Bongani Mthembu to another stage" [ref=e5396] [cursor=pointer]
+          - listitem [ref=e5400]:
+            - generic [ref=e5401]:
+              - generic [ref=e5402]:
+                - generic [aria-hidden] [ref=e5403]: RN
+                - generic [ref=e5404]:
+                  - link "Rudo Nyathi" [ref=e5405] [cursor=pointer]:
+                    - /url: /dev/parity
+                  - generic [ref=e5406]: Sales rep, Harare
+              - generic [ref=e5407]: Interview booked by Batsi
+            - button "Move Rudo Nyathi to another stage" [ref=e5411] [cursor=pointer]
+          - listitem [ref=e5415]:
+            - generic [ref=e5417]:
+              - generic [aria-hidden] [ref=e5418]: TK
+              - generic [ref=e5419]:
+                - link "Thabo Khumalo" [ref=e5420] [cursor=pointer]:
+                  - /url: /dev/parity
+                - generic [ref=e5421]: Interviewed 5 Nov
+            - button "Move Thabo Khumalo to another stage" [ref=e5422] [cursor=pointer]
+  - generic [ref=e5428]:
+    - generic [ref=e5430]:
+      - generic [ref=e5431]: Stage
+      - combobox "Stage" [ref=e5433] [cursor=pointer]:
+        - option "Applied (3)"
+        - option "Interview (2)" [selected]
+        - option "Offer (1)"
+        - option "Hired (0)"
+    - list "Hiring stages for Sales rep" [ref=e5434]:
+      - listitem [ref=e5435]:
+        - generic [ref=e5436]:
+          - heading "Interview" [level=3] [ref=e5437]
+          - generic [ref=e5438]: 1 interview feedback overdue
+        - list [ref=e5442]:
+          - listitem [ref=e5443]:
+            - generic [ref=e5444]:
+              - generic [ref=e5445]:
+                - generic [aria-hidden] [ref=e5446]: BM
+                - generic [ref=e5447]:
+                  - link "Bongani Mthembu" [ref=e5448] [cursor=pointer]:
+                    - /url: /dev/parity
+                  - generic [ref=e5449]: Interviewed 3 Nov
+              - time [ref=e5450]: Interview feedback overdue by 1 day
+            - button "Move Bongani Mthembu to another stage" [ref=e5454] [cursor=pointer]
+          - listitem [ref=e5458]:
+            - generic [ref=e5459]:
+              - generic [ref=e5460]:
+                - generic [aria-hidden] [ref=e5461]: RN
+                - generic [ref=e5462]:
+                  - link "Rudo Nyathi" [ref=e5463] [cursor=pointer]:
+                    - /url: /dev/parity
+                  - generic [ref=e5464]: Sales rep, Harare
+              - generic [ref=e5465]: Interview booked by Batsi
+            - button "Move Rudo Nyathi to another stage" [ref=e5469] [cursor=pointer]
+  - generic [ref=e5475]:
+    - group "Show" [ref=e5476]:
+      - button "All 24" [pressed] [ref=e5477] [cursor=pointer]:
+        - text: All
+        - generic [ref=e5478]: "24"
+      - button "Approved 15" [ref=e5479] [cursor=pointer]:
+        - text: Approved
+        - generic [ref=e5480]: "15"
+      - button "Declined 3" [ref=e5481] [cursor=pointer]:
+        - text: Declined
+        - generic [ref=e5482]: "3"
+      - button "Done by a rule 4" [ref=e5483] [cursor=pointer]:
+        - text: Done by a rule
+        - generic [ref=e5484]: "4"
+      - button "Expired or failed 2" [ref=e5485] [cursor=pointer]:
+        - text: Expired or failed
+        - generic [ref=e5486]: "2"
+    - list "What Batsi did" [ref=e5488]:
+      - listitem [ref=e5489]:
+        - heading "Today" [level=3] [ref=e5490]
+      - listitem [ref=e5491]:
+        - generic [ref=e5497]:
+          - generic [ref=e5498]:
+            - strong [ref=e5499]: Batsi
+            - text: sent Nomvula Zulu's bank details to payroll
+          - generic [ref=e5500]: Approved by Thandeka Dlamini, but payroll refused the account number
+          - time [ref=e5504]: 1 hour ago
+      - listitem [ref=e5505]:
+        - generic [ref=e5511]:
+          - generic [ref=e5512]:
+            - strong [ref=e5513]: Batsi
+            - text: sent Kagiso Molefe's bank details to payroll
+          - generic [ref=e5514]: Approved by Thandeka Dlamini
+          - time [ref=e5519]: 2 hours ago
+      - listitem [ref=e5520]:
+        - generic [ref=e5526]:
+          - generic [ref=e5527]:
+            - strong [ref=e5528]: Batsi
+            - text: reminded Lindiwe Sibanda to upload her bank letter
+          - generic [ref=e5533]:
+            - text: Done on its own under the rule
+            - link "Remind about missing documents" [ref=e5534] [cursor=pointer]:
+              - /url: /dev/rules
+            - text: ", set up by Lerato Mokoena"
+          - time [ref=e5535]: 3 hours ago
+      - listitem [ref=e5536]:
+        - generic [ref=e5542]:
+          - generic [ref=e5543]:
+            - strong [ref=e5544]: Batsi
+            - text: suggested marking Mwila Phiri's NRC as verified
+          - generic [ref=e5548]:
+            - text: Waiting for you.
+            - link "Review" [ref=e5549] [cursor=pointer]:
+              - /url: /dev/proposal
+          - time [ref=e5550]: 3 hours ago
+      - listitem [ref=e5551]:
+        - heading "Yesterday" [level=3] [ref=e5552]
+      - listitem [ref=e5553]:
+        - generic [ref=e5559]:
+          - generic [ref=e5560]:
+            - strong [ref=e5561]: Batsi
+            - text: suggested the Office starter laptop and access for Tariro Moyo
+          - generic [ref=e5562]: Declined by Sipho Ndlovu
+          - generic [ref=e5568]: Tariro is field sales. She needs the Field sales laptop and access with a phone.
+          - time [ref=e5569]: Yesterday, 15:40
+      - listitem [ref=e5570]:
+        - generic [ref=e5576]:
+          - generic [ref=e5577]:
+            - strong [ref=e5578]: Batsi
+            - text: suggested reminding Chipo Banda about her tax form
+          - generic [ref=e5579]: Expired. No one decided by 9 Nov, 17:00
+          - time [ref=e5584]: 8 Nov 2026, 09:00
+    - button "Show older" [ref=e5586] [cursor=pointer]
+  - generic [ref=e5588]:
+    - group "Show" [ref=e5589]:
+      - button "All 24" [ref=e5590] [cursor=pointer]:
+        - text: All
+        - generic [ref=e5591]: "24"
+      - button "Declined 0" [pressed] [ref=e5592] [cursor=pointer]:
+        - text: Declined
+        - generic [ref=e5593]: "0"
+    - list [ref=e5595]:
+      - listitem [ref=e5596]: Nothing declined this month. Every suggestion was approved or is still waiting.
+  - generic [ref=e5598]:
+    - generic [ref=e5599]:
+      - generic [ref=e5600]: Accent colour
+      - generic [ref=e5603]:
+        - generic [aria-hidden] [ref=e5604]: "#"
+        - textbox "Accent colour" [ref=e5605]: 00668D
+      - status [ref=e5606]:
+        - generic [ref=e5610]: Passes. 6.3 to 1 on white; buttons and links need 4.5 to 1.
+    - generic [ref=e5611]:
+      - group "Preview in light theme" [ref=e5612]:
+        - generic [ref=e5613]: Light
+        - generic [ref=e5614]: Mokoena Accounting
+        - generic [ref=e5620]:
+          - generic [ref=e5621]: Welcome, Tariro. Your first day is 1 Dec.
+          - generic [ref=e5622]: Read the welcome pack
+          - generic [ref=e5623]: Get started
+      - group "Preview in dark theme" [ref=e5624]:
+        - generic [ref=e5625]: Dark
+        - generic [ref=e5626]: Mokoena Accounting
+        - generic [ref=e5632]:
+          - generic [ref=e5633]: Welcome, Tariro. Your first day is 1 Dec.
+          - generic [ref=e5634]: Read the welcome pack
+          - generic [ref=e5635]: Get started
+    - generic [ref=e5636]: In dark theme Naleko People uses a lighter partner of your colour, 3B8DB6, which has 4.5 to 1 on the dark background. Naleko People's mint and the status colours do not change.
+    - generic [ref=e5637]:
+      - button "Save accent colour" [ref=e5638] [cursor=pointer]
+      - button "Use Naleko People's violet" [ref=e5639] [cursor=pointer]
+  - generic [ref=e5641]:
+    - generic [ref=e5642]:
+      - generic [ref=e5643]: Accent colour
+      - generic [ref=e5646]:
+        - generic [aria-hidden] [ref=e5647]: "#"
+        - textbox "Accent colour" [ref=e5648]: F8B769
+      - status [ref=e5649]:
+        - generic [ref=e5652]: Saved for your logo area, header and sign-in page. Buttons and links stay Naleko People violet, because this colour has 1.7 to 1 on white and they need 4.5 to 1.
+      - generic [ref=e5653]:
+        - generic [ref=e5655]:
+          - generic [ref=e5656]: For buttons too, try A26703, a darker amber
+          - generic [ref=e5657]: 4.6 to 1 on white. Passes.
+        - button "Use A26703" [ref=e5658] [cursor=pointer]
+    - generic [ref=e5659]:
+      - group "Preview in light theme" [ref=e5660]:
+        - generic [ref=e5661]: Light
+        - generic [ref=e5662]: Mokoena Accounting
+        - generic [ref=e5668]:
+          - generic [ref=e5669]: Welcome, Tariro. Your first day is 1 Dec.
+          - generic [ref=e5670]: Read the welcome pack
+          - generic [ref=e5671]: Get started
+      - group "Preview in dark theme" [ref=e5672]:
+        - generic [ref=e5673]: Dark
+        - generic [ref=e5674]: Mokoena Accounting
+        - generic [ref=e5680]:
+          - generic [ref=e5681]: Welcome, Tariro. Your first day is 1 Dec.
+          - generic [ref=e5682]: Read the welcome pack
+          - generic [ref=e5683]: Get started
+    - generic [ref=e5684]: Your colour is on the header strip. Buttons and links stay violet so everyone can read them.
+    - generic [ref=e5685]:
+      - button "Save accent colour" [ref=e5686] [cursor=pointer]
+      - button "Use Naleko People's violet" [ref=e5687] [cursor=pointer]
+  - complementary [ref=e5691]:
+    - generic [ref=e5692]:
+      - generic [ref=e5697]:
+        - heading "Batsi" [level=2] [ref=e5698]
+        - generic [ref=e5699]: Looking at Kagiso Molefe
+      - button "Close Batsi" [ref=e5700] [cursor=pointer]
+    - log "Conversation with Batsi" [ref=e5704]:
+      - generic [ref=e5705]: Today
+      - generic [ref=e5706]:
+        - generic [ref=e5707]: "You said:"
+        - generic [ref=e5708]: Is Kagiso ready for payroll?
+        - generic [ref=e5709]: 09:02
+      - generic [ref=e5710]:
+        - generic [ref=e5711]: "Batsi said:"
+        - generic [ref=e5712]: Nearly. His bank letter and ID check out. Payroll does not have his bank details yet. I can send them.
+        - generic [ref=e5713]: 09:02
+      - generic "Send Kagiso's bank details to payroll" [ref=e5715]:
+        - generic [ref=e5716]:
+          - generic [ref=e5717]: Batsi suggests
+          - generic [ref=e5722]: Send Kagiso's bank details to payroll
+          - generic [ref=e5723]: "Payroll closes 20 Nov · Goes to another company: payroll system, South Africa"
+        - button "Review" [ref=e5725] [cursor=pointer]
+    - form "Message Batsi" [ref=e5726]:
+      - generic [ref=e5727]:
+        - generic [ref=e5728]: Message Batsi
+        - textbox "Message Batsi" [ref=e5729]:
+          - /placeholder: Ask Batsi about Kagiso
+        - button "Send" [ref=e5730] [cursor=pointer]
+      - generic [ref=e5734]: Batsi changes nothing until you approve.
+  - complementary [ref=e5739]:
+    - generic [ref=e5740]:
+      - generic [ref=e5745]:
+        - heading "Batsi" [level=2] [ref=e5746]
+        - generic [ref=e5747]: Looking at November new employees
+      - button "Close Batsi" [ref=e5748] [cursor=pointer]
+    - log "Conversation with Batsi" [ref=e5752]:
+      - generic [ref=e5753]:
+        - generic [ref=e5754]: "You said:"
+        - generic [ref=e5755]: Who still owes us documents?
+        - generic [ref=e5756]: 10:14
+      - status [ref=e5757]:
+        - generic [ref=e5759]: Batsi is reading 6 onboarding checklists
+        - button "Stop" [ref=e5760] [cursor=pointer]
+    - form "Message Batsi" [ref=e5761]:
+      - generic [ref=e5762]:
+        - generic [ref=e5763]: Message Batsi
+        - textbox "Message Batsi" [ref=e5764]:
+          - /placeholder: Ask Batsi
+        - button "Send" [disabled] [ref=e5765]
+      - generic [ref=e5769]: Batsi changes nothing until you approve.
+  - complementary [ref=e5774]:
+    - generic [ref=e5775]:
+      - button "Close Batsi" [ref=e5776] [cursor=pointer]
+      - generic [ref=e5780]:
+        - heading "Batsi" [level=2] [ref=e5781]
+        - generic [ref=e5782]: Getting started
+    - log "Conversation with Batsi" [ref=e5787]:
+      - generic [ref=e5788]:
+        - generic [ref=e5789]: "Batsi said:"
+        - generic [ref=e5790]: "Hi Tariro. Two things left before your first day: your tax form and a bank letter. Want me to show you how to get the bank letter from your banking app?"
+        - generic [ref=e5791]: 08:30
+      - generic [ref=e5792]:
+        - generic [ref=e5793]: "You said:"
+        - generic [ref=e5794]: Yes please. I bank with CBZ.
+        - generic [ref=e5795]: 08:31
+    - form "Message Batsi" [ref=e5796]:
+      - generic [ref=e5797]:
+        - generic [ref=e5798]: Message Batsi
+        - textbox "Message Batsi" [ref=e5799]:
+          - /placeholder: Ask Batsi
+        - button "Send" [ref=e5800] [cursor=pointer]
+  - complementary [ref=e5808]:
+    - generic [ref=e5809]:
+      - generic [ref=e5814]:
+        - heading "Batsi" [level=3] [ref=e5815]
+        - generic [ref=e5816]: Choose a task
+      - button "Close Batsi" [ref=e5817] [cursor=pointer]
+    - log "Conversation with Batsi" [ref=e5821]:
+      - generic [ref=e5822]:
+        - generic [ref=e5823]: "Batsi said:"
+        - generic [ref=e5824]: Hi Thandeka. Choose a task, or ask me anything about onboarding.
+      - list "Tasks Batsi can do" [ref=e5825]:
+        - listitem [ref=e5826]:
+          - link "Show high-risk employees" [ref=e5827] [cursor=pointer]:
+            - /url: /dev/risk
+        - listitem [ref=e5831]:
+          - link "Explain a document check" [ref=e5832] [cursor=pointer]:
+            - /url: /dev/checks
+        - listitem [ref=e5837]:
+          - link "Onboard a new employee" [ref=e5838] [cursor=pointer]:
+            - /url: /dev/onboard
+    - form "Message Batsi" [ref=e5843]:
+      - generic [ref=e5844]:
+        - generic [ref=e5845]: Message Batsi
+        - textbox "Message Batsi" [ref=e5846]:
+          - /placeholder: Ask Batsi
+        - button "Send" [ref=e5847] [cursor=pointer]
+  - generic [ref=e5853]:
+    - link "Skip to main content" [ref=e5854] [cursor=pointer]:
+      - /url: "#main"
+    - alert [ref=e5855]:
+      - paragraph [ref=e5858]:
+        - text: The payroll connection stopped at 06:00.
+        - link "Reconnect payroll" [ref=e5859] [cursor=pointer]:
+          - /url: "#"
+    - navigation "Main" [ref=e5860]:
+      - button "Naleko People Mokoena Logistics Switch company" [ref=e5862] [cursor=pointer]:
+        - generic [ref=e5867]:
+          - generic [ref=e5868]: Naleko People
+          - generic [ref=e5869]: Mokoena Logistics
+        - generic [ref=e5873]: Switch company
+      - generic [ref=e5874]:
+        - list [ref=e5875]:
+          - listitem [ref=e5876]:
+            - link "Today" [ref=e5877] [cursor=pointer]:
+              - /url: /dev/today
+          - listitem [ref=e5882]:
+            - link "Approvals 3 waiting" [ref=e5883] [cursor=pointer]:
+              - /url: /dev/parity
+              - generic [ref=e5887]: Approvals
+              - generic "3 waiting" [ref=e5888]: "3"
+          - listitem [ref=e5889]:
+            - link "People" [ref=e5890] [cursor=pointer]:
+              - /url: /dev/people
+        - list "Work" [ref=e5897]:
+          - listitem [ref=e5898]:
+            - generic [ref=e5899]: Work
+          - listitem [ref=e5900]:
+            - link "Hire" [ref=e5901] [cursor=pointer]:
+              - /url: /dev/hire
+          - listitem [ref=e5906]:
+            - link "Onboard 2 waiting" [ref=e5907] [cursor=pointer]:
+              - /url: /dev/onboard
+              - generic [ref=e5913]: Onboard
+              - generic "2 waiting" [ref=e5914]: "2"
+          - listitem [ref=e5915]:
+            - link "Leave" [ref=e5916] [cursor=pointer]:
+              - /url: /dev/leave
+        - list "Admin" [ref=e5920]:
+          - listitem [ref=e5921]:
+            - generic [ref=e5922]: Admin
+          - listitem [ref=e5923]:
+            - link "Payroll connection" [ref=e5924] [cursor=pointer]:
+              - /url: /dev/payroll-connection
+          - listitem [ref=e5928]:
+            - link "Audit trail" [ref=e5929] [cursor=pointer]:
+              - /url: /dev/audit-trail
+      - link "Settings" [ref=e5936] [cursor=pointer]:
+        - /url: /dev/settings
+    - banner [ref=e5941]:
+      - button "Open menu" [ref=e5942] [cursor=pointer]
+      - button "Collapse menu" [expanded] [ref=e5944] [cursor=pointer]
+      - link "Naleko People home" [ref=e5947] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e5952]:
+        - button "Search" [ref=e5953] [cursor=pointer]
+        - button "Notifications, 4 unread" [ref=e5957] [cursor=pointer]:
+          - generic [aria-hidden]: "4"
+        - button "Your account, Thandeka Dlamini" [ref=e5961] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e5962]: TD
+    - main [ref=e5963]:
+      - generic [ref=e5964]:
+        - generic [ref=e5967]:
+          - heading "Approvals" [level=1] [ref=e5968]
+          - paragraph [ref=e5969]: 3 things wait for you.
+        - generic [ref=e5970]:
+          - generic [ref=e5971]:
+            - generic [ref=e5972]: "Kagiso Molefe: offer letter"
+            - generic [ref=e5973]: Batsi drafted it 10 min ago
+          - generic [ref=e5974]:
+            - generic [ref=e5975]: "Lerato Mokoena: leave, 3 days"
+            - generic [ref=e5976]: Starts 24 Nov 2026
+          - generic [ref=e5977]:
+            - generic [ref=e5978]: "Sipho Ndlovu: bank details"
+            - generic [ref=e5979]: Changed yesterday, 14:30
+    - status [ref=e5981]:
+      - generic:
+        - paragraph: Leave approved
+        - paragraph: Lerato gets an email.
+      - button "Dismiss" [ref=e5985] [cursor=pointer]
+  - generic [ref=e5990]:
+    - link "Skip to main content" [ref=e5991] [cursor=pointer]:
+      - /url: "#main"
+    - navigation "Main" [ref=e5992]:
+      - button "Switch company, Mokoena Logistics" [ref=e5994] [cursor=pointer]
+      - generic [ref=e5999]:
+        - list [ref=e6000]:
+          - listitem [ref=e6001]:
+            - link "Today" [ref=e6002] [cursor=pointer]:
+              - /url: /dev/today
+          - listitem [ref=e6007]:
+            - link "Approvals 3 waiting" [ref=e6008] [cursor=pointer]:
+              - /url: /dev/approvals
+              - generic [ref=e6012]: Approvals
+              - generic "3 waiting" [ref=e6013]: "3"
+          - listitem [ref=e6014]:
+            - link "People" [ref=e6015] [cursor=pointer]:
+              - /url: /dev/parity
+        - list "Work" [ref=e6022]:
+          - listitem [ref=e6023]:
+            - generic [ref=e6024]: Work
+          - listitem [ref=e6025]:
+            - link "Hire" [ref=e6026] [cursor=pointer]:
+              - /url: /dev/hire
+          - listitem [ref=e6031]:
+            - link "Onboard 2 waiting" [ref=e6032] [cursor=pointer]:
+              - /url: /dev/onboard
+              - generic [ref=e6038]: Onboard
+              - generic "2 waiting" [ref=e6039]: "2"
+          - listitem [ref=e6040]:
+            - link "Leave" [ref=e6041] [cursor=pointer]:
+              - /url: /dev/leave
+        - list "Admin" [ref=e6045]:
+          - listitem [ref=e6046]:
+            - generic [ref=e6047]: Admin
+          - listitem [ref=e6048]:
+            - link "Payroll connection" [ref=e6049] [cursor=pointer]:
+              - /url: /dev/payroll-connection
+          - listitem [ref=e6053]:
+            - link "Audit trail" [ref=e6054] [cursor=pointer]:
+              - /url: /dev/audit-trail
+      - link "Settings" [ref=e6061] [cursor=pointer]:
+        - /url: /dev/settings
+    - banner [ref=e6066]:
+      - button "Open menu" [ref=e6067] [cursor=pointer]
+      - button "Expand menu" [ref=e6069] [cursor=pointer]
+      - link "Naleko People home" [ref=e6072] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e6077]:
+        - button "Search" [ref=e6078] [cursor=pointer]
+        - button "Notifications, 4 unread" [ref=e6082] [cursor=pointer]:
+          - generic [aria-hidden]: "4"
+        - button "Your account, Thandeka Dlamini" [ref=e6086] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e6087]: TD
+    - main [ref=e6088]:
+      - generic [ref=e6089]:
+        - generic [ref=e6092]:
+          - heading "People" [level=1] [ref=e6093]
+          - paragraph [ref=e6094]: 38 people in 3 countries.
+        - generic [ref=e6095]:
+          - generic [ref=e6096]:
+            - generic [ref=e6097]: Thandeka Dlamini
+            - generic [ref=e6098]: Finance manager
+          - generic [ref=e6099]:
+            - generic [ref=e6100]: Sipho Ndlovu
+            - generic [ref=e6101]: Bookkeeper
+          - generic [ref=e6102]:
+            - generic [ref=e6103]: Chipo Banda
+            - generic [ref=e6104]: Sales, Lusaka
+          - generic [ref=e6105]:
+            - generic [ref=e6106]: Tariro Moyo
+            - generic [ref=e6107]: New employee, starts 17 Nov
+  - generic [ref=e6109]:
+    - link "Skip to main content" [ref=e6110] [cursor=pointer]:
+      - /url: "#main"
+    - navigation "Main" [ref=e6111]:
+      - button "Naleko People Mokoena Logistics Switch company" [ref=e6113] [cursor=pointer]:
+        - generic [ref=e6118]:
+          - generic [ref=e6119]: Naleko People
+          - generic [ref=e6120]: Mokoena Logistics
+        - generic [ref=e6124]: Switch company
+      - generic [ref=e6125]:
+        - list [ref=e6126]:
+          - listitem [ref=e6127]:
+            - link "Today" [ref=e6128] [cursor=pointer]:
+              - /url: /dev/today
+          - listitem [ref=e6133]:
+            - link "Approvals 3 waiting" [ref=e6134] [cursor=pointer]:
+              - /url: /dev/approvals
+              - generic [ref=e6138]: Approvals
+              - generic "3 waiting" [ref=e6139]: "3"
+          - listitem [ref=e6140]:
+            - link "People" [ref=e6141] [cursor=pointer]:
+              - /url: /dev/people
+        - list "Work" [ref=e6148]:
+          - listitem [ref=e6149]:
+            - generic [ref=e6150]: Work
+          - listitem [ref=e6151]:
+            - link "Hire" [ref=e6152] [cursor=pointer]:
+              - /url: /dev/hire
+          - listitem [ref=e6157]:
+            - link "Onboard 2 waiting" [ref=e6158] [cursor=pointer]:
+              - /url: /dev/onboard
+              - generic [ref=e6164]: Onboard
+              - generic "2 waiting" [ref=e6165]: "2"
+          - listitem [ref=e6166]:
+            - link "Leave" [ref=e6167] [cursor=pointer]:
+              - /url: /dev/leave
+        - list "Admin" [ref=e6171]:
+          - listitem [ref=e6172]:
+            - generic [ref=e6173]: Admin
+          - listitem [ref=e6174]:
+            - link "Payroll connection" [ref=e6175] [cursor=pointer]:
+              - /url: /dev/payroll-connection
+          - listitem [ref=e6179]:
+            - link "Audit trail" [ref=e6180] [cursor=pointer]:
+              - /url: /dev/parity
+      - link "Settings" [ref=e6187] [cursor=pointer]:
+        - /url: /dev/settings
+    - banner [ref=e6192]:
+      - button "Open menu" [ref=e6193] [cursor=pointer]
+      - button "Collapse menu" [expanded] [ref=e6195] [cursor=pointer]
+      - link "Naleko People home" [ref=e6198] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e6203]:
+        - button "Search" [ref=e6204] [cursor=pointer]
+        - button "Notifications, 4 unread" [ref=e6208] [cursor=pointer]:
+          - generic [aria-hidden]: "4"
+        - button "Your account, Thandeka Dlamini" [ref=e6212] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e6213]: TD
+    - main [ref=e6214]:
+      - generic [ref=e6215]:
+        - generic [ref=e6218]:
+          - heading "Audit trail" [level=1] [ref=e6219]
+          - paragraph [ref=e6220]: Every change, with who and when.
+        - list "Recent changes" [ref=e6222]:
+          - listitem [ref=e6223]:
+            - generic [ref=e6229]:
+              - generic [ref=e6230]:
+                - strong [ref=e6231]: Batsi
+                - text: synced 38 payslips
+              - time [ref=e6232]: 2 hours ago
+          - listitem [ref=e6233]:
+            - generic [aria-hidden] [ref=e6235]: TD
+            - generic [ref=e6236]:
+              - generic [ref=e6237]:
+                - strong [ref=e6238]: Thandeka Dlamini
+                - text: gave Sipho payroll access
+              - time [ref=e6239]: Yesterday, 16:10
+          - listitem [ref=e6240]:
+            - generic [aria-hidden] [ref=e6242]: CB
+            - generic [ref=e6243]:
+              - generic [ref=e6244]:
+                - strong [ref=e6245]: Chipo Banda
+                - text: revealed a bank account
+              - time [ref=e6246]: 7 Nov 2026, 09:30
+  - generic [ref=e6248]:
+    - link "Skip to main content" [ref=e6249] [cursor=pointer]:
+      - /url: "#main"
+    - navigation "Main" [ref=e6250]:
+      - button "Naleko People Mokoena Logistics Switch company" [ref=e6252] [cursor=pointer]:
+        - generic [ref=e6257]:
+          - generic [ref=e6258]: Naleko People
+          - generic [ref=e6259]: Mokoena Logistics
+        - generic [ref=e6263]: Switch company
+      - generic [ref=e6264]:
+        - list [ref=e6265]:
+          - listitem [ref=e6266]:
+            - link "Today" [ref=e6267] [cursor=pointer]:
+              - /url: /dev/parity
+          - listitem [ref=e6272]:
+            - link "Approvals 3 waiting" [ref=e6273] [cursor=pointer]:
+              - /url: /dev/approvals
+              - generic [ref=e6277]: Approvals
+              - generic "3 waiting" [ref=e6278]: "3"
+          - listitem [ref=e6279]:
+            - link "People" [ref=e6280] [cursor=pointer]:
+              - /url: /dev/people
+        - list "Work" [ref=e6287]:
+          - listitem [ref=e6288]:
+            - generic [ref=e6289]: Work
+          - listitem [ref=e6290]:
+            - link "Hire" [ref=e6291] [cursor=pointer]:
+              - /url: /dev/hire
+          - listitem [ref=e6296]:
+            - link "Onboard 2 waiting" [ref=e6297] [cursor=pointer]:
+              - /url: /dev/onboard
+              - generic [ref=e6303]: Onboard
+              - generic "2 waiting" [ref=e6304]: "2"
+          - listitem [ref=e6305]:
+            - link "Leave" [ref=e6306] [cursor=pointer]:
+              - /url: /dev/leave
+        - list "Admin" [ref=e6310]:
+          - listitem [ref=e6311]:
+            - generic [ref=e6312]: Admin
+          - listitem [ref=e6313]:
+            - link "Payroll connection" [ref=e6314] [cursor=pointer]:
+              - /url: /dev/payroll-connection
+          - listitem [ref=e6318]:
+            - link "Audit trail" [ref=e6319] [cursor=pointer]:
+              - /url: /dev/audit-trail
+      - link "Settings" [ref=e6326] [cursor=pointer]:
+        - /url: /dev/settings
+    - banner [ref=e6331]:
+      - button "Open menu" [ref=e6332] [cursor=pointer]
+      - link "Naleko People home" [ref=e6334] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e6339]:
+        - button "Search" [ref=e6340] [cursor=pointer]
+        - button "Notifications, 2 unread" [ref=e6344] [cursor=pointer]:
+          - generic [aria-hidden]: "2"
+        - button "Your account, Tariro Moyo" [ref=e6348] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e6349]: TM
+    - main [ref=e6350]:
+      - generic [ref=e6351]:
+        - generic [ref=e6354]:
+          - heading "Your documents" [level=1] [ref=e6355]
+          - paragraph [ref=e6356]: 2 left to sign before 17 Nov.
+        - generic [ref=e6357]:
+          - generic [ref=e6358]:
+            - generic [ref=e6359]: Employment contract
+            - generic [ref=e6360]: Due in 2 days
+          - generic [ref=e6361]:
+            - generic [ref=e6362]: Tax form
+            - generic [ref=e6363]: Due in 4 days
+          - generic [ref=e6364]:
+            - generic [ref=e6365]: ID document
+            - generic [ref=e6366]: Done 3 Nov
+    - button "Sign contract" [ref=e6368] [cursor=pointer]
+  - generic [ref=e6370]:
+    - link "Skip to main content" [ref=e6371] [cursor=pointer]:
+      - /url: "#main"
+    - navigation "Main" [ref=e6372]:
+      - button "Naleko People Mokoena Logistics Switch company" [ref=e6374] [cursor=pointer]:
+        - generic [ref=e6379]:
+          - generic [ref=e6380]: Naleko People
+          - generic [ref=e6381]: Mokoena Logistics
+        - generic [ref=e6385]: Switch company
+      - generic [ref=e6386]:
+        - list [ref=e6387]:
+          - listitem [ref=e6388]:
+            - link "Today" [ref=e6389] [cursor=pointer]:
+              - /url: /dev/parity
+          - listitem [ref=e6394]:
+            - link "Approvals 3 waiting" [ref=e6395] [cursor=pointer]:
+              - /url: /dev/approvals
+              - generic [ref=e6399]: Approvals
+              - generic "3 waiting" [ref=e6400]: "3"
+          - listitem [ref=e6401]:
+            - link "People" [ref=e6402] [cursor=pointer]:
+              - /url: /dev/people
+        - list "Work" [ref=e6409]:
+          - listitem [ref=e6410]:
+            - generic [ref=e6411]: Work
+          - listitem [ref=e6412]:
+            - link "Hire" [ref=e6413] [cursor=pointer]:
+              - /url: /dev/hire
+          - listitem [ref=e6418]:
+            - link "Onboard 2 waiting" [ref=e6419] [cursor=pointer]:
+              - /url: /dev/onboard
+              - generic [ref=e6425]: Onboard
+              - generic "2 waiting" [ref=e6426]: "2"
+          - listitem [ref=e6427]:
+            - link "Leave" [ref=e6428] [cursor=pointer]:
+              - /url: /dev/leave
+        - list "Admin" [ref=e6432]:
+          - listitem [ref=e6433]:
+            - generic [ref=e6434]: Admin
+          - listitem [ref=e6435]:
+            - link "Payroll connection" [ref=e6436] [cursor=pointer]:
+              - /url: /dev/payroll-connection
+          - listitem [ref=e6440]:
+            - link "Audit trail" [ref=e6441] [cursor=pointer]:
+              - /url: /dev/audit-trail
+      - link "Settings" [ref=e6448] [cursor=pointer]:
+        - /url: /dev/settings
+    - banner [ref=e6453]:
+      - button "Open menu" [expanded] [ref=e6454] [cursor=pointer]
+      - link "Naleko People home" [ref=e6456] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e6461]:
+        - button "Search" [ref=e6462] [cursor=pointer]
+        - button "Notifications, 2 unread" [ref=e6466] [cursor=pointer]:
+          - generic [aria-hidden]: "2"
+        - button "Your account, Tariro Moyo" [ref=e6470] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e6471]: TM
+    - main [ref=e6472]:
+      - generic [ref=e6473]:
+        - generic [ref=e6476]:
+          - heading "Your documents" [level=1] [ref=e6477]
+          - paragraph [ref=e6478]: 2 left to sign before 17 Nov.
+        - generic [ref=e6479]:
+          - generic [ref=e6480]:
+            - generic [ref=e6481]: Employment contract
+            - generic [ref=e6482]: Due in 2 days
+          - generic [ref=e6483]:
+            - generic [ref=e6484]: Tax form
+            - generic [ref=e6485]: Due in 4 days
+          - generic [ref=e6486]:
+            - generic [ref=e6487]: ID document
+            - generic [ref=e6488]: Done 3 Nov
+    - button "Sign contract" [ref=e6491] [cursor=pointer]
+  - generic [ref=e6493]:
+    - generic [ref=e6494]: Move to stage
+    - generic [ref=e6495]:
+      - combobox "Move to stage" [expanded] [ref=e6497] [cursor=pointer]: Second interview
+      - listbox "Move to stage" [ref=e6499]:
+        - text: Screening
+        - option "Applied" [ref=e6500] [cursor=pointer]
+        - option "Phone screen" [ref=e6502] [cursor=pointer]
+        - text: Interviews
+        - option "Second interview" [selected] [ref=e6504] [cursor=pointer]
+        - option "Offer Needs the hiring manager's approval" [ref=e6509] [cursor=pointer]:
+          - generic [ref=e6510]:
+            - text: Offer
+            - generic [ref=e6511]: Needs the hiring manager's approval
+        - option "Hired After the offer is signed" [disabled] [ref=e6512]:
+          - generic [ref=e6513]:
+            - text: Hired
+            - generic [ref=e6514]: After the offer is signed
+  - generic [ref=e6516]:
+    - generic [ref=e6517]: Onboarding buddy
+    - generic [ref=e6518]:
+      - combobox "Onboarding buddy" [expanded] [ref=e6520] [cursor=pointer]: Choose a buddy
+      - generic [ref=e6521]:
+        - searchbox "Filter people" [active] [ref=e6528]: th
+        - listbox "Onboarding buddy" [ref=e6529]:
+          - option "Thandeka Dlamini People and culture, Johannesburg" [selected] [ref=e6530] [cursor=pointer]:
+            - generic [ref=e6534]:
+              - text: Thandeka Dlamini
+              - generic [ref=e6535]: People and culture, Johannesburg
+          - option "Thabo Khumalo Finance, Harare" [ref=e6539] [cursor=pointer]:
+            - generic [ref=e6543]:
+              - text: Thabo Khumalo
+              - generic [ref=e6544]: Finance, Harare
+```
+
+# Test source
+
+```ts
+  1   | import { execFileSync } from 'node:child_process';
+  2   | import { join } from 'node:path';
+  3   | import type { Locator, Page } from '@playwright/test';
+  4   | import { LayoutGrid } from 'lucide';
+  5   | import { expect } from '../fixtures';
+  6   | 
+  7   | /**
+  8   |  * ANG-01 helpers: the /dev/parity gallery sections the card names, the pipeline board read from the page,
+  9   |  * the Move dialog, the dev-only hooks, and the top navigation's controls.
+  10  |  * Spec: /mnt/project-files/onboarding-cards/specs/ANG-01.md (NH-233). Notes: ../../cards/ang-01.md.
+  11  |  */
+  12  | 
+  13  | export const PEPLA_WEB = join(__dirname, '..', '..', '..', '..');
+  14  | export const DS_DIR = join(PEPLA_WEB, 'src', 'styles', 'design-system');
+  15  | export const PARITY = '/dev/parity';
+  16  | 
+  17  | // ---------------------------------------------------------------- the card's words (all approved; nothing new)
+  18  | export const WORDS = {
+  19  |   field: 'Move to',
+  20  |   reason: 'Why? (required)',
+  21  |   reasonHelp: 'Saved with your name and the time.',
+  22  |   backHelp: 'Moving back a stage needs a reason too.',
+  23  |   cancel: 'Cancel',
+  24  |   move: 'Move',
+  25  |   close: 'Close',
+  26  |   modules: 'Modules',
+  27  |   empty: 'No one yet',
+  28  | } as const;
+  29  | /** Dialog title and the card's Move button name in ask-first mode: "Move {first name}". */
+  30  | export const moveFirst = (fullName: string) => `Move ${firstName(fullName)}`;
+  31  | /** Today's Move button name. */
+  32  | export const moveToday = (fullName: string) => `Move ${fullName} to another stage`;
+  33  | /** First name = the text before the first space of the candidate's name. */
+  34  | export const firstName = (fullName: string) => fullName.split(' ')[0];
+  35  | 
+  36  | // ---------------------------------------------------------------- gallery sections, by data-parity name
+  37  | /** The section on /dev/parity whose data-parity name is "<component slug>|<name>". */
+  38  | export function section(page: Page, name: string): Locator {
+  39  |   return page.locator(`[data-parity$=${JSON.stringify('|' + name)}]`);
+  40  | }
+  41  | 
+  42  | export async function openParity(page: Page): Promise<void> {
+  43  |   await page.goto(PARITY);
+  44  |   await expect(page.locator('[data-parity]').first(), '/dev/parity shows its sections').toBeAttached({ timeout: 30_000 });
+  45  |   await page.waitForLoadState('networkidle');
+  46  | }
+  47  | 
+  48  | /** The one section with this name; fails with the name when the gallery does not have it. */
+  49  | export async function theSection(page: Page, name: string): Promise<Locator> {
+  50  |   const s = section(page, name);
+> 51  |   await expect(s, `/dev/parity has exactly one section named "${name}"`).toHaveCount(1);
+      |                                                                          ^ Error: /dev/parity has exactly one section named "Modules button"
+  52  |   return s;
+  53  | }
+  54  | 
+  55  | export const SECTIONS = {
+  56  |   today: 'Board for one role',
+  57  |   askFirst: 'Move asks first',
+  58  |   launcher: 'Modules button',
+  59  |   launcherPhone: 'Modules button (phone)',
+  60  | } as const;
+  61  | 
+  62  | // ---------------------------------------------------------------- the board, as the page shows it
+  63  | export type Column = { stage: string; count: number; cards: string[] };
+  64  | 
+  65  | /** Every column in stage order: its name, the number its count badge shows, and the cards' names in order. */
+  66  | export async function readBoard(scope: Locator): Promise<Column[]> {
+  67  |   return scope.locator('.pp-pipeline').first().evaluate((root) =>
+  68  |     [...root.querySelectorAll('.pp-pipeline__column')].map((col) => ({
+  69  |       stage: (col.querySelector('.pp-pipeline__column-name')?.textContent ?? '').trim(),
+  70  |       count: parseInt((col.querySelector('.pp-badge')?.textContent ?? '').trim(), 10),
+  71  |       cards: [...col.querySelectorAll('.pp-pipeline__card')].map((c) => (c.querySelector('.pp-person__name')?.textContent ?? '').trim()),
+  72  |     })),
+  73  |   );
+  74  | }
+  75  | 
+  76  | export function column(scope: Locator, stage: string): Locator {
+  77  |   return scope.locator('.pp-pipeline__column').filter({ has: scope.page().locator('.pp-pipeline__column-name', { hasText: new RegExp(`^\\s*${esc(stage)}\\s*$`) }) });
+  78  | }
+  79  | 
+  80  | export function card(scope: Locator, fullName: string): Locator {
+  81  |   return scope.locator('.pp-pipeline__card').filter({ has: scope.page().locator('.pp-person__name', { hasText: new RegExp(`^\\s*${esc(fullName)}\\s*$`) }) });
+  82  | }
+  83  | 
+  84  | export function stageOf(board: Column[], fullName: string): string {
+  85  |   const c = board.find((col) => col.cards.includes(fullName));
+  86  |   if (!c) throw new Error(`${fullName} is on no column`);
+  87  |   return c.stage;
+  88  | }
+  89  | 
+  90  | /** On a phone the board shows one stage at a time: pick it in the "Stage" picker. On desktop nothing to do. */
+  91  | export async function showStage(scope: Locator, stage: string): Promise<void> {
+  92  |   const picker = scope.getByLabel('Stage', { exact: true });
+  93  |   if (!(await picker.isVisible())) return;
+  94  |   const labels = await picker.locator('option').allTextContents();
+  95  |   const label = labels.find((l) => l.trim() === stage || l.trim().startsWith(`${stage} (`));
+  96  |   if (!label) throw new Error(`the stage picker has no option for ${stage}: ${labels.join(', ')}`);
+  97  |   await picker.selectOption({ label: label.trim() });
+  98  |   await expect(column(scope, stage)).toBeVisible();
+  99  | }
+  100 | 
+  101 | /** The counts the phone stage picker shows: "Interview (3)" gives Interview: 3. */
+  102 | export async function pickerCounts(scope: Locator): Promise<Record<string, number>> {
+  103 |   const out: Record<string, number> = {};
+  104 |   for (const t of await scope.getByLabel('Stage', { exact: true }).locator('option').allTextContents()) {
+  105 |     const m = /^(.*) \((\d+)\)$/.exec(t.trim());
+  106 |     if (m) out[m[1]] = Number(m[2]);
+  107 |   }
+  108 |   return out;
+  109 | }
+  110 | 
+  111 | /** A card and stages to use, from the gallery's own data: a card with a later stage, and one with an earlier stage. */
+  112 | export function pickCards(board: Column[]): { forward: { name: string; from: string; to: string }; backward: { name: string; from: string; to: string } } {
+  113 |   const stages = board.map((c) => c.stage);
+  114 |   expect(stages.length, 'the board has at least two stages').toBeGreaterThan(1);
+  115 |   const fwdCol = board.find((c, i) => c.cards.length > 0 && i < board.length - 1);
+  116 |   const backCol = board.find((c, i) => c.cards.length > 0 && i > 0);
+  117 |   expect(fwdCol, 'some card has a later stage to go to').toBeTruthy();
+  118 |   expect(backCol, 'some card has an earlier stage to go back to').toBeTruthy();
+  119 |   const fi = stages.indexOf(fwdCol!.stage);
+  120 |   const bi = stages.indexOf(backCol!.stage);
+  121 |   return {
+  122 |     forward: { name: fwdCol!.cards[0], from: fwdCol!.stage, to: stages[fi + 1] },
+  123 |     backward: { name: backCol!.cards[0], from: backCol!.stage, to: stages[bi - 1] },
+  124 |   };
+  125 | }
+  126 | 
+  127 | // ---------------------------------------------------------------- drag and drop (desktop: Angular CDK, pointer events)
+  128 | export async function dragCardTo(page: Page, scope: Locator, fullName: string, stage: string): Promise<void> {
+  129 |   const from = card(scope, fullName);
+  130 |   const handle = from.locator('.pp-pipeline__handle');
+  131 |   const grip = (await handle.count()) ? handle : from;
+  132 |   await grip.scrollIntoViewIfNeeded();
+  133 |   const a = (await grip.boundingBox())!;
+  134 |   await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  135 |   await page.mouse.down();
+  136 |   await page.mouse.move(a.x + a.width / 2 + 8, a.y + a.height / 2 + 8, { steps: 4 });
+  137 |   const target = column(scope, stage).locator('.pp-pipeline__cards');
+  138 |   const b = (await target.boundingBox())!;
+  139 |   await page.mouse.move(b.x + b.width / 2, b.y + Math.min(b.height / 2, 40), { steps: 20 });
+  140 |   await page.mouse.move(b.x + b.width / 2, b.y + Math.min(b.height / 2, 40) + 2, { steps: 2 });
+  141 |   await page.mouse.up();
+  142 | }
+  143 | 
+  144 | // ---------------------------------------------------------------- the dev-only hooks
+  145 | export type MoveRequest = { card: unknown; from: unknown; to: unknown; index?: unknown; reason: unknown };
+  146 | 
+  147 | /** The requests the `move-requests` line lists: one JSON array, or one JSON object per line. Empty means none. */
+  148 | export async function requests(scope: Locator): Promise<MoveRequest[]> {
+  149 |   const line = scope.getByTestId('move-requests');
+  150 |   await expect(line, 'the section has the dev-only line data-testid="move-requests"').toHaveCount(1);
+  151 |   const text = ((await line.textContent()) ?? '').trim();
+```
