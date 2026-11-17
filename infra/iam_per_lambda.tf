@@ -464,7 +464,7 @@ resource "aws_iam_role_policy" "get_document_verifications" {
         Sid      = "CompanyIndexQuery"
         Effect   = "Allow"
         Action   = ["dynamodb:Query"]
-        Resource = ["${aws_dynamodb_table.document_verification.arn}/index/tenant-index"]
+        Resource = ["${aws_dynamodb_table.document_verification.arn}/index/tenant-index", "${aws_dynamodb_table.documents.arn}/index/tenant-index"]
       },
       {
         Sid      = "Logs"
