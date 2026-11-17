@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { INFRA, attributes, blocks, stripComments } from './support/infra-harness';
-import { LAMBDA, REPO, awsCalls, conditionsHold, httpEvent, logLines, row, runHandler, type Call, type Run, type Tables } from './support/ten-02/lambda-harness';
+import { LAMBDA, REPO, awsCalls, conditionsHold, httpEvent, logLines, preTokenEvent, row, runHandler, type Call, type Run, type Tables } from './support/ten-02/lambda-harness';
 import { XRAY, all, grants, lambdaNamed, list, resources, roleOf, settingsOf, squash } from './support/ten-01/tf';
 import {
   A, AGENT_SECRET, B, authorizerOf, DOC, EMP, MAIL, POOL, STAFF, SUB, TENANTS, VER, ask, bodyOf, handlerOf, plain, pool, settings, tables, type Ask, type Caller,
@@ -1243,3 +1243,80 @@ test.describe('TEN-02 Records seen from company B\'s side', () => {
   });
 });
 
+// ---------------------------------------------------------------- step 2 (second test commit, acceptance-lock/ten-02.1)
+
+test.describe('TEN-02 step 2: the legacy rule is off', () => {
+  test('AC-11 Step 2: no company, no access', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    test.setTimeout(10 * 60_000);
+    // P10 Terraform: one variable feeds every LEGACY_TENANT_ID (tenantPreToken's too), and pepla-dev sets it empty.
+    // The legacy code path stays (prod still needs it until its own backfill and step 2); only the setting changes.
+    // Read as text, so settings inside merge({...}) count too.
+    const fns = resources('aws_lambda_function').map((b) => ({ name: (attributes(b.body).get('function_name') ?? '').replace(/"/g, ''), body: stripComments(b.body) }));
+    const feeding = [...new Set(all().flatMap((f) => [...stripComments(readFileSync(f, 'utf8')).matchAll(/\bLEGACY_TENANT_ID\s*=\s*([\w.]+)/g)].map((m) => m[1])))];
+    expect(feeding, 'every LEGACY_TENANT_ID is set from one variable, var.legacy_tenant_id').toEqual(['var.legacy_tenant_id']);
+    for (const name of ['tenantPreToken', 'getEmployees', 'getEmployee', 'getDocumentPresignedUrl', 'getDocumentVerifications', 'cognitoPostAuth', 'redeemInvite', 'nalekoAiChat']) {
+      expect.soft(fns.find((f) => f.name === name)?.body ?? '', `${name} reads the legacy rule from var.legacy_tenant_id`).toMatch(/\bLEGACY_TENANT_ID\s*=\s*var\.legacy_tenant_id\b/);
+    }
+    const dev = readFileSync(join(INFRA, 'env', 'dev.tfvars'), 'utf8');
+    expect(/^\s*legacy_tenant_id\s*=\s*"([^"]*)"/m.exec(stripComments(dev))?.[1], 'infra/env/dev.tfvars: legacy_tenant_id = "" (the rule is off in pepla-dev)').toBe('');
+    const vars = squash(readFileSync(join(INFRA, 'variables.tf'), 'utf8'));
+    expect(vars, 'variable "legacy_tenant_id" allows "" or a company id').toMatch(/variable"legacy_tenant_id"\{[^}]*validation\{condition=[^}]*==""[^}]*\^ten_\[0-9a-z\]\{26\}\$/);
+    // Prod plans with no var file: the rule stays on there (= the prod first company) until prod's own backfill.
+    const dflt = (name: string) => new RegExp(`variable"${name}"\{[^}]*?default="([^"]*)"`).exec(vars)?.[1];
+    expect(dflt('legacy_tenant_id'), 'legacy_tenant_id defaults to the prod first company (the default of founding_tenant_id)').toBe(dflt('founding_tenant_id'));
+
+    const off = { legacy: false } as const;
+    // A token without tenant_id: 403 {"error":"Forbidden"} on every rule-A route, before any AWS call.
+    const LISTS: [string, Ask][] = [
+      ['getEmployees', {}], ['getDocumentVerifications', {}], ['getHrPartners', {}], ['getBatchRiskReport', {}], ['queryAuditLog', {}],
+      ['checkEmployeeEmail', { query: { email: MAIL.a1 } }], ['getEmployeeByEmail', { query: { email: MAIL.a1 } }],
+      ['createEmployee', { method: 'POST', body: { first_name: 'Sam', last_name: 'Doe', email: 'sam.doe@company-a.example', phone: '000 000 0000', department: 'Operations', job_title: 'Junior baker', hr_staff_id: STAFF.hrA } }],
+      ['nalekoAiChat', { method: 'POST', body: { message: 'Who is waiting?' } }],
+    ];
+    for (const route of BY_ID) {
+      const r = askRoute(route, 'noTenant', 'a', off);
+      expect.soft(`${statusOf(r)} ${JSON.stringify(bodyOf(r))}`, `${route.name} with no tenant_id: 403 Forbidden`).toBe('403 {"error":"Forbidden"}');
+      expect.soft(awsCalls(r.calls), `${route.name} with no tenant_id: no AWS call`).toEqual([]);
+    }
+    for (const [h, a] of LISTS) {
+      const r = ask(h, 'noTenant', a, off);
+      expect.soft(`${statusOf(r)} ${JSON.stringify(bodyOf(r))}`, `${h} with no tenant_id: 403 Forbidden`).toBe('403 {"error":"Forbidden"}');
+      expect.soft(awsCalls(r.calls), `${h} with no tenant_id: no AWS call`).toEqual([]);
+    }
+    // ONB-05's consent routes, for an employee's token without tenant_id.
+    for (const [h, a] of [['getMyStart', {}], ['recordConsent', { method: 'POST', body: { version: 'v1' } }]] as [string, Ask][]) {
+      const r = ask(h, 'noTenantEmp', a, off);
+      expect.soft(`${statusOf(r)} ${JSON.stringify(bodyOf(r))}`, `${h} with no tenant_id: 403 Forbidden`).toBe('403 {"error":"Forbidden"}');
+      expect.soft(awsCalls(r.calls), `${h} with no tenant_id: no AWS call`).toEqual([]);
+    }
+
+    // A legacy row (no tenant_id) belongs to nobody: 404 for every caller, and in no list.
+    for (const caller of ['hrA', 'hrB', 'agentA'] as const) {
+      const emp = ask('getEmployee', caller, { path: { id: EMP.legacy } }, off);
+      expect.soft(`${statusOf(emp)} ${JSON.stringify(bodyOf(emp))}`, `GET the legacy employee as ${caller}: 404 Not found`).toBe('404 {"error":"Not found"}');
+    }
+    for (const route of BY_ID.filter((r) => ['getDocumentPresignedUrl', 'getEmployeeDocumentVerifications', 'getInvite', 'generateDocumentUploadUrl', 'classifyOnboardingRisk'].includes(r.handler))) {
+      const a = route.ask('a') as Ask;
+      const legacyAsk: Ask = JSON.parse(JSON.stringify(a).replaceAll(EMP.a1, EMP.legacy).replaceAll(DOC.a1, DOC.legacy));
+      const r = ask(route.handler, 'hrA', legacyAsk, off);
+      expect.soft(`${statusOf(r)} ${JSON.stringify(bodyOf(r))}`, `${route.name} for the legacy record as HR of A: 404, as for an unknown id`).toBe(`404 ${JSON.stringify(notFoundOf(route.name))}`);
+      expect.soft(sideEffects(r.calls), `${route.name}: nothing happens after the read`).toEqual([]);
+    }
+    for (const [h, caller] of [['getEmployees', 'hrA'], ['getEmployees', 'agentA'], ['getDocumentVerifications', 'hrA']] as const) {
+      const r = ask(h, caller, {}, off);
+      expect.soft(statusOf(r), `${h} as ${caller}: 200`).toBe(200);
+      expect.soft(idsIn(bodyOf(r)), `${h} as ${caller}: the legacy row is in no list`).not.toContain(EMP.legacy);
+      expect.soft(idsIn(bodyOf(r)), `${h} as ${caller}: A's own rows still are`).toContain(EMP.a1);
+      expect.soft(scans(r), `${h} as ${caller}: no Scan once the rule is off`).toEqual([]);
+    }
+
+    // The pre-token trigger gives no claim to a sign-in without a Member row.
+    const pre = runHandler(join(LAMBDA, 'tenantPreToken', 'index.mjs'), preTokenEvent({ sub: SUB.legacy, email: MAIL.legacy, groups: ['employee'] }), { tables: tables(), env: settings(off) });
+    expect(pre.error, `the pre-token trigger never throws (sign-in goes on): ${describe(pre)}`).toBeUndefined();
+    expect((pre.response as any)?.userName, 'the pre-token trigger returns the event').toBe(SUB.legacy);
+    for (const s of ['idTokenGeneration', 'accessTokenGeneration']) {
+      expect.soft((pre.response as any)?.response?.claimsAndScopeOverrideDetails?.[s]?.claimsToAddOrOverride ?? {}, `no Member row, rule off: no tenant_id in the ${s}`).toEqual({});
+    }
+  });
+});

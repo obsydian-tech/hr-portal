@@ -72,7 +72,8 @@ function preTokenEnv(): Record<string, string> {
     } else if (/^"[^"$]*"$/.test(v)) env[k] = v.slice(1, -1);
   }
   expect(table, `tenantPreToken has a setting that names the tenants table (${ref}.name)`).not.toBe('');
-  expect(settings.get('LEGACY_TENANT_ID'), 'tenantPreToken: LEGACY_TENANT_ID = var.founding_tenant_id').toBe('var.founding_tenant_id');
+  // TEN-02 step 2 (re-lock ten-01.2): one variable, var.legacy_tenant_id, now feeds every LEGACY_TENANT_ID.
+  expect(settings.get('LEGACY_TENANT_ID'), 'tenantPreToken: LEGACY_TENANT_ID = var.legacy_tenant_id').toBe('var.legacy_tenant_id');
   return env;
 }
 
@@ -701,7 +702,8 @@ test.describe('TEN-01 Every request knows its company', () => {
     // Its settings.
     const settings = settingsOf(fn);
     const tRef = tenantsRef();
-    expect(settings.get('LEGACY_TENANT_ID'), 'LEGACY_TENANT_ID = var.founding_tenant_id').toBe('var.founding_tenant_id');
+    // TEN-02 step 2 (re-lock ten-01.2): one variable, var.legacy_tenant_id, now feeds every LEGACY_TENANT_ID.
+    expect(settings.get('LEGACY_TENANT_ID'), 'LEGACY_TENANT_ID = var.legacy_tenant_id').toBe('var.legacy_tenant_id');
     expect([...settings.values()].filter((v) => v === `${tRef}.name` || v === `${tRef}.id`).length, 'a setting names the tenants table').toBe(1);
     expect(stripComments(fn.body), 'no AI setting').not.toMatch(/bedrock|anthropic|openai|MODEL/i);
 
