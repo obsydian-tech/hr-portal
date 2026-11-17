@@ -44,3 +44,7 @@ The file rule of `site-03.spec.ts` and `site-04.spec.ts` AC-12 runs on every sit
 - AC-5 also requires `site.css` to be loaded at the first frame that shows a site part (a link added by script after that frame fails it), and covers `/dev/site-landing-page` when that route exists.
 - AC-3 fails if a page lost its session and landed elsewhere, so it never tests the sign-in page by mistake.
 - The base fallback never accepts the merge commit itself as its own base.
+
+## SITE-07.2 (AC-6 allow-list)
+
+The card's own test commit re-locks `site-03.spec.ts` and `site-04.spec.ts` (the AC-12 widening above), so the pull request's diff holds both files. AC-6's allow-list names them, whole file names only, next to `site-01.spec.ts`.
