@@ -49,3 +49,7 @@ All tests run at 1280 and 390 wide, except AC-12 and AC-13, which read files, pa
 ## ONB-09 line re-locked here
 
 - ONB-09 AC-5 ("Training and Onboarded appear nowhere in the new app") now leaves the word "Onboarded" out of the files under `src/app/ds/site/` only. The approved kit copy in the landing Integrations section reads "Onboarded, leave approved, certificate expiring.". "Training", every other word in the scan, and every other file stay strict.
+
+## Closing band note (child lock 04.6)
+
+Design system PR #47 removed the closing band note ("Get started creates a company account. The Naleko team calls every new company.") from the landing kit and every Learn more kit (Iggie agreed 17 Nov: the note is untrue until a form exists). The landing kit and its preview scripts are therefore compared at design system ref `8dc3091b48774490fa3d0e0bb0fcd7825aac3d9a` (`LANDING_KIT_REF` in `support/site-04/landing2.ts`), not at the ref in `sync.json`. The built landing page (`/`) must not show the note: the closing band holds only what the kit at that ref holds. The Closing band examples in the `/dev/site` gallery keep the note: the design system's own `project/components/site/site-band.examples.html` still carries it (at that ref and at design system main), and SITE-02 AC-2 compares those examples to it, so the note comes off the landing route only (the band component takes the note as an optional input). All other SITE-04 comparisons are unchanged.
