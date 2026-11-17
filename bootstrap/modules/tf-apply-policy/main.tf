@@ -27,6 +27,12 @@ variable "state_bucket" {
   type        = string
 }
 
+variable "cloudfront_hosting" {
+  description = "pepla-dev only (OPS-01): adds the CloudFront rights the web app's hosting needs (distribution, origin access control, response headers policy, rewrite function) and exempts cloudfront:* from the Cape Town rule, because CloudFront's API lives in us-east-1. Prod leaves this false, so its rendered policy stays exactly as policy.json.tftpl gives it."
+  type        = bool
+  default     = false
+}
+
 variable "region" {
   description = "The only region the role may work in."
   type        = string
@@ -34,11 +40,55 @@ variable "region" {
 }
 
 locals {
-  document = jsondecode(templatefile("${path.module}/policy.json.tftpl", {
+  base_document = jsondecode(templatefile("${path.module}/policy.json.tftpl", {
     account_id   = var.account_id
     state_bucket = var.state_bucket
     region       = var.region
   }))
+
+  # OPS-01, dev only. The template stays the one policy for dev and prod; these
+  # two additions are applied on top of it when cloudfront_hosting is true.
+  web_hosting_statement = {
+    Sid    = "ManageWebHosting"
+    Effect = "Allow"
+    Action = [
+      "cloudfront:CreateDistribution", "cloudfront:UpdateDistribution", "cloudfront:DeleteDistribution",
+      "cloudfront:GetDistribution", "cloudfront:GetDistributionConfig", "cloudfront:ListDistributions",
+      "cloudfront:CreateOriginAccessControl", "cloudfront:UpdateOriginAccessControl", "cloudfront:DeleteOriginAccessControl",
+      "cloudfront:GetOriginAccessControl", "cloudfront:GetOriginAccessControlConfig", "cloudfront:ListOriginAccessControls",
+      "cloudfront:CreateResponseHeadersPolicy", "cloudfront:UpdateResponseHeadersPolicy", "cloudfront:DeleteResponseHeadersPolicy",
+      "cloudfront:GetResponseHeadersPolicy", "cloudfront:GetResponseHeadersPolicyConfig", "cloudfront:ListResponseHeadersPolicies",
+      "cloudfront:CreateFunction", "cloudfront:UpdateFunction", "cloudfront:PublishFunction", "cloudfront:DeleteFunction",
+      "cloudfront:DescribeFunction", "cloudfront:GetFunction", "cloudfront:ListFunctions",
+      "cloudfront:GetCachePolicy", "cloudfront:ListCachePolicies",
+      "cloudfront:TagResource", "cloudfront:UntagResource", "cloudfront:ListTagsForResource",
+    ]
+    Resource = "*"
+  }
+
+  # The web hosting rights must not become a way to publish the data buckets: a CloudFront origin plus a
+  # bucket policy for cloudfront.amazonaws.com would make their files readable. Terraform manages no policy
+  # on these buckets, so nothing is lost. Dev only, like the rights above.
+  web_hosting_data_bucket_deny = {
+    Sid    = "DenyWebHostingReachingDataBuckets"
+    Effect = "Deny"
+    Action = ["s3:PutBucketPolicy", "s3:DeleteBucketPolicy"]
+    Resource = [
+      "arn:aws:s3:::pepla-*-document-uploads-${var.account_id}",
+      "arn:aws:s3:::document-ocr-verification-uploads",
+      "arn:aws:s3:::naleko-audit-archive-${var.account_id}",
+      "arn:aws:s3:::talent-flow-audit-archive-${var.account_id}",
+    ]
+  }
+
+  # Strings, so both branches of the condition have one type.
+  document = jsondecode(var.cloudfront_hosting ? jsonencode({
+    Version = local.base_document.Version
+    Statement = concat(
+      [for s in local.base_document.Statement : s.Sid == "DenyOutsideCapeTown" ? merge(s, { NotAction = concat(s.NotAction, ["cloudfront:*"]) }) : s],
+      [local.web_hosting_statement, local.web_hosting_data_bucket_deny],
+    )
+  }) : jsonencode(local.base_document))
 
   parts = {
     "1-state-and-read" = [
@@ -48,7 +98,7 @@ locals {
     "2-manage" = ["ManageStackResources", "ManageCallsWithoutResourceArns"]
     "3-workload-iam" = [
       "WorkloadRoles", "WorkloadRoleManagedPolicies", "PassWorkloadRolesToTheirServices", "AiBrakePolicyVersions",
-      "DenyOutsideCapeTown", "DenyPaidAi",
+      "DenyOutsideCapeTown", "DenyPaidAi", "ManageWebHosting", "DenyWebHostingReachingDataBuckets",
     ]
     "4-denies" = [
       "DenyRunningOrReadingData", "DenyObjectsOutsideState", "DenyOtherSecretsAndParameters", "DenyDeletingProtectedData",

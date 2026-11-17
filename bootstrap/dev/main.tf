@@ -265,6 +265,9 @@ module "tf_apply_policy" {
   name         = "pepla-github-tf-apply-dev"
   account_id   = var.dev_account_id
   state_bucket = aws_s3_bucket.tfstate.bucket
+
+  # OPS-01: dev only. Prod's apply role does not get CloudFront rights in this card.
+  cloudfront_hosting = true
 }
 
 resource "aws_iam_role_policy_attachment" "tf_apply_dev" {
