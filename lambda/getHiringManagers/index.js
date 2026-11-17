@@ -23,6 +23,8 @@ const {
   ListUsersInGroupCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 
+const { tenantHelper } = require('../shared/tf-tenant.js');
+
 const cognito    = new CognitoIdentityProviderClient({});
 // After pool consolidation, use the Naleko (HR Portal) Cognito pool.
 // The TF API GW authorizer validates against this pool, so subs must match.
@@ -52,7 +54,13 @@ function respond(statusCode, body) {
   };
 }
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  // TEN-03: the company check. The pool holds no company, so the list is not narrowed by it until TEN-05
+  // (narrowing needs a read grant on the tenants table: an IAM change for Iggie).
+  const T = await tenantHelper();
+  const { refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const users = [];
   let nextToken;
 

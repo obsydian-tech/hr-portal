@@ -41,8 +41,11 @@ beforeAll(async () => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const TEN = 'ten_0123456789abcdefghijklmnop';
+
 const PENDING_ACTION = {
   actionId: 'action-001',
+  tenant_id: TEN,
   toolName: 'schedule_interview',
   toolArgs: { candidateId: 'c-42', interviewerIds: ['i-1'] },
   staffId: 'staff-requester',
@@ -54,6 +57,7 @@ const PENDING_ACTION = {
 // `authorizer` replaces the whole authorizer context, for the callers that must be refused.
 function makeEvent({ method, path, body = {}, staffId = null, groups = null, tokenUse = 'id', authorizer = undefined } = {}) {
   const claims = {
+    tenant_id: TEN,
     ...(groups || staffId ? { 'cognito:groups': groups ?? '[hr_staff]' } : {}),
     ...(staffId ? { 'custom:staff_id': staffId } : {}),
     ...(tokenUse === null ? {} : { token_use: tokenUse }),
@@ -61,7 +65,7 @@ function makeEvent({ method, path, body = {}, staffId = null, groups = null, tok
   return {
     requestContext: {
       http: { method },
-      ...(authorizer !== undefined ? (authorizer ? { authorizer } : {}) : (groups || staffId ? { authorizer: { jwt: { claims } } } : {})),
+      ...(authorizer !== undefined ? (authorizer ? { authorizer } : {}) : (groups || staffId ? { authorizer: { jwt: { claims } } } : { authorizer: { lambda: { actor: 'AGENT', tenant_id: TEN } } })),
     },
     rawPath: path,
     body: Object.keys(body).length ? JSON.stringify(body) : null,
@@ -90,8 +94,9 @@ describe('talentFlowApproveAction', () => {
     expect(JSON.parse(res.body)).toEqual({ actions: [PENDING_ACTION], count: 1 });
     const cmd = mockDbSend.mock.calls[0][0];
     expect(cmd._type).toBe('Scan');
-    expect(cmd.FilterExpression).toBe('#s = :pending');
-    expect(cmd.ExpressionAttributeValues).toEqual({ ':pending': 'PENDING_APPROVAL' });
+    // The company filter is added to the status filter: only this company's pending actions are listed.
+    expect(cmd.FilterExpression).toBe('(#s = :pending) AND (#tenant_id = :tenant_id)');
+    expect(cmd.ExpressionAttributeValues).toEqual({ ':pending': 'PENDING_APPROVAL', ':tenant_id': TEN });
   });
 
   test('GET /actions/pending refuses anyone outside HR and reads nothing (BE-17)', async () => {
@@ -118,6 +123,21 @@ describe('talentFlowApproveAction', () => {
     const body = JSON.parse(res.body);
     expect(body.actionId).toBe('action-001');
     expect(body.status).toBe('PENDING_APPROVAL');
+  });
+
+  test('GET /actions/{id} answers 404 for another company\'s action, the same as for one that does not exist', async () => {
+    mockDbSend.mockResolvedValueOnce({ Item: { ...PENDING_ACTION, tenant_id: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' } });
+
+    const res = await handler(makeEvent({ method: 'GET', path: '/agent/actions/action-001' }));
+
+    expect(res.statusCode).toBe(404);
+    expect(JSON.stringify(JSON.parse(res.body))).not.toContain('schedule_interview');
+  });
+
+  test('a caller without a company is refused and nothing is read', async () => {
+    const res = await handler({ requestContext: { http: { method: 'GET' }, authorizer: { jwt: { claims: { 'cognito:groups': '[hr_staff]', 'custom:staff_id': 's1', token_use: 'id' } } } }, rawPath: '/agent/actions/pending', body: null });
+    expect(res.statusCode).toBe(403);
+    expect(mockDbSend).not.toHaveBeenCalled();
   });
 
   test('GET /actions/{id} returns 404 when action not found', async () => {

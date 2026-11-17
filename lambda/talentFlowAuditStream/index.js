@@ -16,7 +16,7 @@
  *   eventId     (S)  — EventBridge event .id
  *   eventType   (S)  — EventBridge detail-type  (e.g. CandidateCreated)
  *   source      (S)  — EventBridge .source       (e.g. talent-flow.candidates)
- *   tenantId    (S)  — extracted from detail.tenantId
+ *   tenant_id   (S)  — extracted from detail.tenant_id (TEN-03: an event without one is not written)
  *   candidateId (S)  — extracted from detail.candidateId
  *   detail      (S)  — raw JSON string of event detail
  *   timestamp   (S)  — ISO-8601 timestamp from EventBridge .time
@@ -37,6 +37,8 @@ const dynamo = new DynamoDBClient({});
 const EVENTS_TABLE = process.env.EVENTS_TABLE_NAME || 'talent-flow-events';
 
 // TTL: 2 years from event time (104 weeks × 7 days × 86400 sec)
+const { tenantHelper, eventTenant } = require('../shared/tf-tenant.js');
+
 const TWO_YEARS_SECONDS = 104 * 7 * 86400;
 
 /**
@@ -61,8 +63,14 @@ exports.handler = async (event) => {
 
     // Extract candidateId from event detail — all TalentFlow events include it
     const candidateId = detail.candidateId ?? detail.candidate_id ?? null;
-    const tenantId    = detail.tenantId    ?? detail.tenant_id    ?? 'UNKNOWN';
+    const tenantId    = await eventTenant(detail);
     const actor       = detail.actor       ?? 'SYSTEM';
+
+    if (!tenantId) {
+      // TEN-03: no company, no row.
+      console.warn(JSON.stringify({ event: 'audit_stream_skip', reason: 'no_company', eventType, source, eventId }));
+      continue;
+    }
 
     if (!candidateId) {
       // Some system events (e.g. bus health checks) may not have a candidateId.
@@ -83,7 +91,7 @@ exports.handler = async (event) => {
 
     // GSI1: tenant-scoped timeline — GSI1PK = TENANT#<tenantId>, GSI1SK = ISO timestamp
     // Matches talent-flow-state pattern (same table family convention)
-    const GSI1PK = `TENANT#${tenantId}`;
+    const GSI1PK = (await tenantHelper()).tenantKey(tenantId);
     const GSI1SK = timestamp;
 
     try {
@@ -97,7 +105,7 @@ exports.handler = async (event) => {
           eventId,
           eventType,
           source,
-          tenantId,
+          tenant_id: tenantId,
           candidateId,
           detail: typeof detail === 'string' ? detail : JSON.stringify(detail),
           timestamp,

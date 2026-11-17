@@ -21,7 +21,6 @@
  * Env vars:
  *   COGNITO_POOL_ID  — Naleko user pool id of this account (set by Terraform)
  *   STATE_TABLE_NAME — talent-flow-state
- *   TENANT_ID        — NALEKO
  */
 
 const {
@@ -30,6 +29,7 @@ const {
 } = require('@aws-sdk/client-cognito-identity-provider');
 const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall }         = require('@aws-sdk/util-dynamodb');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const cognito = new CognitoIdentityProviderClient({});
 const dynamo  = new DynamoDBClient({});
@@ -47,7 +47,6 @@ function requireSetting(name) {
 
 const POOL_ID     = requireSetting('COGNITO_POOL_ID');
 const STATE_TABLE = process.env.STATE_TABLE_NAME   || 'talent-flow-state';
-const TENANT_ID   = process.env.TENANT_ID          || 'NALEKO';
 
 // Groups whose members have TalentFlow platform access
 const PLATFORM_GROUPS = ['naleko-talentflow-admin', 'naleko-talentflow-hr'];
@@ -80,7 +79,7 @@ async function listGroupUsers(groupName) {
   return users;
 }
 
-function mapCognitoUser(cognitoUser) {
+function mapCognitoUser(cognitoUser, tenantId) {
   const attrs = {};
   for (const a of (cognitoUser.Attributes || [])) {
     attrs[a.Name] = a.Value;
@@ -95,13 +94,13 @@ function mapCognitoUser(cognitoUser) {
     name,
     email,
     role:        'System User',
-    tenantId:    TENANT_ID,
+    tenantId,
     accessType:  'SYSTEM_ACCOUNT',
   };
 }
 
 /** Fetch all non-expired SCORING_LINK# records for a candidate from DynamoDB */
-async function getEmailLinkMembers(candidateId) {
+async function getEmailLinkMembers(T, tenantId, candidateId) {
   const nowSec = Math.floor(Date.now() / 1000);
   let items    = [];
 
@@ -121,13 +120,14 @@ async function getEmailLinkMembers(candidateId) {
   }
 
   return items
+    .filter((rec) => T.ownsRow(rec, tenantId))        // this company's links only
     .filter((rec) => !rec.ttl || rec.ttl > nowSec)   // exclude expired tokens (DDB TTL lag guard)
     .map((rec) => ({
       id:               rec.panelMemberId,
       name:             rec.panelMemberName,
       email:            rec.panelMemberEmail,
       role:             rec.panelMemberRole,
-      tenantId:         rec.tenantId || TENANT_ID,
+      tenantId,
       accessType:       'EMAIL_LINK',
       scoringLinkToken: rec.token,
       scoringLinkUsed:  rec.used === true,
@@ -136,6 +136,12 @@ async function getEmailLinkMembers(candidateId) {
 }
 
 exports.handler = async (event) => {
+  // TEN-03: the company comes from the sign-in only. The pool holds no company, so the system users are not
+  // narrowed by it until TEN-05 (narrowing needs a read grant on the tenants table: an IAM change for Iggie).
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   try {
     const candidateId = event.queryStringParameters?.candidateId || null;
 
@@ -156,14 +162,14 @@ exports.handler = async (event) => {
                       || user.Username;
         if (!seen.has(email)) {
           seen.add(email);
-          members.push(mapCognitoUser(user));
+          members.push(mapCognitoUser(user, tenantId));
         }
       }
     }
 
     // ── 2. Merge email-link members (only when candidateId provided) ────────
     if (candidateId) {
-      const emailLinkMembers = await getEmailLinkMembers(candidateId);
+      const emailLinkMembers = await getEmailLinkMembers(T, tenantId, candidateId);
       for (const em of emailLinkMembers) {
         // Avoid duplicates: a system user may also have been added as email-link
         if (!seen.has(em.email)) {

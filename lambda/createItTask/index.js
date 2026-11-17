@@ -50,6 +50,7 @@
 const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig } = require('../shared/config-reader');
+const { tenantHelper, eventTenant } = require('../shared/tf-tenant.js');
 const { randomUUID } = require('crypto');
 
 const client     = new DynamoDBClient({});
@@ -168,7 +169,6 @@ exports.handler = async (payload) => {
 
   const {
     candidateId,
-    tenantId,
     bundleId,
     approvedBy,
     startDate,
@@ -177,8 +177,16 @@ exports.handler = async (payload) => {
     requirements = [],
   } = detail;
 
-  if (!candidateId || !tenantId || requirements.length === 0) {
-    throw new Error(`createItTask: missing required fields. candidateId=${candidateId} tenantId=${tenantId} requirements=${requirements.length}`);
+  // TEN-03: the company is the event's tenant_id. No company, no AWS call.
+  const tenantId = await eventTenant(detail);
+  if (!tenantId) {
+    console.warn('[createItTask] skipped: event carries no company');
+    return { createdTaskIds: [], skipped: true };
+  }
+  const T = await tenantHelper();
+
+  if (!candidateId || requirements.length === 0) {
+    throw new Error(`createItTask: missing required fields. candidateId=${candidateId} requirements=${requirements.length}`);
   }
 
   // ── Load admin config ──────────────────────────────────────────────────────
@@ -219,7 +227,7 @@ exports.handler = async (payload) => {
     const title    = `${req.itemName} — ${newHire.role}`;
     const checklist = resolveChecklist(req, templates, newHire);
 
-    const task = {
+    const task = T.stampTenant({
       taskId,
       tenantId,
       candidateId,
@@ -260,7 +268,7 @@ exports.handler = async (payload) => {
       ],
       createdAt,
       updatedAt: createdAt,
-    };
+    }, tenantId);
 
     await client.send(new PutItemCommand({
       TableName:           TABLE,

@@ -15,8 +15,9 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, QueryCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
-const { unmarshall } = require('@aws-sdk/util-dynamodb');
+const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
 const dynamo = new DynamoDBClient({});
 const BUNDLES_TABLE = process.env.BUNDLES_TABLE;
@@ -56,6 +57,11 @@ exports.handler = async (event) => {
 
   if (!hmUserId) return respond(401, { message: 'Unauthorized.' });
 
+  // TEN-03: the company is the sign-in's. Bundles carry tenant_id; lists are filtered by it.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const qs            = event.queryStringParameters ?? {};
   const statusFilter  = qs.status ?? null;
   const nextTokenRaw  = qs.nextToken ?? null;
@@ -71,16 +77,17 @@ exports.handler = async (event) => {
   try {
     if (isAdmin) {
       // Admin: scan all bundles (small table expected — tenant-level data)
-      const filterParts  = [];
-      const filterValues = {};
-      if (statusFilter) {
-        filterParts.push('bundleStatus = :status');
-        filterValues[':status'] = { S: statusFilter };
-      }
+      const f = T.andFilter(
+        statusFilter
+          ? { FilterExpression: 'bundleStatus = :status', ExpressionAttributeNames: {}, ExpressionAttributeValues: { ':status': statusFilter } }
+          : { ExpressionAttributeNames: {}, ExpressionAttributeValues: {} },
+        T.tenantFilter(tenantId),
+      );
       const res = await dynamo.send(new ScanCommand({
         TableName:                 BUNDLES_TABLE,
-        FilterExpression:          filterParts.length ? filterParts.join(' AND ') : undefined,
-        ExpressionAttributeValues: filterParts.length ? filterValues : undefined,
+        FilterExpression:          f.FilterExpression,
+        ExpressionAttributeNames:  f.ExpressionAttributeNames,
+        ExpressionAttributeValues: marshall(f.ExpressionAttributeValues),
         ExclusiveStartKey,
         Limit: 50,
       }));
@@ -90,18 +97,20 @@ exports.handler = async (event) => {
       // HM: query GSI1 byHmId
       const keyCondition   = 'hmUserId = :hmId';
       const attrValues     = { ':hmId': { S: hmUserId } };
-      let filterExpression;
-
-      if (statusFilter) {
-        filterExpression = 'bundleStatus = :status';
-        attrValues[':status'] = { S: statusFilter };
-      }
+      const f = T.andFilter(
+        statusFilter
+          ? { FilterExpression: 'bundleStatus = :status', ExpressionAttributeNames: {}, ExpressionAttributeValues: { ':status': statusFilter } }
+          : { ExpressionAttributeNames: {}, ExpressionAttributeValues: {} },
+        T.tenantFilter(tenantId),
+      );
+      Object.assign(attrValues, marshall(f.ExpressionAttributeValues));
 
       const res = await dynamo.send(new QueryCommand({
         TableName:                 BUNDLES_TABLE,
         IndexName:                 GSI_BY_HM,
         KeyConditionExpression:    keyCondition,
-        FilterExpression:          filterExpression,
+        FilterExpression:          f.FilterExpression,
+        ExpressionAttributeNames:  f.ExpressionAttributeNames,
         ExpressionAttributeValues: attrValues,
         ExclusiveStartKey,
         ScanIndexForward:          false, // newest first
@@ -112,7 +121,7 @@ exports.handler = async (event) => {
     }
 
     // Normalize: add `id` alias for bundleId (Angular model expects `id`)
-    bundles = bundles.map(b => ({ ...b, id: b.id ?? b.bundleId }));
+    bundles = bundles.filter(b => T.ownsRow(b, tenantId)).map(b => ({ ...b, id: b.id ?? b.bundleId }));
 
     const response = { bundles };
     if (lastKey) {

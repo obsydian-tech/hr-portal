@@ -11,6 +11,7 @@
 
 const { DynamoDBClient, PutItemCommand, GetItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper, candidateIsOurs } = require('../shared/tf-tenant.js');
 
 const dynamoDB = new DynamoDBClient({});
 const DISMISSALS_TABLE = process.env.DISMISSALS_TABLE_NAME || 'talent-flow-intelligence-dismissals';
@@ -23,6 +24,11 @@ const TTL_DAYS = 90;
  * Lambda handler
  */
 exports.handler = async (event) => {
+  // TEN-03: the company comes from the sign-in only.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   console.info('[dismissTile] Invoked', {
     path: event.path,
     pathParameters: event.pathParameters,
@@ -49,9 +55,14 @@ exports.handler = async (event) => {
     }
     const { entityId, ruleId } = parsed;
 
+    // A tile is judged through the candidate it names: another company's candidate is not found.
+    if (entityId !== 'aggregate' && !(await candidateIsOurs((c) => dynamoDB.send(c), QueryCommand, STATE_TABLE, entityId, tenantId))) {
+      return T.notFound();
+    }
+
     // Check governance: CRITICAL compliance/SLA tiles are acknowledge-only
     // Fetch the tile's priority and category from current snapshot
-    const tileMetadata = await getTileMetadata(entityId, ruleId);
+    const tileMetadata = await getTileMetadata(T, tenantId, entityId, ruleId);
     if (tileMetadata && tileMetadata.priority === 'CRITICAL' && isComplianceRule(ruleId)) {
       return errorResponse(403, 'This tile requires acknowledgment, not dismissal. Use the acknowledge action instead.');
     }
@@ -70,7 +81,7 @@ exports.handler = async (event) => {
 
     await dynamoDB.send(new PutItemCommand({
       TableName: DISMISSALS_TABLE,
-      Item: marshall({
+      Item: marshall(T.stampTenant({
         PK: `USER#${userId}`,
         SK: `TILEDISMISS#${tileKey}`,
         action: 'DISMISS',
@@ -80,7 +91,7 @@ exports.handler = async (event) => {
         ruleId,
         at: now,
         ttl,
-      }),
+      }, tenantId)),
     }));
 
     console.info('[dismissTile] Dismiss recorded', { userId, tileKey });
@@ -129,18 +140,16 @@ function isComplianceRule(ruleId) {
  * Get tile metadata (priority, category) from current snapshot
  * This is a simplified check; in production, we'd query the full tile projection
  */
-async function getTileMetadata(entityId, ruleId) {
+async function getTileMetadata(T, tenantId, entityId, ruleId) {
   try {
     // Query snapshot for this entity
     // PK = TENANT#{tenantId}#SNAP, SK = CAND#{entityId}
-    // For simplicity, we'll use DEFAULT tenant; in production, extract from JWT
-    const tenantId = 'DEFAULT';
-
+    // TEN-03: the company is the sign-in's.
     const result = await dynamoDB.send(new QueryCommand({
       TableName: STATE_TABLE,
       KeyConditionExpression: 'PK = :pk AND SK = :sk',
       ExpressionAttributeValues: marshall({
-        ':pk': `TENANT#${tenantId}#SNAP`,
+        ':pk': T.tenantKey(tenantId, 'SNAP'),
         ':sk': `CAND#${entityId}`,
       }),
       Limit: 1,

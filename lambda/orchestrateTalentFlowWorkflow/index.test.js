@@ -11,7 +11,7 @@
  *   5. Stages seeded from STAGE_CONFIG (not hardcoded)
  *   6. WorkflowStarted source = 'talent-flow.workflow'
  *   7. WorkflowStarted DetailType = 'WorkflowStarted'
- *   8. WorkflowStarted detail includes candidateId, tenantId, configVersion, stages
+ *   8. WorkflowStarted detail includes candidateId, tenant_id, configVersion, stages
  *   9. EventBridge failure is non-fatal (UpdateItem succeeded, handler still returns cleanly)
  *  10. DynamoDB UpdateItem error (not ConditionalCheck) is re-thrown
  *  11. Missing candidateId in event.detail throws
@@ -61,12 +61,15 @@ beforeEach(() => {
   mockEbSend.mockResolvedValue({});      // PutEvents success
 });
 
+const TEN = 'ten_0123456789abcdefghijklmnop';
+const TEN2 = 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz';
+
 // Helper to build a valid CandidateCreated event
 function makeEvent(overrides = {}) {
   return {
     detail: {
       candidateId: 'CAND-01J000000000000000000000',
-      tenantId: 'DEFAULT',
+      tenant_id: TEN,
       positionLevel: 'SENIOR',
       ...overrides
     }
@@ -97,7 +100,7 @@ test('UpdateItem uses ConditionExpression attribute_not_exists(configVersion)', 
   await handler(makeEvent());
 
   const updateCall = mockDynamoSend.mock.calls[0][0];
-  expect(updateCall.ConditionExpression).toBe('attribute_not_exists(configVersion)');
+  expect(updateCall.ConditionExpression).toBe('(attribute_not_exists(configVersion)) AND #tf_tenant = :tf_tenant');
 });
 
 // ── Test 4: idempotency ───────────────────────────────────────────────────────
@@ -139,16 +142,16 @@ test('WorkflowStarted event uses DetailType = "WorkflowStarted"', async () => {
 });
 
 // ── Test 8: WorkflowStarted detail payload ────────────────────────────────────
-test('WorkflowStarted detail includes candidateId, tenantId, configVersion, stages', async () => {
+test('WorkflowStarted detail includes candidateId, tenant_id, configVersion, stages', async () => {
   getConfigItem.mockResolvedValue({ version: 3, data: {} });
   getConfig.mockResolvedValue({ enabled: ['APPLICATION_REVIEW', 'PHONE_SCREENING'] });
 
-  await handler(makeEvent({ candidateId: 'CAND-ABC', tenantId: 'T1', positionLevel: 'MID' }));
+  await handler(makeEvent({ candidateId: 'CAND-ABC', tenant_id: TEN2, positionLevel: 'MID' }));
 
   const ebCall = mockEbSend.mock.calls[0][0];
   const detail = JSON.parse(ebCall.Entries[0].Detail);
   expect(detail.candidateId).toBe('CAND-ABC');
-  expect(detail.tenantId).toBe('T1');
+  expect(detail.tenant_id).toBe(TEN2);
   expect(detail.configVersion).toBe('v3');
   expect(detail.stages).toEqual(['APPLICATION_REVIEW', 'PHONE_SCREENING']);
 });
@@ -173,12 +176,15 @@ test('non-ConditionalCheck DynamoDB error is re-thrown (triggers EB retry)', asy
 
 // ── Test 11: missing candidateId ─────────────────────────────────────────────
 test('throws if candidateId is missing from event.detail', async () => {
-  await expect(handler({ detail: { tenantId: 'DEFAULT', positionLevel: 'MID' } }))
+  await expect(handler({ detail: { tenant_id: TEN, positionLevel: 'MID' } }))
     .rejects.toThrow('Missing required fields');
 });
 
 // ── Test 12: missing tenantId ─────────────────────────────────────────────────
-test('throws if tenantId is missing from event.detail', async () => {
-  await expect(handler({ detail: { candidateId: 'CAND-001', positionLevel: 'MID' } }))
-    .rejects.toThrow('Missing required fields');
+test('an event without a company is skipped: no config read, no write, no event', async () => {
+  await expect(handler({ detail: { candidateId: 'CAND-001', positionLevel: 'MID' } })).resolves.toBeUndefined();
+  expect(getConfig).not.toHaveBeenCalled();
+  expect(getConfigItem).not.toHaveBeenCalled();
+  expect(mockDynamoSend).not.toHaveBeenCalled();
+  expect(mockEbSend).not.toHaveBeenCalled();
 });

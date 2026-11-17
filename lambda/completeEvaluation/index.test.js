@@ -34,8 +34,9 @@ process.env.EVENTBRIDGE_BUS_NAME = 'talent-flow-bus';
 process.env.ENVIRONMENT          = 'test';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
+const TEN = 'ten_0123456789abcdefghijklmnop';
 const SAGA = {
-  PK: 'CANDIDATE#cand1', SK: 'SAGA',
+  PK: 'CANDIDATE#cand1', SK: 'SAGA', tenant_id: TEN,
   configVersion: 'v1', status: 'TECHNICAL_INTERVIEW',
 };
 
@@ -43,13 +44,13 @@ const APPROVAL_RULES_V1 = { minimumPassScore: 6.0 };
 const APPROVAL_RULES_V2 = { minimumPassScore: 8.0 };
 
 const passingEvent = {
-  detail: { candidateId: 'cand1', tenantId: 'tenant1', averageScore: 7.5, result: 'COMPLETED' },
+  detail: { candidateId: 'cand1', tenant_id: TEN, averageScore: 7.5, result: 'COMPLETED' },
 };
 const failingEvent = {
-  detail: { candidateId: 'cand1', tenantId: 'tenant1', averageScore: 4.0, result: 'COMPLETED' },
+  detail: { candidateId: 'cand1', tenant_id: TEN, averageScore: 4.0, result: 'COMPLETED' },
 };
 const vetoEvent = {
-  detail: { candidateId: 'cand1', tenantId: 'tenant1', result: 'STRONG_NO_VETO' },
+  detail: { candidateId: 'cand1', tenant_id: TEN, result: 'STRONG_NO_VETO' },
 };
 
 beforeEach(() => jest.clearAllMocks());
@@ -77,7 +78,7 @@ describe('handler – PASSED outcome', () => {
     const updateCall = mockDynamoSend.mock.calls[1][0];
     expect(updateCall.UpdateExpression).not.toMatch(/currentStage|#st/);
     expect(updateCall.ExpressionAttributeValues).toEqual({
-      ':res': 'PASSED', ':fs': 7.5, ':at': expect.any(String), ':cv': 'v1',
+      ':res': 'PASSED', ':fs': 7.5, ':at': expect.any(String), ':cv': 'v1', ':tf_tenant': { S: TEN },
     });
 
     expect(mockEbSend).not.toHaveBeenCalled();
@@ -102,7 +103,7 @@ describe('handler – FAILED outcome', () => {
 
     const updateCall = mockDynamoSend.mock.calls[1][0];
     expect(updateCall.ExpressionAttributeValues[':rejected']).toBe('REJECTED');
-    expect(updateCall.ExpressionAttributeNames).toEqual({ '#st': 'status' });
+    expect(updateCall.ExpressionAttributeNames).toEqual({ '#st': 'status', '#tf_tenant': 'tenant_id' });
     expect(updateCall.UpdateExpression).not.toMatch(/currentStage/);
     expect(mockEbSend).not.toHaveBeenCalled();
   });
@@ -146,7 +147,7 @@ describe('handler – config version isolation', () => {
 
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).outcome).toBe('FAILED');
-    expect(getConfig).toHaveBeenCalledWith('tenant1', 'APPROVAL_RULES', 'v2');
+    expect(getConfig).toHaveBeenCalledWith(TEN, 'APPROVAL_RULES', 'v2');
   });
 
   it('uses v1 minimumPassScore=6.0 for a candidate on v1 even if v2 is active', async () => {
@@ -159,7 +160,7 @@ describe('handler – config version isolation', () => {
 
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).outcome).toBe('PASSED');
-    expect(getConfig).toHaveBeenCalledWith('tenant1', 'APPROVAL_RULES', 'v1');
+    expect(getConfig).toHaveBeenCalledWith(TEN, 'APPROVAL_RULES', 'v1');
   });
 });
 
@@ -184,7 +185,7 @@ describe('handler – POPIA audit', () => {
 // 6.  Response body carries the configVersion used
 // =============================================================================
 describe('handler – response body', () => {
-  it('returns candidateId, tenantId and the configVersion used', async () => {
+  it('returns candidateId and the configVersion used', async () => {
     mockDynamoSend
       .mockResolvedValueOnce({ Item: SAGA })
       .mockResolvedValueOnce({});
@@ -193,7 +194,7 @@ describe('handler – response body', () => {
     const res = await handler(passingEvent);
 
     expect(JSON.parse(res.body)).toEqual({
-      candidateId: 'cand1', tenantId: 'tenant1', outcome: 'PASSED', finalScore: 7.5, configVersion: 'v1',
+      candidateId: 'cand1', outcome: 'PASSED', finalScore: 7.5, configVersion: 'v1',
     });
   });
 });
@@ -230,19 +231,21 @@ describe('handler – default pass score', () => {
 // =============================================================================
 describe('handler – validation', () => {
   it('returns 400 when candidateId missing', async () => {
-    const res = await handler({ detail: { tenantId: 't1', result: 'COMPLETED', averageScore: 7 } });
+    const res = await handler({ detail: { tenant_id: TEN, result: 'COMPLETED', averageScore: 7 } });
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body).error).toMatch(/candidateId/);
   });
 
-  it('returns 400 when tenantId missing', async () => {
+  it('skips an event without a company: nothing read, written or sent', async () => {
     const res = await handler({ detail: { candidateId: 'c1', result: 'COMPLETED', averageScore: 7 } });
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toMatch(/tenantId/);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ skipped: true });
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 
   it('returns 400 when result missing', async () => {
-    const res = await handler({ detail: { candidateId: 'c1', tenantId: 't1', averageScore: 7 } });
+    const res = await handler({ detail: { candidateId: 'c1', tenant_id: TEN, averageScore: 7 } });
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body).error).toMatch(/result/);
   });
@@ -251,22 +254,31 @@ describe('handler – validation', () => {
     mockDynamoSend.mockResolvedValueOnce({ Item: SAGA });
     // getConfig is NOT called — handler returns 400 before reaching it
 
-    const res = await handler({ detail: { candidateId: 'cand1', tenantId: 'tenant1', result: 'COMPLETED' } });
+    const res = await handler({ detail: { candidateId: 'cand1', tenant_id: TEN, result: 'COMPLETED' } });
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body).error).toMatch(/averageScore/);
   });
 });
 
 // =============================================================================
-// 9.  SAGA not found → 400
+// 9.  SAGA not found (or another company's) → 404
 // =============================================================================
 describe('handler – SAGA not found', () => {
-  it('returns 400 when SAGA Item is missing', async () => {
+  it('returns 404 when SAGA Item is missing', async () => {
     mockDynamoSend.mockResolvedValueOnce({ Item: undefined });
 
     const res = await handler(passingEvent);
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toMatch(/SAGA record not found/);
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Not found' });
+  });
+
+  it('returns the same 404 for another company\'s candidate', async () => {
+    mockDynamoSend.mockResolvedValueOnce({ Item: { ...SAGA, tenant_id: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' } });
+
+    const res = await handler(passingEvent);
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Not found' });
+    expect(mockDynamoSend).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -368,7 +380,7 @@ describe('handler – boundary score', () => {
     getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1); // minimumPassScore=6.0
 
     const boundaryEvent = {
-      detail: { candidateId: 'cand1', tenantId: 'tenant1', averageScore: 6.0, result: 'COMPLETED' },
+      detail: { candidateId: 'cand1', tenant_id: TEN, averageScore: 6.0, result: 'COMPLETED' },
     };
     const res = await handler(boundaryEvent);
     expect(JSON.parse(res.body).outcome).toBe('PASSED');

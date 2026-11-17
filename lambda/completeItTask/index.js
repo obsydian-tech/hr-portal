@@ -16,6 +16,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 const {
   DynamoDBClient,
   GetItemCommand,
@@ -62,6 +63,11 @@ exports.handler = async (event) => {
     return respond(403, { message: 'Forbidden: IT group required.' });
   }
 
+  // TEN-03: after the group check, the company check. The company is the sign-in's; tenantId in the query or body is not read.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const taskId       = event.pathParameters?.taskId;
   const specialistId = claims['sub'] ?? '';
   const givenName    = claims['given_name'] ?? '';
@@ -87,8 +93,8 @@ exports.handler = async (event) => {
       Key:       marshall({ taskId }),
     }));
 
-    if (!getRes.Item) {
-      return respond(404, { message: `Task ${taskId} not found.` });
+    if (!getRes.Item || !T.ownsRow(unmarshall(getRes.Item), tenantId)) {
+      return T.notFound();
     }
 
     const task = unmarshall(getRes.Item);
@@ -121,7 +127,7 @@ exports.handler = async (event) => {
       completedAt:   now,
     };
 
-    await client.send(new UpdateItemCommand({
+    await client.send(new UpdateItemCommand(scopeWrite({
       TableName: TABLE,
       Key:       marshall({ taskId }),
       UpdateExpression: [
@@ -141,11 +147,12 @@ exports.handler = async (event) => {
         ':emptyList':  [],
         ':entry':      [activityEvent],
       }),
-    }));
+    }, tenantId)));
 
     return respond(200, { message: 'Task completed.', taskId, fulfilment });
 
   } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') return T.notFound();
     console.error('completeItTask error', err);
     return respond(500, { message: 'Internal server error.' });
   }

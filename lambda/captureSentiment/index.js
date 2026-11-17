@@ -21,8 +21,9 @@
  * Signal Intelligence notification via sendTalentFlowNotification.
  */
 
-const { DynamoDBClient, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
-const { marshall } = require('@aws-sdk/util-dynamodb');
+const { DynamoDBClient, UpdateItemCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb');
+const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
 
 const dynamo = new DynamoDBClient({});
@@ -39,6 +40,11 @@ function notFound(msg)   { return { statusCode: 404, headers: { 'Content-Type': 
 function serverError(msg){ return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: msg }) }; }
 
 exports.handler = async (event) => {
+  // TEN-03: the company comes from the sign-in only. tenantId in the body is not read.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return badRequest('Missing candidateId');
 
@@ -51,19 +57,30 @@ exports.handler = async (event) => {
     return badRequest('Invalid JSON body');
   }
 
-  const { interviewSentiment, tenantId } = body;
+  const { interviewSentiment } = body;
 
   if (!interviewSentiment) return badRequest('Missing interviewSentiment');
   if (!VALID_SENTIMENTS.includes(interviewSentiment)) {
     return badRequest(`Invalid interviewSentiment. Must be one of: ${VALID_SENTIMENTS.join(', ')}`);
   }
-  if (!tenantId) return badRequest('Missing tenantId');
 
   const capturedAt = new Date().toISOString();
 
+  // The candidate is this company's, or it is not found (read first: nothing is written for another company).
+  try {
+    const found = await dynamo.send(new GetItemCommand({
+      TableName: STATE_TABLE,
+      Key:       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
+    }));
+    if (!found.Item || !T.ownsRow(unmarshall(found.Item), tenantId)) return T.notFound();
+  } catch (err) {
+    console.error('DynamoDB read failed', { candidateId, error: err.message });
+    return serverError('Failed to capture sentiment');
+  }
+
   // ── Update SAGA record ────────────────────────────────────────────────────
   try {
-    await dynamo.send(new UpdateItemCommand({
+    await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName:                 STATE_TABLE,
       Key:                       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
       ConditionExpression:       'attribute_exists(PK)',
@@ -74,10 +91,10 @@ exports.handler = async (event) => {
         ':at':  capturedAt,
         ':uid': capturedBy,  // INTEL-001: Track who captured sentiment for action tracking
       }),
-    }));
+    }, tenantId)));
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') {
-      return notFound(`Candidate ${candidateId} not found`);
+      return T.notFound();
     }
     console.error('DynamoDB update failed', { candidateId, error: err.message });
     return serverError('Failed to capture sentiment');
@@ -92,7 +109,7 @@ exports.handler = async (event) => {
         DetailType:   'SentimentCaptured',
         Detail:       JSON.stringify({
           candidateId,
-          tenantId,
+          tenant_id: tenantId,
           interviewSentiment,
           capturedBy,
           capturedAt,

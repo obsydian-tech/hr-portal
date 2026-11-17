@@ -313,7 +313,6 @@ resource "aws_lambda_function" "monitor_slas" {
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
-      TENANT_ID            = "NALEKO"
       AWS_ACCOUNT_ID       = var.aws_account_id
       ENVIRONMENT          = var.environment
     }
@@ -395,8 +394,10 @@ resource "aws_lambda_function" "authorizer" {
   environment {
     variables = {
       AGENT_API_KEY_SECRET_NAME = local.tf_secret_agent_api_key
-      AWS_ACCOUNT_ID            = var.aws_account_id
-      ENVIRONMENT               = var.environment
+      # TEN-03: the one company the agent key belongs to. Empty until the company exists: then nothing is authorized.
+      AGENT_TENANT_ID = var.agent_tenant_id
+      AWS_ACCOUNT_ID  = var.aws_account_id
+      ENVIRONMENT     = var.environment
     }
   }
 
@@ -659,7 +660,6 @@ resource "aws_lambda_function" "get_panel_members" {
     variables = {
       COGNITO_POOL_ID  = local.tf_naleko_pool_id
       STATE_TABLE_NAME = local.tf_table_state
-      TENANT_ID        = "NALEKO"
       ENVIRONMENT      = var.environment
     }
   }

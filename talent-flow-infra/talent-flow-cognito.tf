@@ -41,6 +41,23 @@ resource "aws_iam_role_policy_attachment" "pre_token_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# TEN-03: the trigger may Query the tenants table, and nothing else there. The table is encrypted with the PII key
+# (infra/kms.tf): that key's policy names this role in dynamodb_read_role_arns, so the TalentFlow stack applies first.
+resource "aws_iam_role_policy" "pre_token_tenants" {
+  name = "tenants-member-query"
+  role = aws_iam_role.pre_token_trigger.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "QueryMemberRows"
+      Effect   = "Allow"
+      Action   = ["dynamodb:Query"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
 resource "aws_lambda_function" "talent_flow_pre_token_trigger" {
   function_name = local.tf_lambda_pre_token
   role          = aws_iam_role.pre_token_trigger.arn
@@ -52,6 +69,9 @@ resource "aws_lambda_function" "talent_flow_pre_token_trigger" {
   environment {
     variables = {
       ADMIN_GROUP = "TalentFlowAdmin"
+      # TEN-03: the company claim reads the person's Member row in the tenants table (infra/tenancy.tf).
+      TENANTS_TABLE    = local.tf_tenants_table
+      LEGACY_TENANT_ID = var.legacy_tenant_id
     }
   }
 

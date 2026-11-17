@@ -39,6 +39,8 @@ jest.mock('@aws-sdk/util-dynamodb', () => ({
   unmarshall: jest.fn(obj => obj)
 }));
 
+const TEN = 'ten_0123456789abcdefghijklmnop';
+
 const { handler } = require('./index');
 
 beforeEach(() => mockSend.mockReset());
@@ -49,7 +51,7 @@ function adminEvent(method, extra = {}) {
   return {
     requestContext: {
       http: { method },
-      authorizer: { jwt: { claims: { 'custom:isAdmin': 'true' } } }
+      authorizer: { jwt: { claims: { 'custom:isAdmin': 'true', tenant_id: TEN } } }
     },
     ...extra
   };
@@ -59,16 +61,16 @@ function nonAdminEvent(method, extra = {}) {
   return {
     requestContext: {
       http: { method },
-      authorizer: { jwt: { claims: { 'custom:isAdmin': 'false' } } }
+      authorizer: { jwt: { claims: { 'custom:isAdmin': 'false', tenant_id: TEN } } }
     },
     ...extra
   };
 }
 
 const activeItem = {
-  PK: 'TENANT#DEFAULT', SK: 'CONFIG#SCORING_WEIGHTS#v2',
-  GSI1PK: 'TENANT#DEFAULT#ACTIVE', GSI1SK: 'CONFIG#SCORING_WEIGHTS',
-  tenantId: 'DEFAULT', configType: 'SCORING_WEIGHTS', version: 2, isActive: true,
+  PK: `TENANT#${TEN}`, SK: 'CONFIG#SCORING_WEIGHTS#v2',
+  GSI1PK: `TENANT#${TEN}#ACTIVE`, GSI1SK: 'CONFIG#SCORING_WEIGHTS',
+  tenant_id: TEN, configType: 'SCORING_WEIGHTS', version: 2, isActive: true,
   data: { technical: 30 }
 };
 
@@ -130,7 +132,7 @@ test('POST: creates v1, returns 201 with version=1', async () => {
   mockSend.mockResolvedValueOnce({});
 
   const event = adminEvent('POST', {
-    body: JSON.stringify({ tenantId: 'DEFAULT', configType: 'SCORING_WEIGHTS', data: { technical: 30 } })
+    body: JSON.stringify({ configType: 'SCORING_WEIGHTS', data: { technical: 30 } })
   });
   const res = await handler(event);
 

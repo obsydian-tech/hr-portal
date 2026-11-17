@@ -58,7 +58,7 @@ async function writeSignalSnapshot(dynamoDB, { tenantId, entityType, entityId, s
     // Entity Reference
     entityType,
     entityId,
-    tenantId,
+    tenant_id: tenantId,
 
     // Computed Signals (all available signals)
     signals,

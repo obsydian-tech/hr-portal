@@ -35,6 +35,7 @@ const {
   UpdateItemCommand,
 } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 const {
   EventBridgeClient,
   PutEventsCommand,
@@ -68,6 +69,10 @@ const ALLOWED_TRANSITIONS = {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   // Extract userId from JWT claims for action tracking (INTEL-001)
   const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
 
@@ -90,8 +95,9 @@ exports.handler = async (event) => {
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
     }));
-    if (!res.Item) return notFound(`No offer found for candidate ${candidateId}`);
+    if (!res.Item) return T.notFound();
     offer = unmarshall(res.Item);
+    if (!T.ownsRow(offer, tenantId)) return T.notFound();
   } catch (err) {
     console.error('Failed to read OFFER record', { candidateId, error: err.message });
     return serverErr('Failed to read offer record');
@@ -133,14 +139,15 @@ exports.handler = async (event) => {
           ...(userId && { ':uid': userId }),  // INTEL-001: Track who submitted for approval
         };
 
-        await dynamo.send(new UpdateItemCommand({
+        await dynamo.send(new UpdateItemCommand(scopeWrite({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
           UpdateExpression: updateExpr,
           ExpressionAttributeNames: { '#state': 'state' },
           ExpressionAttributeValues: marshall(attrValues, { removeUndefinedValues: true }),
-        }));
+        }, tenantId)));
       } catch (err) {
+        if (err.name === 'ConditionalCheckFailedException') return T.notFound();
         console.error('Failed to update OFFER to IN_APPROVAL', { candidateId, error: err.message });
         return serverErr('Failed to advance offer state');
       }
@@ -163,14 +170,15 @@ exports.handler = async (event) => {
           ? { ':state': transition.to, ':now': now, ':uid': userId }
           : { ':state': transition.to, ':now': now };
 
-        await dynamo.send(new UpdateItemCommand({
+        await dynamo.send(new UpdateItemCommand(scopeWrite({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
           UpdateExpression: updateExpr,
           ExpressionAttributeNames: { '#state': 'state' },
           ExpressionAttributeValues: marshall(attrValues),
-        }));
+        }, tenantId)));
       } catch (err) {
+        if (err.name === 'ConditionalCheckFailedException') return T.notFound();
         console.error('Failed to update OFFER to OFFER_SENT', { candidateId, error: err.message });
         return serverErr('Failed to advance offer state');
       }
@@ -203,13 +211,14 @@ exports.handler = async (event) => {
           ? { ':entry': [entry], ':empty': [], ':now': now, ':uid': userId }
           : { ':entry': [entry], ':empty': [], ':now': now };
 
-        await dynamo.send(new UpdateItemCommand({
+        await dynamo.send(new UpdateItemCommand(scopeWrite({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
           UpdateExpression: updateExpr,
           ExpressionAttributeValues: marshall(attrValues),
-        }));
+        }, tenantId)));
       } catch (err) {
+        if (err.name === 'ConditionalCheckFailedException') return T.notFound();
         console.error('Failed to append interaction log entry', { candidateId, error: err.message });
         return serverErr('Failed to log interaction');
       }
@@ -248,14 +257,15 @@ exports.handler = async (event) => {
           ...(userId && { ':uid': userId }),  // INTEL-001: Track who confirmed acceptance
         };
 
-        await dynamo.send(new UpdateItemCommand({
+        await dynamo.send(new UpdateItemCommand(scopeWrite({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
           UpdateExpression: updateExpr,
           ExpressionAttributeNames: { '#state': 'state' },
           ExpressionAttributeValues: marshall(attrValues, { removeUndefinedValues: true }),
-        }));
+        }, tenantId)));
       } catch (err) {
+        if (err.name === 'ConditionalCheckFailedException') return T.notFound();
         console.error('Failed to update OFFER to ACCEPTED', { candidateId, error: err.message });
         return serverErr('Failed to confirm acceptance');
       }
@@ -269,7 +279,7 @@ exports.handler = async (event) => {
             DetailType:   'OfferAccepted',
             Detail:       JSON.stringify({
               candidateId,
-              tenantId:            offer.tenantId,
+              tenant_id:            tenantId,
               configVersion:       offer.configVersion,
               role:                offer.role,
               department:          offer.department,
@@ -295,12 +305,12 @@ exports.handler = async (event) => {
           ? { ':stage': 'CONTRACT_SIGNING', ':sentiment': acceptanceSentiment, ':now': now, ':uid': userId }
           : { ':stage': 'CONTRACT_SIGNING', ':sentiment': acceptanceSentiment, ':now': now };
 
-        await dynamo.send(new UpdateItemCommand({
+        await dynamo.send(new UpdateItemCommand(scopeWrite({
           TableName: STATE_TABLE,
           Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
           UpdateExpression: sagaUpdateExpr,
           ExpressionAttributeValues: marshall(sagaAttrValues),
-        }));
+        }, tenantId)));
       } catch (err) {
         console.error('Failed to update SAGA stage on acceptance', { candidateId, error: err.message });
       }

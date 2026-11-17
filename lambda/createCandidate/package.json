@@ -4,7 +4,7 @@
   "description": "TalentFlow createCandidate Lambda — idempotent candidate creation + CandidateCreated event",
   "private": true,
   "scripts": {
-    "test": "jest --coverage"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
   },
   "dependencies": {
     "ulid": "^2.3.0"

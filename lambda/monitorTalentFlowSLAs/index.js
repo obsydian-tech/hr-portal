@@ -23,6 +23,7 @@ const { DynamoDBClient, ScanCommand, UpdateItemCommand } = require('@aws-sdk/cli
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
 const { getConfig } = require('../shared/config-reader');
+const { tenantHelper, scopeWrite, eventTenant } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const eventbridge = new EventBridgeClient({});
@@ -31,13 +32,25 @@ exports.handler = async () => {
   const STATE_TABLE = process.env.STATE_TABLE_NAME;
   const BUS_NAME    = process.env.EVENTBRIDGE_BUS_NAME;
 
-  // Step 1: Read ACTIVE SLA thresholds — no version arg (Epic 2 Invariant #3)
-  const slaConfig    = await getConfig(process.env.TENANT_ID || 'NALEKO', 'SLA_THRESHOLDS');
-  // config-reader returns the DynamoDB item's `data` field as the payload
-  const slaThresholds = slaConfig.data ?? slaConfig ?? {};
+  // Step 1: ACTIVE SLA thresholds are read per company, no version arg (Epic 2 Invariant #3).
+  // TEN-03: each saga is judged with its own company's thresholds. A row without a company is left alone.
+  const thresholdsOf = new Map();
+  async function thresholdsFor(tenantId) {
+    if (!thresholdsOf.has(tenantId)) {
+      const slaConfig = await getConfig(tenantId, 'SLA_THRESHOLDS');
+      // config-reader returns the DynamoDB item's `data` field as the payload
+      thresholdsOf.set(tenantId, slaConfig.data ?? slaConfig ?? {});
+    }
+    return thresholdsOf.get(tenantId);
+  }
 
   // Step 2: Paginated scan for open SAGA records
   const openSagas = await scanOpenSagas(dynamo, STATE_TABLE);
+
+  // A failing threshold read for any company is fatal (the cron retries), as it always was.
+  for (const tid of new Set(await Promise.all(openSagas.map((sg) => eventTenant({ tenant_id: sg.tenant_id }))))) {
+    if (tid) await thresholdsFor(tid);
+  }
 
   let breached = 0;
 
@@ -45,6 +58,12 @@ exports.handler = async () => {
   for (const saga of openSagas) {
     try {
       const stage = saga.currentStage;
+      const tenantId = await eventTenant({ tenant_id: saga.tenant_id });
+      if (!tenantId) {
+        console.warn(JSON.stringify({ event: 'sla_no_company', pk: saga.PK }));
+        continue;
+      }
+      const slaThresholds = await thresholdsFor(tenantId);
 
       // Skip if no threshold configured for this stage
       if (slaThresholds[stage] === undefined || slaThresholds[stage] === null) {
@@ -69,18 +88,17 @@ exports.handler = async () => {
 
       const now         = new Date().toISOString();
       const candidateId = saga.candidateId ?? saga.PK?.replace('CANDIDATE#', '') ?? saga.PK;
-      const tenantId    = saga.tenantId ?? 'DEFAULT';
 
       if (percentElapsed >= 100) {
         // BREACHED — write once with conditional to guard against concurrent runs
         try {
-          await dynamo.send(new UpdateItemCommand({
+          await dynamo.send(new UpdateItemCommand(scopeWrite({
             TableName:                 STATE_TABLE,
             Key:                       marshall({ PK: saga.PK, SK: 'SAGA' }),
             UpdateExpression:          'SET slaBreachedAt = :now, slaBreachedStage = :stage, slaStatus = :status',
             ConditionExpression:       'attribute_not_exists(slaBreachedAt)',
             ExpressionAttributeValues: marshall({ ':now': now, ':stage': stage, ':status': 'BREACHED' }),
-          }));
+          }, tenantId)));
         } catch (err) {
           if (err.name === 'ConditionalCheckFailedException') {
             console.log(JSON.stringify({ event: 'sla_breach_already_recorded', pk: saga.PK, stage }));
@@ -97,7 +115,7 @@ exports.handler = async () => {
             DetailType:   'SLABreached',
             Detail:       JSON.stringify({
               candidateId,
-              tenantId,
+              tenant_id: tenantId,
               stage,
               hoursElapsed: Math.round(hoursElapsed * 10) / 10,
               thresholdHours,
@@ -110,12 +128,12 @@ exports.handler = async () => {
 
       } else if (percentElapsed >= 75 && saga.slaStatus !== 'AT_RISK') {
         // AT_RISK — update slaStatus only if not already marked
-        await dynamo.send(new UpdateItemCommand({
+        await dynamo.send(new UpdateItemCommand(scopeWrite({
           TableName:                 STATE_TABLE,
           Key:                       marshall({ PK: saga.PK, SK: 'SAGA' }),
           UpdateExpression:          'SET slaStatus = :status',
           ExpressionAttributeValues: marshall({ ':status': 'AT_RISK' }),
-        }));
+        }, tenantId)));
         console.log(JSON.stringify({ event: 'sla_at_risk', pk: saga.PK, candidateId, stage, percentElapsed: Math.round(percentElapsed) }));
       }
       // else: ON_TRACK — slaStatus already set at creation / stage advance

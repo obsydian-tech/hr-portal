@@ -35,8 +35,10 @@ process.env.STATE_TABLE_NAME    = 'talent-flow-state';
 process.env.EVENTBRIDGE_BUS_NAME = 'talent-flow-events';
 process.env.ENVIRONMENT         = 'test';
 
+const TEN = 'ten_0123456789abcdefghijklmnop';
+
 const SAGA = {
-  PK: 'CANDIDATE#cand1', SK: 'SAGA',
+  PK: 'CANDIDATE#cand1', SK: 'SAGA', tenant_id: TEN,
   configVersion: 'v1', status: 'TECHNICAL_INTERVIEW', votesSubmitted: 0,
 };
 
@@ -55,7 +57,7 @@ const INTERVIEW_ITEM = { PK: 'CANDIDATE#cand1', SK: 'INTERVIEW#int1', votesRequi
 
 const validEvent = {
   detail: {
-    candidateId: 'cand1', tenantId: 'tenant1',
+    candidateId: 'cand1', tenant_id: TEN,
     voterId: 'voter1', rating: 'YES',
     scores: SCORES,
   },
@@ -251,19 +253,21 @@ describe('handler – configVersionUsed on vote record', () => {
 // =============================================================================
 describe('handler – validation', () => {
   it('returns 400 when candidateId missing', async () => {
-    const res = await handler({ detail: { tenantId: 't', voterId: 'v', rating: 'YES', scores: SCORES } });
+    const res = await handler({ detail: { tenant_id: TEN, voterId: 'v', rating: 'YES', scores: SCORES } });
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body).error).toMatch(/candidateId/);
   });
 
-  it('returns 400 when tenantId missing', async () => {
+  it('skips an event without a company: nothing read, written or sent', async () => {
     const res = await handler({ detail: { candidateId: 'c', voterId: 'v', rating: 'YES', scores: SCORES } });
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toMatch(/tenantId/);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ skipped: true });
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 
   it('returns 400 when voterId missing', async () => {
-    const res = await handler({ detail: { candidateId: 'c', tenantId: 't', rating: 'YES', scores: SCORES } });
+    const res = await handler({ detail: { candidateId: 'c', tenant_id: TEN, rating: 'YES', scores: SCORES } });
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body).error).toMatch(/voterId/);
   });
@@ -282,16 +286,26 @@ describe('handler – validation', () => {
 });
 
 // =============================================================================
-// 9.  SAGA not found → 400
+// 9.  SAGA not found (or another company's) → 404
 // =============================================================================
 describe('handler – SAGA not found', () => {
-  it('returns 400 when SAGA item is missing', async () => {
+  it('returns 404 when SAGA item is missing', async () => {
     mockDynamoSend.mockResolvedValueOnce({ Item: undefined });
     getConfig.mockResolvedValue(WEIGHTS);
 
     const res = await handler(validEvent);
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toMatch(/SAGA record not found/);
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Not found' });
+  });
+
+  it('returns the same 404 for another company\'s candidate, and writes nothing', async () => {
+    mockDynamoSend.mockResolvedValueOnce({ Item: { ...SAGA, tenant_id: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' } });
+    getConfig.mockResolvedValue(WEIGHTS);
+
+    const res = await handler(validEvent);
+    expect(res.statusCode).toBe(404);
+    expect(mockDynamoSend).toHaveBeenCalledTimes(1);
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 });
 
@@ -439,8 +453,8 @@ describe('handler – versioned config invariant #2', () => {
     await handler(validEvent);
 
     expect(getConfig).toHaveBeenCalledTimes(2);
-    expect(getConfig).toHaveBeenNthCalledWith(1, 'tenant1', 'SCORING_WEIGHTS', 'v3');
-    expect(getConfig).toHaveBeenNthCalledWith(2, 'tenant1', 'PANEL_CONFIG',    'v3');
+    expect(getConfig).toHaveBeenNthCalledWith(1, TEN, 'SCORING_WEIGHTS', 'v3');
+    expect(getConfig).toHaveBeenNthCalledWith(2, TEN, 'PANEL_CONFIG',    'v3');
   });
 });
 

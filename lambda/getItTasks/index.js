@@ -24,6 +24,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig } = require('../shared/config-reader');
@@ -75,13 +76,13 @@ exports.handler = async (event) => {
     return respond(403, { message: 'Forbidden: IT Admin or IT Specialist group required.' });
   }
 
-  const qs          = event.queryStringParameters ?? {};
-  const tenantId    = qs.tenantId;
-  const queueFilter = qs.queue ?? null;
+  // TEN-03: after the group check, the company check. The company is the sign-in's; tenantId in the query or body is not read.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
 
-  if (!tenantId) {
-    return respond(400, { message: 'tenantId query param is required.' });
-  }
+  const qs          = event.queryStringParameters ?? {};
+  const queueFilter = qs.queue ?? null;
 
   const rawStatus = qs.status ?? 'UNASSIGNED,CLAIMED';
   const statuses  = rawStatus.split(',')
@@ -136,9 +137,10 @@ exports.handler = async (event) => {
     let tasks = results.flatMap(r =>
       (r.Items ?? []).map(item => {
         const t = unmarshall(item);
+        if (!T.ownsRow(t, tenantId)) return null;
         if (!t.id) t.id = t.taskId;
         return t;
-      }),
+      }).filter(Boolean),
     );
 
     // Apply role-based queue scope (ITSpecialists only see their queues)

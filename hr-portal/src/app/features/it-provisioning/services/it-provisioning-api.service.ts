@@ -54,8 +54,9 @@ export class ItProvisioningApiService {
     });
   }
 
-  private tenantParams(): HttpParams {
-    return new HttpParams().set('tenantId', environment.talentFlow.tenantId);
+  // The company is the sign-in's; no company is sent.
+  private baseParams(): HttpParams {
+    return new HttpParams();
   }
 
   // ─── Read operations ──────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ export class ItProvisioningApiService {
   /** Fetch all UNASSIGNED + CLAIMED tasks visible to the current specialist. */
   async getMyTasks(): Promise<ItTask[]> {
     const headers = await this.headers();
-    const params  = this.tenantParams().set('status', 'UNASSIGNED,CLAIMED');
+    const params  = this.baseParams().set('status', 'UNASSIGNED,CLAIMED');
     const res     = await firstValueFrom(
       this.http.get<ItTasksResponse | ItTask[]>(this.baseUrl, { headers, params }),
     );
@@ -78,7 +79,7 @@ export class ItProvisioningApiService {
   /** Fetch COMPLETED tasks. */
   async getCompletedTasks(): Promise<ItTask[]> {
     const headers = await this.headers();
-    const params  = this.tenantParams().set('status', 'COMPLETED');
+    const params  = this.baseParams().set('status', 'COMPLETED');
     const res     = await firstValueFrom(
       this.http.get<ItTasksResponse | ItTask[]>(this.baseUrl, { headers, params }),
     );

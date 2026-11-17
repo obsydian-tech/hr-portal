@@ -29,6 +29,7 @@ const {
   UpdateItemCommand,
 } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 const {
   EventBridgeClient,
   PutEventsCommand,
@@ -67,6 +68,10 @@ const EVALUATION_LOCK_STAGES = new Set([
 ]);
 
 exports.handler = async (event) => {
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return respond(400, { error: 'Missing candidateId path parameter' });
 
@@ -98,8 +103,9 @@ exports.handler = async (event) => {
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
     }));
-    if (!res.Item) return respond(404, { error: `Candidate ${candidateId} not found` });
+    if (!res.Item) return T.notFound();
     saga = unmarshall(res.Item);
+    if (!T.ownsRow(saga, tenantId)) return T.notFound();
   } catch (err) {
     console.error('Failed to read SAGA', { candidateId, error: err.message });
     return respond(500, { error: 'Failed to read candidate record' });
@@ -131,17 +137,17 @@ exports.handler = async (event) => {
   const updateExpression = `SET ${setExpressions.join(', ')}`;
 
   try {
-    await dynamo.send(new UpdateItemCommand({
+    await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName:                 STATE_TABLE,
       Key:                       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
       UpdateExpression:          updateExpression,
       ExpressionAttributeNames:  exprAttrNames,
       ExpressionAttributeValues: marshall(exprAttrValues),
       ConditionExpression:       'attribute_exists(PK)',
-    }));
+    }, tenantId)));
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') {
-      return respond(404, { error: `Candidate ${candidateId} not found` });
+      return T.notFound();
     }
     console.error('Failed to update SAGA', { candidateId, error: err.message });
     return respond(500, { error: 'Failed to update candidate record' });
@@ -156,6 +162,7 @@ exports.handler = async (event) => {
         DetailType:   'CandidateUpdated',
         Detail:       JSON.stringify({
           candidateId,
+          tenant_id:     tenantId,
           updatedFields: Object.keys(patch).filter((k) => k !== 'updatedAt'),
           updatedAt:     now,
         }),

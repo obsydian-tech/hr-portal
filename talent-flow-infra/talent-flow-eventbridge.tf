@@ -196,10 +196,10 @@ resource "aws_cloudwatch_event_target" "evaluation_completed_failed" {
   input_transformer {
     input_paths = {
       candidateId = "$.detail.candidateId"
-      tenantId    = "$.detail.tenantId"
+      tenant_id   = "$.detail.tenant_id"
       finalScore  = "$.detail.finalScore"
     }
-    input_template = "{\"type\":\"EVALUATION_FAILED\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenantId\":<tenantId>,\"finalScore\":<finalScore>}"
+    input_template = "{\"type\":\"EVALUATION_FAILED\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenant_id\":<tenant_id>,\"finalScore\":<finalScore>}"
   }
 }
 
@@ -269,12 +269,12 @@ resource "aws_cloudwatch_event_target" "sla_breached" {
   input_transformer {
     input_paths = {
       candidateId    = "$.detail.candidateId"
-      tenantId       = "$.detail.tenantId"
+      tenant_id      = "$.detail.tenant_id"
       stage          = "$.detail.stage"
       hoursElapsed   = "$.detail.hoursElapsed"
       thresholdHours = "$.detail.thresholdHours"
     }
-    input_template = "{\"type\":\"SLA_BREACHED\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenantId\":<tenantId>,\"stage\":<stage>,\"hoursElapsed\":<hoursElapsed>,\"thresholdHours\":<thresholdHours>}"
+    input_template = "{\"type\":\"SLA_BREACHED\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenant_id\":<tenant_id>,\"stage\":<stage>,\"hoursElapsed\":<hoursElapsed>,\"thresholdHours\":<thresholdHours>}"
   }
 }
 
@@ -309,10 +309,10 @@ resource "aws_cloudwatch_event_target" "offer_approved" {
   input_transformer {
     input_paths = {
       candidateId = "$.detail.candidateId"
-      tenantId    = "$.detail.tenantId"
+      tenant_id   = "$.detail.tenant_id"
       offerId     = "$.detail.offerId"
     }
-    input_template = "{\"type\":\"OFFER_APPROVED\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenantId\":<tenantId>,\"offerId\":<offerId>}"
+    input_template = "{\"type\":\"OFFER_APPROVED\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenant_id\":<tenant_id>,\"offerId\":<offerId>}"
   }
 }
 
@@ -350,10 +350,10 @@ resource "aws_cloudwatch_event_target" "sentiment_captured_risk" {
   input_transformer {
     input_paths = {
       candidateId        = "$.detail.candidateId"
-      tenantId           = "$.detail.tenantId"
+      tenant_id          = "$.detail.tenant_id"
       interviewSentiment = "$.detail.interviewSentiment"
     }
-    input_template = "{\"type\":\"SENTIMENT_RISK\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenantId\":<tenantId>,\"interviewSentiment\":<interviewSentiment>}"
+    input_template = "{\"type\":\"SENTIMENT_RISK\",\"recipientEmail\":\"system@talentflow.internal\",\"candidateId\":<candidateId>,\"tenant_id\":<tenant_id>,\"interviewSentiment\":<interviewSentiment>}"
   }
 }
 

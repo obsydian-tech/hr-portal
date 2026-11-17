@@ -54,6 +54,9 @@ const { handler } = require('./index');
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
+const TEN = 'ten_0123456789abcdefghijklmnop';
+const AS = (method) => ({ http: { method }, authorizer: { jwt: { claims: { tenant_id: TEN } } } });
+
 const PANEL_CONFIG = {
   rules: {
     strongNoVeto: true,
@@ -63,10 +66,9 @@ const PANEL_CONFIG = {
 
 function postEvent(overrides = {}) {
   return {
-    requestContext: { http: { method: 'POST' } },
+    requestContext: AS('POST'),
     pathParameters: { id: 'cand-123' },
     body: JSON.stringify({
-      tenantId: 'DEFAULT',
       interviewId: 'iv-001',
       interviewType: 'TECHNICAL_INTERVIEW',
       scheduledAt: '2026-05-20T10:00:00Z',
@@ -78,7 +80,7 @@ function postEvent(overrides = {}) {
 
 function patchEvent(body) {
   return {
-    requestContext: { http: { method: 'PATCH' } },
+    requestContext: AS('PATCH'),
     pathParameters: { id: 'cand-123', interviewId: 'iv-001' },
     body: JSON.stringify(body),
   };
@@ -87,7 +89,7 @@ function patchEvent(body) {
 function saga(overrides = {}) {
   return {
     Item: {
-      PK: 'CANDIDATE#cand-123', SK: 'SAGA',
+      PK: 'CANDIDATE#cand-123', SK: 'SAGA', tenant_id: TEN,
       currentStage: 'INTERVIEWING', positionLevel: 'SENIOR',
       ...overrides,
     },
@@ -141,7 +143,7 @@ describe('POST schedule interview', () => {
 
     const [sagaUpdate] = callsOf('UpdateItem');
     expect(sagaUpdate.Key).toEqual({ PK: 'CANDIDATE#cand-123', SK: 'SAGA' });
-    expect(sagaUpdate.ExpressionAttributeValues).toEqual({ ':iid': 'iv-001' });
+    expect(sagaUpdate.ExpressionAttributeValues).toEqual({ ':iid': 'iv-001', ':tf_tenant': { S: TEN } });
 
     expect(mockSqsSend).toHaveBeenCalledTimes(3);
     expect(mockEbSend).toHaveBeenCalledTimes(1);
@@ -162,7 +164,7 @@ describe('POST schedule interview', () => {
   test('reads the active PANEL_CONFIG for the tenant', async () => {
     happyChain();
     await handler(postEvent());
-    expect(getConfig).toHaveBeenCalledWith('DEFAULT', 'PANEL_CONFIG');
+    expect(getConfig).toHaveBeenCalledWith(TEN, 'PANEL_CONFIG');
   });
 
   test('DIRECTOR is not an accepted position level → 400', async () => {
@@ -323,26 +325,47 @@ describe('POST guards', () => {
 
 describe('PATCH complete interview', () => {
   test('marks the interview COMPLETED with an outcome and publishes InterviewCompleted', async () => {
-    mockDynamoSend.mockResolvedValueOnce({});
+    mockDynamoSend.mockResolvedValueOnce({ Item: { tenant_id: TEN } }).mockResolvedValueOnce({});
 
     const res = await handler(patchEvent({ action: 'complete', outcome: 'PASS' }));
 
     expect(res.statusCode).toBe(200);
     const update = callsOf('UpdateItem')[0];
     expect(update.Key).toEqual({ PK: 'CANDIDATE#cand-123', SK: 'INTERVIEW#iv-001' });
-    expect(update.ConditionExpression).toBe('attribute_exists(PK)');
+    expect(update.ConditionExpression).toBe('(attribute_exists(PK)) AND #tf_tenant = :tf_tenant');
     expect(update.ExpressionAttributeValues).toMatchObject({ ':completed': 'COMPLETED', ':outcome': 'PASS' });
     expect(mockEbSend.mock.calls[0][0].Entries[0].DetailType).toBe('InterviewCompleted');
   });
 
   test('unknown interview → 404', async () => {
-    mockDynamoSend.mockRejectedValueOnce(
-      Object.assign(new Error('nope'), { name: 'ConditionalCheckFailedException' }),
-    );
+    mockDynamoSend.mockResolvedValueOnce({});
 
     const res = await handler(patchEvent({ action: 'complete' }));
 
     expect(res.statusCode).toBe(404);
+    expect(callsOf('UpdateItem')).toHaveLength(0);
+  });
+
+  test('another company\'s interview → the same 404, nothing written', async () => {
+    mockDynamoSend.mockResolvedValueOnce({ Item: { tenant_id: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' } });
+
+    const res = await handler(patchEvent({ action: 'complete' }));
+
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Not found' });
+    expect(callsOf('UpdateItem')).toHaveLength(0);
+    expect(mockEbSend).not.toHaveBeenCalled();
+  });
+
+  test('the row became another company\'s before the write → 404', async () => {
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: { tenant_id: TEN } })
+      .mockRejectedValueOnce(Object.assign(new Error('nope'), { name: 'ConditionalCheckFailedException' }));
+
+    const res = await handler(patchEvent({ action: 'complete' }));
+
+    expect(res.statusCode).toBe(404);
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 });
 
@@ -350,6 +373,7 @@ describe('PATCH add panel members', () => {
   test('merges new members without duplicates', async () => {
     mockDynamoSend
       .mockResolvedValueOnce({ Item: {
+        tenant_id: TEN,
         panelMemberIds: ['pm-1'],
         adhocPanelMembers: [{ name: 'A', email: 'a@example.com' }],
       } })
@@ -383,16 +407,17 @@ describe('PATCH add panel members', () => {
 describe('GET interviews', () => {
   test('returns interviews in date order, each with only its own votes', async () => {
     mockDynamoSend
+      .mockResolvedValueOnce({ Item: { tenant_id: TEN } })
       .mockResolvedValueOnce({ Items: [
-        { PK: 'x', SK: 'INTERVIEW#b', interviewId: 'b', scheduledAt: '2026-05-21T10:00:00Z' },
-        { PK: 'x', SK: 'INTERVIEW#a', interviewId: 'a', scheduledAt: '2026-05-20T10:00:00Z' },
+        { PK: 'x', SK: 'INTERVIEW#b', tenant_id: TEN, interviewId: 'b', scheduledAt: '2026-05-21T10:00:00Z' },
+        { PK: 'x', SK: 'INTERVIEW#a', tenant_id: TEN, interviewId: 'a', scheduledAt: '2026-05-20T10:00:00Z' },
       ] })
       .mockResolvedValueOnce({ Items: [
         { voterId: 'v1', interviewId: 'a', rating: 'YES' },
         { voterId: 'v2', interviewId: 'b', rating: 'NO' },
       ] });
 
-    const res = await handler({ requestContext: { http: { method: 'GET' } }, pathParameters: { id: 'cand-123' } });
+    const res = await handler({ requestContext: AS('GET'), pathParameters: { id: 'cand-123' } });
 
     expect(res.statusCode).toBe(200);
     const { interviews } = JSON.parse(res.body);

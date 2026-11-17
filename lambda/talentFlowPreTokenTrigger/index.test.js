@@ -1,6 +1,15 @@
 'use strict';
 
+const mockSend = jest.fn();
+jest.mock('@aws-sdk/client-dynamodb', () => ({
+  DynamoDBClient: jest.fn(() => ({ send: mockSend })),
+  QueryCommand:   jest.fn((p) => ({ _cmd: 'Query', ...p })),
+}));
+
+process.env.TENANTS_TABLE = 'naleko-people-test-tenants';
 const { handler } = require('./index');
+
+beforeEach(() => { mockSend.mockReset(); mockSend.mockResolvedValue({ Items: [] }); });
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -212,6 +221,49 @@ describe('talentFlowPreTokenTrigger', () => {
       expect(
         result.response.claimsOverrideDetails.claimsToAddOrOverride['custom:isAdmin']
       ).toBe('false');
+    });
+  });
+
+  describe('tenant_id claim (TEN-03)', () => {
+    const A = 'ten_0123456789abcdefghijklmnop';
+    const B = 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz';
+    const SUB = 'sub-1';
+    const withSub = (groups = ['TalentFlowAdmin']) => ({ ...buildEvent(groups), request: { ...buildEvent(groups).request, userAttributes: { sub: SUB, 'custom:tenant_id': B, tenant_id: B } }, callerContext: {} });
+    const member = (tenant) => ({ pk: { S: `USER#${SUB}` }, sk: { S: `TENANT#${tenant}` }, tenant_id: { S: tenant } });
+    const claimOf = (r) => r.response.claimsOverrideDetails.claimsToAddOrOverride.tenant_id;
+
+    test('one Member row: that company, from one Query on the tenants table', async () => {
+      mockSend.mockResolvedValueOnce({ Items: [member(A)] });
+      const r = await handler(withSub());
+      expect(claimOf(r)).toBe(A);
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(mockSend.mock.calls[0][0].TableName).toBe('naleko-people-test-tenants');
+      expect(r.response.claimsOverrideDetails.claimsToAddOrOverride['custom:isAdmin']).toBe('true');
+    });
+
+    test('a company named in the user attributes is never used', async () => {
+      mockSend.mockResolvedValueOnce({ Items: [member(A)] });
+      expect(claimOf(await handler(withSub()))).toBe(A);
+    });
+
+    test('no Member row and no legacy company: no claim, logged, never a default', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const r = await handler(withSub());
+      expect(claimOf(r)).toBeUndefined();
+      expect(warn.mock.calls.some((c) => String(c[0]).includes('Tenant claim skipped'))).toBe(true);
+      warn.mockRestore();
+    });
+
+    test('several Member rows: no claim', async () => {
+      mockSend.mockResolvedValueOnce({ Items: [member(A), member(B)] });
+      expect(claimOf(await handler(withSub()))).toBeUndefined();
+    });
+
+    test('a failing read: no claim, and the handler still returns the old claims without throwing', async () => {
+      mockSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'));
+      const r = await handler(withSub());
+      expect(claimOf(r)).toBeUndefined();
+      expect(r.response.claimsOverrideDetails.claimsToAddOrOverride['custom:roles']).toBe(JSON.stringify(['ADMIN']));
     });
   });
 });

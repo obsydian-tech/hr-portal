@@ -4,7 +4,7 @@
   "description": "TalentFlow completeEvaluation Lambda — versioned pass threshold + EvaluationCompleted event",
   "main": "index.js",
   "scripts": {
-    "test": "jest --no-coverage"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --no-coverage"
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",

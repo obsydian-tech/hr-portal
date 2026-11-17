@@ -21,6 +21,7 @@ const {
   GetItemCommand,
 } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 
@@ -33,6 +34,10 @@ const serverErr = (msg)  => ({ statusCode: 500, body: JSON.stringify({ error: ms
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const candidateId =
     event.pathParameters?.id ??
     event.pathParameters?.candidateId ??
@@ -47,8 +52,9 @@ exports.handler = async (event) => {
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
     }));
 
-    if (!res.Item) {
-      return notFound(`No offer found for candidate ${candidateId}`);
+    // Another company's offer answers exactly as one that does not exist.
+    if (!res.Item || !T.ownsRow(unmarshall(res.Item), tenantId)) {
+      return T.notFound();
     }
 
     offer = unmarshall(res.Item);

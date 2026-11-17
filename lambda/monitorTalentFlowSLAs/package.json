@@ -4,7 +4,7 @@
   "description": "Hourly SLA monitor — scans open SAGA records, publishes SLABreached events",
   "main": "index.js",
   "scripts": {
-    "test": "npx jest --no-coverage"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --no-coverage"
   },
   "jest": {
     "testEnvironment": "node",

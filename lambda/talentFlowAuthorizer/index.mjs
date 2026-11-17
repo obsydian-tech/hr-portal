@@ -10,7 +10,7 @@
  * (old) key.
  *
  * Returns:
- *   { isAuthorized: true,  context: { actor: 'AGENT' } }   — valid key
+ *   { isAuthorized: true,  context: { actor: 'AGENT', tenant_id } } — valid key
  *   { isAuthorized: false }                                 — missing/invalid
  *
  * The `actor` context value is forwarded to downstream Lambdas via:
@@ -68,7 +68,20 @@ async function getValidKeys() {
   return cachedKeys;
 }
 
+// TEN-03: the agent key belongs to one company, named by the AGENT_TENANT_ID setting. No setting, an empty one,
+// or a value that is not a company id: nothing is authorized, with one clear line in the log.
+const TENANT_ID_PATTERN = /^ten_[0-9a-z]{26}$/;
+function agentCompany() {
+  const value = process.env.AGENT_TENANT_ID;
+  if (typeof value === 'string' && TENANT_ID_PATTERN.test(value)) return value;
+  logger.error('Missing setting AGENT_TENANT_ID');
+  return null;
+}
+
 export const handler = async (event) => {
+  const agentTenant = agentCompany();
+  if (!agentTenant) return { isAuthorized: false };
+
   // HTTP API Lambda authorizer receives the full request event.
   // `identity_sources = ["$request.header.x-api-key"]` causes API GW to
   // 401 before hitting the authorizer if the header is missing entirely,
@@ -105,7 +118,7 @@ export const handler = async (event) => {
     return {
       isAuthorized: true,
       // context is merged into event.requestContext.authorizer.lambda in downstream Lambdas
-      context: { actor: 'AGENT' },
+      context: { actor: 'AGENT', tenant_id: agentTenant },
     };
   } catch (err) {
     logger.error('Authorizer error — rejecting', { error: err.message });

@@ -56,12 +56,14 @@ beforeEach(() => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeEvent({ staffId = 'STAFF-001', body = {}, noStaffId = false } = {}) {
+const TEN = 'ten_0123456789abcdefghijklmnop';
+
+function makeEvent({ staffId = 'STAFF-001', body = {}, noStaffId = false, tenant = TEN } = {}) {
   return {
     requestContext: {
       authorizer: {
         jwt: {
-          claims: noStaffId ? { 'cognito:groups': 'hr_staff' } : { 'custom:staff_id': staffId, 'cognito:groups': 'hr_staff' },
+          claims: { ...(noStaffId ? {} : { 'custom:staff_id': staffId }), 'cognito:groups': 'hr_staff', ...(tenant ? { tenant_id: tenant } : {}) },
         },
       },
     },
@@ -203,6 +205,14 @@ describe('talentFlowAiChat', () => {
     expect(body.pendingAction.actionId).toBeDefined();
   });
 
+  test('1b. A token without a company → 403, nothing read, written or sent to the model', async () => {
+    const res = await handler(makeEvent({ tenant: null }));
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Forbidden' });
+    expect(mockDbSend).not.toHaveBeenCalled();
+    expect(mockBedrockSend).not.toHaveBeenCalled();
+  });
+
   test('6. get_config read tool → DynamoDB QueryCommand on config table', async () => {
     // Rate limit passes
     mockDbSend.mockResolvedValueOnce({});   // UpdateItem
@@ -219,7 +229,7 @@ describe('talentFlowAiChat', () => {
 
     // DynamoDB Query for config GSI1
     mockDbSend.mockResolvedValueOnce({
-      Items: [{ PK: 'TENANT#DEFAULT', SK: 'CONFIG#SCORING_WEIGHTS#v3', values: { technical: 0.5 } }],
+      Items: [{ PK: `TENANT#${TEN}`, SK: 'CONFIG#SCORING_WEIGHTS#v3', values: { technical: 0.5 } }],
     });
 
     // Bedrock synthesis → end_turn
@@ -240,6 +250,8 @@ describe('talentFlowAiChat', () => {
     // Verify a QueryCommand was sent to DynamoDB (the config GSI lookup)
     const queryCalls = mockDbSend.mock.calls.filter(([cmd]) => cmd._type === 'Query');
     expect(queryCalls.length).toBeGreaterThanOrEqual(1);
+    // The company is the sign-in's: the lookup names it, never a model-supplied or default company.
+    expect(JSON.stringify(queryCalls[0][0].ExpressionAttributeValues)).toContain(`TENANT#${TEN}#ACTIVE`);
   });
 
   test('7. Bedrock ThrottlingException exhausted → 502', async () => {

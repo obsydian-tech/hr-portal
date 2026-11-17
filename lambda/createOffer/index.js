@@ -40,6 +40,7 @@ const {
   StartExecutionCommand,
 } = require('@aws-sdk/client-sfn');
 const { getConfig } = require('./shared/config-reader');
+const { tenantHelper, eventTenant } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const eb     = new EventBridgeClient({});
@@ -72,8 +73,11 @@ function buildApprovalChain(positionLevel, approvalRules) {
 exports.handler = async (event) => {
   // Step 1: Detect invocation source
   // HTTP API sets pathParameters; EventBridge sets detail.
-  const isHttp = !!event.pathParameters;
+  const isHttp = !!(event.pathParameters || event.requestContext);
 
+  // TEN-03: a person gets the company from the sign-in (tenantId in the body is not read). The EventBridge event
+  // names it in tenant_id; an event without one is skipped (nothing read, written or sent).
+  const T = await tenantHelper();
   let candidateId, tenantId, outcome, inputConfigVersion;
 
   if (isHttp) {
@@ -82,20 +86,25 @@ exports.handler = async (event) => {
     const body         = event.body
       ? (typeof event.body === 'string' ? JSON.parse(event.body) : event.body)
       : {};
-    tenantId           = body.tenantId;
+    const t = T.requireTenant(event);
+    if (t.refusal) return t.refusal;
+    tenantId           = t.tenantId;
     outcome            = 'PASSED';  // manual creation bypasses evaluation guard
     inputConfigVersion = null;      // read from SAGA below
   } else {
     // Automatic trigger from EventBridge EvaluationCompleted
     const detail       = event.detail ?? event;
     candidateId        = detail.candidateId;
-    tenantId           = detail.tenantId;
+    tenantId           = await eventTenant(detail);
+    if (!tenantId) {
+      console.warn('createOffer: event skipped, it names no company');
+      return ok({ skipped: true, reason: 'no_company' });
+    }
     outcome            = detail.outcome;
     inputConfigVersion = detail.configVersion ?? null;
   }
 
   if (!candidateId) return badRequest('Missing required field: candidateId');
-  if (!tenantId)    return badRequest('Missing required field: tenantId');
 
   // Step 2: Guard — only EventBridge path enforces PASSED outcome
   if (!isHttp && outcome !== 'PASSED') {
@@ -110,8 +119,12 @@ exports.handler = async (event) => {
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
     }));
-    if (!res.Item) return badRequest(`SAGA record not found for candidate ${candidateId}`);
+    if (!res.Item) return T.notFound();
     saga = unmarshall(res.Item);
+    if (!T.ownsRow(saga, tenantId)) {
+      console.warn('createOffer: skipped, the candidate is not in the requester\'s company');
+      return T.notFound();
+    }
   } catch (err) {
     console.error('Failed to read SAGA record', { candidateId, error: err.message });
     return serverError('Failed to read candidate record');
@@ -140,7 +153,7 @@ exports.handler = async (event) => {
   const now     = new Date().toISOString();
   const offerId = `OFFER#${candidateId}`;
 
-  const offerItem = {
+  const offerItem = T.stampTenant({
     PK:                  `CANDIDATE#${candidateId}`,
     SK:                  'OFFER',
     offerId,
@@ -157,7 +170,7 @@ exports.handler = async (event) => {
     interactionLog:      [],
     createdAt:           now,
     updatedAt:           now,
-  };
+  }, tenantId);
 
   try {
     await dynamo.send(new PutItemCommand({
@@ -180,7 +193,7 @@ exports.handler = async (event) => {
       await sfn.send(new StartExecutionCommand({
         stateMachineArn: SFN_STATE_MACHINE,
         name:            `offer-${candidateId}-${Date.now()}`,
-        input:           JSON.stringify({ candidateId, tenantId, configVersion, positionLevel, approvalChain }),
+        input:           JSON.stringify({ candidateId, tenant_id: tenantId, configVersion, positionLevel, approvalChain }),
       }));
     } catch (err) {
       console.error('Failed to start Step Functions execution', { candidateId, error: err.message });
@@ -196,7 +209,7 @@ exports.handler = async (event) => {
         DetailType:   'OfferInitialised',
         Detail:       JSON.stringify({
           candidateId,
-          tenantId,
+          tenant_id: tenantId,
           configVersion,
           positionLevel,
           approvalSteps: approvalChain.length,

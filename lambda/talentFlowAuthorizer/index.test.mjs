@@ -23,6 +23,7 @@ const { handler } = await import('./index.mjs');
 const VALID_KEY    = 'tf-abc123def456';
 const VALID_KEY2   = 'tf-pending999';
 const CACHE_TTL_MS = 4 * 60 * 1000; // must match module constant
+const TEN          = 'ten_0123456789abcdefghijklmnop';
 
 function event(key) {
   return { headers: key === undefined ? {} : { 'x-api-key': key } };
@@ -35,6 +36,7 @@ describe('talentFlowAuthorizer', () => {
   afterAll(() => { jest.useRealTimers(); });
 
   beforeEach(() => {
+    process.env.AGENT_TENANT_ID = TEN;
     mockSmSend.mockReset(); // clears calls AND queued return values
     // Expire cache so every test starts with a cold SM fetch.
     jest.advanceTimersByTime(CACHE_TTL_MS + 1);
@@ -51,7 +53,14 @@ describe('talentFlowAuthorizer', () => {
       .mockResolvedValueOnce({ SecretString: VALID_KEY })
       .mockRejectedValueOnce(Object.assign(new Error('not found'), { name: 'ResourceNotFoundException' }));
     const result = await handler(event(VALID_KEY));
-    expect(result).toEqual({ isAuthorized: true, context: { actor: 'AGENT' } });
+    expect(result).toEqual({ isAuthorized: true, context: { actor: 'AGENT', tenant_id: TEN } });
+  });
+
+  test.each([undefined, '', 'DEFAULT', 'NALEKO', 'ten_short'])('authorizes nothing when AGENT_TENANT_ID is %p (no Secrets Manager call)', async (value) => {
+    if (value === undefined) delete process.env.AGENT_TENANT_ID; else process.env.AGENT_TENANT_ID = value;
+    const result = await handler(event(VALID_KEY));
+    expect(result).toEqual({ isAuthorized: false });
+    expect(mockSmSend).not.toHaveBeenCalled();
   });
 
   test('returns isAuthorized: false for wrong key', async () => {
@@ -67,7 +76,7 @@ describe('talentFlowAuthorizer', () => {
       .mockResolvedValueOnce({ SecretString: VALID_KEY })
       .mockResolvedValueOnce({ SecretString: VALID_KEY2 });
     const result = await handler(event(VALID_KEY2));
-    expect(result).toEqual({ isAuthorized: true, context: { actor: 'AGENT' } });
+    expect(result).toEqual({ isAuthorized: true, context: { actor: 'AGENT', tenant_id: TEN } });
   });
 
   test('authorizes with AWSCURRENT when AWSPENDING fails with non-404 error', async () => {
@@ -77,7 +86,7 @@ describe('talentFlowAuthorizer', () => {
         Object.assign(new Error('InternalFailure'), { name: 'InternalFailure' })
       );
     const result = await handler(event(VALID_KEY));
-    expect(result).toEqual({ isAuthorized: true, context: { actor: 'AGENT' } });
+    expect(result).toEqual({ isAuthorized: true, context: { actor: 'AGENT', tenant_id: TEN } });
   });
 
   test('returns isAuthorized: false when SM throws on AWSCURRENT fetch', async () => {

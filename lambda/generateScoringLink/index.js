@@ -49,6 +49,7 @@ const {
 } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { randomUUID } = require('crypto');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 
@@ -75,6 +76,11 @@ const serverError= (msg)  => ({ statusCode: 500, headers: { 'Content-Type': 'app
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  // TEN-03: the company comes from the sign-in only. tenantId in the body is not read.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return badRequest('Missing candidateId path parameter');
 
@@ -87,13 +93,12 @@ exports.handler = async (event) => {
     return badRequest('Invalid JSON body');
   }
 
-  const { panelMemberId, panelMemberEmail, panelMemberName, panelMemberRole, tenantId, interviewId } = body;
+  const { panelMemberId, panelMemberEmail, panelMemberName, panelMemberRole, interviewId } = body;
 
   if (!panelMemberId)    return badRequest('Missing required field: panelMemberId');
   if (!panelMemberEmail) return badRequest('Missing required field: panelMemberEmail');
   if (!panelMemberName)  return badRequest('Missing required field: panelMemberName');
   if (!panelMemberRole)  return badRequest('Missing required field: panelMemberRole');
-  if (!tenantId)         return badRequest('Missing required field: tenantId');
 
   // ── Step 2: Confirm candidate SAGA exists ─────────────────────────────────
   try {
@@ -101,8 +106,8 @@ exports.handler = async (event) => {
       TableName: STATE_TABLE,
       Key:       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
     }));
-    if (!sagaResult.Item) {
-      return notFound(`Candidate ${candidateId} not found`);
+    if (!sagaResult.Item || !T.ownsRow(unmarshall(sagaResult.Item), tenantId)) {
+      return T.notFound();
     }
   } catch (err) {
     console.error('Failed to read SAGA record', { candidateId, error: err.message });
@@ -125,7 +130,7 @@ exports.handler = async (event) => {
     if (existing.Items && existing.Items.length > 0) {
       const rec = unmarshall(existing.Items[0]);
       const nowSec = Math.floor(Date.now() / 1000);
-      if (rec.ttl && rec.ttl > nowSec) {
+      if (rec.ttl && rec.ttl > nowSec && T.ownsRow(rec, tenantId)) {
         // Return existing valid token — do not regenerate
         const scoringUrl = `${FRONTEND_URL}/score?token=${rec.token}`;
         console.info('Returning existing valid scoring link', { candidateId, panelMemberId, token: rec.token });
@@ -164,11 +169,11 @@ exports.handler = async (event) => {
   try {
     await dynamo.send(new PutItemCommand({
       TableName: STATE_TABLE,
-      Item:      marshall({
+      Item:      marshall(T.stampTenant({
         PK: `CANDIDATE#${candidateId}`,
         SK: `SCORING_LINK#${token}`,
         ...sharedFields,
-      }),
+      }, tenantId)),
     }));
   } catch (err) {
     console.error('Failed to write candidate-indexed scoring link', { candidateId, token, error: err.message });
@@ -179,11 +184,11 @@ exports.handler = async (event) => {
   try {
     await dynamo.send(new PutItemCommand({
       TableName: STATE_TABLE,
-      Item:      marshall({
+      Item:      marshall(T.stampTenant({
         PK: `SCORING_LINK#${token}`,
         SK: 'META',
         ...sharedFields,
-      }),
+      }, tenantId)),
     }));
   } catch (err) {
     console.error('Failed to write token-indexed scoring link', { token, error: err.message });

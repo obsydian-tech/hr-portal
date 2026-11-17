@@ -19,7 +19,6 @@ export const environment = {
   },
   talentFlow: {
     apiUrl: 'https://57l0w7kk9h.execute-api.af-south-1.amazonaws.com/v1',
-    tenantId: 'NALEKO',
     agentApiUrl: 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com',
     agentApiKey: '', // unused — JWT Bearer auth via AuthService.getIdToken()
     // TalentFlow Cognito User Pool (TF pool, NOT Naleko pool - Lesson 18)

@@ -10,8 +10,9 @@
  * EPIC 1 Task 1.1
  */
 
-const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, PutItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper, candidateIsOurs } = require('../shared/tf-tenant.js');
 
 const dynamoDB = new DynamoDBClient({});
 const DISMISSALS_TABLE = process.env.DISMISSALS_TABLE_NAME || 'talent-flow-intelligence-dismissals';
@@ -23,6 +24,11 @@ const TTL_DAYS = 90;
  * Lambda handler
  */
 exports.handler = async (event) => {
+  // TEN-03: the company comes from the sign-in only.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   console.info('[snoozeTile] Invoked', {
     path: event.path,
     pathParameters: event.pathParameters,
@@ -57,6 +63,11 @@ exports.handler = async (event) => {
     }
     const { entityId, ruleId } = parsed;
 
+    // A tile is judged through the candidate it names: another company's candidate is not found.
+    if (entityId !== 'aggregate' && !(await candidateIsOurs((c) => dynamoDB.send(c), QueryCommand, process.env.STATE_TABLE_NAME || 'talent-flow-state', entityId, tenantId))) {
+      return T.notFound();
+    }
+
     // Compute tileKey
     const tileKey = `${entityId}#${ruleId}`;
 
@@ -71,7 +82,7 @@ exports.handler = async (event) => {
     // Write snooze record
     await dynamoDB.send(new PutItemCommand({
       TableName: DISMISSALS_TABLE,
-      Item: marshall({
+      Item: marshall(T.stampTenant({
         PK: `USER#${userId}`,
         SK: `TILEDISMISS#${tileKey}`,
         action: 'SNOOZE',
@@ -82,7 +93,7 @@ exports.handler = async (event) => {
         ruleId,
         at: now.toISOString(),
         ttl,
-      }),
+      }, tenantId)),
     }));
 
     console.info('[snoozeTile] Snooze recorded', { userId, tileKey, snoozeUntil });

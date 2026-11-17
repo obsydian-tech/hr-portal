@@ -46,10 +46,13 @@ jest.mock('ulid', () => ({ ulid: jest.fn(() => '01HTEST00000000000000000') }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeEvent(overrides = {}) {
+const TEN = 'ten_0123456789abcdefghijklmnop';
+
+function makeEvent(overrides = {}, claims = { tenant_id: TEN }) {
   return {
     httpMethod: 'POST',
     path: '/candidates',
+    requestContext: { authorizer: { jwt: { claims } } },
     body: JSON.stringify({
       idempotencyKey: 'idem-key-001',
       firstName: 'Jane',
@@ -57,7 +60,6 @@ function makeEvent(overrides = {}) {
       email: 'jane.doe@example.com',
       positionTitle: 'Senior Engineer',
       positionLevel: 'SENIOR',
-      tenantId: 'DEFAULT',
       ...overrides,
     }),
   };
@@ -109,6 +111,7 @@ describe('createCandidate', () => {
       // Omitted, not null: the orchestrator sets it with attribute_not_exists(configVersion).
       expect(sagaPutCall.Item).not.toHaveProperty('configVersion');
       expect(sagaPutCall.Item.PK).toBe('CANDIDATE#CAND-01HTEST00000000000000000');
+      expect(sagaPutCall.Item.tenant_id).toBe(TEN);
     });
 
     test('EventBridge event published with source talent-flow.candidates and detail-type CandidateCreated', async () => {
@@ -120,8 +123,25 @@ describe('createCandidate', () => {
       expect(entry.EventBusName).toBe('talent-flow-bus');
       const detail = JSON.parse(entry.Detail);
       expect(detail.candidateId).toBe('CAND-01HTEST00000000000000000');
-      expect(detail.tenantId).toBe('DEFAULT');
+      expect(detail.tenant_id).toBe(TEN);
+      expect(detail).not.toHaveProperty('tenantId');
     });
+  });
+
+  test('a token without a company is refused with 403 and nothing is read or written', async () => {
+    const response = await handler(makeEvent({}, {}));
+    expect(response.statusCode).toBe(403);
+    expect(parseBody(response)).toEqual({ error: 'Forbidden' });
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+    expect(mockEbSend).not.toHaveBeenCalled();
+  });
+
+  test('a company in the body is not read', async () => {
+    mockDynamoSend.mockResolvedValue({});
+    mockEbSend.mockResolvedValue({ FailedEntryCount: 0, Entries: [] });
+    await handler(makeEvent({ tenantId: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz', tenant_id: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' }));
+    const sagaPut = mockDynamoSend.mock.calls.map((c) => c[0]).find((c) => c.Item && c.Item.SK === 'SAGA');
+    expect(sagaPut.Item.tenant_id).toBe(TEN);
   });
 
   // ── Checklist item 4: duplicate idempotency key returns 200 ───────────────
