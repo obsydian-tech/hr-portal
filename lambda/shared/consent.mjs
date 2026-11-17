@@ -49,6 +49,7 @@ export async function readConsent(employeeId, version) {
   const out = await ddb.send(new GetItemCommand({
     TableName: CONSENTS,
     Key: { employee_id: { S: employeeId }, notice_version: { S: version } },
+    ConsistentRead: true,
   }));
   return out.Item ? { version, acceptedAt: out.Item.accepted_at?.S ?? '' } : null;
 }

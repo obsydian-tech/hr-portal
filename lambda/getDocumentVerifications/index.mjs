@@ -3,6 +3,7 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { groupsOf, checkOf } from '../shared/document-check.mjs';
+import { isIdToken } from '../shared/hr-group.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -26,7 +27,7 @@ const json = (statusCode, body) => ({ statusCode, headers: CORS, body: JSON.stri
 function callerOf(event) {
   const auth = event.requestContext?.authorizer;
   if (auth?.lambda?.actor === 'AGENT') return 'AGENT';
-  if (auth?.jwt?.claims && groupsOf(auth.jwt.claims).includes('hr_staff')) return 'HR';
+  if (auth?.jwt?.claims && isIdToken(auth.jwt.claims) && groupsOf(auth.jwt.claims).includes('hr_staff')) return 'HR';
   return null;
 }
 
@@ -170,7 +171,7 @@ const handlerFn = async (event) => {
         }
         return { ...item, employee_hr_staff_id: '' };
       } catch (err) {
-        logger.error('Failed to get employee', { error: err });
+        logger.error('Failed to get employee', { errorName: err?.name ?? 'Error' });
         return { ...item, employee_hr_staff_id: '' };
       }
     }));
@@ -202,7 +203,7 @@ const handlerFn = async (event) => {
     };
 
   } catch (error) {
-    logger.error('Handler error', { error });
+    logger.error('Handler error', { errorName: error?.name ?? 'Error' });
     return {
       statusCode: 500,
       headers: {
@@ -211,7 +212,7 @@ const handlerFn = async (event) => {
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'GET,OPTIONS'
       },
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: 'Something went wrong' })
     };
   }
 };
