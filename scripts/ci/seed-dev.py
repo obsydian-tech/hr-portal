@@ -177,7 +177,7 @@ def user_sub(cognito, pool: str, role: str) -> str:
 
 
 def employee_item(employee_id: str, first: str, last: str, email: str, dept: str,
-                  title: str, stage: str) -> dict:
+                  title: str, stage: str, tenant_id: str = "", owner_sub: str = "") -> dict:
     item = {
         "employee_id": {"S": employee_id},
         "first_name": {"S": first},
@@ -199,6 +199,12 @@ def employee_item(employee_id: str, first: str, last: str, email: str, dept: str
     }
     if stage in STEP_OF_STAGE:
         item["step"] = {"S": STEP_OF_STAGE[stage]}
+    # TEN-02: the seed rewrites these rows on every run, so it must give them their company (and the test
+    # employee its sign-in id) again, as the backfill does. Without them the company checks refuse the rows.
+    if tenant_id:
+        item["tenant_id"] = {"S": tenant_id}
+    if owner_sub:
+        item["user_sub"] = {"S": owner_sub}
     return item
 
 
@@ -270,7 +276,7 @@ def sample_pdf(title: str) -> bytes:
     return bytes(out)
 
 
-def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
+def seed_documents(ddb, ns: uuid.UUID, employee_id: str, tenant_id: str = "") -> int:
     """Replace the person's documents with the fixed set. Verification rows carry no extracted data."""
     reset_employee_documents(ddb, employee_id)
     for doc_id, doc_type, uploaded, status, confidence, decided in NALEDI_DOCUMENTS:
@@ -287,6 +293,8 @@ def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
             "ocr_status": {"S": status},
             "seed": {"S": SEED_TAG},
         }
+        if tenant_id:
+            item["tenant_id"] = {"S": tenant_id}
         if confidence is not None:
             vid = str(uuid.uuid5(ns, f"verification:{doc_id}"))
             item["verification_id"] = {"S": vid}
@@ -301,6 +309,7 @@ def seed_documents(ddb, ns: uuid.UUID, employee_id: str) -> int:
                 "check": {"S": "MATCHES" if confidence >= 90 else "NEEDS_A_LOOK"},
                 "createdAt": {"S": uploaded},
                 "seed": {"S": SEED_TAG},
+                **({"tenant_id": {"S": tenant_id}} if tenant_id else {}),
             })
         if decided:
             item["hr_reviewed_at"] = {"S": "2026-11-06T08:00:00Z"}
@@ -388,19 +397,21 @@ def main() -> None:
         print("warning: the company B login has no sub; its Member row was not written")
     second_written = ensure_second_company(ddb, hr_b_sub) if hr_b_sub else 0
 
+    tid = founding_tenant_id()
+    employee_sub = user_sub(cognito, naleko, "employee")
     ns = NS
     seeded_documents = 0
     for first, last, dept, title, stage in DEMO_PEOPLE:
         email = f"pepla-demo-{first.lower()}.{last.lower().replace(' ', '')}@{MAIL_DOMAIN}"
         eid = str(uuid.uuid5(ns, email))
         ddb.put_item(TableName="employees",
-                     Item=employee_item(eid, first, last, email, dept, title, stage))
+                     Item=employee_item(eid, first, last, email, dept, title, stage, tenant_id=tid))
         if (first, last) == ("Naledi", "Dlamini"):
-            seeded_documents = seed_documents(ddb, ns, eid)
+            seeded_documents = seed_documents(ddb, ns, eid, tid)
 
     ddb.put_item(TableName="employees", Item=employee_item(
         EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
-        "Operations", "New Starter", "INVITED"))
+        "Operations", "New Starter", "INVITED", tenant_id=tid, owner_sub=employee_sub))
     docs_removed = reset_employee_documents(ddb, EMPLOYEE_ID)
     consents_removed = reset_employee_consents(ddb, EMPLOYEE_ID)
 
