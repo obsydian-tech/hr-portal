@@ -65,7 +65,7 @@ NALEKO_PERSONAS = {
     # TEN-02: the HR login of the second company (B). Its Member row is written below.
     "hr-b": {
         "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRB1",
-                  "given_name": "Zanele", "family_name": "Demo-HR-B"},
+                  "given_name": "Zanele", "family_name": "Companyb-Lead"},
         "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr"],
     },
     "employee": {
