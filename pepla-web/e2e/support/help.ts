@@ -1,6 +1,6 @@
 import { test as base, expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { settleFonts } from '../acceptance/support/fonts';
 
@@ -111,7 +111,27 @@ export class Help {
     await settleFonts(this.page);
     const path = join(MEDIA, this.info.project.name, `${name}.png`);
     mkdirSync(dirname(path), { recursive: true });
-    await this.page.screenshot({ path, animations: 'disabled', caret: 'hide' });
+    writeFileSync(path, await this.steadyScreenshot(name));
+  }
+
+  /**
+   * A screenshot of a page that has stopped changing: take one, take another 150 ms later, and
+   * keep going until two in a row are byte for byte the same (at most 6 more). A picture taken
+   * mid-change (a row arriving, a menu sliding, a hover easing) differs between help runs and
+   * made the "same pictures every time" checks flaky. If the page never settles the last picture
+   * is used and the name is logged, so nothing fails that did not fail before.
+   */
+  private async steadyScreenshot(name: string): Promise<Buffer> {
+    const take = () => this.page.screenshot({ animations: 'disabled', caret: 'hide' });
+    let previous = await take();
+    for (let i = 0; i < 6; i++) {
+      await this.page.waitForTimeout(150);
+      const next = await take();
+      if (next.equals(previous)) return next;
+      previous = next;
+    }
+    console.warn(`[help] ${name}: the page was still changing after 7 pictures, using the last one`);
+    return previous;
   }
 
   /** Name this journey's walkthrough video (defaults to the test title). */
