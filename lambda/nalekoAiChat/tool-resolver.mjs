@@ -57,6 +57,7 @@ async function pendingApproval(toolName, toolArgs, context) {
       toolName,
       toolArgs,
       staffId:   context.staffId,
+      tenant_id: context.tenantId,
       status:    'PENDING_APPROVAL',
       createdAt: new Date().toISOString(),
       expiresAt,

@@ -2,6 +2,7 @@ import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { guardAi, isRobotCaller, markRobot } from '../shared/ai-guard.mjs';
 import { hrOrAgent } from '../shared/hr-group.mjs';
+import { requireTenant, ownsItem, notFound } from '../shared/tenant.mjs';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -58,6 +59,8 @@ const handlerFn = async (event) => {
   }
   const refused = hrOrAgent(event, 'Only HR can check documents');
   if (refused) return { ...refused, headers: CORS_HEADERS };
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers: CORS_HEADERS };
 
   markRobot(isRobotCaller(event.requestContext?.authorizer?.jwt?.claims));
   logger.info('Handler invoked', { verificationId: event.pathParameters?.id });
@@ -77,12 +80,12 @@ const handlerFn = async (event) => {
     }));
     item = Item;
   } catch (err) {
-    logger.error('DynamoDB GetItem failed', { error: err.message, verificationId });
+    logger.error('DynamoDB GetItem failed', { errorName: err?.name ?? 'Error', verificationId });
     return respond(500, { error: 'Failed to retrieve verification record' });
   }
 
-  if (!item) {
-    return respond(404, { error: `Verification ${verificationId} not found` });
+  if (!ownsItem(item, tenantId)) {
+    return { ...notFound(), headers: CORS_HEADERS };
   }
 
   // ── 2. Build prompt — no raw PII fields sent to Bedrock ───────────────────

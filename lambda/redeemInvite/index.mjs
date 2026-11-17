@@ -2,6 +2,7 @@ import { DynamoDBClient, GetItemCommand, UpdateItemCommand } from '@aws-sdk/clie
 import { CognitoIdentityProviderClient, AdminSetUserPasswordCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { INVITES_TABLE, MAX_FAILED, answer, bodyOf, hashToken, readInvite, signInState } from '../shared/invite.mjs';
+import { ownsItem, legacyCompany } from '../shared/tenant.mjs';
 
 const logger = new Logger({ serviceName: 'redeemInvite' });
 const ddb = new DynamoDBClient();
@@ -35,7 +36,7 @@ export const handler = async (event) => {
       return answer(400, { error: 'Check the password', fields: { password: rules } });
     }
     // Read the person first: a missing or unreadable row must not use the link up.
-    const emp = (await ddb.send(new GetItemCommand({ TableName: 'employees', Key: { employee_id: found.row.employee_id }, ProjectionExpression: 'email' }))).Item;
+    const emp = (await ddb.send(new GetItemCommand({ TableName: 'employees', Key: { employee_id: found.row.employee_id }, ProjectionExpression: 'email, tenant_id' }))).Item;
     if (!emp?.email?.S) return answer(410, { status: 'invalid' });
     const key = { token_hash: { S: hashToken(body.token) } };
     const now = new Date().toISOString();
@@ -51,6 +52,11 @@ export const handler = async (event) => {
       throw e;
     }
     try {
+      // TEN-02: the person must be the invite's company's. Refusing keeps the link used; no password is set.
+      if (!ownsItem(emp, found.row.tenant_id?.S ?? legacyCompany())) {
+        logger.warn('Invite redeem refused', { employeeId: found.row.employee_id.S, reason: 'company' });
+        return answer(410, { status: 'used' });
+      }
       // ONB-04.2: a link only finishes a sign-in nobody has used yet. Refusing keeps the link used.
       const state = await signInState(process.env.COGNITO_POOL_ID, emp.email.S);
       if (!state.ok) {

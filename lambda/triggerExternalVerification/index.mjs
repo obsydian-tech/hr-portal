@@ -1,7 +1,9 @@
-import { DynamoDBClient, GetItemCommand, ScanCommand, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, GetItemCommand, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { hrOnly } from '../shared/hr-group.mjs';
+import { requireTenant, notFound } from '../shared/tenant.mjs';
+import { findDocument } from '../shared/company-rows.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -35,6 +37,8 @@ const PROVIDER_MAP = {
 const handlerFn = async (event) => {
   const refused = hrOnly(event, 'Only HR can check documents');
   if (refused) return { ...refused, headers: corsHeaders() };
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers: corsHeaders() };
   const documentId = event.pathParameters?.id;
   logger.info('Handler invoked', { documentId });
   tracer.putAnnotation('operation', 'triggerExternalVerification');
@@ -49,9 +53,9 @@ const handlerFn = async (event) => {
     const notes = body.notes ?? '';
 
     // Resolve the document record (we need document_type + employee_id)
-    const docRecord = await resolveDocument(documentId);
+    const docRecord = await resolveDocument(documentId, tenantId);
     if (!docRecord) {
-      return errorResponse(404, `Document ${documentId} not found`);
+      return { ...notFound(), headers: corsHeaders() };
     }
 
     const { documentType, employeeId } = docRecord;
@@ -84,6 +88,7 @@ const handlerFn = async (event) => {
         status:        { S: "PENDING" },
         requested_at:  { S: timestamp },
         notes:         { S: notes },
+        tenant_id:     { S: tenantId },
       },
     }));
 
@@ -114,23 +119,17 @@ const handlerFn = async (event) => {
  * Resolve a document record by document_id.
  * documents table has employee_id (PK) + document_id (SK), so we scan.
  */
-async function resolveDocument(documentId) {
+async function resolveDocument(documentId, tenantId) {
   try {
-    const result = await dynamodb.send(new ScanCommand({
-      TableName: DOCUMENTS_TABLE,
-      FilterExpression: "document_id = :docId",
-      ExpressionAttributeValues: { ":docId": { S: documentId } },
-      ProjectionExpression: "document_id, employee_id, document_type",
-      Limit: 10,
-    }));
-    const item = result.Items?.[0];
+    // TEN-02: the caller's company's documents only.
+    const item = await findDocument(documentId, tenantId);
     if (!item) return null;
     return {
       documentType: item.document_type?.S,
       employeeId:   item.employee_id?.S,
     };
   } catch (err) {
-    logger.error('resolveDocument error', { errorMessage: err.message });
+    logger.error('resolveDocument error', { errorName: err?.name ?? 'Error' });
     return null;
   }
 }

@@ -21,6 +21,7 @@
 
 import { DynamoDBClient, PutItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { randomUUID } from 'crypto';
+import { tenantKey } from './tenant.mjs';
 
 const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
@@ -35,9 +36,11 @@ const TTL_SECONDS = 86400; // 24 hours
  * @param {() => Promise<*>} handler - Async function that executes the real business logic.
  * @returns {Promise<*>} The handler result (fresh or cached).
  */
-export async function withIdempotency(key, handler) {
+export async function withIdempotency(clientKey, handler, tenantId) {
   // No key supplied — proceed without idempotency protection.
-  if (!key || !TABLE) return handler();
+  if (!clientKey || !TABLE) return handler();
+  // TEN-02: one company's key never meets another's. The company comes from the caller's token, never the request.
+  const key = tenantKey(tenantId, String(clientKey));
 
   const expiresAt = Math.floor(Date.now() / 1000) + TTL_SECONDS;
 

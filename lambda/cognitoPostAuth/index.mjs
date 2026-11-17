@@ -12,6 +12,8 @@
 
 import { DynamoDBClient, QueryCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
+import { tenantFilter } from '../shared/tenant.mjs';
+import { companyOfSignIn } from '../shared/membership.mjs';
 
 const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 const logger = new Logger({ serviceName: 'cognitoPostAuth' });
@@ -33,14 +35,34 @@ export const handler = async (event) => {
       return event; // Always return event to Cognito
     }
 
-    // 1. Look up employee by email via the email-index GSI
+    // TEN-02: the company is the signed-in person's (their Member row, else the legacy company while that rule is on).
+    const sub = event.request?.userAttributes?.sub ?? '';
+    let tenantId = null;
+    let reason = 'none';
+    let errorName;
+    if (sub) {
+      try {
+        tenantId = await companyOfSignIn(sub);
+      } catch (err) {
+        reason = 'error';
+        errorName = err?.name ?? 'Error';
+      }
+    }
+    if (!tenantId) {
+      logger.warn('Post sign-in skipped', { sub, reason, ...(errorName ? { errorName } : {}) });
+      return event;
+    }
+    const t = tenantFilter(tenantId);
+
+    // 1. Look up employee by email via the email-index GSI, in that company only
     const byEmail = (value) => dynamo.send(new QueryCommand({
       TableName: EMPLOYEES_TABLE,
       IndexName: 'email-index',
       KeyConditionExpression: 'email = :email',
-      ExpressionAttributeValues: { ':email': { S: value } },
+      FilterExpression: t.FilterExpression,
+      ExpressionAttributeNames: t.ExpressionAttributeNames,
+      ExpressionAttributeValues: { ':email': { S: value }, ':tenant_id': { S: tenantId } },
       ProjectionExpression: 'employee_id, stage',
-      Limit: 2,
     }));
     const lower = String(email).trim().toLowerCase();
     // BE-18: lower case first. An address with capitals is also looked up as typed, so a legacy row stored
@@ -123,12 +145,14 @@ export const handler = async (event) => {
       TableName: EMPLOYEES_TABLE,
       Key: { employee_id: { S: employeeId } },
       UpdateExpression: 'SET stage = :active, activated_at = :now, step = :documents',
-      ConditionExpression: 'stage = :invited',
+      ConditionExpression: `stage = :invited AND ${t.FilterExpression}`,
+      ExpressionAttributeNames: t.ExpressionAttributeNames,
       ExpressionAttributeValues: {
         ':active':  { S: 'ACTIVE' },
         ':invited': { S: 'INVITED' },
         ':now':     { S: new Date().toISOString() },
         ':documents': { S: 'DOCUMENTS' },
+        ':tenant_id': { S: tenantId },
       },
     }));
 

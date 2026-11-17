@@ -24,6 +24,10 @@ import { sanitisePii } from './pii-sanitiser.mjs';
 import { classifyIntent, selectModel } from './intent-classifier.mjs';
 import { buildCacheKey, getCached, setCached } from './cache.mjs';
 import { hrOnly } from '../shared/hr-group.mjs';
+import { requireTenant } from '../shared/tenant.mjs';
+
+// TEN-02: Batsi calls the Agent API with the server's key, which carries AGENT_TENANT_ID. Only that company may use it.
+let TENANT = null;
 
 const logger  = new Logger({ serviceName: 'nalekoAiChat' });
 const tracer  = new Tracer({ serviceName: 'nalekoAiChat' });
@@ -162,6 +166,7 @@ async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
     cacheHit:            cacheHit ?? false,
     status,
     expiresAt,
+    tenant_id:           TENANT ?? undefined,
   };
   try {
     await dynamo.send(new PutItemCommand({
@@ -591,6 +596,12 @@ async function runAgenticLoop(messages, context, modelId) {
 export const handler = async (event) => {
   const refused = hrOnly(event, 'Only HR can use Batsi chat');
   if (refused) return refused;
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
+  if (tenantId !== process.env.AGENT_TENANT_ID) {
+    return { statusCode: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: 'Forbidden' }) };
+  }
+  TENANT = tenantId;
   const start = Date.now();
 
   // ── 1. Extract staffId from Cognito JWT (NH-53) ──────────────────────────
@@ -744,7 +755,7 @@ export const handler = async (event) => {
   }
 
   // ── 6. Agentic loop ───────────────────────────────────────────────────────
-  const context = { staffId };
+  const context = { staffId, tenantId };
   let loopResult;
   try {
     loopResult = await runAgenticLoop(messages, context, selectedModelId);

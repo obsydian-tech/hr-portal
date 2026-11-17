@@ -1,4 +1,6 @@
-import { DynamoDBClient, ScanCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { requireTenant, ownsItem, notFound } from '../shared/tenant.mjs';
+import { findDocument } from '../shared/company-rows.mjs';
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -29,6 +31,8 @@ const handlerFn = async (event) => {
   if (!claims) return requireHr(event, headers);
   const isHr = isIdToken(claims) && groupsOf(claims).includes('hr_staff');
   const notYours = { statusCode: 403, headers, body: JSON.stringify({ error: "You can only open your own documents" }) };
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers };
 
   try {
     // API GW route is GET /v1/documents/{id}/url — passes pathParameters.id
@@ -39,30 +43,18 @@ const handlerFn = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "document_id is required" }) };
     }
 
-    // Look up the document record to get s3_key. A Scan returns one page at a time, so follow every page
-    // and stop at the first match.
-    let docItem;
-    let startKey;
-    do {
-      const scanResult = await dynamodb.send(new ScanCommand({
-        TableName: DOCUMENTS_TABLE,
-        FilterExpression: "document_id = :docId",
-        ExpressionAttributeValues: { ":docId": { S: documentId } },
-        ...(startKey ? { ExclusiveStartKey: startKey } : {}),
-      }));
-      docItem = scanResult.Items?.[0];
-      startKey = docItem ? undefined : scanResult.LastEvaluatedKey;
-    } while (startKey);
+    // TEN-02: the document within the caller's company; another company's is answered as a missing one.
+    const docItem = await findDocument(documentId, tenantId);
     if (!docItem) {
-      return isHr ? { statusCode: 404, headers, body: JSON.stringify({ error: "Document not found" }) } : notYours;
+      return isHr ? { ...notFound(), headers } : notYours;
     }
     if (!isHr) {
       const emp = await dynamodb.send(new GetItemCommand({
         TableName: "employees",
         Key: { employee_id: { S: docItem.employee_id?.S ?? "" } },
-        ProjectionExpression: "email",
+        ProjectionExpression: "email, user_sub, tenant_id",
       }));
-      if (!emp.Item || !isHrOrOwner(claims, { email: emp.Item.email?.S ?? "" })) return notYours;
+      if (!ownsItem(emp.Item, tenantId) || !isHrOrOwner(claims, { email: emp.Item.email?.S ?? "", user_sub: emp.Item.user_sub?.S ?? "" })) return notYours;
     }
 
     const s3Key = docItem.s3_key?.S;

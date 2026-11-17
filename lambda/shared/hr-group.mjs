@@ -23,10 +23,15 @@ export function isIdToken(claims) {
   return t === undefined || t === 'id';
 }
 
-/** HR may act on anyone; everyone else only on the record whose email is theirs (trimmed, any case; empty never matches). */
+/**
+ * HR may act on anyone; everyone else only on the record that is theirs. TEN-02: the owner is the sign-in whose sub is
+ * the row's user_sub (a row without one has no owner), and BE-17.1's verified email must still match.
+ */
 export function isHrOrOwner(claims, employee) {
   if (!isIdToken(claims)) return false;
   if (claims && groupsOf(claims).includes(HR_GROUP)) return true;
+  const sub = String(claims?.sub ?? '');
+  if (sub === '' || String(employee?.user_sub ?? '') !== sub) return false;
   const v = claims?.email_verified;
   const verified = v === true || (typeof v === 'string' && v.toLowerCase() === 'true');
   if (!verified) return false;

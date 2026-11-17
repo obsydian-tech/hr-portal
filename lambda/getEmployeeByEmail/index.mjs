@@ -2,6 +2,7 @@ import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { hrOnly } from '../shared/hr-group.mjs';
+import { requireTenant, tenantFilter } from '../shared/tenant.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -23,8 +24,10 @@ const EMPLOYEES_TABLE = "employees";
 const handlerFn = async (event) => {
   const refused = hrOnly(event, 'Only HR can look up employees');
   if (refused) return { ...refused, headers: corsHeaders() };
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers: corsHeaders() };
   const email = event.queryStringParameters?.email;
-  logger.info('Handler invoked', { email });
+  logger.info('Handler invoked');
   tracer.putAnnotation('operation', 'getEmployeeByEmail');
 
   try {
@@ -35,18 +38,20 @@ const handlerFn = async (event) => {
     const normalised = email.trim().toLowerCase();
 
     // NH-28: use Query on email-index GSI instead of a full-table Scan
+    const f = tenantFilter(tenantId);
     const result = await dynamodb.send(new QueryCommand({
       TableName: EMPLOYEES_TABLE,
       IndexName: "email-index",
       KeyConditionExpression: "email = :email",
-      ExpressionAttributeValues: { ":email": { S: normalised } },
+      FilterExpression: f.FilterExpression,
+      ExpressionAttributeNames: f.ExpressionAttributeNames,
+      ExpressionAttributeValues: { ":email": { S: normalised }, ":tenant_id": { S: tenantId } },
       ProjectionExpression: "employee_id",
-      Limit: 1,
     }));
 
     const found = (result.Items?.length ?? 0) > 0;
 
-    logger.info('Lookup result', { email: normalised, found });
+    logger.info('Lookup result', { found });
 
     return {
       statusCode: 200,

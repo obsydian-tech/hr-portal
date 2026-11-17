@@ -1,6 +1,7 @@
 import { DynamoDBClient, GetItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { hrOnly, json } from '../shared/hr-group.mjs';
+import { requireTenant, ownsRow, notFound } from '../shared/tenant.mjs';
 import { INVITES_TABLE, MAX_FAILED } from '../shared/invite.mjs';
 
 const logger = new Logger({ serviceName: 'getInvite' });
@@ -10,10 +11,12 @@ const ddb = new DynamoDBClient();
 export const handler = async (event) => {
   const refused = hrOnly(event, 'Only HR can see the invite link');
   if (refused) return refused;
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
   const id = event.pathParameters?.id;
   try {
-    const emp = (await ddb.send(new GetItemCommand({ TableName: 'employees', Key: { employee_id: { S: String(id ?? '') } }, ProjectionExpression: 'employee_id, email' }))).Item;
-    if (!emp) return json(404, { error: 'Not found' });
+    const emp = (await ddb.send(new GetItemCommand({ TableName: 'employees', Key: { employee_id: { S: String(id ?? '') } }, ProjectionExpression: 'employee_id, email, tenant_id' }))).Item;
+    if (!emp || !ownsRow({ tenant_id: emp.tenant_id?.S }, tenantId)) return notFound();
     const rows = [];
     let start;
     do {

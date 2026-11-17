@@ -9,6 +9,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { guardAi, isRobotEmail, markRobot, aiSwitchedOff, AI_SKIPPED_LABEL, AI_OFF_LABEL } from '../shared/ai-guard.mjs';
 import { checkFromRead } from '../shared/document-check.mjs';
+import { ownsItem, tenantFilter, legacyCompany } from '../shared/tenant.mjs';
 import { requiredFor } from '../shared/required-documents.mjs';
 import { stepFromDocuments, stepsBefore } from '../shared/onboarding-step.mjs';
 
@@ -23,8 +24,18 @@ const eb = new EventBridgeClient();
 const logger = new Logger({ serviceName: 'processDocumentOCR' });
 const tracer = new Tracer({ serviceName: 'processDocumentOCR' });
 
+// TEN-02: the company of the document being read (from its row), set once per event.
+let TENANT = null;
+/** The employee update condition: only a row of this document's company. */
+function companyCondition(existing, values, names = {}) {
+  const t = tenantFilter(TENANT);
+  values[':tenant_id'] = { S: TENANT };
+  return { ConditionExpression: `${existing} AND ${t.FilterExpression}`, ExpressionAttributeNames: { ...names, ...t.ExpressionAttributeNames } };
+}
+
 async function publishEvent(detailType, detail) {
   if (!process.env.EVENT_BUS_NAME) return;
+  detail = { ...detail, tenant_id: TENANT };
   try {
     await eb.send(new PutEventsCommand({
       Entries: [{
@@ -171,6 +182,7 @@ async function buildVerificationItem({ verificationId, employeeId, documentId, d
     check: { S: check },
     reasoning: { S: validationResult.reasoning || '' },
     createdAt: { S: ocrCompletedAt },
+    tenant_id: { S: TENANT },
   };
 
   if (documentType === "NATIONAL_ID") {
@@ -254,7 +266,7 @@ async function moveStepForward(employeeId) {
       startKey = page.LastEvaluatedKey;
     } while (startKey);
 
-    const docs = rows.map((item) => ({
+    const docs = rows.filter((item) => ownsItem(item, TENANT)).map((item) => ({
       document_id: item.document_id?.S,
       document_type: item.document_type?.S,
       ocr_status: item.ocr_status?.S,
@@ -273,7 +285,7 @@ async function moveStepForward(employeeId) {
         TableName: EMPLOYEES_TABLE(),
         Key: { employee_id: { S: employeeId } },
         UpdateExpression: 'SET step = :step',
-        ConditionExpression: `attribute_exists(employee_id) AND stage <> :verified AND (attribute_not_exists(step)${beforeList ? ` OR step IN (${beforeList})` : ''})`,
+        ...companyCondition(`attribute_exists(employee_id) AND stage <> :verified AND (attribute_not_exists(step)${beforeList ? ` OR step IN (${beforeList})` : ''})`, values),
         ExpressionAttributeValues: values,
       }));
       logger.info('Step moved forward', { employeeId, step });
@@ -310,14 +322,19 @@ const handlerFn = async (event) => {
     // 0. A repeat of an S3 event for a document already read stops here: no file read, no AI, no events.
     //    One conditional write, so the role needs no extra table permission. It fails when the document
     //    was already read (ocr_completed_at is set) or has no row.
+    //    TEN-02: the row also gives the company. With the legacy rule off, a row without one is skipped the same way.
+    TENANT = null;
+    const legacy = legacyCompany();
     try {
-      await dynamodb.send(new UpdateItemCommand({
+      const started = await dynamodb.send(new UpdateItemCommand({
         TableName: "documents",
         Key: { employee_id: { S: employeeId }, document_id: { S: `doc_${documentId}` } },
         UpdateExpression: "SET ocr_started_at = :now",
-        ConditionExpression: "attribute_exists(document_id) AND attribute_not_exists(ocr_completed_at)",
+        ConditionExpression: `attribute_exists(document_id) AND attribute_not_exists(ocr_completed_at)${legacy ? '' : ' AND attribute_exists(tenant_id)'}`,
         ExpressionAttributeValues: { ":now": { S: new Date().toISOString() } },
+        ReturnValues: 'ALL_NEW',
       }));
+      TENANT = started?.Attributes?.tenant_id?.S ?? legacy;
     } catch (repeatErr) {
       if (repeatErr.name === 'ConditionalCheckFailedException') {
         logger.info('Document already read or unknown: event ignored', { documentId });
@@ -338,8 +355,10 @@ const handlerFn = async (event) => {
       const emp = await dynamodb.send(new GetItemCommand({
         TableName: EMPLOYEES_TABLE(),
         Key: { employee_id: { S: employeeId } },
-        ProjectionExpression: 'email, last_name, id_number_last4',
+        ProjectionExpression: 'email, last_name, id_number_last4, tenant_id',
       }));
+      // TEN-02: an employee of another company is never read for this document.
+      if (emp.Item && !ownsItem(emp.Item, TENANT)) emp.Item = undefined;
       robot = !emp.Item || isRobotEmail(emp.Item.email?.S);
       record = { last_name: emp.Item?.last_name?.S, id_number_last4: emp.Item?.id_number_last4?.S };
     } catch (guardErr) {
@@ -463,12 +482,14 @@ const handlerFn = async (event) => {
         TableName: EMPLOYEES_TABLE(),
         Key: { employee_id: { S: employeeId } },
         UpdateExpression: 'SET stage = :ds, documents_started_at = if_not_exists(documents_started_at, :now)',
-        ConditionExpression: 'stage IN (:invited, :active)',
+        ConditionExpression: `stage IN (:invited, :active) AND ${tenantFilter(TENANT).FilterExpression}`,
+        ExpressionAttributeNames: { '#tenant_id': 'tenant_id' },
         ExpressionAttributeValues: {
           ':ds':      { S: 'DOCUMENTS_SUBMITTED' },
           ':invited': { S: 'INVITED' },
           ':active':  { S: 'ACTIVE' },
           ':now':     { S: new Date().toISOString() },
+          ':tenant_id': { S: TENANT },
         },
       }));
       logger.info('Stage bumped to DOCUMENTS_SUBMITTED', { employeeId });
@@ -490,9 +511,9 @@ const handlerFn = async (event) => {
       const empRecord = await dynamodb.send(new GetItemCommand({
         TableName: EMPLOYEES_TABLE(),
         Key: { employee_id: { S: employeeId } },
-        ProjectionExpression: 'sfn_task_token',
+        ProjectionExpression: 'sfn_task_token, tenant_id',
       }));
-      const taskToken = empRecord.Item?.sfn_task_token?.S;
+      const taskToken = ownsItem(empRecord.Item, TENANT) ? empRecord.Item?.sfn_task_token?.S : undefined;
       if (taskToken) {
         await sfn.send(new SendTaskSuccessCommand({
           taskToken,

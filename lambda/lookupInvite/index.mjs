@@ -1,6 +1,7 @@
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { answer, bodyOf, readInvite } from '../shared/invite.mjs';
+import { ownsItem, legacyCompany } from '../shared/tenant.mjs';
 
 const logger = new Logger({ serviceName: 'lookupInvite' });
 const ddb = new DynamoDBClient();
@@ -15,8 +16,10 @@ export const handler = async (event) => {
     if (found.status === 'invalid') return answer(200, { status: 'invalid' });
     const e = (await ddb.send(new GetItemCommand({
       TableName: 'employees', Key: { employee_id: found.row.employee_id },
-      ProjectionExpression: 'email, first_name, planned_start_date, hr_staff_name',
+      ProjectionExpression: 'email, first_name, planned_start_date, hr_staff_name, tenant_id',
     }))).Item ?? {};
+    // TEN-02: the company is the invite's; a person of another company is never shown.
+    if (Object.keys(e).length && !ownsItem(e, found.row.tenant_id?.S ?? legacyCompany())) return answer(200, { status: 'invalid' });
     const hrPartnerName = e.hr_staff_name?.S ?? '';
     if (found.status !== 'ok') return answer(200, { status: found.status, company: COMPANY, hrPartnerName });
     return answer(200, { status: 'ok', company: COMPANY, firstName: e.first_name?.S ?? '', email: e.email?.S ?? '', startDate: e.planned_start_date?.S ?? '', hrPartnerName });

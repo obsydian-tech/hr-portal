@@ -3,6 +3,7 @@ import { isIdToken, json } from '../shared/hr-group.mjs';
 import { groupsOf } from '../shared/document-check.mjs';
 import { CURRENT_NOTICE_VERSION, renderNotice } from '../shared/privacy-notice.mjs';
 import { NEW_EMPLOYEES_ONLY, NOT_FOUND, emailIsVerified, findEmployee, readConsent } from '../shared/consent.mjs';
+import { requireTenant } from '../shared/tenant.mjs';
 
 const logger = new Logger({ serviceName: 'getMyStart' });
 const COMPANY = (() => { const v = process.env.COMPANY_NAME; if (!v) throw new Error('Missing setting COMPANY_NAME'); return v; })();
@@ -15,6 +16,9 @@ export const handler = async (event) => {
   // The group comes first: nothing is read for anyone who is not an employee.
   const claims = event?.requestContext?.authorizer?.jwt?.claims;
   if (!claims || !isIdToken(claims) || !groupsOf(claims).includes('employee')) return json(403, { error: NEW_EMPLOYEES_ONLY });
+  // TEN-02: the company comes from the token only.
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
   // The record is found by the token's email, so the email must be a verified one: nothing is read before this.
   if (!emailIsVerified(claims)) {
     logger.warn('The sign-in email is not verified', { sub: claims.sub });
@@ -22,7 +26,7 @@ export const handler = async (event) => {
   }
 
   try {
-    const found = await findEmployee(claims.email);
+    const found = await findEmployee(claims.email, tenantId);
     if (!found.row) {
       logger.warn('No single employee record for this sign-in', { sub: claims.sub, records: found.count });
       return json(404, { error: NOT_FOUND });

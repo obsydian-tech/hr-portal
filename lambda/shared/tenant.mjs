@@ -73,6 +73,23 @@ export function tenantKey(tenantId, ...parts) {
   return ['TENANT', tenantId, ...parts].join('#');
 }
 
+/**
+ * TEN-02: true while the legacy rule is on and this is the legacy company. Rows written before TEN-02 carry no
+ * company and are in no tenant-index, so only then may a list also read them (with tenantFilter). Step 2 removes it.
+ */
+export function legacyCompany() {
+  return legacy();
+}
+
+export function readsLegacyRows(tenantId) {
+  return legacy() !== null && tenantId === legacy();
+}
+
+/** TEN-02: a read-by-key answer's row (AttributeValue form) belongs to this company. */
+export function ownsItem(item, tenantId) {
+  return !!item && ownsRow({ ...(item.tenant_id?.S !== undefined ? { tenant_id: item.tenant_id.S } : {}) }, tenantId);
+}
+
 export function notFound() {
   return json(404, { error: 'Not found' });
 }

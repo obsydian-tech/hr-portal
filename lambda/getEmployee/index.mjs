@@ -12,6 +12,7 @@
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { requireTenant, ownsRow, notFound } from '../shared/tenant.mjs';
 
 const dynamodb = new DynamoDBClient();
 const logger = new Logger({ serviceName: 'getEmployee' });
@@ -20,6 +21,8 @@ const tracer = new Tracer({ serviceName: 'getEmployee' });
 const EMPLOYEES_TABLE = process.env.EMPLOYEES_TABLE ?? 'employees';
 
 export const handler = async (event) => {
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
   const actor = event.requestContext?.authorizer?.lambda?.actor ?? 'HUMAN';
   const employeeId = event.pathParameters?.id;
 
@@ -40,13 +43,9 @@ export const handler = async (event) => {
       Key: { employee_id: { S: employeeId } },
     }));
 
-    if (!result.Item) {
+    if (!result.Item || !ownsRow({ tenant_id: result.Item.tenant_id?.S }, tenantId)) {
       logger.warn('Employee not found', { employeeId });
-      return {
-        statusCode: 404,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ message: `Employee ${employeeId} not found` }),
-      };
+      return notFound();
     }
 
     const item = result.Item;

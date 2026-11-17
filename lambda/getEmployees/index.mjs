@@ -1,10 +1,12 @@
 // NH-28: DynamoDB hardening — GSI query for non-managers, server-side pagination
-import { DynamoDBClient, ScanCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import { legacyPage } from '../shared/company-rows.mjs';
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { stepOf } from '../shared/onboarding-step.mjs';
 import { hrOrAgent, inGroup } from '../shared/hr-group.mjs';
+import { requireTenant, tenantFilter, andFilter, readsLegacyRows } from '../shared/tenant.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -32,9 +34,25 @@ function decodeKey(cursor) {
   }
 }
 
+/** The request's own filter AND the company filter, in AttributeValue form. */
+function companyOnly(params, tenantId) {
+  const t = tenantFilter(tenantId);
+  const merged = andFilter(
+    { FilterExpression: params.FilterExpression, ExpressionAttributeNames: params.ExpressionAttributeNames },
+    { FilterExpression: t.FilterExpression, ExpressionAttributeNames: t.ExpressionAttributeNames },
+  );
+  return {
+    FilterExpression: merged.FilterExpression,
+    ExpressionAttributeNames: merged.ExpressionAttributeNames,
+    ExpressionAttributeValues: { ...(params.ExpressionAttributeValues ?? {}), ':tenant_id': { S: tenantId } },
+  };
+}
+
 const handlerFn = async (event) => {
   const refused = hrOrAgent(event, 'Only HR can look up employees');
   if (refused) return { ...refused, headers: CORS_HEADERS };
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers: CORS_HEADERS };
   logger.info('Handler invoked', { path: event.path, httpMethod: event.httpMethod });
   tracer.putAnnotation('operation', 'getEmployees');
 
@@ -87,13 +105,34 @@ const handlerFn = async (event) => {
         queryParams.ExpressionAttributeNames = { '#st': 'stage' };
         queryParams.ExpressionAttributeValues[':stage'] = { S: stage };
       }
+      Object.assign(queryParams, companyOnly(queryParams, tenantId));
 
       const result = await dynamodb.send(new QueryCommand(queryParams));
       items = result.Items.map(item => unmarshall(item));
       lastEvaluatedKey = result.LastEvaluatedKey;
 
+    } else if (!readsLegacyRows(tenantId)) {
+      // TEN-02: the company's rows only, from tenant-index (never a Scan of everyone).
+      const queryParams = {
+        TableName: 'employees',
+        IndexName: 'tenant-index',
+        KeyConditionExpression: '#tenant_id = :tenant_id',
+        ExpressionAttributeNames: { '#tenant_id': 'tenant_id' },
+        ExpressionAttributeValues: { ':tenant_id': { S: tenantId } },
+        Limit: limit,
+        ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+      };
+      if (stage) {
+        queryParams.FilterExpression = '#st = :stage';
+        queryParams.ExpressionAttributeNames['#st'] = 'stage';
+        queryParams.ExpressionAttributeValues[':stage'] = { S: stage };
+      }
+      const result = await dynamodb.send(new QueryCommand(queryParams));
+      items = result.Items.map(item => unmarshall(item));
+      lastEvaluatedKey = result.LastEvaluatedKey;
+
     } else {
-      // Managers — Scan entire table with pagination
+      // Managers of the legacy company while the legacy rule is on — Scan with the company filter (TEN-02 step 2 removes this)
       const scanParams = {
         TableName: 'employees',
         Limit: limit,
@@ -107,7 +146,7 @@ const handlerFn = async (event) => {
         scanParams.ExpressionAttributeValues = { ':stage': { S: stage } };
       }
 
-      const result = await dynamodb.send(new ScanCommand(scanParams));
+      const result = await legacyPage('employees', tenantId, scanParams);
       items = result.Items.map(item => unmarshall(item));
       lastEvaluatedKey = result.LastEvaluatedKey;
     }
@@ -162,7 +201,7 @@ const handlerFn = async (event) => {
     };
 
   } catch (error) {
-    logger.error('Handler error', { error });
+    logger.error('Handler error', { errorName: error?.name ?? 'Error' });
     return {
       statusCode: 500,
       headers: CORS_HEADERS,

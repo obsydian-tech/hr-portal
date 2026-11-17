@@ -6,6 +6,7 @@
  * accepted_at, cognito_sub, notice_sha256, source. No email, name or ID number is stored in it.
  */
 import { DynamoDBClient, GetItemCommand, PutItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
+import { tenantFilter } from './tenant.mjs';
 import { CURRENT_NOTICE_VERSION } from './privacy-notice.mjs';
 
 const EMPLOYEES = process.env.EMPLOYEES_TABLE || 'employees';
@@ -29,16 +30,18 @@ export function emailIsVerified(claims) {
  * The caller's employee row, found by the token's email on email-index (trimmed, lower case).
  * Returns { row } for exactly one match, or { count } (0, or 2 or more) when there is no single record.
  */
-export async function findEmployee(email) {
+export async function findEmployee(email, tenantId) {
   const mine = String(email ?? '').trim().toLowerCase();
   if (!mine) return { count: 0 };
+  // TEN-02: only the caller's company's rows.
+  const t = tenantFilter(tenantId);
   const out = await ddb.send(new QueryCommand({
     TableName: EMPLOYEES,
     IndexName: 'email-index',
     KeyConditionExpression: '#e = :e',
-    ExpressionAttributeNames: { '#e': 'email' },
-    ExpressionAttributeValues: { ':e': { S: mine } },
-    Limit: 2,
+    FilterExpression: t.FilterExpression,
+    ExpressionAttributeNames: { '#e': 'email', ...t.ExpressionAttributeNames },
+    ExpressionAttributeValues: { ':e': { S: mine }, ':tenant_id': { S: tenantId } },
   }));
   const items = out.Items ?? [];
   return items.length === 1 ? { row: items[0] } : { count: items.length };
@@ -58,7 +61,7 @@ export async function readConsent(employeeId, version) {
  * Adds the acceptance. A row that already exists is never changed: the put is conditional, and the
  * first time is returned. Returns { created: true | false, acceptedAt }.
  */
-export async function addConsent({ employeeId, version, acceptedAt, sub, hash }) {
+export async function addConsent({ employeeId, version, acceptedAt, sub, hash, tenantId }) {
   try {
     await ddb.send(new PutItemCommand({
       TableName: CONSENTS,
@@ -69,6 +72,7 @@ export async function addConsent({ employeeId, version, acceptedAt, sub, hash })
         cognito_sub: { S: sub },
         notice_sha256: { S: hash },
         source: { S: 'web' },
+        ...(tenantId ? { tenant_id: { S: tenantId } } : {}),
       },
       ConditionExpression: 'attribute_not_exists(employee_id) AND attribute_not_exists(notice_version)',
     }));

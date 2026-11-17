@@ -2,6 +2,7 @@ import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import postmark from 'postmark';
 import { hrOnly, json } from '../shared/hr-group.mjs';
+import { requireTenant, ownsRow, notFound } from '../shared/tenant.mjs';
 import { issueInvite } from '../shared/invite.mjs';
 import { inviteEmail } from '../shared/invite-email.mjs';
 import { isRobotCaller, isRobotEmail } from '../shared/ai-guard.mjs';
@@ -14,6 +15,8 @@ let mail;
 export const handler = async (event) => {
   const refused = hrOnly(event, 'Only HR can send a new link');
   if (refused) return refused;
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
   const claims = event.requestContext.authorizer.jwt.claims;
   const id = String(event.pathParameters?.id ?? '');
   let item;
@@ -23,13 +26,13 @@ export const handler = async (event) => {
     logger.error('Invite failed', { employeeId: id, error: e?.name ?? 'Error' });
     return json(502, { status: 'failed' });
   }
-  if (!item) return json(404, { error: 'Not found' });
+  if (!item || !ownsRow({ tenant_id: item.tenant_id?.S }, tenantId)) return notFound();
   if (item.stage?.S !== 'INVITED') return json(409, { status: 'not-invited' });
   const employee = Object.fromEntries(Object.entries(item).map(([k, v]) => [k, v.S ?? v.N ?? null]));
   const sentBy = claims['custom:staff_id'] || claims.sub || 'unknown';
   let invite;
   try {
-    invite = await issueInvite({ employee, hrPartner: null, sentBy });
+    invite = await issueInvite({ employee, hrPartner: null, sentBy, tenantId });
   } catch (e) {
     logger.error('Invite failed', { employeeId: id, error: e?.name ?? 'Error' });
     return json(e?.name === 'InviteRefused' ? 409 : 502, { status: e?.name === 'InviteRefused' ? 'refused' : 'failed' });

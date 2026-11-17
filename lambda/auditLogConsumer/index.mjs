@@ -92,6 +92,8 @@ export const handler = async (event) => {
         actor:      { S: actor },
         // Only write employeeId if we found one (avoids empty-string GSI entries)
         ...(employeeId ? { employeeId: { S: employeeId } } : {}),
+        // TEN-02: the event's company, when it carries a valid one.
+        ...(/^ten_[0-9a-z]{26}$/.test(parsedDetail?.tenant_id ?? '') ? { tenant_id: { S: parsedDetail.tenant_id } } : {}),
       };
 
       // ConditionExpression prevents overwriting an existing record (extra safety belt)

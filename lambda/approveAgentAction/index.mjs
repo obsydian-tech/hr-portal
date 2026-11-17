@@ -15,6 +15,7 @@
  */
 
 import { DynamoDBClient, GetItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { requireTenant, ownsItem, notFound, tenantFilter } from '../shared/tenant.mjs';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 
@@ -42,12 +43,14 @@ function response(statusCode, body) {
   };
 }
 
+/** TEN-02: the action only when it is the caller's company's; another company's is the same as a missing one. */
+let TENANT = null;
 async function getAction(actionId) {
   const r = await db.send(new GetItemCommand({
     TableName: TABLE,
     Key: marshall({ actionId }),
   }));
-  if (!r.Item) return null;
+  if (!ownsItem(r.Item, TENANT)) return null;
   return unmarshall(r.Item);
 }
 
@@ -57,8 +60,9 @@ async function updateStatus(actionId, status, extra = {}) {
     TableName: TABLE,
     Key: marshall({ actionId }),
     UpdateExpression: 'SET #s = :s, updatedAt = :now',
-    ExpressionAttributeNames: { '#s': 'status' },
-    ExpressionAttributeValues: marshall({ ':s': status, ':now': now, ...extra }),
+    ConditionExpression: tenantFilter(TENANT).FilterExpression,
+    ExpressionAttributeNames: { '#s': 'status', '#tenant_id': 'tenant_id' },
+    ExpressionAttributeValues: marshall({ ':s': status, ':now': now, ':tenant_id': TENANT, ...extra }),
   }));
 }
 
@@ -66,13 +70,13 @@ async function updateStatus(actionId, status, extra = {}) {
 
 async function handleGet(actionId) {
   const action = await getAction(actionId);
-  if (!action) return response(404, { error: 'Action not found' });
+  if (!action) return notFound();
   return response(200, action);
 }
 
 async function handleApprove(actionId) {
   const action = await getAction(actionId);
-  if (!action) return response(404, { error: 'Action not found' });
+  if (!action) return notFound();
   if (action.status !== 'PENDING_APPROVAL') {
     return response(409, { error: `Action is already ${action.status}` });
   }
@@ -102,7 +106,7 @@ async function handleApprove(actionId) {
 
 async function handleReject(actionId) {
   const action = await getAction(actionId);
-  if (!action) return response(404, { error: 'Action not found' });
+  if (!action) return notFound();
   if (action.status !== 'PENDING_APPROVAL') {
     return response(409, { error: `Action is already ${action.status}` });
   }
@@ -116,6 +120,9 @@ async function handleReject(actionId) {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export const handler = async (event) => {
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
+  TENANT = tenantId;
   const method   = event.requestContext?.http?.method ?? event.httpMethod;
   const rawPath  = event.rawPath ?? event.path ?? '';
   // Extract actionId from path segment before any trailing /approve or /reject

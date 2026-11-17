@@ -1,4 +1,6 @@
-import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
+import { requireTenant, ownsItem, notFound, tenantFilter } from '../shared/tenant.mjs';
+import { findDocument } from '../shared/company-rows.mjs';
 import { withIdempotency } from '../shared/idempotency.mjs';
 import { groupsOf, hrDecisionOf } from '../shared/document-check.mjs';
 import { isIdToken } from '../shared/hr-group.mjs';
@@ -56,7 +58,18 @@ const CORS_HEADERS = {
   'Content-Type': 'application/json',
 };
 
-const handlerFn = async (event) => {
+/** TEN-02: an update only ever touches a row of the caller's company (the legacy form while the legacy rule is on). */
+function onlyOurs(params, tenantId, existing) {
+  const t = tenantFilter(tenantId);
+  return {
+    ...params,
+    ConditionExpression: existing ? `(${existing}) AND ${t.FilterExpression}` : t.FilterExpression,
+    ExpressionAttributeNames: { ...(params.ExpressionAttributeNames ?? {}), ...t.ExpressionAttributeNames },
+    ExpressionAttributeValues: { ...(params.ExpressionAttributeValues ?? {}), ':tenant_id': { S: tenantId } },
+  };
+}
+
+const handlerFn = async (event, tenantId) => {
   // API GW route is PATCH /v1/verifications/{id}/review — passes pathParameters.id
   const documentId = event.pathParameters?.id || event.pathParameters?.document_id;
   logger.info('Handler invoked', { documentId });
@@ -103,28 +116,15 @@ const handlerFn = async (event) => {
           document_id: { S: documentId },
         },
       }));
-      if (!getResult.Item) {
-        return respond(404, { error: 'Document not found' });
+      if (!ownsItem(getResult.Item, tenantId)) {
+        return { ...notFound(), headers: CORS_HEADERS };
       }
       docRecord = getResult.Item;
     } else {
-      // Fallback: Scan (O(n) — avoid at scale). A Scan returns one page at a time, so follow every page.
-      let startKey;
-      do {
-        const docScan = await dynamo.send(new ScanCommand({
-          TableName: DOCUMENTS_TABLE,
-          FilterExpression: 'document_id = :docId',
-          ExpressionAttributeValues: { ':docId': { S: documentId } },
-          ...(startKey ? { ExclusiveStartKey: startKey } : {}),
-        }));
-        if (docScan.Items && docScan.Items.length > 0) {
-          docRecord = docScan.Items[0];
-          break;
-        }
-        startKey = docScan.LastEvaluatedKey;
-      } while (startKey);
+      // TEN-02: the company's documents only.
+      docRecord = await findDocument(documentId, tenantId);
       if (!docRecord) {
-        return respond(404, { error: 'Document not found' });
+        return { ...notFound(), headers: CORS_HEADERS };
       }
     }
 
@@ -135,14 +135,13 @@ const handlerFn = async (event) => {
     //    reading it. Two HR users, or two tabs, cannot both win. ONB-15.
     const now = new Date().toISOString();
     try {
-      await dynamo.send(new UpdateItemCommand({
+      await dynamo.send(new UpdateItemCommand(onlyOurs({
         TableName: DOCUMENTS_TABLE,
         Key: {
           employee_id: { S: employeeId },
           document_id: { S: documentId },
         },
         UpdateExpression: 'SET ocr_status = :status, hr_reviewed_at = :now, hr_reviewed_by = :by, hr_reviewed_by_name = :byName, hr_decision_notes = :notes, can_reupload = :reupload',
-        ConditionExpression: 'attribute_not_exists(hr_reviewed_at) AND NOT ocr_status IN (:pending, :processing)',
         ExpressionAttributeValues: {
           ':status': { S: decision },
           ':now': { S: now },
@@ -153,9 +152,12 @@ const handlerFn = async (event) => {
           ':pending': { S: 'PENDING' },
           ':processing': { S: 'PROCESSING' },
         },
-      }));
+      }, tenantId, 'attribute_not_exists(hr_reviewed_at) AND NOT ocr_status IN (:pending, :processing)')));
     } catch (err) {
       if (err?.name === 'ConditionalCheckFailedException') {
+        // TEN-02: a document that is no longer this company's answers as unknown.
+        const now2 = await dynamo.send(new GetItemCommand({ TableName: 'documents', Key: { employee_id: { S: employeeId }, document_id: { S: documentId } }, ProjectionExpression: 'tenant_id' }));
+        if (!ownsItem(now2.Item, tenantId)) return notFound();
         return respond(409, { error: 'This document was already decided or is still being read' });
       }
       throw err;
@@ -172,6 +174,7 @@ const handlerFn = async (event) => {
       decided_by_name: decidedByName,
       decided_at: now,
       actor: 'HUMAN',
+      tenant_id: tenantId,
     });
 
     // 3. Update the document-verification table if a verification record exists
@@ -186,7 +189,12 @@ const handlerFn = async (event) => {
           ':notes': { S: notes },
         },
       };
-      await dynamo.send(new UpdateItemCommand(updateVerParams));
+      try {
+        await dynamo.send(new UpdateItemCommand(onlyOurs(updateVerParams, tenantId)));
+      } catch (verErr) {
+        if (verErr?.name !== 'ConditionalCheckFailedException') throw verErr;
+        logger.warn('Verification of another company left alone', { verificationId });
+      }
       logger.info('Updated verification', { verificationId, decision });
     }
 
@@ -207,7 +215,7 @@ const handlerFn = async (event) => {
       docsKey = page.LastEvaluatedKey;
     } while (docsKey);
 
-    const plainDocs = allDocs.map((item) => ({
+    const plainDocs = allDocs.filter((item) => ownsItem(item, tenantId)).map((item) => ({
       document_id: item.document_id?.S,
       document_type: item.document_type?.S,
       ocr_status: item.ocr_status?.S,
@@ -224,11 +232,10 @@ const handlerFn = async (event) => {
       // ConditionExpression guards against setting VERIFIED if stage somehow
       // never reached DOCUMENTS_SUBMITTED (NH-80 — enforce correct sequence).
       try {
-        await dynamo.send(new UpdateItemCommand({
+        await dynamo.send(new UpdateItemCommand(onlyOurs({
           TableName: EMPLOYEES_TABLE,
           Key: { employee_id: { S: employeeId } },
           UpdateExpression: 'SET stage = :stage, verified_at = :now, step = :stepVerified',
-          ConditionExpression: 'stage = :ds OR stage = :active OR stage = :invited',
           ExpressionAttributeValues: {
             ':stage':   { S: 'VERIFIED' },
             ':now':     { S: new Date().toISOString() },
@@ -237,7 +244,7 @@ const handlerFn = async (event) => {
             ':active':  { S: 'ACTIVE' },
             ':invited': { S: 'INVITED' },
           },
-        }));
+        }, tenantId, 'stage = :ds OR stage = :active OR stage = :invited')));
         stageUpdated = true;
         logger.info('Employee stage updated to VERIFIED', { employeeId });
 
@@ -246,8 +253,9 @@ const handlerFn = async (event) => {
           employee_id: employeeId,
           from_stage: 'DOCUMENTS_SUBMITTED',
           to_stage: 'VERIFIED',
+          tenant_id: tenantId,
         });
-        await publishEvent('onboarding.completed', { employee_id: employeeId });
+        await publishEvent('onboarding.completed', { employee_id: employeeId, tenant_id: tenantId });
 
         // Publish TimeToComplete custom metric (NH-34)
         try {
@@ -284,16 +292,15 @@ const handlerFn = async (event) => {
       // ONB-09: not Verified yet. Keep the step right: In review while every required document is in,
       // Documents when one was sent back. The stage is not touched here. A Verified person stays Verified.
       try {
-        await dynamo.send(new UpdateItemCommand({
+        await dynamo.send(new UpdateItemCommand(onlyOurs({
           TableName: EMPLOYEES_TABLE,
           Key: { employee_id: { S: employeeId } },
           UpdateExpression: 'SET step = :step',
-          ConditionExpression: 'attribute_exists(employee_id) AND stage <> :verified AND (attribute_not_exists(step) OR step <> :verified)',
           ExpressionAttributeValues: {
             ':step': { S: stepFromDocuments(plainDocs, required) },
             ':verified': { S: 'VERIFIED' },
           },
-        }));
+        }, tenantId, 'attribute_exists(employee_id) AND stage <> :verified AND (attribute_not_exists(step) OR step <> :verified)')));
       } catch (stepErr) {
         if (stepErr?.name !== 'ConditionalCheckFailedException') {
           logger.warn('Failed to update employee step', { employeeId, errorName: stepErr?.name ?? 'Error' });
@@ -335,8 +342,10 @@ export const handler = async (event) => {
   if (!claims || !isIdToken(claims) || !groupsOf(claims).includes('hr_staff')) {
     return respond(403, { error: 'Only HR can decide on a document' });
   }
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers: CORS_HEADERS };
   const key = event.headers?.['idempotency-key'];
-  return withIdempotency(key, () => handlerFn(event));
+  return withIdempotency(key, () => handlerFn(event, tenantId), tenantId);
 };
 
 function respond(statusCode, body) {

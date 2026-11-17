@@ -5,6 +5,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { isHrOrOwner, isIdToken } from '../shared/hr-group.mjs';
 import { groupsOf } from '../shared/document-check.mjs';
+import { requireTenant, ownsItem, notFound } from '../shared/tenant.mjs';
 
 // Newer AWS SDK versions (the Lambda runtime's) add a CRC32 checksum of an
 // EMPTY body to presigned URLs by default. The browser then PUTs the real file,
@@ -37,6 +38,8 @@ const handlerFn = async (event) => {
   const claims = event.requestContext?.authorizer?.jwt?.claims;
   const NOT_YOURS = 'You can only upload documents to your own record';
   if (!claims) return errorResponse(403, NOT_YOURS);
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers: corsHeaders() };
 
   try {
     const employeeId = event.pathParameters?.employee_id;
@@ -57,10 +60,10 @@ const handlerFn = async (event) => {
     }
 
     // Validate employee exists, and that the caller is HR or that person
-    const employee = await readEmployee(employeeId);
+    const employee = await readEmployee(employeeId, tenantId);
     const isHr = isIdToken(claims) && groupsOf(claims).includes('hr_staff');
     if (!employee) {
-      return isHr ? errorResponse(404, `Employee ${employeeId} not found`) : errorResponse(403, NOT_YOURS);
+      return isHr ? { ...notFound(), headers: corsHeaders() } : errorResponse(403, NOT_YOURS);
     }
     if (!isHrOrOwner(claims, employee)) return errorResponse(403, NOT_YOURS);
 
@@ -81,6 +84,7 @@ const handlerFn = async (event) => {
         upload_timestamp: { S: timestamp },
         ocr_status:       { S: "PENDING" },
         verification_id:  { NULL: true },
+        tenant_id:        { S: tenantId },
       },
     }));
 
@@ -116,13 +120,14 @@ const handlerFn = async (event) => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function readEmployee(employeeId) {
+/** TEN-02: the employee within the caller's company, or null (missing and another company's are the same). */
+async function readEmployee(employeeId, tenantId) {
   const result = await dynamodb.send(new GetItemCommand({
     TableName: EMPLOYEES_TABLE,
     Key: { employee_id: { S: employeeId } },
-    ProjectionExpression: 'email',
+    ProjectionExpression: 'email, user_sub, tenant_id',
   }));
-  return result.Item ? { email: result.Item.email?.S ?? '' } : null;
+  return ownsItem(result.Item, tenantId) ? { email: result.Item.email?.S ?? '', user_sub: result.Item.user_sub?.S ?? '' } : null;
 }
 
 function deriveContentType(fileName) {

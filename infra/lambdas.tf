@@ -29,6 +29,8 @@ resource "aws_lambda_function" "create_employee" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
       POSTMARK_API_TOKEN    = data.aws_ssm_parameter.postmark_token.value
       POSTMARK_SENDER_EMAIL = "ignecious@obsydiantechnologies.com"
       LOGIN_URL             = var.login_url
@@ -72,6 +74,7 @@ resource "aws_lambda_function" "get_employees" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN = module.kms_pii.key_arn
     }
   }
@@ -131,6 +134,7 @@ resource "aws_lambda_function" "process_document_ocr" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN    = module.kms_pii.key_arn
       EVENT_BUS_NAME = aws_cloudwatch_event_bus.naleko_onboarding.name
       # NH-42: read sfn_task_token from employee record to signal Step Functions
@@ -163,6 +167,7 @@ resource "aws_lambda_function" "get_document_verifications" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN = module.kms_pii.key_arn
     }
   }
@@ -192,6 +197,7 @@ resource "aws_lambda_function" "get_single_document_verification" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN = module.kms_pii.key_arn
     }
   }
@@ -221,6 +227,7 @@ resource "aws_lambda_function" "get_employee_document_verifications" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN = module.kms_pii.key_arn
     }
   }
@@ -250,6 +257,7 @@ resource "aws_lambda_function" "review_document_verification" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN       = module.kms_pii.key_arn
       EVENT_BUS_NAME    = aws_cloudwatch_event_bus.naleko_onboarding.name
       IDEMPOTENCY_TABLE = aws_dynamodb_table.idempotency_keys.name
@@ -311,6 +319,7 @@ resource "aws_lambda_function" "get_document_presigned_url" {
 
   environment {
     variables = merge({
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN = module.kms_pii.key_arn
     }, local.upload_bucket_env)
   }
@@ -341,6 +350,7 @@ resource "aws_lambda_function" "generate_document_upload_url" {
 
   environment {
     variables = merge({
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN = module.kms_pii.key_arn
     }, local.upload_bucket_env)
   }
@@ -371,6 +381,7 @@ resource "aws_lambda_function" "get_employee_by_email" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN = module.kms_pii.key_arn
     }
   }
@@ -401,6 +412,8 @@ resource "aws_lambda_function" "get_hr_partners" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
       COGNITO_POOL_ID = aws_cognito_user_pool.naleko_dev.id
     }
   }
@@ -429,6 +442,12 @@ resource "aws_lambda_function" "check_employee_email" {
   timeout       = 5
   architectures = ["x86_64"]
 
+  environment {
+    variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
+    }
+  }
+
   ephemeral_storage { size = 512 }
   tracing_config { mode = "Active" }
 
@@ -455,6 +474,7 @@ resource "aws_lambda_function" "trigger_external_verification" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       KMS_KEY_ARN = module.kms_pii.key_arn
     }
   }
@@ -619,6 +639,7 @@ resource "aws_lambda_function" "summarise_verification" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       VERIFICATIONS_TABLE = aws_dynamodb_table.document_verification.name
       BEDROCK_MODEL_ID    = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
       KMS_KEY_ARN         = module.kms_pii.key_arn
@@ -651,6 +672,7 @@ resource "aws_lambda_function" "audit_log_consumer" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       AUDIT_TABLE_NAME = aws_dynamodb_table.onboarding_events.name
       EVENT_BUS_NAME   = aws_cloudwatch_event_bus.naleko_onboarding.name
     }
@@ -682,6 +704,7 @@ resource "aws_lambda_function" "classify_onboarding_risk" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       VERIFICATIONS_TABLE = aws_dynamodb_table.document_verification.name
       EMPLOYEES_TABLE     = aws_dynamodb_table.employees.name
       BEDROCK_MODEL_ID    = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -717,6 +740,7 @@ resource "aws_lambda_function" "send_notification_email" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       POSTMARK_API_TOKEN    = data.aws_ssm_parameter.postmark_token.value
       POSTMARK_SENDER_EMAIL = "ignecious@obsydiantechnologies.com"
       HR_EMAIL              = "ignecious@obsydiantechnologies.com"
@@ -782,6 +806,7 @@ resource "aws_lambda_function" "get_employee" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       EMPLOYEES_TABLE = aws_dynamodb_table.employees.name
       KMS_KEY_ARN     = module.kms_pii.key_arn
     }
@@ -813,6 +838,7 @@ resource "aws_lambda_function" "query_audit_log" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       AUDIT_TABLE = aws_dynamodb_table.onboarding_events.name
     }
   }
@@ -843,6 +869,7 @@ resource "aws_lambda_function" "get_batch_risk_report" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       VERIFICATIONS_TABLE = aws_dynamodb_table.document_verification.name
       EMPLOYEES_TABLE     = aws_dynamodb_table.employees.name
       BEDROCK_MODEL_ID    = "anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -876,6 +903,7 @@ resource "aws_lambda_function" "approve_agent_action" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       PENDING_ACTIONS_TABLE     = aws_dynamodb_table.pending_actions.name
       AGENT_API_BASE_URL        = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
       AGENT_API_KEY_SECRET_NAME = aws_secretsmanager_secret.agent_api_key.name
@@ -974,6 +1002,8 @@ resource "aws_lambda_function" "cognito_post_auth" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
       EMPLOYEES_TABLE         = "employees"
       TALENT_FLOW_USERS_TABLE = "talent-flow-users"
     }
@@ -1015,6 +1045,7 @@ resource "aws_lambda_function" "lookup_invite" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       COMPANY_NAME  = var.company_name
       INVITES_TABLE = aws_dynamodb_table.employee_invites.name
     }
@@ -1046,6 +1077,7 @@ resource "aws_lambda_function" "redeem_invite" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       COGNITO_POOL_ID = aws_cognito_user_pool.naleko_dev.id
       INVITES_TABLE   = aws_dynamodb_table.employee_invites.name
     }
@@ -1077,6 +1109,7 @@ resource "aws_lambda_function" "get_my_start" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       COMPANY_NAME            = var.company_name
       EMPLOYEES_TABLE         = "employees"
       EMPLOYEE_CONSENTS_TABLE = aws_dynamodb_table.employee_consents.name
@@ -1110,6 +1143,7 @@ resource "aws_lambda_function" "record_consent" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       COMPANY_NAME            = var.company_name
       EMPLOYEES_TABLE         = "employees"
       EMPLOYEE_CONSENTS_TABLE = aws_dynamodb_table.employee_consents.name
@@ -1143,6 +1177,7 @@ resource "aws_lambda_function" "get_invite" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
       INVITES_TABLE = aws_dynamodb_table.employee_invites.name
     }
   }
@@ -1172,6 +1207,8 @@ resource "aws_lambda_function" "resend_invite" {
 
   environment {
     variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
       POSTMARK_API_TOKEN    = data.aws_ssm_parameter.postmark_token.value
       POSTMARK_SENDER_EMAIL = "ignecious@obsydiantechnologies.com"
       COGNITO_POOL_ID       = aws_cognito_user_pool.naleko_dev.id
@@ -1290,7 +1327,7 @@ resource "aws_lambda_function" "tenant_pre_token" {
   environment {
     variables = {
       TENANTS_TABLE    = aws_dynamodb_table.tenants.name
-      LEGACY_TENANT_ID = var.founding_tenant_id
+      LEGACY_TENANT_ID = var.legacy_tenant_id
     }
   }
 
