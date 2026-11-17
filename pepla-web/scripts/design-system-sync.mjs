@@ -7,8 +7,8 @@
 //   npm run design-system:sync -- v1.0.0                 a tag, branch or commit on GitHub
 //   npm run design-system:sync -- --from ../../pepla-design-system   a local checkout (for DS work)
 //
-// It writes src/styles/design-system/{tokens/*.css, components.css, icons.json} and
-// sync.json (the ref, and a sha256 for every file), then regenerates the icon registry.
+// It writes src/styles/design-system/{tokens/*.css, components.css, site.css, icons.json, index.css,
+// platform.css} and sync.json (the ref, and a sha256 for every file), then regenerates the icon registry.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -26,13 +26,13 @@ const TOKEN_FILES = ['palette.css', 'colors.css', 'typography.css', 'spacing.css
 
 // Text or bytes: a synced image is hashed as its bytes, so a string and a Buffer of the same file agree.
 export const sha256 = (data) => createHash('sha256').update(data).digest('hex');
-// Files components.css points at with url(); copied byte for byte next to it.
+// Files site.css points at with url() (the grain and signature art); copied byte for byte next to it.
 export const ASSET_FILES = ['site-signature.svg', 'site-grain.png'];
 
 // Every file the sync owns, relative to DEST.
 export function owned() {
   const list = TOKEN_FILES.map((f) => `tokens/${f}`);
-  return [...list, 'components.css', ...ASSET_FILES.map((f) => `assets/${f}`), 'icons.json', 'index.css'];
+  return [...list, 'components.css', 'site.css', ...ASSET_FILES.map((f) => `assets/${f}`), 'icons.json', 'index.css', 'platform.css'];
 }
 
 function fetchRef(ref) {
@@ -59,7 +59,7 @@ function iconsFromReadme(readme) {
 
 export function sync(src, ref) {
   const P = join(src, 'project');
-  if (!existsSync(join(P, 'components.css'))) throw new Error(`${src} is not a pepla-design-system checkout (no project/components.css)`);
+  if (!existsSync(join(P, 'components.css')) || !existsSync(join(P, 'site.css'))) throw new Error(`${src} is not a pepla-design-system checkout (no project/components.css and site.css)`);
   rmSync(DEST, { recursive: true, force: true });
   mkdirSync(join(DEST, 'tokens'), { recursive: true });
   mkdirSync(join(DEST, 'assets'), { recursive: true });
@@ -67,14 +67,20 @@ export function sync(src, ref) {
   const put = (rel, text) => { writeFileSync(join(DEST, rel), text); files[rel] = sha256(text); };
   for (const f of TOKEN_FILES) put(`tokens/${f}`, readFileSync(join(P, 'tokens', f), 'utf8'));
   put('components.css', readFileSync(join(P, 'components.css'), 'utf8'));
+  put('site.css', readFileSync(join(P, 'site.css'), 'utf8'));
   for (const f of ASSET_FILES) put(`assets/${f}`, readFileSync(join(P, 'assets', f)));
   put('icons.json', existsSync(join(P, 'icons.json')) ? readFileSync(join(P, 'icons.json'), 'utf8') : iconsFromReadme(readFileSync(join(P, 'readme.md'), 'utf8')));
-  put('index.css', [
-    '/* Naleko People design system, synced by scripts/design-system-sync.mjs. Do not edit. */',
+  // index.css is the whole design system (the kit harnesses wrap markup in it); platform.css is the signed-in
+  // app's: the same, without the public site rules, which public pages load themselves as site.css.
+  const entry = (what, site) => [
+    `/* Naleko People design system, ${what}, synced by scripts/design-system-sync.mjs. Do not edit. */`,
     ...TOKEN_FILES.map((f) => `@import "./tokens/${f}";`),
     '@import "./components.css";',
+    ...(site ? ['@import "./site.css";'] : []),
     '',
-  ].join('\n'));
+  ].join('\n');
+  put('index.css', entry('everything', true));
+  put('platform.css', entry('without the public site', false));
   writeFileSync(MANIFEST, `${JSON.stringify({ repo: REPO, ref, files }, null, 2)}\n`);
   writeFileSync(REGISTRY, renderRegistry());
   return Object.keys(files).length;

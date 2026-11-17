@@ -17,7 +17,8 @@ const rel = (f) => relative(ROOT, f).split(sep).join('/');
 const walk = (d) => readdirSync(d).flatMap((n) => { const f = join(d, n); return statSync(f).isDirectory() ? walk(f) : [f]; });
 
 // ------------------------------------------------------------------ the design system, as synced
-const COMPONENTS_CSS = readFileSync(join(DEST, 'components.css'), 'utf8') + readFileSync(join(DEST, 'tokens', 'base.css'), 'utf8') + readFileSync(join(DEST, 'tokens', 'typography.css'), 'utf8');
+// components.css holds every signed-in component; site.css holds the public site's (loaded only by public pages).
+const COMPONENTS_CSS = readFileSync(join(DEST, 'components.css'), 'utf8') + readFileSync(join(DEST, 'site.css'), 'utf8') + readFileSync(join(DEST, 'tokens', 'base.css'), 'utf8') + readFileSync(join(DEST, 'tokens', 'typography.css'), 'utf8');
 export const CLASSES = new Set([...COMPONENTS_CSS.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\.(pp-[a-z0-9_-]+)/g)].map((m) => m[1]));
 export const VOCAB = new Set(JSON.parse(readFileSync(join(DEST, 'icons.json'), 'utf8')).icons.map((i) => i.name));
 /** Classes a screen may use: Layout and the text helpers. Everything else comes from a pp-* component. */
