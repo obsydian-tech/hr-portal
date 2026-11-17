@@ -53,7 +53,10 @@ def same_pixels(path: str) -> bool:
     try:
         differing = float(r.stderr.split()[0])
         width, height = (int(n) for n in size.stdout.split())
-        return differing <= width * height * 0.001
+        same = differing <= width * height * 0.001
+        # Say which picture and how much, so a surprise "changed" can be traced to a picture.
+        print(f"{path}: {int(differing)} of {width * height} pixels differ ({differing / (width * height):.4%}), {'same' if same else 'CHANGED'}", file=sys.stderr)
+        return same
     except (IndexError, ValueError):
         return False  # different sizes or unreadable: treat as changed
 
