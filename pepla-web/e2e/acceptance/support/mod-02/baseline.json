@@ -1,0 +1,343 @@
+{
+ "_about": "The HR and employee shells as develop 06201c3 draws them (MOD-02 AC-5, AC-9). Read by support/mod-02/shell-snapshot.ts. Taken with the no-backend fakes: Jane Smith (HR), John Doe (employee).",
+ "dependencies": [
+  "@angular/aria",
+  "@angular/cdk",
+  "@angular/common",
+  "@angular/compiler",
+  "@angular/core",
+  "@angular/forms",
+  "@angular/platform-browser",
+  "@angular/router",
+  "amazon-cognito-identity-js",
+  "lucide",
+  "rxjs",
+  "tslib"
+ ],
+ "devDependencies": [
+  "@angular/build",
+  "@angular/cli",
+  "@angular/compiler-cli",
+  "@angular/platform-server",
+  "@angular/ssr",
+  "@axe-core/playwright",
+  "@playwright/test",
+  "jsdom",
+  "linkedom",
+  "prettier",
+  "typescript",
+  "vitest"
+ ],
+ "projects": {
+  "desktop-1280": {
+   "hr": {
+    "snap": {
+     "path": "/hr",
+     "title": "Today \u00b7 Naleko People",
+     "h1": "Welcome back, Jane",
+     "product": {
+      "wordmark": "Naleko People",
+      "area": "HR"
+     },
+     "headings": [],
+     "items": [
+      {
+       "label": "Today",
+       "href": "/hr",
+       "icon": "32525f84bd",
+       "count": null,
+       "current": "page"
+      },
+      {
+       "label": "Documents to check",
+       "href": "/hr/documents",
+       "icon": "4292decc92",
+       "count": null,
+       "current": null
+      }
+     ],
+     "topBar": {
+      "buttons": [
+       {
+        "label": "Open menu",
+        "icon": "fcfb4a1076"
+       },
+       {
+        "label": "Search",
+        "icon": "3e937b0929"
+       },
+       {
+        "label": "Notifications",
+        "icon": "18e0308394"
+       },
+       {
+        "label": "Your account, Jane Smith",
+        "icon": ""
+       }
+      ],
+      "links": [
+       {
+        "label": "Naleko People home",
+        "href": "/hr"
+       }
+      ],
+      "search": "Search people and documents",
+      "account": "Your account, Jane Smith"
+     }
+    },
+    "geo": {
+     "topBar": {
+      "x": 265,
+      "y": 8,
+      "width": 1007,
+      "height": 57
+     },
+     "items": [
+      {
+       "x": 16,
+       "y": 89,
+       "width": 240,
+       "height": 40
+      },
+      {
+       "x": 16,
+       "y": 129,
+       "width": 240,
+       "height": 40
+      }
+     ]
+    }
+   },
+   "employee": {
+    "snap": {
+     "path": "/start",
+     "title": "Welcome \u00b7 Naleko People",
+     "h1": "Welcome, John",
+     "product": {
+      "wordmark": "Naleko People",
+      "area": "Mokoena Logistics"
+     },
+     "headings": [],
+     "items": [
+      {
+       "label": "Today",
+       "href": "/start",
+       "icon": "32525f84bd",
+       "count": null,
+       "current": "page"
+      }
+     ],
+     "topBar": {
+      "buttons": [
+       {
+        "label": "Open menu",
+        "icon": "fcfb4a1076"
+       },
+       {
+        "label": "Search",
+        "icon": "3e937b0929"
+       },
+       {
+        "label": "Notifications",
+        "icon": "18e0308394"
+       },
+       {
+        "label": "Your account, John Doe",
+        "icon": ""
+       }
+      ],
+      "links": [
+       {
+        "label": "Naleko People home",
+        "href": "/start"
+       }
+      ],
+      "search": "Search people and documents",
+      "account": "Your account, John Doe"
+     }
+    },
+    "geo": {
+     "topBar": {
+      "x": 265,
+      "y": 8,
+      "width": 1007,
+      "height": 57
+     },
+     "items": [
+      {
+       "x": 16,
+       "y": 89,
+       "width": 240,
+       "height": 40
+      }
+     ]
+    }
+   },
+   "redirects": {
+    "out /hr": "/sign-in?returnUrl=%2Fhr",
+    "out /start": "/sign-in",
+    "out /hr/documents": "/sign-in?returnUrl=%2Fhr%2Fdocuments",
+    "hr /start": "/hr",
+    "hr /sign-in": "/hr",
+    "employee /hr": "/start",
+    "employee /hr/documents": "/start",
+    "employee /sign-in": "/start"
+   }
+  },
+  "phone-390": {
+   "hr": {
+    "snap": {
+     "path": "/hr",
+     "title": "Today \u00b7 Naleko People",
+     "h1": "Welcome back, Jane",
+     "product": {
+      "wordmark": "Naleko People",
+      "area": "HR"
+     },
+     "headings": [],
+     "items": [
+      {
+       "label": "Today",
+       "href": "/hr",
+       "icon": "32525f84bd",
+       "count": null,
+       "current": "page"
+      },
+      {
+       "label": "Documents to check",
+       "href": "/hr/documents",
+       "icon": "4292decc92",
+       "count": null,
+       "current": null
+      }
+     ],
+     "topBar": {
+      "buttons": [
+       {
+        "label": "Open menu",
+        "icon": "fcfb4a1076"
+       },
+       {
+        "label": "Search",
+        "icon": "3e937b0929"
+       },
+       {
+        "label": "Notifications",
+        "icon": "18e0308394"
+       },
+       {
+        "label": "Your account, Jane Smith",
+        "icon": ""
+       }
+      ],
+      "links": [
+       {
+        "label": "Naleko People home",
+        "href": "/hr"
+       }
+      ],
+      "search": "Search people and documents",
+      "account": "Your account, Jane Smith"
+     }
+    },
+    "geo": {
+     "topBar": {
+      "x": 8,
+      "y": 8,
+      "width": 374,
+      "height": 57
+     },
+     "items": [
+      {
+       "x": 8,
+       "y": 81,
+       "width": 304,
+       "height": 48
+      },
+      {
+       "x": 8,
+       "y": 129,
+       "width": 304,
+       "height": 48
+      }
+     ]
+    }
+   },
+   "employee": {
+    "snap": {
+     "path": "/start",
+     "title": "Welcome \u00b7 Naleko People",
+     "h1": "Welcome, John",
+     "product": {
+      "wordmark": "Naleko People",
+      "area": "Mokoena Logistics"
+     },
+     "headings": [],
+     "items": [
+      {
+       "label": "Today",
+       "href": "/start",
+       "icon": "32525f84bd",
+       "count": null,
+       "current": "page"
+      }
+     ],
+     "topBar": {
+      "buttons": [
+       {
+        "label": "Open menu",
+        "icon": "fcfb4a1076"
+       },
+       {
+        "label": "Search",
+        "icon": "3e937b0929"
+       },
+       {
+        "label": "Notifications",
+        "icon": "18e0308394"
+       },
+       {
+        "label": "Your account, John Doe",
+        "icon": ""
+       }
+      ],
+      "links": [
+       {
+        "label": "Naleko People home",
+        "href": "/start"
+       }
+      ],
+      "search": "Search people and documents",
+      "account": "Your account, John Doe"
+     }
+    },
+    "geo": {
+     "topBar": {
+      "x": 8,
+      "y": 8,
+      "width": 374,
+      "height": 57
+     },
+     "items": [
+      {
+       "x": 8,
+       "y": 81,
+       "width": 304,
+       "height": 48
+      }
+     ]
+    }
+   },
+   "redirects": {
+    "out /hr": "/sign-in?returnUrl=%2Fhr",
+    "out /start": "/sign-in",
+    "out /hr/documents": "/sign-in?returnUrl=%2Fhr%2Fdocuments",
+    "hr /start": "/hr",
+    "hr /sign-in": "/hr",
+    "employee /hr": "/start",
+    "employee /hr/documents": "/start",
+    "employee /sign-in": "/start"
+   }
+  }
+ }
+}

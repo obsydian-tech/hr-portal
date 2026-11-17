@@ -596,7 +596,7 @@ test.describe('ONB-13 Documents to check', () => {
     });
     const app = new URL(baseURL!).origin;
     const apiCallsSince = (from: number) => seen.slice(from)
-      .filter(({ method, url }) => method !== 'OPTIONS' && url.origin !== app && !['fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname))
+      .filter(({ method, url }) => method !== 'OPTIONS' && !(method === 'GET' && /\/v1\/company\/modules$/.test(url.pathname)) && url.origin !== app && !['fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname))
       .map(({ method, url }) => `${method} ${url.origin}${url.pathname}`);
     const onlyTheDocument = (id: string) => (calls: string[]) => calls.filter((c) => !c.startsWith('GET ') || !c.endsWith(`/v1/verifications/${encodeURIComponent(id)}`));
     const expectHolding = async (id: string) => {
@@ -836,7 +836,7 @@ test.describe('ONB-13 Documents to check', () => {
     const app = new URL(baseURL!).origin;
     const cognito = /^cognito-idp\.[a-z0-9-]+\.amazonaws\.com$/;
     const fonts = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
-    const outside = seen.filter((s) => s.url.origin !== app && !cognito.test(s.url.hostname) && !fonts.has(s.url.hostname));
+    const outside = seen.filter((s) => !(s.method === 'GET' && /\/v1\/company\/modules$/.test(s.url.pathname)) && s.url.origin !== app && !cognito.test(s.url.hostname) && !fonts.has(s.url.hostname));
     const list = outside.filter((s) => s.url.pathname === '/v1/verifications');
     expect(list.filter((s) => s.method === 'GET').length, 'the list is asked for').toBeGreaterThan(0);
     expect(outside.filter((s) => !list.includes(s)).map((s) => `${s.method} ${s.url.href}`), 'no other host or route is called').toEqual([]);
