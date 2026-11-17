@@ -57,10 +57,15 @@ export function tenantFilter(tenantId) {
   };
 }
 
+/** Brackets an expression once; the founding company's filter already carries its own, and DynamoDB refuses "((...))". */
+export function bracket(expr) {
+  return expr.startsWith('(') && expr.endsWith(')') ? expr : `(${expr})`;
+}
+
 export function andFilter(existing, tenantPart) {
   return {
     FilterExpression: existing?.FilterExpression
-      ? `(${existing.FilterExpression}) AND ${tenantPart.FilterExpression}`
+      ? `(${existing.FilterExpression}) AND ${bracket(tenantPart.FilterExpression)}`
       : tenantPart.FilterExpression,
     ExpressionAttributeNames: { ...(existing.ExpressionAttributeNames ?? {}), ...tenantPart.ExpressionAttributeNames },
     ExpressionAttributeValues: { ...(existing.ExpressionAttributeValues ?? {}), ...tenantPart.ExpressionAttributeValues },
