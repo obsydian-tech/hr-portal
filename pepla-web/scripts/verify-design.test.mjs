@@ -83,6 +83,8 @@ test('markup: screens use only Layout and text classes; every class is a defined
   fails(screen('<div class="pp-card__header"></div>'), 'markup', 'component class in a screen');
   fails(screen('<div [class.pp-card]="x"></div>'), 'markup', 'component class bound in a screen');
   fails(ds('<div class="pp-not-real"></div>'), 'markup', 'undefined class inside ds');
+  assert.deepEqual(ds('<header class="pp-site-header"></header>'), [], 'a class that only site.css defines passes');
+  fails(ds('<div class="pp-site-made-up"></div>'), 'markup', 'undefined site class inside ds');
   fails(checkTs("@Component({ host: { class: 'pp-card pp-card--made-up' } })", { inDs: true }), 'markup', 'undefined modifier in host');
   fails(screen('<style>.a{}</style>'), 'markup', 'style block');
 });

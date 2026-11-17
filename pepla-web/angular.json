@@ -26,7 +26,8 @@
             ],
             "styles": [
               "node_modules/@angular/cdk/overlay-prebuilt.css",
-              "src/styles.css"
+              "src/styles.css",
+              { "input": "src/styles/design-system/site.css", "bundleName": "site", "inject": false }
             ],
             "server": "src/main.server.ts",
             "outputMode": "static"

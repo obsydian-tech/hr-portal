@@ -1,3 +1,4 @@
-/* The app's only global stylesheet: the Naleko People design system, synced from pepla-design-system. */
-@import "./styles/design-system/index.css";
+/* The app's only global stylesheet: the Naleko People design system, synced from pepla-design-system,
+   without the public site's rules: public pages load those as site.css (SITE-07). */
+@import "./styles/design-system/platform.css";
 
