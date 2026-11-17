@@ -2040,6 +2040,121 @@ resource "aws_iam_role_policy" "record_consent" {
   })
 }
 
+# ─── ONB-06: getMyDocuments ───────────────────────────────────────────────────────
+resource "aws_iam_role" "get_my_documents" {
+  name        = "naleko-getMyDocuments-role"
+  description = "Execution role for getMyDocuments Lambda (ONB-06)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_my_documents" {
+  name = "naleko-getMyDocuments-policy"
+  role = aws_iam_role.get_my_documents.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getMyDocuments:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "EmployeeByEmail"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
+      },
+      {
+        Sid      = "DocumentsRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents"
+      },
+    ]
+  })
+}
+
+# ─── ONB-06: createMyUploadLink ───────────────────────────────────────────────────────
+resource "aws_iam_role" "create_my_upload_link" {
+  name        = "naleko-createMyUploadLink-role"
+  description = "Execution role for createMyUploadLink Lambda (ONB-06)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "create_my_upload_link" {
+  name = "naleko-createMyUploadLink-policy"
+  role = aws_iam_role.create_my_upload_link.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/createMyUploadLink:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "EmployeeByEmail"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees/index/email-index"
+      },
+      {
+        Sid      = "ConsentRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = aws_dynamodb_table.employee_consents.arn
+      },
+      {
+        Sid      = "DocumentRowAdd"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/documents"
+      },
+      {
+        # The role signs a presigned PUT, so it must itself be allowed to put into uploads/.
+        Sid      = "S3PresignedPut"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = "arn:aws:s3:::${local.document_uploads_bucket}/uploads/*"
+      },
+    ]
+  })
+}
+
 # ─── ONB-18: getInvite ──────────────────────────────────────────────────────
 resource "aws_iam_role" "get_invite" {
   name        = "naleko-getInvite-role"

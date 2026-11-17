@@ -42,6 +42,9 @@ module "kms_pii" {
     # role needs no Encrypt or data-key right of its own and is not in allowed_role_arns.
     aws_iam_role.get_my_start.arn,
     aws_iam_role.record_consent.arn,
+    # ONB-06: both read the encrypted employees table (email-index).
+    aws_iam_role.get_my_documents.arn,
+    aws_iam_role.create_my_upload_link.arn,
     aws_iam_role.tenant_pre_token.arn,
     # TEN-02: read Member rows in the tenants table.
     aws_iam_role.cognito_post_auth.arn,
