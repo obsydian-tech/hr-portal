@@ -72,14 +72,15 @@ exports.handler = async (event) => {
     exprValues[':q'] = { S: search };
   }
 
-  filterParts.push('#tenant_id = :tenant_id');
-  exprNames['#tenant_id'] = 'tenant_id';
-  exprValues[':tenant_id'] = { S: tenantId };
+  const f = T.andFilter(
+    { FilterExpression: filterParts.join(' AND '), ExpressionAttributeNames: exprNames, ExpressionAttributeValues: exprValues },
+    { ...T.tenantFilter(tenantId), ExpressionAttributeValues: { ':tenant_id': { S: tenantId } } },
+  );
   const params = {
     TableName:        USERS_TABLE,
-    FilterExpression: filterParts.join(' AND '),
-    ExpressionAttributeValues: exprValues,
-    ExpressionAttributeNames: exprNames,
+    FilterExpression: f.FilterExpression,
+    ExpressionAttributeValues: f.ExpressionAttributeValues,
+    ExpressionAttributeNames: f.ExpressionAttributeNames,
     Limit: limit,
   };
   if (nextToken) {
@@ -102,7 +103,7 @@ exports.handler = async (event) => {
     console.info('adminGetUsers', { count: users.length, status: status || 'all' });
     return respond(200, response);
   } catch (err) {
-    console.error('adminGetUsers error', { error: err.message });
+    console.error('adminGetUsers error', { error: err?.name });
     return respond(500, { error: 'Failed to retrieve users' });
   }
 };

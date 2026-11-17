@@ -80,7 +80,7 @@ exports.handler = async (event) => {
       } while (nextToken);
     }
   } catch (err) {
-    console.error('getHiringManagers: Cognito list failed', { error: err.message });
+    console.error('getHiringManagers: Cognito list failed', { error: err?.name });
     return respond(500, { error: 'Failed to retrieve hiring managers' });
   }
 

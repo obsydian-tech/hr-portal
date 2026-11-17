@@ -111,7 +111,7 @@ exports.handler = async (event) => {
       return respond(409, { error: 'A user with this email already exists' });
     }
   } catch (err) {
-    console.error('adminCreateUser: email check failed', { error: err.message });
+    console.error('adminCreateUser: email check failed', { error: err?.name });
     return respond(500, { error: 'Failed to validate email uniqueness' });
   }
 
@@ -131,7 +131,7 @@ exports.handler = async (event) => {
     }));
     cognitoUser = result.User;
   } catch (err) {
-    console.error('adminCreateUser: Cognito create failed', { error: err.message });
+    console.error('adminCreateUser: Cognito create failed', { error: err?.name });
     if (err.name === 'UsernameExistsException') {
       return respond(409, { error: 'A Cognito user with this email already exists' });
     }
@@ -151,7 +151,7 @@ exports.handler = async (event) => {
         GroupName:  groupName,
       }));
     } catch (err) {
-      console.error('adminCreateUser: failed to add group', { groupName, error: err.message });
+      console.error('adminCreateUser: failed to add group', { groupName, error: err?.name });
       groupErrors.push(groupName);
     }
   }
@@ -186,7 +186,7 @@ exports.handler = async (event) => {
       ConditionExpression: 'attribute_not_exists(PK)',
     }));
   } catch (err) {
-    console.error('adminCreateUser: DynamoDB write failed', { userId, error: err.message });
+    console.error('adminCreateUser: DynamoDB write failed', { userId, error: err?.name });
     return respond(500, { error: 'User created in Cognito but registry write failed', userId });
   }
 

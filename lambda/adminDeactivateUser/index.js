@@ -93,7 +93,7 @@ exports.handler = async (event) => {
     }
     user = unmarshall(result.Item);
   } catch (err) {
-    console.error('adminDeactivateUser: DynamoDB read failed', { userId, error: err.message });
+    console.error('adminDeactivateUser: DynamoDB read failed', { userId, error: err?.name });
     return respond(500, { error: 'Failed to retrieve user' });
   }
 
@@ -108,7 +108,7 @@ exports.handler = async (event) => {
       Username:   user.email,
     }));
   } catch (err) {
-    console.error('adminDeactivateUser: Cognito disable failed', { userId, error: err.message });
+    console.error('adminDeactivateUser: Cognito disable failed', { userId, error: err?.name });
     return respond(500, { error: 'Failed to disable user in Cognito' });
   }
 
@@ -127,7 +127,7 @@ exports.handler = async (event) => {
       }),
     }));
   } catch (err) {
-    console.error('adminDeactivateUser: DynamoDB update failed (Cognito already disabled)', { userId, error: err.message });
+    console.error('adminDeactivateUser: DynamoDB update failed (Cognito already disabled)', { userId, error: err?.name });
     return respond(500, { error: 'User disabled in Cognito but registry update failed — contact administrator' });
   }
 

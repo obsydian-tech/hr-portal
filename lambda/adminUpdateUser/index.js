@@ -107,7 +107,7 @@ exports.handler = async (event) => {
     }
     currentUser = unmarshall(result.Item);
   } catch (err) {
-    console.error('adminUpdateUser: DynamoDB read failed', { userId, error: err.message });
+    console.error('adminUpdateUser: DynamoDB read failed', { userId, error: err?.name });
     return respond(500, { error: 'Failed to retrieve user' });
   }
 
@@ -121,7 +121,7 @@ exports.handler = async (event) => {
     const res = await cognito.send(new AdminListGroupsForUserCommand({ UserPoolId: POOL_ID, Username: currentUser.email }));
     current = (res.Groups || []).map((g) => g.GroupName);
   } catch (err) {
-    console.error('adminUpdateUser: list groups failed', { userId, error: err.message });
+    console.error('adminUpdateUser: list groups failed', { userId, error: err?.name });
     return respond(500, { error: 'Failed to read groups' });
   }
   const desired = new Set(wanted.groups);
@@ -136,12 +136,12 @@ exports.handler = async (event) => {
       await cognito.send(new AdminAddUserToGroupCommand({ UserPoolId: POOL_ID, Username: currentUser.email, GroupName: group }));
       addedGroups.push(group);
     } catch (err) {
-      console.error('adminUpdateUser: failed to add group — rolling back', { group, error: err.message });
+      console.error('adminUpdateUser: failed to add group — rolling back', { group, error: err?.name });
       for (const added of addedGroups) {
         try {
           await cognito.send(new AdminRemoveUserFromGroupCommand({ UserPoolId: POOL_ID, Username: currentUser.email, GroupName: added }));
         } catch (rbErr) {
-          console.error('adminUpdateUser: rollback failed for group', { added, error: rbErr.message });
+          console.error('adminUpdateUser: rollback failed for group', { added, error: rbErr?.name });
         }
       }
       return respond(500, { error: `Failed to assign group "${group}" in Cognito — changes rolled back` });
@@ -151,7 +151,9 @@ exports.handler = async (event) => {
     try {
       await cognito.send(new AdminRemoveUserFromGroupCommand({ UserPoolId: POOL_ID, Username: currentUser.email, GroupName: group }));
     } catch (err) {
-      console.warn('adminUpdateUser: failed to remove group (non-fatal)', { group, error: err.message });
+      // A group left behind keeps the old access, so this is not answered as a success.
+      console.error('adminUpdateUser: failed to remove group', { group, error: err?.name });
+      return respond(500, { error: 'Failed to remove a group in Cognito' });
     }
   }
 
@@ -172,7 +174,7 @@ exports.handler = async (event) => {
       }),
     }));
   } catch (err) {
-    console.error('adminUpdateUser: DynamoDB update failed (Cognito already updated)', { userId, error: err.message });
+    console.error('adminUpdateUser: DynamoDB update failed (Cognito already updated)', { userId, error: err?.name });
     return respond(500, { error: 'Cognito groups updated but registry sync failed — contact administrator' });
   }
 

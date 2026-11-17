@@ -115,7 +115,7 @@ async function getEmailLinkMembers(T, tenantId, candidateId) {
     }));
     items = (result.Items || []).map(unmarshall);
   } catch (err) {
-    console.error('Failed to query scoring links from DynamoDB', { candidateId, error: err.message });
+    console.error('Failed to query scoring links from DynamoDB', { candidateId, error: err?.name });
     return [];
   }
 
@@ -155,7 +155,7 @@ exports.handler = async (event) => {
       try {
         users = await listGroupUsers(group);
       } catch (err) {
-        console.warn(`getPanelMembers: skipping group "${group}"`, { error: err.message });
+        console.warn(`getPanelMembers: skipping group "${group}"`, { error: err?.name });
         continue;
       }
       for (const user of users) {
