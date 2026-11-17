@@ -146,6 +146,7 @@ export function eventFor(opts: {
     if (caller.emailVerified === null) delete claims['email_verified']; // BE-17.1: no claim at all
     if (caller.tokenUse === null) delete claims['token_use']; // BE-18: no claim at all
     if (caller.staffId !== undefined) claims['custom:staff_id'] = caller.staffId;
+    if (/^\/agent\/v1\/actions/.test(String(opts.path ?? opts.route))) claims['tenant_id'] = 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa'; // TEN-03: on the pending-actions routes a signed-in person belongs to the founding company
     if (caller.givenName !== undefined) claims['given_name'] = caller.givenName;
     if (caller.familyName !== undefined) claims['family_name'] = caller.familyName;
     // API Gateway passes a list claim as one string: "[hr_staff naleko-onboarding-hr]"
@@ -153,7 +154,7 @@ export function eventFor(opts: {
     authorizer = { jwt: { claims, scopes: null } };
     headers['authorization'] = `Bearer ${token(claims)}`;
   } else if (caller.kind === 'agent') {
-    authorizer = { lambda: { actor: 'AGENT' } };
+    authorizer = { lambda: { actor: 'AGENT', ...(/^\/agent\/v1\/actions/.test(opts.path) ? { tenant_id: 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa' } : {}) } }; // TEN-03: the agent authorizer passes the founding company
     headers['x-api-key'] = 'be17-fake-agent-key';
   } else if (caller.kind === 'actor') {
     // A Lambda authorizer that names another actor (no JWT): not the Agent API, so not trusted.

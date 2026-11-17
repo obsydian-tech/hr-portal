@@ -997,7 +997,9 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
       expect.soft(wrong, `role policy ${name}: only TEN-02's grants added`).toEqual([]);
     }
     // The PII key's role lists stay lists of roles (nothing else joins them).
-    expect(squash(kmsRead), 'dynamodb_read_role_arns is a list of aws_iam_role.<name>.arn').toMatch(/^\[(aws_iam_role\.\w+\.arn,?)+\]$/);
+    // Re-locked by TEN-03: the TalentFlow pre-token trigger's role lives in the other Terraform stack (talent-flow-infra), so it
+    // cannot be written as aws_iam_role.<name>.arn. It may appear as one quoted role ARN naming talentFlowPreTokenTrigger, nothing else quoted.
+    expect(squash(kmsRead), 'dynamodb_read_role_arns is a list of aws_iam_role.<name>.arn (and, since TEN-03, one quoted ARN of the TalentFlow pre-token trigger role)').toMatch(/^\[(?:(?:aws_iam_role\.\w+\.arn|"arn:aws:iam::[^":,\]]*:role\/[^":,\]]*talentFlowPreTokenTrigger[^":,\]]*"),?)+\]$/);
   });
 
   test('AC-16 The owner is matched on the sign-in id', async ({}, testInfo) => {
