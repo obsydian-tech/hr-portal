@@ -1,6 +1,6 @@
 {
   "repo": "obsydian-tech/pepla-design-system",
-  "ref": "1cee4a546ff8bcc14b6ffa887840f99e0a952ea1",
+  "ref": "c3788a56d9bffeb0724b14ae7b99a64388197799",
   "files": {
     "tokens/palette.css": "7e52116852dc514a5715d3218fbca047c30c54939a4605c8f40c656334dfdb66",
     "tokens/colors.css": "60316015cc9a3fd292d88e073ae6fb8370721c324010ac8ec467e56432dbbb72",
@@ -10,7 +10,7 @@
     "tokens/motion.css": "3bd1ab0f628f1e3b3796d9416bddae1eb089f64867b97d9d5535e49462b9f879",
     "tokens/layers.css": "f3269beec620258b95fe70773ca17f0d1609a6da214338230b1984765756e56a",
     "tokens/base.css": "e0746031564084301268c62e767cb63802d332a71bed74ec2679b2048c0b0ad0",
-    "components.css": "85b577f03597205cdb837294abadeb2d19c7aa80f0c14a028a3b1ca950b308de",
+    "components.css": "44d1da148ea810ad6efb3ae86bba86dd8de7010ceb56d4a53c06702e90b902bb",
     "site.css": "7c3d983a85b005c092ea60a438b4e8b5684c8ebc091c9fbdfb2589b0cb81e70b",
     "assets/site-signature.svg": "59c95dfcfb27da53363c4a7e20329ae653b6620efec93457f6cb041382407219",
     "assets/site-grain.png": "bf8ab2e967a1cf73be254c7767eef4f048c3198774206854dc350cecd6a8f404",

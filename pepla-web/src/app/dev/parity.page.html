@@ -918,6 +918,16 @@
 <section data-parity="top-navigation|Phone (compact)">
   <pp-top-navigation class="pp-measure-narrow" [inline]="true" [compact]="true" userName="Thandeka Dlamini" [unread]="4" />
 </section>
+<section data-parity="top-navigation|Modules button">
+  <pp-top-navigation [inline]="true" userName="Thandeka Dlamini" [unread]="4" [showLauncher]="true" [launcherOpen]="launcherOpen()" (launcher)="launcherClicks.set(launcherClicks() + 1)" />
+  <p data-testid="launcher-clicks">{{ launcherClicks() }}</p>
+  <pp-checkbox label="launcherOpen" [(value)]="launcherOpen" />
+</section>
+<section data-parity="top-navigation|Modules button (phone)">
+  <pp-top-navigation class="pp-measure-narrow" [inline]="true" [compact]="true" userName="Thandeka Dlamini" [unread]="4" [showLauncher]="true" [launcherOpen]="launcherOpenPhone()" (launcher)="launcherClicksPhone.set(launcherClicksPhone() + 1)" />
+  <p data-testid="launcher-clicks">{{ launcherClicksPhone() }}</p>
+  <pp-checkbox label="launcherOpen" [(value)]="launcherOpenPhone" />
+</section>
 
 
 <!-- Data -->
@@ -1788,6 +1798,11 @@
 
 <section data-parity="pipeline-board|Board for one role">
   <pp-pipeline-board label="Hiring stages for Sales rep" [now]="now" current="interview" [stages]="board" />
+</section>
+<section data-parity="pipeline-board|Move asks first">
+  <pp-pipeline-board label="Hiring stages for Sales rep, asks first" [now]="now" [confirmMoves]="true" [(stages)]="askBoard" (moveRequested)="moveRequests.set([...moveRequests(), $event])" />
+  <p data-testid="move-requests">{{ moveRequestsJson() }}</p>
+  <button ppButton type="button" (click)="applyRequest()">Apply request</button>
 </section>
 <section data-parity="pipeline-board|Phone: stage picker and one list">
   <pp-pipeline-board class="pp-measure-narrow" label="Hiring stages for Sales rep" [now]="now" current="interview" [stages]="phoneBoard" />

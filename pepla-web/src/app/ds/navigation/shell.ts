@@ -151,6 +151,9 @@ export class PpSideNavigation {
     @if (collapsible()) {
       <button ppButton appearance="subtle" icon="panel-left" [iconOnly]="true" [attr.aria-label]="collapsed() ? 'Expand menu' : 'Collapse menu'" [attr.aria-expanded]="!collapsed()" aria-controls="pp-side-navigation" (click)="collapse.emit()"></button>
     }
+    @if (showLauncher()) {
+      <button ppButton icon="layout-grid" class="pp-top-navigation__launcher" aria-label="Modules" aria-haspopup="dialog" [attr.aria-expanded]="launcherOpen() ? 'true' : 'false'" (click)="launcher.emit()">Modules</button>
+    }
     <a class="pp-top-navigation__brand" [routerLink]="home()" aria-label="Naleko People home"><svg ppMark /></a>
     <label class="pp-top-navigation__search">
       <svg ppIcon="search" />
@@ -186,6 +189,11 @@ export class PpTopNavigation {
   /** The notifications panel's id, for aria-controls. */
   readonly notificationsId = input<string>();
   readonly accountOpen = input(false);
+  /** The Modules button at the left end (off by default). */
+  readonly showLauncher = input(false);
+  /** The modules popup or drawer is open, so the button says so. */
+  readonly launcherOpen = input(false);
+  readonly launcher = output<void>();
   private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
   /** "/" jumps to search from anywhere except a field. */
   @HostListener('document:keydown', ['$event']) protected slash(e: KeyboardEvent) {
