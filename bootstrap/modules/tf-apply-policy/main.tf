@@ -43,7 +43,7 @@ locals {
   parts = {
     "1-state-and-read" = [
       "StateBucketList", "StateFiles", "StateLocks", "ReadConfiguration", "AgentKeySecrets",
-      "ParametersReadAtPlan", "DecryptOnlyThroughSecretsAndParameters", "GrantKeyToDynamoDbTables", "GrantPiiKeyToCognitoUserPools", "AiSpendBudget", "IamRead",
+      "ParametersReadAtPlan", "DecryptOnlyThroughSecretsAndParameters", "GrantKeyToDynamoDbTables", "GrantPiiKeyToCognitoUserPools", "ReadAndRevokeGrantsOnPiiKey", "AiSpendBudget", "IamRead",
     ]
     "2-manage" = ["ManageStackResources", "ManageCallsWithoutResourceArns"]
     "3-workload-iam" = [

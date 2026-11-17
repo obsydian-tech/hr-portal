@@ -1,6 +1,7 @@
 import { test as base, expect, type Locator, type Page } from '@playwright/test';
 import { CognitoFake, type FakeAccount } from './cognito-fake';
 import { MeFake } from './onb-05/me-fake';
+import { MyDocumentsFake } from './onb-06/documents-fake';
 
 /**
  * Shared set-up for acceptance tests.
@@ -72,6 +73,7 @@ type Fixtures = {
   noAccess: Login;
   signIn: SignInPage;
   me: MeFake | null;
+  myDocuments: MyDocumentsFake | null;
 };
 
 export const test = base.extend<Fixtures>({
@@ -113,6 +115,19 @@ export const test = base.extend<Fixtures>({
     async ({ context, baseURL }, use) => {
       if (ON_DEV) return use(null);
       const fake = new MeFake(new URL(baseURL!).origin);
+      await fake.install(context);
+      await use(fake);
+    },
+    { auto: true },
+  ],
+
+  // ONB-06: GET /v1/me/documents, POST /v1/me/documents/upload-url and the S3 PUT, answered for every employee page in
+  // the no-backend run (by default: the four types, none uploaded), so any card whose test lands a person who has
+  // accepted the notice on /start finds the checklist's one call answered. Add-only: no earlier route.
+  myDocuments: [
+    async ({ context, baseURL }, use) => {
+      if (ON_DEV) return use(null);
+      const fake = new MyDocumentsFake(new URL(baseURL!).origin);
       await fake.install(context);
       await use(fake);
     },

@@ -724,6 +724,130 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /v1/me/documents:
+    get:
+      tags: [Documents]
+      operationId: getMyDocuments
+      summary: The signed-in new employee's own documents and the state of each
+      description: |
+        Employee group only, with a verified email. The record is found from the token, never from a parameter.
+        Answers the four document types in a fixed order with whether each is required, its state and its files.
+        Never holds an employee id, a document id, an S3 key or anything from the document check.
+      responses:
+        "200":
+          description: The four documents.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum: [NATIONAL_ID, BANK_CONFIRMATION, MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION]
+                        required:
+                          type: boolean
+                        state:
+                          type: string
+                          enum: [NOT_UPLOADED, WITH_HR, SENT_BACK, ACCEPTED]
+                        files:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              fileName:
+                                type: string
+                              uploadedAt:
+                                type: string
+                              state:
+                                type: string
+                                enum: [WITH_HR, SENT_BACK, ACCEPTED]
+        "403":
+          description: Not a new employee, or the email is not verified.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: No single record for this sign-in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/me/documents/upload-url:
+    post:
+      tags: [Documents]
+      operationId: createMyUploadLink
+      summary: A 15 minute link to put one file into the signed-in new employee's own record
+      description: |
+        Employee group only, with a verified email, after the current privacy notice is accepted.
+        The record is found from the token, never from the body. PUT the file to the link with the returned
+        headers only (no Authorization header on S3). The link binds the content type and the exact size.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentType, fileName, contentType, fileSize]
+              properties:
+                documentType:
+                  type: string
+                  enum: [NATIONAL_ID, BANK_CONFIRMATION, MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION]
+                fileName:
+                  type: string
+                contentType:
+                  type: string
+                  enum: [application/pdf, image/jpeg, image/png]
+                fileSize:
+                  type: integer
+                  minimum: 1
+                  maximum: 10485760
+      responses:
+        "200":
+          description: The link.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  documentId:
+                    type: string
+                  expiresIn:
+                    type: integer
+                    example: 900
+                  headers:
+                    type: object
+                    properties:
+                      Content-Type:
+                        type: string
+        "400":
+          description: A missing or wrong field, with the words to show.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Not a new employee, the email is not verified, or the privacy notice is not accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: No single record for this sign-in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/employees/{employee_id}/documents/upload-url:
     post:
       tags: [Documents]

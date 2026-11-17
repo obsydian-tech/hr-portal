@@ -3,6 +3,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { NavSection, PpAppShell, PpDropdownMenu, PpMenuItem, PpMenuSection, PpSideNavigation, PpTopNavigation } from '../../ds';
 import { AuthService } from '../../core/auth/auth.service';
 import { StartService } from '../../core/start/start.service';
+import { MyDocumentsService } from '../../core/start/my-documents.service';
 
 /**
  * The frame for a new employee's own pages: sidebar, top bar with the account menu, and the page.
@@ -30,6 +31,7 @@ export class EmployeeShell {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly start = inject(StartService);
+  private readonly documents = inject(MyDocumentsService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   /** Only pages that exist: Documents, My onboarding, My details and Help come with their cards. */
@@ -46,6 +48,7 @@ export class EmployeeShell {
   protected async signOut(): Promise<void> {
     await this.auth.signOut();
     this.start.forget();
+    this.documents.forget();
     await this.router.navigateByUrl('/sign-in');
   }
 }
