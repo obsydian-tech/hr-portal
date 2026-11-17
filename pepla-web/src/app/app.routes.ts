@@ -35,5 +35,6 @@ export const routes: Routes = [
   { path: 'dev/parity', loadComponent: () => import('./dev/parity.page').then((m) => m.ParityPage), title: 'Parity · Naleko People' },
   { path: 'dev/site', loadComponent: () => import('./ds/site/gallery.page').then((m) => m.SiteGalleryPage), canActivate: [siteStyles], title: 'Site parts · Naleko People' },
   { path: 'dev/site-landing', loadComponent: () => import('./ds/site/landing.gallery').then((m) => m.SiteLandingGalleryPage), canActivate: [siteStyles], title: 'Landing sections · Naleko People' },
+  { path: 'dev/site-learn', loadComponent: () => import('./ds/site/learn/learn.gallery').then((m) => m.SiteLearnGalleryPage), canActivate: [siteStyles], title: 'Learn more page parts · Naleko People' },
   { path: 'dev/site-landing-page', loadComponent: () => import('./ds/site/landing.page').then((m) => m.SiteLandingPage), canActivate: [siteStyles], title: 'Naleko People' },
 ];
