@@ -55,7 +55,7 @@ const SINCE_6C63AB0 = ['.pp-site-strip', '.pp-site-related'];
 const BRAND: KitOnly = { role: 'link', name: 'Naleko People home' };
 const PARITY_SAMPLE = {
   kitFile: 'site-header.html',
-  path: '/',
+  path: NOT_FOUND_PATHS[0], // SITE-04: `/` is the landing page now, with the pilot bar above the header; the not-found page is still the bare header
   screens: [
     { screen: 'Header at the top (desktop)', width: 1440, only: [BRAND] },
     { screen: 'Header at the top (phone)', width: 390, only: [BRAND] },
@@ -146,7 +146,7 @@ test.describe('SITE-01 Public routes and prerender, latest design system, no "pe
     expect(requests.filter((u) => apis.some((r) => r.test(u))), 'no request to the employees or document APIs').toEqual([]);
     const loaded = await Promise.all(scripts);
     expect(loaded.length, 'the page loaded its scripts').toBeGreaterThan(0);
-    const carriers = loaded.flatMap((s) => SIGNED_IN_MARKERS.filter((m) => s.text.includes(m)).map((m) => `${new URL(s.url).pathname} holds "${m}"`));
+    const carriers = loaded.flatMap((s) => SIGNED_IN_MARKERS.filter((m) => m !== 'Privacy notice' /* SITE-04: the landing's Trust section uses these words */).filter((m) => s.text.includes(m)).map((m) => `${new URL(s.url).pathname} holds "${m}"`));
     expect(carriers, 'no script that / loads holds a signed-in feature marker').toEqual([]);
   });
 
@@ -318,7 +318,7 @@ test.describe('SITE-01 Public routes and prerender, latest design system, no "pe
   });
 
   // -------------------------------------------------------------- AC-6
-  test('AC-6 The kit parity harness matches the brand link of kit site-header "Header at the top" on / at 1440 and 390, and fails on a 4px shift and on a changed link name', async ({ browser, baseURL }) => {
+  test('AC-6 The kit parity harness matches the brand link of kit site-header "Header at the top" on the not-found page at 1440 and 390, and fails on a 4px shift and on a changed link name', async ({ browser, baseURL }) => {
     noBackendOnly();
     once('the harness sets its own widths (1440 and 390).');
     test.setTimeout(10 * 60_000);
@@ -406,6 +406,21 @@ test.describe('SITE-01 Public routes and prerender, latest design system, no "pe
       expect(scrollWidth, `${path}: no sideways scroll (scrollWidth ${scrollWidth}, clientWidth ${clientWidth})`).toBeLessThanOrEqual(clientWidth);
       await expect(page.getByRole('banner').first(), `${path}: the header is visible`).toBeVisible();
       await expect(page.getByRole('banner').first()).toBeInViewport();
+      if (path === '/') {
+        // SITE-04: on the landing page the phone header keeps "Log in" in the menu sheet (as the kit does); the burger opens it.
+        await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+        const inSheet = page.getByRole('dialog').getByRole('link', { name: 'Log in', exact: true });
+        await expect(inSheet, '/: "Log in" is in the menu sheet').toBeVisible();
+        await page.waitForTimeout(800); // the sheet slides in
+        await inSheet.scrollIntoViewIfNeeded(); // the sheet lists the menu first and scrolls
+        await expect(inSheet, '/: "Log in" is in the window once the sheet is scrolled to it').toBeInViewport({ ratio: 1 });
+        await expect(inSheet, '/: "Log in" goes to the sign-in page').toHaveAttribute('href', '/sign-in');
+        // Lock check: the "not under another bar" half of the criterion still holds for the link in the sheet.
+        const under = await inSheet.evaluate((a) => { const r = a.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2; return [[cx, cy], [r.left + r.width / 4, cy], [r.right - r.width / 4, cy]].filter(([x, y]) => { const hit = document.elementFromPoint(x!, y!); return !hit || !(hit === a || a.contains(hit)); }).length; });
+        expect(under, '/: nothing lies over "Log in" in the sheet').toBe(0);
+        await page.keyboard.press('Escape');
+        continue;
+      }
       const link = logIn(page);
       await expect(link, `${path}: "Log in" is visible`).toBeVisible();
       await expect(link, `${path}: "Log in" is in the window`).toBeInViewport({ ratio: 1 });
@@ -458,6 +473,16 @@ test.describe('SITE-01 Public routes and prerender, latest design system, no "pe
     for (const path of ['/', NOT_FOUND_PATHS[0]]) {
       await openPublic(page, path);
       await page.waitForLoadState('networkidle');
+      if (path === '/') {
+        // SITE-04: `/` is the landing page, whose words are the kit's (judged in SITE-04 AC-1 and AC-2). Here: one h1, and nothing invented.
+        await expect(page.locator('h1'), '/: one h1').toHaveCount(1);
+        expect(await page.locator('h1').innerText(), '/: the h1 is the hero title').toMatch(/Every\s+employee/);
+        const all = await page.evaluate(() => document.body.textContent ?? '');
+        expect(all, '/: no lorem or placeholder text').not.toMatch(/lorem|ipsum|placeholder|\bTODO\b|\bTBD\b/i);
+        await expect(page.locator('[placeholder]'), '/: no placeholder attributes').toHaveCount(0);
+        expect(all, '/: no "pepla"').not.toMatch(/pepla/i);
+        continue;
+      }
 
       const headings = page.locator('h1, h2, h3, h4, h5, h6, [role="heading"]');
       await expect(headings, `${path}: exactly one heading`).toHaveCount(1);
@@ -492,6 +517,9 @@ test.describe('SITE-01 Public routes and prerender, latest design system, no "pe
     for (const path of ['/', NOT_FOUND_PATHS[0]]) {
       await openPublic(page, path);
       await page.waitForLoadState('networkidle');
+      // Lock check (SITE-04 re-lock): `/` is the landing page now and its sections fade in after load; axe read the text half faded (160
+      // colour-contrast nodes at networkidle, none once settled). Wait until every animation that ends has ended (loops keep running).
+      if (path === '/') await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity), undefined, { timeout: 15_000 });
       const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
       const found = results.violations.map((v) => `${v.impact}: ${v.id} (${v.nodes.length}) ${v.help} :: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`);
       expect(found, `axe on ${path}`).toEqual([]);

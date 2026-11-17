@@ -24,7 +24,7 @@ let uid = 0;
       <p class="pp-site-band__note" [ppSiteReveal]="4" [revealOn]="reveal()">{{ note() }}</p>
     </div>
   `,
-  host: { class: 'pp-site-band', '[attr.aria-labelledby]': 'titleId' },
+  host: { class: 'pp-site-band', '[attr.aria-labelledby]': 'titleId', '[attr.title]': 'null' },
 })
 export class PpSiteBand {
   protected readonly titleId = `site-band-title-${++uid}`;
