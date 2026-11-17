@@ -1518,5 +1518,29 @@
    "Allow xray:PutTelemetryRecords * null",
    "Allow xray:PutTraceSegments * null"
   ]
+ },
+ "infra/get_my_documents": {
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyDocuments:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyDocuments:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyDocuments:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/create_my_upload_link": {
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.employee_consents.arn null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createMyUploadLink:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createMyUploadLink:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createMyUploadLink:* null",
+   "Allow s3:PutObject arn:aws:s3:::${local.document_uploads_bucket}/uploads/* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
  }
 }
