@@ -207,7 +207,7 @@ jobs:
   # Tests the new Lambda code on pepla-dev, and the new app with it, once the
   # deploy has succeeded. app-e2e-dev.yml holds the steps, the lock on
   # pepla-dev's seeded data and the comment on the merged PR. The new app's
-  # tests move to its pepla-dev address (on_web_address) once the APIs allow it; see below.
+  # tests move to its pepla-dev address (on_web_address) once the APIs allow it (web_dev_origin).
   e2e-dev:
     name: E2E on pepla-dev
     needs: deploy-dev
@@ -218,5 +218,6 @@ jobs:
     uses: ./.github/workflows/app-e2e-dev.yml
     with:
       full: true
-      # on_web_address: true  # added by the follow-up PR that fills web_dev_origin (infra/apigateway.tf):
-      # until the APIs allow the address, the new app's tests keep using ng serve.
+      # The new app's tests run against its pepla-dev address; the APIs allow it through
+      # web_dev_origin in infra/apigateway.tf.
+      on_web_address: true

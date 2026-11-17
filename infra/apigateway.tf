@@ -12,7 +12,7 @@
 # It is a literal and not a reference to the distribution because the locked ONB-02 AC-11 check reads this
 # expression as plain text; the S3 uploads bucket (s3.tf) has no such limit and uses the reference.
 locals {
-  web_dev_origin      = ""
+  web_dev_origin      = "https://df2hrxausiknc.cloudfront.net"
   api_allowed_origins = concat(["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"], var.environment != "prod" ? concat(["http://localhost:4300", "http://127.0.0.1:4300"], compact([local.web_dev_origin])) : [])
 }
 
