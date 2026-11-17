@@ -10,6 +10,8 @@ import { DestroyRef, Injectable, inject } from '@angular/core';
  */
 @Injectable()
 export class DemoClock {
+  /** Every live clock, for the dev test hook below. */
+  private static live = new Set<DemoClock>();
   private readonly win = inject(DOCUMENT).defaultView;
   private timers = new Set<ReturnType<typeof setTimeout>>();
   private observers = new Set<IntersectionObserver>();
@@ -19,7 +21,28 @@ export class DemoClock {
   get pending(): number { return this.timers.size; }
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => { this.stop(); this.observers.forEach((o) => o.disconnect()); this.observers.clear(); });
+    DemoClock.live.add(this);
+    DemoClock.installHook(this.win);
+    // A tab nobody is looking at runs nothing: cancel the queued steps when it is hidden.
+    const doc = inject(DOCUMENT);
+    const hidden = () => { if (doc.visibilityState === 'hidden') this.stop(); };
+    doc.addEventListener('visibilitychange', hidden);
+    inject(DestroyRef).onDestroy(() => {
+      this.stop();
+      this.observers.forEach((o) => o.disconnect());
+      this.observers.clear();
+      doc.removeEventListener('visibilitychange', hidden);
+      DemoClock.live.delete(this);
+    });
+  }
+
+  /** Dev gallery pages only: `window.__ppSiteClock` counts waiting timers and watching observers (the SITE-03 tests read it). */
+  private static installHook(win: Window | null): void {
+    if (!win || !win.location.pathname.startsWith('/dev/')) return;
+    (win as unknown as { __ppSiteClock: unknown }).__ppSiteClock = {
+      pending: () => { let n = 0; DemoClock.live.forEach((c) => (n += c.timers.size)); return n; },
+      observers: () => { let n = 0; DemoClock.live.forEach((c) => (n += c.observers.size)); return n; },
+    };
   }
 
   /** Run `fn` after `ms` (0 when motion is reduced). Returns nothing to hold on to: `stop()` cancels everything. */

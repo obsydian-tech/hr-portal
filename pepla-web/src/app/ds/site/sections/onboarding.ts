@@ -44,7 +44,7 @@ const NOW = ['Offer accepted · onboarding opened', 'Documents requested · 3 of
 </div>
 </div>
 <div class="pp-site-person__now">{{ now() }}</div>
-<div class="pp-site-person__views"><div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 0" [attr.aria-hidden]="view() === 0 ? null : 'true'"><p class="pp-site-person__label">Offer</p>
+<div class="pp-site-person__views"><div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 0" [attr.aria-hidden]="view() === 0 ? null : 'true'" [attr.inert]="view() === 0 ? null : ''"><p class="pp-site-person__label">Offer</p>
 <div class="pp-site-person__row"><span class="pp-site-ok pp-site-ok--in"><svg ppIcon="check" /></span>
 <span>Offer letter · Sales Consultant</span>
 <span class="pp-site-status pp-site-status--success">Signed</span>
@@ -58,7 +58,7 @@ const NOW = ['Offer accepted · onboarding opened', 'Documents requested · 3 of
 <span class="pp-site-status pp-site-status--success">Opened</span>
 </div>
 </div>
-<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 1" [attr.aria-hidden]="view() === 1 ? null : 'true'"><p class="pp-site-person__label">Documents from John Doe</p>
+<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 1" [attr.aria-hidden]="view() === 1 ? null : 'true'" [attr.inert]="view() === 1 ? null : ''"><p class="pp-site-person__label">Documents from John Doe</p>
 <div class="pp-site-person__row"><span class="pp-site-ok pp-site-ok--in"><svg ppIcon="check" /></span>
 <span>POPIA consent</span>
 <span class="pp-site-status pp-site-status--success">Given</span>
@@ -79,7 +79,7 @@ const NOW = ['Offer accepted · onboarding opened', 'Documents requested · 3 of
 <span class="pp-site-status pp-site-status--danger">Waiting</span>
 </div>
 </div>
-<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 2" [attr.aria-hidden]="view() === 2 ? null : 'true'"><p class="pp-site-person__label">ID document</p>
+<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 2" [attr.aria-hidden]="view() === 2 ? null : 'true'" [attr.inert]="view() === 2 ? null : ''"><p class="pp-site-person__label">ID document</p>
 <div class="pp-site-read"><div class="pp-site-read__row"><div class="pp-site-read__doc" [class.pp-site-read__doc--go]="r().go" aria-hidden="true"><span class="pp-site-read__scan"></span>
 </div>
 <div class="pp-site-read__fields"><div class="pp-site-read__field"><span class="pp-site-read__label">Name</span>
@@ -102,7 +102,7 @@ const NOW = ['Offer accepted · onboarding opened', 'Documents requested · 3 of
 </div>
 </div>
 </div>
-<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 3" [attr.aria-hidden]="view() === 3 ? null : 'true'"><p class="pp-site-person__label">Contract</p>
+<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 3" [attr.aria-hidden]="view() === 3 ? null : 'true'" [attr.inert]="view() === 3 ? null : ''"><p class="pp-site-person__label">Contract</p>
 <div class="pp-site-person__row"><span class="pp-site-ok pp-site-ok--in"><svg ppIcon="check" /></span>
 <span>Employment contract</span>
 <span class="pp-site-status pp-site-status--success">Signed</span>
@@ -116,7 +116,7 @@ const NOW = ['Offer accepted · onboarding opened', 'Documents requested · 3 of
 <span class="pp-site-status pp-site-status--brand">Ends 31 May</span>
 </div>
 </div>
-<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 4" [attr.aria-hidden]="view() === 4 ? null : 'true'"><p class="pp-site-person__label">Laptop and access</p>
+<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 4" [attr.aria-hidden]="view() === 4 ? null : 'true'" [attr.inert]="view() === 4 ? null : ''"><p class="pp-site-person__label">Laptop and access</p>
 <div class="pp-site-person__row"><span class="pp-site-ok pp-site-ok--in"><svg ppIcon="check" /></span>
 <span>Laptop</span>
 <span class="pp-site-status pp-site-status--success">Ready</span>
@@ -134,7 +134,7 @@ const NOW = ['Offer accepted · onboarding opened', 'Documents requested · 3 of
 <span class="pp-site-status pp-site-status--brand">Closed by IT</span>
 </div>
 </div>
-<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 5" [attr.aria-hidden]="view() === 5 ? null : 'true'"><p class="pp-site-person__label">Day one</p>
+<div class="pp-site-person__view" [class.pp-site-person__view--on]="view() === 5" [attr.aria-hidden]="view() === 5 ? null : 'true'" [attr.inert]="view() === 5 ? null : ''"><p class="pp-site-person__label">Day one</p>
 <div class="pp-site-person__row"><span class="pp-site-ok pp-site-ok--in"><svg ppIcon="check" /></span>
 <span>First-day checklist</span>
 <span class="pp-site-status pp-site-status--brand">Sent to manager</span>
