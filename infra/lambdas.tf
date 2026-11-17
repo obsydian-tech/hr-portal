@@ -1327,7 +1327,7 @@ resource "aws_lambda_function" "tenant_pre_token" {
   environment {
     variables = {
       TENANTS_TABLE    = aws_dynamodb_table.tenants.name
-      LEGACY_TENANT_ID = var.legacy_tenant_id
+      LEGACY_TENANT_ID = var.founding_tenant_id
     }
   }
 
