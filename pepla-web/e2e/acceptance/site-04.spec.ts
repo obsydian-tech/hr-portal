@@ -782,7 +782,7 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
     const changed = git('diff', '--name-only', '--no-renames', base, 'HEAD', '--', '.').split('\n').filter(Boolean).map((f) => f.replace(/^pepla-web\//, ''));
     // A pull request that changes no site file (a different card) has nothing to judge here.
     test.skip(!changed.some((f) => /^src\/app\/ds\/site\//.test(f) || /^src\/app\/features\/public\//.test(f) || /^e2e\/acceptance\/(site-0[1-9]\.spec\.ts|support\/site-0[1-9]\/|cards\/site-0[1-9]\.md)/.test(f)), 'this pull request changes no site file');
-    const allowed = (f: string) => /^src\/app\/ds\/site\//.test(f) || /^src\/app\/features\/public\//.test(f) || /^src\/app\/(app\.routes|app\.routes\.server|site\.routes)\.ts$/.test(f) || /^e2e\/acceptance\/(site-0[1-9]\.spec\.ts|onb-09\.spec\.ts|support\/site-0[1-9]\/|cards\/site-0[1-9]\.md)/.test(f) || /^e2e\/parity\//.test(f);
+    const allowed = (f: string) => /^src\/app\/ds\/site\//.test(f) || /^src\/app\/features\/public\//.test(f) || /^src\/app\/(app\.routes|app\.routes\.server|site\.routes)\.ts$/.test(f) || /^e2e\/acceptance\/(site-0[1-9]\.spec\.ts|onb-09\.spec\.ts|cards\/site-0[1-9]\.md)$/.test(f) || /^e2e\/acceptance\/support\/site-0[1-9]\//.test(f) || /^e2e\/parity\//.test(f);
     expect(changed.filter((f) => !allowed(f)), 'this card changes only the site, the public pages, the route files and the site tests').toEqual([]);
     expect(changed.filter((f) => f === 'src/app/ds/all.ts' || (f.startsWith('src/app/features/') && !f.startsWith('src/app/features/public/'))), 'ds/all.ts and the signed-in features are untouched').toEqual([]);
     const loaded: Array<Promise<{ url: string; text: string }>> = [];
