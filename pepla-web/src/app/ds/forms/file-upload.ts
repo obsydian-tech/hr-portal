@@ -31,7 +31,7 @@ import { uid } from '../util';
     <input class="pp-file-upload__input" type="file" [id]="id" [attr.accept]="accept() ?? null" [multiple]="multiple()"
            [attr.aria-labelledby]="labelledBy()" [attr.aria-describedby]="describedBy()" [required]="field?.required() ?? false"
            [attr.aria-invalid]="field?.invalid() || null" (change)="picked($event)" />
-    <label class="pp-button pp-button--default pp-file-upload__browse" [class.pp-button--small]="compact()" [attr.for]="id"><svg ppIcon="upload" /><span>{{ button() }}</span></label>
+    <label class="pp-button pp-button--default pp-file-upload__browse" [class.pp-button--small]="compact()" [class.pp-button--large]="large()" [attr.for]="id"><svg ppIcon="upload" /><span>{{ button() }}</span></label>
     }
   `,
   host: {
@@ -51,6 +51,8 @@ export class PpFileUpload {
   readonly compact = input(false);
   readonly icon = input<IconName>('upload');
   readonly button = input('Choose file');
+  /** A taller button, 44 pixels or more, for pages people use on a phone. */
+  readonly large = input(false);
   /** A file is being dragged over. Set by the component; the gallery sets it to show the state. */
   readonly dragging = model(false);
   readonly files = output<File[]>();
@@ -86,18 +88,18 @@ export type FileState = 'uploading' | 'done' | 'agent' | 'error';
       <span class="pp-file__name">{{ name() }}</span>
       <span class="pp-file__meta"><span>{{ size() }}</span>
         @switch (state()) {
-          @case ('uploading') { <span>Uploading, {{ progress() }}%</span> }
-          @case ('done') { <span class="pp-file__status pp-file__status--success"><svg ppIcon="circle-check" />Uploaded</span> }
+          @case ('uploading') { <span>{{ progressText() ?? 'Uploading, ' + progress() + '%' }}</span> }
+          @case ('done') { <span class="pp-file__status" [class.pp-file__status--success]="statusTone() === 'success'" [class.pp-file__status--danger]="statusTone() === 'danger'"><svg [ppIcon]="statusIcon() ?? (statusTone() === 'danger' ? 'octagon-alert' : 'circle-check')" />{{ statusText() ?? 'Uploaded' }}</span> }
           @case ('agent') { <pp-lozenge status="agent">Checked by Batsi</pp-lozenge> }
-          @case ('error') { <span class="pp-file__status pp-file__status--danger"><svg ppIcon="octagon-alert" />{{ error() }}</span> }
+          @case ('error') { <span class="pp-file__status pp-file__status--danger" role="alert"><svg ppIcon="octagon-alert" />{{ error() }}</span> }
         }
       </span>
     </div>
     <div class="pp-file__actions">
-      @if (state() === 'error') { <button ppButton size="small" (click)="retry.emit()">Try again</button> }
+      @if (state() === 'error' && retryable()) { <button ppButton [size]="buttonSize()" (click)="retry.emit()">Try again</button> }
       @if (state() === 'uploading') {
         <button ppButton appearance="subtle" size="small" icon="x" [iconOnly]="true" [attr.aria-label]="'Cancel upload of ' + name()" (click)="cancel.emit()"></button>
-      } @else {
+      } @else if (removable()) {
         <button ppButton appearance="subtle" size="small" [icon]="state() === 'error' ? 'x' : 'trash-2'" [iconOnly]="true" [attr.aria-label]="'Remove ' + name()" (click)="remove.emit()"></button>
       }
     </div>
@@ -115,6 +117,18 @@ export class PpFile {
   readonly progress = input(0);
   readonly error = input<string>();
   readonly icon = input<IconName>('file-text');
+  /** Words for the progress, instead of "Uploading, 40%": "Uploading, 1.2 of 3.1 MB". */
+  readonly progressText = input<string>();
+  /** Words for a stored file's state, instead of "Uploaded": "With HR". */
+  readonly statusText = input<string>();
+  readonly statusTone = input<'success' | 'danger' | 'neutral'>('success');
+  readonly statusIcon = input<IconName>();
+  /** `large` where the page is used on a phone (44 pixels or more). */
+  readonly buttonSize = input<'small' | 'large'>('small');
+  /** False where a file cannot be removed (no Remove button). */
+  readonly removable = input(true);
+  /** False when trying again cannot help (no Try again button on an error). */
+  readonly retryable = input(true);
   readonly cancel = output<void>();
   readonly remove = output<void>();
   readonly retry = output<void>();
