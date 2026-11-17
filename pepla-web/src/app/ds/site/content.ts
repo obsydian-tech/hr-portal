@@ -34,8 +34,8 @@ export const SITE_MENU: readonly SiteMenuList[] = [
     id: 'integrations', label: 'Integrations', width: 'medium',
     entries: [
       { name: 'API', hint: 'Per-company keys', icon: 'code', href: SOON },
-      { name: 'MCP server', hint: 'For AI assistants', icon: 'sparkles', tone: 'agent', href: SOON },
-      { name: 'Events and webhooks', hint: 'React to changes as they happen', icon: 'zap', href: SOON },
+      { name: 'MCP server', hint: 'For AI assistants', icon: 'sparkles', tone: 'agent', href: '#mcp' },
+      { name: 'Events and webhooks', hint: 'React to changes as they happen', icon: 'zap', href: '#events' },
       { name: 'Payroll providers', icon: 'plug', soon: true, href: SOON },
       { name: 'Verification providers', icon: 'shield-check', soon: true, href: SOON },
     ],
