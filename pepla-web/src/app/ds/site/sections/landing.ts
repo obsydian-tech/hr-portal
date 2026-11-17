@@ -50,8 +50,7 @@ import { PpSiteLandTrust } from './trust';
       <section ppSiteLandPlatform></section>
       <section ppSiteLandAbout></section>
       <section ppSiteBand id="demo" reveal [lights]="phone() ? bandPhone : bandDesktop" eyebrow="Book a demo" title="Naleko" accent="People."
-        lead="Every employee hired, onboarded and compliant. One app for Recruitment, Onboarding and Offboarding, Leave Management and Compliance Management, with Ask Batsi built in."
-        note="Get started creates a company account. The Naleko team calls every new company.">
+        lead="Every employee hired, onboarded and compliant. One app for Recruitment, Onboarding and Offboarding, Leave Management and Compliance Management, with Ask Batsi built in.">
         <a class="pp-site-button pp-site-button--dark pp-site-button--large" href="#demo"><span>Book a demo</span><svg ppIcon="arrow-right" /></a>
         <a class="pp-site-button pp-site-button--line pp-site-button--large" href="#get-started">Get started</a>
       </section>

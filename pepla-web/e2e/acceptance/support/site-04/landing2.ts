@@ -45,9 +45,12 @@ function curl(url: string): string {
 export function syncJson(): { repo: string; ref: string } {
   return JSON.parse(readFileSync(join(DS, 'sync.json'), 'utf8'));
 }
-/** A file of the design system repo at the ref the app is synced to, cached in the OS temp folder. */
-export function dsFile(path: string): string {
-  const { repo, ref } = syncJson();
+/** The design system ref the landing kit is compared at: PR #47 removed the closing band note from the landing and every Learn more kit. */
+export const LANDING_KIT_REF = '8dc3091b48774490fa3d0e0bb0fcd7825aac3d9a';
+/** A file of the design system repo at the ref the app is synced to (or at pinnedRef), cached in the OS temp folder. */
+export function dsFile(path: string, pinnedRef?: string): string {
+  const { repo, ref: syncRef } = syncJson();
+  const ref = pinnedRef ?? syncRef;
   const dir = join(tmpdir(), 'site-04-kit', ref);
   const file = join(dir, path.replace(/\//g, '__'));
   if (existsSync(file)) return readFileSync(file, 'utf8');
@@ -81,11 +84,11 @@ type Box = { x: number; y: number; width: number; height: number };
 export function kitLandingHtml(device: Device, scripts: boolean, stageWidth?: number): string {
   const other = device === 'desktop' ? 'top-p' : 'top-d';
   const mine = device === 'desktop' ? 'top-d' : 'top-p';
-  const body = kitMarkup(dsFile('project/ui_kits/site-landing.html'));
+  const body = kitMarkup(dsFile('project/ui_kits/site-landing.html', LANDING_KIT_REF));
   // Lock check: the part-1 preview scripts (SITE-03's list) run too, so the hero, Modules, Ask Batsi, Recruitment and Onboarding on the kit
   // page behave as the site's do in the whole-page compare (without them the kit's Onboarding never went live and its hidden read view sat
   // 6 to 8px off the site's).
-  const js = ['site-landing-parts.js', 'site-landing-sections.js', 'site-onboarding-story.js', 'site-landing-compliance-leave.js', 'site-security.js', 'site-integrations.js', 'site-platform.js', 'site-landing.js'].map((f) => `<script>${dsFile(`scripts/preview/${f}`)}</script>`).join('');
+  const js = ['site-landing-parts.js', 'site-landing-sections.js', 'site-onboarding-story.js', 'site-landing-compliance-leave.js', 'site-security.js', 'site-integrations.js', 'site-platform.js', 'site-landing.js'].map((f) => `<script>${dsFile(`scripts/preview/${f}`, LANDING_KIT_REF)}</script>`).join('');
   const prep = `<script>document.getElementById('${other}')?.remove();${stageWidth ? `document.getElementById('${mine}').style.width='${stageWidth}px';` : ''}</script>`;
   return `<!doctype html><html lang="en-ZA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="${FONTS}"><link rel="stylesheet" href="ds/index.css"><style>body{margin:0}</style></head><body>${body}${prep}${scripts ? js : ''}</body></html>`;
 }

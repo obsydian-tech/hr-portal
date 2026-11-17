@@ -21,7 +21,9 @@ let uid = 0;
       <h2 class="pp-site-band__title" [ppSiteReveal]="1" [revealOn]="reveal()" [id]="titleId">{{ title() }} <span ppSiteShine inline [text]="accent()"></span></h2>
       <p class="pp-site-band__lead" [ppSiteReveal]="2" [revealOn]="reveal()">{{ lead() }}</p>
       <div class="pp-site-band__actions" [ppSiteReveal]="3" [revealOn]="reveal()"><ng-content /></div>
-      <p class="pp-site-band__note" [ppSiteReveal]="4" [revealOn]="reveal()">{{ note() }}</p>
+      @if (note()) {
+        <p class="pp-site-band__note" [ppSiteReveal]="4" [revealOn]="reveal()">{{ note() }}</p>
+      }
     </div>
   `,
   host: { class: 'pp-site-band', '[attr.aria-labelledby]': 'titleId', '[attr.title]': 'null' },
@@ -34,6 +36,7 @@ export class PpSiteBand {
   readonly title = input.required<string>();
   readonly accent = input.required<string>();
   readonly lead = input.required<string>();
-  readonly note = input.required<string>();
+  /** Optional. Left out, the band has no note line. */
+  readonly note = input('');
   readonly reveal = input(false, { transform: booleanAttribute });
 }

@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { PEPLA_WEB, KEYS, SECTION, STILL, FREEZE_VIEW, GATED_VIEW, bodyOf, compareSection, comparePage, dsFile, deviceOf, exampleName, fromFirstChange, galleryId, gotoLanding, kitMarkup, openKit, sameTimeline, sec, settle, sleep, timeline, wordsOf, type Device, type Key, type Step } from './support/site-04/landing2';
+import { PEPLA_WEB, KEYS, SECTION, STILL, FREEZE_VIEW, GATED_VIEW, bodyOf, compareSection, comparePage, dsFile, LANDING_KIT_REF, deviceOf, exampleName, fromFirstChange, galleryId, gotoLanding, kitMarkup, openKit, sameTimeline, sec, settle, sleep, timeline, wordsOf, type Device, type Key, type Step } from './support/site-04/landing2';
 
 /**
  * SITE-04 · Landing sections part 2: Compliance, Leave, Trust and POPIA, Integrations, Platform, About, the closing band, the assembled page.
@@ -123,8 +123,11 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
       await route.setViewportSize(page.viewportSize()!);
       await route.goto(new URL('/', baseURL!).toString());
       await route.waitForLoadState('networkidle');
+      await route.locator('section#demo').waitFor();
       const band = await route.evaluate(wordsOf, ['section#demo', ''] as [string, string]);
       expect(band.texts, 'the closing band shows the kit words').toEqual(kitBand.texts);
+      // Lock check 04.6: the removed note is nowhere on the page, not only absent from the band (a note moved out of the band, or placed out of the flow, shifts no box the page compare reads).
+      expect(await route.evaluate(() => document.body.innerText), 'the closing band note is on no part of the landing page').not.toMatch(/creates a company account|Naleko team calls every/i);
       expect(band.names, 'and the kit names').toEqual(kitBand.names);
       await expect(route.locator('section#demo').getByRole('link', { name: 'Book a demo', exact: true })).toBeVisible();
       await expect(route.locator('section#demo').getByRole('link', { name: 'Get started', exact: true })).toBeVisible();
@@ -475,7 +478,7 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
       await p.goto('/');
       await p.waitForLoadState('networkidle');
       // The kit's own section titles, in the kit's own order, found once each and in that order on the page.
-      const kit = kitMarkup(dsFile('project/ui_kits/site-landing.html'));
+      const kit = kitMarkup(dsFile('project/ui_kits/site-landing.html', LANDING_KIT_REF));
       const stage = kit.slice(kit.indexOf(`id="top-${d === 'desktop' ? 'd' : 'p'}"`));
       const ids = ['main-' + (d === 'desktop' ? 'lpd' : 's4'), ...['modules', 'batsi', 'recruitment', 'onboarding', 'compliance', 'leave', 'trust', 'api', 'platform', 'about', 'demo'].map((s) => `${s}-${d === 'desktop' ? 'd' : 'p'}`)];
       const titles: string[] = [];
@@ -812,7 +815,7 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
     const html = readFileSync(index!, 'utf8');
     const text = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&#(\d+);/g, (_m, n: string) => String.fromCharCode(Number(n))).replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&rsquo;/g, '’').replace(/&lsquo;/g, '‘').replace(/&#x27;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ');
     // Every demo shows its first state: the words of each kit section at its first step are in the prerendered HTML.
-    const kit = kitMarkup(dsFile('project/ui_kits/site-landing.html'));
+    const kit = kitMarkup(dsFile('project/ui_kits/site-landing.html', LANDING_KIT_REF));
     const stage = kit.slice(kit.indexOf('id="top-d"'), kit.indexOf('id="top-p"'));
     for (const id of ['compliance-d', 'leave-d', 'trust-d', 'api-d', 'platform-d', 'about-d', 'demo-d']) {
       const at = stage.indexOf(`id="${id}"`);
