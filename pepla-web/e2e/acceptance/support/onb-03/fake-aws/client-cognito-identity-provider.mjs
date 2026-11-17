@@ -19,7 +19,9 @@ export class AdminGetUserCommand extends Command { get op() { return 'AdminGetUs
 export class AdminListGroupsForUserCommand extends Command { get op() { return 'AdminListGroupsForUser'; } }
 
 const byName = (name) => world.cognito.users.find((u) => u.username === name);
-const attrs = (u) => Object.entries(u.attributes ?? {}).map(([Name, Value]) => ({ Name, Value }));
+// TEN-02: every Cognito user has a sub, which Cognito makes and returns with the attributes; a seeded user
+// without one gets a fixed stand-in from the username.
+const attrs = (u) => [...Object.entries(u.attributes ?? {}).map(([Name, Value]) => ({ Name, Value })), ...(u.attributes?.sub ? [] : [{ Name: 'sub', Value: `sub-${u.username}` }])];
 
 export class CognitoIdentityProviderClient {
   constructor() { this.config = {}; }
@@ -30,7 +32,7 @@ export class CognitoIdentityProviderClient {
     if (cmd.op === 'AdminCreateUser') {
       if (byName(i.Username)) throw awsError('UsernameExistsException', 'User account already exists');
       world.cognito.users.push({ username: i.Username, enabled: true, attributes: Object.fromEntries((i.UserAttributes ?? []).map((a) => [a.Name, a.Value])), groups: [] });
-      return { User: { Username: i.Username } };
+      return { User: { Username: i.Username, Attributes: attrs(world.cognito.users[world.cognito.users.length - 1]) } };
     }
     if (cmd.op === 'AdminGetUser' || cmd.op === 'AdminListGroupsForUser') {
       const u = world.cognito.users.find((x) => String(x.username).toLowerCase() === String(i.Username ?? '').toLowerCase());

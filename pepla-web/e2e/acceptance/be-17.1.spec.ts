@@ -374,7 +374,8 @@ test.describe('BE-17.1 Nobody can change their sign-in email to reach someone el
 
   test('AC-3 The shared rule: isHrOrOwner needs a verified, matching, non-empty email for anyone but HR, and only it compares the email', async ({}, testInfo) => {
     lambdaOnce(testInfo.project.name);
-    const rec = { email: A_EMAIL };
+    // TEN-02 (re-lock): the record names its owner's sign-in id (user_sub), as every invited row now does.
+    const rec = { email: A_EMAIL, user_sub: 'sub-x' };
     const claims = (groups: string | string[] | undefined, email: unknown, emailVerified: unknown, has = true): Record<string, unknown> => {
       const c: Record<string, unknown> = { sub: 'sub-x', email };
       if (has) c['email_verified'] = emailVerified;
@@ -393,7 +394,7 @@ test.describe('BE-17.1 Nobody can change their sign-in email to reach someone el
       ['owner, "TRUE"', { claims: claims('[employee]', A_EMAIL, 'TRUE'), employee: rec }, true],
       ['owner, "True"', { claims: claims('[employee]', A_EMAIL, 'True'), employee: rec }, true],
       ['owner, boolean true', { claims: claims('[employee]', A_EMAIL, true), employee: rec }, true],
-      ['owner, "true", other case and spaces', { claims: claims('[employee]', '  NALEDI.Dlamini@Kestrel-Foods.co.za ', 'true'), employee: { email: ` ${A_EMAIL.toUpperCase()}` } }, true],
+      ['owner, "true", other case and spaces', { claims: claims('[employee]', '  NALEDI.Dlamini@Kestrel-Foods.co.za ', 'true'), employee: { email: ` ${A_EMAIL.toUpperCase()}`, user_sub: 'sub-x' } }, true],
       ['owner, no groups at all, "true"', { claims: claims(undefined, A_EMAIL, 'true'), employee: rec }, true],
       // Not verified: false.
       ['matching email, "false"', { claims: claims('[employee]', A_EMAIL, 'false'), employee: rec }, false],
@@ -411,9 +412,9 @@ test.describe('BE-17.1 Nobody can change their sign-in email to reach someone el
       // Verified, but no match.
       ['verified, other email', { claims: claims('[employee]', B_EMAIL, 'true'), employee: rec }, false],
       ['verified, only the tail of the email', { claims: claims('[employee]', 'dlamini@kestrel-foods.co.za', 'true'), employee: rec }, false],
-      ['verified, empty email, empty record email', { claims: claims('[employee]', '', 'true'), employee: { email: '' } }, false],
-      ['verified, spaces only, record with spaces only', { claims: claims('[employee]', '   ', 'true'), employee: { email: '  ' } }, false],
-      ['verified, no email claim, record without email', { claims: { sub: 'sub-x', email_verified: 'true', 'cognito:groups': '[employee]' }, employee: {} }, false],
+      ['verified, empty email, empty record email', { claims: claims('[employee]', '', 'true'), employee: { email: '', user_sub: 'sub-x' } }, false],
+      ['verified, spaces only, record with spaces only', { claims: claims('[employee]', '   ', 'true'), employee: { email: '  ', user_sub: 'sub-x' } }, false],
+      ['verified, no email claim, record without email', { claims: { sub: 'sub-x', email_verified: 'true', 'cognito:groups': '[employee]' }, employee: { user_sub: 'sub-x' } }, false],
       ['verified, record missing', { claims: claims('[employee]', A_EMAIL, 'true'), employee: null }, false],
       // Look-alike groups are not HR.
       ['look-alike group, unverified, matching', { claims: claims('[not_hr_staff employee]', A_EMAIL, 'false'), employee: rec }, false],

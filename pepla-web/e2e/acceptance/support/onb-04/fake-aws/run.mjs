@@ -9,6 +9,11 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { calls, world } from './world.mjs';
+import { asLegacyCompany, legacySettings, legacyTables } from '../../ten-02/legacy-company.mjs';
+import { world as __world, KEYS as __KEYS } from './world.mjs';
+// TEN-02: run as the one company there was when this card was written (see ../../ten-02/legacy-company.mjs).
+legacySettings();
+legacyTables(__world, __KEYS);
 
 if (process.env.ONB04_NOW) {
   const NOW = Date.parse(process.env.ONB04_NOW);
@@ -28,6 +33,7 @@ for (const level of ['log', 'info', 'warn', 'error', 'debug', 'trace']) {
 
 const [moduleFile, eventFile] = process.argv.slice(2);
 const spec = JSON.parse(readFileSync(eventFile, 'utf8'));
+spec.events = (spec.events ?? []).map((e) => asLegacyCompany(e, spec.call));
 const out = { calls, responses: [], errors: [] };
 const ctx = { awsRequestId: 'onb-04-test', functionName: 'onb-04' };
 let fn;

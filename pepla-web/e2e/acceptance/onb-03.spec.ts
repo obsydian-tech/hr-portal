@@ -6,6 +6,7 @@ import { ON_DEV, FAKE, expect, test as base, type Login, type SignInPage } from 
 import { forgetSignIn } from './support/sign-in-again';
 import { blocks, tfFiles } from './support/infra-harness';
 import { policyOf, resourcesNamed } from './support/onb-15/tf-policy';
+import { tablesIn, tenancyGrant } from './support/ten-02/relock';
 import type { Statement } from './support/ops-05/iam-eval';
 import {
   AGENT, CREATE, EMPLOYEE, EMAIL_CHECK, HR, PAGE, PARTNERS, POOL, REPO, aiReached, aws, body, cognitoCalls, create, createEvent, dynamoCalls, emailCheck,
@@ -1120,7 +1121,9 @@ test.describe('ONB-03 Add a new employee', () => {
         expect(r.action, `${n.fn}: no wildcard action (${r.action})`).not.toMatch(/\*/);
         if (r.resource === '*') expect(r.action, `${n.fn}: Resource "*" only for X-Ray`).toMatch(/^xray:/);
       }
-      const extra = rows.filter((r) => ordinary(r.action));
+      // TEN-02 (re-lock): the company grants (Member rows on the tenants table) are not this card's line.
+      const reaches = tablesIn(rows.filter((r) => !/tenant-index/.test(r.resource)).map((r) => r.resource));
+      const extra = rows.filter((r) => ordinary(r.action) && !tenancyGrant(r.action, r.resource, reaches));
       expect(extra.map((r) => `${r.action} ${r.resource}`), `${n.fn}: the only real action is the one it needs`).toHaveLength(1);
       expect(n.only(extra[0]!), `${n.fn}: the one action is the right one on the right resource (${extra[0]?.action} on ${extra[0]?.resource})`).toBe(true);
       const logs = rows.filter((r) => r.action.startsWith('logs:'));
@@ -1152,7 +1155,9 @@ test.describe('ONB-03 Add a new employee', () => {
     const onb04 = (x: string) => /employee_invites/.test(x)
       // ONB-04.2 (re-lock onb-03.5): createEmployee reads an existing sign-in and its groups before it invites. ONB-04.2's AC-5 judges these.
       || /^Allow cognito-idp:(AdminGetUser|AdminListGroupsForUser) arn:aws:cognito-idp:af-south-1:000000000000:userpool\/\$\{aws_cognito_user_pool\.naleko_dev\.id\}$/.test(x);
-    const added = after.filter((x) => !before.includes(x) && !onb04(x));
+    // TEN-02 (re-lock): the company grants (Member rows, the employees tenant-index) are TEN-02's to judge.
+    const ten02 = (x: string) => { const [effect, action, resource] = x.split(' '); return effect === 'Allow' && tenancyGrant(action!, resource!, tablesIn(before.map((b) => b.split(' ')[2]!)), true); };
+    const added = after.filter((x) => !before.includes(x) && !onb04(x) && !ten02(x));
     const removed = before.filter((x) => !after.includes(x) && !/^Allow cognito-idp:AdminSetUserPassword /.test(x));
     expect(removed, 'createEmployee\'s policy loses nothing (but AdminSetUserPassword, ONB-04)').toEqual([]);
     expect(added, 'createEmployee\'s policy gains exactly ListUsersInGroup on the pool').toHaveLength(1);

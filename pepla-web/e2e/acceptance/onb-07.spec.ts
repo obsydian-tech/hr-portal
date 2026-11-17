@@ -413,7 +413,8 @@ test.describe('ONB-07 Batsi checks, HR decides', () => {
       const d = waiting[0]!.detail;
       expect(waiting[0]!.source, `${c.name}: from naleko.onboarding`).toBe('naleko.onboarding');
       expect(waiting[0]!.bus, `${c.name}: on the onboarding bus`).toBe(ENV.EVENT_BUS_NAME);
-      expect(Object.keys(d).sort(), `${c.name}: the event carries only employee_id, document_id, document_type and check`).toEqual(['check', 'document_id', 'document_type', 'employee_id']);
+      // TEN-02 (re-lock): every event detail also carries the company (tenant_id).
+      expect(Object.keys(d).sort(), `${c.name}: the event carries only employee_id, document_id, document_type, check and tenant_id`).toEqual(['check', 'document_id', 'document_type', 'employee_id', 'tenant_id']);
       expect(d.employee_id, `${c.name}: event employee_id`).toBe(c.doc.person.employee_id);
       expect(sameDoc(d.document_id, c.doc), `${c.name}: event document_id names the document (got ${d.document_id})`).toBe(true);
       expect(d.document_type, `${c.name}: event document_type`).toBe(c.doc.type);

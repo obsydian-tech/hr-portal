@@ -5,6 +5,11 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { calls, world } from './world.mjs';
+import { asLegacyCompany, legacySettings, legacyTables } from '../../ten-02/legacy-company.mjs';
+import { world as __world, KEYS as __KEYS } from './world.mjs';
+// TEN-02: run as the one company there was when this card was written (see ../../ten-02/legacy-company.mjs).
+legacySettings();
+legacyTables(__world, __KEYS);
 // BE-17: no outbound HTTP (Batsi chat calls the Agent API with fetch). Recorded, then refused.
 globalThis.fetch = async (url, init = {}) => {
   calls.push({ service: 'http', op: `${init.method ?? 'GET'} ${String(url)}` });
@@ -14,7 +19,7 @@ const [handlerFile, eventFile] = process.argv.slice(2);
 const out = { calls };
 try {
   const { handler } = await import(pathToFileURL(handlerFile).href);
-  out.response = await handler(JSON.parse(readFileSync(eventFile, 'utf8')), { awsRequestId: 'be-17-test', functionName: 'be-17' });
+  out.response = await handler(asLegacyCompany(JSON.parse(readFileSync(eventFile, 'utf8'))), { awsRequestId: 'be-17-test', functionName: 'be-17' });
 } catch (e) {
   out.error = { name: e?.name, message: String(e?.message ?? e), stack: String(e?.stack ?? e) };
 }

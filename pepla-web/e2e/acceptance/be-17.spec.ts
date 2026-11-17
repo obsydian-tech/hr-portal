@@ -9,6 +9,7 @@ import {
   READ_OPS, WRITE_OPS, type Caller, type Failure, type RouteName, type Run, type Tables,
 } from './support/be-17/lambda-harness';
 import { policyOf, squash, table as tableArn, type TfResource } from './support/onb-15/tf-policy';
+import { onlyTenancyAdded, tablesIn, tenancyGrant } from './support/ten-02/relock';
 import { decide, statements } from './support/ops-05/iam-eval';
 
 /**
@@ -569,7 +570,9 @@ test.describe('BE-17 Only HR reaches HR routes, now that employees can sign in',
         expect(current.length, `${what} is still defined once`).toBe(1);
         if (kind === 'module') continue; // kms_pii: below
         if (b.labels[0] === 'aws_iam_role_policy' && b.labels[1] === FILE_LINK_POLICY) continue; // below
-        expect(squash(current[0]!.raw), `${what} is unchanged since 629ae93`).toBe(squash(b.raw));
+        // TEN-02 (re-lock): a role policy may also hold TEN-02's company grants (support/ten-02/relock.ts).
+        if (b.labels[0] === 'aws_iam_role_policy') expect(onlyTenancyAdded(asResource(b), asResource(current[0]!)), `${what} is unchanged since 629ae93 but for TEN-02's grants`).toEqual([]);
+        else expect(squash(current[0]!.raw), `${what} is unchanged since 629ae93`).toBe(squash(b.raw));
       }
     }
 
@@ -589,7 +592,9 @@ test.describe('BE-17 Only HR reaches HR routes, now that employees can sign in',
         }
       }
     }
-    const added = [...actionsOf(newPolicy)].filter((a) => !actionsOf(oldPolicy).has(a));
+    // TEN-02 (re-lock): the company's documents list (Query on documents' tenant-index) does not count.
+    const tenancyOnly = (a: string) => statements(newPolicy).filter((s) => ([s.Action ?? []].flat() as string[]).includes(a)).every((s) => ([s.Resource ?? []].flat() as string[]).every((r) => tenancyGrant(a, r, tablesIn(statements(oldPolicy).flatMap((o) => [o.Resource ?? []].flat() as string[])))));
+    const added = [...actionsOf(newPolicy)].filter((a) => !actionsOf(oldPolicy).has(a) && !tenancyOnly(a));
     expect(added, 'file link policy: the only new action is dynamodb:GetItem').toEqual(added.length ? ['dynamodb:GetItem'] : []);
     expect(decide(newPolicy, { action: 'dynamodb:GetItem', resource: tableArn('employees') }), 'file link policy: GetItem on employees').toBe('allowed');
     for (const action of ['dynamodb:Scan', 'dynamodb:Query', 'dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem', 'dynamodb:BatchGetItem']) {

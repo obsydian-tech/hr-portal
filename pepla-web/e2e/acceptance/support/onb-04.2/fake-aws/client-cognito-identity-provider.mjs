@@ -34,7 +34,9 @@ export class InvalidPasswordException extends Error { constructor(o = {}) { supe
 
 // Cognito usernames in this pool are not case-sensitive.
 const byName = (name) => world.cognito.users.find((u) => String(u.username).toLowerCase() === String(name ?? '').toLowerCase());
-const attrs = (u) => Object.entries(u.attributes ?? {}).map(([Name, Value]) => ({ Name, Value }));
+// TEN-02: every Cognito user has a sub, which Cognito makes and returns with the attributes; a seeded user
+// without one gets a fixed stand-in from the username.
+const attrs = (u) => [...Object.entries(u.attributes ?? {}).map(([Name, Value]) => ({ Name, Value })), ...(u.attributes?.sub ? [] : [{ Name: 'sub', Value: `sub-${u.username}` }])];
 
 /** The pool's password policy (infra/cognito.tf): 12+, lower, upper, number, symbol. */
 export function meetsPolicy(p) {
