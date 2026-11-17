@@ -5,6 +5,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { PEPLA_WEB, KEYS, SECTION, STILL, FREEZE_VIEW, FREEZE_SCROLL, GATED_VIEW, fromFirstChange, sameTimeline, timeline, type Kind, type Step, bodyOf, compareSection, deviceOf, exampleName, galleryId, gotoLanding, openKit, rootOf, sec, settle, sleep, wordsOf, type Device, type Key } from './support/site-03/landing';
+import { SCOPED_VIEW, centre, freezeTimers, loopsIn, watchFlights } from './support/site-04/reduced-motion';
 
 /**
  * SITE-03 · Landing sections part 1: pilot bar, hero Ask Batsi peek, Modules, Ask Batsi, Recruitment, Onboarding.
@@ -114,27 +115,30 @@ test.describe('SITE-03 Landing sections, part 1', () => {
   });
 
   // ---------------------------------------------------------------- AC-2
-  test('AC-2 each section matches the kit at its first step and again at its last step', async ({ page, browser, baseURL }) => {
+  test('AC-2 each section matches the kit at its first step and again at its last step, after the demo has played under reduced motion', async ({ page, browser, baseURL }) => {
     test.setTimeout(10 * 60_000);
     const d = deviceOf(page);
     const origin = new URL(baseURL!).origin;
     const stageWidth = async (p: import('@playwright/test').Page) => p.locator('.pp-site-stage').first().evaluate((el) => el.getBoundingClientRect().width);
 
+    // Child lock 04.7: the last step is the end of each demo's run, played for real under reduced motion (design system PR #49: demos keep playing).
+    // Both pages get the same cue (views gated, then fired together), play for the same time and are then held on their end state by cancelling every
+    // timer (an Ask Batsi run moves on to its next question 11s after it starts). The wait is the longest run of the section, from the kit's script.
+    const ENDS: Record<Key, number> = { pilot: 300, hero: 300, modules: 700, batsi: 8500, recruitment: 9500, onboarding: 1800 };
     const run = async (label: string, reduced: boolean) => {
       for (const k of KEYS) {
         const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: reduced ? 'reduce' : 'no-preference' });
         try {
           const p = await ctx.newPage();
-          // First step: nothing is ever "in view", so no demo starts and nothing arrives. Last step: reduced motion, each demo shows its end at once.
-          if (!reduced) await ctx.addInitScript(FREEZE_VIEW);
+          // First step: nothing is ever "in view", so no demo starts and nothing arrives. Last step: reduced motion, each demo plays to its end.
+          await ctx.addInitScript(reduced ? GATED_VIEW : FREEZE_VIEW);
           await ctx.addInitScript(FREEZE_SCROLL);
           await gotoLanding(p, [galleryId(k, d)]);
           const kp = await ctx.newPage();
           await kp.setViewportSize(page.viewportSize()!);
           await openKit(kp, origin, d, true, await stageWidth(p));
+          if (reduced) { await Promise.all([fire(p), fire(kp)]); await sleep(ENDS[k]); await Promise.all([freezeTimers(p), freezeTimers(kp)]); }
           await settle(kp);
-          if (k === 'onboarding' && reduced) { /* the story's last step is judged in AC-7 */ }
-          if (reduced) { await sleep(1800); }
           await settle(p);
           const r = await compareSection(p, kp, k, d, k === 'modules' ? '.pp-site-tile__ask' : '');
           expect(r.kitElements, `${label} ${k}: the kit section has elements`).toBeGreaterThanOrEqual(k === 'pilot' ? 3 : 10);
@@ -412,69 +416,214 @@ test.describe('SITE-03 Landing sections, part 1', () => {
   });
 
   // ---------------------------------------------------------------- AC-8
-  test('AC-8 under reduced motion every demo shows its end at once and leaves no timer; data-site-still stops every loop', async ({ browser, baseURL, page }) => {
-    test.setTimeout(5 * 60_000);
+  // Child lock 04.7 (design system PR #49, Iggie 13 Nov, confirmed 17 Nov): under reduced motion the demos keep playing at their normal timings;
+  // only grain, the flying board card, pointer tilt and other large movement stop. Each demo is judged against the kit page under the same setting.
+  test('AC-8 under reduced motion every demo plays as the kit plays it, at the same times, and leaves no timer when it ends; the CSS loops keep running; data-site-still stops every loop', async ({ browser, baseURL, page }) => {
+    test.setTimeout(8 * 60_000);
     const d = deviceOf(page);
+    const R = { reducedMotion: 'reduce' } as const;
     const pending = (p: Page) => p.evaluate(() => (window as unknown as { __ppSiteClock?: { pending(): number } }).__ppSiteClock?.pending() ?? -1);
-    // Ask Batsi and Recruitment: the last state is the kit's last state under reduced motion, there at once, and no timer is left.
-    for (const k of ['batsi', 'recruitment'] as const) {
+    // Ask Batsi: the automatic run (the first question, its rows, its action pressed, then the second question at 11s) is the kit's, state by state.
+    // The cycle never ends, so a timer is always queued; a pressed question stops it for good, and then the run's end leaves none.
+    {
       const run = async (isKit: boolean) => {
-        const w = await world(browser, baseURL!, page, k, { reducedMotion: 'reduce' }, false);
+        const w = await world(browser, baseURL!, page, 'batsi', R);
         try {
           const p = isKit ? w.kit : w.app;
-          const scope = isKit ? KIT_SCOPE(k, w.d) : APP_SCOPE(k, w.d);
-          await p.locator(scope).scrollIntoViewIfNeeded();
-          const steps = await timeline(p, k === 'batsi' ? 'batsi' : 'rec', scope, 900);
-          return { last: steps.at(-1)!.sig, pending: isKit ? 0 : await pending(p) };
+          const steps = await record(p, 'batsi', isKit ? KIT_SCOPE('batsi', w.d) : APP_SCOPE('batsi', w.d), 13_500, async () => { await fire(p); });
+          return { steps };
         } finally { await w.ctx.close(); }
       };
       const app = await run(false);
       const kit = await run(true);
-      expect(app.last, `${k}: reduced motion shows the kit's last state`).toBe(kit.last);
-      expect(app.pending, `${k}: no timer is left pending (window.__ppSiteClock.pending() is 0)`).toBe(0);
+      await expectSame('Ask Batsi under reduced motion, the automatic run', app.steps, kit.steps, 250);
+      const sigs = fromFirstChange(app.steps).map((x) => x.sig);
+      expect(sigs.some((x) => x.includes('Request sent to John Doe. Approved by Jane Smith, 09:42')), 'it plays on: the first question ends with its action approved').toBe(true);
+      expect(sigs.at(-1)!.startsWith('010'), 'and after 11s the second tab is the selected one (the cycle runs under reduced motion)').toBe(true);
+      const pressed = async (isKit: boolean) => {
+        const w = await world(browser, baseURL!, page, 'batsi', R);
+        try {
+          const p = isKit ? w.kit : w.app;
+          const scope = isKit ? KIT_SCOPE('batsi', w.d) : APP_SCOPE('batsi', w.d);
+          const root = p.locator(scope);
+          await fire(p);
+          await sleep(250);
+          const steps = await record(p, 'batsi', scope, 6500, async () => {
+            await hit(root.getByRole('tab').nth(1));
+            const action = root.getByRole('button', { name: 'Send reminders', exact: true });
+            await present(action);
+            await sleep(300);
+            await hit(action);
+          });
+          return { steps };
+        } finally { await w.ctx.close(); }
+      };
+      const pa = await pressed(false);
+      const pk = await pressed(true);
+      await expectSame('Ask Batsi under reduced motion, a pressed question then its action', pa.steps, pk.steps, 250);
+      expect(fromFirstChange(pa.steps).at(-1)!.sig, 'the pressed run ends with the action approved').toContain('Reminders sent to 2 new employees. Approved by Jane Smith, 09:42');
     }
-    // The peek: opened, it shows the whole conversation and its action at once.
+    // Recruitment: Candidate 4 and Candidate 1 move, Candidate 3 goes quiet, the draft types and is sent, state by state as the kit's run.
     {
-      const w = await world(browser, baseURL!, page, 'hero', { reducedMotion: 'reduce' }, false);
+      const run = async (isKit: boolean) => {
+        const w = await world(browser, baseURL!, page, 'recruitment', R);
+        try {
+          const p = isKit ? w.kit : w.app;
+          const steps = await record(p, 'rec', isKit ? KIT_SCOPE('recruitment', w.d) : APP_SCOPE('recruitment', w.d), 10_500, async () => { await fire(p); });
+          return { steps };
+        } finally { await w.ctx.close(); }
+      };
+      const app = await run(false);
+      const kit = await run(true);
+      await expectSame('Recruitment under reduced motion, the run', app.steps, kit.steps, 250);
+      const sigs = fromFirstChange(app.steps).map((x) => x.sig);
+      expect(sigs.some((x) => x.includes('Offer signed · starts 1 Dec')), 'Candidate 1 note changes to "Offer signed · starts 1 Dec" (not at once: it comes at 1.8s)').toBe(true);
+      expect(sigs.length, 'the run passes through its states (moves, risk, draft on, typing, full, pressed, sent), not one').toBeGreaterThanOrEqual(7);
+      expect(sigs.at(-1)!, 'it ends with the draft sent and Candidate 3 done').toMatch(/pp-site-hiring__draft--sent/);
+    }
+    // The peek: opened, it plays its conversation at the kit's pace and offers its action when the kit does; the action sends and ends it.
+    {
+      const run = async (isKit: boolean) => {
+        const w = await world(browser, baseURL!, page, 'hero', R);
+        try {
+          const p = isKit ? w.kit : w.app;
+          const scope = isKit ? (w.d === 'desktop' ? '#lpd-peek' : '#lpp-peek') : `section[data-example="${exampleName('hero', w.d)}"] .pp-site-peek`;
+          const heroRoot = isKit ? p.locator(SECTION.hero.kit(w.d)) : p.locator(APP_SCOPE('hero', w.d));
+          const ask = heroRoot.getByRole('button', { name: 'Ask Batsi', exact: true });
+          const dialog = p.getByRole('dialog', { name: 'Ask Batsi, sample conversation', includeHidden: true });
+          const steps = await record(p, 'peek', scope, 6600, async () => {
+            await ask.click();
+            await expect(dialog).not.toHaveAttribute('aria-hidden', 'true');
+            await sleep(3900);
+            await hit(dialog.getByRole('button', { name: 'Send reminder', exact: true }));
+          });
+          return { steps };
+        } finally { await w.ctx.close(); }
+      };
+      const app = await run(false);
+      const kit = await run(true);
+      await expectSame('the peek under reduced motion', app.steps, kit.steps, 400);
+      expect(fromFirstChange(app.steps).length, 'the conversation arrives line by line, not at once').toBeGreaterThan(4);
+      expect(fromFirstChange(app.steps).at(-1)!.sig, 'it ends with Batsi\'s answer').toContain('Sent to John Doe at 09:42. Logged as approved by you.');
+    }
+    // The Modules card types the kit's questions letter by letter at the kit's pace, in the same order (judged as AC-4 judges it: by whole questions).
+    {
+      const QS = ['Who hasn’t sent their documents?', 'Which certificates expire this month?', 'Who is on leave next week?', 'Which candidates are waiting on feedback?'];
+      const run = async (isKit: boolean) => {
+        const w = await world(browser, baseURL!, page, 'modules', R);
+        try {
+          const p = isKit ? w.kit : w.app;
+          const ask = `${isKit ? KIT_SCOPE('modules', w.d) : APP_SCOPE('modules', w.d)} .pp-site-tile__ask`;
+          const steps = await record(p, 'ask', ask, 9500, async () => { await fire(p); });
+          return { steps };
+        } finally { await w.ctx.close(); }
+      };
+      const app = await run(false);
+      const kit = await run(true);
+      const texts = fromFirstChange(app.steps).map((x) => x.sig);
+      expect(texts.filter((t) => t !== '' && !QS.includes(t)).length, 'it types letter by letter under reduced motion (many partial states)').toBeGreaterThan(30);
+      const milestones = (steps: Step[]) => fromFirstChange(steps).filter((x) => x.sig === '' || QS.includes(x.sig));
+      const am = milestones(app.steps), km = milestones(kit.steps);
+      expect(am.length, 'it reaches whole questions').toBeGreaterThan(1);
+      expect(am.map((x) => x.sig), 'the full questions and the empty line come in the kit order').toEqual(km.map((x) => x.sig));
+      expect(am.map((x, i) => Math.abs(x.t - km[i]!.t)).filter((v) => v > 450), 'each question is whole, and the line empty, within 450ms of the kit').toEqual([]);
+    }
+    // The story: at the ID document step the read plays field by field as the kit plays it, then ends; no timer is left.
+    {
+      const goTo = async (p: Page, scope: string, i: number) => {
+        await p.evaluate(([sc, n]) => { const st = Array.from(document.querySelector(sc as string)!.querySelectorAll('.pp-site-story__step')); window.scrollTo(0, Math.max(0, st[n as number]!.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.45)); }, [scope, i] as const);
+        await sleep(350);
+      };
+      const run = async (isKit: boolean) => {
+        const w = await world(browser, baseURL!, page, 'onboarding', R, false);
+        try {
+          const p = isKit ? w.kit : w.app;
+          const scope = isKit ? KIT_SCOPE('onboarding', w.d) : APP_SCOPE('onboarding', w.d);
+          await goTo(p, scope, 1);
+          const steps = await record(p, 'read', scope, 6200, async () => { await goTo(p, scope, 2); });
+          return { steps };
+        } finally { await w.ctx.close(); }
+      };
+      const app = await run(false);
+      const kit = await run(true);
+      await expectSame('the ID document read under reduced motion (fields, suggestion, Accept pressed, follow-up)', app.steps, kit.steps, 450);
+      expect(fromFirstChange(app.steps).length, 'the read passes through several states, not one').toBeGreaterThan(4);
+      expect(fromFirstChange(app.steps).at(-1)!.sig, 'the read ends with every field in, the suggestion shown, the decision done and the follow-up shown').toBe('go v1111 s1 pressed1 done1 f1');
+    }
+    // The clock under reduced motion: it runs the demos as in normal motion, so a timer is queued while a demo plays and none is left when it ends.
+    // (Read on a page with one section and the views left to themselves: a gated page fires every section's demo at once, and the hook adds them up.)
+    const solo = async (k: Key, fn: (p: Page, scope: string) => Promise<void>) => {
+      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', ...R });
+      await ctx.addInitScript(SCOPED_VIEW, SEC_ID(k, d));
+      try { const p = await ctx.newPage(); await gotoLanding(p, [SEC_ID(k, d)]); await fn(p, APP_SCOPE(k, d)); } finally { await ctx.close(); }
+    };
+    await solo('batsi', async (p, scope) => {
+      const root = p.locator(scope);
+      await centre(p, scope, '.pp-site-chat');
+      await sleep(2000);
+      expect(await pending(p), 'Ask Batsi: while it plays timers are queued (window.__ppSiteClock.pending() is above 0)').toBeGreaterThan(0);
+      await sleep(9000);
+      expect(await pending(p), 'Ask Batsi: it cycles, so after its first question has ended a timer is still queued (the next question)').toBeGreaterThan(0);
+      await hit(root.getByRole('tab').nth(1));
+      const action = root.getByRole('button', { name: 'Send reminders', exact: true });
+      await present(action);
+      await hit(action);
+      await sleep(1500);
+      expect(await pending(p), 'Ask Batsi: a pressed question and its action stop the cycle for good, and when the run ends no timer is left').toBe(0);
+    });
+    await solo('recruitment', async (p, scope) => {
+      await centre(p, scope, '.pp-site-board__cols');
+      await sleep(3000);
+      expect(await pending(p), 'Recruitment: while it plays timers are queued').toBeGreaterThan(0);
+      await sleep(8500);
+      expect(await pending(p), 'Recruitment: when the run ends no timer is left').toBe(0);
+    });
+    await solo('hero', async (p, scope) => {
+      await hit(p.locator(scope).getByRole('button', { name: 'Ask Batsi', exact: true }));
+      await sleep(1500);
+      expect(await pending(p), 'the peek: while the conversation plays timers are queued').toBeGreaterThan(0);
+      await sleep(3700);
+      await hit(p.getByRole('dialog', { name: 'Ask Batsi, sample conversation' }).getByRole('button', { name: 'Send reminder', exact: true }));
+      await sleep(1500);
+      expect(await pending(p), 'the peek: when it ends no timer is left').toBe(0);
+    });
+    await solo('modules', async (p, scope) => {
+      await centre(p, scope, '.pp-site-tile__ask');
+      await sleep(2000);
+      expect(await pending(p), 'Modules: it keeps typing, so timers are queued').toBeGreaterThan(0);
+    });
+    {
+      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', ...R });
+      await ctx.addInitScript(SCOPED_VIEW, SEC_ID('onboarding', d));
       try {
-        await w.app.locator(APP_SCOPE('hero', w.d)).getByRole('button', { name: 'Ask Batsi', exact: true }).click();
-        await sleep(300);
-        const dialog = w.app.getByRole('dialog', { name: 'Ask Batsi, sample conversation' });
-        expect(await dialog.locator('.pp-site-chat__msg').count(), 'the whole peek conversation is there at once (question, answer, offer)').toBe(3);
-        expect(await dialog.locator('.pp-site-chat__typing').count(), 'nothing is still typing').toBe(0);
-        expect(await dialog.getByRole('button', { name: 'Send reminder', exact: true }).count(), 'and the action is offered').toBe(1);
-        expect(await pending(w.app), 'no timer is left pending').toBe(0);
+        const p = await ctx.newPage();
+        await gotoLanding(p, [SEC_ID('onboarding', d)]);
+        const scope = APP_SCOPE('onboarding', d);
+        for (const i of [1, 2]) { await p.evaluate(([sc, n]) => { const st = Array.from(document.querySelector(sc as string)!.querySelectorAll('.pp-site-story__step')); window.scrollTo(0, Math.max(0, st[n as number]!.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.45)); }, [scope, i] as const); await sleep(350); }
+        await sleep(1200);
+        expect(await pending(p), 'the story: while the read plays timers are queued').toBeGreaterThan(0);
+        await sleep(5500);
+        expect(await pending(p), 'the story: when the read ends no timer is left').toBe(0);
+      } finally { await ctx.close(); }
+    }
+    // The CSS loops (orbs, rings, pulses, glows) keep running under reduced motion, the same ones at the same lengths as on the kit page (the kit
+    // CSS gives the slower lengths; nothing is stilled by the media query). Read before any demo starts, in each of the six sections.
+    let running = 0;
+    for (const k of KEYS) {
+      const w = await world(browser, baseURL!, page, k, R);
+      try {
+        await sleep(1200);
+        const app = await loopsIn(w.app, [APP_SCOPE(k, w.d)]);
+        const kit = await loopsIn(w.kit, [KIT_SCOPE(k, w.d)]);
+        expect(app, `${k}: under reduced motion the loops that run are the kit's, at the kit's lengths`).toEqual(kit);
+        running += app.length;
       } finally { await w.ctx.close(); }
     }
-    // The Modules card shows one whole question and does not type.
-    {
-      const w = await world(browser, baseURL!, page, 'modules', { reducedMotion: 'reduce' }, false);
-      try {
-        const ask = w.app.locator(`${APP_SCOPE('modules', w.d)} .pp-site-tile__ask`);
-        const seen = await timeline(w.app, 'ask', `${APP_SCOPE('modules', w.d)} .pp-site-tile__ask`, 2500);
-        expect(seen.length, 'the question never changes').toBe(1);
-        expect(['Who hasn’t sent their documents?', 'Which certificates expire this month?', 'Who is on leave next week?', 'Which candidates are waiting on feedback?'], 'it is one whole question').toContain(await ask.innerText());
-        expect(await pending(w.app), 'no timer is left pending').toBe(0);
-      } finally { await w.ctx.close(); }
-    }
-    // The story: at the ID document step the read is done at once.
-    {
-      const w = await world(browser, baseURL!, page, 'onboarding', { reducedMotion: 'reduce' }, false);
-      try {
-        const scope = APP_SCOPE('onboarding', w.d);
-        for (const i of [1, 2]) {
-          await w.app.evaluate(([sc, n]) => { const st = Array.from(document.querySelector(sc as string)!.querySelectorAll('.pp-site-story__step')); window.scrollTo(0, Math.max(0, st[n as number]!.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.45)); }, [scope, i] as const);
-          await sleep(300);
-        }
-        const now = await timeline(w.app, 'read', scope, 40);
-        expect(now.at(-1)!.sig, 'the ID document read shows its end (fields, suggestion, decision, follow-up) at once').toMatch(/v1111 s1 .*done1 f1$/);
-        expect(await pending(w.app), 'no timer is left pending').toBe(0);
-      } finally { await w.ctx.close(); }
-    }
+    expect(running, 'under reduced motion the sections still have loops that run (slower, not stopped)').toBeGreaterThan(0);
     // Still mode: with and without it, count the loops that run in the six sections. (The typing caret's blink, `pp-site-blink` on
     // `.pp-site-tile__ask::after`, is left out: the design system has no still rule for it, a finding for the kit, see cards/site-03.md.)
-    const loops = async (still: boolean) => {
-      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone' });
+    const loops = async (still: boolean, reduced = false) => {
+      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: reduced ? 'reduce' : 'no-preference' });
       try {
         if (still) await ctx.addInitScript(() => { const set = () => document.documentElement?.setAttribute('data-site-still', ''); set(); new MutationObserver(set).observe(document, { childList: true }); });
         const p = await ctx.newPage();
@@ -485,17 +634,57 @@ test.describe('SITE-03 Landing sections, part 1', () => {
     };
     expect((await loops(false)).length, 'in normal motion the sections have loops that run').toBeGreaterThan(0);
     expect(await loops(true), 'with data-site-still no loop runs').toEqual([]);
+    expect(await loops(true, true), 'with data-site-still no loop runs, under reduced motion too (still mode is its own rule and is unchanged)').toEqual([]);
+  });
+
+  // ---------------------------------------------------------------- AC-8.1
+  // Child lock 04.7: the one movement that stops under reduced motion on this card is the board card flying between columns.
+  test('AC-8.1 under reduced motion the Recruitment board card does not travel, and lands in its new column when the kit lands it', async ({ browser, baseURL, page }) => {
+    test.setTimeout(4 * 60_000);
+    const run = async (isKit: boolean, reduced: boolean) => {
+      const w = await world(browser, baseURL!, page, 'recruitment', { reducedMotion: reduced ? 'reduce' : 'no-preference' });
+      try {
+        const p = isKit ? w.kit : w.app;
+        const scope = isKit ? KIT_SCOPE('recruitment', w.d) : APP_SCOPE('recruitment', w.d);
+        const flights = watchFlights(p, scope, 9500);
+        const steps = await record(p, 'rec', scope, 9500, async () => { await fire(p); });
+        const f = await flights;
+        const moved = await p.locator(`${scope} .pp-site-board__card--moved`).evaluateAll((all) => all.map((c) => c.getAttribute('data-card')));
+        return { steps, f, moved };
+      } finally { await w.ctx.close(); }
+    };
+    // Control: in normal motion the card flies (on the app and on the kit), so what is looked for can be seen when it is there.
+    const normalKit = await run(true, false);
+    expect(normalKit.f.animated.filter((x) => /^c[14] /.test(x)).length, 'control: in normal motion the kit page flies the moved cards (a transform animation runs on them)').toBeGreaterThan(0);
+    const normalApp = await run(false, false);
+    expect(normalApp.f.animated.filter((x) => /^c[14] /.test(x)).length, 'in normal motion the page flies the moved cards, as the kit does').toBeGreaterThan(0);
+    // Reduced motion.
+    const kit = await run(true, true);
+    const app = await run(false, true);
+    expect(kit.f.animated, 'the kit page: no card has a transform animation or transition under reduced motion').toEqual([]);
+    expect(app.f.animated, 'the page: no card has a transform, translate, rotate, scale or offset animation or transition running under reduced motion').toEqual([]);
+    expect(app.f.offRest, 'and no card is ever seen between its old place and its new one').toBe(0);
+    // It still lands: in the column the kit puts it in, at the time the kit puts it there, with its moved style and counts.
+    const last = (c: Record<string, number[]>) => Object.fromEntries(Object.entries(c).map(([id, cols]) => [id, cols.at(-1)]));
+    expect(kit.f.columns['c4']!.length, 'control: on the kit page Candidate 4 changes column during the run').toBeGreaterThan(1);
+    expect(kit.f.columns['c1']!.length, 'control: and Candidate 1 does').toBeGreaterThan(1);
+    expect(app.f.columns['c4']!.length, 'on the page Candidate 4 changes column during the run (it is put in its new column, not left where it was)').toBeGreaterThan(1);
+    expect(app.f.columns['c1']!.length, 'and so does Candidate 1').toBeGreaterThan(1);
+    expect(last(app.f.columns), 'every card ends in the column the kit puts it in').toEqual(last(kit.f.columns));
+    expect(app.moved.sort(), 'both moved cards get their moved style').toEqual(['c1', 'c4']);
+    await expectSame('the board under reduced motion (the cards land at the kit\'s times)', app.steps, kit.steps, 250);
   });
 
   // ---------------------------------------------------------------- AC-9
-  test('AC-9 while the demos play, only transform, opacity, clip-path and stroke-dashoffset animate, and no width, height, left or top is ever written', async ({ browser, baseURL, page }) => {
+  test('AC-9 while the demos play, in normal motion and under reduced motion, only transform, opacity, clip-path and stroke-dashoffset animate, and no width, height, left or top is ever written', async ({ browser, baseURL, page }) => {
     test.setTimeout(8 * 60_000);
     const d = deviceOf(page);
     const ALLOWED = new Set(['transform', 'opacity', 'clip-path', 'clipPath', 'stroke-dashoffset', 'strokeDashoffset', 'offset', 'easing', 'composite', 'computedOffset']);
     const FORBIDDEN = /^(width|height|left|top|right|bottom|inline-size|block-size|inset(-.*)?|min-(width|height|inline-size|block-size)|max-(width|height|inline-size|block-size)|margin(-.*)?|padding(-.*)?)$/;
     const problems: string[] = [];
-    for (const k of KEYS) {
-      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone' });
+    // Child lock 04.7: the rule holds under reduced motion too (the demos play there as well), so every section runs once in each setting.
+    for (const [motion, k] of (['no-preference', 'reduce'] as const).flatMap((m) => KEYS.map((x) => [m, x] as const))) {
+      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: motion });
       try {
         await ctx.addInitScript(() => {
           const w = window as unknown as { __s3: { anim: Set<string>; style: Set<string> } };
@@ -541,10 +730,10 @@ test.describe('SITE-03 Landing sections, part 1', () => {
         } else await sleep(k === 'modules' ? 6000 : 1500);
         const seen = await p.evaluate(() => { const r = (window as unknown as { __s3: { anim: Set<string>; style: Set<string> } }).__s3; return { anim: [...r.anim], style: [...r.style] }; });
         const bad = seen.anim.filter((x) => !ALLOWED.has(x.split(' ').at(-1)!) && !x.includes('transitions transform') && !x.includes('transitions opacity') && !/transitions (transform|opacity|clip-path|stroke-dashoffset)/.test(x));
-        problems.push(...bad.map((x) => `${k}: ${x}`), ...seen.style.map((x) => `${k}: ${x}`));
+        problems.push(...bad.map((x) => `${k} (${motion}): ${x}`), ...seen.style.map((x) => `${k} (${motion}): ${x}`));
         // Whatever is left in the page: no inline width, height, left or top on any element.
         const left = await p.evaluate((re) => { const rx = new RegExp(re); const out: string[] = []; document.querySelectorAll('[style]').forEach((el) => { const st = (el as HTMLElement).style; for (let i = 0; i < st.length; i++) if (rx.test(st.item(i))) out.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)} has inline ${st.item(i)}`); }); return out; }, FORBIDDEN.source);
-        problems.push(...left.map((x) => `${k}: ${x}`));
+        problems.push(...left.map((x) => `${k} (${motion}): ${x}`));
       } finally { await ctx.close(); }
     }
     expect(problems, 'nothing but transform, opacity, clip-path and stroke-dashoffset animates; no inline width, height, left, top (or insets, margins, paddings) is written').toEqual([]);
@@ -646,9 +835,16 @@ test.describe('SITE-03 Landing sections, part 1', () => {
         } finally { await ctx.close(); }
       }
     }
-    // Keyboard and axe, on all six sections, with motion reduced so every demo sits in its end state and no control comes or goes while Tab walks.
+    // Keyboard and axe, on all six sections, with motion reduced. Under reduced motion the demos play (child lock 04.7), so to keep the walk
+    // deterministic the views are gated and fired once, the demos play to their end (9.5s: the longest run is Recruitment's, 8.6s; Ask Batsi's first
+    // question ends at 7.3s and its cycle moves on at 11s), then every timer is cancelled and the style that stills transitions is added. Tab then
+    // walks a page that does not change, in the state each demo ends in, so no control comes or goes while it walks.
     await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript(GATED_VIEW);
     await gotoLanding(page, KEYS.map((k) => SEC_ID(k, d)));
+    await fire(page);
+    await sleep(9500);
+    await freezeTimers(page);
     await page.addStyleTag({ content: STILL });
     const problems: string[] = [];
     for (const k of KEYS) {
@@ -689,12 +885,14 @@ test.describe('SITE-03 Landing sections, part 1', () => {
     await hero.getByRole('button', { name: 'Ask Batsi', exact: true }).focus();
     await page.keyboard.press('Enter');
     await expect(hero.getByRole('button', { name: 'Ask Batsi', exact: true }), 'Enter on Ask Batsi opens the peek').toHaveAttribute('aria-expanded', 'true');
-    // Replay in normal motion: under reduced motion a replay ends sent at once (lock check fix).
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    // Replay, still under reduced motion: the run plays to its end (sent), and Space on Replay starts it again (child lock 04.7: before it, a replay
+    // under reduced motion ended sent at once and this check had to run in normal motion).
     await gotoLanding(page, [SEC_ID('recruitment', d)]);
+    await fire(page);
     const rec = page.locator(APP_SCOPE('recruitment', d));
     await rec.locator('.pp-site-replay').focus();
     await sleep(9000);
+    expect(await rec.locator('.pp-site-hiring__draft--sent').count(), 'under reduced motion the run played to its end: the draft is sent').toBe(1);
     await page.keyboard.press('Space');
     await sleep(900);
     expect(await rec.locator('.pp-site-hiring__draft--sent').count(), 'Space on Replay starts the run again (the draft is no longer sent)').toBe(0);
