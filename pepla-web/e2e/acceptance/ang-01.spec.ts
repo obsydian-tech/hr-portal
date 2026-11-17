@@ -586,67 +586,15 @@ test.describe('ANG-01 Board asks first, and the Modules button', () => {
   });
 
   // -------------------------------------------------------------- AC-16
-  test('AC-16 The sync brings today\'s phone rules in: smaller phone tabs with no icons and an edge fade, full-width page header actions, stacked tables', async ({ page, browser }) => {
+  test('AC-16 The sync is on the design system main that holds the Modules button: not develop\'s older sync, files match their hashes', async () => {
+    // Amended in ang-01.2 (17 Nov): the phone tab, page header and stacked table rules come with design system #48, which sits
+    // behind #47 (site kit change). The landing tests (SITE-03, SITE-04) are locked to the older site kit, so those rules wait
+    // for the card that moves the landing to the new site kits. This test keeps the part that holds today.
     const manifest = JSON.parse(readFileSync(join(DS_DIR, 'sync.json'), 'utf8')) as { ref: string; files: Record<string, string> };
     expect(manifest.ref, 'the ref is a full commit (40 hex)').toMatch(/^[0-9a-f]{40}$/);
     expect(manifest.ref.startsWith('1cee4a5'), 'the ref is not develop\'s older sync (1cee4a5)').toBe(false);
-    expect(sha256(readFileSync(join(DS_DIR, 'components.css'))), 'components.css is the synced file').toBe(manifest.files['components.css']);
-    // "At or after be254e2" is read from the CSS: these rules came with design system PR #48 (be254e2).
-    const css = readFileSync(join(DS_DIR, 'components.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
-    for (const [rule, why] of [
-      ['.pp-tabs__tab > svg { display: none; }', 'phone tabs have no icon'],
-      ['.pp-tabs__tab { min-height: var(--size-control-large); padding: 0 var(--space-100); }', 'phone tabs are smaller'],
-      ['.pp-page-header__actions > .pp-button--primary { flex: 1 1 auto; min-width: max-content;', 'the page header\'s actions take the full width on phone'],
-      ['.pp-table--stack th[scope="row"] {', 'stacked tables stack a row header too'],
-      ['.pp-table--stack .pp-person { display: flex;', 'a person in a stacked row fits the line'],
-    ] as const) expect(css, `the synced components.css has the be254e2 rule: ${why}`).toContain(rule);
-    expect(css, 'the tab strip fades at its edge on phone (mask on .pp-tabs__list)').toMatch(/\.pp-tabs__list \{[^}]*mask-image:/);
-
-    // The tab rules hold at 767px and below, and not above: the app's own tab strip, in a page with only the synced CSS.
-    await openParity(page);
-    const tabs = await theSection(page, 'With icons, one locked');
-    const strip = await tabs.locator('.pp-tabs').first().evaluate((el) => el.outerHTML);
-    const order = ['tokens/palette.css', 'tokens/colors.css', 'tokens/typography.css', 'tokens/spacing.css', 'tokens/shape.css', 'tokens/motion.css', 'tokens/layers.css', 'tokens/base.css', 'components.css'];
-    const all = order.map((f) => readFileSync(join(DS_DIR, f), 'utf8')).join('\n').replace(/url\((['"]?)\.\.?\/?assets\/[^)]*\)/g, 'none');
-    // Once, from the desktop strip (the 390 run checks the page itself below).
-    for (const [width, phoneRules] of (phone() ? [] : [[767, true], [768, false]]) as Array<[number, boolean]>) {
-      const ctx = await browser.newContext({ viewport: { width, height: 800 } });
-      try {
-        const p = await ctx.newPage();
-        await p.setContent(`<!doctype html><html><head><style>${all}</style></head><body>${strip}</body></html>`);
-        const got = await p.evaluate(() => ({
-          icons: [...document.querySelectorAll('.pp-tabs__tab > svg')].filter((s) => (s as SVGElement).checkVisibility()).length,
-          all: document.querySelectorAll('.pp-tabs__tab > svg').length,
-          mask: [...document.querySelectorAll('.pp-tabs__list')].map((l) => { const cs = getComputedStyle(l); return cs.maskImage || cs.webkitMaskImage; }).some((m) => !!m && m !== 'none'),
-        }));
-        expect(got.all, 'the tab strip has icons to hide').toBeGreaterThan(0);
-        expect(got.icons, `${width} wide: tab icons are ${phoneRules ? 'hidden' : 'shown'}`).toBe(phoneRules ? 0 : got.all);
-        expect(got.mask, `${width} wide: the edge fade is ${phoneRules ? 'on' : 'off'}`).toBe(phoneRules);
-      } finally {
-        await ctx.close();
-      }
-    }
-
-    // On /dev/parity: no tab icon at 390 (shown at 1280), and the stacked table shows rows as blocks that fit.
-    const icons = tabs.locator('.pp-tabs__tab > svg');
-    expect(await icons.count(), '"With icons, one locked" has tab icons in its markup').toBeGreaterThan(0);
-    const shownIcons = await icons.evaluateAll((list) => list.filter((s) => (s as SVGElement).checkVisibility()).length);
-    expect(shownIcons, phone() ? 'at 390 no tab shows an icon' : 'at 1280 every tab shows its icon').toBe(phone() ? 0 : await icons.count());
-    const table = (await theSection(page, 'New starters')).locator('table.pp-table--stack');
-    await expect(table, '"New starters" is a table with stack').toHaveCount(1);
-    const layout = await table.evaluate((t: HTMLTableElement) => ({
-      rows: [...t.tBodies[0].rows].map((r) => getComputedStyle(r).display),
-      cells: [...t.tBodies[0].rows].flatMap((r) => [...r.cells].map((c) => getComputedStyle(c).display)),
-      inside: t.scrollWidth - (t.parentElement?.clientWidth ?? t.clientWidth),
-      past: t.getBoundingClientRect().right - document.documentElement.clientWidth,
-    }));
-    if (phone()) {
-      expect(layout.rows.filter((d) => d === 'table-row'), 'at 390 every row is a stacked block, not a table row').toEqual([]);
-      expect(layout.cells.filter((d) => d === 'table-cell'), 'at 390 no cell sits in a table column').toEqual([]);
-      expect(layout.inside, 'the stacked table is no wider than its frame (no horizontal scroll)').toBeLessThanOrEqual(0);
-      expect(layout.past, 'the stacked table ends inside the window').toBeLessThanOrEqual(0.5);
-    } else {
-      expect(layout.rows.every((d) => d === 'table-row'), 'at 1280 the table is a table').toBe(true);
+    for (const [file, hash] of Object.entries(manifest.files)) {
+      expect(sha256(readFileSync(join(DS_DIR, file))), `${file} is the synced file`).toBe(hash);
     }
   });
 

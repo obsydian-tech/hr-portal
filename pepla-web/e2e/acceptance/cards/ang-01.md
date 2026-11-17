@@ -99,3 +99,5 @@ window. The page as a whole is not checked for sideways scroll, for the reason u
 for page header actions is checked as the rule only: develop's rule (`flex: 1`) already fills the line.
 
 AC-4 also checks a dialog opened by a drop (desktop only).
+
+AC-16 was narrowed in lock ang-01.2: it checks the sync ref and hashes only. The phone tab, page header and stacked table rules (design system #48) sit behind #47, which changes the site kits the locked SITE-03 and SITE-04 tests compare to, so they wait for the card that moves the landing to the new site kits.
