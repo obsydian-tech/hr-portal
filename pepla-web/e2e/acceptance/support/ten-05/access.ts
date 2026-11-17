@@ -11,6 +11,8 @@ export const PERMS = ['perm-recruitment', 'perm-it', 'perm-approve-offers'] as c
 export const NEW_GROUPS = [...ROLES, ...PERMS] as string[];
 /** Today's TalentFlow group names the user admin routes already manage (they may still remove them, never add them). */
 export const OLD_MANAGED = ['TalentFlowAdmin', 'HiringManager', 'ITAdmin', 'HRDirector'];
+/** TEN-05.1 (S-1): what user admin update may remove: the eight, today's four, and every old name of OLD_GROUPS below. */
+export const UPDATE_MANAGED = (): string[] => [...new Set([...NEW_GROUPS, ...OLD_MANAGED, ...Object.keys(OLD_GROUPS)])];
 
 export type Grant = { roles: string[]; perms: string[] };
 const ALL_PERMS = [...PERMS] as string[];
@@ -29,8 +31,9 @@ export const OLD_GROUPS: Record<string, Grant> = {
   HRDirector: g([], ['perm-recruitment']),
   'naleko-talentflow-hiringmanager': g(['manager'], ['perm-recruitment']),
   HiringManager: g(['manager'], ['perm-recruitment']),
-  PanelMember: g(['manager']),
-  FinanceLead: g(['manager'], ['perm-approve-offers']),
+  // TEN-05.1 (S-3): a panel member or a finance lead is not a manager. PanelMember gives nothing, FinanceLead only the offers tick.
+  PanelMember: g([]),
+  FinanceLead: g([], ['perm-approve-offers']),
   'naleko-it-provisioning': g([], ['perm-it']),
   ITAdmin: g([], ['perm-it']),
   ITSpecialist: g([], ['perm-it']),

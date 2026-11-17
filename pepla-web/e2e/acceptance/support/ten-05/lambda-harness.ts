@@ -85,8 +85,9 @@ function node(args: string[], world: unknown, files: Record<string, unknown>, en
 }
 
 /** Calls `handler` once with `event` in a fresh process. Only the settings given in `env` are set. */
-export function runHandler(handler: string, event: unknown, opts: { tables?: Tables; env?: Record<string, string | undefined>; cognito?: Pool } = {}): Run {
-  const world = { indexes: INDEXES, tables: structuredClone(opts.tables ?? {}), secrets: {}, pageSize: 4, cognito: structuredClone(opts.cognito ?? { users: [] }) };
+export type Fail = { service: 'cognito' | 'dynamodb'; ops?: string[]; name?: string; message: string };
+export function runHandler(handler: string, event: unknown, opts: { tables?: Tables; env?: Record<string, string | undefined>; cognito?: Pool; fail?: Fail } = {}): Run {
+  const world = { indexes: INDEXES, tables: structuredClone(opts.tables ?? {}), secrets: {}, pageSize: 4, cognito: structuredClone(opts.cognito ?? { users: [] }), ...(opts.fail ? { fail: opts.fail } : {}) };
   const r = node([join(FAKE_AWS, 'run.mjs'), handler], world, { 'event.json': event }, opts.env ?? {});
   return { response: r.response, error: r.error, calls: r.calls, tables: r.tables, cognito: r.cognito };
 }

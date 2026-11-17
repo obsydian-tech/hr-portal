@@ -28,7 +28,7 @@
 //     makes the user CONFIRMED with that password; Permanent: false keeps them FORCE_CHANGE_PASSWORD.
 //   - world.cognitoFail: a list of operation names that fail with InternalErrorException (a 500 from Cognito).
 //   - signIn(username, password) (exported for the harness): true only for a CONFIRMED user with that password.
-import { world, calls, awsError } from './world.mjs';
+import { world, calls, awsError, failIfAsked } from './world.mjs';
 world.cognito ??= { users: [] };
 world.cognito.users ??= [];
 export const PAGE_MAX = 60;
@@ -62,6 +62,7 @@ export function signIn(username, password) {
 }
 
 function failing(op) {
+  failIfAsked('cognito', op); // TEN-05.1: world.fail with service 'cognito' (a chosen name and message) fails these too.
   if ((world.cognitoFail ?? []).includes(op)) {
     const e = awsError('InternalErrorException', `fake Cognito: ${op} is unavailable`);
     e.$fault = 'server';

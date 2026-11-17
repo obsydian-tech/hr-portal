@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { A, B, ID, SUB, TABLE, TENANTS, av, tables as ten03Tables } from '../ten-03/world';
-import { LAMBDA, httpEvent, runHandler, type Pool, type PoolUser, type Run, type Tables } from './lambda-harness';
+import { LAMBDA, httpEvent, runHandler, type Fail, type Pool, type PoolUser, type Run, type Tables } from './lambda-harness';
 
 /**
  * TEN-05: the world the role tests run in. TEN-03's two companies and their TalentFlow, IT and bundle rows (support/ten-03/world.ts),
@@ -105,9 +105,9 @@ export function fileOf(name: string): string {
 export type Ask = { method?: string; path?: Record<string, string>; query?: Record<string, string>; body?: unknown; headers?: Record<string, string> };
 
 /** Runs one route as a caller against the seeded world (or the given one). */
-export function ask(handler: string, caller: Caller, a: Ask = {}, opts: { tables?: Tables; pool?: Pool; env?: Record<string, string> } = {}): Run {
+export function ask(handler: string, caller: Caller, a: Ask = {}, opts: { tables?: Tables; pool?: Pool; env?: Record<string, string>; fail?: Fail } = {}): Run {
   const event = httpEvent({ authorizer: authorizerOf(caller), method: a.method, path: a.path, query: a.query, body: a.body, headers: a.headers });
-  return runHandler(fileOf(handler), event, { tables: opts.tables ?? tables(), env: settings(opts.env), cognito: opts.pool ?? pool() });
+  return runHandler(fileOf(handler), event, { tables: opts.tables ?? tables(), env: settings(opts.env), cognito: opts.pool ?? pool(), fail: opts.fail });
 }
 
 export const bodyOf = (r: { response: any }) => {
