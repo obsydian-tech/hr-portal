@@ -83,6 +83,9 @@ export async function checkPageParity(env: Env, spec: LearnPageSpec, opts: Opts 
     // Lock check T3: the sub-menu's "active" class is written by a scroll handler from where the page sits when the handler last ran
     // (the kit page at load, the page under test wherever its first scroll happened). Both pages scroll one pixel and back, so both
     // handlers have run at the same place before the boxes are compared.
+    // Lock check .1: the kit's sub-menu script measures its links when it first runs, before the web font has loaded (113px on the page against 117px in the kit
+    // on CI). Both pages wait for document.fonts.ready and then get a resize event, so every script that measures runs again on the same fonts.
+    for (const p of [app, kit]) { await p.evaluate(async () => { await document.fonts.ready; window.dispatchEvent(new Event('resize')); }); await sleep(150); }
     for (const p of [app, kit]) { await p.evaluate(() => window.scrollTo(0, 1)); await sleep(150); await p.evaluate(() => window.scrollTo(0, 0)); await sleep(150); }
     await settle(kit); await settle(app);
     const r = await compareScopes(app, kit, spec.name, '[data-s8-root]', '[data-s8-root]', spec.omit ?? '', false, true);

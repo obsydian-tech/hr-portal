@@ -123,3 +123,7 @@ The kit is the approved page. Where the card text and the kit differ, the tests 
 - Links with `href="#"` must not navigate (the app has `<base href="/">`). Play again must call `focus()` after the restart (a script click does not move focus).
 - The sample page's desktop and phone copies share plain ids (`types`, `questions`): resolve sub-menu targets inside the page element, not by document id.
 - AC-9: the SSR spec text must hold `platform-server`, `renderApplication(`, `ppSiteLearnPage`, the six ending names, `pp-site-faq__q`, and `not.toContain('pp-site-reveal--in')` (or `not.toMatch`), with at least one test that passes, none skipped or todo.
+
+## Child lock .1: fonts before parity
+
+`checkPageParity` waits for `document.fonts.ready` on both pages and then dispatches a `resize` event on both before it compares, so the kit's sub-menu script (which measures its links when it first runs, before the web font has loaded) and the page's own measure again on the same fonts. Found on CI: the sub-menu highlight was 113px on the page against 117px in the kit. SITE-09 to SITE-14 call the same check. No tolerance changed.
