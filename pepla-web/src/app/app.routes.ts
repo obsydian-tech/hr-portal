@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { provideSiteStyles } from './ds/site/site-styles';
+import { siteStyles } from './ds/site/site-styles';
 import { employeeGuard, hrGuard, signedOutGuard } from './core/auth/auth.guard';
 
 /**
@@ -33,7 +33,7 @@ export const routes: Routes = [
   },
   { path: 'dev/design-system', loadComponent: () => import('./dev/design-system.page').then((m) => m.DesignSystemPage), title: 'Design system · Naleko People' },
   { path: 'dev/parity', loadComponent: () => import('./dev/parity.page').then((m) => m.ParityPage), title: 'Parity · Naleko People' },
-  { path: 'dev/site', loadComponent: () => import('./ds/site/gallery.page').then((m) => m.SiteGalleryPage), providers: [provideSiteStyles()], title: 'Site parts · Naleko People' },
-  { path: 'dev/site-landing', loadComponent: () => import('./ds/site/landing.gallery').then((m) => m.SiteLandingGalleryPage), providers: [provideSiteStyles()], title: 'Landing sections · Naleko People' },
-  { path: 'dev/site-landing-page', loadComponent: () => import('./ds/site/landing.page').then((m) => m.SiteLandingPage), providers: [provideSiteStyles()], title: 'Naleko People' },
+  { path: 'dev/site', loadComponent: () => import('./ds/site/gallery.page').then((m) => m.SiteGalleryPage), canActivate: [siteStyles], title: 'Site parts · Naleko People' },
+  { path: 'dev/site-landing', loadComponent: () => import('./ds/site/landing.gallery').then((m) => m.SiteLandingGalleryPage), canActivate: [siteStyles], title: 'Landing sections · Naleko People' },
+  { path: 'dev/site-landing-page', loadComponent: () => import('./ds/site/landing.page').then((m) => m.SiteLandingPage), canActivate: [siteStyles], title: 'Naleko People' },
 ];

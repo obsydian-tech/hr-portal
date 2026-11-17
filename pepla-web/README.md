@@ -27,6 +27,6 @@ Pages for checking the components:
 - Read `src/app/ds/README.md` first. Screens use only `pp-*` components from `src/app/ds` and Layout classes.
 - `npm run verify:design` runs before every build and in CI. It has no escape hatch: no ignore comments, no allowlist and no baseline. Fix the screen, or add the missing piece to `src/app/ds`.
 - `npm run test:design` gives each verify rule a fixture that must fail. A new rule needs a new fixture.
-- Never edit `src/styles/design-system/` or `src/app/ds/core/icon.registry.ts`. Change the design system repo, then run `npm run design-system:sync`. Site styles (`site.css`) load only on public pages: the app's own stylesheet is `platform.css`, and routes that show site parts add `provideSiteStyles()`. Against a local checkout, use `-- --from ../../pepla-design-system`.
+- Never edit `src/styles/design-system/` or `src/app/ds/core/icon.registry.ts`. Change the design system repo, then run `npm run design-system:sync`. Site styles (`site.css`) load only on public pages: the app's own stylesheet is `platform.css`, and routes that show site parts add the `siteStyles` guard. Against a local checkout, use `-- --from ../../pepla-design-system`.
 - No PrimeNG, Angular Material, Tailwind, PrimeFlex or second icon set.
 - Check `/dev/design-system` in a browser after any change in `src/app/ds`.
