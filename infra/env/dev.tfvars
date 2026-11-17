@@ -18,3 +18,7 @@ app_url      = "http://localhost:4300"
 
 # TEN-01: the first company in pepla-dev.
 founding_tenant_id = "ten_hyyt49drh9efwb79h2a0cjee0s"
+
+# TEN-02 step 1: rows written before TEN-02 belong to the dev first company until the backfill stamps them.
+# Step 2 (a later PR) sets this to "" once the dev backfill check passes.
+legacy_tenant_id = "ten_hyyt49drh9efwb79h2a0cjee0s"

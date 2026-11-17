@@ -16,6 +16,19 @@ resource "aws_dynamodb_table" "tenants" {
     type = "S"
   }
 
+  # TEN-02: the company index (sparse: rows written before TEN-02 join it once the backfill stamps them).
+  attribute {
+    name = "tenant_id"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "tenant-index"
+    hash_key        = "tenant_id"
+    range_key       = "pk"
+    projection_type = "ALL"
+  }
+
   point_in_time_recovery {
     enabled = true
   }

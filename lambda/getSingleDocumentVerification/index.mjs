@@ -1,4 +1,6 @@
-import { DynamoDBClient, GetItemCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { requireTenant, ownsItem, notFound } from '../shared/tenant.mjs';
+import { findDocument as findCompanyDocument } from '../shared/company-rows.mjs';
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { KMSClient, DecryptCommand } from "@aws-sdk/client-kms";
 import { requireHr, checkOf, hrDecisionOf, comparisonsOf } from '../shared/document-check.mjs';
@@ -27,33 +29,25 @@ async function kmsDecrypt(ciphertext) {
   }
 }
 
-/** The document row: one GetItem when the caller gave employee_id, else a Scan that follows every page. */
-async function findDocument(documentId, employeeId) {
+/** The document row within the caller's company: one GetItem when the caller gave employee_id, else the company's rows. */
+async function findDocument(documentId, employeeId, tenantId) {
   if (employeeId) {
     const got = await dynamodb.send(new GetItemCommand({
       TableName: 'documents',
       Key: { employee_id: { S: employeeId }, document_id: { S: documentId } },
     }));
-    return got.Item ? unmarshall(got.Item) : null;
+    return ownsItem(got.Item, tenantId) ? unmarshall(got.Item) : null;
   }
-  let startKey;
-  do {
-    const page = await dynamodb.send(new ScanCommand({
-      TableName: 'documents',
-      FilterExpression: 'document_id = :id',
-      ExpressionAttributeValues: { ':id': { S: documentId } },
-      ...(startKey ? { ExclusiveStartKey: startKey } : {}),
-    }));
-    if (page.Items?.length) return unmarshall(page.Items[0]);
-    startKey = page.LastEvaluatedKey;
-  } while (startKey);
-  return null;
+  const item = await findCompanyDocument(documentId, tenantId);
+  return item ? unmarshall(item) : null;
 }
 
 export const handler = async (event) => {
   // ONB-15: only HR, before any table, key or file is touched.
   const refused = requireHr(event);
   if (refused) return refused;
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
 
   try {
     const documentId = event.pathParameters?.id || event.pathParameters?.document_id;
@@ -61,23 +55,23 @@ export const handler = async (event) => {
     const employeeIdParam = event.queryStringParameters?.employee_id || undefined;
 
     // 1. The document
-    const document = await findDocument(documentId, employeeIdParam);
-    if (!document) return json(404, { error: 'Document not found' });
+    const document = await findDocument(documentId, employeeIdParam, tenantId);
+    if (!document) return notFound();
 
     // 2. The verification row (its key is verificationId) and the employee
     const verData = document.verification_id
       ? await dynamodb.send(new GetItemCommand({
           TableName: 'document-verification',
           Key: { verificationId: { S: document.verification_id } },
-        })).then((r) => (r.Item ? unmarshall(r.Item) : null))
+        })).then((r) => (ownsItem(r.Item, tenantId) ? unmarshall(r.Item) : null))
       : null;
 
     const employee = document.employee_id
       ? await dynamodb.send(new GetItemCommand({
           TableName: 'employees',
           Key: { employee_id: { S: document.employee_id } },
-          ProjectionExpression: 'employee_id, first_name, last_name, id_number_last4',
-        })).then((r) => (r.Item ? unmarshall(r.Item) : null))
+          ProjectionExpression: 'employee_id, first_name, last_name, id_number_last4, tenant_id',
+        })).then((r) => (ownsItem(r.Item, tenantId) ? unmarshall(r.Item) : null))
       : null;
 
     // 3. What the verification says. The ID number is encrypted since NH-11; old rows hold it plain.

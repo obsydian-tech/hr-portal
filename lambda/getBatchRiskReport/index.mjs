@@ -14,12 +14,14 @@
  *   4. Return { high, medium, low, no_data, generated_at }
  */
 
-import { DynamoDBClient, ScanCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, QueryCommand } from '@aws-sdk/client-dynamodb';
 import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
 import { guardAi, isRobotCaller, markRobot } from '../shared/ai-guard.mjs';
+import { requireTenant, ownsItem } from '../shared/tenant.mjs';
+import { companyRows } from '../shared/company-rows.mjs';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -147,11 +149,12 @@ async function classifyRisk(employeeId, verificationItems) {
 export const handler = async (event) => {
   logger.info('Handler invoked', { path: event.rawPath, method: event.requestContext?.http?.method });
   tracer.putAnnotation('operation', 'getBatchRiskReport');
-  markRobot(isRobotCaller(event.requestContext?.authorizer?.jwt?.claims));
-
   if (event.requestContext?.http?.method === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers: CORS_HEADERS };
+  markRobot(isRobotCaller(event.requestContext?.authorizer?.jwt?.claims));
 
   const start = Date.now();
 
@@ -170,25 +173,11 @@ export const handler = async (event) => {
     }
     // Agent → no created_by filter (full access)
 
-    // 2. Scan employees table
-    const scanParams = {
-      TableName: EMPLOYEES_TABLE,
-      ProjectionExpression: 'employeeId, firstName, lastName, #dep, #st',
-      ExpressionAttributeNames: { '#dep': 'department', '#st': 'onboardingStage' },
-    };
-    if (createdByFilter) {
-      scanParams.FilterExpression    = 'created_by = :cb';
-      scanParams.ExpressionAttributeValues = { ':cb': { S: createdByFilter } };
-    }
-
-    let employees = [];
-    let lastKey;
-    do {
-      if (lastKey) scanParams.ExclusiveStartKey = lastKey;
-      const scanRes = await dynamo.send(new ScanCommand(scanParams));
-      employees    = employees.concat(scanRes.Items ?? []);
-      lastKey      = scanRes.LastEvaluatedKey;
-    } while (lastKey);
+    // 2. TEN-02: the caller's company's employees (every page)
+    const employees = await companyRows(EMPLOYEES_TABLE, tenantId, {
+      project: ['employeeId', 'firstName', 'lastName', 'department', 'onboardingStage'],
+      ...(createdByFilter ? { FilterExpression: 'created_by = :cb', ExpressionAttributeValues: { ':cb': { S: createdByFilter } } } : {}),
+    });
 
     logger.info('Employees fetched', { count: employees.length, isAgent, hasFilter: !!createdByFilter });
 
@@ -209,9 +198,9 @@ export const handler = async (event) => {
           KeyConditionExpression:    'employeeId = :eid',
           ExpressionAttributeValues: { ':eid': { S: empId } },
         }));
-        verifications = vRes.Items ?? [];
+        verifications = (vRes.Items ?? []).filter((item) => ownsItem(item, tenantId));
       } catch (e) {
-        logger.warn('Failed to query verifications', { empId, error: e.message });
+        logger.warn('Failed to query verifications', { empId, errorName: e?.name ?? 'Error' });
       }
 
       const result = await classifyRisk(empId, verifications);
@@ -251,7 +240,7 @@ export const handler = async (event) => {
 
     return ok({ ...grouped, generated_at: new Date().toISOString(), latencyMs });
   } catch (e) {
-    logger.error('Unhandled error', { error: e.message, stack: e.stack });
+    logger.error('Unhandled error', { errorName: e?.name ?? 'Error' });
     return err(500, 'Internal server error');
   }
 };

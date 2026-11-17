@@ -100,3 +100,14 @@ variable "founding_tenant_id" {
     error_message = "founding_tenant_id must be ten_ followed by 26 lower-case letters or digits."
   }
 }
+
+variable "legacy_tenant_id" {
+  description = "TEN-02: rows with no company belong to this company (the legacy rule). Empty turns the rule off. Prod by default; env/dev.tfvars overrides."
+  type        = string
+  default     = "ten_xta08fsk9r8dyww1qd9rwhyy0k"
+
+  validation {
+    condition     = var.legacy_tenant_id == "" || can(regex("^ten_[0-9a-z]{26}$", var.legacy_tenant_id))
+    error_message = "legacy_tenant_id must be empty or ten_ followed by 26 lower-case letters or digits."
+  }
+}

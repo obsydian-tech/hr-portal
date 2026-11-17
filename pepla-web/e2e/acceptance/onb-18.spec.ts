@@ -6,6 +6,7 @@ import { DocumentsFake, storedEmployee as screenPerson, type FakePerson } from '
 import { ON_DEV, expect, test as base, type Login, type SignInPage } from './support/fixtures';
 import { blocks, stripComments, tfFiles } from './support/infra-harness';
 import { policyOf, resourcesNamed } from './support/onb-15/tf-policy';
+import { tablesIn, tenancyGrant } from './support/ten-02/relock';
 import type { Statement } from './support/ops-05/iam-eval';
 import { AGENT, EMPLOYEE } from './support/onb-03/lambda-harness';
 import { InviteFake, type InviteState } from './support/onb-18/invite-fake';
@@ -954,7 +955,9 @@ test.describe('ONB-18 Resend the link', () => {
         if (r.resource === '*') expect(r.action, `${n.fn}: Resource "*" only for X-Ray`).toMatch(/^xray:/);
       }
       expect(rows.filter((r) => r.action.startsWith('logs:')).every((r) => r.resource.includes(`/aws/lambda/${n.fn}`)), `${n.fn}: logs only into its own group`).toBe(true);
-      const extra = rows.filter((r) => ordinary(r.action));
+      // TEN-02 (re-lock): the company grants (Member rows on the tenants table) are TEN-02's, not this card's.
+      const reaches = tablesIn(rows.filter((r) => !/tenant-index/.test(r.resource)).map((r) => r.resource));
+      const extra = rows.filter((r) => ordinary(r.action) && !tenancyGrant(r.action, r.resource, reaches, n.fn === 'resendInvite'));
       for (const [action, on] of n.want) expect(extra.some((r) => r.action === action && on(r.resource)), `${n.fn}: may ${action} on the right resource`).toBe(true);
       expect(extra.filter((r) => !n.want.some(([action, on]) => r.action === action && on(r.resource))).map((r) => `${r.action} ${r.resource}`), `${n.fn}: nothing else (no AdminSetUserPassword)`).toEqual([]);
 

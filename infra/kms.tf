@@ -43,6 +43,9 @@ module "kms_pii" {
     aws_iam_role.get_my_start.arn,
     aws_iam_role.record_consent.arn,
     aws_iam_role.tenant_pre_token.arn,
+    # TEN-02: read Member rows in the tenants table.
+    aws_iam_role.cognito_post_auth.arn,
+    aws_iam_role.get_hr_partners.arn,
   ]
 
   # ONB-24: Cognito encrypts reset codes under a grant the deploy role makes (RootFullAdmin covers it).

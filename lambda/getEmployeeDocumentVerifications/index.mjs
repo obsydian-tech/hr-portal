@@ -1,5 +1,6 @@
 import { isHrOrOwner, isIdToken } from '../shared/hr-group.mjs';
-import { DynamoDBClient, QueryCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { requireTenant, ownsItem, notFound } from '../shared/tenant.mjs';
+import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { KMSClient, DecryptCommand } from "@aws-sdk/client-kms";
 import { Logger } from '@aws-lambda-powertools/logger';
@@ -44,6 +45,11 @@ const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, employeeId: event.pathParameters?.id || event.pathParameters?.employee_id });
   tracer.putAnnotation('operation', 'getEmployeeDocumentVerifications');
 
+  const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
+  const isHr = isIdToken(claims) && groupsOf(claims).includes('hr_staff');
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
+
   try {
     // API GW route is /v1/employees/{id}/verifications — passes pathParameters.id
     // Support both {id} (current route) and {employee_id} (legacy) to be safe
@@ -66,20 +72,14 @@ const handlerFn = async (event) => {
       }
     }));
 
-    if (!empResult.Items || empResult.Items.length === 0) {
-      const c = event.requestContext?.authorizer?.jwt?.claims ?? {};
-      if (!(isIdToken(c) && groupsOf(c).includes('hr_staff'))) return json(403, { error: 'Forbidden' });
-      return {
-        statusCode: 404,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ error: 'Employee not found' })
-      };
+    // TEN-02: another company's employee is answered as a missing one: HR 404, anyone else 403.
+    if (!empResult.Items || empResult.Items.length === 0 || !ownsItem(empResult.Items[0], tenantId)) {
+      return isHr ? json(404, { error: 'Employee not found' }) : json(403, { error: 'Forbidden' });
     }
 
     const employee = unmarshall(empResult.Items[0]);
 
     // Only HR or the person themselves. Nothing about the employee or their documents is read or sent before this.
-    const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
     if (!isHrOrOwner(claims, employee)) {
       logger.warn('Refused: caller is neither HR nor the employee');
       return json(403, { error: 'Forbidden' });
@@ -94,7 +94,7 @@ const handlerFn = async (event) => {
       }
     }));
 
-    const documents = docsResult.Items ? docsResult.Items.map(item => unmarshall(item)) : [];
+    const documents = (docsResult.Items ?? []).filter((item) => ownsItem(item, tenantId)).map(item => unmarshall(item));
 
     // 3. Get verifications for each document
     const enrichedDocs = await Promise.all(documents.map(async (doc) => {
@@ -116,7 +116,7 @@ const handlerFn = async (event) => {
           }
         }));
 
-        const verification = verResult.Items && verResult.Items.length > 0 
+ const verification = verResult.Items && verResult.Items.length > 0 && ownsItem(verResult.Items[0], tenantId)
           ? unmarshall(verResult.Items[0]) 
           : null;
 

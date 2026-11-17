@@ -14,7 +14,7 @@ import boto3
 
 DEV_ACCOUNT = "424556617428"
 REGION = "af-south-1"
-LOGINS = {"hr": "E2E_HR", "employee": "E2E_EMP"}
+LOGINS = {"hr": "E2E_HR", "hr-b": "E2E_HR_B", "employee": "E2E_EMP"}
 
 
 def main() -> None:

@@ -132,6 +132,9 @@ resource "aws_lambda_function" "naleko_ai_chat" {
       AGENT_AUDIT_TABLE = aws_dynamodb_table.agent_audit.name
       # NH-76: prompt response cache (1hr TTL, DynamoDB)
       PROMPT_CACHE_TABLE = aws_dynamodb_table.prompt_cache.name
+      # TEN-02: the company rule, and the one company Batsi chat serves (the agent key's).
+      LEGACY_TENANT_ID = var.legacy_tenant_id
+      AGENT_TENANT_ID  = var.founding_tenant_id
     }
   }
 

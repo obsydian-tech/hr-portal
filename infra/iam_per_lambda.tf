@@ -29,6 +29,24 @@ resource "aws_iam_role_policy" "create_employee" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "TenantsMemberRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = [aws_dynamodb_table.tenants.arn, "${aws_dynamodb_table.tenants.arn}/index/tenant-index"]
+      },
+      {
+        Sid      = "TenantsMemberWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = [aws_dynamodb_table.tenants.arn]
+      },
+      {
+        Sid      = "CompanyIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = ["${aws_dynamodb_table.employees.arn}/index/tenant-index"]
+      },
+      {
         Sid      = "Logs"
         Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
@@ -136,6 +154,12 @@ resource "aws_iam_role_policy" "cognito_post_auth" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "TenantsMemberRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = [aws_dynamodb_table.tenants.arn, "${aws_dynamodb_table.tenants.arn}/index/tenant-index"]
+      },
+      {
         Sid      = "Logs"
         Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
@@ -207,6 +231,12 @@ resource "aws_iam_role_policy" "get_employees" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid      = "CompanyIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = ["${aws_dynamodb_table.employees.arn}/index/tenant-index"]
+      },
       {
         Sid      = "Logs"
         Effect   = "Allow"
@@ -431,6 +461,12 @@ resource "aws_iam_role_policy" "get_document_verifications" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "CompanyIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = ["${aws_dynamodb_table.document_verification.arn}/index/tenant-index", "${aws_dynamodb_table.documents.arn}/index/tenant-index"]
+      },
+      {
         Sid      = "Logs"
         Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
@@ -486,6 +522,12 @@ resource "aws_iam_role_policy" "get_single_document_verification" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid      = "CompanyIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = ["${aws_dynamodb_table.documents.arn}/index/tenant-index"]
+      },
       {
         Sid      = "Logs"
         Effect   = "Allow"
@@ -604,6 +646,12 @@ resource "aws_iam_role_policy" "review_document_verification" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid      = "CompanyIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = ["${aws_dynamodb_table.documents.arn}/index/tenant-index"]
+      },
       {
         Sid      = "Logs"
         Effect   = "Allow"
@@ -736,6 +784,12 @@ resource "aws_iam_role_policy" "get_document_presigned_url" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid      = "CompanyIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = ["${aws_dynamodb_table.documents.arn}/index/tenant-index"]
+      },
       {
         Sid      = "Logs"
         Effect   = "Allow"
@@ -917,6 +971,12 @@ resource "aws_iam_role_policy" "get_hr_partners" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "TenantsMemberRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = [aws_dynamodb_table.tenants.arn, "${aws_dynamodb_table.tenants.arn}/index/tenant-index"]
+      },
+      {
         Sid      = "Logs"
         Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
@@ -1006,6 +1066,12 @@ resource "aws_iam_role_policy" "trigger_external_verification" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid      = "CompanyIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = ["${aws_dynamodb_table.documents.arn}/index/tenant-index"]
+      },
       {
         Sid      = "Logs"
         Effect   = "Allow"
@@ -1590,6 +1656,12 @@ resource "aws_iam_role_policy" "get_batch_risk_report" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "CompanyIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = ["${aws_dynamodb_table.employees.arn}/index/tenant-index", "${aws_dynamodb_table.document_verification.arn}/index/tenant-index"]
+      },
+      {
         Sid      = "Logs"
         Effect   = "Allow"
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
@@ -2042,6 +2114,18 @@ resource "aws_iam_role_policy" "resend_invite" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Sid      = "TenantsMemberRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = [aws_dynamodb_table.tenants.arn, "${aws_dynamodb_table.tenants.arn}/index/tenant-index"]
+      },
+      {
+        Sid      = "TenantsMemberWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = [aws_dynamodb_table.tenants.arn]
+      },
       {
         Sid      = "Logs"
         Effect   = "Allow"

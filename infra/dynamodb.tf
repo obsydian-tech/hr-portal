@@ -134,6 +134,19 @@ resource "aws_dynamodb_table" "employees" {
     projection_type = "ALL"
   }
 
+  # TEN-02: the company index (sparse: rows written before TEN-02 join it once the backfill stamps them).
+  attribute {
+    name = "tenant_id"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "tenant-index"
+    hash_key        = "tenant_id"
+    range_key       = "employee_id"
+    projection_type = "ALL"
+  }
+
   server_side_encryption {
     enabled     = true
     kms_key_arn = module.kms_pii.key_arn
@@ -175,6 +188,19 @@ resource "aws_dynamodb_table" "documents" {
   attribute {
     name = "document_id"
     type = "S"
+  }
+
+  # TEN-02: the company index (sparse: rows written before TEN-02 join it once the backfill stamps them).
+  attribute {
+    name = "tenant_id"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "tenant-index"
+    hash_key        = "tenant_id"
+    range_key       = "employee_id"
+    projection_type = "ALL"
   }
 
   server_side_encryption {
@@ -224,6 +250,19 @@ resource "aws_dynamodb_table" "document_verification" {
   global_secondary_index {
     name            = "employeeId-index"
     hash_key        = "employeeId"
+    projection_type = "ALL"
+  }
+
+  # TEN-02: the company index (sparse: rows written before TEN-02 join it once the backfill stamps them).
+  attribute {
+    name = "tenant_id"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "tenant-index"
+    hash_key        = "tenant_id"
+    range_key       = "employeeId"
     projection_type = "ALL"
   }
 

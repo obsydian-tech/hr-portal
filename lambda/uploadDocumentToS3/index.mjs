@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { withIdempotency } from '../shared/idempotency.mjs';
+import { requireTenant, ownsItem, notFound } from '../shared/tenant.mjs';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -14,7 +15,7 @@ const BUCKET_NAME = process.env.UPLOAD_BUCKET ?? "document-ocr-verification-uplo
 const DOCUMENTS_TABLE = "documents";
 const EMPLOYEES_TABLE = "employees";
 
-const handlerFn = async (event) => {
+const handlerFn = async (event, tenantId) => {
   logger.info('Handler invoked', { employeeId: event.pathParameters?.employee_id, httpMethod: event.httpMethod });
   tracer.putAnnotation('operation', 'uploadDocumentToS3');
 
@@ -30,9 +31,9 @@ const handlerFn = async (event) => {
     }
 
     // 3. Validate employee exists (optional but recommended)
-    const employeeExists = await checkEmployeeExists(employeeId);
+    const employeeExists = await checkEmployeeExists(employeeId, tenantId);
     if (!employeeExists) {
-      return errorResponse(404, `Employee ${employeeId} not found`);
+      return { ...notFound(), headers: corsHeaders() };
     }
 
     // 4. Generate document ID and timestamp
@@ -85,6 +86,7 @@ const handlerFn = async (event) => {
         upload_timestamp: { S: timestamp },
         ocr_status: { S: "PENDING" },
         verification_id: { NULL: true },
+        tenant_id: { S: tenantId },
       }
     }));
 
@@ -121,19 +123,23 @@ const handlerFn = async (event) => {
 // A repeated call with the same key within 24h returns the cached response
 // without uploading a duplicate file to S3 or creating a duplicate document record.
 export const handler = async (event) => {
+  // TEN-02: no route reaches this Lambda; a call without a company is refused before anything else.
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers: corsHeaders() };
   const key = event.headers?.['idempotency-key'];
-  return withIdempotency(key, () => handlerFn(event));
+  return withIdempotency(key, () => handlerFn(event, tenantId), tenantId);
 };
 
 // Helper: Check if employee exists
-async function checkEmployeeExists(employeeId) {
+async function checkEmployeeExists(employeeId, tenantId) {
   try {
     const result = await dynamodb.send(new GetItemCommand({
       TableName: EMPLOYEES_TABLE,
-      Key: { employee_id: { S: employeeId } }
+      Key: { employee_id: { S: employeeId } },
+      ProjectionExpression: 'employee_id, tenant_id',
     }));
     logger.debug('Employee lookup', { employeeId, found: !!result.Item });
-    return !!result.Item;
+    return ownsItem(result.Item, tenantId);
   } catch (error) {
     logger.error('Error checking employee', { error });
     return false;

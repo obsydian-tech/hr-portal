@@ -1,6 +1,8 @@
-import { DynamoDBClient, PutItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, PutItemCommand, QueryCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { requireTenant, tenantFilter } from '../shared/tenant.mjs';
+import { inCompany } from '../shared/membership.mjs';
 import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
-import { withIdempotency } from './shared/idempotency.mjs';
+import { withIdempotency } from '../shared/idempotency.mjs';
 import { hrOnly, listHrMembers, toPartner } from '../shared/hr-group.mjs';
 import { validateEmployee } from '../shared/employee-input.mjs';
 import {
@@ -91,7 +93,7 @@ function badRequest(message) {
   };
 }
 
-const handlerFn = async (event) => {
+const handlerFn = async (event, tenantId) => {
   logger.info('Handler invoked', { path: event.path, httpMethod: event.httpMethod });
   tracer.putAnnotation('operation', 'createEmployee');
 
@@ -128,7 +130,8 @@ const handlerFn = async (event) => {
     // 2b. The HR partner comes from the pool, never from the browser
     let partner = null;
     if (body.hr_staff_id) {
-      const members = (await listHrMembers(cognito, ListUsersInGroupCommand, USER_POOL_ID)).map((u) => toPartner(u));
+      // TEN-02: only HR partners of the caller's company.
+      const members = (await inCompany(await listHrMembers(cognito, ListUsersInGroupCommand, USER_POOL_ID), tenantId)).map((u) => toPartner(u));
       partner = members.find((m) => m.id === String(body.hr_staff_id)) ?? null;
       if (!partner) {
         return {
@@ -143,12 +146,15 @@ const handlerFn = async (event) => {
     // The address is one person whatever the capitals; rows stored before this card may hold capitals.
     const typedForms = [...new Set([body.email, checked.typedEmail])];
     for (const candidate of typedForms) {
+      // TEN-02: within the caller's company only.
+      const f = tenantFilter(tenantId);
       const emailCheck = await dynamodb.send(new QueryCommand({
         TableName: 'employees',
         IndexName: 'email-index',
         KeyConditionExpression: 'email = :email',
-        ExpressionAttributeValues: { ':email': { S: candidate } },
-        Limit: 1,
+        FilterExpression: f.FilterExpression,
+        ExpressionAttributeNames: f.ExpressionAttributeNames,
+        ExpressionAttributeValues: { ':email': { S: candidate }, ':tenant_id': { S: tenantId } },
         ProjectionExpression: 'employee_id',
       }));
       if (emailCheck.Count > 0) {
@@ -200,6 +206,7 @@ const handlerFn = async (event) => {
       // PII fields — SA ID stored encrypted; only last 4 digits stored in clear
       ...(idNumberEncrypted ? { id_number_encrypted: { S: idNumberEncrypted } } : {}),
       ...(idNumberLast4     ? { id_number_last4:     { S: idNumberLast4 }     } : {}),
+      tenant_id: { S: tenantId },
     };
 
     // 5. Save to DynamoDB
@@ -220,6 +227,7 @@ const handlerFn = async (event) => {
       department: body.department,
       stage: 'INVITED',
       created_by: staffMemberId,
+      tenant_id: tenantId,
     });
 
     // 5c. NH-42: Start Step Functions onboarding execution (best-effort).
@@ -252,8 +260,17 @@ const handlerFn = async (event) => {
     try {
       invite = await issueInvite({
         employee: { employee_id: employeeId, email: body.email, first_name: body.first_name, last_name: body.last_name },
-        hrPartner: partner, sentBy: staffMemberId,
+        hrPartner: partner, sentBy: staffMemberId, tenantId,
       });
+      // TEN-02: the owner of this record is this sign-in.
+      await dynamodb.send(new UpdateItemCommand({
+        TableName: 'employees',
+        Key: { employee_id: { S: employeeId } },
+        UpdateExpression: 'SET user_sub = :sub',
+        ConditionExpression: '#tenant_id = :tenant_id',
+        ExpressionAttributeNames: { '#tenant_id': 'tenant_id' },
+        ExpressionAttributeValues: { ':sub': { S: invite.userSub }, ':tenant_id': { S: tenantId } },
+      }));
       cognitoUserCreated = true;
     } catch (inviteError) {
       logger.error('Invite failed', { employeeId, error: inviteError?.name ?? 'Error' });
@@ -289,7 +306,7 @@ const handlerFn = async (event) => {
     // 8. Return created employee (unmarshall for clean JSON)
     // id_number_encrypted is PII ciphertext — never returned to callers.
     const createdEmployee = Object.keys(employee).reduce((acc, key) => {
-      if (key === 'id_number_encrypted') return acc; // redact ciphertext
+      if (key === 'id_number_encrypted' || key === 'tenant_id') return acc; // redact ciphertext; TEN-02: the answer is as before
       const value = employee[key];
       acc[key] = value.S || value.N || value.BOOL || null;
       return acc;
@@ -343,8 +360,10 @@ export const handler = async (event) => {
   // body is read and before an Idempotency-Key can hand back an earlier answer.
   const refused = hrOnly(event, 'Only HR can add an employee');
   if (refused) return refused;
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
   const key = event.headers?.['idempotency-key'];
-  return withIdempotency(key, () => handlerFn(event));
+  return withIdempotency(key, () => handlerFn(event, tenantId), tenantId);
 };
 
 // NH-28: generateEmployeeId() removed — replaced with randomUUID() inline.

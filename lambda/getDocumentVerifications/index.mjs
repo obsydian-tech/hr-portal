@@ -1,9 +1,11 @@
-import { DynamoDBClient, ScanCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { groupsOf, checkOf } from '../shared/document-check.mjs';
 import { isIdToken } from '../shared/hr-group.mjs';
+import { requireTenant, ownsItem } from '../shared/tenant.mjs';
+import { companyRows } from '../shared/company-rows.mjs';
 
 const dynamodb = new DynamoDBClient();
 
@@ -31,23 +33,16 @@ function callerOf(event) {
   return null;
 }
 
-/** Every page of a scan (a DynamoDB scan stops at 1 MB). */
-async function scanAll(TableName, ProjectionExpression) {
-  const rows = [];
-  let ExclusiveStartKey;
-  do {
-    const page = await dynamodb.send(new ScanCommand({ TableName, ProjectionExpression, ExclusiveStartKey }));
-    for (const item of page.Items ?? []) rows.push(unmarshall(item));
-    ExclusiveStartKey = page.LastEvaluatedKey;
-  } while (ExclusiveStartKey);
-  return rows;
+/** TEN-02: every row of the company (every page), unmarshalled. */
+async function companyAll(table, tenantId, project) {
+  return (await companyRows(table, tenantId, project ? { project } : {})).map((item) => unmarshall(item));
 }
 
 const CHECKS = ['READING', 'MATCHES', 'NEEDS_A_LOOK', 'DOESNT_MATCH'];
 
 /** ONB-13: the documents still waiting for an HR decision, oldest first, six fields each. */
-async function waitingDocuments() {
-  const waiting = (await scanAll('documents', 'employee_id, document_id, document_type, ocr_status, verification_id, hr_reviewed_at, upload_timestamp, uploaded_at')).filter((doc) => !doc.hr_reviewed_at);
+async function waitingDocuments(tenantId) {
+  const waiting = (await companyAll('documents', tenantId, ['employee_id', 'document_id', 'document_type', 'ocr_status', 'verification_id', 'hr_reviewed_at', 'upload_timestamp', 'uploaded_at'])).filter((doc) => !doc.hr_reviewed_at);
 
   const employeeIds = [...new Set(waiting.map((doc) => doc.employee_id))];
   const names = new Map();
@@ -57,7 +52,7 @@ async function waitingDocuments() {
       KeyConditionExpression: 'employee_id = :id',
       ExpressionAttributeValues: { ':id': { S: id } }
     }));
-    const employee = res.Items?.[0] ? unmarshall(res.Items[0]) : null;
+    const employee = ownsItem(res.Items?.[0], tenantId) ? unmarshall(res.Items[0]) : null;
     names.set(id, employee ? `${employee.first_name} ${employee.last_name}`.trim() : 'Unknown');
   }));
 
@@ -69,7 +64,7 @@ async function waitingDocuments() {
         KeyConditionExpression: 'verificationId = :id',
         ExpressionAttributeValues: { ':id': { S: doc.verification_id } }
       }));
-      verification = res.Items?.[0] ? unmarshall(res.Items[0]) : null;
+      verification = ownsItem(res.Items?.[0], tenantId) ? unmarshall(res.Items[0]) : null;
     }
     return {
       document_id: doc.document_id,
@@ -104,6 +99,8 @@ const handlerFn = async (event) => {
     logger.warn('Refused: caller is not HR staff');
     return json(403, { error: 'Forbidden' });
   }
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return { ...refusal, headers: CORS };
 
   try {
     const queryParams = event.queryStringParameters || {};
@@ -113,32 +110,23 @@ const handlerFn = async (event) => {
     const limit = parseInt(queryParams.limit || '50');
 
     if (caller === 'HR' && queryParams.waiting === 'true') {
-      return json(200, await waitingDocuments());
+      return json(200, await waitingDocuments(tenantId));
     }
 
     logger.info('Query params', { status, decision, employeeId, limit, caller });
 
-    // For prototype: simple scan (not optimized for production)
-    const scanParams = {
-      TableName: 'document-verification',
-      Limit: limit
-    };
-
-    const result = await dynamodb.send(new ScanCommand(scanParams));
-    let items = result.Items.map(item => unmarshall(item));
+    // TEN-02: the company's verifications only (at most `limit`, as before).
+    // TEN-02: the company's verifications, one page of at most `limit` (paging as before).
+    let items = (await companyRows('document-verification', tenantId, { limit, onePage: true })).map((item) => unmarshall(item));
 
     // Apply filters
     if (status) {
       // Get document IDs with matching status from documents table
-      const docsResult = await dynamodb.send(new ScanCommand({
-        TableName: 'documents',
+      const docs = await companyRows('documents', tenantId, {
         FilterExpression: 'ocr_status = :status',
-        ExpressionAttributeValues: {
-          ':status': { S: status }
-        }
-      }));
-      
-      const matchingDocIds = docsResult.Items.map(item => unmarshall(item).document_id);
+        ExpressionAttributeValues: { ':status': { S: status } },
+      });
+      const matchingDocIds = docs.map(item => unmarshall(item).document_id);
       items = items.filter(item => matchingDocIds.includes(item.documentId));
     }
 
@@ -161,7 +149,7 @@ const handlerFn = async (event) => {
           }
         }));
 
-        if (empResult.Items && empResult.Items.length > 0) {
+        if (empResult.Items && empResult.Items.length > 0 && ownsItem(empResult.Items[0], tenantId)) {
           const employee = unmarshall(empResult.Items[0]);
           return {
             ...item,

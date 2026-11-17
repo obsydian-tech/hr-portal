@@ -5,6 +5,7 @@ import type { Page, TestInfo } from '@playwright/test';
 import { ON_DEV, expect, test, type Login, type SignInPage } from './support/fixtures';
 import { blocks, stripComments, tfFiles } from './support/infra-harness';
 import { policyOf, resourcesNamed } from './support/onb-15/tf-policy';
+import { tablesIn, tenancyGrant } from './support/ten-02/relock';
 import type { Statement } from './support/ops-05/iam-eval';
 import {
   APP_URL, COMPANY, DAY, GOOD_PASSWORD, HR, INVITES, LINK, LINK_IN_TEXT, LOOKUP, OTHER_PASSWORD, PARTNER, REDEEM, REPO, ROBOT_ADDRESS, ROBOT_HR, T0,
@@ -533,7 +534,8 @@ test.describe('ONB-04 Invite link instead of a password', () => {
     for (const [token, label] of [[reg.token, 'the emailed token'], [helperToken, 'issueInvite\'s token']] as const) {
       expect(rows.filter((r) => sha256(token).includes(String(r['token_hash']))), `${label}: its row is keyed by its SHA-256`).toHaveLength(1);
     }
-    const ALLOWED = ['token_hash', 'employee_id', 'created_at', 'expires_at', 'used_at', 'replaced_at', 'sent_by', 'ttl', 'failed_attempts'];
+    // TEN-02 (re-lock): an invite row also carries its company (tenant_id).
+    const ALLOWED = ['token_hash', 'employee_id', 'created_at', 'expires_at', 'used_at', 'replaced_at', 'sent_by', 'ttl', 'failed_attempts', 'tenant_id'];
     for (const r of rows) {
       expect(Object.keys(r).filter((k) => !ALLOWED.includes(k)), 'an invite row holds only the card\'s fields').toEqual([]);
       const text = JSON.stringify(r).toLowerCase();
@@ -581,7 +583,8 @@ test.describe('ONB-04 Invite link instead of a password', () => {
     const reads = dynamoCalls(ok).filter((c) => c.table === 'employees');
     expect(reads.map((c) => c.op), 'lookup reads the employee with one GetItem').toEqual(['GetItem']);
     const named = String(reads[0]!.input.ProjectionExpression ?? '').split(',').map((n) => n.trim()).map((n) => (n.startsWith('#') ? reads[0]!.input.ExpressionAttributeNames?.[n] : n));
-    expect(named.filter(Boolean).sort(), 'and asks only for email, first_name, planned_start_date, hr_staff_name').toEqual(['email', 'first_name', 'hr_staff_name', 'planned_start_date']);
+    // TEN-02 (re-lock): it may also read the row's company (tenant_id), to check it against the invite's.
+    expect(named.filter(Boolean).filter((n) => n !== 'tenant_id').sort(), 'and asks only for email, first_name, planned_start_date, hr_staff_name (and tenant_id)').toEqual(['email', 'first_name', 'hr_staff_name', 'planned_start_date']);
     expect(ok.calls.filter((c) => c.service === 'kms'), 'lookup decrypts nothing').toEqual([]);
 
     const expired = lookup(w, token, { now: at(T0, 7 * DAY + 1) });
@@ -726,7 +729,8 @@ test.describe('ONB-04 Invite link instead of a password', () => {
     ]);
     const wantAdded = [['dynamodb:PutItem', isTable], ['dynamodb:Query', isIndex], ['dynamodb:UpdateItem', isTable], ['cognito-idp:AdminGetUser', isPool], ['cognito-idp:AdminListGroupsForUser', isPool]] as const;
     for (const [action, on] of wantAdded) expect(added.some((r) => r.action === action && on(r.resource)), `createEmployee gains ${action} on ${action.startsWith('cognito-idp:') ? 'the pool' : 'the invite table'}${action === 'dynamodb:Query' ? '\'s employee-index' : ''}`).toBe(true);
-    expect(added.filter((r) => !wantAdded.some(([action, on]) => r.action === action && on(r.resource))).map(show), 'and nothing else').toEqual([]);
+    // TEN-02 (re-lock): the company grants (Member rows, the employees tenant-index) are TEN-02's, not this card's.
+    expect(added.filter((r) => !wantAdded.some(([action, on]) => r.action === action && on(r.resource)) && !tenancyGrant(r.action, r.resource, tablesIn(before.map((b) => b.split(' ')[2]!)), true)).map(show), 'and nothing else').toEqual([]);
     for (const r of now) {
       expect(r.action, `createEmployee: no wildcard action (${r.action})`).not.toMatch(/\*/);
       if (r.resource === '*') expect(r.action, 'createEmployee: Resource "*" only for X-Ray').toMatch(/^xray:/);

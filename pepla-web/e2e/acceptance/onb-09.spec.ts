@@ -9,6 +9,7 @@ import { HR_HOME, ON_DEV, expect, test as base, type Login, type SignInPage } fr
 import { blocks, tfFiles } from './support/infra-harness';
 import { decide as iamDecide, type Policy, type Statement } from './support/ops-05/iam-eval';
 import { policyOf, resourcesNamed, squash, table as tableArn } from './support/onb-15/tf-policy';
+import { onlyTenancyAdded } from './support/ten-02/relock';
 import {
   FIVE, LIST, OCR, PERSON, POST_AUTH, REPO, REVIEW, aiReached, dynamoCalls, listEvent, personEvent, personOf, plain, postAuthEvent,
   published, reviewEvent, row, runHandler, s3Event, valuesWritten, writesTo, type Caller, type Run, type Tables, type World,
@@ -726,7 +727,12 @@ test.describe('ONB-09 Four steps everywhere', () => {
     const refused = runHandler(REVIEW, w403, reviewEvent(docId(2), E, 'FAILED', SELF));
     expect(refused.status, 'the person deciding their own document: 403').toBe(403);
     expect(empWrites(refused), '403: nothing written to the person').toEqual([]);
-    expect(who(refused.world), '403: the person unchanged').toEqual(who(w403));
+    // TEN-02 (re-lock): the run fills user_sub from the person's own sign-in, as the TEN-02 backfill does
+    // (support/ten-02/legacy-company.mjs); that is not a write by this route.
+    // Only a user_sub the person did not have is left out (the write list above shows no route write).
+    const { user_sub: _filled, ...after403 } = who(refused.world) as Record<string, unknown>;
+    expect((who(w403) as Record<string, unknown>)['user_sub'], 'the person had no user_sub before the run').toBeUndefined();
+    expect(after403, '403: the person unchanged').toEqual(who(w403));
     const w409 = worldOf('DOCUMENTS_SUBMITTED', 'IN_REVIEW', [waiting(ID, 1), sentBack(BANK, 2)]);
     const twice = runHandler(REVIEW, w409, reviewEvent(docId(2), E, 'PASSED', HR));
     expect(twice.status, 'a document already decided: 409').toBe(409);
@@ -936,8 +942,12 @@ test.describe('ONB-09 Four steps everywhere', () => {
       for (const type of ['aws_iam_role', 'aws_iam_role_policy']) {
         const now = resourcesNamed(type, name);
         expect(now.length, `${type}.${name} is declared once`).toBe(1);
-        if (type === 'aws_iam_role' || name !== 'process_document_ocr') {
+        if (type === 'aws_iam_role') {
           expect(squash(now[0]!.raw), `${type}.${name} is unchanged`).toBe(squash(before(type, name).raw));
+        } else if (name !== 'process_document_ocr') {
+          // TEN-02 (re-lock): a role policy may also hold TEN-02's company grants (support/ten-02/relock.ts).
+          const b = before(type, name);
+          expect(onlyTenancyAdded({ type, name, raw: b.raw, body: b.body, attrs: new Map() }, now[0]!), `${type}.${name} is unchanged but for TEN-02's grants`).toEqual([]);
         }
       }
     }

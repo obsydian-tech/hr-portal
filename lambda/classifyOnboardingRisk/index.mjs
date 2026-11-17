@@ -10,6 +10,7 @@ import {
 } from '@aws-sdk/client-bedrock-runtime';
 import { guardAi, isRobotCaller, isRobotEmail, markRobot } from '../shared/ai-guard.mjs';
 import { hrOrAgent } from '../shared/hr-group.mjs';
+import { requireTenant, ownsItem, notFound, tenantFilter } from '../shared/tenant.mjs';
 
 const dynamo = new DynamoDBClient({});
 const bedrock = guardAi(new BedrockRuntimeClient({ region: 'af-south-1' }), 'bedrock');
@@ -28,6 +29,8 @@ const BEDROCK_MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'global.anthropic.claud
 export const handler = async (event) => {
   const refused = hrOrAgent(event, 'Only HR can check documents');
   if (refused) return refused;
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
   const employeeId = event.pathParameters?.id;
 
   if (!employeeId) {
@@ -36,20 +39,20 @@ export const handler = async (event) => {
 
   // AI cost guardrail: robots (test logins) and test employees never reach the AI.
   // If the employee record can't be read, play safe and treat it as test data.
-  let robot = isRobotCaller(event.requestContext?.authorizer?.jwt?.claims);
-  if (!robot) {
-    try {
-      const emp = await dynamo.send(new GetItemCommand({
-        TableName: EMPLOYEES_TABLE,
-        Key: { employee_id: { S: employeeId } },
-        ProjectionExpression: 'email',
-      }));
-      robot = !emp.Item || isRobotEmail(emp.Item.email?.S);
-    } catch (err) {
-      console.warn({ message: 'Employee lookup for AI guard failed; skipping AI', employeeId, error: err.message });
-      robot = true;
-    }
+  // TEN-02: the employee must be the caller's company's before anything else is read, and before the AI guard.
+  let emp;
+  try {
+    emp = await dynamo.send(new GetItemCommand({
+      TableName: EMPLOYEES_TABLE,
+      Key: { employee_id: { S: employeeId } },
+      ProjectionExpression: 'email, tenant_id',
+    }));
+  } catch (err) {
+    console.warn({ message: 'Employee lookup failed', employeeId, errorName: err?.name ?? 'Error' });
+    return response(500, { message: 'Failed to retrieve verifications' });
   }
+  if (!ownsItem(emp.Item, tenantId)) return notFound();
+  const robot = isRobotCaller(event.requestContext?.authorizer?.jwt?.claims) || isRobotEmail(emp.Item.email?.S);
   markRobot(robot);
 
   // 1. Query document-verification table via employeeId-index GSI
@@ -63,9 +66,9 @@ export const handler = async (event) => {
         ExpressionAttributeValues: { ':eid': { S: employeeId } },
       })
     );
-    verifications = result.Items ?? [];
+    verifications = (result.Items ?? []).filter((item) => ownsItem(item, tenantId));
   } catch (err) {
-    console.error({ message: 'DynamoDB query failed', employeeId, error: err.message });
+    console.error({ message: 'DynamoDB query failed', employeeId, errorName: err?.name ?? 'Error' });
     return response(500, { message: 'Failed to retrieve verifications' });
   }
 
@@ -145,15 +148,19 @@ export const handler = async (event) => {
         Key: { employee_id: { S: employeeId } },
         UpdateExpression:
           'SET riskBand = :band, riskReason = :reason, riskAssessedAt = :assessedAt',
+        ConditionExpression: tenantFilter(tenantId).FilterExpression,
+        ExpressionAttributeNames: { '#tenant_id': 'tenant_id' },
         ExpressionAttributeValues: {
           ':band': { S: risk },
           ':reason': { S: reason },
           ':assessedAt': { S: riskAssessedAt },
+          ':tenant_id': { S: tenantId },
         },
       })
     );
   } catch (err) {
-    console.error({ message: 'DynamoDB update failed', employeeId, error: err.message });
+    if (err?.name === 'ConditionalCheckFailedException') return notFound();
+    console.error({ message: 'DynamoDB update failed', employeeId, errorName: err?.name ?? 'Error' });
     return response(500, { message: 'Risk classified but failed to persist result' });
   }
 

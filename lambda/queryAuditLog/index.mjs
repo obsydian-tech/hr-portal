@@ -19,6 +19,7 @@
 import { DynamoDBClient, QueryCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { requireTenant, tenantFilter } from '../shared/tenant.mjs';
 
 const dynamodb = new DynamoDBClient();
 const logger = new Logger({ serviceName: 'queryAuditLog' });
@@ -40,6 +41,9 @@ function marshalEvent(item) {
 }
 
 export const handler = async (event) => {
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
+  const t = tenantFilter(tenantId);
   const actor = event.requestContext?.authorizer?.lambda?.actor ?? 'HUMAN';
   const qs = event.queryStringParameters ?? {};
 
@@ -75,6 +79,9 @@ export const handler = async (event) => {
         params.KeyConditionExpression = 'employeeId = :eid';
       }
 
+      params.FilterExpression = t.FilterExpression;
+      params.ExpressionAttributeNames = { ...(params.ExpressionAttributeNames ?? {}), ...t.ExpressionAttributeNames };
+      params.ExpressionAttributeValues[':tenant_id'] = { S: tenantId };
       result = await dynamodb.send(new QueryCommand(params));
       tracer.putAnnotation('employeeId', employeeId);
     } else {
@@ -83,6 +90,9 @@ export const handler = async (event) => {
       result = await dynamodb.send(new ScanCommand({
         TableName: AUDIT_TABLE,
         Limit: Math.min(limit, DEFAULT_LIMIT), // cap full scans at 50
+        FilterExpression: t.FilterExpression,
+        ExpressionAttributeNames: t.ExpressionAttributeNames,
+        ExpressionAttributeValues: { ':tenant_id': { S: tenantId } },
       }));
     }
 
@@ -98,7 +108,7 @@ export const handler = async (event) => {
       }),
     };
   } catch (error) {
-    logger.error('Error querying audit log', { error: error.message });
+    logger.error('Error querying audit log', { errorName: error?.name ?? 'Error' });
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },

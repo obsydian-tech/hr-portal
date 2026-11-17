@@ -215,7 +215,8 @@ test.describe('BE-20 · BE-18 leftovers and the idempotency log rule', () => {
       { claims: claims(''), employee: {} },
       { claims: claims('   '), employee: { email: '  ' } },
       { claims: claims(undefined), employee: { email: '' } },
-      { claims: claims(A_EMAIL), employee: { email: A_EMAIL } },
+      // TEN-02 (re-lock): the record names its owner's sign-in id (user_sub), as every invited row now does.
+      { claims: claims(A_EMAIL), employee: { email: A_EMAIL, user_sub: 'sub-x' } },
     ]), 'owner rule: only a real, equal address owns the row').toEqual([false, false, false, false, true]);
 
     // V11 V12: two rows with one address are no single record.
@@ -324,7 +325,9 @@ test.describe('BE-20 · BE-18 leftovers and the idempotency log rule', () => {
       expect(again.body, `${name}, same key again: the cached answer`).toEqual(first.body);
       expect(logText(again), `${name}, same key again: the stub does not run twice`).not.toContain('be20 stub ran');
       // A request already in progress (its reserve clashes with a live IN_FLIGHT row) gets 409, and the route does not run.
-      const busy = stubRoute(copy, world({ idempotency_keys: [row({ idempotencyKey: IDEM_KEY, status: 'IN_FLIGHT', expiresAt: '9999999999' })] }));
+      // TEN-02 (re-lock): a copy that takes the company stores TENANT#<id>#<key>, and the stub runs as the one company
+      // there was; a copy no route uses after TEN-02 may keep the bare key. Both keys are live, so either form gets 409.
+      const busy = stubRoute(copy, world({ idempotency_keys: [IDEM_KEY, `TENANT#ten_founding000000000000000000#${IDEM_KEY}`].map((k) => row({ idempotencyKey: k, status: 'IN_FLIGHT', expiresAt: '9999999999' })) }));
       noThrow(busy, `${name}, request in progress`);
       expect(busy.status, `${name}, request in progress: 409`).toBe(409);
       expect(logText(busy), `${name}, request in progress: the route did not run`).not.toContain('be20 stub ran');

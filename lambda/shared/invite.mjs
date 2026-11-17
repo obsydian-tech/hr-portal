@@ -5,6 +5,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { DynamoDBClient, PutItemCommand, QueryCommand, UpdateItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { CognitoIdentityProviderClient, AdminCreateUserCommand, AdminAddUserToGroupCommand, AdminGetUserCommand, AdminListGroupsForUserCommand } from '@aws-sdk/client-cognito-identity-provider';
+import { stampTenant, TENANT_ID_PATTERN, legacyCompany } from './tenant.mjs';
+import { addMember, companiesOf } from './membership.mjs';
 
 export const INVITES_TABLE = process.env.INVITES_TABLE || 'employee_invites';
 export const MAX_FAILED = 5;
@@ -33,6 +35,7 @@ export async function signInState(pool, email) {
   }
   // ONB-18 (L-1): a disabled sign-in is never finished by a link.
   if (user?.Enabled === false) return { ok: false, reason: 'disabled' };
+  const sub = (user?.UserAttributes ?? []).find((a) => a.Name === 'sub')?.Value ?? '';
   if (user?.UserStatus !== 'FORCE_CHANGE_PASSWORD') return { ok: false, reason: 'status' };
   const groups = [];
   let next;
@@ -42,7 +45,7 @@ export async function signInState(pool, email) {
     next = page?.NextToken;
   } while (next);
   if (groups.some((g) => g !== 'employee')) return { ok: false, reason: 'group' };
-  return { ok: true };
+  return { ok: true, sub };
 }
 
 function setting(name) {
@@ -51,14 +54,23 @@ function setting(name) {
   return v;
 }
 
-export async function issueInvite({ employee, hrPartner, sentBy }) {
+const refuse = () => {
+  const refused = new Error('This address already has a sign-in that is in use');
+  refused.name = 'InviteRefused';
+  return refused;
+};
+
+/** TEN-02: tenantId is the inviting HR person's company. The new sign-in becomes its member; returns userSub too. */
+export async function issueInvite({ employee, hrPartner, sentBy, tenantId }) {
+  if (!TENANT_ID_PATTERN.test(tenantId ?? '')) throw new Error('Not a company id');
   const employeeId = employee.employee_id ?? employee.employeeId;
   const email = String(employee.email).toLowerCase();
   const pool = setting('COGNITO_POOL_ID');
   const appUrl = setting('APP_URL').replace(/\/+$/, '');
 
+  let userSub = '';
   try {
-    await cognito.send(new AdminCreateUserCommand({
+    const created = await cognito.send(new AdminCreateUserCommand({
       UserPoolId: pool,
       Username: email,
       UserAttributes: [
@@ -70,16 +82,22 @@ export async function issueInvite({ employee, hrPartner, sentBy }) {
       ],
       MessageAction: 'SUPPRESS',
     }));
+    userSub = (created?.User?.Attributes ?? []).find((a) => a.Name === 'sub')?.Value ?? '';
+    if (!userSub) throw new Error('The new sign-in has no sub');
+    await addMember(userSub, tenantId);
   } catch (e) {
     if (e?.name !== 'UsernameExistsException') throw e;
     // The address already has a sign-in. Carry on only when nobody has used it yet (the resend case); otherwise stop
     // before any group change, invite row or email.
     const state = await signInState(pool, email);
-    if (!state.ok) {
-      const refused = new Error('This address already has a sign-in that is in use');
-      refused.name = 'InviteRefused';
-      throw refused;
-    }
+    if (!state.ok || !state.sub) throw refuse();
+    // TEN-02: a sign-in of another company is never taken over. One with no Member row yet joins this company.
+    const theirs = await companiesOf(state.sub);
+    // While the legacy rule is on, a sign-in with no Member row is the legacy company's.
+    const effective = theirs.length ? theirs : (legacyCompany() ? [legacyCompany()] : []);
+    if (effective.some((t) => t !== tenantId)) throw refuse();
+    if (theirs.length === 0) await addMember(state.sub, tenantId);
+    userSub = state.sub;
   }
   await cognito.send(new AdminAddUserToGroupCommand({ UserPoolId: pool, Username: email, GroupName: 'employee' }));
 
@@ -113,10 +131,11 @@ export async function issueInvite({ employee, hrPartner, sentBy }) {
       expires_at: { S: expires.toISOString() },
       sent_by: { S: String(sentBy ?? '') },
       ttl: { N: String(Math.floor(expires.getTime() / 1000) + TTL_AFTER) },
+      tenant_id: { S: stampTenant({}, tenantId).tenant_id },
     },
     ConditionExpression: 'attribute_not_exists(token_hash)',
   }));
-  return { token, sentAt: createdAt, expiresAt: expires.toISOString(), link: `${appUrl}/set-password#token=${token}` };
+  return { token, userSub, sentAt: createdAt, expiresAt: expires.toISOString(), link: `${appUrl}/set-password#token=${token}` };
 }
 
 /** The invite row for a token and what state it is in: 'ok' | 'expired' | 'used' | 'invalid'. */

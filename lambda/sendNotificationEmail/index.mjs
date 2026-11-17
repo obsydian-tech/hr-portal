@@ -18,6 +18,7 @@
 import { DynamoDBClient, GetItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import postmark from 'postmark';
 import { Logger } from '@aws-lambda-powertools/logger';
+import { ownsItem, legacyCompany } from '../shared/tenant.mjs';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { isRobotEmail } from '../shared/ai-guard.mjs';
 
@@ -53,13 +54,18 @@ function getMailClient() {
 
 // ─── DynamoDB helpers ────────────────────────────────────────────────────────
 
-async function getEmployee(employeeId) {
+/** TEN-02: the employee only when they belong to the event's company (detail.tenant_id; the legacy company for an event without one). */
+async function getEmployee(employeeId, tenantId) {
   const result = await dynamo.send(new GetItemCommand({
     TableName: EMPLOYEES_TABLE,
     Key: { employee_id: { S: employeeId } },
-    ProjectionExpression: 'employee_id, email, first_name, last_name, hr_staff_email, stage',
+    ProjectionExpression: 'employee_id, email, first_name, last_name, hr_staff_email, stage, tenant_id',
   }));
   if (!result.Item) return null;
+  if (!ownsItem(result.Item, tenantId ?? legacyCompany())) {
+    logger.warn('Event company does not match the employee: nothing sent', { employee_id: employeeId });
+    return null;
+  }
   return {
     employee_id: result.Item.employee_id?.S,
     email:       result.Item.email?.S,
@@ -136,7 +142,7 @@ async function handleDocumentReviewed(detail) {
     return;
   }
 
-  const employee = await getEmployee(employee_id);
+  const employee = await getEmployee(employee_id, detail.tenant_id);
   if (!employee) {
     logger.warn('Employee not found', { employee_id });
     return;
@@ -220,7 +226,7 @@ async function handleDocumentWaiting(detail) {
     return;
   }
 
-  const employee = await getEmployee(employee_id);
+  const employee = await getEmployee(employee_id, detail.tenant_id);
   if (!employee) {
     logger.warn('Employee not found for document.waiting', { employee_id });
     return;
@@ -263,7 +269,7 @@ async function handleOnboardingCompleted(detail) {
     return;
   }
 
-  const employee = await getEmployee(employee_id);
+  const employee = await getEmployee(employee_id, detail.tenant_id);
   if (!employee) {
     logger.warn('Employee not found for onboarding.completed', { employee_id });
     return;

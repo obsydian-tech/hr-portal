@@ -431,7 +431,8 @@ test.describe('ONB-05 Privacy notice and consent', () => {
     const rows = consents(first.world);
     expect(rows, 'one row').toHaveLength(1);
     const r = rows[0]!;
-    expect(Object.keys(r).sort(), 'exactly the six fields').toEqual(['accepted_at', 'cognito_sub', 'employee_id', 'notice_sha256', 'notice_version', 'source']);
+    // TEN-02 (re-lock): and the company the consent belongs to (tenant_id).
+    expect(Object.keys(r).sort(), 'exactly the six fields and the company').toEqual(['accepted_at', 'cognito_sub', 'employee_id', 'notice_sha256', 'notice_version', 'source', 'tenant_id']);
     expect(r['employee_id'], 'the caller\'s own record, found by the token email').toBe(LINDIWE_ID);
     expect(r['notice_version']).toBe(CUR);
     expect(r['accepted_at'], 'server time, ISO 8601 UTC').toBe(T0);
@@ -445,7 +446,15 @@ test.describe('ONB-05 Privacy notice and consent', () => {
     const w = writes(first);
     expect(w.map((c) => `${c.op} ${c.table}`), 'one write: a put on employee_consents').toEqual([`PutItem ${CONSENTS}`]);
     expect(String(w[0]!.input.ConditionExpression ?? ''), 'the put is conditional (attribute_not_exists)').toMatch(/attribute_not_exists\s*\(/);
-    expect(first.world.tables.employees, 'nothing in the employees rows changes').toEqual(w0.tables.employees);
+    // TEN-02 (re-lock): the run fills user_sub from the person's own sign-in, as the TEN-02 backfill does
+    // (support/ten-02/legacy-company.mjs); that is not a write by this route.
+    // Only a user_sub the row did not have, equal to the caller's own sub, is left out; the write list above shows no route write.
+    const subOf = (v: unknown) => (v && typeof v === 'object' ? (v as { S?: string }).S : v);
+    const unfilled = (rows: Array<Record<string, unknown>>) => rows.map((r, i) => {
+      const { user_sub: filled, ...rest } = r;
+      return w0.tables.employees[i]?.['user_sub'] === undefined && subOf(filled) === LINDIWE.sub ? rest : r;
+    });
+    expect(unfilled(first.world.tables.employees), 'nothing in the employees rows changes').toEqual(w0.tables.employees);
 
     // Again, an hour later: 200 with the first time, nothing written.
     const again = record(first.world, LINDIWE, { version: CUR }, { now: at(T0, 3600) });
