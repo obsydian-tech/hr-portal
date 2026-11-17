@@ -49,10 +49,14 @@ const handlerFn = async (event) => {
       return isHr ? { ...notFound(), headers } : notYours;
     }
     if (!isHr) {
+      // A document row with no employee id belongs to no one, so it is not this caller's (an empty key is a DynamoDB error).
+      const ownerId = docItem.employee_id?.S ?? "";
+      if (ownerId === "") return notYours;
       const emp = await dynamodb.send(new GetItemCommand({
         TableName: "employees",
-        Key: { employee_id: { S: docItem.employee_id?.S ?? "" } },
-        ProjectionExpression: "email, user_sub, tenant_id",
+        Key: { employee_id: { S: ownerId } },
+        ProjectionExpression: "#e, #s, #t",
+        ExpressionAttributeNames: { "#e": "email", "#s": "user_sub", "#t": "tenant_id" },
       }));
       if (!ownsItem(emp.Item, tenantId) || !isHrOrOwner(claims, { email: emp.Item.email?.S ?? "", user_sub: emp.Item.user_sub?.S ?? "" })) return notYours;
     }
@@ -94,7 +98,7 @@ const handlerFn = async (event) => {
       }),
     };
   } catch (error) {
-    logger.error('Error generating pre-signed URL', { errorName: error?.name ?? 'Error' });
+    logger.error('Error generating pre-signed URL', { errorName: error?.name ?? 'Error', step: error?.$metadata ? 'aws-call' : 'code', ...(error?.name === 'ValidationException' ? { reason: String(error?.message ?? '').slice(0, 200) } : {}) });
     return {
       statusCode: 500,
       headers,
