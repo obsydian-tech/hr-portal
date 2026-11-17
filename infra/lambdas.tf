@@ -1164,6 +1164,74 @@ resource "aws_lambda_function" "record_consent" {
   }
 }
 
+# ─── ONB-06: getMyDocuments ─────────────────────────────────────────────────────
+resource "aws_lambda_function" "get_my_documents" {
+  function_name = "getMyDocuments"
+  role          = aws_iam_role.get_my_documents.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      LEGACY_TENANT_ID        = var.legacy_tenant_id
+      EMPLOYEES_TABLE         = "employees"
+      DOCUMENTS_TABLE         = "documents"
+      EMPLOYEE_CONSENTS_TABLE = aws_dynamodb_table.employee_consents.name
+      CONSENTS_TABLE          = aws_dynamodb_table.employee_consents.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getMyDocuments"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+# ─── ONB-06: createMyUploadLink ─────────────────────────────────────────────────
+resource "aws_lambda_function" "create_my_upload_link" {
+  function_name = "createMyUploadLink"
+  role          = aws_iam_role.create_my_upload_link.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = merge({
+      LEGACY_TENANT_ID        = var.legacy_tenant_id
+      EMPLOYEES_TABLE         = "employees"
+      DOCUMENTS_TABLE         = "documents"
+      EMPLOYEE_CONSENTS_TABLE = aws_dynamodb_table.employee_consents.name
+      CONSENTS_TABLE          = aws_dynamodb_table.employee_consents.name
+    }, local.upload_bucket_env)
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/createMyUploadLink"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
 # ─── ONB-18: getInvite ──────────────────────────────────────────────────────
 resource "aws_lambda_function" "get_invite" {
   function_name = "getInvite"

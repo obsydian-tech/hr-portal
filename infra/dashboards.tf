@@ -20,6 +20,8 @@ module "dashboards" {
     "getInvite",
     "resendInvite",
     "getMyStart",
+    "getMyDocuments",
+    "createMyUploadLink",
     "recordConsent",
     "getEmployees",
     "uploadDocumentToS3",

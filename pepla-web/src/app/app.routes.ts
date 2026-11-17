@@ -4,6 +4,7 @@ import { siteStyles } from './ds/site/site-styles';
 import { ModulesService } from './core/modules.service';
 import { installTestHook, testRoutes } from './core/test-hook';
 import { employeeGuard, hrGuard, signedOutGuard } from './core/auth/auth.guard';
+import { documentTitle, knownDocumentGuard } from './features/start/document-types';
 
 /**
  * The signed-in app and the sign-in pages. Since SITE-01 these load lazily under site.routes.ts, after `/`
@@ -21,6 +22,7 @@ const appRoutes: Routes = [
     children: [
       { path: '', loadComponent: () => import('./features/start/start.page').then((m) => m.StartPage), title: 'Welcome · Naleko People' },
       { path: 'privacy-notice', loadComponent: () => import('./features/start/privacy-notice.page').then((m) => m.PrivacyNoticePage), title: 'Privacy notice · Naleko People' },
+      { path: 'documents/:type', canActivate: [knownDocumentGuard], loadComponent: () => import('./features/start/document-upload.page').then((m) => m.DocumentUploadPage), title: documentTitle },
     ],
   },
   {
