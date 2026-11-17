@@ -626,7 +626,7 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
     noThrow(stepFail, 'decide a document, step update failing'); expect(stepFail.raw).not.toContain(MARKER); clean(stepFail, 'decide a document, step update failing');
     const action = row({ actionId: 'act-1', status: 'PENDING_APPROVAL', staffId: 'E2EHR02', toolName: 'create_task', toolArgs: '{}' });
     const approve = runHandler(HANDLER.pending, { ...t, 'talent-flow-pending-actions': [action] }, eventFor({
-      method: 'POST', route: '/agent/v1/actions/{id}/approve', path: '/agent/v1/actions/act-1/approve', caller: { kind: 'agent' }, body: { staffId: 'E2EHR01' },
+      method: 'POST', route: '/agent/v1/actions/{id}/approve', path: '/agent/v1/actions/act-1/approve', caller: HR(), body: { staffId: 'E2EHR01' },
     }), { fail: eventsFail });
     noThrow(approve, 'Talent Flow approve, EventBridge failing');
     expect(approve.status, 'the approval still answers 200').toBe(200);
