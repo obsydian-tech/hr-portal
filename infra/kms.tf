@@ -42,6 +42,7 @@ module "kms_pii" {
     # role needs no Encrypt or data-key right of its own and is not in allowed_role_arns.
     aws_iam_role.get_my_start.arn,
     aws_iam_role.record_consent.arn,
+    aws_iam_role.tenant_pre_token.arn,
   ]
 
   # ONB-24: Cognito encrypts reset codes under a grant the deploy role makes (RootFullAdmin covers it).

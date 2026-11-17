@@ -15,3 +15,6 @@ login_url = "http://localhost:4300/sign-in"
 # ONB-04: invite links point at the local app; the email names the help-picture company.
 company_name = "Sunbird Bakery"
 app_url      = "http://localhost:4300"
+
+# TEN-01: the first company in pepla-dev.
+founding_tenant_id = "ten_hyyt49drh9efwb79h2a0cjee0s"

@@ -89,3 +89,14 @@ variable "app_url" {
   type        = string
   default     = "https://hr-portal-beryl-three.vercel.app"
 }
+
+variable "founding_tenant_id" {
+  description = "TEN-01: the first company's id. Prod by default; env/dev.tfvars overrides."
+  type        = string
+  default     = "ten_xta08fsk9r8dyww1qd9rwhyy0k"
+
+  validation {
+    condition     = can(regex("^ten_[0-9a-z]{26}$", var.founding_tenant_id))
+    error_message = "founding_tenant_id must be ten_ followed by 26 lower-case letters or digits."
+  }
+}
