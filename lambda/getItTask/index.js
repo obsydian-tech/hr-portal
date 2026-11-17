@@ -14,6 +14,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, GetItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -56,6 +57,11 @@ exports.handler = async (event) => {
     return respond(403, { message: 'Forbidden: IT Admin or IT Specialist group required.' });
   }
 
+  // TEN-03: after the group check, the company check. The company is the sign-in's; tenantId in the query or body is not read.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const taskId = event.pathParameters?.taskId;
   if (!taskId) {
     return respond(400, { message: 'taskId path parameter is required.' });
@@ -67,8 +73,8 @@ exports.handler = async (event) => {
       Key:       marshall({ taskId }),
     }));
 
-    if (!res.Item) {
-      return respond(404, { message: `Task ${taskId} not found.` });
+    if (!res.Item || !T.ownsRow(unmarshall(res.Item), tenantId)) {
+      return T.notFound();
     }
 
     const task = unmarshall(res.Item);

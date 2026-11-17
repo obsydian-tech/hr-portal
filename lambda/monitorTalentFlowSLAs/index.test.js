@@ -63,7 +63,7 @@ function makeSagaItem({
   stageEnteredAt,
   slaBreachedAt,
   candidateId   = 'cand-001',
-  tenantId      = 'DEFAULT',
+  tenantId      = 'ten_0123456789abcdefghijklmnop',
 } = {}) {
   const item = {
     PK:             pk,
@@ -72,7 +72,7 @@ function makeSagaItem({
     currentStage:   stage,
     stageEnteredAt: stageEnteredAt ?? new Date(Date.now() - (INTERVIEW_THRESHOLD + 24) * ONE_HOUR).toISOString(),
     candidateId,
-    tenantId,
+    tenant_id: tenantId,
   };
   if (slaBreachedAt) item.slaBreachedAt = slaBreachedAt;
   return marshall(item);
@@ -107,7 +107,7 @@ describe('monitorTalentFlowSLAs', () => {
 
     // Verify UpdateItem has idempotency guard
     const updateArgs = mockDynSend.mock.calls[1][0];
-    expect(updateArgs.ConditionExpression).toBe('attribute_not_exists(slaBreachedAt)');
+    expect(updateArgs.ConditionExpression).toBe('(attribute_not_exists(slaBreachedAt)) AND #tf_tenant = :tf_tenant');
     expect(updateArgs.UpdateExpression).toBe('SET slaBreachedAt = :now, slaBreachedStage = :stage, slaStatus = :status');
     expect(updateArgs.ExpressionAttributeValues[':status']).toEqual({ S: 'BREACHED' });
     expect(updateArgs.TableName).toBe('talent-flow-state');
@@ -121,6 +121,19 @@ describe('monitorTalentFlowSLAs', () => {
     expect(detail.stage).toBe('INTERVIEW');
     expect(detail.thresholdHours).toBe(INTERVIEW_THRESHOLD);
     expect(detail.candidateId).toBe('cand-001');
+    expect(detail.tenant_id).toBe('ten_0123456789abcdefghijklmnop');
+    expect(mockGetConfig).toHaveBeenCalledWith('ten_0123456789abcdefghijklmnop', 'SLA_THRESHOLDS');
+  });
+
+  test('2b. A SAGA without a company is left alone: no write, no event, no threshold read', async () => {
+    mockDynSend.mockResolvedValueOnce({ Items: [makeSagaItem({ tenantId: null })], LastEvaluatedKey: undefined });
+    // a null company is no company
+
+    await handler();
+
+    expect(mockDynSend).toHaveBeenCalledTimes(1);
+    expect(mockGetConfig).not.toHaveBeenCalled();
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 
   test('2. Already-breached SAGA (slaBreachedAt set) → no UpdateItem, no PutEvents', async () => {
@@ -164,9 +177,10 @@ describe('monitorTalentFlowSLAs', () => {
 
   test('5. getConfig failure → Lambda throws (fatal, cron will retry)', async () => {
     mockGetConfig.mockRejectedValue(new Error('DynamoDB config timeout'));
+    mockDynSend.mockResolvedValueOnce({ Items: [makeSagaItem()], LastEvaluatedKey: undefined }); // Scan
 
     await expect(handler()).rejects.toThrow('DynamoDB config timeout');
-    expect(mockDynSend).not.toHaveBeenCalled(); // scan never reached
+    expect(mockDynSend).toHaveBeenCalledTimes(1); // the scan only: no write
     expect(mockEbSend).not.toHaveBeenCalled();
   });
 

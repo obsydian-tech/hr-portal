@@ -24,6 +24,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
@@ -110,6 +111,11 @@ exports.handler = async (event) => {
     return respond(403, { message: 'Forbidden: Hiring Manager or Admin role required.' });
   }
 
+  // TEN-03: after the group check, the company check. The company is the sign-in's; none is read from the body.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   let body;
   try {
     body = JSON.parse(event.body || '{}');
@@ -123,7 +129,6 @@ exports.handler = async (event) => {
     return respond(400, { message: 'candidateId, candidateName, candidateRole, and startDate are required.' });
   }
 
-  const tenantId = 'NALEKO';
   const bundleId = crypto.randomUUID();
   const now      = new Date().toISOString();
 
@@ -145,7 +150,7 @@ exports.handler = async (event) => {
     }
   }
 
-  const bundle = {
+  const bundle = T.stampTenant({
     bundleId,
     tenantId,
     candidateId,
@@ -161,7 +166,7 @@ exports.handler = async (event) => {
     hmUserId,
     createdAt: now,
     updatedAt: now,
-  };
+  }, tenantId);
 
   await dynamo.send(new PutItemCommand({
     TableName: BUNDLES_TABLE,
@@ -176,7 +181,7 @@ exports.handler = async (event) => {
         EventBusName: EB_BUS_NAME,
         Source:       'naleko.talentflow.provisioning',
         DetailType:   'BundleCreated',
-        Detail:       JSON.stringify({ bundleId, candidateId, tenantId, hmUserId }),
+        Detail:       JSON.stringify({ bundleId, candidateId, tenant_id: tenantId, hmUserId }),
       }],
     }));
   } catch (ebErr) {

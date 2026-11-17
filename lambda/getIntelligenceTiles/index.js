@@ -14,6 +14,7 @@
 const { DynamoDBClient, QueryCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig } = require('./config-reader');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const dynamoDB = new DynamoDBClient({});
 const STATE_TABLE = process.env.STATE_TABLE_NAME || 'talent-flow-state';
@@ -86,14 +87,15 @@ const STAGE_LABELS = {
  * Lambda handler
  */
 exports.handler = async (event) => {
-  console.info('[getIntelligenceTiles] Invoked', {
-    path: event.path,
-    queryParams: event.queryStringParameters,
-  });
+  // TEN-03: the company comes from the sign-in only. tenantId in the query string is not read.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
+  console.info('[getIntelligenceTiles] Invoked', { path: event.path });
 
   try {
     const params = event.queryStringParameters || {};
-    const tenantId = params.tenantId || 'DEFAULT';
     const role = params.role; // TA | HM | IT
     const ownerId = params.ownerId;
     const limit = parseInt(params.limit, 10) || 100; // Increased from 20 to 100
@@ -111,7 +113,7 @@ exports.handler = async (event) => {
     }
 
     // Fetch signal snapshots
-    const snapshots = await fetchSnapshots(tenantId, { ownerId, role, limit });
+    const snapshots = await fetchSnapshots(T, tenantId, { ownerId, role, limit });
 
     // Generate tiles from snapshots (with role filtering and config thresholds)
     const rawTiles = generateTiles(snapshots, role, thresholds);
@@ -127,7 +129,7 @@ exports.handler = async (event) => {
     const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
 
     // Fetch user's dismissal overlay (single query, no N+1)
-    const dismissalOverlay = userId ? await fetchDismissalOverlay(userId) : new Map();
+    const dismissalOverlay = userId ? await fetchDismissalOverlay(T, tenantId, userId) : new Map();
     console.info('[DEBUG] Dismissal overlay', { userId, dismissedCount: dismissalOverlay.size });
 
     // Filter tiles based on dismissal overlay
@@ -146,7 +148,6 @@ exports.handler = async (event) => {
     return response(200, {
       tiles: sortedTiles.slice(0, limit),
       total: sortedTiles.length,
-      tenantId,
     });
   } catch (err) {
     console.error('[getIntelligenceTiles] Error', { error: err.message });
@@ -157,7 +158,7 @@ exports.handler = async (event) => {
 /**
  * Fetch signal snapshots from DynamoDB
  */
-async function fetchSnapshots(tenantId, opts = {}) {
+async function fetchSnapshots(T, tenantId, opts = {}) {
   const { ownerId, role, limit = 50 } = opts;
 
   // If ownerId provided, use GSI1 for scoped query
@@ -173,7 +174,7 @@ async function fetchSnapshots(tenantId, opts = {}) {
       ScanIndexForward: false, // Most recent first
     }));
 
-    return (result.Items || []).map(item => unmarshall(item));
+    return (result.Items || []).map(item => unmarshall(item)).filter(row => T.ownsRow(row, tenantId));
   }
 
   // Otherwise, query by tenant snapshot partition
@@ -181,14 +182,14 @@ async function fetchSnapshots(tenantId, opts = {}) {
     TableName: STATE_TABLE,
     KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
     ExpressionAttributeValues: {
-      ':pk': { S: `TENANT#${tenantId}#SNAP` },
+      ':pk': { S: T.tenantKey(tenantId, 'SNAP') },
       ':sk': { S: 'CAND#' },
     },
     Limit: limit,
   }));
 
   // Sort by computedAt (most recent first) since DynamoDB sorts by SK (alphabetical)
-  const snapshots = (result.Items || []).map(item => unmarshall(item));
+  const snapshots = (result.Items || []).map(item => unmarshall(item)).filter(row => T.ownsRow(row, tenantId));
   return snapshots.sort((a, b) => {
     const timeA = new Date(a.computedAt || 0).getTime();
     const timeB = new Date(b.computedAt || 0).getTime();
@@ -201,7 +202,7 @@ async function fetchSnapshots(tenantId, opts = {}) {
  * Returns Map of tileKey → { action, snoozeUntil, snapshotSignature }
  * Single query per request (no N+1)
  */
-async function fetchDismissalOverlay(userId) {
+async function fetchDismissalOverlay(T, tenantId, userId) {
   try {
     const result = await dynamoDB.send(new QueryCommand({
       TableName: DISMISSALS_TABLE,
@@ -215,6 +216,7 @@ async function fetchDismissalOverlay(userId) {
     const overlay = new Map();
     for (const item of result.Items || []) {
       const record = unmarshall(item);
+      if (!T.ownsRow(record, tenantId)) continue;
       // Extract tileKey from SK: "TILEDISMISS#{tileKey}"
       const tileKey = record.SK?.replace(/^TILEDISMISS#/, '');
       if (tileKey) {
@@ -315,7 +317,6 @@ function applyAggregationModel(rawTiles, tenantId, role) {
           filters: {
             ruleId,
             role,
-            tenantId,
           },
         },
       };

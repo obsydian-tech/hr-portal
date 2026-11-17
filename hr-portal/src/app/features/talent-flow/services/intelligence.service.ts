@@ -92,10 +92,10 @@ export class IntelligenceService {
 
   /**
    * Fetch signal snapshots for the current user
-   * GET /v1/intelligence/snapshots?tenantId=X&ownerId=Y&role=Z
+   * GET /v1/intelligence/snapshots?ownerId=Y&role=Z
    */
   getSignalSnapshots(filters?: SignalSnapshotFilters): Observable<SignalSnapshotResponse> {
-    let params = new HttpParams().set('tenantId', environment.talentFlow.tenantId);
+    let params = new HttpParams();
     if (filters?.ownerId) params = params.set('ownerId', filters.ownerId);
     if (filters?.role) params = params.set('role', filters.role);
     if (filters?.limit) params = params.set('limit', String(filters.limit));
@@ -114,11 +114,10 @@ export class IntelligenceService {
 
   /**
    * Fetch intelligence tiles (pre-generated from rules)
-   * GET /v1/intelligence/tiles?tenantId=X&role=Y
+   * GET /v1/intelligence/tiles?role=Y
    */
   getIntelligenceTiles(role?: 'TA' | 'HM' | 'IT'): Observable<IntelligenceTilesResponse> {
     let params = new HttpParams()
-      .set('tenantId', environment.talentFlow.tenantId)
       .set('_t', Date.now().toString()); // Cache-busting timestamp
     if (role) params = params.set('role', role);
 

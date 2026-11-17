@@ -23,6 +23,7 @@ import { createHash }                                          from 'node:crypto
 import { marshall }                                            from '@aws-sdk/util-dynamodb';
 import { resolveToolCall, TOOL_DEFINITIONS }                   from './tool-resolver.mjs';
 import { inGroup } from '../shared/hr-group.mjs';
+import { requireTenant } from '../shared/tenant.mjs';
 import { sanitisePii }                                         from './pii-sanitiser.mjs';
 import { classifyIntent, selectModel }                         from './intent-classifier.mjs';
 import { buildCacheKey, getCached, setCached }                 from './cache.mjs';
@@ -466,6 +467,9 @@ export const handler = async (event) => {
   if (!inGroup(claims, 'hr_staff', 'naleko-talentflow-hr')) {
     return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: "You don't have access to Ask Batsi." }) };
   }
+  // TEN-03: after the group check, the company check. The company is the sign-in's.
+  const { tenantId, refusal } = requireTenant(event);
+  if (refusal) return refusal;
   const staffId = claims['custom:staff_id'];
   if (!staffId) {
     console.warn(JSON.stringify({ event: 'missing_staff_id' }));
@@ -586,7 +590,7 @@ export const handler = async (event) => {
   }
 
   // 7. Agentic loop
-  const context = { staffId };
+  const context = { staffId, tenantId };
   let loopResult;
   try {
     loopResult = await runAgenticLoop(messages, context, selectedModelId);

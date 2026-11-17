@@ -39,6 +39,7 @@ import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { groupsOf } from '../shared/document-check.mjs';
 import { isIdToken } from '../shared/hr-group.mjs';
+import { requireTenant, ownsRow, andFilter, tenantFilter } from '../shared/tenant.mjs';
 
 // BE-19 W-1: the refusal for approve and reject, the old app's own 403 sentence (Iggie chose it, 17 Nov).
 const NOT_ALLOWED = 'You do not have permission to perform this action.';
@@ -71,23 +72,27 @@ function response(statusCode, body) {
   };
 }
 
-async function getAction(actionId) {
+// TEN-03: another company's action answers exactly as one that does not exist.
+const NO_ACTION = () => response(404, { error: 'Action not found' });
+
+async function getAction(actionId, tenantId) {
   const r = await db.send(new GetItemCommand({
     TableName: TABLE,
     Key: marshall({ actionId }),
   }));
   if (!r.Item) return null;
-  return unmarshall(r.Item);
+  const action = unmarshall(r.Item);
+  return ownsRow(action, tenantId) ? action : null;
 }
 
 /**
  * Conditionally update status — only if current status is PENDING_APPROVAL.
  * Throws ConditionalCheckFailedException if the action has already been processed.
  */
-async function setStatus(actionId, status, extra = {}) {
+async function setStatus(actionId, status, tenantId, extra = {}) {
   const now = new Date().toISOString();
-  const names = { '#s': 'status' };
-  const values = { ':pending': 'PENDING_APPROVAL', ':s': status, ':now': now };
+  const names = { '#s': 'status', '#tenant_id': 'tenant_id' };
+  const values = { ':pending': 'PENDING_APPROVAL', ':s': status, ':now': now, ':tenant_id': tenantId };
   let set = 'SET #s = :s, updatedAt = :now';
   Object.entries(extra).forEach(([k, v], i) => {
     names[`#x${i}`] = k;
@@ -97,7 +102,7 @@ async function setStatus(actionId, status, extra = {}) {
   await db.send(new UpdateItemCommand({
     TableName: TABLE,
     Key: marshall({ actionId }),
-    ConditionExpression: '#s = :pending',
+    ConditionExpression: '#s = :pending AND #tenant_id = :tenant_id',
     UpdateExpression: set,
     ExpressionAttributeNames: names,
     ExpressionAttributeValues: marshall(values),
@@ -106,26 +111,30 @@ async function setStatus(actionId, status, extra = {}) {
 
 // ─── Route handlers ───────────────────────────────────────────────────────────
 
-async function handleListPending() {
+async function handleListPending(tenantId) {
+  const f = andFilter(
+    { FilterExpression: '#s = :pending', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: { ':pending': 'PENDING_APPROVAL' } },
+    tenantFilter(tenantId),
+  );
   const r = await db.send(new ScanCommand({
     TableName: TABLE,
-    FilterExpression: '#s = :pending',
-    ExpressionAttributeNames: { '#s': 'status' },
-    ExpressionAttributeValues: marshall({ ':pending': 'PENDING_APPROVAL' }),
+    FilterExpression: f.FilterExpression,
+    ExpressionAttributeNames: f.ExpressionAttributeNames,
+    ExpressionAttributeValues: marshall(f.ExpressionAttributeValues),
   }));
-  const actions = (r.Items ?? []).map(unmarshall);
+  const actions = (r.Items ?? []).map(unmarshall).filter((a) => ownsRow(a, tenantId));
   return response(200, { actions, count: actions.length });
 }
 
-async function handleGet(actionId) {
-  const action = await getAction(actionId);
-  if (!action) return response(404, { error: 'Action not found' });
+async function handleGet(actionId, tenantId) {
+  const action = await getAction(actionId, tenantId);
+  if (!action) return NO_ACTION();
   return response(200, action);
 }
 
-async function handleApprove(actionId, approverStaffId) {
-  const action = await getAction(actionId);
-  if (!action) return response(404, { error: 'Action not found' });
+async function handleApprove(actionId, approverStaffId, tenantId) {
+  const action = await getAction(actionId, tenantId);
+  if (!action) return NO_ACTION();
 
   if (action.status !== 'PENDING_APPROVAL') {
     return response(409, { error: `Action is already ${action.status}` });
@@ -138,7 +147,7 @@ async function handleApprove(actionId, approverStaffId) {
 
   // Mark APPROVED (conditional — guard against race)
   try {
-    await setStatus(actionId, 'APPROVED', { approvedBy: approverStaffId ?? 'unknown' });
+    await setStatus(actionId, 'APPROVED', tenantId, { approvedBy: approverStaffId ?? 'unknown' });
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') {
       return response(409, { error: 'Action has already been processed' });
@@ -156,6 +165,7 @@ async function handleApprove(actionId, approverStaffId) {
         DetailType: 'ActionApproved',
         Detail: JSON.stringify({
           actionId,
+          tenant_id: tenantId,
           toolName: action.toolName,
           toolArgs: action.toolArgs,
           staffId: action.staffId,
@@ -180,16 +190,16 @@ async function handleApprove(actionId, approverStaffId) {
   return response(200, { status: 'APPROVED', actionId, executedAt });
 }
 
-async function handleReject(actionId, rejectorStaffId, reason) {
-  const action = await getAction(actionId);
-  if (!action) return response(404, { error: 'Action not found' });
+async function handleReject(actionId, rejectorStaffId, reason, tenantId) {
+  const action = await getAction(actionId, tenantId);
+  if (!action) return NO_ACTION();
 
   if (action.status !== 'PENDING_APPROVAL') {
     return response(409, { error: `Action is already ${action.status}` });
   }
 
   try {
-    await setStatus(actionId, 'REJECTED', {
+    await setStatus(actionId, 'REJECTED', tenantId, {
       rejectedBy: rejectorStaffId ?? 'unknown',
       ...(reason ? { rejectionReason: reason } : {}),
     });
@@ -221,7 +231,9 @@ export const handler = async (event) => {
     if (!isIdToken(claims) || (!groups.includes('hr_staff') && !groups.includes('naleko-talentflow-hr'))) {
       return response(403, { error: 'Only HR can see pending actions' });
     }
-    return handleListPending();
+    const t = requireTenant(event);
+    if (t.refusal) return t.refusal;
+    return handleListPending(t.tenantId);
   }
 
   // Extract actionId and optional route suffix (/approve | /reject)
@@ -251,11 +263,16 @@ export const handler = async (event) => {
     staffId = id;
   }
 
+  // TEN-03: after the role check, the company check. The company is the sign-in's (or the agent authorizer's), never the request's.
+  const t = requireTenant(event);
+  if (t.refusal) return t.refusal;
+  const tenantId = t.tenantId;
+
   console.log(JSON.stringify({ event: 'hitl_request', method, actionId, route, staffId }));
 
-  if (method === 'GET'  && !route)               return handleGet(actionId);
-  if (method === 'POST' && route === 'approve') return handleApprove(actionId, staffId);
-  if (method === 'POST' && route === 'reject')  return handleReject(actionId, staffId, body.reason ?? null);
+  if (method === 'GET'  && !route)               return handleGet(actionId, tenantId);
+  if (method === 'POST' && route === 'approve') return handleApprove(actionId, staffId, tenantId);
+  if (method === 'POST' && route === 'reject')  return handleReject(actionId, staffId, body.reason ?? null, tenantId);
 
   return response(405, { error: 'Method not allowed' });
 };

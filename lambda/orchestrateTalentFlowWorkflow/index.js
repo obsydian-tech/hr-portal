@@ -30,6 +30,7 @@ const { DynamoDBClient, UpdateItemCommand } = require('@aws-sdk/client-dynamodb'
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig, getConfigItem } = require('../shared/config-reader');
+const { tenantHelper, scopeWrite, eventTenant } = require('../shared/tf-tenant.js');
 
 const dynamoClient = new DynamoDBClient({});
 const ebClient = new EventBridgeClient({});
@@ -38,12 +39,17 @@ const STATE_TABLE = process.env.STATE_TABLE_NAME;
 const EB_BUS = process.env.EVENTBRIDGE_BUS_NAME;
 
 exports.handler = async (event) => {
-  const { candidateId, tenantId, positionLevel } = event.detail || {};
+  const { candidateId, positionLevel } = event.detail || {};
 
-  if (!candidateId || !tenantId) {
-    const msg = `orchestrate: missing required fields in event.detail — candidateId=${candidateId} tenantId=${tenantId}`;
-    console.error(msg, JSON.stringify(event.detail));
-    throw new Error('Missing required fields: candidateId, tenantId');
+  // TEN-03: the company is the event's tenant_id. No company, no AWS call.
+  const tenantId = await eventTenant(event.detail);
+  if (!tenantId) {
+    console.warn('orchestrate: skipped, the event carries no company');
+    return;
+  }
+  if (!candidateId) {
+    console.error('orchestrate: missing candidateId in event.detail');
+    throw new Error('Missing required fields: candidateId');
   }
 
   // ── Step 1: Read active SCORING_WEIGHTS item to get current config version ──
@@ -57,7 +63,7 @@ exports.handler = async (event) => {
   // ── Step 3: Conditional UpdateItem — idempotent, only runs once per candidate
   const now = new Date().toISOString();
   try {
-    await dynamoClient.send(new UpdateItemCommand({
+    await dynamoClient.send(new UpdateItemCommand(scopeWrite({
       TableName: STATE_TABLE,
       Key: marshall({
         PK: `CANDIDATE#${candidateId}`,
@@ -70,7 +76,7 @@ exports.handler = async (event) => {
         ':stages': enabledStages,
         ':ts': now
       })
-    }));
+    }, tenantId)));
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') {
       // configVersion already set — EventBridge retry, safe to skip
@@ -93,7 +99,7 @@ exports.handler = async (event) => {
         DetailType: 'WorkflowStarted',
         Detail: JSON.stringify({
           candidateId,
-          tenantId,
+          tenant_id: tenantId,
           positionLevel,
           configVersion,
           stages: enabledStages

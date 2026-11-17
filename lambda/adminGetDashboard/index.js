@@ -16,13 +16,13 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, QueryCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
-const { unmarshall } = require('@aws-sdk/util-dynamodb');
+const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
 const dynamo      = new DynamoDBClient({});
 const STATE_TABLE = process.env.STATE_TABLE_NAME || 'talent-flow-state';
 const USERS_TABLE = process.env.USERS_TABLE_NAME || 'talent-flow-users';
-const TENANT_ID   = 'NALEKO';
 
 function respond(statusCode, body) {
   return {
@@ -61,7 +61,7 @@ function hasAdminRole(claims) {
 }
 
 /** Fetch all SAGA records for the tenant via GSI1 (paginated). */
-async function getAllSagaRecords() {
+async function getAllSagaRecords(T, tenantId) {
   const records = [];
   let lastKey;
 
@@ -71,14 +71,14 @@ async function getAllSagaRecords() {
       IndexName: 'GSI1',
       KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :prefix)',
       ExpressionAttributeValues: {
-        ':pk':     { S: `TENANT#${TENANT_ID}` },
+        ':pk':     { S: T.tenantKey(tenantId) },
         ':prefix': { S: 'SAGA#' },
       },
     };
     if (lastKey) params.ExclusiveStartKey = lastKey;
 
     const result = await dynamo.send(new QueryCommand(params));
-    records.push(...(result.Items || []).map(unmarshall));
+    records.push(...(result.Items || []).map(unmarshall).filter((r) => T.ownsRow(r, tenantId)));
     lastKey = result.LastEvaluatedKey;
   } while (lastKey);
 
@@ -86,16 +86,20 @@ async function getAllSagaRecords() {
 }
 
 /** Count ACTIVE users in the talent-flow-users table. */
-async function countActiveUsers() {
+async function countActiveUsers(T, tenantId) {
   let count = 0;
   let lastKey;
 
   do {
+    const f = T.andFilter(
+      { FilterExpression: '#s = :active', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: { ':active': 'ACTIVE' } },
+      T.tenantFilter(tenantId),
+    );
     const params = {
       TableName: USERS_TABLE,
-      FilterExpression: '#s = :active',
-      ExpressionAttributeNames: { '#s': 'status' },
-      ExpressionAttributeValues: { ':active': { S: 'ACTIVE' } },
+      FilterExpression: f.FilterExpression,
+      ExpressionAttributeNames: f.ExpressionAttributeNames,
+      ExpressionAttributeValues: marshall(f.ExpressionAttributeValues),
       Select: 'COUNT',
     };
     if (lastKey) params.ExclusiveStartKey = lastKey;
@@ -116,10 +120,15 @@ exports.handler = async (event) => {
     return respond(403, { error: 'Admin role required' });
   }
 
+  // TEN-03: after the role check, the company check. The company is the sign-in's.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   try {
     const [sagaRecords, activeUsers] = await Promise.all([
-      getAllSagaRecords(),
-      countActiveUsers(),
+      getAllSagaRecords(T, tenantId),
+      countActiveUsers(T, tenantId),
     ]);
 
     const activePipeline      = sagaRecords.filter((r) => r.status === 'ACTIVE').length;

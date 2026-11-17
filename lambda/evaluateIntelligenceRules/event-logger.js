@@ -50,13 +50,14 @@ function generateEventId() {
  * @returns {Promise<{eventId: string, timestamp: string}>}
  */
 async function logIntelligenceEvent(dynamoDB, eventData) {
+  if (!/^ten_[0-9a-z]{26}$/.test(eventData.tenantId || '')) throw new Error('Not a company id');
   const eventId = generateEventId();
   const timestamp = new Date().toISOString();
   const expiresAt = Math.floor(Date.now() / 1000) + (TTL_DAYS * 24 * 60 * 60);
 
   const item = {
     // Primary Key
-    PK: `TENANT#${eventData.tenantId || 'DEFAULT'}`,
+    PK: `TENANT#${eventData.tenantId}`,
     SK: `INTEL#${timestamp}#${eventId}`,
 
     // GSI Keys
@@ -70,7 +71,7 @@ async function logIntelligenceEvent(dynamoDB, eventData) {
     // Event Metadata
     eventId,
     eventType: eventData.eventType,
-    tenantId: eventData.tenantId || 'DEFAULT',
+    tenant_id: eventData.tenantId,
 
     // Rule Context
     ruleId: eventData.ruleId,

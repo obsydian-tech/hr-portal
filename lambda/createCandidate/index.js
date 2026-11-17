@@ -25,6 +25,7 @@ const { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand } = re
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
 const { ulid } = require('ulid');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const eb = new EventBridgeClient({});
@@ -71,6 +72,11 @@ function internalError(message) {
 exports.handler = async (event) => {
   console.info('createCandidate invoked', { path: event.path, method: event.httpMethod });
 
+  // TEN-03: the company comes from the sign-in only. tenantId in the body is not read.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   // Extract userId from JWT claims for action tracking (INTEL-001)
   const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
 
@@ -82,10 +88,11 @@ exports.handler = async (event) => {
   }
 
   // ── Step 1: idempotencyKey is required ────────────────────────────────────
-  const { idempotencyKey } = body;
-  if (!idempotencyKey) {
+  if (!body.idempotencyKey || typeof body.idempotencyKey !== 'string') {
     return badRequest('idempotencyKey is required in request body');
   }
+  // A key is one company's: two companies can never replay each other's answer.
+  const idempotencyKey = T.tenantKey(tenantId, body.idempotencyKey);
 
   // ── Step 2: Check idempotency table ──────────────────────────────────────
   let existingItem;
@@ -135,13 +142,13 @@ exports.handler = async (event) => {
   }
 
   // ── Step 4: Validate required fields ─────────────────────────────────────
-  const requiredFields = ['firstName', 'lastName', 'email', 'positionTitle', 'positionLevel', 'tenantId'];
+  const requiredFields = ['firstName', 'lastName', 'email', 'positionTitle', 'positionLevel'];
   const missingFields = requiredFields.filter(f => !body[f]);
   if (missingFields.length > 0) {
     return badRequest('Missing required fields', missingFields);
   }
 
-  const { firstName, lastName, email, positionTitle, positionLevel, tenantId } = body;
+  const { firstName, lastName, email, positionTitle, positionLevel } = body;
 
   // Optional fields — stored when provided, omitted when absent (removeUndefinedValues handles this)
   const phone           = body.phone           || undefined;
@@ -164,13 +171,12 @@ exports.handler = async (event) => {
   // DynamoDB NULL-type attribute that satisfies attribute_exists, causing orchestrate
   // to skip with "already locked" on every invocation.
   const now = new Date().toISOString();
-  const sagaRecord = {
+  const sagaRecord = T.stampTenant({
     PK: `CANDIDATE#${candidateId}`,
     SK: 'SAGA',
-    GSI1PK: `TENANT#${tenantId}`,
+    GSI1PK: T.tenantKey(tenantId),
     GSI1SK: `SAGA#${now}`,
     candidateId,
-    tenantId,
     firstName,
     lastName,
     email,
@@ -190,7 +196,7 @@ exports.handler = async (event) => {
     configVersion: undefined,  // omitted — orchestrateTalentFlowWorkflow sets it via attribute_not_exists condition
     createdAt: now,
     updatedBy: userId,  // INTEL-001: Track who created the candidate for action tracking
-  };
+  }, tenantId);
 
   try {
     await dynamo.send(new PutItemCommand({
@@ -211,7 +217,7 @@ exports.handler = async (event) => {
         EventBusName: EVENT_BUS_NAME,
         Source: 'talent-flow.candidates',
         DetailType: 'CandidateCreated',
-        Detail: JSON.stringify({ candidateId, tenantId, positionLevel, positionTitle, email }),
+        Detail: JSON.stringify({ candidateId, tenant_id: tenantId, positionLevel, positionTitle, email }),
       }],
     }));
   } catch (err) {

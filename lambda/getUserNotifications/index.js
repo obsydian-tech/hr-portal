@@ -15,6 +15,7 @@
 
 const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const NOTIFICATIONS_TABLE = process.env.NOTIFICATIONS_TABLE_NAME;
 const DEFAULT_LIMIT = 50;
@@ -31,6 +32,11 @@ function response(statusCode, body) {
 }
 
 exports.handler = async (event) => {
+  // TEN-03: the company comes from the sign-in only.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
   if (!userId) return response(401, { error: 'Unauthorized' });
 
@@ -59,7 +65,7 @@ exports.handler = async (event) => {
       }));
     }
 
-    const notifications = (result.Items || []).map((i) => unmarshall(i));
+    const notifications = (result.Items || []).map((i) => unmarshall(i)).filter((n) => T.ownsRow(n, tenantId));
     return response(200, { notifications, count: notifications.length });
   } catch (err) {
     console.error('DynamoDB query failed', { userId, unreadOnly, error: err.message });

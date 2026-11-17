@@ -59,7 +59,7 @@ const doc = (documentId: string, fileName: string | null) => row({
 });
 
 const action = (status = 'PENDING_APPROVAL') => row({
-  actionId: ACTION, toolName: 'schedule_interview', toolArgs: '{"candidateId":"c-42"}', staffId: REQUESTER, status, createdAt: '2026-11-16T10:00:00.000Z',
+  tenant_id: 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa', actionId: ACTION, toolName: 'schedule_interview', toolArgs: '{"candidateId":"c-42"}', staffId: REQUESTER, status, createdAt: '2026-11-16T10:00:00.000Z',
 });
 
 function world(extra: Partial<Tables> = {}): Tables {

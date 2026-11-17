@@ -62,3 +62,25 @@ variable "frontend_url" {
   type        = string
   default     = "https://hr-portal-beryl-three.vercel.app"
 }
+
+variable "legacy_tenant_id" {
+  description = "TEN-03: the founding company, given to a TalentFlow sign-in that has no Member row yet. Empty turns the rule off."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.legacy_tenant_id == "" || can(regex("^ten_[0-9a-z]{26}$", var.legacy_tenant_id))
+    error_message = "legacy_tenant_id must be empty or ten_ followed by 26 lower-case letters or digits."
+  }
+}
+
+variable "agent_tenant_id" {
+  description = "TEN-03: the one company the TalentFlow agent key (x-api-key) acts for. Empty: the authorizer authorizes nothing."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.agent_tenant_id == "" || can(regex("^ten_[0-9a-z]{26}$", var.agent_tenant_id))
+    error_message = "agent_tenant_id must be empty or ten_ followed by 26 lower-case letters or digits."
+  }
+}

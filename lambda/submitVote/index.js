@@ -47,6 +47,7 @@ const {
   PutEventsCommand,
 } = require('@aws-sdk/client-eventbridge');
 const { getConfig } = require('./config-reader');
+const { tenantHelper, scopeWrite, eventTenant } = require('../shared/tf-tenant.js');
 
 const dynamo  = new DynamoDBClient({});
 const eb      = new EventBridgeClient({});
@@ -78,6 +79,22 @@ function calculateWeightedScore(scores, weights) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  // TEN-03: a person calling the API gets the company from the sign-in. The VoteSubmitted event has none: it names
+  // its company in tenant_id. The company is never read from the body, query, path or headers.
+  const T = await tenantHelper();
+  let tenantId;
+  if (event.requestContext) {
+    const t = T.requireTenant(event);
+    if (t.refusal) return t.refusal;
+    tenantId = t.tenantId;
+  } else {
+    tenantId = await eventTenant(event.detail || event);
+    if (!tenantId) {
+      console.warn('submitVote: event skipped, it names no company');
+      return { statusCode: 200, body: JSON.stringify({ skipped: true }) };
+    }
+  }
+
   // Extract userId from JWT claims for action tracking (INTEL-001)
   // Only available when called via API Gateway (not EventBridge)
   const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
@@ -86,11 +103,10 @@ exports.handler = async (event) => {
     ? (event.detail || (typeof event.body === 'string' ? JSON.parse(event.body) : event.body))
     : event;
 
-  const { candidateId, tenantId, voterId, scores, rating, interviewId, submittedByTA } = detail || {};
+  const { candidateId, voterId, scores, rating, interviewId, submittedByTA } = detail || {};
 
   // ── Step 1: Validate required fields ─────────────────────────────────────
   if (!candidateId) return badRequest('Missing required field: candidateId');
-  if (!tenantId)    return badRequest('Missing required field: tenantId');
   if (!voterId)     return badRequest('Missing required field: voterId');
   if (!rating)      return badRequest('Missing required field: rating');
   if (!VALID_RATINGS.includes(rating)) {
@@ -109,10 +125,9 @@ exports.handler = async (event) => {
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
     }));
-    if (!result.Item) {
-      return badRequest(`SAGA record not found for candidate ${candidateId}`);
-    }
+    if (!result.Item) return T.notFound();
     saga = unmarshall(result.Item);
+    if (!T.ownsRow(saga, tenantId)) return T.notFound();
   } catch (err) {
     console.error('Failed to read SAGA record', { candidateId, error: err.message });
     return serverError('Failed to read candidate record');
@@ -149,14 +164,15 @@ exports.handler = async (event) => {
         ? marshall({ ':vr': 'STRONG_NO_VETO', ':sf': 'EVALUATION_FAILED', ':uid': userId })
         : marshall({ ':vr': 'STRONG_NO_VETO', ':sf': 'EVALUATION_FAILED' });
 
-      await dynamo.send(new UpdateItemCommand({
+      await dynamo.send(new UpdateItemCommand(scopeWrite({
         TableName: STATE_TABLE,
         Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
         UpdateExpression: updateExpr,
         ExpressionAttributeNames: { '#s': 'status' },
         ExpressionAttributeValues: attrValues,
-      }));
+      }, tenantId)));
     } catch (err) {
+      if (err.name === 'ConditionalCheckFailedException') return T.notFound();
       console.error('Failed to update SAGA for STRONG_NO_VETO', { candidateId, error: err.message });
       return serverError('Failed to record veto decision');
     }
@@ -203,7 +219,7 @@ exports.handler = async (event) => {
   try {
     await dynamo.send(new PutItemCommand({
       TableName: STATE_TABLE,
-      Item: marshall({
+      Item: marshall(T.stampTenant({
         PK:               `CANDIDATE#${candidateId}`,
         SK:               voteSK,
         voterId,
@@ -217,7 +233,7 @@ exports.handler = async (event) => {
         createdAt:        timestamp,
         submittedByTA:    submittedByTA || null,
         updatedBy:        userId || undefined,  // INTEL-001: Track who submitted the vote for action tracking
-      }, { removeUndefinedValues: true }),
+      }, tenantId), { removeUndefinedValues: true }),
       ConditionExpression: 'attribute_not_exists(SK)',
     }));
   } catch (err) {
@@ -238,19 +254,20 @@ exports.handler = async (event) => {
 
   if (interviewId) {
     try {
-      const updateResult = await dynamo.send(new UpdateItemCommand({
+      const updateResult = await dynamo.send(new UpdateItemCommand(scopeWrite({
         TableName: STATE_TABLE,
         Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
         UpdateExpression: 'ADD votesSubmitted :inc',
         ExpressionAttributeValues: marshall({ ':inc': 1 }),
         ReturnValues: 'ALL_NEW',
-      }));
+      }, tenantId)));
       if (updateResult.Attributes) {
         const updated = unmarshall(updateResult.Attributes);
         newVotesSubmitted = updated.votesSubmitted;
         votesRequired = updated.votesRequired ?? null;
       }
     } catch (err) {
+      if (err.name === 'ConditionalCheckFailedException') return T.notFound();
       console.error('Failed to increment votesSubmitted on INTERVIEW#', { candidateId, interviewId, error: err.message });
       return serverError('Failed to update vote counter');
     }
@@ -258,17 +275,18 @@ exports.handler = async (event) => {
     // Fallback: no interviewId provided — increment on SAGA (deprecated path)
     console.warn('submitVote called without interviewId — falling back to SAGA counter', { candidateId });
     try {
-      const updateResult = await dynamo.send(new UpdateItemCommand({
+      const updateResult = await dynamo.send(new UpdateItemCommand(scopeWrite({
         TableName: STATE_TABLE,
         Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
         UpdateExpression: 'ADD votesSubmitted :inc',
         ExpressionAttributeValues: marshall({ ':inc': 1 }),
         ReturnValues: 'UPDATED_NEW',
-      }));
+      }, tenantId)));
       newVotesSubmitted = updateResult.Attributes
         ? unmarshall(updateResult.Attributes).votesSubmitted
         : null;
     } catch (err) {
+      if (err.name === 'ConditionalCheckFailedException') return T.notFound();
       console.error('Failed to increment votesSubmitted on SAGA', { candidateId, error: err.message });
       return serverError('Failed to update vote counter');
     }
@@ -323,7 +341,7 @@ async function publishVotingCompleted({ candidateId, tenantId, result, averageSc
         DetailType:   'VotingCompleted',
         Detail:       JSON.stringify({
           candidateId,
-          tenantId,
+          tenant_id:       tenantId,
           result,
           averageScore:    averageScore   ?? null,
           votesSubmitted:  votesSubmitted ?? null,

@@ -49,6 +49,9 @@ module "kms_pii" {
     # TEN-02: read Member rows in the tenants table.
     aws_iam_role.cognito_post_auth.arn,
     aws_iam_role.get_hr_partners.arn,
+    # TEN-03: the TalentFlow pre-token trigger reads Member rows in the tenants table. Its role lives in the
+    # talent-flow-infra stack, so it is named by ARN: that stack applies first (the role must exist), then this one.
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow-role-talentFlowPreTokenTrigger",
   ]
 
   # ONB-24: Cognito encrypts reset codes under a grant the deploy role makes (RootFullAdmin covers it).

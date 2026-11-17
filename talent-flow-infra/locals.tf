@@ -25,6 +25,8 @@ locals {
   tf_placeholder_zip = "${path.root}/../placeholder.zip"
 
   # ── DynamoDB table names ──────────────────────────────────────────────────
+  # TEN-03: the tenants table is made by infra/ (naleko-people-<environment>-tenants); this stack only reads it.
+  tf_tenants_table         = "naleko-people-${var.environment}-tenants"
   tf_table_state           = "talent-flow-state"
   tf_table_config          = "talent-flow-config"
   tf_table_agent_audit     = "talent-flow-agent-audit"

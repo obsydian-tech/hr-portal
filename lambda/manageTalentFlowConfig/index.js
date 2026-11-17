@@ -11,12 +11,12 @@
  *        → list all versions for a configType, or active-only when ?active=true
  *
  *   POST /config   (admin only)
- *        body: { tenantId, configType, data }
+ *        body: { configType, data }
  *        → create version 1 of a new configType
  *        → 409 if an active version already exists (use PUT to update)
  *
  *   PUT  /config   (admin only)
- *        body: { tenantId, configType, data }
+ *        body: { configType, data }
  *        → write new version N+1 (isActive=true, GSI1 keys set)
  *        → deactivate version N (isActive=false, GSI1 keys removed, expiresAt TTL set)
  *        → if no active version exists yet, creates v1 (upsert) and returns 200
@@ -34,6 +34,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, QueryCommand, PutItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -114,9 +115,16 @@ async function getAllVersions(tenantId, configType) {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
+// TEN-03: the company is the sign-in's. tenantId in the query or body is not read.
+async function companyOf(event) {
+  const T = await tenantHelper();
+  return { T, ...T.requireTenant(event) };
+}
+
 async function handleGet(event) {
+  const { tenantId, refusal } = await companyOf(event);
+  if (refusal) return refusal;
   const qs = event.queryStringParameters || {};
-  const tenantId = qs.tenantId || 'DEFAULT';
   const configType = qs.configType;
   const activeOnly = qs.active === 'true';
 
@@ -130,7 +138,6 @@ async function handleGet(event) {
     // "not yet configured" and shows an empty state, not an error.
     if (!item) return respond(200, {
       configType,
-      tenantId,
       version: null,
       isActive: false,
       data: {},
@@ -156,7 +163,9 @@ async function handlePost(event) {
     return respond(400, { error: 'Invalid JSON body' });
   }
 
-  const { tenantId = 'DEFAULT', configType, data } = body;
+  const { configType, data } = body;
+  const { T, tenantId, refusal } = await companyOf(event);
+  if (refusal) return refusal;
 
   if (!configType || data === undefined) {
     return respond(400, { error: 'configType and data are required' });
@@ -180,7 +189,7 @@ async function handlePost(event) {
       SK: `CONFIG#${configType}#v${version}`,
       GSI1PK: `TENANT#${tenantId}#ACTIVE`,
       GSI1SK: `CONFIG#${configType}`,
-      tenantId,
+      tenant_id: tenantId,
       configType,
       version,
       isActive: true,
@@ -191,8 +200,8 @@ async function handlePost(event) {
     ConditionExpression: 'attribute_not_exists(PK)' // safety — prevent overwrite
   }));
 
-  console.info(`CONFIG_CREATED tenantId=${tenantId} configType=${configType} version=${version}`);
-  return respond(201, { tenantId, configType, version });
+  console.info(`CONFIG_CREATED configType=${configType} version=${version}`);
+  return respond(201, { configType, version });
 }
 
 async function handlePut(event) {
@@ -207,7 +216,9 @@ async function handlePut(event) {
     return respond(400, { error: 'Invalid JSON body' });
   }
 
-  const { tenantId = 'DEFAULT', configType, data } = body;
+  const { configType, data } = body;
+  const { T, tenantId, refusal } = await companyOf(event);
+  if (refusal) return refusal;
 
   if (!configType || data === undefined) {
     return respond(400, { error: 'configType and data are required' });
@@ -224,7 +235,7 @@ async function handlePut(event) {
         SK: `CONFIG#${configType}#v1`,
         GSI1PK: `TENANT#${tenantId}#ACTIVE`,
         GSI1SK: `CONFIG#${configType}`,
-        tenantId,
+        tenant_id: tenantId,
         configType,
         version: 1,
         isActive: true,
@@ -233,8 +244,8 @@ async function handlePut(event) {
       }),
       ConditionExpression: 'attribute_not_exists(PK)',
     }));
-    console.info(`CONFIG_CREATED_VIA_PUT tenantId=${tenantId} configType=${configType} version=1`);
-    return respond(200, { tenantId, configType, version: 1, data, updatedAt: now });
+    console.info(`CONFIG_CREATED_VIA_PUT configType=${configType} version=1`);
+    return respond(200, { configType, version: 1, data, updatedAt: now });
   }
 
   const oldVersion = activeItem.version;
@@ -250,7 +261,7 @@ async function handlePut(event) {
       SK: `CONFIG#${configType}#v${newVersion}`,
       GSI1PK: `TENANT#${tenantId}#ACTIVE`,
       GSI1SK: `CONFIG#${configType}`,
-      tenantId,
+      tenant_id: tenantId,
       configType,
       version: newVersion,
       isActive: true,
@@ -275,8 +286,8 @@ async function handlePut(event) {
     })
   }));
 
-  console.info(`CONFIG_VERSION_PUBLISHED tenantId=${tenantId} configType=${configType} oldVersion=${oldVersion} newVersion=${newVersion}`);
-  return respond(200, { tenantId, configType, version: newVersion, previousVersion: oldVersion });
+  console.info(`CONFIG_VERSION_PUBLISHED configType=${configType} oldVersion=${oldVersion} newVersion=${newVersion}`);
+  return respond(200, { configType, version: newVersion, previousVersion: oldVersion });
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────

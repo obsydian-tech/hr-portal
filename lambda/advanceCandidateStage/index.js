@@ -27,6 +27,7 @@ const { DynamoDBClient, GetItemCommand, UpdateItemCommand, QueryCommand, PutItem
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
 const { getConfig } = require('./config-reader');
+const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const eb     = new EventBridgeClient({});
@@ -143,11 +144,11 @@ async function checkInterviewLoopComplete(candidateId, tenantId, positionLevel) 
  *   - Full audit trail of stage transitions
  *   - Stage velocity analysis in EPIC 5
  */
-async function writeStageHistory(candidateId, fromStage, toStage, tenantId, userId, timestamp) {
+async function writeStageHistory(T, candidateId, fromStage, toStage, tenantId, userId, timestamp) {
   try {
     await dynamo.send(new PutItemCommand({
       TableName: STATE_TABLE,
-      Item: marshall({
+      Item: marshall(T.stampTenant({
         PK: `CANDIDATE#${candidateId}`,
         SK: `STAGE#${timestamp}`,
         candidateId,
@@ -158,7 +159,7 @@ async function writeStageHistory(candidateId, fromStage, toStage, tenantId, user
         timestamp,
         recordType: 'STAGE_HISTORY',
         createdAt: timestamp,
-      }),
+      }, tenantId)),
     }));
     console.info('Stage history recorded', { candidateId, fromStage, toStage, actor: userId || 'SYSTEM' });
   } catch (err) {
@@ -169,6 +170,11 @@ async function writeStageHistory(candidateId, fromStage, toStage, tenantId, user
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  // TEN-03: the company comes from the sign-in only. tenantId in the body is not read.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   // Extract userId from JWT claims for action tracking (INTEL-001)
   const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
 
@@ -184,10 +190,9 @@ exports.handler = async (event) => {
     return badRequest('Invalid JSON body');
   }
 
-  const { newStage, tenantId } = body;
+  const { newStage } = body;
 
   if (!newStage)  return badRequest('Missing required field: newStage');
-  if (!tenantId)  return badRequest('Missing required field: tenantId');
   if (!STAGE_ORDER.includes(newStage)) {
     return badRequest(`Invalid stage: ${newStage}. Must be one of: ${STAGE_ORDER.join(', ')}`);
   }
@@ -199,8 +204,9 @@ exports.handler = async (event) => {
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
     }));
-    if (!result.Item) return notFound(`Candidate ${candidateId} not found`);
+    if (!result.Item) return T.notFound();
     saga = unmarshall(result.Item);
+    if (!T.ownsRow(saga, tenantId)) return T.notFound();
   } catch (err) {
     console.error('Failed to read SAGA', { candidateId, error: err.message });
     return serverError('Failed to read candidate record');
@@ -239,19 +245,20 @@ exports.handler = async (event) => {
       ? { ':stage': newStage, ':ts': now, ':slaReset': 'ON_TRACK', ':uid': userId }
       : { ':stage': newStage, ':ts': now, ':slaReset': 'ON_TRACK' };
 
-    await dynamo.send(new UpdateItemCommand({
+    await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
       UpdateExpression: updateExpr,
       ExpressionAttributeValues: marshall(attrValues),
-    }));
+    }, tenantId)));
   } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') return T.notFound();
     console.error('Failed to update SAGA stage', { candidateId, newStage, error: err.message });
     return serverError('Failed to advance candidate stage');
   }
 
   // ── Step 5b: Write stage history record (EPIC 3 TASK 3.1) ─────────────────
-  await writeStageHistory(candidateId, currentStage, newStage, tenantId, userId, now);
+  await writeStageHistory(T, candidateId, currentStage, newStage, tenantId, userId, now);
 
   // ── Step 6: Publish StageAdvanced event ────────────────────────────────────
   try {
@@ -262,7 +269,7 @@ exports.handler = async (event) => {
         DetailType:   'StageAdvanced',
         Detail:       JSON.stringify({
           candidateId,
-          tenantId,
+          tenant_id: tenantId,
           previousStage: currentStage,
           newStage,
           timestamp:     now,
@@ -285,7 +292,7 @@ exports.handler = async (event) => {
           DetailType:   'EvaluationCompleted',
           Detail:       JSON.stringify({
             candidateId,
-            tenantId,
+            tenant_id:     tenantId,
             outcome:       'PASSED',
             configVersion: saga.configVersion,
             timestamp:     now,

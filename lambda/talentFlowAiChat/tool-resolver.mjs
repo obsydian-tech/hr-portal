@@ -31,6 +31,7 @@
 import { DynamoDBClient, GetItemCommand, QueryCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { randomUUID } from 'crypto';
+import { stampTenant, ownsRow, tenantKey } from '../shared/tenant.mjs';
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
@@ -64,7 +65,7 @@ async function pendingApproval(toolName, toolArgs, context) {
 
   await ddb.send(new PutItemCommand({
     TableName: PENDING_ACTIONS_TABLE,
-    Item: marshall({
+    Item: marshall(stampTenant({
       actionId,
       toolName,
       toolArgs,
@@ -72,7 +73,7 @@ async function pendingApproval(toolName, toolArgs, context) {
       status:    'PENDING_APPROVAL',
       createdAt: new Date().toISOString(),
       expiresAt,
-    }),
+    }, context.tenantId)),
   }));
 
   console.log(JSON.stringify({ event: 'write_tool_intercepted', toolName, actionId }));
@@ -199,7 +200,6 @@ export const TOOL_DEFINITIONS = [
       type: 'object',
       properties: {
         configType: { type: 'string', description: 'Config type e.g. SCORING_WEIGHTS' },
-        tenantId:   { type: 'string', description: 'Tenant ID (default: DEFAULT)' },
       },
       required: ['configType'],
     },
@@ -238,7 +238,6 @@ export const TOOL_DEFINITIONS = [
       properties: {
         configType: { type: 'string' },
         newValues:  { type: 'object', description: 'Key-value pairs to update' },
-        tenantId:   { type: 'string' },
       },
       required: ['configType', 'newValues'],
     },
@@ -248,26 +247,26 @@ export const TOOL_DEFINITIONS = [
 // ─── Tool map ─────────────────────────────────────────────────────────────────
 
 export const TOOL_MAP = {
-  get_candidate: async (args, _ctx) => {
+  get_candidate: async (args, ctx) => {
     const item = await getItem(STATE_TABLE, `CANDIDATE#${args.candidateId}`, 'SAGA');
-    if (!item) return { error: `Candidate ${args.candidateId} not found` };
+    if (!item || !ownsRow(item, ctx.tenantId)) return { error: `Candidate ${args.candidateId} not found` };
     return item;
   },
 
-  get_pipeline_overview: async (args, _ctx) => {
-    // Candidates are stored with GSI1PK = 'TENANT#NALEKO' and GSI1SK = 'SAGA#...'
+  get_pipeline_overview: async (args, ctx) => {
+    // Candidates are stored with GSI1PK = the company's key and GSI1SK = 'SAGA#...'
     const limit = args.limit ?? 50;
     const res = await ddb.send(new QueryCommand({
       TableName:                 STATE_TABLE,
       IndexName:                 'GSI1',
       KeyConditionExpression:    'GSI1PK = :pk AND begins_with(GSI1SK, :skp)',
       ExpressionAttributeValues: marshall({
-        ':pk':  'TENANT#NALEKO',
+        ':pk':  tenantKey(ctx.tenantId),
         ':skp': 'SAGA#',
       }),
       Limit: limit,
     }));
-    let items = (res.Items ?? []).map(item => unmarshall(item));
+    let items = (res.Items ?? []).map(item => unmarshall(item)).filter(i => ownsRow(i, ctx.tenantId));
     // Filter by stage if requested
     if (args.stage) {
       items = items.filter(i => i.currentStage === args.stage);
@@ -281,8 +280,8 @@ export const TOOL_MAP = {
     return { candidates: items, count: items.length, stageSummary: summary };
   },
 
-  get_vote_summary: async (args, _ctx) => {
-    const items = await queryByPk(STATE_TABLE, `VOTE#${args.candidateId}`, 'SCORE', 50);
+  get_vote_summary: async (args, ctx) => {
+    const items = (await queryByPk(STATE_TABLE, `VOTE#${args.candidateId}`, 'SCORE', 50)).filter(i => ownsRow(i, ctx.tenantId));
     if (!items.length) return { candidateId: args.candidateId, votes: [], averageScore: null };
     const scores   = items.filter(i => typeof i.score === 'number').map(i => i.score);
     const avgScore = scores.length
@@ -291,9 +290,9 @@ export const TOOL_MAP = {
     return { candidateId: args.candidateId, votes: items, averageScore: avgScore };
   },
 
-  get_sla_status: async (args, _ctx) => {
+  get_sla_status: async (args, ctx) => {
     const item = await getItem(STATE_TABLE, `WORKFLOW#${args.workflowId}`, 'STATE');
-    if (!item) return { error: `Workflow ${args.workflowId} not found` };
+    if (!item || !ownsRow(item, ctx.tenantId)) return { error: `Workflow ${args.workflowId} not found` };
     return {
       workflowId:  args.workflowId,
       status:      item.status ?? 'UNKNOWN',
@@ -304,13 +303,13 @@ export const TOOL_MAP = {
     };
   },
 
-  get_workflow_audit_trail: async (args, _ctx) => {
-    const items = await queryByPk(STATE_TABLE, `AUDIT#${args.workflowId}`, null, args.limit ?? 20);
+  get_workflow_audit_trail: async (args, ctx) => {
+    const items = (await queryByPk(STATE_TABLE, `AUDIT#${args.workflowId}`, null, args.limit ?? 20)).filter(i => ownsRow(i, ctx.tenantId));
     return { workflowId: args.workflowId, events: items, count: items.length };
   },
 
-  get_config: async (args, _ctx) => {
-    const tenantId = args.tenantId ?? 'DEFAULT';
+  get_config: async (args, ctx) => {
+    const tenantId = ctx.tenantId;
     const item = await queryConfigGsi(tenantId, args.configType);
     if (!item) return { error: `Config ${args.configType} not found for tenant ${tenantId}` };
     return item;

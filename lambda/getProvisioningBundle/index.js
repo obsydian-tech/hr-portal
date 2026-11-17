@@ -11,6 +11,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, GetItemCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -51,6 +52,11 @@ exports.handler = async (event) => {
 
   if (!userId) return respond(401, { message: 'Unauthorized.' });
 
+  // TEN-03: after the sign-in checks, the company check. The company is the sign-in's.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const bundleId = event.pathParameters?.bundleId;
   if (!bundleId) return respond(400, { message: 'bundleId path parameter is required.' });
 
@@ -60,13 +66,14 @@ exports.handler = async (event) => {
       Key: { bundleId: { S: bundleId } },
     }));
 
-    if (!res.Item) return respond(404, { message: 'Bundle not found.' });
+    if (!res.Item) return T.notFound();
 
     const bundle = unmarshall(res.Item);
+    if (!T.ownsRow(bundle, tenantId)) return T.notFound();
 
     // Ownership check: non-admins can only see their own bundles
     if (!isAdmin && bundle.hmUserId !== userId) {
-      return respond(404, { message: 'Bundle not found.' });
+      return T.notFound();
     }
 
     // Normalize: add `id` alias

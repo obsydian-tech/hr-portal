@@ -12,6 +12,7 @@
 
 const { DynamoDBClient, GetItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const STATE_TABLE = process.env.STATE_TABLE_NAME || 'talent-flow-state';
@@ -29,6 +30,10 @@ function respond(statusCode, body) {
 }
 
 exports.handler = async (event) => {
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const candidateId = event.pathParameters?.id;
   if (!candidateId) {
     return respond(400, { message: 'Missing candidateId path parameter' });
@@ -42,8 +47,9 @@ exports.handler = async (event) => {
       }),
     );
 
-    if (!result.Item) {
-      return respond(404, { message: `Candidate ${candidateId} not found` });
+    // Another company's candidate answers exactly as one that does not exist.
+    if (!result.Item || !T.ownsRow(unmarshall(result.Item), tenantId)) {
+      return T.notFound();
     }
 
     const candidate = unmarshall(result.Item);

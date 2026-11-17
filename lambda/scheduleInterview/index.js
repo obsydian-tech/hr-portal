@@ -39,6 +39,7 @@ const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
 const { getConfig } = require('../shared/config-reader');
+const { tenantHelper, scopeWrite, eventTenant } = require('../shared/tf-tenant.js');
 
 const VALID_POSITION_LEVELS = ['JUNIOR', 'MID', 'SENIOR'];
 
@@ -70,7 +71,7 @@ function ok(body)            { return { statusCode: 200, body: JSON.stringify(bo
 
 // ── PATCH: complete interview ─────────────────────────────────────────────────
 
-async function handleCompleteInterview(event) {
+async function handleCompleteInterview(event, T, tenantId) {
   const candidateId  = event.pathParameters?.id;
   const interviewId  = event.pathParameters?.interviewId;
   const body         = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || {});
@@ -80,8 +81,20 @@ async function handleCompleteInterview(event) {
 
   const now = new Date().toISOString();
 
+  // The interview is this company's, or it is not found.
   try {
-    await dynamo.send(new UpdateItemCommand({
+    const found = await dynamo.send(new GetItemCommand({
+      TableName: process.env.STATE_TABLE_NAME,
+      Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
+    }));
+    if (!found.Item || !T.ownsRow(unmarshall(found.Item), tenantId)) return T.notFound();
+  } catch (err) {
+    console.error('handleCompleteInterview: GetItem failed', { interviewId, error: err.message });
+    return serverError('Failed to read interview record');
+  }
+
+  try {
+    await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName: process.env.STATE_TABLE_NAME,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
       UpdateExpression: 'SET #s = :completed, completedAt = :at' + (outcome ? ', outcome = :outcome' : ''),
@@ -92,14 +105,14 @@ async function handleCompleteInterview(event) {
         ':at': now,
         ...(outcome ? { ':outcome': outcome } : {}),
       }),
-    }));
+    }, tenantId)));
   } catch (err) {
-    if (err.name === 'ConditionalCheckFailedException') return notFound(`Interview ${interviewId} not found`);
+    if (err.name === 'ConditionalCheckFailedException') return T.notFound();
     console.error('handleCompleteInterview: UpdateItem failed', { interviewId, error: err.message });
     return serverError('Failed to mark interview as completed');
   }
 
-  await publishEvent('InterviewCompleted', { candidateId, interviewId, outcome: outcome ?? null });
+  await publishEvent('InterviewCompleted', { candidateId, interviewId, tenant_id: tenantId, outcome: outcome ?? null });
 
   console.info('Interview marked COMPLETED', { candidateId, interviewId, outcome: outcome ?? 'not set' });
   return ok({ interviewId, candidateId, status: 'COMPLETED', completedAt: now });
@@ -107,7 +120,7 @@ async function handleCompleteInterview(event) {
 
 // ── PATCH: add panel members ──────────────────────────────────────────────────
 
-async function handleAddPanelMembers(event) {
+async function handleAddPanelMembers(event, T, tenantId) {
   const candidateId  = event.pathParameters?.id;
   const interviewId  = event.pathParameters?.interviewId;
   const body         = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || {});
@@ -125,8 +138,9 @@ async function handleAddPanelMembers(event) {
       TableName: process.env.STATE_TABLE_NAME,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
     }));
-    if (!result.Item) return notFound(`Interview ${interviewId} not found`);
+    if (!result.Item) return T.notFound();
     existing = unmarshall(result.Item);
+    if (!T.ownsRow(existing, tenantId)) return T.notFound();
   } catch (err) {
     console.error('handleAddPanelMembers: GetItem failed', { interviewId, error: err.message });
     return serverError('Failed to read interview record');
@@ -149,13 +163,14 @@ async function handleAddPanelMembers(event) {
       ? marshall({ ':ids': mergedIds, ':adhoc': mergedAdhoc, ':ts': new Date().toISOString() })
       : marshall({ ':ids': mergedIds, ':ts': new Date().toISOString() });
 
-    await dynamo.send(new UpdateItemCommand({
+    await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName: process.env.STATE_TABLE_NAME,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
       UpdateExpression: updateExpr,
       ExpressionAttributeValues: exprValues,
-    }));
+    }, tenantId)));
   } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') return T.notFound();
     console.error('handleAddPanelMembers: UpdateItem failed', { interviewId, error: err.message });
     return serverError('Failed to update interview panel');
   }
@@ -171,12 +186,36 @@ async function handleAddPanelMembers(event) {
 
 exports.handler = async (event) => {
   const method = event.requestContext?.http?.method;
+  const T = await tenantHelper();
+
+  // TEN-03: a person calling the API gets the company from the sign-in (tenantId in the body or path is not read).
+  // The InterviewScheduled event has no sign-in: its company is the event's tenant_id, checked against the record.
+  const fromApi = !!event.requestContext;
+  let tenantId;
+  if (fromApi) {
+    const t = T.requireTenant(event);
+    if (t.refusal) return t.refusal;
+    tenantId = t.tenantId;
+  } else {
+    tenantId = await eventTenant(event.detail || event);
+    if (!tenantId) {
+      console.warn('scheduleInterview: event skipped, it names no company');
+      return { statusCode: 200, body: JSON.stringify({ skipped: true }) };
+    }
+  }
 
   // ── GET: list all interviews + votes for a candidate ─────────────────────
   if (method === 'GET') {
     const candidateId = event.pathParameters?.id;
     if (!candidateId) return badRequest('Missing candidateId');
     try {
+      // The candidate is this company's, or it is not found.
+      const own = await dynamo.send(new GetItemCommand({
+        TableName: process.env.STATE_TABLE_NAME,
+        Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
+      }));
+      if (!own.Item || !T.ownsRow(unmarshall(own.Item), tenantId)) return T.notFound();
+
       // Fetch INTERVIEW# records
       const interviewResult = await dynamo.send(new QueryCommand({
         TableName: process.env.STATE_TABLE_NAME,
@@ -184,6 +223,7 @@ exports.handler = async (event) => {
         ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${candidateId}`, ':prefix': 'INTERVIEW#' }),
       }));
       const interviews = (interviewResult.Items || [])
+        .filter((i) => T.ownsRow(unmarshall(i), tenantId))
         .map((i) => { const { PK, SK, ...rest } = unmarshall(i); return rest; })
         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
@@ -222,8 +262,8 @@ exports.handler = async (event) => {
 
   if (method === 'PATCH') {
     const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event.body || {});
-    if (body.action === 'complete') return handleCompleteInterview(event);
-    return handleAddPanelMembers(event);
+    if (body.action === 'complete') return handleCompleteInterview(event, T, tenantId);
+    return handleAddPanelMembers(event, T, tenantId);
   }
 
   // ── POST: schedule a new interview ───────────────────────────────────────────
@@ -234,17 +274,17 @@ exports.handler = async (event) => {
   } else if (event.body != null) {
     const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
     const pathCandidateId = event.pathParameters?.id;
-    detail = { ...body, candidateId: body.candidateId || pathCandidateId };
+    detail = { ...body, candidateId: pathCandidateId || body.candidateId };
   } else {
     detail = event;
   }
 
   const {
-    candidateId, tenantId, interviewId, interviewType, scheduledAt,
+    candidateId, interviewId, interviewType, scheduledAt,
     panelMemberIds, adhocPanelMembers,
   } = detail;
 
-  const missing = ['candidateId', 'tenantId', 'interviewId', 'interviewType', 'scheduledAt']
+  const missing = ['candidateId', 'interviewId', 'interviewType', 'scheduledAt']
     .filter((f) => detail[f] == null);
   if (missing.length > 0) return badRequest(`Missing required fields: ${missing.join(', ')}`);
 
@@ -262,8 +302,9 @@ exports.handler = async (event) => {
       TableName: process.env.STATE_TABLE_NAME,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
     }));
-    if (!sagaResult.Item) return notFound(`Candidate ${candidateId} not found`);
+    if (!sagaResult.Item) return T.notFound();
     saga = unmarshall(sagaResult.Item);
+    if (!T.ownsRow(saga, tenantId)) return T.notFound();
   } catch (err) {
     console.error('Failed to read SAGA record', { candidateId, error: err.message });
     return serverError('Failed to read candidate record');
@@ -337,7 +378,7 @@ exports.handler = async (event) => {
   const now = new Date().toISOString();
 
   // ── Step 4: Write INTERVIEW# record ──────────────────────────────────────
-  const interviewItem = {
+  const interviewItem = T.stampTenant({
     PK: `CANDIDATE#${candidateId}`,
     SK: `INTERVIEW#${interviewId}`,
     interviewId,
@@ -351,7 +392,7 @@ exports.handler = async (event) => {
     votesSubmitted: 0,
     status: 'SCHEDULED',
     createdAt: now,
-  };
+  }, tenantId);
 
   try {
     await dynamo.send(new PutItemCommand({
@@ -370,12 +411,12 @@ exports.handler = async (event) => {
 
   // ── Step 5: Update SAGA currentInterviewId (tracks most recent interview) ─
   try {
-    await dynamo.send(new UpdateItemCommand({
+    await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName: process.env.STATE_TABLE_NAME,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
       UpdateExpression: 'SET currentInterviewId = :iid',
       ExpressionAttributeValues: marshall({ ':iid': interviewId }),
-    }));
+    }, tenantId)));
   } catch (err) {
     console.error('Failed to update SAGA currentInterviewId', { candidateId, error: err.message });
   }
@@ -384,7 +425,7 @@ exports.handler = async (event) => {
   try {
     await dynamo.send(new PutItemCommand({
       TableName: process.env.STATE_TABLE_NAME,
-      Item: marshall({
+      Item: marshall(T.stampTenant({
         PK: `CANDIDATE#${candidateId}`,
         SK: `AUDIT#${now}`,
         eventType: 'INTERVIEW_SCHEDULED',
@@ -393,7 +434,7 @@ exports.handler = async (event) => {
         scheduledAt,
         tenantId,
         createdAt: now,
-      }, { removeUndefinedValues: true }),
+      }, tenantId), { removeUndefinedValues: true }),
     }));
   } catch (err) {
     console.error('Failed to write timeline audit entry', { candidateId, error: err.message });
@@ -406,6 +447,7 @@ exports.handler = async (event) => {
         QueueUrl: process.env.NOTIFICATION_QUEUE_URL,
         MessageBody: JSON.stringify({
           type: 'INTERVIEW_SCHEDULED',
+          tenant_id: tenantId,
           recipientId,
           candidateId,
           scheduledAt,
@@ -421,7 +463,7 @@ exports.handler = async (event) => {
   }
 
   await publishEvent('InterviewScheduled', {
-    candidateId, interviewId, tenantId, interviewType, scheduledAt,
+    candidateId, interviewId, tenant_id: tenantId, interviewType, scheduledAt,
     positionLevel, panelMemberIds: systemIds,
   });
 

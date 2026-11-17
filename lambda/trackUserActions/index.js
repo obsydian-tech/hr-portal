@@ -19,6 +19,7 @@
 
 import { DynamoDBClient, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
+import { TENANT_ID_PATTERN } from '../shared/tenant.mjs';
 
 const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
@@ -43,6 +44,13 @@ async function processRecord(record) {
 
   // Unmarshall DynamoDB record to regular JS object
   const item = unmarshall(newImage);
+
+  // TEN-03: the company is the record's own tenant_id. A record without one is skipped (no AWS call, no names).
+  const tenantId = typeof item.tenant_id === 'string' && TENANT_ID_PATTERN.test(item.tenant_id) ? item.tenant_id : null;
+  if (!tenantId) {
+    console.log('No company on the record - skipping');
+    return { processed: false, reason: 'no_company' };
+  }
 
   // Verify this is a SAGA record
   if (!item.SK || !item.SK.startsWith('SAGA')) {
@@ -78,9 +86,12 @@ async function processRecord(record) {
         PK: { S: `USER#${userId}` },
         SK: { S: 'PROFILE' }
       },
-      UpdateExpression: 'SET lastActionAt = :now, updatedAt = :now',
+      UpdateExpression: 'SET lastActionAt = :now, updatedAt = :now, tenant_id = :tenant',
+      // The user belongs to the record's company, or to none yet.
+      ConditionExpression: 'attribute_not_exists(tenant_id) OR tenant_id = :tenant',
       ExpressionAttributeValues: {
-        ':now': { S: now }
+        ':now': { S: now },
+        ':tenant': { S: tenantId },
       },
     }));
 
@@ -93,6 +104,10 @@ async function processRecord(record) {
       timestamp: now,
     };
   } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') {
+      console.log('User belongs to another company - skipping');
+      return { processed: false, reason: 'other_company' };
+    }
     console.error('❌ Failed to update lastActionAt:', {
       userId,
       candidateId,

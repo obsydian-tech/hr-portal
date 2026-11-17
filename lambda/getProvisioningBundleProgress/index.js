@@ -15,6 +15,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, GetItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -101,6 +102,11 @@ exports.handler = async (event) => {
 
   if (!userId) return respond(401, { message: 'Unauthorized.' });
 
+  // TEN-03: after the sign-in checks, the company check. The company is the sign-in's.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const bundleId = event.pathParameters?.bundleId;
   if (!bundleId) return respond(400, { message: 'bundleId path parameter is required.' });
 
@@ -111,8 +117,9 @@ exports.handler = async (event) => {
       TableName: BUNDLES_TABLE,
       Key: { bundleId: { S: bundleId } },
     }));
-    if (!res.Item) return respond(404, { message: 'Bundle not found.' });
+    if (!res.Item) return T.notFound();
     bundle = unmarshall(res.Item);
+    if (!T.ownsRow(bundle, tenantId)) return T.notFound();
   } catch (err) {
     console.error('[getProvisioningBundleProgress] GetItem error', err);
     return respond(500, { message: 'Internal server error.' });
@@ -120,7 +127,7 @@ exports.handler = async (event) => {
 
   // Access check: HM owner, ITAdmin, ITSpecialist, or TalentFlowAdmin
   if (!isAdmin && !isIT && bundle.hmUserId !== userId) {
-    return respond(404, { message: 'Bundle not found.' });
+    return T.notFound();
   }
 
   // Fetch linked it-tasks via byCandidateId GSI
@@ -134,7 +141,7 @@ exports.handler = async (event) => {
       ScanIndexForward: false,
       Limit: 100,
     }));
-    itTasks = (res.Items ?? []).map(i => unmarshall(i));
+    itTasks = (res.Items ?? []).map(i => unmarshall(i)).filter(t => T.ownsRow(t, tenantId));
   } catch (err) {
     // Non-fatal: progress still useful even without task-level enrichment
     console.warn('[getProvisioningBundleProgress] it-tasks query failed:', err.message);

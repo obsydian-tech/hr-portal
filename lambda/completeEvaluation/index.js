@@ -37,6 +37,7 @@ const {
 } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig } = require('../shared/config-reader');
+const { tenantHelper, scopeWrite, eventTenant } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 
@@ -55,10 +56,17 @@ exports.handler = async (event) => {
   const detail = event.detail
     || (event.body ? (typeof event.body === 'string' ? JSON.parse(event.body) : event.body) : event);
 
-  const { candidateId, tenantId, averageScore, result } = detail || {};
+  const { candidateId, averageScore, result } = detail || {};
+
+  // TEN-03: the company is the event's tenant_id. An event without one is skipped (nothing read, written or sent).
+  const T = await tenantHelper();
+  const tenantId = await eventTenant(detail);
+  if (!tenantId) {
+    console.warn('completeEvaluation: event skipped, it names no company');
+    return ok({ skipped: true });
+  }
 
   if (!candidateId) return badRequest('Missing required field: candidateId');
-  if (!tenantId)    return badRequest('Missing required field: tenantId');
   if (!result)      return badRequest('Missing required field: result');
 
   // ── Step 2: STRONG_NO_VETO fast-path ─────────────────────────────────────
@@ -71,10 +79,12 @@ exports.handler = async (event) => {
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
     }));
-    if (!res.Item) {
-      return badRequest(`SAGA record not found for candidate ${candidateId}`);
-    }
+    if (!res.Item) return T.notFound();
     saga = unmarshall(res.Item);
+    if (!T.ownsRow(saga, tenantId)) {
+      console.warn('completeEvaluation: event skipped, the candidate is not in the event\'s company');
+      return T.notFound();
+    }
   } catch (err) {
     console.error('Failed to read SAGA record', { candidateId, error: err.message });
     return serverError('Failed to read candidate record');
@@ -151,8 +161,9 @@ exports.handler = async (event) => {
     if (expressionAttributeNames) {
       updateParams.ExpressionAttributeNames = expressionAttributeNames;
     }
-    await dynamo.send(new UpdateItemCommand(updateParams));
+    await dynamo.send(new UpdateItemCommand(scopeWrite(updateParams, tenantId)));
   } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') return T.notFound();
     console.error('Failed to update SAGA record', { candidateId, outcome, error: err.message });
     return serverError('Failed to update candidate evaluation record');
   }
@@ -160,7 +171,7 @@ exports.handler = async (event) => {
   // ── Step 6b: Mark INTERVIEW record as COMPLETED ────────────────────────
   if (saga.currentInterviewId) {
     try {
-      await dynamo.send(new UpdateItemCommand({
+      await dynamo.send(new UpdateItemCommand(scopeWrite({
         TableName: STATE_TABLE,
         Key: marshall({
           PK: `CANDIDATE#${candidateId}`,
@@ -169,7 +180,7 @@ exports.handler = async (event) => {
         UpdateExpression: 'SET #s = :completed, completedAt = :at',
         ExpressionAttributeNames: { '#s': 'status' },
         ExpressionAttributeValues: marshall({ ':completed': 'COMPLETED', ':at': now }),
-      }));
+      }, tenantId)));
     } catch (err) {
       // Non-fatal — SAGA already updated; log and continue
       console.warn('Failed to mark INTERVIEW record as COMPLETED', {
@@ -180,5 +191,5 @@ exports.handler = async (event) => {
 
   console.info('Evaluation scores recorded', { candidateId, outcome, configVersion, finalScore: averageScore ?? null });
 
-  return ok({ candidateId, tenantId, outcome, finalScore: averageScore ?? null, configVersion });
+  return ok({ candidateId, outcome, finalScore: averageScore ?? null, configVersion });
 };

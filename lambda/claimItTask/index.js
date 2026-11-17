@@ -17,6 +17,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 const {
   DynamoDBClient,
   GetItemCommand,
@@ -63,6 +64,11 @@ exports.handler = async (event) => {
     return respond(403, { message: 'Forbidden: IT Admin or IT Specialist group required.' });
   }
 
+  // TEN-03: after the group check, the company check. The company is the sign-in's; tenantId in the query or body is not read.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const taskId       = event.pathParameters?.taskId;
   const specialistId = claims['sub'] ?? '';
   const email        = claims['email'] ?? '';
@@ -86,8 +92,8 @@ exports.handler = async (event) => {
       Key:       marshall({ taskId }),
     }));
 
-    if (!getRes.Item) {
-      return respond(404, { message: `Task ${taskId} not found.` });
+    if (!getRes.Item || !T.ownsRow(unmarshall(getRes.Item), tenantId)) {
+      return T.notFound();
     }
 
     const task = unmarshall(getRes.Item);
@@ -104,7 +110,7 @@ exports.handler = async (event) => {
       subtext:   `${task.queue} queue`,
     };
 
-    await client.send(new UpdateItemCommand({
+    await client.send(new UpdateItemCommand(scopeWrite({
       TableName: TABLE,
       Key:       marshall({ taskId }),
       UpdateExpression: [
@@ -129,12 +135,17 @@ exports.handler = async (event) => {
         ':emptyList':  [],
         ':entry':      [activityEvent],
       }),
-    }));
+    }, tenantId)));
 
     return respond(200, { message: 'Task claimed successfully.', taskId });
 
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') {
+      // The write failed its condition: already claimed, or the task is not this company's any more.
+      try {
+        const again = await client.send(new GetItemCommand({ TableName: TABLE, Key: marshall({ taskId }) }));
+        if (!again.Item || !T.ownsRow(unmarshall(again.Item), tenantId)) return T.notFound();
+      } catch (_) { /* fall through to the claimed answer */ }
       return respond(409, { message: 'Task has already been claimed by another specialist.' });
     }
     console.error('claimItTask error', err);

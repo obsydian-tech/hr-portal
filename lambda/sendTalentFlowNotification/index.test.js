@@ -7,7 +7,7 @@
  *   1. Config-driven template alias: config[type] used when present
  *   2. Fallback alias: 'talent-flow-{type-kebab}' when type not in config
  *   3. Partial batch failure: record that throws is added to batchItemFailures, others continue
- *   4. Missing required fields (tenantId, recipientEmail, type) → batchItemFailures
+ *   4. Missing required fields (recipientEmail, type); no company: dropped → batchItemFailures
  *   5. getConfig failure → batchItemFailures for that record
  *   6. Postmark failure → batchItemFailures for that record; others unaffected
  *   7. sendEmailWithTemplate called with correct From, To, TemplateAlias, TemplateModel
@@ -36,6 +36,8 @@ function makeMockPostmark(overrides = {}) {
   };
 }
 
+const TEN = 'ten_0123456789abcdefghijklmnop';
+
 // ── SQS record factory ────────────────────────────────────────────────────────
 function makeRecord(bodyOverrides = {}, messageId = 'msg-001') {
   const body = {
@@ -43,7 +45,7 @@ function makeRecord(bodyOverrides = {}, messageId = 'msg-001') {
     recipientEmail: 'panel@example.com',
     recipientId: 'pm-1',
     candidateId: 'cand-001',
-    tenantId: 'DEFAULT',
+    tenant_id: TEN,
     scheduledAt: '2026-05-16T10:00:00Z',
     ...bodyOverrides,
   };
@@ -155,9 +157,9 @@ describe('handler: happy path', () => {
     );
   });
 
-  test('getConfig called with tenantId and EMAIL_TEMPLATES', async () => {
+  test('getConfig called with the company of the message and EMAIL_TEMPLATES', async () => {
     await handler(makeEvent([makeRecord()]));
-    expect(getConfig).toHaveBeenCalledWith('DEFAULT', 'EMAIL_TEMPLATES');
+    expect(getConfig).toHaveBeenCalledWith(TEN, 'EMAIL_TEMPLATES');
   });
 });
 
@@ -170,10 +172,21 @@ describe('handler: missing required fields → batchItemFailures', () => {
     expect(result.batchItemFailures).toEqual([{ itemIdentifier: 'msg-missing-email' }]);
   });
 
-  test('missing tenantId → record in batchItemFailures', async () => {
-    const record = makeRecord({ tenantId: undefined }, 'msg-missing-tenant');
+  test('missing company → message dropped with no AWS call and no email, not retried', async () => {
+    const mockClient = makeMockPostmark();
+    _setPostmarkClient(mockClient);
+    const record = makeRecord({ tenant_id: undefined }, 'msg-missing-tenant');
     const result = await handler(makeEvent([record]));
-    expect(result.batchItemFailures).toEqual([{ itemIdentifier: 'msg-missing-tenant' }]);
+    expect(result.batchItemFailures).toEqual([]);
+    expect(getConfig).not.toHaveBeenCalled();
+    expect(mockClient.sendEmailWithTemplate).not.toHaveBeenCalled();
+  });
+
+  test('an old-style tenantId in the message is not read as the company', async () => {
+    const record = makeRecord({ tenant_id: undefined, tenantId: TEN }, 'msg-old-name');
+    const result = await handler(makeEvent([record]));
+    expect(result.batchItemFailures).toEqual([]);
+    expect(getConfig).not.toHaveBeenCalled();
   });
 
   test('missing type → record in batchItemFailures', async () => {

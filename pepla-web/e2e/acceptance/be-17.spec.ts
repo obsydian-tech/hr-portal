@@ -115,9 +115,9 @@ function world(): Tables {
     ],
     'external-verification-requests': [],
     'talent-flow-pending-actions': [
-      row({ actionId: 'act-be17-1', status: 'PENDING_APPROVAL', toolName: 'updateCandidate', staffId: 'TF01', createdAt: '2026-11-15T08:00:00Z' }),
-      row({ actionId: 'act-be17-2', status: 'APPROVED', toolName: 'createOffer', staffId: 'TF01', createdAt: '2026-11-14T08:00:00Z' }),
-      row({ actionId: 'act-be17-3', status: 'PENDING_APPROVAL', toolName: 'advanceCandidateStage', staffId: 'TF02', createdAt: '2026-11-15T09:00:00Z' }),
+      row({ tenant_id: 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa', actionId: 'act-be17-1', status: 'PENDING_APPROVAL', toolName: 'updateCandidate', staffId: 'TF01', createdAt: '2026-11-15T08:00:00Z' }),
+      row({ tenant_id: 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa', actionId: 'act-be17-2', status: 'APPROVED', toolName: 'createOffer', staffId: 'TF01', createdAt: '2026-11-14T08:00:00Z' }),
+      row({ tenant_id: 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa', actionId: 'act-be17-3', status: 'PENDING_APPROVAL', toolName: 'advanceCandidateStage', staffId: 'TF02', createdAt: '2026-11-15T09:00:00Z' }),
     ],
     NalekoAiRateLimit: [],
     'naleko-agent-audit': [],

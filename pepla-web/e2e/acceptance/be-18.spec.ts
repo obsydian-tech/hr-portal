@@ -378,7 +378,7 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
     // Added 16 Nov (lock check 3): HR with an ID token still gets in (no lock-out), on the routes the tests only refuse.
     {
       const t = world({ employee_consents: [consentRow(A)] });
-      const t2 = { ...t, 'talent-flow-pending-actions': [row({ actionId: 'act-1', status: 'PENDING_APPROVAL', staffId: 'E2EHR02', toolName: 'create_task', toolArgs: '{}' })] };
+      const t2 = { ...t, 'talent-flow-pending-actions': [row({ tenant_id: 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa', actionId: 'act-1', status: 'PENDING_APPROVAL', staffId: 'E2EHR02', toolName: 'create_task', toolArgs: '{}' })] };
       for (const who of [HR(), HR(null)]) {
         const g = call.getOne(t, who); expect(g.error).toBeUndefined(); expect([200, 404], `one document, HR: ${g.status} ${g.raw.slice(0, 120)}`).toContain(g.status);
         expect(g.status, 'one document, HR, not 403').not.toBe(403);
@@ -624,7 +624,7 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
     noThrow(stageFail, 'decide a document, stage update failing'); expect(stageFail.raw).not.toContain(MARKER); clean(stageFail, 'decide a document, stage update failing');
     const stepFail = call.review(t, HR(), { fail: fail(['UpdateItem'], ['employees']) });
     noThrow(stepFail, 'decide a document, step update failing'); expect(stepFail.raw).not.toContain(MARKER); clean(stepFail, 'decide a document, step update failing');
-    const action = row({ actionId: 'act-1', status: 'PENDING_APPROVAL', staffId: 'E2EHR02', toolName: 'create_task', toolArgs: '{}' });
+    const action = row({ tenant_id: 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa', actionId: 'act-1', status: 'PENDING_APPROVAL', staffId: 'E2EHR02', toolName: 'create_task', toolArgs: '{}' });
     const approve = runHandler(HANDLER.pending, { ...t, 'talent-flow-pending-actions': [action] }, eventFor({
       method: 'POST', route: '/agent/v1/actions/{id}/approve', path: '/agent/v1/actions/act-1/approve', caller: HR(), body: { staffId: 'E2EHR01' },
     }), { fail: eventsFail });

@@ -17,7 +17,7 @@
  * Response:
  * {
  *   events: [{
- *     eventId, eventType, source, candidateId, tenantId,
+ *     eventId, eventType, source, candidateId, tenant_id,
  *     actor, timestamp, detail (parsed object)
  *   }],
  *   nextToken?: string,
@@ -30,9 +30,11 @@
 
 const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper, candidateIsOurs } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const EVENTS_TABLE = process.env.EVENTS_TABLE_NAME || 'talent-flow-events';
+const STATE_TABLE  = process.env.STATE_TABLE_NAME  || 'talent-flow-state';
 
 function respond(statusCode, body) {
   return {
@@ -47,6 +49,11 @@ function respond(statusCode, body) {
 }
 
 exports.handler = async (event) => {
+  // TEN-03: the company is the sign-in's. The candidate must be this company's; another company's is 404.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const candidateId = event.pathParameters?.id;
   if (!candidateId) {
     return respond(400, { message: 'Missing candidateId path parameter' });
@@ -63,6 +70,21 @@ exports.handler = async (event) => {
       exclusiveStartKey = JSON.parse(Buffer.from(qs.nextToken, 'base64').toString('utf-8'));
     } catch {
       return respond(400, { message: 'Invalid nextToken' });
+    }
+  }
+
+  // The candidate's own row says whose it is. This role may not read the state table yet (listed for Iggie in the
+  // PR): until it can, the answer is limited to event rows that carry this company, so nothing foreign leaks.
+  let stateReadable = true;
+  try {
+    if (!(await candidateIsOurs((c) => dynamo.send(c), QueryCommand, STATE_TABLE, candidateId, tenantId))) {
+      return T.notFound();
+    }
+  } catch (err) {
+    if (err && (err.name === 'AccessDeniedException' || err.name === 'AccessDenied')) stateReadable = false;
+    else {
+      console.error(JSON.stringify({ event: 'get_candidate_events_error', error: err.message }));
+      return respond(500, { message: 'Failed to retrieve candidate events' });
     }
   }
 
@@ -90,8 +112,7 @@ exports.handler = async (event) => {
 
     const result = await dynamo.send(new QueryCommand(params));
 
-    const events = (result.Items ?? []).map((item) => {
-      const rec = unmarshall(item);
+    const events = (result.Items ?? []).map((item) => unmarshall(item)).filter((rec) => (stateReadable ? T.ownsRow(rec, tenantId) || rec.tenant_id === undefined : T.ownsRow(rec, tenantId))).map((rec) => {
       // Parse detail back from JSON string to object for frontend convenience
       let detail = rec.detail;
       if (typeof detail === 'string') {
@@ -102,7 +123,7 @@ exports.handler = async (event) => {
         eventType:   rec.eventType,
         source:      rec.source,
         candidateId: rec.candidateId,
-        tenantId:    rec.tenantId,
+        tenant_id:   rec.tenant_id,
         actor:       rec.actor ?? 'SYSTEM',
         timestamp:   rec.timestamp,
         detail,

@@ -46,6 +46,7 @@ const {
   PutEventsCommand,
 } = require('@aws-sdk/client-eventbridge');
 const { getConfig } = require('../shared/config-reader');
+const { tenantHelper, scopeWrite, eventTenant } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const eb     = new EventBridgeClient({});
@@ -126,7 +127,14 @@ exports.handler = async (event) => {
     return gone('Scoring link has already been used');
   }
 
-  const { candidateId, tenantId, panelMemberId, panelMemberEmail, panelMemberName } = tokenRecord;
+  // TEN-03: a public route. The company is the one stored on the link, never anything the caller sends.
+  const T = await tenantHelper();
+  const tenantId = await eventTenant({ tenant_id: tokenRecord.tenant_id });
+  if (!tenantId) {
+    console.warn('Token carries no company');
+    return forbidden('Invalid or expired scoring link');
+  }
+  const { candidateId, panelMemberId, panelMemberEmail, panelMemberName } = tokenRecord;
   const voterId = panelMemberId; // identity derived from token record, not JWT
 
   // ── Step 2: Get SAGA record → configVersion ───────────────────────────────
@@ -138,6 +146,7 @@ exports.handler = async (event) => {
     }));
     if (!result.Item) return badRequest(`Candidate ${candidateId} no longer exists in the pipeline`);
     saga = unmarshall(result.Item);
+    if (!T.ownsRow(saga, tenantId)) return forbidden('Invalid or expired scoring link');
   } catch (err) {
     console.error('Failed to read SAGA record', { candidateId, error: err.message });
     return serverError('Failed to read candidate record');
@@ -167,13 +176,13 @@ exports.handler = async (event) => {
   const strongNoVeto = panelConfig && panelConfig.rules && panelConfig.rules.strongNoVeto === true;
   if (rating === 'STRONG_NO' && strongNoVeto) {
     try {
-      await dynamo.send(new UpdateItemCommand({
+      await dynamo.send(new UpdateItemCommand(scopeWrite({
         TableName:                 STATE_TABLE,
         Key:                       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
         UpdateExpression:          'SET votingResult = :vr, #s = :sf',
         ExpressionAttributeNames:  { '#s': 'status' },
         ExpressionAttributeValues: marshall({ ':vr': 'STRONG_NO_VETO', ':sf': 'EVALUATION_FAILED' }),
-      }));
+      }, tenantId)));
     } catch (err) {
       console.error('Failed to update SAGA for STRONG_NO veto', { candidateId, error: err.message });
       return serverError('Failed to record veto decision');
@@ -195,7 +204,7 @@ exports.handler = async (event) => {
   try {
     await dynamo.send(new PutItemCommand({
       TableName: STATE_TABLE,
-      Item:      marshall({
+      Item:      marshall(T.stampTenant({
         PK:               `CANDIDATE#${candidateId}`,
         SK:               voteSK,
         voterId,
@@ -203,13 +212,12 @@ exports.handler = async (event) => {
         voterName:        panelMemberName,
         voteSource:       'EMAIL_LINK',              // distinguishes token votes from JWT votes
         candidateId,
-        tenantId,
         rating,
         scores,
         weightedScore,
         configVersionUsed: configVersion,
         createdAt:        timestamp,
-      }),
+      }, tenantId)),
       ConditionExpression: 'attribute_not_exists(SK)',
     }));
   } catch (err) {
@@ -223,13 +231,13 @@ exports.handler = async (event) => {
   // ── Step 8: Increment counter + quorum check (same as submitVote) ─────────
   let newVotesSubmitted;
   try {
-    const updateResult = await dynamo.send(new UpdateItemCommand({
+    const updateResult = await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName:                 STATE_TABLE,
       Key:                       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
       UpdateExpression:          'ADD votesSubmitted :inc',
       ExpressionAttributeValues: marshall({ ':inc': 1 }),
       ReturnValues:              'UPDATED_NEW',
-    }));
+    }, tenantId)));
     newVotesSubmitted = updateResult.Attributes
       ? unmarshall(updateResult.Attributes).votesSubmitted
       : null;
@@ -316,7 +324,7 @@ async function publishVotingCompleted({ candidateId, tenantId, result, averageSc
         DetailType:   'VotingCompleted',
         Detail:       JSON.stringify({
           candidateId,
-          tenantId,
+          tenant_id: tenantId,
           result,
           averageScore:   averageScore   ?? null,
           votesSubmitted: votesSubmitted ?? null,

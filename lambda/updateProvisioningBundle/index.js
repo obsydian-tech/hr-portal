@@ -14,6 +14,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, GetItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
 
@@ -56,6 +57,11 @@ exports.handler = async (event) => {
 
   if (!userId) return respond(401, { message: 'Unauthorized.' });
 
+  // TEN-03: after the sign-in checks, the company check. The company is the sign-in's.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const bundleId = event.pathParameters?.bundleId;
   if (!bundleId) return respond(400, { message: 'bundleId path parameter is required.' });
 
@@ -79,15 +85,16 @@ exports.handler = async (event) => {
       TableName: BUNDLES_TABLE,
       Key: { bundleId: { S: bundleId } },
     }));
-    if (!res.Item) return respond(404, { message: 'Bundle not found.' });
+    if (!res.Item) return T.notFound();
     bundle = unmarshall(res.Item);
+    if (!T.ownsRow(bundle, tenantId)) return T.notFound();
   } catch (err) {
     console.error('[updateProvisioningBundle] GetItem error', err);
     return respond(500, { message: 'Internal server error.' });
   }
 
   if (!isAdmin && bundle.hmUserId !== userId) {
-    return respond(404, { message: 'Bundle not found.' });
+    return T.notFound();
   }
 
   if (bundle.bundleStatus !== 'PENDING_REVIEW') {
@@ -116,7 +123,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const res = await dynamo.send(new UpdateItemCommand({
+    const res = await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName: BUNDLES_TABLE,
       Key: { bundleId: { S: bundleId } },
       UpdateExpression: `SET ${setParts.join(', ')}`,
@@ -124,10 +131,14 @@ exports.handler = async (event) => {
       ExpressionAttributeNames:  attrNames,
       ExpressionAttributeValues: attrValues,
       ReturnValues: 'ALL_NEW',
-    }));
+    }, tenantId)));
     bundle = unmarshall(res.Attributes);
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') {
+      try {
+        const r = await dynamo.send(new GetItemCommand({ TableName: BUNDLES_TABLE, Key: { bundleId: { S: bundleId } } }));
+        if (!r.Item || !T.ownsRow(unmarshall(r.Item), tenantId)) return T.notFound();
+      } catch { /* fall through to 409 */ }
       return respond(409, { message: 'Bundle was modified concurrently or moved out of PENDING_REVIEW.' });
     }
     console.error('[updateProvisioningBundle] UpdateItem error', err);

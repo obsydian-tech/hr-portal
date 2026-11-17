@@ -13,7 +13,9 @@
  * Condition: PK must match the caller — prevents one user marking another's notifications.
  */
 
-const { DynamoDBClient, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, UpdateItemCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb');
+const { unmarshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 
 const NOTIFICATIONS_TABLE = process.env.NOTIFICATIONS_TABLE_NAME;
 
@@ -28,6 +30,11 @@ function response(statusCode, body) {
 }
 
 exports.handler = async (event) => {
+  // TEN-03: the company comes from the sign-in only.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+
   const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
   if (!userId) return response(401, { error: 'Unauthorized' });
 
@@ -37,18 +44,30 @@ exports.handler = async (event) => {
   const pk = `USER#${userId}`;
   const sk = decodeURIComponent(notifSk);
 
+  // The notification is this person's and this company's, or it is not found (read first: nothing is written otherwise).
   try {
-    await dynamo.send(new UpdateItemCommand({
+    const found = await dynamo.send(new GetItemCommand({
+      TableName: NOTIFICATIONS_TABLE,
+      Key:       { PK: { S: pk }, SK: { S: sk } },
+    }));
+    if (!found.Item || !T.ownsRow(unmarshall(found.Item), tenantId)) return T.notFound();
+  } catch (err) {
+    console.error('DynamoDB read failed', { userId, sk, error: err.message });
+    return response(500, { error: 'Failed to mark notification as read' });
+  }
+
+  try {
+    await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName:                 NOTIFICATIONS_TABLE,
       Key:                       { PK: { S: pk }, SK: { S: sk } },
       ConditionExpression:       'PK = :pk',
       UpdateExpression:          'SET #rd = :true REMOVE GSI1PK, GSI1SK',
       ExpressionAttributeNames:  { '#rd': 'read' },
       ExpressionAttributeValues: { ':pk': { S: pk }, ':true': { BOOL: true } },
-    }));
+    }, tenantId)));
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') {
-      return response(404, { error: 'Notification not found' });
+      return T.notFound();
     }
     console.error('DynamoDB update failed', { userId, sk, error: err.message });
     return response(500, { error: 'Failed to mark notification as read' });

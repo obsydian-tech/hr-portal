@@ -64,9 +64,8 @@ export class TalentFlowApiService {
   // Candidates
 
   getCandidates(filters?: PipelineFilters): Observable<PipelineResponse> {
-    // Always pass tenantId — Lambda derives tenant scope from this query param
-    // (custom:tenantId JWT claim was TF-pool-only; no longer reliable post pool consolidation)
-    let params = new HttpParams().set('tenantId', environment.talentFlow.tenantId);
+    // The company comes from the sign-in token; the request names none.
+    let params = new HttpParams();
     if (filters?.stage) params = params.set('stage', filters.stage);
     if (filters?.positionLevel) params = params.set('positionLevel', filters.positionLevel);
     if (filters?.slaStatus) params = params.set('slaStatus', filters.slaStatus);
@@ -144,7 +143,7 @@ export class TalentFlowApiService {
 
   createCandidate(payload: CreateCandidatePayload): Observable<{ candidateId: string }> {
     // Lambda (createCandidate) requires: idempotencyKey, positionTitle (not role),
-    // positionLevel, tenantId. Map frontend model to Lambda contract here.
+    // positionLevel. Map frontend model to Lambda contract here.
     const body = {
       idempotencyKey:  crypto.randomUUID(),
       firstName:       payload.firstName,
@@ -158,7 +157,6 @@ export class TalentFlowApiService {
       location:        payload.location,
       source:          payload.source,
       hiringManagerId: payload.hiringManagerId,
-      tenantId:        environment.talentFlow.tenantId,
     };
     return this.authHeaders().pipe(
       switchMap((headers) =>
@@ -205,11 +203,10 @@ export class TalentFlowApiService {
     candidateId: string,
     payload: ScheduleInterviewPayload,
   ): Observable<{ interviewId: string }> {
-    // Lambda requires interviewId (idempotency key), tenantId, and candidateId in body
+    // Lambda requires interviewId (idempotency key) and candidateId in body
     const body = {
       ...payload,
       interviewId: crypto.randomUUID(),
-      tenantId: environment.talentFlow.tenantId,
       candidateId,
     };
     return this.authHeaders().pipe(
@@ -295,7 +292,6 @@ export class TalentFlowApiService {
     const selfId = currentUser?.sub ?? currentUser?.email ?? 'unknown';
     const body = {
       candidateId,
-      tenantId:     environment.talentFlow.tenantId,
       voterId:      voterIdOverride ?? selfId,
       interviewId:  payload.interviewId,
       scores:       payload.scores,
@@ -323,7 +319,7 @@ export class TalentFlowApiService {
     candidateId: string,
     sentiment: EngagementSentiment,
   ): Observable<{ candidateId: string; interviewSentiment: string; capturedAt: string }> {
-    const body = { interviewSentiment: sentiment, tenantId: environment.talentFlow.tenantId };
+    const body = { interviewSentiment: sentiment };
     return this.authHeaders().pipe(
       switchMap((headers) =>
         this.http.post<{ candidateId: string; interviewSentiment: string; capturedAt: string }>(
@@ -357,7 +353,7 @@ export class TalentFlowApiService {
     candidateId: string,
     newStage: HiringStage,
   ): Observable<{ candidateId: string; previousStage: HiringStage; newStage: HiringStage; stageEnteredAt: string }> {
-    const body = { newStage, tenantId: environment.talentFlow.tenantId };
+    const body = { newStage };
     return this.authHeaders().pipe(
       switchMap((headers) =>
         this.http.put<{ candidateId: string; previousStage: HiringStage; newStage: HiringStage; stageEnteredAt: string }>(
@@ -374,11 +370,10 @@ export class TalentFlowApiService {
   // Config
 
   getConfig(configType: ConfigType, version?: string): Observable<ConfigResponse> {
-    // Lambda expects: GET /v1/config?configType=X&active=true&tenantId=NALEKO
+    // Lambda expects: GET /v1/config?configType=X&active=true (the company is the sign-in's)
     let params = new HttpParams()
       .set('configType', configType)
-      .set('active', 'true')
-      .set('tenantId', environment.talentFlow.tenantId);
+      .set('active', 'true');
     if (version) params = params.set('version', version);
 
     return this.authHeaders().pipe(
@@ -389,7 +384,7 @@ export class TalentFlowApiService {
       // 404 means "not yet configured" — treat as empty config rather than an error
       catchError((err: { status?: number }) => {
         if (err?.status === 404) {
-          return of({ configType, tenantId: environment.talentFlow.tenantId, version: null as unknown as string,
+          return of({ configType, version: null as unknown as string,
             isActive: false, data: {}, createdAt: '', updatedAt: '' } as ConfigResponse);
         }
         return this.handleError(err);
@@ -398,11 +393,10 @@ export class TalentFlowApiService {
   }
 
   updateConfig(configType: ConfigType, data: unknown): Observable<ConfigResponse> {
-    // Lambda expects: PUT /v1/config with { tenantId, configType, data } in body
-    const tenantId = environment.talentFlow.tenantId;
+    // Lambda expects: PUT /v1/config with { configType, data } in body
     return this.authHeaders().pipe(
       switchMap((headers) =>
-        this.http.put<ConfigResponse>(`${this.baseUrl}/config`, { tenantId, configType, data }, { headers }),
+        this.http.put<ConfigResponse>(`${this.baseUrl}/config`, { configType, data }, { headers }),
       ),
       timeout(API_TIMEOUT_MS),
       catchError(this.handleError),
@@ -448,7 +442,7 @@ export class TalentFlowApiService {
   }
 
   createOffer(candidateId: string): Observable<{ candidateId: string; offerId: string; state: string; approvalChain: unknown[] }> {
-    const body = { tenantId: environment.talentFlow.tenantId };
+    const body = {};
     return this.authHeaders().pipe(
       switchMap((headers) =>
         this.http.post<{ candidateId: string; offerId: string; state: string; approvalChain: unknown[] }>(
@@ -467,7 +461,7 @@ export class TalentFlowApiService {
     action: 'SUBMIT_FOR_APPROVAL' | 'MARK_SENT' | 'LOG_INTERACTION' | 'CONFIRM_ACCEPTANCE',
     payload: Record<string, unknown>,
   ): Observable<Record<string, unknown>> {
-    const body = { action, payload, tenantId: environment.talentFlow.tenantId };
+    const body = { action, payload };
     return this.authHeaders().pipe(
       switchMap((headers) =>
         this.http.put<Record<string, unknown>>(

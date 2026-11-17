@@ -7,8 +7,8 @@
  * Trigger: SQS ESM on talent-flow-notification-queue.fifo (batch_size=10)
  *
  * Per-record logic:
- *   1. Parse SQS message body: { type, recipientEmail, recipientId, candidateId, tenantId, ...eventData }
- *   2. Validate required fields (tenantId, recipientEmail, type)
+ *   1. Parse SQS message body: { type, recipientEmail, recipientId, candidateId, tenant_id, ...eventData }
+ *   2. Validate required fields (tenant_id, recipientEmail, type)
  *   3. Write in-app notification to talent-flow-notifications DynamoDB table
  *   4. getConfig(tenantId, 'EMAIL_TEMPLATES') — ACTIVE read — returns config-driven Postmark alias map
  *   5. Resolve templateAlias: config[type] or fallback 'talent-flow-{type-kebab}'
@@ -38,6 +38,7 @@ const postmark = require('postmark');
 const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig } = require('../shared/config-reader');
+const { eventTenant } = require('../shared/tf-tenant.js');
 
 // BE-15: a setting that names one environment has no fallback value. A missing
 // one stops the Lambda when it starts, with one clear line in the log.
@@ -109,10 +110,16 @@ async function processRecord(record) {
     throw new Error(`Invalid JSON in message body: ${err.message}`);
   }
 
-  const { type, recipientEmail, recipientId, candidateId, tenantId, ...eventData } = body;
+  const { type, recipientEmail, recipientId, candidateId, tenant_id, tenantId: _legacyTenantId, ...eventData } = body;
+  void _legacyTenantId; // the old name is not read
 
   // ── Validate required fields ─────────────────────────────────────────────
-  if (!tenantId) throw new Error('Missing required field: tenantId');
+  // TEN-03: the company is the message's tenant_id. No company, no AWS call: the message is dropped with one line.
+  const tenantId = await eventTenant({ tenant_id });
+  if (!tenantId) {
+    console.warn('Notification skipped: the message carries no company');
+    return;
+  }
   if (!recipientEmail) throw new Error('Missing required field: recipientEmail');
   if (!type) throw new Error('Missing required field: type');
 
@@ -130,7 +137,7 @@ async function processRecord(record) {
       notifId,
       type,
       candidateId: candidateId || null,
-      tenantId,
+      tenant_id:  tenantId,
       read:       false,
       createdAt:  isoNow,
       expiresAt:  ttl,
@@ -175,7 +182,7 @@ async function processRecord(record) {
     toAddress,
     originalRecipient: recipientEmail,
     candidateId: candidateId || null,
-    tenantId,
+    tenant_id: tenantId,
   });
 }
 

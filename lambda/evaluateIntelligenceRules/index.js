@@ -13,6 +13,7 @@ const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
 const { randomUUID } = require('crypto');
 const { getConfig } = require('./config-reader');
+const { eventTenant } = require('../shared/tf-tenant.js');
 const { logRuleFired } = require('./event-logger');
 const { writeSignalSnapshot } = require('./snapshot-writer');
 
@@ -108,8 +109,12 @@ async function processRecord(item, eventName) {
     return { status: 'skipped', reason: 'non_saga_record' };
   }
 
-  // Extract tenantId from item
-  const tenantId = item.tenantId || 'DEFAULT';
+  // TEN-03: the company is the row's tenant_id. A row without one is skipped, with no read and no write.
+  const tenantId = await eventTenant({ tenant_id: item.tenant_id });
+  if (!tenantId) {
+    console.warn('[evaluateIntelligenceRules] Skipping record: it carries no company');
+    return { status: 'skipped', reason: 'no_company' };
+  }
 
   // Step 1: Load INTELLIGENCE_RULES config for tenant
   let intelligenceConfig;
@@ -1436,7 +1441,7 @@ async function processAction(rule, item, signals) {
     recipientId,
     candidateId: item.candidateId || null,
     offerId: item.offerId || null,
-    tenantId: item.tenantId || 'DEFAULT',
+    tenant_id: item.tenant_id,
     ruleId: rule.id,
     ruleName: rule.name,
     priority: rule.action.priority || 'MEDIUM',
@@ -1481,7 +1486,7 @@ async function processAction(rule, item, signals) {
 
     // Log intelligence event for effectiveness metrics (§7.5)
     await logRuleFired(dynamoDB, {
-      tenantId: item.tenantId || 'DEFAULT',
+      tenantId: item.tenant_id,
       ruleId: rule.id,
       ruleName: rule.name,
       ruleSeverity: rule.action?.priority || 'MEDIUM',
