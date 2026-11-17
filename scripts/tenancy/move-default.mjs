@@ -13,8 +13,10 @@
  *   apply changes nothing. On prod, --apply needs --prod-account 937137806477 as well (Iggie's separate yes).
  * --check exits 1 while any record still names DEFAULT or NALEKO, or has no company. Records of any other company are
  *   counted and never touched.
+ * Before any read, the account the sign-in reaches is checked against --env (prod must be the prod account, dev must not be).
  * Output is counts only: no names, addresses, record ids or numbers beyond the counts.
  */
+import { execFileSync } from 'node:child_process';
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
 
 const args = process.argv.slice(2);
@@ -36,6 +38,16 @@ if (env === 'prod' && mode === 'apply' && prodAccount !== PROD_ACCOUNT) usage('P
 if (profile) process.env.AWS_PROFILE = profile;
 
 const region = process.env.AWS_REGION ?? 'af-south-1';
+
+// The account the sign-in really reaches must match --env, before anything is read or written.
+let account;
+try {
+  account = execFileSync('aws', ['sts', 'get-caller-identity', '--query', 'Account', '--output', 'text', '--region', region], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+} catch {
+  console.error('Warning: could not ask AWS which account this sign-in reaches, so the account was not checked.');
+}
+if (account && env === 'prod' && account !== PROD_ACCOUNT) usage('--env prod, but this sign-in is not the prod account. Nothing was read or written.');
+if (account && env === 'dev' && account === PROD_ACCOUNT) usage('--env dev, but this sign-in is the prod account. Nothing was read or written.');
 const ddb = new DynamoDBClient({ region });
 
 // The fixed TalentFlow, IT task and bundle tables and their key attributes.
