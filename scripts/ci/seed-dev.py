@@ -173,7 +173,7 @@ def ensure_user(cognito, pool: str, role: str, password: str,
 
 def user_sub(cognito, pool: str, role: str) -> str:
     attrs = cognito.admin_get_user(UserPoolId=pool, Username=login(role))["UserAttributes"]
-    return next(a["Value"] for a in attrs if a["Name"] == "sub")
+    return next((a["Value"] for a in attrs if a["Name"] == "sub"), "")
 
 
 def employee_item(employee_id: str, first: str, last: str, email: str, dept: str,
@@ -383,7 +383,10 @@ def main() -> None:
         ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group, ROBOT_GROUP])
 
     founding_written = ensure_founding_company(ddb)
-    second_written = ensure_second_company(ddb, user_sub(cognito, naleko, "hr-b"))
+    hr_b_sub = user_sub(cognito, naleko, "hr-b")
+    if not hr_b_sub:
+        print("warning: the company B login has no sub; its Member row was not written")
+    second_written = ensure_second_company(ddb, hr_b_sub) if hr_b_sub else 0
 
     ns = NS
     seeded_documents = 0
