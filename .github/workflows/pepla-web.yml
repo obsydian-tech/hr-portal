@@ -148,8 +148,39 @@ jobs:
           # Specs that never open the app (infra checks) skip `ng serve`.
           if [ "$INFRA_ONLY" = true ]; then export E2E_BASE_URL=http://localhost:1; fi
           if ! ls e2e/acceptance/*.spec.ts >/dev/null 2>&1; then echo "No acceptance tests yet."; exit 0; fi
+          # A failed test is run once more on its own (seconds), instead of the whole shard being
+          # rerun by hand (10 to 25 minutes). The nightly run keeps 0 retries, so a test that only
+          # passes on its second try shows up there. Retried tests are listed in the job summary.
+          RETRIES=1
+          if [ "$GITHUB_EVENT_NAME" = schedule ]; then RETRIES=0; fi
           # shellcheck disable=SC2086
-          npm run e2e:acceptance -- $SPECS
+          npm run e2e:acceptance -- --retries=$RETRIES $SPECS
+      - name: List tests that needed a retry
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          path = "e2e/acceptance/.output/results.json"
+          if not os.path.exists(path):
+              raise SystemExit
+          flaky = []
+          def walk(suite, trail):
+              trail = trail + ([suite["title"]] if suite.get("title") else [])
+              for spec in suite.get("specs", []):
+                  for t in spec.get("tests", []):
+                      if t.get("status") == "flaky":
+                          errs = [r.get("error", {}).get("message", "").strip().splitlines()[:1] for r in t.get("results", []) if r.get("status") != "passed"]
+                          flaky.append((t.get("projectName", ""), " > ".join(trail + [spec["title"]]), errs[0][0] if errs and errs[0] else ""))
+              for sub in suite.get("suites", []):
+                  walk(sub, trail)
+          for top in json.load(open(path)).get("suites", []):
+              walk(top, [])
+          if flaky:
+              print("### Passed only on a retry (flaky)")
+              for project, title, err in flaky:
+                  print(f"- `{project}` {title}: {err}")
+                  print(f"::warning::Flaky, passed on retry: [{project}] {title}", file=__import__('sys').stderr)
+          PY
       # Failure pictures show fake people only. Short-lived. include-hidden-files:
       # the output folder is .output, which the upload skipped before, so a failed run kept nothing.
       - name: Upload failure evidence
