@@ -15,6 +15,7 @@
  * Access: ADMIN role only (checked via custom:roles JWT claim).
  */
 
+const { isIdToken } = require('../shared/id-token');
 const { DynamoDBClient, QueryCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -108,6 +109,7 @@ async function countActiveUsers() {
 }
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Admin role required"});
   const claims = extractClaims(event);
   console.info('adminGetDashboard auth', { rolesRaw: claims['custom:roles'], groupsRaw: claims['cognito:groups'] });
   if (!hasAdminRole(claims)) {

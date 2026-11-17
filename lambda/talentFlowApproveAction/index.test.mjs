@@ -50,12 +50,18 @@ const PENDING_ACTION = {
   createdAt: '2026-05-17T10:00:00.000Z',
 };
 
-function makeEvent({ method, path, body = {}, staffId = null, groups = null } = {}) {
+// BE-19: `staffId` is the approver's HR ID token (custom:staff_id, hr_staff unless `groups` says otherwise).
+// `authorizer` replaces the whole authorizer context, for the callers that must be refused.
+function makeEvent({ method, path, body = {}, staffId = null, groups = null, tokenUse = 'id', authorizer = undefined } = {}) {
+  const claims = {
+    ...(groups || staffId ? { 'cognito:groups': groups ?? '[hr_staff]' } : {}),
+    ...(staffId ? { 'custom:staff_id': staffId } : {}),
+    ...(tokenUse === null ? {} : { token_use: tokenUse }),
+  };
   return {
     requestContext: {
       http: { method },
-      ...(staffId ? { authorizer: { lambda: { staffId } } } : {}),
-      ...(groups ? { authorizer: { jwt: { claims: { 'cognito:groups': groups } } } } : {}),
+      ...(authorizer !== undefined ? (authorizer ? { authorizer } : {}) : (groups || staffId ? { authorizer: { jwt: { claims } } } : {})),
     },
     rawPath: path,
     body: Object.keys(body).length ? JSON.stringify(body) : null,
@@ -263,6 +269,70 @@ describe('talentFlowApproveAction', () => {
     }));
 
     expect(res.statusCode).toBe(409);
+  });
+
+  // ── BE-19: who may approve or reject ───────────────────────────────────────────
+
+  const NOT_ALLOWED = { error: 'You do not have permission to perform this action.' };
+
+  test('POST /approve stores the approver from the ID token, never the body (BE-19)', async () => {
+    mockDbSend
+      .mockResolvedValueOnce({ Item: { ...PENDING_ACTION } })
+      .mockResolvedValueOnce({});
+    mockEbSend.mockResolvedValueOnce({ FailedEntryCount: 0 });
+
+    const res = await handler(makeEvent({
+      method: 'POST', path: '/agent/actions/action-001/approve', staffId: 'staff-approver', body: { staffId: 'staff-requester' },
+    }));
+
+    expect(res.statusCode).toBe(200);
+    const update = mockDbSend.mock.calls[1][0];
+    expect(update.UpdateExpression).toMatch(/#x0 = :x0/);
+    expect(update.ExpressionAttributeNames['#x0']).toBe('approvedBy');
+    expect(update.ExpressionAttributeValues[':x0']).toBe('staff-approver');
+    for (const k of Object.keys(update.ExpressionAttributeValues)) expect(k.startsWith(':')).toBe(true);
+    const detail = JSON.parse(mockEbSend.mock.calls[0][0].Entries[0].Detail);
+    expect(detail.approvedBy).toBe('staff-approver');
+  });
+
+  test('POST /approve and /reject refuse every caller that is not an HR ID token with a staff id, and read nothing (BE-19)', async () => {
+    const callers = {
+      'agent key': { authorizer: { lambda: { actor: 'AGENT' } }, body: { staffId: 'staff-approver' } },
+      'authorizer staffId': { authorizer: { lambda: { staffId: 'staff-approver' } } },
+      'employee ID token': { staffId: 'staff-approver', groups: '[employee]' },
+      'HR access token': { staffId: 'staff-approver', tokenUse: 'access' },
+      'HR ID token, no staff id': { groups: '[hr_staff]' },
+      'no authorizer': { authorizer: null },
+    };
+    for (const route of ['approve', 'reject']) {
+      for (const [how, c] of Object.entries(callers)) {
+        const res = await handler(makeEvent({ method: 'POST', path: `/agent/actions/action-001/${route}`, ...c }));
+        expect([route, how, res.statusCode]).toEqual([route, how, 403]);
+        expect(JSON.parse(res.body)).toEqual(NOT_ALLOWED);
+      }
+    }
+    expect(mockDbSend).not.toHaveBeenCalled();
+    expect(mockEbSend).not.toHaveBeenCalled();
+  });
+
+  test('POST /approve lets a Talent Flow HR ID token approve (BE-19)', async () => {
+    mockDbSend
+      .mockResolvedValueOnce({ Item: { ...PENDING_ACTION } })
+      .mockResolvedValueOnce({});
+    mockEbSend.mockResolvedValueOnce({ FailedEntryCount: 0 });
+    const res = await handler(makeEvent({ method: 'POST', path: '/agent/actions/action-001/approve', staffId: 'staff-approver', groups: '[naleko-talentflow-hr]' }));
+    expect(res.statusCode).toBe(200);
+  });
+
+  test('POST /reject stores rejectedBy from the token and the reason (BE-19)', async () => {
+    mockDbSend
+      .mockResolvedValueOnce({ Item: { ...PENDING_ACTION } })
+      .mockResolvedValueOnce({});
+    const res = await handler(makeEvent({ method: 'POST', path: '/agent/actions/action-001/reject', staffId: 'staff-approver', body: { reason: 'Not now', staffId: 'someone-else' } }));
+    expect(res.statusCode).toBe(200);
+    const update = mockDbSend.mock.calls[1][0];
+    const stored = Object.fromEntries(Object.entries(update.ExpressionAttributeNames).filter(([k]) => k.startsWith('#x')).map(([k, v]) => [v, update.ExpressionAttributeValues[k.replace('#', ':')]]));
+    expect(stored).toEqual({ rejectedBy: 'staff-approver', rejectionReason: 'Not now' });
   });
 
   // ── Edge cases ───────────────────────────────────────────────────────────────

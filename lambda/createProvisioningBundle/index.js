@@ -23,6 +23,7 @@
  *   EB_BUS_NAME       — EventBridge bus name (naleko-onboarding)
  */
 
+const { isIdToken } = require('../shared/id-token');
 const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
@@ -95,6 +96,7 @@ function templateToItems(template) {
 }
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(401, {"message": "Unauthorized."});
   const claims  = extractClaims(event);
   const hmUserId = claims.sub;
   const groups   = parseGroups(claims['cognito:groups']);

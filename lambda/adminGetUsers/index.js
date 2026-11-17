@@ -15,6 +15,7 @@
  * Access: ADMIN role only.
  */
 
+const { isIdToken } = require('../shared/id-token');
 const { DynamoDBClient, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -58,6 +59,7 @@ function hasAdminRole(claims) {
 }
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Admin role required"});
   const claims = extractClaims(event);
   console.info('adminGetUsers auth', { rolesRaw: claims['custom:roles'], groupsRaw: claims['cognito:groups'] });
   if (!hasAdminRole(claims)) {

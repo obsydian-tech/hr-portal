@@ -4,10 +4,13 @@
  * Manages the HITL (Human-in-the-Loop) approval lifecycle for AI write-tool
  * calls intercepted by talentFlowAiChat/tool-resolver.
  *
- * Routes (all on agent API with x-api-key auth):
+ * Routes (agent API):
  *   GET  /agent/actions/{actionId}          — check action status
  *   POST /agent/actions/{actionId}/approve  — approve + execute via EventBridge
  *   POST /agent/actions/{actionId}/reject   — mark action rejected
+ *
+ * BE-19 (NH-211): approve and reject take the approver from an HR ID token only (hr_staff or
+ * naleko-talentflow-hr, custom:staff_id). The body, the agent key and any authorizer context never name it.
  *
  * DynamoDB table : talent-flow-pending-actions  (env: PENDING_ACTIONS_TABLE_NAME)
  * EventBridge bus: talent-flow-bus             (env: EVENTBRIDGE_BUS_NAME)
@@ -36,6 +39,9 @@ import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { groupsOf } from '../shared/document-check.mjs';
 import { isIdToken } from '../shared/hr-group.mjs';
+
+// BE-19 W-1: the refusal for approve and reject, the old app's own 403 sentence (Iggie chose it, 17 Nov).
+const NOT_ALLOWED = 'You do not have permission to perform this action.';
 
 // BE-15: a setting that names one environment has no fallback value. A missing
 // one stops the Lambda when it starts, with one clear line in the log.
@@ -80,18 +86,21 @@ async function getAction(actionId) {
  */
 async function setStatus(actionId, status, extra = {}) {
   const now = new Date().toISOString();
+  const names = { '#s': 'status' };
+  const values = { ':pending': 'PENDING_APPROVAL', ':s': status, ':now': now };
+  let set = 'SET #s = :s, updatedAt = :now';
+  Object.entries(extra).forEach(([k, v], i) => {
+    names[`#x${i}`] = k;
+    values[`:x${i}`] = v;
+    set += `, #x${i} = :x${i}`;
+  });
   await db.send(new UpdateItemCommand({
     TableName: TABLE,
     Key: marshall({ actionId }),
     ConditionExpression: '#s = :pending',
-    UpdateExpression: 'SET #s = :s, updatedAt = :now',
-    ExpressionAttributeNames: { '#s': 'status' },
-    ExpressionAttributeValues: marshall({
-      ':pending': 'PENDING_APPROVAL',
-      ':s': status,
-      ':now': now,
-      ...extra,
-    }),
+    UpdateExpression: set,
+    ExpressionAttributeNames: names,
+    ExpressionAttributeValues: marshall(values),
   }));
 }
 
@@ -123,7 +132,7 @@ async function handleApprove(actionId, approverStaffId) {
   }
 
   // Self-approval guard — approver must differ from original requester
-  if (approverStaffId && action.staffId && approverStaffId === action.staffId) {
+  if (action.staffId && approverStaffId === action.staffId) {
     return response(403, { error: 'Self-approval is not permitted' });
   }
 
@@ -230,11 +239,17 @@ export const handler = async (event) => {
     return response(400, { error: 'Invalid JSON body' });
   }
 
-  // staffId: prefer Lambda authorizer context, fall back to body field
-  const staffId = event.requestContext?.authorizer?.lambda?.staffId
-    ?? event.requestContext?.authorizer?.staffId
-    ?? body.staffId
-    ?? null;
+  // BE-19: the approver is the HR person in the ID token, never the body or an authorizer context.
+  let staffId = null;
+  if (method === 'POST' && (route === 'approve' || route === 'reject')) {
+    const claims = event.requestContext?.authorizer?.jwt?.claims;
+    const groups = groupsOf(claims);
+    const id = claims?.['custom:staff_id'];
+    if (!claims || !isIdToken(claims) || (!groups.includes('hr_staff') && !groups.includes('naleko-talentflow-hr')) || typeof id !== 'string' || !id) {
+      return response(403, { error: NOT_ALLOWED });
+    }
+    staffId = id;
+  }
 
   console.log(JSON.stringify({ event: 'hitl_request', method, actionId, route, staffId }));
 
