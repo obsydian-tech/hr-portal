@@ -22,6 +22,8 @@ What it makes, every run, idempotently:
     The files sit under seed-samples/, not uploads/, because anything under
     uploads/ starts the OCR Lambda.
 
+  * TEN-02: a second company (B) with its own HR test login (group hr_staff, a Member row
+    for B). Only that login belongs to B; every other test login stays in the first company.
   * TEN-01: the first company's row (TENANT#<id> / PROFILE) in the tenants table,
     written once and never changed after. The id comes from infra/env/dev.tfvars.
 Output is role names and counts only: the repo and its Actions logs are public.
@@ -58,6 +60,12 @@ NALEKO_PERSONAS = {
     "hr": {
         "attrs": {"custom:role": "hr_staff", "custom:staff_id": HR_STAFF_ID,
                   "given_name": "Thandi", "family_name": "Demo-HR"},
+        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr"],
+    },
+    # TEN-02: the HR login of the second company (B). Its Member row is written below.
+    "hr-b": {
+        "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRB1",
+                  "given_name": "Zanele", "family_name": "Demo-HR-B"},
         "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr"],
     },
     "employee": {
@@ -161,6 +169,11 @@ def ensure_user(cognito, pool: str, role: str, password: str,
                                     Password=password, Permanent=True)
     for g in groups:
         cognito.admin_add_user_to_group(UserPoolId=pool, Username=username, GroupName=g)
+
+
+def user_sub(cognito, pool: str, role: str) -> str:
+    attrs = cognito.admin_get_user(UserPoolId=pool, Username=login(role))["UserAttributes"]
+    return next(a["Value"] for a in attrs if a["Name"] == "sub")
 
 
 def employee_item(employee_id: str, first: str, last: str, email: str, dept: str,
@@ -325,6 +338,30 @@ def ensure_founding_company(ddb) -> int:
         raise
 
 
+# TEN-02: the second company. Fixed id, so every run finds the same rows.
+SECOND_TENANT_ID = "ten_b2e2ec0mpanyb00000000000da"
+
+
+def ensure_second_company(ddb, hr_b_sub: str) -> int:
+    """The second company's row and its HR login's Member row. Each is written once; an existing row stays as it is."""
+    written = 0
+    items = [
+        {"pk": {"S": f"TENANT#{SECOND_TENANT_ID}"}, "sk": {"S": "PROFILE"}, "tenant_id": {"S": SECOND_TENANT_ID},
+         "name": {"S": "Company B (demo)"}, "status": {"S": "ACTIVE"}, "country": {"S": "ZA"},
+         "created_at": {"S": "2026-11-17T00:00:00Z"}},
+        {"pk": {"S": f"USER#{hr_b_sub}"}, "sk": {"S": f"TENANT#{SECOND_TENANT_ID}"}, "tenant_id": {"S": SECOND_TENANT_ID},
+         "created_at": {"S": "2026-11-17T00:00:00Z"}},
+    ]
+    for item in items:
+        try:
+            ddb.put_item(TableName=TENANTS_TABLE, Item=item, ConditionExpression="attribute_not_exists(pk)")
+            written += 1
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+    return written
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -346,6 +383,7 @@ def main() -> None:
         ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group, ROBOT_GROUP])
 
     founding_written = ensure_founding_company(ddb)
+    second_written = ensure_second_company(ddb, user_sub(cognito, naleko, "hr-b"))
 
     ns = NS
     seeded_documents = 0
@@ -367,7 +405,8 @@ def main() -> None:
           f"logins {len(NALEKO_PERSONAS) + len(TF_GROUPS)}; "
           f"demo people {len(DEMO_PEOPLE) + 1}; persona documents reset {docs_removed}; "
           f"persona consents reset {consents_removed}; "
-          f"demo documents {seeded_documents}; founding company row written {founding_written}")
+          f"demo documents {seeded_documents}; founding company row written {founding_written}; "
+          f"second company rows written {second_written}")
 
 
 if __name__ == "__main__":
