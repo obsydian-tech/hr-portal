@@ -1,4 +1,4 @@
-import { isHrOrOwner } from '../shared/hr-group.mjs';
+import { isHrOrOwner, isIdToken } from '../shared/hr-group.mjs';
 import { DynamoDBClient, QueryCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { KMSClient, DecryptCommand } from "@aws-sdk/client-kms";
@@ -67,6 +67,8 @@ const handlerFn = async (event) => {
     }));
 
     if (!empResult.Items || empResult.Items.length === 0) {
+      const c = event.requestContext?.authorizer?.jwt?.claims ?? {};
+      if (!(isIdToken(c) && groupsOf(c).includes('hr_staff'))) return json(403, { error: 'Forbidden' });
       return {
         statusCode: 404,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },

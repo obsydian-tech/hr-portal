@@ -23,6 +23,7 @@
  *   CONFIG_TABLE_NAME — talent-flow-config DynamoDB table name
  */
 
+const { isIdToken } = require('../shared/id-token');
 const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig } = require('../shared/config-reader');
@@ -59,6 +60,7 @@ function parseGroups(rawGroups) {
 }
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"message": "Forbidden: IT Admin or IT Specialist group required."});
   const claims   = extractClaims(event);
   const groups   = parseGroups(claims['cognito:groups']);
   const userSub  = claims.sub;

@@ -86,7 +86,7 @@ const handlerFn = async (event) => {
       Bucket: BUCKET,
       Key: s3Key,
       ResponseContentType: contentType,
-      ResponseContentDisposition: `inline; filename="${fileName}"`,
+      ResponseContentDisposition: contentDisposition(fileName),
     });
 
     const url = await getSignedUrl(s3, command, { expiresIn: URL_EXPIRY_SECONDS });
@@ -110,5 +110,17 @@ const handlerFn = async (event) => {
     };
   }
 };
+
+function contentDisposition(name) {
+  let encoded;
+  try {
+    encoded = encodeURIComponent(name).replace(/['()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+  } catch {
+    name = 'document';
+    encoded = 'document';
+  }
+  const ascii = [...name].map((c) => (/^[\x20-\x7E]$/.test(c) && c !== '"' && c !== '\\' ? c : '_')).join('');
+  return `inline; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
 
 export const handler = handlerFn;

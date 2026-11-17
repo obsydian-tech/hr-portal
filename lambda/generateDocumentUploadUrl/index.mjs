@@ -84,7 +84,7 @@ const handlerFn = async (event) => {
       },
     }));
 
-    logger.info('Document record created', { documentId, s3Key });
+    logger.info('Document record created', { documentId, documentType });
 
     // Generate presigned PUT URL
     const command = new PutObjectCommand({

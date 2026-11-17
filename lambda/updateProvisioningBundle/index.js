@@ -13,6 +13,7 @@
  *   BUNDLES_TABLE — provisioning-bundles DynamoDB table name
  */
 
+const { isIdToken } = require('../shared/id-token');
 const { DynamoDBClient, GetItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
 
@@ -47,6 +48,7 @@ function parseGroups(rawGroups) {
 const EDITABLE_FIELDS = new Set(['items', 'templateName', 'seniority', 'department', 'startDate']);
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(401, {"message": "Unauthorized."});
   const claims  = extractClaims(event);
   const userId  = claims.sub;
   const groups  = parseGroups(claims['cognito:groups']);

@@ -20,6 +20,7 @@
  * Access: ADMIN role only.
  */
 
+const { isIdToken } = require('../shared/id-token');
 const {
   CognitoIdentityProviderClient,
   AdminAddUserToGroupCommand,
@@ -91,6 +92,7 @@ function hasAdminRole(claims) {
 }
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Admin role required"});
   const claims = extractClaims(event);
   if (!hasAdminRole(claims)) {
     return respond(403, { error: 'Admin role required' });

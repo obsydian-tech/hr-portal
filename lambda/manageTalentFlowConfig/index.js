@@ -33,6 +33,7 @@
  *   CONFIG_TABLE_NAME — talent-flow-config
  */
 
+const { isIdToken } = require('../shared/id-token');
 const { DynamoDBClient, QueryCommand, PutItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -281,6 +282,7 @@ async function handlePut(event) {
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Forbidden: custom:isAdmin claim required"});
   const method = event?.requestContext?.http?.method?.toUpperCase();
 
   try {

@@ -13,6 +13,7 @@
  *   IT_TASKS_TABLE — it-tasks DynamoDB table name
  */
 
+const { isIdToken } = require('../shared/id-token');
 const { DynamoDBClient, GetItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -45,6 +46,7 @@ function parseGroups(rawGroups) {
 }
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"message": "Forbidden: IT Admin or IT Specialist group required."});
   const claims   = extractClaims(event);
   const groups   = parseGroups(claims['cognito:groups']);
   const isITUser = groups.some(g => ['ITAdmin', 'ITSpecialist'].includes(g));

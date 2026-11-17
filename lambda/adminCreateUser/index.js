@@ -18,6 +18,7 @@
  * Access: ADMIN role only.
  */
 
+const { isIdToken } = require('../shared/id-token');
 const {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
@@ -98,6 +99,7 @@ async function checkEmailExists(email) {
 }
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Admin role required"});
   const claims = extractClaims(event);
   if (!hasAdminRole(claims)) {
     return respond(403, { error: 'Admin role required' });

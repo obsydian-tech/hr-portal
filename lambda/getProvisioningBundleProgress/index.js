@@ -14,6 +14,7 @@
  *   IT_TASKS_TABLE — it-tasks DynamoDB table name
  */
 
+const { isIdToken } = require('../shared/id-token');
 const { DynamoDBClient, GetItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -91,6 +92,7 @@ function buildActivityLog(tasks) {
 }
 
 exports.handler = async (event) => {
+  if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(401, {"message": "Unauthorized."});
   const claims  = extractClaims(event);
   const userId  = claims.sub;
   const groups  = parseGroups(claims['cognito:groups']);
