@@ -707,6 +707,11 @@ test.describe('SITE-03 Landing sections, part 1', () => {
     const git = (...a: string[]) => execFileSync('git', a, { cwd: PEPLA_WEB, encoding: 'utf8' }).trim();
     let base = '';
     for (const ref of ['origin/develop', 'develop']) { try { base = git('merge-base', 'HEAD', ref); break; } catch { /* next */ } }
+    // CI checks out the pull request's merge commit with no develop branch: its first parent is develop's tip.
+    if (!base && process.env['GITHUB_ACTIONS'] === 'true') {
+      try { git('rev-parse', '--verify', '-q', 'HEAD^1'); } catch { git('fetch', '--no-tags', '--quiet', '--depth=2', 'origin', process.env['GITHUB_SHA'] ?? git('rev-parse', 'HEAD')); }
+      try { base = git('rev-parse', 'HEAD^1'); } catch { /* stays empty */ }
+    }
     expect(base, 'develop is known (git merge-base HEAD origin/develop)').not.toBe('');
     const changed = git('diff', '--name-only', base, 'HEAD', '--', '.').split('\n').filter(Boolean).map((f) => f.replace(/^pepla-web\//, ''));
     const root = git('rev-parse', '--show-prefix');
