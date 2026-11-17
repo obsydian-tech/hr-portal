@@ -97,6 +97,7 @@ class Watch {
         if (/cognito-idp\.[a-z0-9-]+\.amazonaws\.com$/.test(u.hostname)) return false;
         if (/(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(u.hostname)) return false;
         if (/\/v1\/invites\/(lookup|redeem)$/.test(u.pathname)) return false;
+        if (r.method === 'GET' && /\/v1\/company\/modules$/.test(u.pathname)) return false; // MOD-02: the shell asks which modules are on
         return r.method !== 'OPTIONS';
       })
       .map((r) => `${r.method} ${r.url}`);

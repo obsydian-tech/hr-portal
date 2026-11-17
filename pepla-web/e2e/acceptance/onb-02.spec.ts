@@ -513,7 +513,7 @@ test.describe('ONB-02 HR home: who is starting', () => {
     const app = new URL(baseURL!).origin;
     const cognito = /^cognito-idp\.[a-z0-9-]+\.amazonaws\.com$/;
     const fonts = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
-    const outside = seen.filter((s) => s.url.origin !== app && !cognito.test(s.url.hostname) && !fonts.has(s.url.hostname));
+    const outside = seen.filter((s) => !(s.method === 'GET' && /\/v1\/company\/modules$/.test(s.url.pathname)) && s.url.origin !== app && !cognito.test(s.url.hostname) && !fonts.has(s.url.hostname));
     const api_ = outside.filter((s) => /\/v1\/employees$/.test(s.url.pathname));
     expect(api_.length, 'the employees API is called').toBeGreaterThan(0);
     expect(outside.filter((s) => !api_.includes(s)).map((s) => `${s.method} ${s.url.href}`), 'no other host is called').toEqual([]);

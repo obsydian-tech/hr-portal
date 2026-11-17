@@ -105,6 +105,7 @@ class Watch {
         if (u.origin === appOrigin || !/^https?:$/.test(u.protocol)) return false;
         if (/cognito-idp\.[a-z0-9-]+\.amazonaws\.com$/.test(u.hostname)) return false;
         if (/(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(u.hostname)) return false;
+        if (r.method === 'GET' && /\/v1\/company\/modules$/.test(u.pathname)) return false; // MOD-02: the shell asks which modules are on
         return r.method !== 'OPTIONS';
       })
       .map((r) => `${r.method} ${new URL(r.url).pathname}`);
