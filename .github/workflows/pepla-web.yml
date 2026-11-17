@@ -119,7 +119,8 @@ jobs:
     if: needs.plan.outputs.mode == 'full' || needs.plan.outputs.mode == 'selected'
     runs-on: ubuntu-latest
     # A shard of a full run takes about a quarter of the old single job (26 min on 15 Nov).
-    timeout-minutes: 25
+    # Site specs raised the longest shard to about 25 min (17 Nov), so the limit is 40.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
