@@ -1,6 +1,7 @@
 import { DynamoDBClient, ScanCommand, UpdateItemCommand, QueryCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { withIdempotency } from '../shared/idempotency.mjs';
 import { groupsOf, hrDecisionOf } from '../shared/document-check.mjs';
+import { isIdToken } from '../shared/hr-group.mjs';
 import { requiredFor, requiredMissing } from '../shared/required-documents.mjs';
 import { stepFromDocuments } from '../shared/onboarding-step.mjs';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
@@ -40,7 +41,7 @@ async function publishEvent(detailType, detail) {
       }],
     }));
   } catch (err) {
-    logger.warn('EventBridge publish failed', { detailType, error: err.message });
+    logger.warn('EventBridge publish failed', { detailType, errorName: err?.name ?? 'Error' });
   }
 }
 
@@ -272,10 +273,10 @@ const handlerFn = async (event) => {
           }
         } catch (metricErr) {
           // Non-fatal — metric failure must not block the review response
-          logger.warn('Failed to publish TimeToComplete metric', { employeeId, error: metricErr });
+          logger.warn('Failed to publish TimeToComplete metric', { employeeId, errorName: metricErr?.name ?? 'Error' });
         }
       } catch (stageErr) {
-        logger.error('Failed to update employee stage', { employeeId, error: stageErr });
+        logger.error('Failed to update employee stage', { employeeId, errorName: stageErr?.name ?? 'Error' });
         // Non-fatal — the document review itself succeeded
       }
     }
@@ -295,7 +296,7 @@ const handlerFn = async (event) => {
         }));
       } catch (stepErr) {
         if (stepErr?.name !== 'ConditionalCheckFailedException') {
-          logger.warn('Failed to update employee step', { employeeId, error: stepErr });
+          logger.warn('Failed to update employee step', { employeeId, errorName: stepErr?.name ?? 'Error' });
         }
         // Non-fatal — the document review itself succeeded
       }
@@ -318,7 +319,7 @@ const handlerFn = async (event) => {
     });
 
   } catch (err) {
-    logger.error('Handler error', { error: err });
+    logger.error('Handler error', { errorName: err?.name ?? 'Error' });
     return respond(500, { error: 'Internal server error' });
   }
 };
@@ -331,7 +332,7 @@ export const handler = async (event) => {
   // ONB-07 security review: only HR decides. This route shares its authorizer with employee uploads,
   // so the group is checked here, before any read or write (and before the idempotency cache).
   const claims = event.requestContext?.authorizer?.jwt?.claims;
-  if (!claims || !groupsOf(claims).includes('hr_staff')) {
+  if (!claims || !isIdToken(claims) || !groupsOf(claims).includes('hr_staff')) {
     return respond(403, { error: 'Only HR can decide on a document' });
   }
   const key = event.headers?.['idempotency-key'];

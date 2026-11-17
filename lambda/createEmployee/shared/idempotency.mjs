@@ -83,7 +83,7 @@ export async function withIdempotency(key, handler) {
       };
     }
     // Any other DynamoDB error — fail open (don't block the real request).
-    console.warn('[idempotency] DynamoDB reserve failed, proceeding without dedup', { key, error: err.message });
+    console.warn('[idempotency] DynamoDB reserve failed, proceeding without dedup', { key, errorName: err?.name ?? 'Error' });
     return handler();
   }
 
@@ -120,7 +120,7 @@ export async function withIdempotency(key, handler) {
       },
     })).catch((err) => {
       // Non-fatal — log and continue. The response is still returned to the caller.
-      console.warn('[idempotency] DynamoDB cache write failed', { key, error: err.message });
+      console.warn('[idempotency] DynamoDB cache write failed', { key, errorName: err?.name ?? 'Error' });
     });
   }
 

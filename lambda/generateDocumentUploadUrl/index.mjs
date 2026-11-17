@@ -3,7 +3,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { isHrOrOwner } from '../shared/hr-group.mjs';
+import { isHrOrOwner, isIdToken } from '../shared/hr-group.mjs';
 import { groupsOf } from '../shared/document-check.mjs';
 
 // Newer AWS SDK versions (the Lambda runtime's) add a CRC32 checksum of an
@@ -58,7 +58,7 @@ const handlerFn = async (event) => {
 
     // Validate employee exists, and that the caller is HR or that person
     const employee = await readEmployee(employeeId);
-    const isHr = groupsOf(claims).includes('hr_staff');
+    const isHr = isIdToken(claims) && groupsOf(claims).includes('hr_staff');
     if (!employee) {
       return isHr ? errorResponse(404, `Employee ${employeeId} not found`) : errorResponse(403, NOT_YOURS);
     }
@@ -109,7 +109,7 @@ const handlerFn = async (event) => {
     };
 
   } catch (err) {
-    logger.error('Unexpected error', { errorMessage: err.message, errorName: err.name });
+    logger.error('Unexpected error', { errorName: err?.name ?? 'Error' });
     return errorResponse(500, "Internal server error");
   }
 };

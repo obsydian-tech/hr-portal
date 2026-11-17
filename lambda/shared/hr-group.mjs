@@ -12,12 +12,20 @@ export function json(statusCode, body) {
 
 /** True when the claims carry one of the group names (exact names, through groupsOf). */
 export function inGroup(claims, ...names) {
+  if (!isIdToken(claims)) return false; // BE-18: an access token is in no group here
   const groups = groupsOf(claims);
   return names.some((n) => groups.includes(n));
 }
 
+/** BE-18: an ID token, or claims with no token_use at all. Any other token_use (access, empty, look-alikes) is refused. */
+export function isIdToken(claims) {
+  const t = claims?.token_use;
+  return t === undefined || t === 'id';
+}
+
 /** HR may act on anyone; everyone else only on the record whose email is theirs (trimmed, any case; empty never matches). */
 export function isHrOrOwner(claims, employee) {
+  if (!isIdToken(claims)) return false;
   if (claims && groupsOf(claims).includes(HR_GROUP)) return true;
   const v = claims?.email_verified;
   const verified = v === true || (typeof v === 'string' && v.toLowerCase() === 'true');
@@ -36,7 +44,7 @@ export function hrOrAgent(event, message) {
 /** null for HR, else the 403 answer. Groups are split into names, never a substring match. */
 export function hrOnly(event, message) {
   const claims = event?.requestContext?.authorizer?.jwt?.claims;
-  if (claims && groupsOf(claims).includes(HR_GROUP)) return null;
+  if (claims && isIdToken(claims) && groupsOf(claims).includes(HR_GROUP)) return null;
   return json(403, { error: message });
 }
 
