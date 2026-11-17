@@ -2424,7 +2424,7 @@ a.pp-tag:hover { text-decoration: underline; }
   .pp-page-header__title { font: var(--font-heading-large); letter-spacing: var(--font-heading-large-tracking); }
   .pp-page-header__description { font: var(--font-body); }
   .pp-page-header__actions { width: 100%; }
-  .pp-page-header__actions > .pp-button--primary { flex: 1 1 auto; min-width: max-content; min-height: var(--size-control-large); }
+  .pp-page-header__actions > .pp-button--primary { flex: 1; min-height: var(--size-control-large); }
 }
 
 /* ---- navigation/pagination ---- */
@@ -2666,12 +2666,7 @@ a.pp-tag:hover { text-decoration: underline; }
 .pp-tabs__panel:focus-visible { outline-offset: var(--focus-ring-offset); border-radius: var(--radius-small); }
 
 @media (pointer: coarse) { .pp-tabs__tab { min-height: var(--size-touch-target); } }
-@media (max-width: 767px) {
-  .pp-tabs__tab { min-height: var(--size-control-large); padding: 0 var(--space-100); }
-  .pp-tabs__tab::after { left: var(--space-100); right: var(--space-100); }
-  .pp-tabs__tab > svg { display: none; }
-  .pp-tabs__list { -webkit-mask-image: linear-gradient(to right, var(--color-text) calc(100% - var(--space-300)), transparent); mask-image: linear-gradient(to right, var(--color-text) calc(100% - var(--space-300)), transparent); }
-}
+@media (max-width: 767px) { .pp-tabs__tab { min-height: var(--size-control-large); } }
 @media (prefers-reduced-motion: reduce) { .pp-tabs__tab, .pp-tabs__tab::after { transition: none; } }
 
 /* ---- navigation/top-navigation ---- */
@@ -2878,20 +2873,11 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
   .pp-table--stack, .pp-table--stack tbody { display: block; width: 100%; }
   .pp-table--stack tr { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-100) var(--space-200); box-sizing: border-box; padding: var(--space-150) var(--space-200); border-bottom: var(--border-width) solid var(--color-border); }
   .pp-table--stack td { display: block; box-sizing: border-box; min-width: 0; border: 0; padding: 0; text-align: left; overflow-wrap: anywhere; }
-  .pp-table--stack th[scope="row"] { display: block; box-sizing: border-box; min-width: 0; border: 0; padding: 0; text-align: left; overflow-wrap: anywhere; }
-  .pp-table--stack td:first-child, .pp-table--stack th[scope="row"] { grid-column: 1 / -1; padding-inline-end: calc(var(--space-500) + var(--space-100)); }
-  /* Two row actions need twice the room, so a title or an email never runs under them. */
-  .pp-table--stack tr:has(.pp-table__actions button + button) > :first-child { padding-inline-end: calc(var(--space-500) * 2 + var(--space-100)); }
+  .pp-table--stack td:first-child { grid-column: 1 / -1; padding-inline-end: var(--space-500); }
   .pp-table--stack td[data-label]::before { content: attr(data-label); display: block; font: var(--font-heading-xxsmall); color: var(--color-text-subtlest); }
   .pp-table--stack td:first-child::before { display: none; }
   .pp-table--stack td.pp-table__num { text-align: left; }
-  /* A person in a row fits the line and the email wraps, so it never runs under the row actions. */
-  .pp-table--stack .pp-person { display: flex; max-width: 100%; }
-  .pp-table--stack .pp-person__meta { white-space: normal; overflow-wrap: anywhere; }
-  /* Roles, fields and menus need the whole line, so they are never squeezed into half of it. */
-  /* A text action such as View is too wide to sit beside the title, so it takes its own line. */
-  .pp-table--stack td.pp-table__actions:has(.pp-button--link) { position: static; grid-column: 1 / -1; }
-  .pp-table--stack td:has(.pp-confidence, .pp-role-group, .pp-text-field, .pp-textarea, .pp-select) { grid-column: 1 / -1; }
+  .pp-table--stack td:has(.pp-confidence) { grid-column: 1 / -1; }
   .pp-table--stack td.pp-table__actions { position: absolute; top: var(--space-150); right: var(--space-150); width: auto; }
 }
 
