@@ -1,0 +1,135 @@
+# TEN-05: the three user admin role policies of talent-flow-infra/talent-flow-iam.tf at develop 1420ef9, as they are.
+resource "aws_iam_role_policy" "admin_create_user" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_create_user}-policy"
+  role = aws_iam_role.admin_create_user.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_admin_create_user}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "UsersTableWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}/index/*",
+        ]
+      },
+      {
+        Sid    = "CognitoUserAdmin"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:AdminCreateUser",
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminGetUser",
+        ]
+        Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "admin_update_user" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_update_user}-policy"
+  role = aws_iam_role.admin_update_user.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_admin_update_user}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "UsersTableWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}"
+      },
+      {
+        Sid    = "CognitoGroupSync"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminRemoveUserFromGroup",
+          "cognito-idp:AdminListGroupsForUser",
+        ]
+        Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "admin_deactivate_user" {
+  name = "${local.tf_iam_role_prefix}${local.tf_lambda_admin_deactivate}-policy"
+  role = aws_iam_role.admin_deactivate_user.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:af-south-1:${var.aws_account_id}:log-group:/aws/lambda/${local.tf_lambda_admin_deactivate}:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid      = "UsersTableWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_users}"
+      },
+      {
+        Sid      = "CognitoDisableUser"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminDisableUser"]
+        Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
+      },
+      {
+        Sid      = "KMSStateKey"
+        Effect   = "Allow"
+        Action   = local.tf_kms_actions
+        Resource = aws_kms_key.talent_flow_state.arn
+      },
+    ]
+  })
+}
+
