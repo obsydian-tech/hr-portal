@@ -1,5 +1,8 @@
+import { inject, provideEnvironmentInitializer } from '@angular/core';
 import { Routes } from '@angular/router';
 import { siteStyles } from './ds/site/site-styles';
+import { ModulesService } from './core/modules.service';
+import { installTestHook, testRoutes } from './core/test-hook';
 import { employeeGuard, hrGuard, signedOutGuard } from './core/auth/auth.guard';
 import { documentTitle, knownDocumentGuard } from './features/start/document-types';
 
@@ -7,7 +10,8 @@ import { documentTitle, knownDocumentGuard } from './features/start/document-typ
  * The signed-in app and the sign-in pages. Since SITE-01 these load lazily under site.routes.ts, after `/`
  * (the public page) and before the not-found page, so `/` carries none of this code.
  */
-export const routes: Routes = [
+const appRoutes: Routes = [
+  ...testRoutes(),
   { path: 'sign-in', canActivate: [signedOutGuard], loadComponent: () => import('./features/sign-in/sign-in.page').then((m) => m.SignInPage), title: 'Sign in · Naleko People' },
   { path: 'forgot-password', canActivate: [signedOutGuard], loadComponent: () => import('./features/forgot-password/forgot-password.page').then((m) => m.ForgotPasswordPage), title: 'Reset your password · Naleko People' },
   { path: 'set-password', loadComponent: () => import('./features/set-password/set-password.page').then((m) => m.SetPasswordPage), title: 'Set your password · Naleko People' },
@@ -38,4 +42,8 @@ export const routes: Routes = [
   { path: 'dev/site', loadComponent: () => import('./ds/site/gallery.page').then((m) => m.SiteGalleryPage), canActivate: [siteStyles], title: 'Site parts · Naleko People' },
   { path: 'dev/site-landing', loadComponent: () => import('./ds/site/landing.gallery').then((m) => m.SiteLandingGalleryPage), canActivate: [siteStyles], title: 'Landing sections · Naleko People' },
   { path: 'dev/site-landing-page', loadComponent: () => import('./ds/site/landing.page').then((m) => m.SiteLandingPage), canActivate: [siteStyles], title: 'Naleko People' },
+];
+
+export const routes: Routes = [
+  { path: '', providers: [provideEnvironmentInitializer(() => installTestHook(inject(ModulesService)))], children: appRoutes },
 ];

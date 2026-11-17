@@ -195,6 +195,8 @@ const hasFfmpeg = () => (ffmpeg ??= (() => { try { execFileSync('ffmpeg', ['-ver
 export const test = base.extend<{ help: Help }>({
   help: async ({ page }, use, testInfo) => {
     if (HELP) await page.clock.setFixedTime(HELP_TODAY);
+    // MOD-02: the app asks which modules the company has. A page route answers before the journeys' own catch-all.
+    await page.route((u) => /\/v1\/company\/modules$/.test(u.pathname), (r) => r.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'content-type': 'application/json' }, body: JSON.stringify({ modules: ['onboarding'] }) }));
     const help = new Help(page, testInfo, Date.now());
     await use(help);
     await help.saveVideo();
