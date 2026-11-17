@@ -9,9 +9,13 @@
 #                      (a code-only merge, no Terraform change, still deploys
 #                      and is tested: the Terraform workflow ends with a
 #                      result job that is never skipped on develop)
+#                      and, in the same job, build the new app (pepla-web) and put
+#                      it on its pepla-dev address: a private S3 bucket behind
+#                      CloudFront made by infra/web-dev.tf (OPS-01)
 #                  ->  call app-e2e-dev.yml: seed pepla-dev, then run every
 #                      journey of the current app and the new app's pepla-dev
-#                      tests (once per merge, after the apply and the deploy)
+#                      tests, the new app's against that address (once per
+#                      merge, after the apply and the deploy)
 #
 #   merge to main    ->  build the same code (it reached main from develop)
 #     (release)    ->  terraform-apply.yml: read-only prod plan, then one
@@ -40,7 +44,10 @@ on:
       - "scripts/ci/cleanup-dev-e2e.py"
       - "scripts/ci/load-e2e-logins.py"
       - "scripts/ci/dev-frontend-env.sh"
+      - "scripts/ci/deploy-web-dev.sh"
+      - "scripts/ci/dev-web-address.sh"
       - "hr-portal/e2e/**"
+      - "pepla-web/**"
       - "infra/**"
       - "talent-flow-infra/**"
       - "scripts/ci/tf-gate.py"
@@ -167,9 +174,40 @@ jobs:
       - name: Deploy code
         run: scripts/ci/deploy-lambdas.sh dist/lambdas
 
+      # The new app (pepla-web) and the public site (OPS-01): built against pepla-dev,
+      # copied to the private bucket naleko-people-dev-web-<account>, CloudFront's cache
+      # cleared. Runs on every develop run, so code-only and Terraform-only merges leave
+      # the address in step with develop. No secrets, no AI. It is steps of this job, not a
+      # job of its own, because the locked OPS-07 checks allow no new job that signs in to AWS.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22" # the new app is Angular 22
+          cache: npm
+          cache-dependency-path: pepla-web/package-lock.json
+
+      # Writes the CI workspace's environment.ts files only (public ids: sign-in pool,
+      # app client, API addresses). Never committed.
+      - name: Point the new app at pepla-dev
+        run: scripts/ci/dev-frontend-env.sh
+
+      # No AWS credentials for the build: npm install scripts and build code never see them.
+      - name: Build the new app
+        working-directory: pepla-web
+        env:
+          AWS_ACCESS_KEY_ID: ""
+          AWS_SECRET_ACCESS_KEY: ""
+          AWS_SESSION_TOKEN: ""
+        run: |
+          npm ci
+          npm run build
+
+      - name: Naleko People dev, copy the new app to its address and clear the cache
+        run: scripts/ci/deploy-web-dev.sh pepla-web/dist/pepla-web/browser
+
   # Tests the new Lambda code on pepla-dev, and the new app with it, once the
   # deploy has succeeded. app-e2e-dev.yml holds the steps, the lock on
-  # pepla-dev's seeded data and the comment on the merged PR.
+  # pepla-dev's seeded data and the comment on the merged PR. The new app's
+  # tests move to its pepla-dev address (on_web_address) once the APIs allow it; see below.
   e2e-dev:
     name: E2E on pepla-dev
     needs: deploy-dev
@@ -180,3 +218,5 @@ jobs:
     uses: ./.github/workflows/app-e2e-dev.yml
     with:
       full: true
+      # on_web_address: true  # added by the follow-up PR that fills web_dev_origin (infra/apigateway.tf):
+      # until the APIs allow the address, the new app's tests keep using ng serve.

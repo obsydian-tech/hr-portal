@@ -68,6 +68,10 @@ on:
         description: "Run every journey of the current app (not only the ones picked from the changed files)"
         type: boolean
         default: false
+      on_web_address:
+        description: "Run the new app's pepla-dev tests against its pepla-dev web address (OPS-01), not against ng serve. Only after Deploy Lambdas has copied the build there."
+        type: boolean
+        default: false
 
 # Only a PR's newer push cancels that PR's own older run. Every other run
 # (merge, Monday, by hand, after-deploy call) gets a group of its own, so it is
@@ -223,8 +227,17 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
+      # After a merge the new app is already deployed: its tests use that address.
+      # Pull requests have no address of their own and keep ng serve on 127.0.0.1:4300.
+      - name: Find the new app's pepla-dev address
+        if: ${{ !cancelled() && inputs.on_web_address }}
+        run: |
+          addr=$(scripts/ci/dev-web-address.sh)
+          echo "::add-mask::${addr##*/}"
+          echo "WEB_ADDRESS=$addr" >> "$GITHUB_ENV"
+
       - name: Start the new app
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !inputs.on_web_address }}
         working-directory: pepla-web
         run: |
           npx ng serve --host 127.0.0.1 --port 4300 > /tmp/ng-serve-pepla-web.log 2>&1 &
@@ -236,7 +249,7 @@ jobs:
         working-directory: pepla-web
         env:
           ACCEPTANCE_TARGET: pepla-dev
-          E2E_BASE_URL: http://127.0.0.1:4300
+          E2E_BASE_URL: ${{ inputs.on_web_address && env.WEB_ADDRESS || 'http://127.0.0.1:4300' }}
           CI: "true"
         run: npm run e2e:acceptance
 

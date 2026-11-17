@@ -22,6 +22,16 @@ Pages for checking the components:
 `/` and the not-found page are public, prerendered at build time (`src/app/site.routes.ts`, `app.routes.server.ts`); every signed-in page loads lazily from `app.routes.ts` and renders in the browser.
 `npm run build` runs `verify-public-names` after the build (no "pepla" in public output), and `npm run parity:kit` fetches the kit screens for `e2e/parity/kit-parity.ts`.
 
+## The pepla-dev address (OPS-01)
+
+Every merge into `develop` builds the app against pepla-dev and copies it to a private S3 bucket behind CloudFront (`infra/web-dev.tf`, copied by the "Naleko People dev" steps of the "Deploy to pepla-dev" job in `.github/workflows/deploy-lambdas.yml`). The address is the `web_dev_address` Terraform output; `scripts/ci/dev-web-address.sh` prints it from a pepla-dev session. It is a plain `https://<id>.cloudfront.net` address with no domain yet, and it asks search engines to stay away.
+
+- **Sign in** with the HR test login (the fake people from the seed): in the AWS console, pepla-dev account, region Cape Town, Secrets Manager, `pepla-dev/e2e/hr`, "Retrieve secret value". Nobody pastes the password anywhere.
+- **AI is skipped** for that login (it is in `e2e-robots`), so nothing calls a paid model. A test run can reset the fake people's documents while you are clicking.
+- **Pages:** `/` and any route listed in `app.routes.server.ts` are prerendered files. `/hr`, `/sign-in` and every other address open the app shell, which shows the right page in the browser.
+- **After a merge** the new app's `@pepla-dev` acceptance tests run against this address once the APIs allow it (`web_dev_origin` in `infra/apigateway.tf`; the workflow switch is `on_web_address`). Pull requests have no address of their own and keep using `ng serve` on port 4300.
+- Prod is not hosted this way yet (OPS-04, SITE-06). Invite and sign-in links in dev emails still point at `http://localhost:4300`.
+
 ## Rules for building screens
 
 - Read `src/app/ds/README.md` first. Screens use only `pp-*` components from `src/app/ds` and Layout classes.

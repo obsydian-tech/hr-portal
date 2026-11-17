@@ -66,7 +66,8 @@ resource "aws_s3_bucket_cors_configuration" "document_uploads" {
 
   cors_rule {
     allowed_methods = ["GET", "PUT", "POST", "HEAD"]
-    allowed_origins = ["http://localhost:4200", "http://127.0.0.1:4200", "http://localhost:4300", "http://127.0.0.1:4300"]
+    # OPS-01: the pepla-dev web address (web-dev.tf) uploads from the browser too.
+    allowed_origins = ["http://localhost:4200", "http://127.0.0.1:4200", "http://localhost:4300", "http://127.0.0.1:4300", "https://${aws_cloudfront_distribution.web_dev[0].domain_name}"]
     allowed_headers = ["*"]
     expose_headers  = ["ETag"]
     max_age_seconds = 3000

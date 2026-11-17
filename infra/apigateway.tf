@@ -4,8 +4,16 @@
 
 # Browser origins both APIs accept. The new app (pepla-web) runs on port 4300 in the pepla-dev test job, so
 # those two addresses are allowed outside prod only. Prod keeps exactly today's list.
+#
+# OPS-01: pepla-dev's own web address (web-dev.tf) is added the same way, outside prod only, through
+# web_dev_origin. CloudFront chooses that address when it first creates the distribution, so it cannot be
+# written before then. Until it is, the value is empty and compact() leaves it out. One line fills it in
+# (the web_dev_address output of the first dev apply, as https://<id>.cloudfront.net, no slash at the end).
+# It is a literal and not a reference to the distribution because the locked ONB-02 AC-11 check reads this
+# expression as plain text; the S3 uploads bucket (s3.tf) has no such limit and uses the reference.
 locals {
-  api_allowed_origins = concat(["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"], var.environment != "prod" ? ["http://localhost:4300", "http://127.0.0.1:4300"] : [])
+  web_dev_origin      = ""
+  api_allowed_origins = concat(["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"], var.environment != "prod" ? concat(["http://localhost:4300", "http://127.0.0.1:4300"], compact([local.web_dev_origin])) : [])
 }
 
 resource "aws_apigatewayv2_api" "employees_api" {
