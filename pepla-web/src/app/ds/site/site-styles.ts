@@ -8,7 +8,7 @@ import { Injectable, inject, provideEnvironmentInitializer, type EnvironmentProv
  * again (a second site page, the browser starting on a prerendered page), it finds the link that is there and adds nothing.
  */
 @Injectable({ providedIn: 'root' })
-export class PpSiteStyles {
+export class SiteStyleLoader {
   private readonly document = inject(DOCUMENT);
 
   load(): void {
@@ -26,5 +26,5 @@ export class PpSiteStyles {
  * when the route is matched, before its component is drawn, so the link is in `<head>` before the first site part.
  */
 export function provideSiteStyles(): EnvironmentProviders {
-  return provideEnvironmentInitializer(() => inject(PpSiteStyles).load());
+  return provideEnvironmentInitializer(() => inject(SiteStyleLoader).load());
 }
