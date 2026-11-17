@@ -7,6 +7,7 @@ import { Routes } from '@angular/router';
  */
 export const siteRoutes: Routes = [
   { path: '', pathMatch: 'full', loadComponent: () => import('./features/public/public-page').then((m) => m.PublicPage), title: 'Naleko People' },
+  { path: 'Home', loadComponent: () => import('./features/public/public-page').then((m) => m.PublicPage), title: 'Naleko People' },
   { path: '', loadChildren: () => import('./app.routes').then((m) => m.routes) },
   { path: '**', loadComponent: () => import('./features/public/public-page').then((m) => m.NotFoundPage), title: 'Naleko People' },
 ];
