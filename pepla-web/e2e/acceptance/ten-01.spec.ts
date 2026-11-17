@@ -287,27 +287,27 @@ test.describe('TEN-01 Every request knows its company', () => {
     if (existsSync(prodFile) && prodDefault) expect(prodValue, 'env/prod.tfvars and the default agree').toBe(prodDefault);
     expect(prodValue, 'dev and prod have different first companies').not.toBe(devValue);
 
-    // The first company's row, and no member rows.
-    const items = resources('aws_dynamodb_table_item');
-    const ref = tenantsRef();
-    const ours = items.filter((b) => (attributes(b.body).get('table_name') ?? '').startsWith(ref + '.'));
-    expect(ours, 'one aws_dynamodb_table_item in the tenants table').toHaveLength(1);
-    const it = attributes(ours[0]!.body);
-    expect(it.get('hash_key'), 'item hash_key is the table\'s').toMatch(new RegExp(`^(${ref.replace('.', '\\.')}\\.hash_key|"pk")$`));
-    expect(it.get('range_key'), 'item range_key is the table\'s').toMatch(new RegExp(`^(${ref.replace('.', '\\.')}\\.range_key|"sk")$`));
-    const item = squash(ours[0]!.body).replace(/"/g, '').replace(/:/g, '=');
-    for (const [field, want] of [
-      ['pk', 'TENANT#${var.founding_tenant_id}'],
-      ['sk', 'PROFILE'],
-      ['tenant_id', '${var.founding_tenant_id}|var.founding_tenant_id'],
-      ['name', 'Foundingclient'],
-      ['status', 'ACTIVE'],
-      ['country', 'ZA'],
-    ] as const) {
-      expect(item, `the first company's row has ${field} = ${want}`).toMatch(new RegExp(`(^|[{,}])${field}=\\{S=(${want.replace(/[$.{}]/g, (c) => '\\' + c)})\\}`));
+    // The first company's row is data, not infrastructure (TEN-01.1): the OPS-05 apply role may not read or
+    // write table data, so no Terraform resource writes it. In pepla-dev scripts/ci/seed-dev.py writes it,
+    // once, with the id from infra/env/dev.tfvars.
+    expect(resources('aws_dynamodb_table_item'), 'no aws_dynamodb_table_item anywhere in infra/').toHaveLength(0);
+    // Comments and docstrings don't count; either quote style does.
+    const seed = readFileSync(join(REPO, 'scripts', 'ci', 'seed-dev.py'), 'utf8')
+      .replace(/"""[\s\S]*?"""/g, '').replace(/^\s*#.*$/gm, '').replace(/'/g, '"');
+    const tableConst = /^(\w+)\s*=\s*"naleko-people-dev-tenants"\s*$/m.exec(seed)?.[1];
+    expect(seed, 'seed-dev.py reads founding_tenant_id from infra/env/dev.tfvars').toMatch(/"env"\s*\/\s*"dev\.tfvars"|env\/dev\.tfvars/);
+    // The function that writes the row, and main() calls it.
+    const fn = /^def (\w+)\([^)]*\)[^:]*:\n((?:[ \t]+.*\n|\s*\n)*)/gm;
+    const writer = [...seed.matchAll(fn)].find((m) => m[2]!.includes('"PROFILE"'));
+    expect(writer, 'seed-dev.py has a function that writes the PROFILE row').toBeTruthy();
+    const main = [...seed.matchAll(fn)].find((m) => m[1] === 'main');
+    expect(main?.[2] ?? '', `main() calls ${writer![1]}()`).toMatch(new RegExp(`\\b${writer![1]}\\(`));
+    const row = writer![2]!.replace(/\s+/g, '');
+    expect(row, 'it writes to the dev tenants table').toContain(tableConst ? `TableName=${tableConst}` : 'TableName="naleko-people-dev-tenants"');
+    for (const want of [/"pk":\{"S":f"TENANT#\{\w+\}"\}/, /"sk":\{"S":"PROFILE"\}/, /"tenant_id":\{"S":\w+\}/, /"name":\{"S":"Foundingclient"\}/, /"status":\{"S":"ACTIVE"\}/, /"country":\{"S":"ZA"\}/, /"founding":\{"BOOL":True\}/]) {
+      expect(row.match(want), `seed-dev.py's first company row has ${want.source}`).not.toBeNull();
     }
-    expect(item, 'founding = true (a boolean)').toMatch(/(^|[{,}])founding=\{BOOL=true\}/);
-    expect(item, 'created_at is set').toMatch(/(^|[{,}])created_at=\{S=[^}]+\}/);
+    expect(row.match(/ConditionExpression="attribute_not_exists\((pk|sk)\)"/), 'and is written only when missing').not.toBeNull();
     const everything = all().map((f) => stripComments(readFileSync(f, 'utf8'))).join('\n');
     expect(everything, 'no member row (USER#...) is written by Terraform').not.toMatch(/USER#/);
   });
