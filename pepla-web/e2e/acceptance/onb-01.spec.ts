@@ -108,6 +108,10 @@ test.describe('ONB-01 HR sign-in', () => {
 
     // Any well-formed address is allowed, whatever the domain: no company-domain rule.
     for (const ok of ['jane.smith@gmail.com', 'jane@outlook.com', 'jane.smith@mokoena-logistics.co.za']) {
+      // ONB-01.5: the page ignores a click while it is still working on the last one, so wait for the
+      // earlier attempt to finish before sending the next address. Under load the click used to land too
+      // early and was dropped. The wait sits before the click so it never runs on a page already left.
+      await expect(signIn.submit, `before ${ok}: the earlier sign-in attempt has finished`).not.toHaveAttribute('aria-busy', 'true');
       const before = cognito!.signInCalls().length;
       await signIn.signInAs({ email: ok, password: hr.password });
       await expect.poll(() => cognito!.signInCalls().length, `${ok} is sent to Cognito`).toBeGreaterThan(before);
