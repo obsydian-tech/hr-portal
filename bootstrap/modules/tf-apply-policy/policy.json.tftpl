@@ -176,6 +176,15 @@
       }
     },
     {
+      "Sid": "ReadAndRevokeGrantsOnPiiKey",
+      "Effect": "Allow",
+      "Action": ["kms:ListGrants", "kms:RevokeGrant"],
+      "Resource": "arn:aws:kms:${region}:${account_id}:key/*",
+      "Condition": {
+        "ForAnyValue:StringEquals": { "kms:ResourceAliases": "alias/naleko-onboarding-pii" }
+      }
+    },
+    {
       "Sid": "AiSpendBudget",
       "Effect": "Allow",
       "Action": [
