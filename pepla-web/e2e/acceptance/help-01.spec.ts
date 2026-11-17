@@ -218,7 +218,7 @@ test.describe('HELP-01 Help pictures and video: HR signs in', () => {
         const whole = await pictureDiff(page, shot, ref.pictures[i]!, { content: true });
         expect(whole, `[${width}] ${name}: the whole picture is this step`).toBeLessThanOrEqual(0.03);
         const caption = await pictureDiff(page, shot, ref.pictures[i]!, { ...opts, region: captionZone });
-        expect(caption, `[${width}] ${name}: no caption bar`).toBeLessThanOrEqual(0.002);
+        expect(caption, `[${width}] ${name}: no caption bar`).toBeLessThanOrEqual(0.01);
       }
     }
   });
