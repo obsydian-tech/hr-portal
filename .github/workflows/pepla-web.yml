@@ -135,6 +135,10 @@ jobs:
           cache: npm
           cache-dependency-path: pepla-web/package-lock.json
       - run: npm ci
+      # TEN-02 AC-12 runs the shared Lambda code's own tests, which need their packages.
+      - name: Install the shared Lambda code's packages
+        working-directory: lambda/shared
+        run: npm ci
       - run: npx playwright install --with-deps chromium
       # The help picture and video specs run the retake script, which needs these.
       - name: Install ffmpeg and ImageMagick
