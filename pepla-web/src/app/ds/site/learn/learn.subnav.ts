@@ -63,6 +63,12 @@ export class PpSiteLearnSubnav {
       on('scroll', check, { passive: true });
       on('resize', () => { const a = cur; cur = null; mark(a, true); });
       check();
+      // The tab widths change when the web fonts arrive (a slow connection loads them after this runs): place the highlight again whenever a tab's width changes.
+      if (typeof win.ResizeObserver === 'function') {
+        const ro = new win.ResizeObserver(() => { const a = cur; cur = null; mark(a, true); });
+        links.forEach((l) => ro.observe(l));
+        off.push(() => ro.disconnect());
+      }
 
       links.forEach((a, i) => {
         const click = (e: Event) => {
