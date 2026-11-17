@@ -24,6 +24,7 @@ const {
 } = require('@aws-sdk/client-cognito-identity-provider');
 
 const { tenantHelper } = require('../shared/tf-tenant.js');
+const { rolesHelper } = require('../shared/tf-roles.js');
 
 const cognito    = new CognitoIdentityProviderClient({});
 // After pool consolidation, use the Naleko (HR Portal) Cognito pool.
@@ -40,7 +41,7 @@ function requireSetting(name) {
 }
 
 const HM_POOL_ID  = requireSetting('HM_COGNITO_POOL_ID');
-const HM_GROUP    = process.env.HM_GROUP_NAME      || 'naleko-talentflow-hiringmanager';
+const HM_GROUP    = process.env.HM_GROUP_NAME;
 
 function respond(statusCode, body) {
   return {
@@ -61,19 +62,23 @@ exports.handler = async (event) => {
   const { refusal } = T.requireTenant(event);
   if (refusal) return refusal;
 
+  const R = await rolesHelper();
+  const groups = [...new Set([...(HM_GROUP ? [HM_GROUP] : []), ...R.HIRING_MANAGER_GROUPS])];
   const users = [];
-  let nextToken;
-
+  const seen = new Set();
   try {
-    do {
-      const result = await cognito.send(new ListUsersInGroupCommand({
-        UserPoolId: HM_POOL_ID,
-        GroupName:  HM_GROUP,
-        NextToken:  nextToken,
-      }));
-      users.push(...(result.Users ?? []));
-      nextToken = result.NextToken;
-    } while (nextToken);
+    for (const group of groups) {
+      let nextToken;
+      do {
+        const result = await cognito.send(new ListUsersInGroupCommand({
+          UserPoolId: HM_POOL_ID,
+          GroupName:  group,
+          NextToken:  nextToken,
+        }));
+        for (const u of result.Users ?? []) if (!seen.has(u.Username)) { seen.add(u.Username); users.push(u); }
+        nextToken = result.NextToken;
+      } while (nextToken);
+    }
   } catch (err) {
     console.error('getHiringManagers: Cognito list failed', { error: err.message });
     return respond(500, { error: 'Failed to retrieve hiring managers' });

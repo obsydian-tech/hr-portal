@@ -5,15 +5,9 @@
 // hr-group.mjs imports groupsOf from here; the cycle is safe because both sides only call each other inside functions.
 import { isIdToken } from './hr-group.mjs';
 
-/**
- * The caller's groups. API Gateway hands a list claim over as one string such as
- * "[hr_staff naleko-onboarding-hr]", so it is split into names (never a substring match).
- */
-export function groupsOf(claims) {
-  const raw = claims?.['cognito:groups'];
-  const list = Array.isArray(raw) ? raw : String(raw ?? '').replace(/^\[|\]$/g, '').split(/[\s,]+/);
-  return list.map((g) => String(g).trim()).filter(Boolean);
-}
+/** The caller's groups, split into exact names (TEN-05: lambda/shared/roles.mjs). */
+export { groupsOf } from './roles.mjs';
+import { groupsOf } from './roles.mjs';
 
 const STORED_CHECKS = ['MATCHES', 'NEEDS_A_LOOK', 'DOESNT_MATCH'];
 

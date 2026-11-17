@@ -60,13 +60,22 @@ NALEKO_PERSONAS = {
     "hr": {
         "attrs": {"custom:role": "hr_staff", "custom:staff_id": HR_STAFF_ID,
                   "given_name": "Thandi", "family_name": "Demo-HR"},
-        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr"],
+        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
     },
     # TEN-02: the HR login of the second company (B). Its Member row is written below.
     "hr-b": {
         "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRB1",
                   "given_name": "Zanele", "family_name": "Companyb-Lead"},
-        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr"],
+        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
+    },
+    # TEN-05: an IT login and a guest login of company A in the Naleko pool.
+    "it": {
+        "attrs": {"given_name": "Lindo", "family_name": "Demo-IT"},
+        "groups": ["naleko-it-provisioning", "perm-it"],
+    },
+    "guest": {
+        "attrs": {"given_name": "Nandi", "family_name": "Demo-Guest"},
+        "groups": ["guest"],
     },
     "employee": {
         "attrs": {"custom:role": "employee", "custom:employee_id": EMPLOYEE_ID,

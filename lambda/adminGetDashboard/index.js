@@ -16,6 +16,7 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { rolesHelper } = require('../shared/tf-roles.js');
 const { tenantHelper } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, QueryCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
@@ -40,25 +41,6 @@ function extractClaims(event) {
   return event.requestContext?.authorizer?.jwt?.claims || {};
 }
 
-function hasAdminRole(claims) {
-  // Path 1: TalentFlow pool token — custom:roles injected by pre-token trigger
-  try {
-    const roles = JSON.parse(claims['custom:roles'] || '[]');
-    if (Array.isArray(roles) && roles.includes('ADMIN')) return true;
-  } catch { /* fall through */ }
-
-  // Path 2: Naleko pool token (pool consolidation, Epic 5).
-  // API Gateway HTTP API v2 serialises cognito:groups as a bracket-wrapped
-  // space-separated string: '[group1 group2]'. Strip brackets then split.
-  const raw = claims['cognito:groups'];
-  if (!raw) return false;
-  let groups;
-  try { groups = JSON.parse(raw); } catch { /* not JSON */ }
-  if (!Array.isArray(groups)) {
-    groups = String(raw).replace(/^\[|\]$/g, '').split(' ');
-  }
-  return groups.includes('naleko-talentflow-admin');
-}
 
 /** Fetch all SAGA records for the tenant via GSI1 (paginated). */
 async function getAllSagaRecords(T, tenantId) {
@@ -115,15 +97,13 @@ async function countActiveUsers(T, tenantId) {
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Admin role required"});
   const claims = extractClaims(event);
-  console.info('adminGetDashboard auth', { rolesRaw: claims['custom:roles'], groupsRaw: claims['cognito:groups'] });
-  if (!hasAdminRole(claims)) {
-    return respond(403, { error: 'Admin role required' });
-  }
-
-  // TEN-03: after the role check, the company check. The company is the sign-in's.
+  const R = await rolesHelper();
+  const denied = R.requireRole(event, { roles: ['admin'] });
+  if (denied) return denied;
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;
+
 
   try {
     const [sagaRecords, activeUsers] = await Promise.all([

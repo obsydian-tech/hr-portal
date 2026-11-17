@@ -19,6 +19,8 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { rolesHelper } = require('../shared/tf-roles.js');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
@@ -43,15 +45,6 @@ function requireSetting(name) {
 
 const POOL_ID     = requireSetting('COGNITO_POOL_ID');
 
-// Role → Naleko pool group mapping (mirrors pre-token trigger's group→role mapping in reverse)
-const ROLE_TO_GROUP = {
-  ADMIN: 'TalentFlowAdmin',
-  HM:    'HiringManager',
-  IT:    'ITAdmin',
-  TA:    'HRDirector',
-};
-
-const VALID_ROLES = Object.keys(ROLE_TO_GROUP);
 const ROLE_PRECEDENCE = ['ADMIN', 'HM', 'IT', 'TA'];
 
 function respond(statusCode, body) {
@@ -70,22 +63,6 @@ function extractClaims(event) {
   return event.requestContext?.authorizer?.jwt?.claims || {};
 }
 
-function hasAdminRole(claims) {
-  // Path 1: TF pool — custom:roles JSON array
-  try {
-    const roles = JSON.parse(claims['custom:roles'] || '[]');
-    if (Array.isArray(roles) && roles.includes('ADMIN')) return true;
-  } catch { /* fall through */ }
-  // Path 2: Naleko pool — API GW HTTP API v2 sends cognito:groups as '[group1 group2]'
-  const raw = claims['cognito:groups'];
-  if (!raw) return false;
-  let groups;
-  try { groups = JSON.parse(raw); } catch { /* not JSON */ }
-  if (!Array.isArray(groups)) {
-    groups = String(raw).replace(/^\[|\]$/g, '').split(' ').filter(Boolean);
-  }
-  return groups.includes('naleko-talentflow-admin');
-}
 
 async function checkEmailExists(email) {
   const result = await dynamo.send(new QueryCommand({
@@ -101,9 +78,12 @@ async function checkEmailExists(email) {
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Admin role required"});
   const claims = extractClaims(event);
-  if (!hasAdminRole(claims)) {
-    return respond(403, { error: 'Admin role required' });
-  }
+  const R = await rolesHelper();
+  const denied = R.requireRole(event, { roles: ['admin'] });
+  if (denied) return denied;
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
 
   let body;
   try {
@@ -112,19 +92,17 @@ exports.handler = async (event) => {
     return respond(400, { error: 'Request body is not valid JSON' });
   }
 
-  const { email, givenName, familyName, roles } = body;
+  const { email, givenName, familyName } = body;
+  const roles = Array.isArray(body.roles) ? body.roles : [];
 
   // ── Validate required fields ───────────────────────────────────────────────
-  const missing = ['email', 'givenName', 'familyName', 'roles'].filter((f) => !body[f]);
+  const missing = ['email', 'givenName', 'familyName'].filter((f) => !body[f]);
   if (missing.length) {
     return respond(400, { error: 'Missing required fields', missing });
   }
-  if (!Array.isArray(roles) || roles.length === 0) {
-    return respond(400, { error: 'roles must be a non-empty array' });
-  }
-  const invalidRoles = roles.filter((r) => !VALID_ROLES.includes(r));
-  if (invalidRoles.length) {
-    return respond(400, { error: `Invalid roles: ${invalidRoles.join(', ')}. Valid: ${VALID_ROLES.join(', ')}` });
+  const wanted = R.groupsForBody(body);
+  if (!wanted) {
+    return respond(400, { error: 'Invalid role or permissions' });
   }
 
   // ── Check for duplicate email ──────────────────────────────────────────────
@@ -165,8 +143,7 @@ exports.handler = async (event) => {
 
   // ── Add to Cognito groups ──────────────────────────────────────────────────
   const groupErrors = [];
-  for (const role of roles) {
-    const groupName = ROLE_TO_GROUP[role];
+  for (const groupName of wanted.groups) {
     try {
       await cognito.send(new AdminAddUserToGroupCommand({
         UserPoolId: POOL_ID,
@@ -182,7 +159,7 @@ exports.handler = async (event) => {
   // ── Write to talent-flow-users table ──────────────────────────────────────
   const now         = new Date().toISOString();
   const normalEmail = email.toLowerCase();
-  const activeRole  = ROLE_PRECEDENCE.find((r) => roles.includes(r)) || roles[0];
+  const activeRole  = ROLE_PRECEDENCE.find((r) => roles.includes(r)) || roles[0] || body.role;
 
   const userRecord = {
     PK:         `USER#${userId}`,
@@ -197,6 +174,7 @@ exports.handler = async (event) => {
     roles,
     activeRole,
     status:     'ACTIVE',
+    tenant_id:  tenantId,
     createdAt:  now,
     updatedAt:  now,
   };

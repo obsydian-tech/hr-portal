@@ -17,6 +17,7 @@
 
 const { isIdToken } = require('../shared/id-token');
 const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
+const { rolesHelper } = require('../shared/tf-roles.js');
 const {
   DynamoDBClient,
   GetItemCommand,
@@ -55,13 +56,10 @@ function parseGroups(rawGroups) {
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"message": "Forbidden: IT group required."});
   const claims       = extractClaims(event);
-  const groups       = parseGroups(claims['cognito:groups']);
-  const isITUser     = groups.some(g => ['ITAdmin', 'ITSpecialist'].includes(g));
-  const isAdminGroup = groups.includes('ITAdmin') || claims['custom:isAdmin'] === 'true';
-
-  if (!isITUser) {
-    return respond(403, { message: 'Forbidden: IT group required.' });
-  }
+  const R = await rolesHelper();
+  const denied = R.requireRole(event, { perms: ['perm-it'] });
+  if (denied) return denied;
+  const isAdminGroup = R.isItLead(event);
 
   // TEN-03: after the group check, the company check. The company is the sign-in's; tenantId in the query or body is not read.
   const T = await tenantHelper();

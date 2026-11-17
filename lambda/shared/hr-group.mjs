@@ -2,6 +2,7 @@
  * ONB-03: who may add an employee, and who the HR partners are.
  *  */
 import { groupsOf } from './document-check.mjs';
+import { rolesOf } from './roles.mjs';
 
 export const HR_GROUP = 'hr_staff';
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
@@ -48,8 +49,7 @@ export function hrOrAgent(event, message) {
 
 /** null for HR, else the 403 answer. Groups are split into names, never a substring match. */
 export function hrOnly(event, message) {
-  const claims = event?.requestContext?.authorizer?.jwt?.claims;
-  if (claims && isIdToken(claims) && groupsOf(claims).includes(HR_GROUP)) return null;
+  if (rolesOf(event).roles.includes(HR_GROUP)) return null;
   return json(403, { error: message });
 }
 
