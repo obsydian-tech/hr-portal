@@ -6,6 +6,7 @@ import {
 import { AuthService } from '../../core/auth/auth.service';
 import { SIGN_IN_MESSAGES } from '../../core/auth/auth.messages';
 import { StartService } from '../../core/start/start.service';
+import { DocumentsChecklist } from './documents-checklist';
 
 const UNTICKED = 'Tick the box to agree before you continue.';
 const OFFLINE = SIGN_IN_MESSAGES.offline;
@@ -18,7 +19,7 @@ const NOTICE_CHANGED = 'The privacy notice has changed. Read it and agree again.
  */
 @Component({
   selector: 'app-start',
-  imports: [PpButton, PpCheckbox, PpConsent, PpConsentRecord, PpField, PpPageHeader, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup],
+  imports: [DocumentsChecklist, PpButton, PpCheckbox, PpConsent, PpConsentRecord, PpField, PpPageHeader, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-300">
@@ -51,6 +52,7 @@ const NOTICE_CHANGED = 'The privacy notice has changed. Read it and agree again.
                 [meta]="agreedAt()"
                 [action]="{ text: 'Read the privacy notice', link: '/start/privacy-notice' }"
                 [live]="justSaved()" />
+              <app-documents-checklist />
             } @else {
               @if (changed()) {
                 <pp-section-message tone="information">{{ noticeChanged }}</pp-section-message>

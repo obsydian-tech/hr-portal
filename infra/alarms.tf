@@ -22,6 +22,8 @@ module "alarms" {
     "lookupInvite",
     "redeemInvite",
     "getMyStart",
+    "getMyDocuments",
+    "createMyUploadLink",
     "recordConsent",
     "getEmployees",
     "uploadDocumentToS3",

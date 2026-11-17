@@ -389,7 +389,7 @@ export class PpPersonHeaderActions {}
         @if (subheading()) { <span class="pp-document-checklist__subtitle">{{ subheading() }}</span> }
       </div>
       @if (done() !== undefined && total()) {
-        <pp-progress-bar label="Checked" [value]="done()!" [max]="total()!" [valueText]="done() + ' of ' + total() + ' documents'" [tone]="done() === total() ? 'success' : 'warning'" />
+        <pp-progress-bar [label]="progressLabel()" [value]="done()!" [max]="total()!" [valueText]="progressText() ?? done() + ' of ' + total() + ' documents'" [tone]="done() === total() ? 'success' : 'warning'" />
       }
     </div>
     <ul class="pp-document-checklist__list"><ng-content /></ul>
@@ -402,6 +402,10 @@ export class PpDocumentChecklist {
   /** Checked so far, for the progress bar. Leave both out on a new employee's own list (the subheading says it). */
   readonly done = input<number>();
   readonly total = input<number>();
+  /** The progress bar's label: "Checked" for HR's list, "Complete" for a new employee's own. */
+  readonly progressLabel = input('Checked');
+  /** The bar's value in words, instead of "2 of 6 documents". */
+  readonly progressText = input<string>();
 }
 
 /**
