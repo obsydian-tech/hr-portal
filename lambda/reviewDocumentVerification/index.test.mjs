@@ -22,6 +22,13 @@ jest.unstable_mockModule('../shared/idempotency.mjs', () => ({
   withIdempotency: jest.fn(async (_key, fn) => fn()),
 }));
 
+// TEN-02: the shared company reads keep their own AWS client, so they are faked whole here.
+jest.unstable_mockModule('../shared/company-rows.mjs', () => ({
+  findDocument: jest.fn(async () => null),
+  companyRows: jest.fn(async () => []),
+  legacyPage: jest.fn(async () => ({ Items: [] })),
+}));
+
 const SAVED = { ...process.env };
 
 beforeEach(() => jest.resetModules());

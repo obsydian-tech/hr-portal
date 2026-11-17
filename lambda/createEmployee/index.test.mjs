@@ -28,7 +28,12 @@ jest.unstable_mockModule('@aws-sdk/client-eventbridge', () => ({
 }));
 jest.unstable_mockModule('@aws-sdk/client-cognito-identity-provider', () => ({
   CognitoIdentityProviderClient: jest.fn(() => ({
-    send: jest.fn(async (c) => { cognitoCalls.push(c); return {}; }),
+    send: jest.fn(async (c) => {
+      cognitoCalls.push(c);
+      // Cognito answers a new user with its sub; the invite stores it as the company member.
+      if (c._type === 'AdminCreateUser') return { User: { Username: 'user-1', Attributes: [{ Name: 'sub', Value: 'sub-user-1' }] } };
+      return {};
+    }),
   })),
   AdminCreateUserCommand: jest.fn((a) => ({ _type: 'AdminCreateUser', ...a })),
   AdminSetUserPasswordCommand: jest.fn((a) => ({ _type: 'AdminSetUserPassword', ...a })),
@@ -36,6 +41,14 @@ jest.unstable_mockModule('@aws-sdk/client-cognito-identity-provider', () => ({
   ListUsersInGroupCommand: jest.fn((a) => ({ _type: 'ListUsersInGroup', ...a })),
   AdminGetUserCommand: jest.fn((a) => ({ _type: 'AdminGetUser', ...a })),
   AdminListGroupsForUserCommand: jest.fn((a) => ({ _type: 'AdminListGroupsForUser', ...a })),
+}));
+
+// TEN-02: the shared company membership module keeps its own AWS client, so it is faked whole here.
+jest.unstable_mockModule('../shared/membership.mjs', () => ({
+  addMember: jest.fn(async () => {}),
+  companiesOf: jest.fn(async () => []),
+  companyOfSignIn: jest.fn(async () => ''),
+  inCompany: jest.fn(async (users) => users),
 }));
 
 const SETTINGS = {
@@ -53,6 +66,8 @@ function applySettings(overrides = {}) {
   delete process.env.KMS_KEY_ARN;
   delete process.env.SFN_STATE_MACHINE_ARN;
   delete process.env.IDEMPOTENCY_TABLE;
+  process.env.TENANTS_TABLE = 'tenants-test'; // TEN-02: where the new sign-in's company membership is written
+  process.env.LEGACY_TENANT_ID = '';
   Object.assign(process.env, SETTINGS, overrides);
 }
 
@@ -101,7 +116,7 @@ describe('AC-3 createEmployee uses its own pool', () => {
     const res = await handler({
       headers: {},
       // ONB-03: only HR may add an employee
-      requestContext: { authorizer: { jwt: { claims: { 'cognito:groups': '[hr_staff]', 'custom:staff_id': 'HR1' } } } },
+      requestContext: { authorizer: { jwt: { claims: { 'cognito:groups': '[hr_staff]', 'custom:staff_id': 'HR1', tenant_id: 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa' } } } },
       body: JSON.stringify({
         first_name: 'John', last_name: 'Doe', email: 'e2e.run-1@example.test',
         phone: '0820000000', department: 'Bakery',
