@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, model, output, signal, untracked } from '@angular/core';
 import { CdkDrag, CdkDragDrop, CdkDragPlaceholder, CdkDropList, CdkDropListGroup } from '@angular/cdk/drag-drop';
 import { PpIcon } from '../core/icon';
 import { IconName } from '../core/icon.registry';
@@ -6,8 +6,9 @@ import { AvatarColour, PpPerson } from '../core/avatar';
 import { PpLozenge, Status } from '../status/lozenge';
 import { PpBadge } from '../status/status';
 import { PpDeadline } from './records';
-import { PpDropdownMenu, PpMenuItem, PpMenuSection } from '../overlays/overlays';
-import { PpField } from '../forms/field';
+import { PpDropdownMenu, PpMenuItem, PpMenuSection, PpModalDialog, PpModalFooter } from '../overlays/overlays';
+import { PpButton } from '../actions/button';
+import { PpField, PpTextarea } from '../forms/field';
 import { PpSelect } from '../forms/controls';
 import { uid } from '../util';
 
@@ -33,6 +34,7 @@ export interface PipelineStage {
 }
 
 export interface PipelineMove { card: PipelineCard; from: string; to: string; index: number; }
+export interface PipelineMoveRequest extends PipelineMove { reason: string; }
 
 /**
  * A board of hiring stages for one role. Drag a card, or use its Move button (the keyboard and phone way).
@@ -42,7 +44,7 @@ export interface PipelineMove { card: PipelineCard; from: string; to: string; in
  */
 @Component({
   selector: 'pp-pipeline-board',
-  imports: [PpIcon, PpPerson, PpLozenge, PpBadge, PpDeadline, PpDropdownMenu, PpMenuItem, PpMenuSection, PpField, PpSelect, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragPlaceholder],
+  imports: [PpIcon, PpPerson, PpLozenge, PpBadge, PpDeadline, PpDropdownMenu, PpMenuItem, PpMenuSection, PpField, PpSelect, PpTextarea, PpModalDialog, PpModalFooter, PpButton, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragPlaceholder],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-pipeline__picker">
@@ -66,6 +68,10 @@ export interface PipelineMove { card: PipelineCard; from: string; to: string; in
                   @if (c.lozenge; as l) { <pp-lozenge [status]="l.status" [icon]="l.icon">{{ l.text }}</pp-lozenge> }
                   @else if (c.deadline; as d) { <time ppDeadline [due]="d.due" [subject]="d.subject" [now]="now()"></time> }
                 </div>
+                @if (confirmMoves()) {
+                  <button type="button" class="pp-button pp-button--subtle pp-button--icon pp-button--small" [attr.data-card]="c.id"
+                          [attr.aria-label]="'Move ' + first(c.name)" aria-haspopup="dialog" (click)="ask(c, s.id, s.id)"><svg ppIcon="arrow-right-left" /></button>
+                } @else {
                 <button #mv type="button" class="pp-button pp-button--subtle pp-button--icon pp-button--small" [attr.data-card]="c.id"
                         [attr.aria-label]="'Move ' + c.name + ' to another stage'" aria-haspopup="menu" [attr.aria-expanded]="menuFor() === c.id ? 'true' : null"
                         (click)="menuFor.set(menuFor() === c.id ? null : c.id)"><svg ppIcon="arrow-right-left" /></button>
@@ -75,6 +81,7 @@ export interface PipelineMove { card: PipelineCard; from: string; to: string; in
                       @for (t of stages(); track t.id) { @if (t.id !== s.id) { <button ppMenuItem icon="arrow-right" (click)="moveTo(c, s.id, t.id)">Move to {{ t.name }}</button> } }
                     </pp-menu-section>
                   </pp-dropdown-menu>
+                }
                 }
                 <ng-template cdkDragPlaceholder><li class="pp-pipeline__placeholder" aria-hidden="true"></li></ng-template>
               </li>
@@ -86,6 +93,19 @@ export interface PipelineMove { card: PipelineCard; from: string; to: string; in
       }
     </ol>
     <div class="pp-visually-hidden" aria-live="polite">{{ said() }}</div>
+    <pp-modal-dialog [open]="!!asking()" [closable]="true" [heading]="'Move ' + first(asking()?.card?.name ?? '')" (closed)="cancel()">
+      <div class="pp-stack pp-gap-150">
+        <pp-field label="Move to"><pp-select [options]="stageOptions()" [value]="asking()?.to ?? null" (valueChange)="setTo($event)" /></pp-field>
+        <pp-field label="Why? (required)" help="Saved with your name and the time.">
+          <textarea ppTextarea rows="3" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
+          @if (back()) { <p class="pp-text--small">Moving back a stage needs a reason too.</p> }
+        </pp-field>
+      </div>
+      <pp-modal-footer>
+        <button ppButton type="button" (click)="cancel()">Cancel</button>
+        <button ppButton appearance="primary" type="button" [disabled]="!canMove()" (click)="confirm()">Move</button>
+      </pp-modal-footer>
+    </pp-modal-dialog>
   `,
   host: { class: 'pp-pipeline' },
 })
@@ -96,6 +116,47 @@ export class PpPipelineBoard {
   readonly current = model<string | null>(null);
   readonly now = input<Date>();
   readonly moved = output<PipelineMove>();
+  /** Ask first: a drop or the Move button opens the Move dialog; the screen moves the card after `moveRequested`. */
+  readonly confirmMoves = input(false);
+  readonly moveRequested = output<PipelineMoveRequest>();
+  protected readonly asking = signal<{ card: PipelineCard; from: string; to: string } | null>(null);
+  protected readonly reason = signal('');
+  private pending: { id: string; from: string } | null = null;
+  protected readonly stageOptions = computed(() => this.stages().map((s) => ({ value: s.id, label: s.name })));
+  protected readonly back = computed(() => {
+    const a = this.asking(); if (!a) return false;
+    const ids = this.stages().map((s) => s.id);
+    return ids.indexOf(a.to) < ids.indexOf(a.from);
+  });
+  protected readonly canMove = computed(() => { const a = this.asking(); return !!a && a.to !== a.from && this.reason().trim() !== ''; });
+  protected first(name: string) { return name.split(' ')[0]; }
+  constructor() {
+    effect(() => {
+      const all = this.stages();
+      untracked(() => {
+        const p = this.pending;
+        if (!p) return;
+        const now = all.find((s) => s.cards.some((c) => c.id === p.id));
+        if (now && now.id !== p.from) { this.pending = null; this.focusCard(p.id); }
+      });
+    });
+  }
+  protected ask(card: PipelineCard, from: string, to: string) { this.reason.set(''); this.asking.set({ card, from, to }); }
+  protected setTo(to: string | null) { const a = this.asking(); if (a && to) this.asking.set({ ...a, to }); }
+  protected cancel() {
+    const a = this.asking(); if (!a) return;
+    this.asking.set(null);
+    this.focusCard(a.card.id);
+  }
+  protected confirm() {
+    const a = this.asking(); if (!a || !this.canMove()) return;
+    const index = this.stages().find((s) => s.id === a.to)!.cards.length;
+    this.asking.set(null);
+    this.pending = { id: a.card.id, from: a.from };
+    this.moveRequested.emit({ card: a.card, from: a.from, to: a.to, index, reason: this.reason().trim() });
+    this.focusCard(a.card.id);
+  }
+  private focusCard(id: string) { setTimeout(() => this.host.querySelector<HTMLElement>(`[data-card="${id}"]`)?.focus()); }
   protected readonly id = uid('pp-pipeline');
   protected readonly over = signal<string | null>(null);
   protected readonly menuFor = signal<string | null>(null);
@@ -106,6 +167,10 @@ export class PpPipelineBoard {
 
   protected dropped(e: CdkDragDrop<string, string, PipelineCard>) {
     this.over.set(null);
+    if (this.confirmMoves()) {
+      if (e.previousContainer.data !== e.container.data) this.ask(e.item.data, e.previousContainer.data, e.container.data);
+      return;
+    }
     this.move(e.item.data, e.previousContainer.data, e.container.data, e.currentIndex);
   }
   protected moveTo(card: PipelineCard, from: string, to: string) {

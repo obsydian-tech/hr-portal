@@ -2686,6 +2686,7 @@ a.pp-tag:hover { text-decoration: underline; }
 }
 .pp-top-navigation--inline { position: relative; z-index: auto; }
 .pp-top-navigation__menu, .pp-top-navigation__brand, .pp-top-navigation__search-button { display: none; }
+.pp-top-navigation__launcher { flex: none; }
 .pp-top-navigation__brand > .pp-logo__mark { width: 32px; height: auto; display: block; }
 
 .pp-top-navigation__search {
@@ -2761,12 +2762,16 @@ a.pp-tag:hover { text-decoration: underline; }
   .pp-top-navigation__brand { display: block; }
   .pp-top-navigation__search { display: none; }
   .pp-top-navigation .pp-button--icon { width: var(--size-touch-target); min-width: var(--size-touch-target); min-height: var(--size-touch-target); }
+  .pp-top-navigation__launcher { width: var(--size-touch-target); min-width: var(--size-touch-target); min-height: var(--size-touch-target); padding: 0; }
+  .pp-top-navigation__launcher > span { display: none; }
 }
 .pp-top-navigation--compact { padding: 0 var(--space-100); gap: var(--space-050); }
 .pp-top-navigation--compact .pp-top-navigation__menu, .pp-top-navigation--compact .pp-top-navigation__search-button { display: inline-flex; }
 .pp-top-navigation--compact .pp-top-navigation__brand { display: block; }
 .pp-top-navigation--compact .pp-top-navigation__search { display: none; }
 .pp-top-navigation--compact .pp-button--icon { width: var(--size-touch-target); min-width: var(--size-touch-target); min-height: var(--size-touch-target); }
+.pp-top-navigation--compact .pp-top-navigation__launcher { width: var(--size-touch-target); min-width: var(--size-touch-target); min-height: var(--size-touch-target); padding: 0; }
+.pp-top-navigation--compact .pp-top-navigation__launcher > span { display: none; }
 
 /* ---- data/accordion ---- */
 /* Accordion. Spec: accordion.md. Built on <details>/<summary>. */

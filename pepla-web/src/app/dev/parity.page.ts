@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PP_ALL } from '../ds/all';
-import { PipelineCard, PipelineStage } from '../ds';
+import { PipelineCard, PipelineMoveRequest, PipelineStage } from '../ds';
 import { Proposal, LogFilter, TimelineDay, PanelMessage, NavSection, NavItem, IconName } from '../ds';
 
 /**
@@ -36,6 +36,22 @@ export class ParityPage {
     { id: 'offer', name: 'Offer', cards: this.board[2].cards },
     { id: 'hired', name: 'Hired', cards: [] },
   ];
+  protected readonly askBoard = signal<PipelineStage[]>(this.board.map((s) => ({ ...s, cards: [...s.cards] })));
+  protected readonly moveRequests = signal<PipelineMoveRequest[]>([]);
+  protected readonly moveRequestsJson = computed(() => this.moveRequests().length ? JSON.stringify(this.moveRequests()) : '');
+  protected applyRequest() {
+    const r = this.moveRequests().at(-1);
+    if (!r) return;
+    this.askBoard.update((all) => all.map((s) => {
+      let cards = s.cards.filter((c) => c.id !== r.card.id);
+      if (s.id === r.to) cards = [...cards, r.card];
+      return { ...s, cards };
+    }));
+  }
+  protected readonly launcherClicks = signal(0);
+  protected readonly launcherOpen = signal(false);
+  protected readonly launcherClicksPhone = signal(0);
+  protected readonly launcherOpenPhone = signal(false);
   protected readonly on = signal(true);
   protected readonly today = new Date(2026, 10, 11);
   protected readonly nov23 = new Date(2026, 10, 23);
