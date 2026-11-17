@@ -98,7 +98,7 @@ const handlerFn = async (event) => {
       }),
     };
   } catch (error) {
-    logger.error('Error generating pre-signed URL', { errorName: error?.name ?? 'Error', step: error?.$metadata ? 'aws-call' : 'code', ...(error?.name === 'ValidationException' ? { reason: String(error?.message ?? '').slice(0, 200) } : {}) });
+    logger.error('Error generating pre-signed URL', { errorName: error?.name ?? 'Error', step: error?.$metadata ? 'aws-call' : 'code' });
     return {
       statusCode: 500,
       headers,
