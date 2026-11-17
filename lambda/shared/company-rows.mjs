@@ -31,7 +31,7 @@ export async function companyRows(table, tenantId, filter = {}, stop) {
     const input = legacy
       ? {
           TableName: table,
-          FilterExpression: filter.FilterExpression ? `(${filter.FilterExpression}) AND (${t.FilterExpression})` : t.FilterExpression,
+          FilterExpression: filter.FilterExpression ? `(${filter.FilterExpression}) AND ${t.FilterExpression}` : t.FilterExpression,
           ExpressionAttributeNames: names,
           ExpressionAttributeValues: values,
           ...(projection ? { ProjectionExpression: projection } : {}),
@@ -79,7 +79,7 @@ export async function legacyPage(table, tenantId, params = {}) {
   const page = await db.send(new ScanCommand({
     ...params,
     TableName: table,
-    FilterExpression: params.FilterExpression ? `(${params.FilterExpression}) AND (${t.FilterExpression})` : t.FilterExpression,
+    FilterExpression: params.FilterExpression ? `(${params.FilterExpression}) AND ${t.FilterExpression}` : t.FilterExpression,
     ExpressionAttributeNames: { ...(params.ExpressionAttributeNames ?? {}), ...t.ExpressionAttributeNames },
     ExpressionAttributeValues: { ...(params.ExpressionAttributeValues ?? {}), ':tenant_id': { S: tenantId } },
   }));

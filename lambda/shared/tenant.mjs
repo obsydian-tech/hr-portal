@@ -60,7 +60,7 @@ export function tenantFilter(tenantId) {
 export function andFilter(existing, tenantPart) {
   return {
     FilterExpression: existing?.FilterExpression
-      ? `(${existing.FilterExpression}) AND (${tenantPart.FilterExpression})`
+      ? `(${existing.FilterExpression}) AND ${tenantPart.FilterExpression}`
       : tenantPart.FilterExpression,
     ExpressionAttributeNames: { ...(existing.ExpressionAttributeNames ?? {}), ...tenantPart.ExpressionAttributeNames },
     ExpressionAttributeValues: { ...(existing.ExpressionAttributeValues ?? {}), ...tenantPart.ExpressionAttributeValues },

@@ -31,3 +31,13 @@ test('every Lambda that touches the onboarding tables uses the company check or 
   }
   assert.deepEqual(bad, [], `These Lambdas touch the onboarding tables without lambda/shared/tenant.mjs: ${bad.join(', ')}`);
 });
+
+test('the company filter joined to another filter never doubles its parentheses (DynamoDB refuses "((...))")', async () => {
+  const id = 'ten_' + 'a'.repeat(26);
+  process.env.LEGACY_TENANT_ID = id;
+  const { tenantFilter, andFilter } = await import('./tenant.mjs?parens');
+  for (const tenantId of [id, 'ten_' + 'b'.repeat(26)]) {
+    const joined = andFilter({ FilterExpression: 'document_id = :docId' }, tenantFilter(tenantId)).FilterExpression;
+    assert.doesNotMatch(joined, /\(\(/, joined);
+  }
+});
