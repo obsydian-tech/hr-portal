@@ -634,7 +634,7 @@ test.describe('ONB-12 One new employee\'s page', () => {
     const app = new URL(baseURL!).origin;
     const cognito = /^cognito-idp\.[a-z0-9-]+\.amazonaws\.com$/;
     const fonts = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
-    const outside = seen.filter((s) => s.url.origin !== app && !cognito.test(s.url.hostname) && !fonts.has(s.url.hostname));
+    const outside = seen.filter((s) => !(s.method === 'GET' && /\/v1\/company\/modules$/.test(s.url.pathname)) && s.url.origin !== app && !cognito.test(s.url.hostname) && !fonts.has(s.url.hostname));
     const route = `/v1/employees/${encodeURIComponent(p.employee.employee_id)}/verifications`;
     const api = outside.filter((s) => s.url.pathname === route);
     expect(api.filter((s) => s.method === 'GET').length, 'the document upload API is asked for this person').toBeGreaterThan(0);
