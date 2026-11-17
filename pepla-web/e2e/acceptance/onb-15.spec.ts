@@ -1208,7 +1208,7 @@ test.describe('ONB-15 HR accepts a document or asks for a new one', () => {
     const app = new URL(baseURL!).origin;
     const cognito = /^cognito-idp\.[a-z0-9-]+\.amazonaws\.com$/;
     const fonts = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
-    const outside = seen.filter((s) => s.url.origin !== app && !cognito.test(s.url.hostname) && !fonts.has(s.url.hostname));
+    const outside = seen.filter((s) => !(s.method === 'GET' && /\/v1\/company\/modules$/.test(s.url.pathname)) && s.url.origin !== app && !cognito.test(s.url.hostname) && !fonts.has(s.url.hostname));
     const allowed = (s: { method: string; url: URL }) =>
       (s.method === 'GET' || s.method === 'OPTIONS') && /^\/v1\/verifications\/[^/]+$/.test(s.url.pathname) && [...s.url.searchParams.keys()].every((k) => k === 'employee_id')
       || (s.method === 'PATCH' || s.method === 'OPTIONS') && /^\/v1\/verifications\/[^/]+\/review$/.test(s.url.pathname) && !s.url.search

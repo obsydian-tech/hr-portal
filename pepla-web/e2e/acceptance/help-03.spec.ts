@@ -307,6 +307,7 @@ test.describe('HELP-03 Help pictures: HR checks a document', () => {
         if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(u.host)) continue; // the app itself
         if (['fonts.googleapis.com', 'fonts.gstatic.com'].includes(u.host)) continue; // the web fonts
         if (/^cognito-idp\.[a-z0-9-]+\.amazonaws\.com$/.test(u.host)) continue; // the Cognito fake
+        if (c.m === 'GET' && /\/v1\/company\/modules$/.test(u.pathname)) continue; // MOD-02: the shell asks which modules are on
         if (u.origin === employees.origin && c.m === 'GET' && u.pathname === '/v1/employees') continue; // HR home's list (HELP-01, HELP-02)
         if (u.origin === doc.origin) {
           documentCalls.push(`${c.m} ${u.pathname}${u.search}`);
