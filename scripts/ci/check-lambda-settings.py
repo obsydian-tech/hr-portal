@@ -72,6 +72,13 @@ ALLOWED_NEW = {
     ("talentFlowApproveAction", "ENVIRONMENT"): "prod",
 }
 
+# TEN-03: the only keys a prod plan may drop from a Lambda. The two TalentFlow
+# Lambdas below no longer read TENANT_ID (the company comes from the sign-in).
+ALLOWED_REMOVED = {
+    ("aws_lambda_function.get_panel_members", "TENANT_ID"),
+    ("aws_lambda_function.monitor_slas", "TENANT_ID"),
+}
+
 ROOTS = ["infra", "talent-flow-infra"]
 CODE_SUFFIXES = {".js", ".mjs", ".cjs", ".json", ".md", ".ts", ".yml", ".yaml", ".txt", ".py", ".sh"}
 SKIP_NAMES = {"package-lock.json"}
@@ -290,6 +297,8 @@ def check_plan(plan_path: Path):
             if key in unk:
                 out.append(f"{addr}: {key} cannot be checked (value known only after apply)")
             elif key not in after:
+                if (addr, key) in ALLOWED_REMOVED:
+                    continue
                 out.append(f"{addr}: {key} would be removed")
             elif after[key] != before[key]:
                 out.append(f"{addr}: {key} would change")
