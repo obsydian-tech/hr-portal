@@ -104,7 +104,7 @@ export const HELP_JOHAN_DETAIL = (() => {
   const person = HELP_PEOPLE.find((p) => p.email === 'johan@example.com')!;
   const employee = HELP_NEW_EMPLOYEES.find((e) => e.email === person.email)!;
   return {
-    employee: { ...employee, step: HELP_NEW_EMPLOYEE_STEPS[employee.employee_id], phone: '', job_title: person.title, risk_band: null, risk_reason: null, risk_assessed_at: null },
+    employee: { ...employee, step: HELP_NEW_EMPLOYEE_STEPS[employee.employee_id], phone: '', job_title: person.title },
     documents: [
       {
         document_id: 'sunbird-johan-id',
