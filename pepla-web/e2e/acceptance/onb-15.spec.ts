@@ -56,7 +56,7 @@ const WORDS = {
   askNew: 'Ask for a new one',
   cancel: 'Cancel',
   reason: 'Reason',
-  reasonHint: 'Kept with the decision.',
+  reasonHint: 'Naledi sees this reason.',
   enterReason: 'Enter a reason.',
   notFound: 'This document could not be found.',
   backToList: 'Back to Documents to check',
