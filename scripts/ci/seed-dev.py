@@ -76,9 +76,17 @@ NALEKO_PERSONAS = {
         "attrs": {"given_name": "Lindo", "family_name": "Demo-IT"},
         "groups": ["naleko-it-provisioning", "perm-it"],
     },
-    # TEN-04: the company walk. tf holds every TalentFlow role and tick in company A; tf-b and it-b are company B's
-    # callers (each holds the roles, so a 404 proves the row is hidden, not that the role is missing). victim is a
-    # company A user nobody signs in as: the admin user routes need one to aim at.
+    # TEN-04: the company walk. tf holds every TalentFlow role and tick in company A. The walk's "company B" callers
+    # (hr-c, tf-b, it-b) belong to the THIRD company (WALK_TENANT_ID), which has Onboarding and Recruitment switched
+    # on: company B has only Onboarding, so on B every Recruitment route would answer 403 (module off) instead of the
+    # 404 the walk looks for. MOD-01 AC-10 keeps using company B (hr-b) unchanged. Each caller holds the roles, so a
+    # 404 proves the row is hidden, not that a role is missing. victim is a company A user nobody signs in as: the
+    # admin user routes need one to aim at. The test reads hr-c as E2E_HR_B (see app-e2e-dev.yml).
+    "hr-c": {
+        "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRC1",
+                  "given_name": "Cebo", "family_name": "Companyb-Walk"},
+        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
+    },
     "tf": {
         "attrs": {"given_name": "Tessa", "family_name": "Demo-TF"},
         "groups": ["admin", "manager", "perm-recruitment", "perm-it", "perm-approve-offers"],
@@ -382,7 +390,7 @@ def ensure_founding_company(ddb) -> int:
 SECOND_TENANT_ID = "ten_b2e2ec0mpanyb00000000000da"
 
 
-def ensure_second_company(ddb, hr_b_sub: str, other_b_subs: tuple = ()) -> int:
+def ensure_second_company(ddb, hr_b_sub: str) -> int:
     """The second company's row and its HR login's Member row. Each is written once; an existing row stays as it is."""
     written = 0
     items = [
@@ -392,9 +400,30 @@ def ensure_second_company(ddb, hr_b_sub: str, other_b_subs: tuple = ()) -> int:
         {"pk": {"S": f"USER#{hr_b_sub}"}, "sk": {"S": f"TENANT#{SECOND_TENANT_ID}"}, "tenant_id": {"S": SECOND_TENANT_ID},
          "created_at": {"S": "2026-11-17T00:00:00Z"}},
     ]
-    # TEN-04: the other company B logins (tf-b, it-b) get a Member row the same way.
-    for sub in other_b_subs:
-        items.append({"pk": {"S": f"USER#{sub}"}, "sk": {"S": f"TENANT#{SECOND_TENANT_ID}"}, "tenant_id": {"S": SECOND_TENANT_ID},
+    for item in items:
+        try:
+            ddb.put_item(TableName=TENANTS_TABLE, Item=item, ConditionExpression="attribute_not_exists(pk)")
+            written += 1
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+    return written
+
+
+# TEN-04: the third company, for the company walk only. Fixed id, so every run finds the same rows.
+WALK_TENANT_ID = "ten_c3w4lkc0mpanyc0000000000ab"
+
+
+def ensure_walk_company(ddb, member_subs: tuple) -> int:
+    """The walk company's row and a Member row for each of its logins. Each is written once; an existing row stays."""
+    written = 0
+    items = [{"pk": {"S": f"TENANT#{WALK_TENANT_ID}"}, "sk": {"S": "PROFILE"}, "tenant_id": {"S": WALK_TENANT_ID},
+              "name": {"S": "Company C (walk)"}, "status": {"S": "ACTIVE"}, "country": {"S": "ZA"},
+              "created_at": {"S": "2026-11-18T00:00:00Z"}}]
+    for sub in member_subs:
+        # An earlier version of the seed put tf-b and it-b in company B; take that membership away.
+        ddb.delete_item(TableName=TENANTS_TABLE, Key={"pk": {"S": f"USER#{sub}"}, "sk": {"S": f"TENANT#{SECOND_TENANT_ID}"}})
+        items.append({"pk": {"S": f"USER#{sub}"}, "sk": {"S": f"TENANT#{WALK_TENANT_ID}"}, "tenant_id": {"S": WALK_TENANT_ID},
                       "created_at": {"S": "2026-11-18T00:00:00Z"}})
     for item in items:
         try:
@@ -409,12 +438,13 @@ def ensure_second_company(ddb, hr_b_sub: str, other_b_subs: tuple = ()) -> int:
 # MOD-01: the dev companies' modules, set on every run (the founding company both, company B Onboarding only), so a
 # test that turned Recruitment on for B is put back. Only an existing Company row is changed. Prod is never seeded:
 # there the set-modules script does it, with an audit row.
-DEV_MODULES = {"founding": ["onboarding", "recruitment"], "second": ["onboarding"]}
+DEV_MODULES = {"founding": ["onboarding", "recruitment"], "second": ["onboarding"], "walk": ["onboarding", "recruitment"]}
 
 
 def set_dev_modules(ddb) -> int:
     changed = 0
-    for tid, keys in ((founding_tenant_id(), DEV_MODULES["founding"]), (SECOND_TENANT_ID, DEV_MODULES["second"])):
+    for tid, keys in ((founding_tenant_id(), DEV_MODULES["founding"]), (SECOND_TENANT_ID, DEV_MODULES["second"]),
+                      (WALK_TENANT_ID, DEV_MODULES["walk"])):
         try:
             ddb.update_item(TableName=TENANTS_TABLE, Key={"pk": {"S": f"TENANT#{tid}"}, "sk": {"S": "PROFILE"}},
                             UpdateExpression="SET #m = :m", ConditionExpression="attribute_exists(pk)",
@@ -463,6 +493,13 @@ def seed_ten04_rows(ddb, tenant_id: str, tf_sub: str) -> int:
             "candidateId": {"S": cid}, "interviewId": {"S": TEN04["interview"]}, "interviewType": {"S": "HR_SCREEN"},
             "status": {"S": "SCHEDULED"}, "panelMemberIds": {"L": []}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
             "notes": {"S": "TEN04A"}, "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+        ("talent-flow-state", {
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "OFFER"}, "tenant_id": t, "tenantId": t,
+            "offerId": {"S": f"OFFER#{cid}"}, "candidateId": {"S": cid}, "state": {"S": "OFFER_CREATED"},
+            "positionLevel": {"S": "JUNIOR"}, "role": {"S": "TEN04A Baker"}, "department": {"S": "Operations"},
+            "approvalChain": {"L": []}, "currentApprovalStep": {"N": "0"}, "interactionLog": {"L": []},
+            "createdAt": {"S": now}, "updatedAt": {"S": now},
         }),
         ("talent-flow-config", {
             "PK": {"S": f"TENANT#{tenant_id}"}, "SK": {"S": f"CONFIG#{config_type}#v1"},
@@ -532,8 +569,9 @@ def main() -> None:
     hr_b_sub = user_sub(cognito, naleko, "hr-b")
     if not hr_b_sub:
         print("warning: the company B login has no sub; its Member row was not written")
-    other_b_subs = tuple(sub for sub in (user_sub(cognito, naleko, "tf-b"), user_sub(cognito, naleko, "it-b")) if sub)
-    second_written = ensure_second_company(ddb, hr_b_sub, other_b_subs) if hr_b_sub else 0
+    second_written = ensure_second_company(ddb, hr_b_sub) if hr_b_sub else 0
+    walk_subs = tuple(sub for sub in (user_sub(cognito, naleko, r) for r in ("hr-c", "tf-b", "it-b")) if sub)
+    walk_written = ensure_walk_company(ddb, walk_subs)
     modules_set = set_dev_modules(ddb)
     ten04_written = seed_ten04_rows(ddb, founding_tenant_id(), user_sub(cognito, naleko, "tf"))
 
@@ -561,7 +599,7 @@ def main() -> None:
           f"persona consents reset {consents_removed}; "
           f"demo documents {seeded_documents}; founding company row written {founding_written}; "
           f"second company rows written {second_written}; company modules set {modules_set}; "
-          f"TEN-04 walk rows written {ten04_written}")
+          f"walk company rows written {walk_written}; TEN-04 walk rows written {ten04_written}")
 
 
 if __name__ == "__main__":
