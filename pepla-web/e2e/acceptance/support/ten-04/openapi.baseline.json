@@ -1019,7 +1019,7 @@
   ]
  },
  "GET /v1/verifications/{id}/summary": {
-  "description": "Calls Claude (Bedrock) to produce a human-readable digest of the OCR result\nand extracted fields - no raw model output or technical field names.\n\nDesigned for downstream consumers:\n- Employee rejection notifications (why was my document not accepted)\n- WhatsApp / chatbot channels\n- Future mobile app views\n\nNo PII is sent to the model. Response time is typically 2-5 s.\n",
+  "description": "Calls Claude (Bedrock) to produce a human-readable digest of the OCR result\nand extracted fields - no raw model output or technical field names.\n\nDesigned for downstream consumers:\n- Employee rejection notifications (why was my document not accepted)\n- WhatsApp / chatbot channels\n- Future mobile app views\n\nNumbers of six or more digits are removed from the text before it is sent to the model. Response time is typically 2-5 s.\n",
   "operationId": "getVerificationSummary",
   "parameters": [
    {
