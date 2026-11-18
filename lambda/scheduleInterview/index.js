@@ -192,7 +192,16 @@ exports.handler = async (event) => {
   // The InterviewScheduled event has no sign-in: its company is the event's tenant_id, checked against the record.
   const fromApi = !!event.requestContext;
   let tenantId;
+  let RA;
   if (fromApi) {
+    // REC-01: scheduling and changing an interview is the Recruiter's. Reading the interviews of one candidate is also
+    // open to its hiring manager and the panel members of its interviews, and is judged on the rows (404 when not theirs).
+    // The role answer comes first, before any AWS call.
+    RA = await import('../shared/recruitment-access.mjs');
+    if (method !== 'GET') {
+      const notRecruiter = RA.requireRecruiter(event);
+      if (notRecruiter) return notRecruiter;
+    }
     const t = T.requireTenant(event);
     if (t.refusal) return t.refusal;
     // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
@@ -219,6 +228,7 @@ exports.handler = async (event) => {
         Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
       }));
       if (!own.Item || !T.ownsRow(unmarshall(own.Item), tenantId)) return T.notFound();
+      const candidate = unmarshall(own.Item);
 
       // Fetch INTERVIEW# records
       const interviewResult = await dynamo.send(new QueryCommand({
@@ -226,9 +236,16 @@ exports.handler = async (event) => {
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
         ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${candidateId}`, ':prefix': 'INTERVIEW#' }),
       }));
-      const interviews = (interviewResult.Items || [])
-        .filter((i) => T.ownsRow(unmarshall(i), tenantId))
-        .map((i) => { const { PK, SK, ...rest } = unmarshall(i); return rest; })
+      const rows = (interviewResult.Items || []).map((i) => unmarshall(i)).filter((r) => T.ownsRow(r, tenantId));
+
+      // REC-01: a Recruiter and the hiring manager see every interview of the candidate; a panel member only their own.
+      // Anyone else answers like a candidate that does not exist.
+      const relation = await RA.relationOf(event, candidate, async () => rows);
+      if (!relation) return T.notFound();
+      const me = RA.callerId(event);
+      const interviews = rows
+        .filter((r) => relation !== 'panel' || RA.panelMemberOf(r, me))
+        .map((r) => { const { PK, SK, ...rest } = r; return rest; })
         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
       // Fetch all VOTE# records for this candidate and attach per interview
@@ -249,7 +266,7 @@ exports.handler = async (event) => {
           submittedByTA: v.submittedByTA ?? null,
           scores:        v.scores       ?? null,
         };
-      });
+      }).filter((v) => relation !== 'panel' || v.voterId === me);
 
       // Attach votes array to each interview record
       const interviewsWithVotes = interviews.map((iv) => ({

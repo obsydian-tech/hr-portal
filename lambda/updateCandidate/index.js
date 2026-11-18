@@ -68,6 +68,10 @@ const EVALUATION_LOCK_STAGES = new Set([
 ]);
 
 exports.handler = async (event) => {
+  // REC-01: only a Recruiter (HR with the Recruitment tick) may do this. The role answer comes first, before any AWS call.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notRecruiter = RA.requireRecruiter(event);
+  if (notRecruiter) return notRecruiter;
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;

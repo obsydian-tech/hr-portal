@@ -36,6 +36,11 @@ function respond(statusCode, body) {
 }
 
 exports.handler = async (event) => {
+  // REC-01: a Recruiter lists every candidate of the company; a manager lists only the candidates they are hiring for;
+  // everyone else gets 403. The role answer comes first, before any AWS call.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notAllowed = RA.requireRecruiterOrManager(event);
+  if (notAllowed) return notAllowed;
   // TEN-03: the company comes from the sign-in only. tenantId in the query string is not read.
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
@@ -47,7 +52,13 @@ exports.handler = async (event) => {
 
   const qs = event.queryStringParameters || {};
   const limit = Math.min(parseInt(qs.limit || '50', 10), 100);
-  const { stage, positionLevel, slaStatus, search, hiringManagerId, nextToken } = qs;
+  const { stage, positionLevel, slaStatus, search, nextToken } = qs;
+  // REC-01: a manager who is not a Recruiter is limited to their own candidates, whatever the query says.
+  let hiringManagerId = qs.hiringManagerId;
+  if (!RA.isRecruiter(event)) {
+    hiringManagerId = RA.callerId(event);
+    if (!hiringManagerId) return RA.forbidden();
+  }
 
 
   // GSI1 key condition — only fetch SAGA records for this tenant

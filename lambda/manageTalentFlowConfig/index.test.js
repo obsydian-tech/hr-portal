@@ -83,6 +83,25 @@ jest.unstable_mockModule('../shared/modules.mjs', () => ({
   requireModule: async () => null,
 }));
 
+// REC-01: Recruitment settings are read by a Recruiter (HR with the Recruitment tick) or an admin; nobody else.
+const asGroups = (groups) => ({
+  requestContext: { http: { method: 'GET' }, authorizer: { jwt: { claims: { tenant_id: TEN, ...(groups ? { 'cognito:groups': groups } : {}) } } } },
+  queryStringParameters: { configType: 'SCORING_WEIGHTS', active: 'true' },
+});
+
+test('REC-01 GET: a Recruiter and an admin read; every other caller gets 403 before any AWS call', async () => {
+  for (const groups of ['[hr_staff]', '[perm-recruitment]', '[manager]', '[employee]', '[guest]', '[perm-approve-offers]', undefined]) {
+    const res = await handler(asGroups(groups));
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Forbidden' });
+  }
+  expect(mockSend).not.toHaveBeenCalled();
+  for (const groups of ['[hr_staff perm-recruitment]', '[admin]']) {
+    mockSend.mockResolvedValueOnce({ Items: [activeItem] });
+    expect((await handler(asGroups(groups))).statusCode).toBe(200);
+  }
+});
+
 test('GET: returns all versions when ?active not set', async () => {
   const items = [
     { ...activeItem, version: 1, isActive: false },

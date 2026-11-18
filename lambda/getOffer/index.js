@@ -34,6 +34,7 @@ const serverErr = (msg)  => ({ statusCode: 500, body: JSON.stringify({ error: ms
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  const RA = await import('../shared/recruitment-access.mjs');
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;
@@ -41,6 +42,11 @@ exports.handler = async (event) => {
   const { requireModule } = await import('../shared/modules.mjs');
   const moduleOff = await requireModule(event, 'recruitment');
   if (moduleOff) return moduleOff;
+
+  // REC-01: the offer is the Recruiter's and, with the salary removed, the hiring manager's of that candidate. Nobody
+  // else (a panel member included) gets it: they get 404, as for an offer that does not exist.
+  const isRecruiter = RA.isRecruiter(event);
+  if (!isRecruiter && !RA.isManager(event)) return T.notFound();
 
   const candidateId =
     event.pathParameters?.id ??
@@ -51,6 +57,15 @@ exports.handler = async (event) => {
 
   let offer;
   try {
+    if (!isRecruiter) {
+      // A manager: only the hiring manager of this candidate (the candidate's own row, of this company).
+      const own = await dynamo.send(new GetItemCommand({
+        TableName: STATE_TABLE,
+        Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
+      }));
+      const candidate = own.Item ? unmarshall(own.Item) : null;
+      if (!candidate || !T.ownsRow(candidate, tenantId) || !RA.hiringManagerOf(candidate, RA.callerId(event))) return T.notFound();
+    }
     const res = await dynamo.send(new GetItemCommand({
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'OFFER' }),
@@ -71,5 +86,6 @@ exports.handler = async (event) => {
   const { PK, SK, ...offerData } = offer;
 
   console.info('Offer retrieved', { candidateId, state: offerData.state });
-  return ok(offerData);
+  // Salary stays hidden from the hiring manager (REC-05).
+  return ok(isRecruiter ? offerData : RA.forHiringManager(offerData));
 };

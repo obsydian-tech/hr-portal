@@ -87,6 +87,11 @@ const STAGE_LABELS = {
  * Lambda handler
  */
 exports.handler = async (event) => {
+  // REC-01: a Recruiter reads every tile of the company; a manager only the tiles of the candidates they are hiring for;
+  // everyone else gets 403. The role answer comes first, before any AWS call.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notAllowed = RA.requireRecruiterOrManager(event);
+  if (notAllowed) return notAllowed;
   // TEN-03: the company comes from the sign-in only. tenantId in the query string is not read.
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
@@ -117,7 +122,15 @@ exports.handler = async (event) => {
     }
 
     // Fetch signal snapshots
-    const snapshots = await fetchSnapshots(T, tenantId, { ownerId, role, limit });
+    // A manager's tiles are picked from the company's snapshots afterwards, so they are read without the small page limit.
+    let snapshots = await fetchSnapshots(T, tenantId, { ownerId, role, limit: RA.isRecruiter(event) ? limit : Math.max(limit, 1000) });
+
+    // REC-01: a manager who is not a Recruiter sees only the tiles of the candidates they are the hiring manager of.
+    // The candidate rows decide it, so nothing in the query (ownerId, role) can widen it.
+    if (!RA.isRecruiter(event)) {
+      const mine = await managedCandidateIds(T, tenantId, RA.callerId(event));
+      snapshots = snapshots.filter((s) => s.entityType === 'CANDIDATE' && mine.has(s.entityId));
+    }
 
     // Generate tiles from snapshots (with role filtering and config thresholds)
     const rawTiles = generateTiles(snapshots, role, thresholds);
@@ -158,6 +171,36 @@ exports.handler = async (event) => {
     return response(500, { error: 'Failed to fetch intelligence tiles' });
   }
 };
+
+/**
+ * REC-01: the ids of the candidates of this company whose hiring manager is this person (the candidates' own rows).
+ * An empty set when the caller has no person id.
+ */
+async function managedCandidateIds(T, tenantId, managerId) {
+  const ids = new Set();
+  if (!managerId) return ids;
+  let startKey;
+  do {
+    const res = await dynamoDB.send(new QueryCommand({
+      TableName: STATE_TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :saga)',
+      FilterExpression: 'hiringManagerId = :hm',
+      ExpressionAttributeValues: {
+        ':pk': { S: T.tenantKey(tenantId) },
+        ':saga': { S: 'SAGA#' },
+        ':hm': { S: managerId },
+      },
+      ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+    }));
+    for (const item of res.Items || []) {
+      const row = unmarshall(item);
+      if (T.ownsRow(row, tenantId) && row.candidateId) ids.add(row.candidateId);
+    }
+    startKey = res.LastEvaluatedKey;
+  } while (startKey);
+  return ids;
+}
 
 /**
  * Fetch signal snapshots from DynamoDB

@@ -55,7 +55,9 @@ const { handler } = require('./index');
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const TEN = 'ten_0123456789abcdefghijklmnop';
-const AS = (method) => ({ http: { method }, authorizer: { jwt: { claims: { tenant_id: TEN } } } });
+// REC-01: scheduling and changing an interview is the Recruiter's (HR with the Recruitment tick).
+const RECRUITER = { tenant_id: TEN, 'cognito:groups': '[hr_staff perm-recruitment]' };
+const AS = (method, claims = RECRUITER) => ({ http: { method }, authorizer: { jwt: { claims } } });
 
 const PANEL_CONFIG = {
   rules: {
@@ -431,5 +433,64 @@ describe('GET interviews', () => {
     expect(interviews.map((i) => i.interviewId)).toEqual(['a', 'b']);
     expect(interviews[0].votes.map((v) => v.voterId)).toEqual(['v1']);
     expect(interviews[0]).not.toHaveProperty('PK');
+  });
+});
+
+// ── REC-01: who may do what ───────────────────────────────────────────────────
+
+describe('REC-01 role checks', () => {
+  const claimsOf = (groups, extra = {}) => ({ tenant_id: TEN, ...(groups ? { 'cognito:groups': groups } : {}), ...extra });
+
+  test('scheduling or changing an interview by anyone but a Recruiter is 403 before any AWS call', async () => {
+    for (const groups of ['[hr_staff]', '[perm-recruitment]', '[admin]', '[manager]', '[employee]', '[guest]', undefined]) {
+      for (const [method, make] of [['POST', postEvent], ['PATCH', patchEvent]]) {
+        const event = make(method === 'POST' ? {} : { panelMemberIds: ['pm-9'] });
+        event.requestContext = AS(method, claimsOf(groups));
+        const res = await handler(event);
+        expect(res.statusCode).toBe(403);
+        expect(JSON.parse(res.body)).toEqual({ error: 'Forbidden' });
+      }
+    }
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+  });
+
+  const rows = () => [
+    { Item: { tenant_id: TEN, hiringManagerId: 'hm-1' } },
+    { Items: [
+      { PK: 'x', SK: 'INTERVIEW#a', tenant_id: TEN, interviewId: 'a', scheduledAt: '2026-05-20T10:00:00Z', panelMemberIds: ['p-1'] },
+      { PK: 'x', SK: 'INTERVIEW#b', tenant_id: TEN, interviewId: 'b', scheduledAt: '2026-05-21T10:00:00Z', panelMemberIds: ['p-2'] },
+    ] },
+    { Items: [
+      { voterId: 'p-1', interviewId: 'a', rating: 'YES' },
+      { voterId: 'p-2', interviewId: 'b', rating: 'NO' },
+    ] },
+  ];
+  const get = (claims) => handler({ requestContext: AS('GET', claims), pathParameters: { id: 'cand-123' } });
+  const stage = () => rows().forEach((r) => mockDynamoSend.mockResolvedValueOnce(r));
+
+  test('the hiring manager of the candidate sees every interview and vote', async () => {
+    stage();
+    const res = await get(claimsOf('[manager]', { sub: 'hm-1' }));
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).interviews.map((i) => i.votes.map((v) => v.voterId))).toEqual([['p-1'], ['p-2']]);
+  });
+
+  test('a panel member sees only their own interview and only their own vote', async () => {
+    stage();
+    const res = await get(claimsOf('[employee]', { sub: 'p-1' }));
+    expect(res.statusCode).toBe(200);
+    const { interviews } = JSON.parse(res.body);
+    expect(interviews.map((i) => i.interviewId)).toEqual(['a']);
+    expect(interviews[0].votes.map((v) => v.voterId)).toEqual(['p-1']);
+  });
+
+  test('anyone else gets 404, the answer of a candidate that does not exist', async () => {
+    for (const claims of [claimsOf('[manager]', { sub: 'hm-2' }), claimsOf('[guest]', { sub: 'g-1' }), claimsOf(undefined, { sub: 'n-1' })]) {
+      mockDynamoSend.mockReset();
+      stage();
+      const res = await get(claims);
+      expect(res.statusCode).toBe(404);
+      expect(JSON.parse(res.body)).toEqual({ error: 'Not found' });
+    }
   });
 });
