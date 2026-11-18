@@ -9,6 +9,7 @@ import { policyLines, lambdaNamed, roleResourceOf, roleInfo, valueOf, TENANTS_RE
 import { A, B, D, ID, SUB, TABLE, TENANTS, ask, authorizerOf, bodyOf, calls, describe, findRow, rowsOf, runEvent, statusOf, tables, writes, type Caller } from './support/rec-01/world';
 import { ADMINS, C, MANAGERS, NOT_RECRUITERS, RECRUITERS, RECRUITER_FORMS } from './support/rec-01/callers';
 import { LIST_LAMBDAS, ROUTES, type Route } from './support/rec-01/routes';
+import { isCardGrant } from './support/ten-04.2/grants';
 
 /**
  * REC-01 · Recruitment role checks: every action says who may do it (Jira NH-235, epic NH-234). Red.
@@ -535,10 +536,12 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
     for (const [key, cur] of Object.entries(all)) {
       if (!isGated(key, cur.role)) continue;
       const was = baseline[key];
-      if (!was) { expect.soft(false, `new role policy ${key} on a Recruitment Lambda's role: REC-01 adds no IAM`).toBe(true); continue; }
+      // TEN-04.2 (re-locked by acceptance-lock/ten-03.3): PR 407's dev read grants (a table-level GetItem or Query on the state or notifications table) are applied on dev already.
+      if (!was) { expect.soft((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => isCardGrant(p, cur.stack, cur.role)), `new role policy ${key} on a Recruitment Lambda's role: REC-01 adds no IAM`).toBe(true); continue; }
       if (was.squash !== undefined || cur.squash !== undefined) { expect.soft(cur.squash, `role policy ${key}: unchanged`).toBe(was.squash); continue; }
       const added = (cur.pairs ?? []).filter((p) => !(was.pairs ?? []).includes(p));
       for (const p of added) {
+        if (isCardGrant(p, cur.stack, cur.role)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null'), `role policy ${key}: new grant "${p}" is not allowed (only GetItem on the tenants table, which TEN-03 and MOD-01 own)`).toBe(true);
       }
       expect.soft((was.pairs ?? []).filter((p) => !(cur.pairs ?? []).includes(p)), `role policy ${key}: nothing it had is taken away`).toEqual([]);
@@ -564,7 +567,7 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
     for (const [who, l] of Object.entries(logins)) expect(l.email && l.password, `the ${who} test login is set (E2E_${who === 'employee' ? 'EMP' : who === 'hrNoTick' ? 'HR_NOTICK' : who.toUpperCase()}_EMAIL and _PASSWORD, from load-e2e-logins.py)`).toBeTruthy();
     const { region, clientId } = devEnv();
     const oldEnv = join(REPO, 'hr-portal', 'src', 'environments', 'environment.ts');
-    const tfApi = (/talentFlow\s*:\s*\{[^}]*?apiUrl\s*:\s*['"`]([^'"`]+)['"`]/s.exec(existsSync(oldEnv) ? readFileSync(oldEnv, 'utf8') : '')?.[1] ?? '').replace(/\/+$/, '');
+    const tfApi = (/talentFlow\s*:\s*\{[^}]*?apiUrl\s*:\s*['"`]([^'"`]+)['"`]/s.exec(existsSync(oldEnv) ? readFileSync(oldEnv, 'utf8') : '')?.[1] ?? '').replace(/\/+$/, '').replace(/\/v1$/, ''); // the dev E2E writes talentFlow.apiUrl with a trailing /v1; the routes below add it
     expect(tfApi, 'the TalentFlow API address is written for pepla-dev (hr-portal environment.ts, talentFlow.apiUrl)').toMatch(/^https:\/\/[^/]+\.execute-api\./);
     const signIn = async (l: { email: string; password: string }) => {
       const r = await page.request.post(`https://cognito-idp.${region}.amazonaws.com/`, {

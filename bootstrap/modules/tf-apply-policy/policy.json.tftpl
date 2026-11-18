@@ -176,6 +176,16 @@
       }
     },
     {
+      "Sid": "DecryptPiiKeyThroughDynamoDb",
+      "Effect": "Allow",
+      "Action": ["kms:Decrypt"],
+      "Resource": "arn:aws:kms:${region}:${account_id}:key/*",
+      "Condition": {
+        "StringEquals": { "kms:ViaService": "dynamodb.${region}.amazonaws.com" },
+        "ForAnyValue:StringEquals": { "kms:ResourceAliases": "alias/naleko-onboarding-pii" }
+      }
+    },
+    {
       "Sid": "ReadAndRevokeGrantsOnPiiKey",
       "Effect": "Allow",
       "Action": ["kms:ListGrants", "kms:RevokeGrant"],
