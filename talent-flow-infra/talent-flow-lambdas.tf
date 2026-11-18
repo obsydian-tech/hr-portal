@@ -1519,23 +1519,6 @@ resource "aws_iam_role_policy" "ai_chat_modules_read" {
   })
 }
 
-# CHAT-02: talentFlowAiChat keeps and reads Ask Batsi chats in the ask-batsi-chats table (infra/ask_batsi_chats.tf). Add only.
-# KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf), where this role already is.
-resource "aws_iam_role_policy" "ai_chat_chats" {
-  name = "chat02-chats-ai-chat"
-  role = aws_iam_role.ai_chat.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Sid      = "ChatsTable"
-      Effect   = "Allow"
-      Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
-      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/ask-batsi-chats"]
-    }]
-  })
-}
-
 # MOD-01: submitVoteByToken asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "submit_vote_by_token_modules_read" {

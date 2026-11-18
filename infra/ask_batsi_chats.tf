@@ -291,28 +291,3 @@ resource "aws_lambda_permission" "admin_set_ask_batsi" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
 }
-
-# ─── The two old chat Lambdas: add only ───────────────────────────────────────
-# nalekoAiChat keeps and reads chats. The PII key right it needs is already in its own policy (KMSAuditAndCache).
-resource "aws_iam_role_policy" "naleko_ai_chat_chats" {
-  name = "chat02-chats-naleko-ai-chat"
-  role = aws_iam_role.naleko_ai_chat.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid      = "ChatsTable"
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
-        Resource = aws_dynamodb_table.ask_batsi_chats.arn
-      },
-      {
-        Sid      = "CompanySwitchRead"
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem"]
-        Resource = aws_dynamodb_table.tenants.arn
-      },
-    ]
-  })
-}

@@ -483,9 +483,6 @@ export const handler = async (event) => {
   // TEN-03: after the group check, the company check. The company is the sign-in's.
   const { tenantId, refusal } = requireTenant(event);
   if (refusal) return refusal;
-  // CHAT-02: Ask Batsi is a per-company switch, OFF until an admin turns it on.
-  const switchedOff = await requireModule(event, 'ask_batsi');
-  if (switchedOff) return switchedOff;
   const staffId = claims['custom:staff_id'];
   if (!staffId) {
     console.warn(JSON.stringify({ event: 'missing_staff_id' }));
@@ -515,6 +512,10 @@ export const handler = async (event) => {
       }),
     };
   }
+
+  // CHAT-02: after the robot and AI-off answers, Ask Batsi is a per-company switch, OFF until an admin turns it on.
+  const switchedOff = await requireModule(event, 'ask_batsi');
+  if (switchedOff) return switchedOff;
 
   // 2. Hourly rate limit check
   const retryAfter = await checkRateLimit(staffId);

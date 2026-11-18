@@ -614,9 +614,6 @@ export const handler = async (event) => {
   if (tenantId !== process.env.AGENT_TENANT_ID) {
     return { statusCode: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: 'Forbidden' }) };
   }
-  // CHAT-02: Ask Batsi is a per-company switch, OFF until an admin turns it on.
-  const switchedOff = await requireModule(event, 'ask_batsi');
-  if (switchedOff) return switchedOff;
   TENANT = tenantId;
   const start = Date.now();
 
@@ -655,6 +652,10 @@ export const handler = async (event) => {
       }),
     };
   }
+
+  // CHAT-02: after the robot and AI-off answers, Ask Batsi is a per-company switch, OFF until an admin turns it on.
+  const switchedOff = await requireModule(event, 'ask_batsi');
+  if (switchedOff) return switchedOff;
 
   // ── 1b. NH-80: Hourly rate limit check ─────────────────────────────────
   const retryAfter = await checkRateLimit(staffId);

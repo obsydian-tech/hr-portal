@@ -2809,6 +2809,18 @@ paths:
                     example: Forbidden
               example:
                 error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
       operationId: GET_v1_chats_id
       servers:
       - url: https://agent-api.example.com
@@ -2835,6 +2847,18 @@ paths:
                     example: Forbidden
               example:
                 error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
       operationId: DELETE_v1_chats_id
       servers:
       - url: https://agent-api.example.com
