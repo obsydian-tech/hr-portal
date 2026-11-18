@@ -665,6 +665,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
 
     // Add only: against develop 6122df1 (TEN-05 merged), nothing is taken away and every new grant is GetItem on the tenants table.
     const baseline = JSON.parse(readFileSync(join(__dirname, 'support', 'mod-01', 'iam-6122df1', 'policies.json'), 'utf8')) as Record<string, { role: string; pairs?: string[]; squash?: string }>;
+    const ONB22_POLICIES = new Set(['infra/create_proposal', 'infra/approve_agent_action_onb22', 'infra/summarise_verification_employees', 'infra/naleko_mcp_server_agent_key']);
     const gatedRoles = new Set<string>();
     for (const name of GATED_LAMBDAS) for (const { stack, block } of lambdaNamed(name)) { const r = roleResourceOf(block); const info = r ? roleInfo(stack, r) : undefined; if (r) gatedRoles.add(`${stack}:${r}`); if (info) gatedRoles.add(`name:${info.name}`); }
     // TEN-04.2 (re-locked by acceptance-lock/ten-03.3): more table-level grants, one (role, action, table) each (support/ten-04.2/grants.ts); ten-03.spec.ts AC-10 pins exactly these.
@@ -692,6 +693,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock mod-01.4): its own role, locked in onb-21.spec.ts AC-8.
       if (/ask_batsi|stored_chats/.test(key) || /ask_batsi/.test(cur.role)) continue; // CHAT-02 (re-lock mod-01.N): their own roles, judged in chat-02.spec.ts AC-31.
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock mod-01.1): its own role, locked in ten-06.spec.ts AC-7.
+      // ONB-22.1 (re-lock mod-01.6): the agent proposal and approval rights are new role policies of their own (a new role, and second policies on three roles ten-02 pins); onb-22.spec.ts AC-8 pins exactly these.
+      if (ONB22_POLICIES.has(key)) continue;
       if ((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => ten042(p, cur.stack, cur.role))) continue; // TEN-04.2: one of the three table Queries
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);
       for (const p of cur.pairs ?? [`unreadable ${cur.squash}`]) {
