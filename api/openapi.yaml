@@ -3529,7 +3529,8 @@ paths:
       security:
       - CognitoJWT: []
       x-tenant: token
-      x-roles: []
+      x-roles:
+      - hr_staff
   /v1/config/{id}:
     put:
       summary: PUT /v1/config/{id}
