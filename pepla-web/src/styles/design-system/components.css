@@ -3080,6 +3080,19 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-agent-panel__suggestion:hover { background: var(--color-background-neutral-subtle-hovered); }
 .pp-agent-panel__suggestion:focus-visible { outline: var(--border-width-focused) solid var(--color-border-focused); outline-offset: calc(var(--border-width-focused) * -1); }
 
+/* Panel as a full page (AI chat mode): a centred reading column, no frame. */
+.pp-agent-panel--page { position: relative; inset: auto; z-index: auto; width: 100%; height: var(--_height, 100%); border: 0; border-radius: 0; box-shadow: none; background: var(--elevation-surface); }
+.pp-agent-panel--page .pp-agent-panel__header { background: var(--elevation-surface); }
+.pp-agent-panel--page .pp-agent-panel__log,
+.pp-agent-panel--page .pp-agent-panel__composer { padding-inline: max(var(--layout-gutter-phone), calc((100% - var(--layout-reading-max)) / 2)); background: var(--elevation-surface); }
+.pp-agent-panel--page .pp-agent-panel__composer { border-top: 0; }
+.pp-agent-panel--page .pp-agent-panel__input-row { padding: var(--space-100); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-xlarge); background: var(--elevation-surface-raised); }
+.pp-agent-panel--page .pp-agent-panel__input-row .pp-textarea { border: 0; box-shadow: none; background: transparent; }
+.pp-agent-panel--page .pp-agent-panel__hint { text-align: center; }
+
+/* Phone: a list of chats fills the width */
+.pp-app-shell--phone .pp-side-navigation--inline { width: 100%; border: 0; height: auto; }
+
 /* ---- agent/agent-proposal-card ---- */
 /* Agent proposal card. Spec: agent-proposal-card.md. Rule 2: the agent proposes, a person approves.
    Built on pp-card; the mint border is the card's only mint besides the agent mark and the Approve button. */

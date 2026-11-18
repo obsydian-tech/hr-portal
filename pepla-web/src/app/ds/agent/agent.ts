@@ -189,7 +189,7 @@ const OUTCOME_LOZENGE: Record<Exclude<ProposalState, 'waiting' | 'declining'>, {
   template: `
     <header class="pp-card__header">
       <div class="pp-proposal__titles">
-        <pp-agent-mark [text]="decided() ? 'Batsi suggested' : 'Batsi suggests'" />
+        <pp-agent-mark [text]="quote() !== undefined ? (decided() ? 'Batsi suggested' : 'Suggested by Batsi') : (decided() ? 'Batsi suggested' : 'Batsi suggests')" />
         <span class="pp-proposal__title" role="heading" aria-level="3" [id]="id">{{ proposal().title }}</span>
       </div>
       @if (lozenge(); as l) { <div class="pp-card__aside"><pp-lozenge [status]="l.status" [icon]="l.icon">{{ l.text }}</pp-lozenge></div> }
@@ -206,6 +206,10 @@ const OUTCOME_LOZENGE: Record<Exclude<ProposalState, 'waiting' | 'declining'>, {
             </div>
           </fieldset>
         }
+        @if (quote() !== undefined) {
+          <!-- In the chat: the drafted message itself, then Approve, Edit, Decline. -->
+          <p class="pp-proposal__quote">{{ quote() }}</p>
+        } @else {
         <dl class="pp-proposal__facts">
           <dt>Why now</dt><dd>{{ proposal().whyNow }}</dd>
           @if (proposal().sources.length) {
@@ -227,14 +231,22 @@ const OUTCOME_LOZENGE: Record<Exclude<ProposalState, 'waiting' | 'declining'>, {
             <dd><pp-confidence [level]="proposal().confidence" [items]="proposal().read ?? []" [sources]="proposal().sources.length" [why]="proposal().readWhy" /></dd>
           }
         </dl>
+        }
+        @if (blockedBy()) {
+          <!-- The person who asked may not approve this one: it says who may. -->
+          <p class="pp-proposal__note" role="status"><span>Waiting for {{ blockedBy() }} to approve.</span> <span>You asked for this. Only {{ blockedBy() }} can approve it.</span></p>
+        } @else {
         <footer class="pp-card__footer">
           <div class="pp-button-group pp-button-group--stack-phone">
-            <button ppButton appearance="agent" icon="check" [attr.aria-describedby]="id" [disabled]="items().length > 0 && !chosen()" (click)="approve.emit()">{{ approveText() }}</button>
+            <button ppButton [appearance]="quote() !== undefined ? 'default' : 'agent'" icon="check" [attr.aria-describedby]="id" [disabled]="items().length > 0 && !chosen()" (click)="approve.emit()">{{ approveText() }}</button>
             @if (!items().length) { <button ppButton appearance="default" [attr.aria-describedby]="id" (click)="edit.emit()">Edit</button> }
             <button ppButton appearance="subtle" [attr.aria-describedby]="id" (click)="state.set('declining')">{{ items().length ? 'Decline all' : 'Decline' }}</button>
           </div>
-          <span class="pp-proposal__note"><svg ppIcon="history" />&ngsp;{{ items().length ? 'Each ' + one() + ' gets its own audit entry with your name.' : 'Your choice is recorded with your name and the time.' }}</span>
+          @if (quote() === undefined) {
+            <span class="pp-proposal__note"><svg ppIcon="history" />&ngsp;{{ items().length ? 'Each ' + one() + ' gets its own audit entry with your name.' : 'Your choice is recorded with your name and the time.' }}</span>
+          }
         </footer>
+        }
       }
       @case ('working') {
         <footer class="pp-card__footer">
@@ -287,6 +299,10 @@ export class PpProposalCard {
   /** What Batsi is doing while it works: "Sending to payroll". */
   readonly workingText = input('Working on it');
   readonly auditLink = input<string>();
+  /** In the chat: the drafted message, shown instead of why now, sources and how sure. */
+  readonly quote = input<string>();
+  /** The name of the person who must approve, when the asker may not: the buttons give way to who may. */
+  readonly blockedBy = input<string>();
   /** A batch: one decision for several records. */
   readonly items = input<ProposalItem[]>([]);
   /** What the batch holds, plural: "documents". */

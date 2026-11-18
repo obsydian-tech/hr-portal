@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -13,6 +13,7 @@ import { CHECK_WORD, DECISION_WORD, type Check, type EmployeeDetail, type Employ
 import { RISK_HEADING, RISK_NONE, RISK_WORD } from '../../core/employees/risk-words';
 import type { Step } from '../../core/employees/employee';
 import { InviteService, type InviteInfo } from '../../core/employees/invite.service';
+import { ScreenContext } from '../../core/screen-context';
 
 const SOUTH_AFRICA = 'Africa/Johannesburg';
 const TITLE = 'Naleko People';
@@ -183,6 +184,10 @@ export class EmployeeDetailPage {
       this.id();
       void this.load();
     });
+    // The assistant panel says who this page is about, from what the page has read, and forgets them when the page goes.
+    const context = inject(ScreenContext);
+    effect(() => { const p = this.person(); context.person.set(p ? { id: p.id, name: p.name } : null); });
+    inject(DestroyRef).onDestroy(() => context.person.set(null));
   }
 
   protected async load(): Promise<void> {
