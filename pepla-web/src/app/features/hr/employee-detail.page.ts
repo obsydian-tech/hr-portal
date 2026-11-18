@@ -10,6 +10,7 @@ import {
 } from '../../ds';
 import { EmployeeDetailError, EmployeeDetailService } from '../../core/employees/employee-detail.service';
 import { CHECK_WORD, DECISION_WORD, type Check, type EmployeeDetail, type EmployeeDocument } from '../../core/employees/employee-detail';
+import { RISK_HEADING, RISK_NONE, RISK_WORD } from '../../core/employees/risk-words';
 import type { Step } from '../../core/employees/employee';
 import { InviteService, type InviteInfo } from '../../core/employees/invite.service';
 
@@ -94,6 +95,17 @@ function when(iso: string): string {
               }
             </pp-person-header>
 
+            @if (p.risk; as r) {
+              @if (r.band; as band) {
+                <pp-section-message [tone]="riskWord[band].tone" [heading]="riskHeading">
+                  {{ riskWord[band].text }}{{ r.assessedAt ? ' on ' + when(r.assessedAt) : '' }}.
+                  @if (r.reason) { {{ r.reason }} }
+                </pp-section-message>
+              } @else {
+                <pp-section-message tone="information" [heading]="riskHeading">{{ riskNone }}</pp-section-message>
+              }
+            }
+
             @if (invite(); as inv) {
               <pp-card heading="Invite link" [level]="2">
                 <div class="pp-stack pp-gap-200">
@@ -140,6 +152,10 @@ export class EmployeeDetailPage {
   private readonly title = inject(Title);
   private readonly id = toSignal(inject(ActivatedRoute).paramMap.pipe(map((m) => m.get('id') ?? '')), { initialValue: '' });
 
+  protected readonly riskWord = RISK_WORD;
+  protected readonly riskHeading = RISK_HEADING;
+  protected readonly riskNone = RISK_NONE;
+  protected readonly when = when;
   protected readonly crumbs: Crumb[] = [{ label: 'Home', link: '/hr' }];
   protected readonly placeholders = [1, 2, 3, 4];
   protected readonly status = signal<'loading' | 'ready' | 'not-found' | 'failed'>('loading');
