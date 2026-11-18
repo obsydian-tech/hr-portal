@@ -1,7 +1,8 @@
 # App tests on dev: run the onboarding journeys against pepla-dev
-#   - on every PR into develop that changes the web app or its tests
-#     (tests the PR's own app code; red = don't merge), and
-#   - after web app code merges into develop.
+# It runs after the merge, never on a pull request:
+#   - when web app code merges into develop,
+#   - every Monday (full run), by hand, and after a Lambda deploy.
+# A red run shows on the merged PR's comment and on the next merge.
 # Release PRs develop -> main don't re-run it: that code already passed here.
 #
 # Test selection (keeps runs short as the app grows): a PR or merge runs only
@@ -26,23 +27,6 @@
 name: App tests on dev
 
 on:
-  pull_request:
-    branches: [develop]
-    paths:
-      - "hr-portal/src/**"
-      - "hr-portal/e2e/**"
-      - "scripts/ci/pick-e2e-tests.py"
-      - "hr-portal/angular.json"
-      - "hr-portal/package.json"
-      - "hr-portal/package-lock.json"
-      - "hr-portal/tsconfig*.json"
-      - "pepla-web/**"
-      - "scripts/ci/dev-frontend-env.sh"
-      - "scripts/ci/check-dev-signin.py"
-      - ".github/workflows/app-e2e-dev.yml"
-      - "!**/*.md"
-      - "!docs/**"
-      - "!pepla-web/help/media/**"
   push:
     branches: [develop]
     paths:
