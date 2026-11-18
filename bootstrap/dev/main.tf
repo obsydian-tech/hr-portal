@@ -272,8 +272,9 @@ module "tf_apply_policy" {
 
 # Dev only. Terraform checks a state machine definition with this call before it
 # plans, and the shared apply policy does not allow it (ONB-11 changed the
-# onboarding definition and the dev plan stopped). One action, one resource
-# pattern, in this account and region. Prod's apply role needs the same
+# onboarding definition and the dev plan stopped). One action. AWS gives it no
+# resource-level permissions, so the resource must be "*"; it only checks a
+# definition and reads or changes nothing. Prod's apply role needs the same
 # permission before a prod release; that is a separate prod change.
 resource "aws_iam_role_policy" "tf_apply_dev_sfn_validate" {
   name = "pepla-github-tf-apply-dev-sfn-validate"
@@ -285,7 +286,7 @@ resource "aws_iam_role_policy" "tf_apply_dev_sfn_validate" {
       Sid      = "ValidateStateMachineDefinition"
       Effect   = "Allow"
       Action   = ["states:ValidateStateMachineDefinition"]
-      Resource = "arn:aws:states:af-south-1:${var.dev_account_id}:stateMachine:*"
+      Resource = "*"
     }]
   })
 }
