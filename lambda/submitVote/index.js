@@ -107,7 +107,9 @@ exports.handler = async (event) => {
     ? (event.detail || (typeof event.body === 'string' ? JSON.parse(event.body) : event.body))
     : event;
 
-  const { candidateId, voterId, scores, rating, interviewId, submittedByTA } = detail || {};
+  const { voterId, scores, rating, interviewId, submittedByTA } = detail || {};
+  // A call through the API names the candidate in the path (/v1/candidates/{id}/votes); the path wins over the body.
+  const candidateId = event.requestContext ? (event.pathParameters?.id ?? detail?.candidateId) : detail?.candidateId;
 
   // ── Step 1: Validate required fields ─────────────────────────────────────
   if (!candidateId) return badRequest('Missing required field: candidateId');

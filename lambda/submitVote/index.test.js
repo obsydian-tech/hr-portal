@@ -22,6 +22,13 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand:  jest.fn((p) => ({ _cmd: 'PutEvents', ...p })),
 }));
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 jest.mock('./config-reader', () => ({
   getConfig: jest.fn(),
 }));
@@ -312,6 +319,36 @@ describe('handler – SAGA not found', () => {
 // =============================================================================
 // 10.  SAGA missing configVersion → 400
 // =============================================================================
+// A call through the API names the candidate in the path; the body need not repeat it (TEN-04 walk).
+describe('handler – candidate named in the path', () => {
+  const apiEvent = (pathId, body) => ({
+    requestContext: { authorizer: { jwt: { claims: { tenant_id: TEN, token_use: 'id', sub: 'u1' } } } },
+    pathParameters: { id: pathId },
+    body: JSON.stringify(body),
+  });
+  const bodyNoCandidate = { voterId: 'voter1', rating: 'YES', scores: SCORES };
+
+  it('answers 404 for another company\'s candidate when the body has no candidateId, and writes nothing', async () => {
+    mockDynamoSend.mockResolvedValueOnce({ Item: { ...SAGA, tenant_id: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' } });
+    getConfig.mockResolvedValue(WEIGHTS);
+
+    const res = await handler(apiEvent('cand1', bodyNoCandidate));
+    expect(res.statusCode).toBe(404);
+    expect(mockDynamoSend).toHaveBeenCalledTimes(1);
+    expect(mockDynamoSend.mock.calls[0][0].Key).toEqual({ PK: 'CANDIDATE#cand1', SK: 'SAGA' });
+    expect(mockEbSend).not.toHaveBeenCalled();
+  });
+
+  it('reads the path\'s candidate even when the body names another one', async () => {
+    mockDynamoSend.mockResolvedValueOnce({ Item: undefined });
+    getConfig.mockResolvedValue(WEIGHTS);
+
+    const res = await handler(apiEvent('cand-from-path', { ...bodyNoCandidate, candidateId: 'cand-from-body' }));
+    expect(res.statusCode).toBe(404);
+    expect(mockDynamoSend.mock.calls[0][0].Key).toEqual({ PK: 'CANDIDATE#cand-from-path', SK: 'SAGA' });
+  });
+});
+
 describe('handler – SAGA missing configVersion', () => {
   it('returns 400 when configVersion is absent from SAGA', async () => {
     const sagaNoVer = { ...SAGA, configVersion: undefined };
