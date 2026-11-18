@@ -103,7 +103,7 @@ function judge(probes: Probe[], callers: Caller[]) {
       if (got !== want) wrong.push(`${p.name} | ${c.name}: want ${want}, got ${got}`);
       // R3: nobody of today's groups loses what develop gave them.
       const before = BASELINE[p.name]?.[c.name];
-      if (before !== undefined && (RANK[got] ?? -1) < (RANK[before] ?? -1)) wrong.push(`${p.name} | ${c.name}: LOST what develop gives (${before}), got ${got}`);
+      if (!p.movedBy && before !== undefined && (RANK[got] ?? -1) < (RANK[before] ?? -1)) wrong.push(`${p.name} | ${c.name}: LOST what develop gives (${before}), got ${got}`);
       if (p.gated && got === 'no' && JSON.stringify(bodyOf(r)) !== JSON.stringify(FORBIDDEN)) refusals.push(`${p.name} | ${c.name}: ${describe(r)}`);
     }
   }

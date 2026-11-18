@@ -42,7 +42,8 @@ const once = (projectName: string) => {
 };
 const FORBIDDEN = { error: 'Forbidden' };
 /** The rule 4 routes whose role check refuses a person in no group before any AWS call (develop 6122df1, TEN-05). */
-const ROLE_CHECKED = ['POST /v1/config', 'PUT /v1/config', 'GET /v1/actions/pending (HR)', 'POST /v1/actions/{id}/approve (HR)', 'POST /v1/actions/{id}/reject (HR)'];
+// REC-01 adds a role answer to the Recruitment routes below (the first fifteen); TEN-05's admin-only and HR routes follow.
+const ROLE_CHECKED = ['PATCH /v1/candidates/{id}', 'PUT /v1/candidates/{id}/stage', 'PATCH /v1/candidates/{id}/interviews/{interviewId}', 'POST /v1/candidates/{id}/interviews', 'POST /v1/candidates/{id}/sentiment', 'POST /v1/candidates/{id}/scoring-links', 'POST /v1/candidates/{id}/offer', 'PUT /v1/candidates/{id}/offer', 'POST /v1/intelligence/tiles/{id}/dismiss', 'POST /v1/intelligence/tiles/{id}/snooze', 'POST /v1/intelligence/tiles/{id}/acknowledge', 'GET /v1/candidates', 'POST /v1/candidates', 'GET /v1/intelligence/tiles', 'GET /v1/config', 'POST /v1/config', 'PUT /v1/config', 'GET /v1/actions/pending (HR)', 'POST /v1/actions/{id}/approve (HR)', 'POST /v1/actions/{id}/reject (HR)'];
 const READ_FAILED = 'Modules read failed';
 const MODULE_OFF = 'Module off, skipped';
 const STANDARD_PACK_LINE = 'Recruitment Standard pack: not available yet (REC-12)';
@@ -671,12 +672,15 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       const lost = (was.pairs ?? []).filter((p) => !(cur.pairs ?? []).includes(p));
       expect.soft(lost, `role policy ${key}: nothing it had is taken away`).toEqual([]);
       for (const p of (cur.pairs ?? []).filter((x) => !(was.pairs ?? []).includes(x))) {
+        // TEN-06 (re-lock mod-01.1): the sign-in trigger moves a TalentFlow person in; ten-06.spec.ts AC-7 pins exactly this.
+        if (/cognito_post_auth/.test(key) && /^Allow (dynamodb:(PutItem|DeleteItem) \$?\{?aws_dynamodb_table\.tenants\.arn\}? null|cognito-idp:AdminAddUserToGroup \$?\{?aws_cognito_user_pool\.naleko_dev\.arn\}? null)$/.test(p)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null') && isGated(key, cur.role), `role policy ${key}: new grant "${p}" is only GetItem on the tenants table, on a gated Lambda's role`).toBe(true);
       }
     }
     for (const [key, cur] of Object.entries(all)) {
       if (baseline[key]) continue;
       if (cur.stack === 'infra' && cur.role === role) continue; // getCompanyModules' own, judged above
+      if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock mod-01.1): its own role, locked in ten-06.spec.ts AC-7.
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);
       for (const p of cur.pairs ?? [`unreadable ${cur.squash}`]) {
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null'), `new role policy ${key}: "${p}" is only GetItem on the tenants table`).toBe(true);
