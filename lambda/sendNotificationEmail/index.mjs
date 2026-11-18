@@ -205,8 +205,13 @@ async function handleDocumentReviewed(detail) {
     case 'FAILED': {
       // ONB-20: one email saying a document needs a new copy. HR's reason is not in it: the person
       // reads it after signing in. Every value that goes into the HTML is escaped.
-      const typeName = KIT_TYPE_NAMES[docType] || docTypeLabel;
-      const firstName = employee.first_name.trim() || 'there';
+      const typeName = KIT_TYPE_NAMES[docType];
+      const firstName = employee.first_name.trim();
+      // No approved words exist for a missing first name or an unknown document type: send nothing.
+      if (!typeName || !firstName) {
+        logger.warn('Sent-back email skipped: first name or document type missing', { employee_id, errorName: 'MissingEmailDetail' });
+        return;
+      }
       await sendEmail({
         to:      employee.email,
         subject: `Your ${typeName} needs a new copy`,

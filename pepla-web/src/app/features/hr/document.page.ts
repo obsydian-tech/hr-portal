@@ -141,7 +141,7 @@ const TYPE_ICON: Record<string, IconName> = {
                     <pp-inline-message>HR can decide once Batsi has read this document.</pp-inline-message>
                   }
                   @if (asking() && !view() && d.check !== 'READING') {
-                    <pp-field label="Reason" [help]="(d.firstName || 'The employee') + ' sees this reason.'" [required]="true" [error]="reasonError()" [count]="reason().length + ' of ' + maxReason" [over]="reason().length > maxReason">
+                    <pp-field label="Reason" [help]="d.firstName ? d.firstName + ' sees this reason.' : undefined" [required]="true" [error]="reasonError()" [count]="reason().length + ' of ' + maxReason" [over]="reason().length > maxReason">
                       <textarea ppTextarea #reasonBox rows="3" [attr.maxlength]="maxReason" [value]="reason()" (input)="typed($event)"></textarea>
                     </pp-field>
                   }
