@@ -68,3 +68,7 @@ reads the diff for them. The two roles' IAM lines are pinned ("no new line").
 ## Order
 
 ONB-19 starts from this card's `onb-05.2`, as the spec says. ONB-21 reuses `due-date.mjs` after this card.
+
+## Re-locked by ONB-19
+AC-1's list of the keys `GET /v1/me` answers adds `step` (ONB-19 sends the person's own step on the same call, and the
+list pinned seven keys). Nothing else in the test changes. Locks: acceptance-lock/onb-10.1.
