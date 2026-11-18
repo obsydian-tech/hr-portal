@@ -2602,7 +2602,8 @@ paths:
       security:
       - CognitoJWT: []
       x-tenant: token
-      x-roles: []
+      x-roles:
+      - hr_staff
   /agent/v1/ai-chat:
     post:
       summary: POST /agent/v1/ai-chat
