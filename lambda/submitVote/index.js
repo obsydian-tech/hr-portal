@@ -101,7 +101,7 @@ exports.handler = async (event) => {
 
   // Extract userId from JWT claims for action tracking (INTEL-001)
   // Only available when called via API Gateway (not EventBridge)
-  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+  const userId = T.userIdOf(event);
 
   const detail = event.detail || event.body
     ? (event.detail || (typeof event.body === 'string' ? JSON.parse(event.body) : event.body))

@@ -105,6 +105,8 @@ resource "aws_cognito_user_pool" "naleko_dev" {
     post_authentication = aws_lambda_function.cognito_post_auth.arn
     post_confirmation   = aws_lambda_function.cognito_post_confirmation.arn
     kms_key_id          = module.kms_pii.key_arn
+    # TEN-06: TalentFlow people move to this pool the first time they sign in or reset their password.
+    user_migration      = aws_lambda_function.user_migration.arn
 
     custom_email_sender {
       lambda_arn     = aws_lambda_function.cognito_email_sender.arn

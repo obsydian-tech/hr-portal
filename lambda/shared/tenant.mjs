@@ -29,6 +29,18 @@ export function tenantOf(event) {
   return valid(fromAgent) ? fromAgent : null;
 }
 
+/**
+ * TEN-06: the person's id as stored records know it. A TalentFlow person who moved to the one sign-in pool has a new
+ * `sub`; their stored votes, tasks and candidates carry the old one, which the sign-in carries as the user_id claim.
+ * Read from the signed-in token only, never from the body, query, path or headers. '' when there is no token.
+ */
+export function userIdOf(event) {
+  const claims = event?.requestContext?.authorizer?.jwt?.claims;
+  const moved = claims?.user_id;
+  if (typeof moved === 'string' && moved.trim() !== '') return moved;
+  return typeof claims?.sub === 'string' ? claims.sub : '';
+}
+
 export function requireTenant(event) {
   const tenantId = tenantOf(event);
   if (tenantId) return { tenantId };

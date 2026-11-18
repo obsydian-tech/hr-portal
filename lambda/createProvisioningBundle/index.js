@@ -100,7 +100,7 @@ function templateToItems(template) {
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(401, {"message": "Unauthorized."});
   const claims  = extractClaims(event);
-  const hmUserId = claims.sub;
+  let hmUserId = claims.sub;
   const R = await rolesHelper();
   const isAdmin = R.holds(event, { roles: ['admin'] });
 
@@ -112,6 +112,7 @@ exports.handler = async (event) => {
 
   // TEN-03: after the group check, the company check. The company is the sign-in's; none is read from the body.
   const T = await tenantHelper();
+  hmUserId = T.userIdOf(event) || hmUserId; // TEN-06: a moved person's old id, as stored records know it
   const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;
 
