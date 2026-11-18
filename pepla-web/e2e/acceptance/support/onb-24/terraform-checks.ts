@@ -156,7 +156,7 @@ export const terraformChecks = {
     expect(top.get('kms_key_id'), 'the PII key encrypts the code').toBe('module.kms_pii.key_arn');
     expect(top.get('post_confirmation'), 'post_confirmation runs cognitoPostConfirmation').toBe(`${postRef}.arn`);
     expect(top.get('post_authentication'), 'post_authentication stays').toBe('aws_lambda_function.cognito_post_auth.arn');
-    expect([...top.keys()].sort(), 'lambda_config has nothing else').toEqual(['kms_key_id', 'post_authentication', 'post_confirmation']);
+    expect([...top.keys()].sort(), 'lambda_config has nothing else').toEqual(['kms_key_id', 'post_authentication', 'post_confirmation', 'user_migration']); // TEN-06 (re-lock onb-24.3)
     expect(nested(config, 'custom_sms_sender'), 'no SMS sender').toEqual([]);
 
     // The dev web client keeps PreventUserExistenceErrors on.

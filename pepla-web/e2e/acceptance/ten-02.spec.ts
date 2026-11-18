@@ -947,6 +947,7 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
     let touching = 0;
     for (const role of roles) {
       if (role === 'tenant_pre_token') continue; // TEN-01, locked there.
+      if (role === 'user_migration') continue; // TEN-06 (re-lock ten-02.4): its own role, locked in ten-06.spec.ts AC-7.
       const policies = resources('aws_iam_role_policy').filter((b) => new RegExp(`^aws_iam_role\\.${role}\\.(name|id)$`).test(attributes(b.body).get('role') ?? ''));
       if (!policies.some((b) => /aws_dynamodb_table\.tenants\.|-tenants\b/.test(stripComments(b.body)))) continue;
       const { statements } = grants(role);
@@ -957,7 +958,8 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
       const fnName = (fn ? attributes(fn.body).get('function_name') ?? '' : '').replace(/"/g, '');
       for (const s of mine) {
         // MOD-01 rule 8 (re-locked by acceptance-lock/mod-01): the modules read adds GetItem for the Recruitment Lambdas of this stack.
-        const allowed = [...(MEMBER_WRITERS.includes(fnName) ? ['dynamodb:Query', 'dynamodb:PutItem'] : ['dynamodb:Query']), ...(MOD01_READERS.includes(role) ? ['dynamodb:GetItem'] : [])];
+        // TEN-06 (re-lock ten-02.4): cognitoPostAuth moves a person in, so it also holds PutItem and DeleteItem on the tenants table.
+        const allowed = [...(MEMBER_WRITERS.includes(fnName) ? ['dynamodb:Query', 'dynamodb:PutItem'] : fnName === 'cognitoPostAuth' ? ['dynamodb:Query', 'dynamodb:PutItem', 'dynamodb:DeleteItem'] : ['dynamodb:Query']), ...(MOD01_READERS.includes(role) ? ['dynamodb:GetItem'] : [])];
         expect.soft(list(s.Action).filter((a) => !allowed.includes(a)), `${role}: on the tenants table only ${allowed.join(' and ')}`).toEqual([]);
         expect.soft(list(s.Resource).filter((r) => !(isTenants(r) && (!indexOf(r) || indexOf(r) === 'tenant-index'))), `${role}: tenants statement names only the table and its tenant-index`).toEqual([]);
         expect.soft(s.Condition, `${role}: tenants statement has no condition to widen it`).toBeUndefined();
