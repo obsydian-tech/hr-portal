@@ -76,6 +76,33 @@ NALEKO_PERSONAS = {
         "attrs": {"given_name": "Lindo", "family_name": "Demo-IT"},
         "groups": ["naleko-it-provisioning", "perm-it"],
     },
+    # TEN-04: the company walk. tf holds every TalentFlow role and tick in company A. The walk's "company B" callers
+    # (hr-c, tf-b, it-b) belong to the THIRD company (WALK_TENANT_ID), which has Onboarding and Recruitment switched
+    # on: company B has only Onboarding, so on B every Recruitment route would answer 403 (module off) instead of the
+    # 404 the walk looks for. MOD-01 AC-10 keeps using company B (hr-b) unchanged. Each caller holds the roles, so a
+    # 404 proves the row is hidden, not that a role is missing. victim is a company A user nobody signs in as: the
+    # admin user routes need one to aim at. The test reads hr-c as E2E_HR_B (see app-e2e-dev.yml).
+    "hr-c": {
+        "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRC1",
+                  "given_name": "Cebo", "family_name": "Companyb-Walk"},
+        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
+    },
+    "tf": {
+        "attrs": {"given_name": "Tessa", "family_name": "Demo-TF"},
+        "groups": ["admin", "manager", "perm-recruitment", "perm-it", "perm-approve-offers"],
+    },
+    "tf-b": {
+        "attrs": {"given_name": "Zola", "family_name": "Companyb-TF"},
+        "groups": ["admin", "manager", "perm-recruitment", "perm-it", "perm-approve-offers"],
+    },
+    "it-b": {
+        "attrs": {"given_name": "Zinhle", "family_name": "Companyb-IT"},
+        "groups": ["naleko-it-provisioning", "perm-it"],
+    },
+    "victim": {
+        "attrs": {"given_name": "Vic", "family_name": "Demo-Victim"},
+        "groups": ["guest"],
+    },
     "guest": {
         "attrs": {"given_name": "Nandi", "family_name": "Demo-Guest"},
         "groups": ["guest"],
@@ -383,15 +410,41 @@ def ensure_second_company(ddb, hr_b_sub: str) -> int:
     return written
 
 
+# TEN-04: the third company, for the company walk only. Fixed id, so every run finds the same rows.
+WALK_TENANT_ID = "ten_c3w4lkc0mpanyc0000000000ab"
+
+
+def ensure_walk_company(ddb, member_subs: tuple) -> int:
+    """The walk company's row and a Member row for each of its logins. Each is written once; an existing row stays."""
+    written = 0
+    items = [{"pk": {"S": f"TENANT#{WALK_TENANT_ID}"}, "sk": {"S": "PROFILE"}, "tenant_id": {"S": WALK_TENANT_ID},
+              "name": {"S": "Company C (walk)"}, "status": {"S": "ACTIVE"}, "country": {"S": "ZA"},
+              "created_at": {"S": "2026-11-18T00:00:00Z"}}]
+    for sub in member_subs:
+        # An earlier version of the seed put tf-b and it-b in company B; take that membership away.
+        ddb.delete_item(TableName=TENANTS_TABLE, Key={"pk": {"S": f"USER#{sub}"}, "sk": {"S": f"TENANT#{SECOND_TENANT_ID}"}})
+        items.append({"pk": {"S": f"USER#{sub}"}, "sk": {"S": f"TENANT#{WALK_TENANT_ID}"}, "tenant_id": {"S": WALK_TENANT_ID},
+                      "created_at": {"S": "2026-11-18T00:00:00Z"}})
+    for item in items:
+        try:
+            ddb.put_item(TableName=TENANTS_TABLE, Item=item, ConditionExpression="attribute_not_exists(pk)")
+            written += 1
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+    return written
+
+
 # MOD-01: the dev companies' modules, set on every run (the founding company both, company B Onboarding only), so a
 # test that turned Recruitment on for B is put back. Only an existing Company row is changed. Prod is never seeded:
 # there the set-modules script does it, with an audit row.
-DEV_MODULES = {"founding": ["onboarding", "recruitment"], "second": ["onboarding"]}
+DEV_MODULES = {"founding": ["onboarding", "recruitment"], "second": ["onboarding"], "walk": ["onboarding", "recruitment"]}
 
 
 def set_dev_modules(ddb) -> int:
     changed = 0
-    for tid, keys in ((founding_tenant_id(), DEV_MODULES["founding"]), (SECOND_TENANT_ID, DEV_MODULES["second"])):
+    for tid, keys in ((founding_tenant_id(), DEV_MODULES["founding"]), (SECOND_TENANT_ID, DEV_MODULES["second"]),
+                      (WALK_TENANT_ID, DEV_MODULES["walk"])):
         try:
             ddb.update_item(TableName=TENANTS_TABLE, Key={"pk": {"S": f"TENANT#{tid}"}, "sk": {"S": "PROFILE"}},
                             UpdateExpression="SET #m = :m", ConditionExpression="attribute_exists(pk)",
@@ -401,6 +454,88 @@ def set_dev_modules(ddb) -> int:
             if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
                 raise
     return changed
+
+
+# TEN-04: the rows company A owns that the company B walk aims at. The ids are the ones in
+# pepla-web/e2e/acceptance/support/ten-04/dev-ids.json; the word TEN04A is what the walk looks for in an answer.
+# Written with put_item on every run, with A's company on each (Terraform never manages table data, and the seed must
+# not wipe tenant_id: PR 374). A table pepla-dev does not have is skipped with a warning.
+TEN04 = {
+    "candidate": "CAND-01TEN04AAAAAAAAAAAAAAA1",
+    "interview": "iv-ten04-a-0001",
+    # A tile is not a stored row: its id is the candidate plus a rule, and the tile routes check the candidate is the caller's.
+    "tile": "tile-CAND-01TEN04AAAAAAAAAAAAAAA1-RULE-SLA-002",
+    "config": "cfg-ten04-a-0001",
+    "itTask": "task-ten04-a-0001",
+    "bundle": "bundle-ten04-a-0001",
+    "notification": "NOTIF#2026-11-10T08:00:00.000Z#notif-ten04-a-0001",
+    "action": "act-ten04-a-0001",
+}
+
+
+def seed_ten04_rows(ddb, tenant_id: str, tf_sub: str) -> int:
+    now = "2026-11-10T08:00:00.000Z"
+    cid = TEN04["candidate"]
+    t = {"S": tenant_id}
+    config_type = "TEN04A_" + TEN04["config"]
+    rows = [
+        ("talent-flow-state", {
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"},
+            "GSI1SK": {"S": f"SAGA#{now}"}, "tenant_id": t, "candidateId": {"S": cid},
+            "firstName": {"S": "TEN04A"}, "lastName": {"S": "Demo-Candidate"}, "email": {"S": "ten04a@example.com"},
+            "phone": {"S": "0800000000"}, "positionTitle": {"S": "TEN04A Baker"}, "positionLevel": {"S": "JUNIOR"},
+            "department": {"S": "Operations"}, "currentStage": {"S": "APPLICATION_REVIEW"},
+            "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"},
+            "appliedDate": {"S": now}, "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+        ("talent-flow-state", {
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": f"INTERVIEW#{TEN04['interview']}"}, "tenant_id": t,
+            "candidateId": {"S": cid}, "interviewId": {"S": TEN04["interview"]}, "interviewType": {"S": "HR_SCREEN"},
+            "status": {"S": "SCHEDULED"}, "panelMemberIds": {"L": []}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+            "notes": {"S": "TEN04A"}, "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+        ("talent-flow-state", {
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "OFFER"}, "tenant_id": t, "tenantId": t,
+            "offerId": {"S": f"OFFER#{cid}"}, "candidateId": {"S": cid}, "state": {"S": "OFFER_CREATED"},
+            "positionLevel": {"S": "JUNIOR"}, "role": {"S": "TEN04A Baker"}, "department": {"S": "Operations"},
+            "approvalChain": {"L": []}, "currentApprovalStep": {"N": "0"}, "interactionLog": {"L": []},
+            "createdAt": {"S": now}, "updatedAt": {"S": now},
+        }),
+        ("talent-flow-config", {
+            "PK": {"S": f"TENANT#{tenant_id}"}, "SK": {"S": f"CONFIG#{config_type}#v1"},
+            "GSI1PK": {"S": f"TENANT#{tenant_id}#ACTIVE"}, "GSI1SK": {"S": f"CONFIG#{config_type}"},
+            "tenant_id": t, "configType": {"S": config_type}, "version": {"N": "1"},
+            "isActive": {"BOOL": True}, "data": {"M": {"note": {"S": "TEN04A"}}}, "createdAt": {"S": now},
+        }),
+        ("it-tasks", {
+            "taskId": {"S": TEN04["itTask"]}, "tenant_id": t, "candidateId": {"S": cid},
+            "title": {"S": "TEN04A laptop"}, "status": {"S": "PENDING"}, "queue": {"S": "Hardware"},
+            "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+        ("provisioning-bundles", {
+            "bundleId": {"S": TEN04["bundle"]}, "tenant_id": t, "candidateId": {"S": cid},
+            "candidateName": {"S": "TEN04A Demo-Candidate"}, "candidateRole": {"S": "Baker"},
+            "startDate": {"S": "2026-12-01"}, "status": {"S": "DRAFT"}, "items": {"L": []},
+            "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+        ("talent-flow-pending-actions", {
+            "actionId": {"S": TEN04["action"]}, "tenant_id": t, "candidateId": {"S": cid},
+            "status": {"S": "PENDING"}, "actionType": {"S": "TEN04A"}, "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+    ]
+    if tf_sub:
+        rows.append(("talent-flow-notifications", {
+            "PK": {"S": f"USER#{tf_sub}"}, "SK": {"S": TEN04["notification"]}, "tenant_id": t,
+            "title": {"S": "TEN04A"}, "read": {"BOOL": False}, "createdAt": {"S": now},
+        }))
+    written = 0
+    for table, item in rows:
+        try:
+            ddb.put_item(TableName=table, Item=item)
+            written += 1
+        except ddb.exceptions.ResourceNotFoundException:
+            print(f"warning: pepla-dev has no table {table}; a TEN-04 row was not written")
+    return written
 
 
 def main() -> None:
@@ -435,7 +570,10 @@ def main() -> None:
     if not hr_b_sub:
         print("warning: the company B login has no sub; its Member row was not written")
     second_written = ensure_second_company(ddb, hr_b_sub) if hr_b_sub else 0
+    walk_subs = tuple(sub for sub in (user_sub(cognito, naleko, r) for r in ("hr-c", "tf-b", "it-b")) if sub)
+    walk_written = ensure_walk_company(ddb, walk_subs)
     modules_set = set_dev_modules(ddb)
+    ten04_written = seed_ten04_rows(ddb, founding_tenant_id(), user_sub(cognito, naleko, "tf"))
 
     tid = founding_tenant_id()
     employee_sub = user_sub(cognito, naleko, "employee")
@@ -460,7 +598,8 @@ def main() -> None:
           f"demo people {len(DEMO_PEOPLE) + 1}; persona documents reset {docs_removed}; "
           f"persona consents reset {consents_removed}; "
           f"demo documents {seeded_documents}; founding company row written {founding_written}; "
-          f"second company rows written {second_written}; company modules set {modules_set}")
+          f"second company rows written {second_written}; company modules set {modules_set}; "
+          f"walk company rows written {walk_written}; TEN-04 walk rows written {ten04_written}")
 
 
 if __name__ == "__main__":

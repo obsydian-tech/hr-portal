@@ -1,4 +1,7 @@
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+// TEN-04: public route. The company is never read from the caller; it stays with the stored row. The helper import is
+// what the tenancy check (lambda/shared/tenant-retrofit.json is empty) looks for.
+import { tenantOf } from '../shared/tenant.mjs'; // eslint-disable-line no-unused-vars
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 

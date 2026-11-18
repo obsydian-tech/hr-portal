@@ -1,0 +1,1964 @@
+{
+ "GET /docs": {
+  "description": "Public - no auth required.\nReturns Swagger UI HTML pointed at GET /openapi.yaml on the same gateway.\n",
+  "operationId": "getSwaggerUI",
+  "responses": {
+   "200": {
+    "content": {
+     "text/html": {
+      "schema": {
+       "type": "string"
+      }
+     }
+    },
+    "description": "Swagger UI HTML."
+   }
+  },
+  "security": [],
+  "summary": "Swagger UI - interactive API documentation",
+  "tags": [
+   "Docs"
+  ]
+ },
+ "GET /openapi.yaml": {
+  "description": "Public - no auth required.\nReturns the canonical spec consumed by Swagger UI and API client generators.\n",
+  "operationId": "getOpenAPISpec",
+  "responses": {
+   "200": {
+    "content": {
+     "application/yaml": {
+      "schema": {
+       "type": "string"
+      }
+     }
+    },
+    "description": "OpenAPI YAML."
+   }
+  },
+  "security": [],
+  "summary": "Raw OpenAPI 3.0 specification (YAML)",
+  "tags": [
+   "Docs"
+  ]
+ },
+ "GET /v1/documents/{id}/url": {
+  "description": "Returns a pre-signed S3 GET URL expiring in 15 minutes (900 s).\nOpen in a browser to render the document inline. Used by the HR portal\nto display uploaded files without exposing S3 credentials.\n",
+  "operationId": "getDocumentPresignedUrl",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "content_type": {
+         "type": "string"
+        },
+        "expires_in": {
+         "description": "Seconds until the URL expires.",
+         "type": "integer"
+        },
+        "file_name": {
+         "type": "string"
+        },
+        "url": {
+         "format": "uri",
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "Pre-signed URL generated."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Only HR can open documents, or you can only open your own."
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Document not found."
+   }
+  },
+  "summary": "Get a short-lived URL to preview or download a document",
+  "tags": [
+   "Documents"
+  ]
+ },
+ "GET /v1/employees": {
+  "description": "Returns employees managed by the caller (scoped to their Cognito sub).\nMembers of hr-managers see all employees regardless.\n",
+  "operationId": "listEmployees",
+  "parameters": [
+   {
+    "in": "query",
+    "name": "stage",
+    "required": false,
+    "schema": {
+     "enum": [
+      "INVITED",
+      "DOCUMENTS_SUBMITTED",
+      "MANUAL_REVIEW",
+      "VERIFIED"
+     ],
+     "type": "string"
+    }
+   },
+   {
+    "in": "query",
+    "name": "department",
+    "required": false,
+    "schema": {
+     "type": "string"
+    }
+   },
+   {
+    "in": "query",
+    "name": "limit",
+    "required": false,
+    "schema": {
+     "default": 100,
+     "maximum": 500,
+     "minimum": 1,
+     "type": "integer"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "count": {
+         "type": "integer"
+        },
+        "items": {
+         "items": {
+          "$ref": "#/components/schemas/Employee"
+         },
+         "type": "array"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "List of employee records."
+   },
+   "401": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Missing or invalid JWT."
+   },
+   "403": {
+    "description": "Only HR can look up employees."
+   }
+  },
+  "summary": "List employees visible to the calling HR staff member",
+  "tags": [
+   "Employees"
+  ]
+ },
+ "GET /v1/employees/by-email": {
+  "description": "Returns the full employee record for the given email address.",
+  "operationId": "getEmployeeByEmail",
+  "parameters": [
+   {
+    "in": "query",
+    "name": "email",
+    "required": true,
+    "schema": {
+     "format": "email",
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Employee"
+      }
+     }
+    },
+    "description": "Employee found."
+   },
+   "400": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Missing or invalid email."
+   },
+   "403": {
+    "description": "Only HR can look up employees."
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "No employee with that email."
+   }
+  },
+  "summary": "Look up an employee by email address",
+  "tags": [
+   "Employees"
+  ]
+ },
+ "GET /v1/employees/email-check": {
+  "description": "HR only. Capitals and spaces around the address do not matter. Answers inUse and nothing else.",
+  "operationId": "checkEmployeeEmail",
+  "parameters": [
+   {
+    "in": "query",
+    "name": "email",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "inUse": {
+         "type": "boolean"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "Whether the email is in use."
+   },
+   "400": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "The email is missing or not an email address."
+   },
+   "401": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Missing or invalid JWT."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "The caller is not in the hr_staff group."
+   }
+  },
+  "summary": "Ask whether an email is already in use",
+  "tags": [
+   "Employees"
+  ]
+ },
+ "GET /v1/employees/lookup": {
+  "description": "Public - no auth required.\nUsed by the login screen so an employee can find their email before sign-in.\n",
+  "operationId": "lookupEmployeeEmail",
+  "parameters": [
+   {
+    "in": "query",
+    "name": "employeeId",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "email": {
+         "format": "email",
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "Email resolved."
+   },
+   "400": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Missing or malformed employee ID."
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "No employee found with that ID."
+   }
+  },
+  "security": [],
+  "summary": "Resolve an Employee ID to an email address",
+  "tags": [
+   "Employees"
+  ]
+ },
+ "GET /v1/employees/{id}/invite": {
+  "operationId": "getInvite",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "expiresAt": {
+         "format": "date-time",
+         "type": "string"
+        },
+        "sentAt": {
+         "format": "date-time",
+         "type": "string"
+        },
+        "sentTo": {
+         "type": "string"
+        },
+        "status": {
+         "enum": [
+          "ok",
+          "expired",
+          "used",
+          "none"
+         ],
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The latest link. sentAt, expiresAt and sentTo are left out when status is none."
+   },
+   "403": {
+    "description": "Only HR can see the invite link."
+   },
+   "404": {
+    "description": "No such employee."
+   }
+  },
+  "summary": "The invite link of one Invited person (HR only, ONB-18)",
+  "tags": [
+   "Invites"
+  ]
+ },
+ "GET /v1/employees/{id}/verifications": {
+  "description": "Returns the employee with their full document list. Each document includes\nits OCR verification result (if complete) and a can_reupload flag.\nAlso returns a status count: { total, passed, manual_review, failed }.\n",
+  "operationId": "getEmployeeDocumentVerifications",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "documents": {
+         "items": {
+          "$ref": "#/components/schemas/EmployeeDocument"
+         },
+         "type": "array"
+        },
+        "employee": {
+         "$ref": "#/components/schemas/Employee"
+        },
+        "required_documents": {
+         "description": "The document types HR must accept before the employee is Verified, for the employee's company.\nToday every company gets NATIONAL_ID and BANK_CONFIRMATION.\n",
+         "items": {
+          "enum": [
+           "NATIONAL_ID",
+           "BANK_CONFIRMATION",
+           "MATRIC_CERTIFICATE",
+           "TERTIARY_QUALIFICATION"
+          ],
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "summary": {
+         "properties": {
+          "failed": {
+           "type": "integer"
+          },
+          "manual_review": {
+           "type": "integer"
+          },
+          "passed": {
+           "type": "integer"
+          },
+          "total": {
+           "type": "integer"
+          }
+         },
+         "type": "object"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "Employee with documents and verifications."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "The caller is neither in the hr_staff group nor the employee (the token email\nmust equal the employee's email, compared without case). The body carries no\nemployee or document data.\n"
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Employee not found."
+   }
+  },
+  "summary": "Get all documents and verifications for a specific employee",
+  "tags": [
+   "Verifications"
+  ]
+ },
+ "GET /v1/hr-partners": {
+  "description": "HR only. Every member of the hr_staff group, sorted by name.",
+  "operationId": "getHrPartners",
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "items": {
+         "items": {
+          "properties": {
+           "email": {
+            "type": "string"
+           },
+           "id": {
+            "description": "What createEmployee accepts as hr_staff_id.",
+            "type": "string"
+           },
+           "name": {
+            "type": "string"
+           },
+           "staffId": {
+            "type": "string"
+           }
+          },
+          "type": "object"
+         },
+         "type": "array"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The HR partners."
+   },
+   "401": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Missing or invalid JWT."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "The caller is not in the hr_staff group."
+   }
+  },
+  "summary": "List the HR staff who can be an employee's HR partner",
+  "tags": [
+   "Employees"
+  ]
+ },
+ "GET /v1/me/documents": {
+  "description": "Employee group only, with a verified email. The record is found from the token, never from a parameter.\nAnswers the four document types in a fixed order with whether each is required, its state and its files.\nNever holds an employee id, a document id, an S3 key or anything from the document check.\n",
+  "operationId": "getMyDocuments",
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "documents": {
+         "items": {
+          "properties": {
+           "files": {
+            "items": {
+             "properties": {
+              "fileName": {
+               "type": "string"
+              },
+              "state": {
+               "enum": [
+                "WITH_HR",
+                "SENT_BACK",
+                "ACCEPTED"
+               ],
+               "type": "string"
+              },
+              "uploadedAt": {
+               "type": "string"
+              }
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           "required": {
+            "type": "boolean"
+           },
+           "state": {
+            "enum": [
+             "NOT_UPLOADED",
+             "WITH_HR",
+             "SENT_BACK",
+             "ACCEPTED"
+            ],
+            "type": "string"
+           },
+           "type": {
+            "enum": [
+             "NATIONAL_ID",
+             "BANK_CONFIRMATION",
+             "MATRIC_CERTIFICATE",
+             "TERTIARY_QUALIFICATION"
+            ],
+            "type": "string"
+           }
+          },
+          "type": "object"
+         },
+         "type": "array"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The four documents."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Not a new employee, or the email is not verified."
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "No single record for this sign-in."
+   }
+  },
+  "summary": "The signed-in new employee's own documents and the state of each",
+  "tags": [
+   "Documents"
+  ]
+ },
+ "GET /v1/verifications": {
+  "description": "Returns OCR verification records enriched with employee names.\nOnly HR staff (the `hr_staff` group) may call it; any other signed-in caller gets 403.\nThe Agent API route reuses this Lambda and keeps its unfiltered answer.\n\nWith `waiting=true` it returns the documents still waiting for an HR decision\n(no `hr_reviewed_at`), oldest first, six fields each, plus the full count and a\ncount per check. Nothing read from a document (ID number, name, bank detail,\nfile address) is in that answer.\n",
+  "operationId": "listVerifications",
+  "parameters": [
+   {
+    "description": "When `true`, list documents waiting for an HR decision, oldest first.",
+    "in": "query",
+    "name": "waiting",
+    "required": false,
+    "schema": {
+     "type": "boolean"
+    }
+   },
+   {
+    "in": "query",
+    "name": "status",
+    "required": false,
+    "schema": {
+     "enum": [
+      "PENDING",
+      "PASSED",
+      "MANUAL_REVIEW",
+      "FAILED"
+     ],
+     "type": "string"
+    }
+   },
+   {
+    "in": "query",
+    "name": "decision",
+    "required": false,
+    "schema": {
+     "enum": [
+      "PASSED",
+      "FAILED",
+      "MANUAL_REVIEW"
+     ],
+     "type": "string"
+    }
+   },
+   {
+    "in": "query",
+    "name": "employee_id",
+    "required": false,
+    "schema": {
+     "type": "string"
+    }
+   },
+   {
+    "in": "query",
+    "name": "limit",
+    "required": false,
+    "schema": {
+     "default": 50,
+     "maximum": 200,
+     "minimum": 1,
+     "type": "integer"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "oneOf": [
+        {
+         "properties": {
+          "count": {
+           "type": "integer"
+          },
+          "items": {
+           "items": {
+            "$ref": "#/components/schemas/VerificationSummary"
+           },
+           "type": "array"
+          }
+         },
+         "type": "object"
+        },
+        {
+         "$ref": "#/components/schemas/WaitingDocuments"
+        }
+       ]
+      }
+     }
+    },
+    "description": "List of verification records, or, with `waiting=true`, the documents waiting for an HR decision.\n"
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "error": {
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The caller is not HR staff. Nothing is read."
+   }
+  },
+  "summary": "List document verifications across employees",
+  "tags": [
+   "Verifications"
+  ]
+ },
+ "GET /v1/verifications/{id}": {
+  "description": "HR only (the hr_staff group); anyone else gets 403 before anything is read. `{id}` is the document_id.\nPass `employee_id` as a query parameter when it is known: the document is then read with one GetItem\ninstead of a Scan.\n\nReturns the document, Batsi's verification (extracted fields, with the ID number decrypted), the\nemployee's id and name, Batsi's check, how what was read compares with the employee's record\n(`comparisons`) and HR's decision, when there is one.\nFields by document type:\n- NATIONAL_ID: id_number, id_number_last4, name, surname, date_of_birth, gender, citizenship\n- BANK_CONFIRMATION: account_holder, bank_name, account_number, branch_code, account_type\n- MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION: no fields beyond the document\n",
+  "operationId": "getVerification",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   },
+   {
+    "in": "query",
+    "name": "employee_id",
+    "required": false,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "can_reupload": {
+         "type": "boolean"
+        },
+        "check": {
+         "enum": [
+          "READING",
+          "MATCHES",
+          "NEEDS_A_LOOK",
+          "DOESNT_MATCH"
+         ],
+         "type": "string"
+        },
+        "comparisons": {
+         "items": {
+          "properties": {
+           "field": {
+            "enum": [
+             "SURNAME",
+             "ID_NUMBER",
+             "ACCOUNT_HOLDER"
+            ],
+            "type": "string"
+           },
+           "result": {
+            "enum": [
+             "AGREES",
+             "DIFFERS",
+             "NOT_READ",
+             "NOT_ON_RECORD"
+            ],
+            "type": "string"
+           }
+          },
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "document": {
+         "properties": {
+          "document_id": {
+           "type": "string"
+          },
+          "document_type": {
+           "type": "string"
+          },
+          "employee_id": {
+           "type": "string"
+          },
+          "file_name": {
+           "type": "string"
+          },
+          "ocr_completed_at": {
+           "type": "string"
+          },
+          "ocr_status": {
+           "type": "string"
+          },
+          "s3_key": {
+           "type": "string"
+          },
+          "uploaded_at": {
+           "description": "Falls back to the older upload_timestamp.",
+           "format": "date-time",
+           "type": "string"
+          }
+         },
+         "type": "object"
+        },
+        "employee": {
+         "nullable": true,
+         "properties": {
+          "employee_id": {
+           "type": "string"
+          },
+          "first_name": {
+           "type": "string"
+          },
+          "last_name": {
+           "type": "string"
+          }
+         },
+         "type": "object"
+        },
+        "hr_decided_at": {
+         "nullable": true,
+         "type": "string"
+        },
+        "hr_decided_by_name": {
+         "nullable": true,
+         "type": "string"
+        },
+        "hr_decision": {
+         "enum": [
+          "ACCEPTED",
+          "NEW_ONE_ASKED",
+          null
+         ],
+         "nullable": true,
+         "type": "string"
+        },
+        "hr_decision_reason": {
+         "nullable": true,
+         "type": "string"
+        },
+        "verification": {
+         "nullable": true,
+         "properties": {
+          "checks": {
+           "type": "object"
+          },
+          "confidence": {
+           "type": "number"
+          },
+          "created_at": {
+           "type": "string"
+          },
+          "decision": {
+           "type": "string"
+          },
+          "extracted_data": {
+           "properties": {
+            "account_holder": {
+             "type": "string"
+            },
+            "account_number": {
+             "type": "string"
+            },
+            "account_type": {
+             "type": "string"
+            },
+            "bank_name": {
+             "type": "string"
+            },
+            "branch_code": {
+             "type": "string"
+            },
+            "citizenship": {
+             "type": "string"
+            },
+            "date_of_birth": {
+             "type": "string"
+            },
+            "gender": {
+             "type": "string"
+            },
+            "id_number": {
+             "description": "Decrypted for HR.",
+             "nullable": true,
+             "type": "string"
+            },
+            "id_number_last4": {
+             "nullable": true,
+             "type": "string"
+            },
+            "name": {
+             "type": "string"
+            },
+            "surname": {
+             "type": "string"
+            }
+           },
+           "type": "object"
+          },
+          "reasoning": {
+           "type": "string"
+          },
+          "verification_id": {
+           "type": "string"
+          }
+         },
+         "type": "object"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The document and its verification."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Only HR can open documents (the caller is not in the hr_staff group)."
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Document not found."
+   },
+   "500": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "The document could not be loaded."
+   }
+  },
+  "summary": "Get one document with its verification, the employee and how it compares with the record (HR only)",
+  "tags": [
+   "Verifications"
+  ]
+ },
+ "GET /v1/verifications/{id}/summary": {
+  "description": "Calls Claude (Bedrock) to produce a human-readable digest of the OCR result\nand extracted fields - no raw model output or technical field names.\n\nDesigned for downstream consumers:\n- Employee rejection notifications (why was my document not accepted)\n- WhatsApp / chatbot channels\n- Future mobile app views\n\nNo PII is sent to the model. Response time is typically 2-5 s.\n",
+  "operationId": "getVerificationSummary",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "summary": {
+         "type": "string"
+        },
+        "verificationId": {
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "AI summary generated."
+   },
+   "403": {
+    "description": "Only HR can check documents."
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Verification not found."
+   },
+   "500": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Bedrock invocation failed."
+   }
+  },
+  "summary": "AI-generated plain-English summary of a verification result",
+  "tags": [
+   "Verifications"
+  ]
+ },
+ "PATCH /v1/verifications/{id}/review": {
+  "description": "HR only. PASSED: approves the document (ocr_status set to PASSED).\nFAILED: rejects it (ocr_status set to FAILED, can_reupload set to true).\nA document is decided once: the decision is one conditional write that records HR's name and the time,\nand a second decision, or a decision while the document is still being read, gets 409.\n`document.reviewed` carries decided_by, decided_by_name, decided_at and actor HUMAN.\nAuto-promotion: when every required document is accepted, the employee stage advances to VERIFIED\n(once per person). The newest read copy of each required type decides; optional documents never\ndecide it, either way.\n",
+  "operationId": "reviewVerification",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "requestBody": {
+   "content": {
+    "application/json": {
+     "schema": {
+      "$ref": "#/components/schemas/ReviewRequest"
+     }
+    }
+   },
+   "required": true
+  },
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "all_documents_passed": {
+         "description": "True when every required document is accepted by HR (the newest read copy of each required\ntype). Optional documents are not looked at.\n",
+         "type": "boolean"
+        },
+        "can_reupload": {
+         "type": "boolean"
+        },
+        "decision": {
+         "enum": [
+          "PASSED",
+          "FAILED"
+         ],
+         "type": "string"
+        },
+        "document_id": {
+         "type": "string"
+        },
+        "employee_id": {
+         "type": "string"
+        },
+        "employee_stage_updated": {
+         "description": "True if every required document was accepted and the employee was promoted to VERIFIED.",
+         "type": "boolean"
+        },
+        "hr_decided_at": {
+         "format": "date-time",
+         "type": "string"
+        },
+        "hr_decided_by_name": {
+         "type": "string"
+        },
+        "hr_decision": {
+         "enum": [
+          "ACCEPTED",
+          "NEW_ONE_ASKED"
+         ],
+         "type": "string"
+        },
+        "hr_decision_reason": {
+         "nullable": true,
+         "type": "string"
+        },
+        "message": {
+         "type": "string"
+        },
+        "required_documents": {
+         "description": "The required document types used for this decision.",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "required_missing": {
+         "description": "Required document types not yet accepted, in the order of required_documents.",
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "Review recorded."
+   },
+   "400": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Invalid decision value, or the reason is longer than 500 characters."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Only HR can decide on a document."
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Verification not found."
+   },
+   "409": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "This document was already decided or is still being read. Nothing was written."
+   }
+  },
+  "summary": "HR officer approves or rejects a document in manual review",
+  "tags": [
+   "Verifications"
+  ]
+ },
+ "POST /v1/employees": {
+  "description": "Creates an employee record in DynamoDB, provisions a Cognito account with\na temporary password, and sends a welcome email via Postmark.\nEmployee created in INVITED stage. ID auto-generated as EMP-NNNNNNN.\nHR staff identity comes from the JWT sub claim.\n",
+  "operationId": "createEmployee",
+  "requestBody": {
+   "content": {
+    "application/json": {
+     "schema": {
+      "$ref": "#/components/schemas/EmployeeCreate"
+     }
+    }
+   },
+   "required": true
+  },
+  "responses": {
+   "201": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "cognito": {
+         "properties": {
+          "tempPassword": {
+           "description": "Returned once at creation only. Not persisted - store securely.",
+           "nullable": true,
+           "type": "string"
+          },
+          "userCreated": {
+           "type": "boolean"
+          }
+         },
+         "type": "object"
+        },
+        "email": {
+         "properties": {
+          "sent": {
+           "type": "boolean"
+          },
+          "skipped": {
+           "enum": [
+            "test"
+           ],
+           "type": "string"
+          }
+         },
+         "type": "object"
+        },
+        "employee": {
+         "$ref": "#/components/schemas/Employee"
+        },
+        "invite": {
+         "description": "pepla-dev test logins only.",
+         "properties": {
+          "link": {
+           "type": "string"
+          }
+         },
+         "type": "object"
+        },
+        "message": {
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "Employee created and welcome email sent."
+   },
+   "400": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "error": {
+         "type": "string"
+        },
+        "fields": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "type": "object"
+        },
+        "missing": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The body is missing or not valid, or a field is wrong. `fields` names each wrong field."
+   },
+   "401": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Missing or invalid JWT."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "The caller is not in the hr_staff group."
+   },
+   "409": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "An employee with this email already exists (any capitals). Code DUPLICATE_EMAIL."
+   }
+  },
+  "summary": "Register a new employee and trigger onboarding",
+  "tags": [
+   "Employees"
+  ]
+ },
+ "POST /v1/employees/{employee_id}/documents/upload-url": {
+  "description": "Two-step upload flow:\n1. Call this endpoint to get a short-lived pre-signed S3 PUT URL.\n2. PUT the file directly from the browser (no Authorization header on S3).\nURL expires in 300 s. Accepted: image/jpeg, image/png, application/pdf.\nKMS-encrypted with alias/naleko-onboarding-pii.\nS3 triggers processDocumentOCR Lambda automatically after upload.\n",
+  "operationId": "generateDocumentUploadUrl",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "employee_id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "requestBody": {
+   "content": {
+    "application/json": {
+     "schema": {
+      "properties": {
+       "contentType": {
+        "enum": [
+         "image/jpeg",
+         "image/png",
+         "application/pdf"
+        ],
+        "type": "string"
+       },
+       "documentType": {
+        "enum": [
+         "NATIONAL_ID",
+         "BANK_CONFIRMATION",
+         "QUALIFICATION"
+        ],
+        "type": "string"
+       }
+      },
+      "required": [
+       "documentType",
+       "contentType"
+      ],
+      "type": "object"
+     }
+    }
+   },
+   "required": true
+  },
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "key": {
+         "description": "S3 object key for later reference.",
+         "type": "string"
+        },
+        "uploadUrl": {
+         "description": "PUT the file body directly to this URL.",
+         "format": "uri",
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "Pre-signed URL ready."
+   },
+   "400": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Unsupported content type or missing fields."
+   },
+   "401": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Missing or invalid JWT."
+   },
+   "403": {
+    "description": "You can only upload documents to your own record."
+   }
+  },
+  "summary": "Generate a pre-signed S3 URL for direct browser upload",
+  "tags": [
+   "Documents"
+  ]
+ },
+ "POST /v1/employees/{id}/assess-risk": {
+  "description": "Sends a PII-free summary of all verification results to Claude (Bedrock).\n\n| Band | Meaning |\n|---|---|\n| LOW | All documents passed with high confidence |\n| MEDIUM | Some documents in manual review or low confidence |\n| HIGH | One or more documents failed or missing |\n\nPersists riskBand, riskReason, riskAssessedAt to the employee record.\nRequires at least one verification to exist for this employee.\n",
+  "operationId": "assessOnboardingRisk",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "employeeId": {
+         "type": "string"
+        },
+        "reason": {
+         "type": "string"
+        },
+        "risk": {
+         "enum": [
+          "LOW",
+          "MEDIUM",
+          "HIGH",
+          "UNKNOWN"
+         ],
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "Risk classified and saved to employee record."
+   },
+   "403": {
+    "description": "Only HR can check documents."
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "No verifications found for this employee."
+   },
+   "500": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Bedrock or DynamoDB failure."
+   }
+  },
+  "summary": "AI risk classification for an employee based on their document verifications",
+  "tags": [
+   "Verifications"
+  ]
+ },
+ "POST /v1/employees/{id}/invite": {
+  "operationId": "resendInvite",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "email": {
+         "properties": {
+          "sent": {
+           "type": "boolean"
+          },
+          "skipped": {
+           "type": "string"
+          }
+         },
+         "type": "object"
+        },
+        "expiresAt": {
+         "format": "date-time",
+         "type": "string"
+        },
+        "sentAt": {
+         "format": "date-time",
+         "type": "string"
+        },
+        "sentTo": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "A new link is made and the old one is closed."
+   },
+   "403": {
+    "description": "Only HR can send a new link."
+   },
+   "404": {
+    "description": "No such employee."
+   },
+   "409": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "status": {
+         "enum": [
+          "not-invited",
+          "refused"
+         ],
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The person is not Invited, or the sign-in is already in use or disabled."
+   },
+   "502": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "status": {
+         "enum": [
+          "failed"
+         ],
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The link could not be made."
+   }
+  },
+  "summary": "Close the link and send a new one (HR only, ONB-18)",
+  "tags": [
+   "Invites"
+  ]
+ },
+ "POST /v1/invites/lookup": {
+  "operationId": "lookupInvite",
+  "requestBody": {
+   "content": {
+    "application/json": {
+     "schema": {
+      "properties": {
+       "token": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "token"
+      ],
+      "type": "object"
+     }
+    }
+   },
+   "required": true
+  },
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "company": {
+         "type": "string"
+        },
+        "email": {
+         "type": "string"
+        },
+        "firstName": {
+         "type": "string"
+        },
+        "hrPartnerName": {
+         "type": "string"
+        },
+        "startDate": {
+         "type": "string"
+        },
+        "status": {
+         "enum": [
+          "ok",
+          "expired",
+          "used",
+          "invalid"
+         ],
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The state of the link. invalid carries no other field."
+   },
+   "400": {
+    "description": "The body is missing or not JSON."
+   }
+  },
+  "security": [],
+  "summary": "Look up an invite link (public, ONB-04)",
+  "tags": [
+   "Invites"
+  ]
+ },
+ "POST /v1/invites/redeem": {
+  "operationId": "redeemInvite",
+  "requestBody": {
+   "content": {
+    "application/json": {
+     "schema": {
+      "properties": {
+       "password": {
+        "type": "string"
+       },
+       "token": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "token",
+       "password"
+      ],
+      "type": "object"
+     }
+    }
+   },
+   "required": true
+  },
+  "responses": {
+   "204": {
+    "description": "The password is set; the link is used."
+   },
+   "400": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "error": {
+         "type": "string"
+        },
+        "fields": {
+         "properties": {
+          "password": {
+           "items": {
+            "enum": [
+             "minLength",
+             "maxLength",
+             "lower",
+             "upper",
+             "number",
+             "symbol"
+            ],
+            "type": "string"
+           },
+           "type": "array"
+          }
+         },
+         "type": "object"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The body is missing, or the password breaks a rule."
+   },
+   "410": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "status": {
+         "enum": [
+          "expired",
+          "used",
+          "invalid"
+         ],
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The link is expired, used or invalid."
+   },
+   "502": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "error": {
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "Cognito could not set the password; the link still works."
+   }
+  },
+  "security": [],
+  "summary": "Set the password with an invite link (public, ONB-04)",
+  "tags": [
+   "Invites"
+  ]
+ },
+ "POST /v1/me/documents/upload-url": {
+  "description": "Employee group only, with a verified email, after the current privacy notice is accepted.\nThe record is found from the token, never from the body. PUT the file to the link with the returned\nheaders only (no Authorization header on S3). The link binds the content type and the exact size.\n",
+  "operationId": "createMyUploadLink",
+  "requestBody": {
+   "content": {
+    "application/json": {
+     "schema": {
+      "properties": {
+       "contentType": {
+        "enum": [
+         "application/pdf",
+         "image/jpeg",
+         "image/png"
+        ],
+        "type": "string"
+       },
+       "documentType": {
+        "enum": [
+         "NATIONAL_ID",
+         "BANK_CONFIRMATION",
+         "MATRIC_CERTIFICATE",
+         "TERTIARY_QUALIFICATION"
+        ],
+        "type": "string"
+       },
+       "fileName": {
+        "type": "string"
+       },
+       "fileSize": {
+        "maximum": 10485760,
+        "minimum": 1,
+        "type": "integer"
+       }
+      },
+      "required": [
+       "documentType",
+       "fileName",
+       "contentType",
+       "fileSize"
+      ],
+      "type": "object"
+     }
+    }
+   },
+   "required": true
+  },
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "documentId": {
+         "type": "string"
+        },
+        "expiresIn": {
+         "type": "integer"
+        },
+        "headers": {
+         "properties": {
+          "Content-Type": {
+           "type": "string"
+          }
+         },
+         "type": "object"
+        },
+        "url": {
+         "format": "uri",
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "The link."
+   },
+   "400": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "A missing or wrong field, with the words to show."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Not a new employee, the email is not verified, or the privacy notice is not accepted."
+   },
+   "404": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "No single record for this sign-in."
+   }
+  },
+  "summary": "A 15 minute link to put one file into the signed-in new employee's own record",
+  "tags": [
+   "Documents"
+  ]
+ },
+ "POST /v1/verifications/{id}/external": {
+  "description": "Sets status to EXTERNAL_VERIFICATION_TRIGGERED and publishes a\nVerificationExternalTriggered event to the naleko-onboarding EventBridge bus.\nRequires hr-partners group membership.\n",
+  "operationId": "triggerExternalVerification",
+  "parameters": [
+   {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "responses": {
+   "200": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "properties": {
+        "message": {
+         "type": "string"
+        },
+        "status": {
+         "type": "string"
+        },
+        "verificationId": {
+         "type": "string"
+        }
+       },
+       "type": "object"
+      }
+     }
+    },
+    "description": "External verification triggered."
+   },
+   "403": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Caller is not in hr-partners group."
+   },
+   "409": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/Error"
+      }
+     }
+    },
+    "description": "Verification is not in an actionable state."
+   }
+  },
+  "summary": "Escalate a verification to an external verification provider",
+  "tags": [
+   "Verifications"
+  ]
+ }
+}
