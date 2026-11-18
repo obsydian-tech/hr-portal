@@ -21,6 +21,8 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { rolesHelper } = require('../shared/tf-roles.js');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const {
   CognitoIdentityProviderClient,
   AdminAddUserToGroupCommand,
@@ -46,17 +48,7 @@ function requireSetting(name) {
 
 const POOL_ID     = requireSetting('COGNITO_POOL_ID');
 
-const ROLE_TO_GROUP = {
-  ADMIN: 'TalentFlowAdmin',
-  HM:    'HiringManager',
-  IT:    'ITAdmin',
-  TA:    'HRDirector',
-};
-
-const VALID_ROLES    = Object.keys(ROLE_TO_GROUP);
 const ROLE_PRECEDENCE = ['ADMIN', 'HM', 'IT', 'TA'];
-// Only manage groups owned by TalentFlow — do not touch other Naleko groups
-const MANAGED_GROUPS = new Set(Object.values(ROLE_TO_GROUP));
 
 function respond(statusCode, body) {
   return {
@@ -74,29 +66,16 @@ function extractClaims(event) {
   return event.requestContext?.authorizer?.jwt?.claims || {};
 }
 
-function hasAdminRole(claims) {
-  // Path 1: TF pool — custom:roles JSON array
-  try {
-    const roles = JSON.parse(claims['custom:roles'] || '[]');
-    if (Array.isArray(roles) && roles.includes('ADMIN')) return true;
-  } catch { /* fall through */ }
-  // Path 2: Naleko pool — API GW HTTP API v2 sends cognito:groups as '[group1 group2]'
-  const raw = claims['cognito:groups'];
-  if (!raw) return false;
-  let groups;
-  try { groups = JSON.parse(raw); } catch { /* not JSON */ }
-  if (!Array.isArray(groups)) {
-    groups = String(raw).replace(/^\[|\]$/g, '').split(' ').filter(Boolean);
-  }
-  return groups.includes('naleko-talentflow-admin');
-}
 
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Admin role required"});
   const claims = extractClaims(event);
-  if (!hasAdminRole(claims)) {
-    return respond(403, { error: 'Admin role required' });
-  }
+  const R = await rolesHelper();
+  const denied = R.requireRole(event, { roles: ['admin'] });
+  if (denied) return denied;
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
 
   const userId = event.pathParameters?.userId;
   if (!userId) {
@@ -110,13 +89,10 @@ exports.handler = async (event) => {
     return respond(400, { error: 'Request body is not valid JSON' });
   }
 
-  const { roles } = body;
-  if (!Array.isArray(roles) || roles.length === 0) {
-    return respond(400, { error: 'roles must be a non-empty array' });
-  }
-  const invalidRoles = roles.filter((r) => !VALID_ROLES.includes(r));
-  if (invalidRoles.length) {
-    return respond(400, { error: `Invalid roles: ${invalidRoles.join(', ')}` });
+  const roles = Array.isArray(body.roles) ? body.roles : [];
+  const wanted = R.groupsForBody(body);
+  if (!wanted) {
+    return respond(400, { error: 'Invalid role or permissions' });
   }
 
   // ── Read current user from DynamoDB ───────────────────────────────────────
@@ -126,12 +102,12 @@ exports.handler = async (event) => {
       TableName: USERS_TABLE,
       Key: marshall({ PK: `USER#${userId}`, SK: 'PROFILE' }),
     }));
-    if (!result.Item) {
-      return respond(404, { error: 'User not found' });
+    if (!result.Item || !T.ownsRow(unmarshall(result.Item), tenantId)) {
+      return T.notFound();
     }
     currentUser = unmarshall(result.Item);
   } catch (err) {
-    console.error('adminUpdateUser: DynamoDB read failed', { userId, error: err.message });
+    console.error('adminUpdateUser: DynamoDB read failed', { userId, error: err?.name });
     return respond(500, { error: 'Failed to retrieve user' });
   }
 
@@ -139,55 +115,50 @@ exports.handler = async (event) => {
     return respond(409, { error: 'Cannot update roles for an inactive user' });
   }
 
-  // ── Compute group diff ────────────────────────────────────────────────────
-  const desiredGroups = new Set(roles.map((r) => ROLE_TO_GROUP[r]));
-  const currentRoles  = currentUser.roles || [];
-  const currentGroups = new Set(currentRoles.map((r) => ROLE_TO_GROUP[r]).filter(Boolean));
+  // ── Current groups from Cognito ───────────────────────────────────────────
+  let current = [];
+  try {
+    const res = await cognito.send(new AdminListGroupsForUserCommand({ UserPoolId: POOL_ID, Username: currentUser.email }));
+    current = (res.Groups || []).map((g) => g.GroupName);
+  } catch (err) {
+    console.error('adminUpdateUser: list groups failed', { userId, error: err?.name });
+    return respond(500, { error: 'Failed to read groups' });
+  }
+  const desired = new Set(wanted.groups);
+  if (!wanted.hasRole) for (const g of current) if (R.ROLES.includes(g)) desired.add(g);
+  const managed = new Set([...R.MANAGED_GROUPS, ...R.OLD_MANAGED_GROUPS, ...Object.keys(R.OLD_GROUPS)]);
+  const toAdd    = [...desired].filter((g) => !current.includes(g));
+  const toRemove = current.filter((g) => managed.has(g) && !desired.has(g));
 
-  const toAdd    = [...desiredGroups].filter((g) => !currentGroups.has(g));
-  const toRemove = [...currentGroups].filter((g) => !desiredGroups.has(g) && MANAGED_GROUPS.has(g));
-
-  // ── Apply Cognito group changes (add first, then remove) ──────────────────
   const addedGroups = [];
   for (const group of toAdd) {
     try {
-      await cognito.send(new AdminAddUserToGroupCommand({
-        UserPoolId: POOL_ID,
-        Username:   currentUser.email,
-        GroupName:  group,
-      }));
+      await cognito.send(new AdminAddUserToGroupCommand({ UserPoolId: POOL_ID, Username: currentUser.email, GroupName: group }));
       addedGroups.push(group);
     } catch (err) {
-      console.error('adminUpdateUser: failed to add group — rolling back', { group, error: err.message });
-      // Rollback successfully added groups
+      console.error('adminUpdateUser: failed to add group — rolling back', { group, error: err?.name });
       for (const added of addedGroups) {
         try {
-          await cognito.send(new AdminRemoveUserFromGroupCommand({
-            UserPoolId: POOL_ID, Username: currentUser.email, GroupName: added,
-          }));
+          await cognito.send(new AdminRemoveUserFromGroupCommand({ UserPoolId: POOL_ID, Username: currentUser.email, GroupName: added }));
         } catch (rbErr) {
-          console.error('adminUpdateUser: rollback failed for group', { added, error: rbErr.message });
+          console.error('adminUpdateUser: rollback failed for group', { added, error: rbErr?.name });
         }
       }
       return respond(500, { error: `Failed to assign group "${group}" in Cognito — changes rolled back` });
     }
   }
-
   for (const group of toRemove) {
     try {
-      await cognito.send(new AdminRemoveUserFromGroupCommand({
-        UserPoolId: POOL_ID,
-        Username:   currentUser.email,
-        GroupName:  group,
-      }));
+      await cognito.send(new AdminRemoveUserFromGroupCommand({ UserPoolId: POOL_ID, Username: currentUser.email, GroupName: group }));
     } catch (err) {
-      // Non-fatal for removals — log and continue; DynamoDB write is the source of truth for the UI
-      console.warn('adminUpdateUser: failed to remove group (non-fatal)', { group, error: err.message });
+      // A group left behind keeps the old access, so this is not answered as a success.
+      console.error('adminUpdateUser: failed to remove group', { group, error: err?.name });
+      return respond(500, { error: 'Failed to remove a group in Cognito' });
     }
   }
 
   // ── Update DynamoDB ───────────────────────────────────────────────────────
-  const activeRole = ROLE_PRECEDENCE.find((r) => roles.includes(r)) || roles[0];
+  const activeRole = ROLE_PRECEDENCE.find((r) => roles.includes(r)) || roles[0] || body.role || currentUser.activeRole;
   const now        = new Date().toISOString();
 
   try {
@@ -197,13 +168,13 @@ exports.handler = async (event) => {
       UpdateExpression: 'SET #roles = :roles, activeRole = :activeRole, updatedAt = :now',
       ExpressionAttributeNames: { '#roles': 'roles' },
       ExpressionAttributeValues: marshall({
-        ':roles':      roles,
+        ':roles':      roles.length ? roles : (currentUser.roles || []),
         ':activeRole': activeRole,
         ':now':        now,
       }),
     }));
   } catch (err) {
-    console.error('adminUpdateUser: DynamoDB update failed (Cognito already updated)', { userId, error: err.message });
+    console.error('adminUpdateUser: DynamoDB update failed (Cognito already updated)', { userId, error: err?.name });
     return respond(500, { error: 'Cognito groups updated but registry sync failed — contact administrator' });
   }
 

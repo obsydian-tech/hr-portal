@@ -1,4 +1,4 @@
-import type { LearnEnding, LearnTop } from '../learn.types';
+import type { LearnDemoText, LearnEnding, LearnTab, LearnTop } from '../learn.types';
 
 /** The Recruitment page's top: the words of the kit's "Learn more top: Recruitment" (the hero card is the page's own). */
 export const RECRUITMENT_TOP: LearnTop = {
@@ -111,3 +111,79 @@ export const RECRUITMENT_ENDING: LearnEnding = {
     ],
   },
 };
+
+/** The words of the Recruitment page's five demo sections, beside each demo's panel (kit "Recruitment page", "Site Recruitment demos"). */
+export const RECRUITMENT_DEMOS: Record<'board' | 'score' | 'follow' | 'risk' | 'offer', LearnDemoText> = {
+  board: {
+    eyebrow: 'Hiring board',
+    title: 'One hiring board per role, six stages.',
+    lead: 'Applied, Screening, Interview, Offer, Hired and Not hired. Candidates move across the board and every move is recorded with a reason.',
+    points: [
+      { text: 'One board for each open role' },
+      { text: 'Every move recorded with who made it and why' },
+      { text: 'Not hired always carries a reason' },
+      { text: 'Candidate details open from the card, sensitive data hidden' },
+      { text: 'Counts per stage update as candidates move' },
+    ],
+  },
+  score: {
+    eyebrow: 'Interview panels',
+    title: 'Every panel member scores against the same criteria.',
+    lead: 'Panel members score each candidate on the criteria set for the role. Scores are combined on one sheet. Scores inform the decision. They never make it.',
+    points: [
+      { text: 'Scoring criteria set per role' },
+      { text: 'Each panel member scores on their own' },
+      { text: 'Average per criterion and overall' },
+      { text: 'No candidate is rejected automatically' },
+      { text: 'Decision recorded with the name of the person who made it' },
+    ],
+  },
+  follow: {
+    eyebrow: 'Reminders and follow-ups',
+    title: 'Interviewers and candidates are reminded on schedule.',
+    lead: 'Batsi chases missing interview feedback and drafts the reminder for a candidate who has gone quiet. HR sends it.',
+    points: [
+      { text: 'Interviewers reminded to submit feedback', batsi: true },
+      { text: 'Candidates reminded to reply, confirm or upload', batsi: true },
+      { text: 'Reminder drafted for HR to edit and send' },
+      { text: 'Every reminder logged on the candidate' },
+    ],
+  },
+  risk: {
+    eyebrow: 'Candidate risk',
+    title: 'Candidates at risk of dropping out are flagged early.',
+    lead: 'Batsi flags candidates who go quiet, miss an interview or have an offer close to expiry. Each flag shows the reason and a suggested next step for HR.',
+    points: [
+      { text: 'No reply for a set number of days', batsi: true },
+      { text: 'Missed or unconfirmed interviews', batsi: true },
+      { text: 'Offers close to expiry', batsi: true },
+      { text: 'Flags are advice. HR decides every action' },
+      { text: 'Thresholds set per company' },
+    ],
+  },
+  offer: {
+    eyebrow: 'Offer to onboarding',
+    title: 'A signed offer starts onboarding with no retyping.',
+    lead: 'When an offer is signed, the candidate moves to Hired and an employee record is created with the details already captured. Onboarding opens and HR is told.',
+    points: [
+      { text: 'Offer letter from the company template' },
+      { text: 'Offer expiry tracked and reminded' },
+      { text: 'Name, role and start date carried to the employee record' },
+      { text: 'Salary stays hidden on screen' },
+      { text: 'Onboarding opens on its own' },
+    ],
+  },
+};
+
+/** The Recruitment page's sub-menu: one tab per section, in the order of the page; the last is the questions. */
+export const RECRUITMENT_TABS: readonly LearnTab[] = [
+  { id: 'hiring-board', label: 'Hiring board' },
+  { id: 'panels', label: 'Interview panels' },
+  { id: 'follow-ups', label: 'Reminders and follow-ups' },
+  { id: 'risk', label: 'Candidate risk' },
+  { id: 'offer', label: 'Offer to onboarding' },
+  { id: 'questions', label: 'Questions' },
+];
+
+/** The one link the Recruitment page's demos carry: under the last demo's list, to the page that picks up where it ends (kit "Recruitment page"). */
+export const RECRUITMENT_OFFER_LINK: { text: string; href: string } = { text: 'Learn more about Onboarding and Offboarding', href: '#' };

@@ -49,7 +49,7 @@ const POOL_ID     = requireSetting('COGNITO_POOL_ID');
 const STATE_TABLE = process.env.STATE_TABLE_NAME   || 'talent-flow-state';
 
 // Groups whose members have TalentFlow platform access
-const PLATFORM_GROUPS = ['naleko-talentflow-admin', 'naleko-talentflow-hr'];
+
 
 function respond(statusCode, body) {
   return {
@@ -115,7 +115,7 @@ async function getEmailLinkMembers(T, tenantId, candidateId) {
     }));
     items = (result.Items || []).map(unmarshall);
   } catch (err) {
-    console.error('Failed to query scoring links from DynamoDB', { candidateId, error: err.message });
+    console.error('Failed to query scoring links from DynamoDB', { candidateId, error: err?.name });
     return [];
   }
 
@@ -149,12 +149,13 @@ exports.handler = async (event) => {
     const seen    = new Set();
     const members = [];
 
-    for (const group of PLATFORM_GROUPS) {
+    const R = await require('../shared/tf-roles.js').rolesHelper();
+    for (const group of R.PANEL_GROUPS) {
       let users;
       try {
         users = await listGroupUsers(group);
       } catch (err) {
-        console.warn(`getPanelMembers: skipping group "${group}"`, { error: err.message });
+        console.warn(`getPanelMembers: skipping group "${group}"`, { error: err?.name });
         continue;
       }
       for (const user of users) {

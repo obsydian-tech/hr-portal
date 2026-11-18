@@ -219,12 +219,17 @@ export class AuthService {
       'naleko-talentflow-hiringmanager': 'talentflow',
       'naleko-talentflow-admin': 'talentflow',
       'naleko-it-provisioning': 'it-provisioning',
+      hr_staff: 'onboarding',
+      'perm-recruitment': 'talentflow',
+      'perm-it': 'it-provisioning',
       // Future: 'naleko-employee-self': 'employee-360'
     };
-    return groups.reduce<string[]>((acc, g) => {
-      if (map[g]) acc.push(map[g]);
+    const out = groups.reduce<string[]>((acc, g) => {
+      if (g === 'admin') acc.push('onboarding', 'talentflow', 'it-provisioning');
+      else if (map[g]) acc.push(map[g]);
       return acc;
     }, []);
+    return groups.length > 1 ? [...new Set(out)] : out;
   }
 
   private mapCognitoError(err: any): string {

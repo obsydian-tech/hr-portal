@@ -78,6 +78,8 @@ const TALENT_ID = 'af-south-1_FakeTalent3K';
 const DEV_ACCOUNT = '424556617428';
 const PASSWORD = 'Pp1!NeverPrintThis9x';
 const MODULE_GROUPS = ['naleko-onboarding-hr', 'naleko-talentflow-hr', 'naleko-it-provisioning'];
+// TEN-05: the role and tick groups Terraform makes in both pools; the seed may put test logins in them.
+const TEN05_GROUPS = ['admin', 'manager', 'guest', 'perm-recruitment', 'perm-it', 'perm-approve-offers'];
 const TALENT_GROUPS = ['TalentFlowAdmin', 'HiringManager', 'PanelMember', 'ComplianceOfficer', 'ITAdmin', 'FinanceLead', 'HRDirector', 'e2e-robots'];
 
 /** pepla-dev as it is once Terraform owns the groups. */
@@ -221,7 +223,7 @@ test.describe('BE-16 Sign-in groups set up by Terraform', () => {
   });
 
   test('AC-4 the seed uses the groups Terraform made and never creates one on the Naleko pool', () => {
-    const run = runWithFakeAws(SEED, devAws(['hr_staff', 'employee', 'e2e-robots', ...MODULE_GROUPS]));
+    const run = runWithFakeAws(SEED, devAws(['hr_staff', 'employee', 'e2e-robots', ...MODULE_GROUPS, ...TEN05_GROUPS]));
     expect(run.status, `seed exits 0\n${run.output}`).toBe(0);
     expect(run.output, 'no stack trace').not.toContain('Traceback');
 
@@ -247,7 +249,7 @@ test.describe('BE-16 Sign-in groups set up by Terraform', () => {
   });
 
   test('AC-5 a missing employee group stops the seed with one line that names it and Terraform, and leaks nothing', () => {
-    const run = runWithFakeAws(SEED, devAws(['hr_staff', 'e2e-robots', ...MODULE_GROUPS]));
+    const run = runWithFakeAws(SEED, devAws(['hr_staff', 'e2e-robots', ...MODULE_GROUPS, ...TEN05_GROUPS]));
     expect(run.status, `seed exits non-zero\n${run.output}`).not.toBe(0);
     expect(run.status, 'seed was not killed by the timeout').not.toBeNull();
 

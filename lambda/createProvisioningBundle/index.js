@@ -25,6 +25,7 @@
 
 const { isIdToken } = require('../shared/id-token');
 const { tenantHelper } = require('../shared/tf-tenant.js');
+const { rolesHelper } = require('../shared/tf-roles.js');
 const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
@@ -100,16 +101,14 @@ exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(401, {"message": "Unauthorized."});
   const claims  = extractClaims(event);
   const hmUserId = claims.sub;
-  const groups   = parseGroups(claims['cognito:groups']);
-  const isAdmin  = claims['custom:isAdmin'] === 'true' || groups.includes('TalentFlowAdmin');
-  const isHm     = groups.includes('HiringManager') || isAdmin;
+  const R = await rolesHelper();
+  const isAdmin = R.holds(event, { roles: ['admin'] });
 
   if (!hmUserId) {
     return respond(401, { message: 'Unauthorized.' });
   }
-  if (!isHm) {
-    return respond(403, { message: 'Forbidden: Hiring Manager or Admin role required.' });
-  }
+  const denied = R.requireRole(event, { roles: ['admin', 'manager'] });
+  if (denied) return denied;
 
   // TEN-03: after the group check, the company check. The company is the sign-in's; none is read from the body.
   const T = await tenantHelper();

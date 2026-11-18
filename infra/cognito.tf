@@ -170,6 +170,43 @@ resource "aws_cognito_user_group" "employee" {
   description  = "Onboarding employees - own data access only"
 }
 
+# TEN-05: the roles and permission ticks. Internal names, never shown to a person.
+resource "aws_cognito_user_group" "role_admin" {
+  name         = "admin"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "Role: Admin"
+}
+
+resource "aws_cognito_user_group" "role_manager" {
+  name         = "manager"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "Role: Manager"
+}
+
+resource "aws_cognito_user_group" "role_guest" {
+  name         = "guest"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "Role: Guest"
+}
+
+resource "aws_cognito_user_group" "perm_recruitment" {
+  name         = "perm-recruitment"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "Permission: Recruitment"
+}
+
+resource "aws_cognito_user_group" "perm_it" {
+  name         = "perm-it"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "Permission: IT"
+}
+
+resource "aws_cognito_user_group" "perm_approve_offers" {
+  name         = "perm-approve-offers"
+  user_pool_id = aws_cognito_user_pool.naleko_dev.id
+  description  = "Permission: Approve offers"
+}
+
 # AI cost guardrail, pepla-dev only: every test login is in this group, and the
 # AI Lambdas never call Bedrock or Textract for its members
 # (lambda/shared/ai-guard.mjs). Terraform owns it so it cannot vanish by accident.

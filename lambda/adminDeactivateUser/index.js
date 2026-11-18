@@ -17,6 +17,8 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { rolesHelper } = require('../shared/tf-roles.js');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const {
   CognitoIdentityProviderClient,
   AdminDisableUserCommand,
@@ -56,29 +58,16 @@ function extractClaims(event) {
   return event.requestContext?.authorizer?.jwt?.claims || {};
 }
 
-function hasAdminRole(claims) {
-  // Path 1: TF pool — custom:roles JSON array
-  try {
-    const roles = JSON.parse(claims['custom:roles'] || '[]');
-    if (Array.isArray(roles) && roles.includes('ADMIN')) return true;
-  } catch { /* fall through */ }
-  // Path 2: Naleko pool — API GW HTTP API v2 sends cognito:groups as '[group1 group2]'
-  const raw = claims['cognito:groups'];
-  if (!raw) return false;
-  let groups;
-  try { groups = JSON.parse(raw); } catch { /* not JSON */ }
-  if (!Array.isArray(groups)) {
-    groups = String(raw).replace(/^\[|\]$/g, '').split(' ').filter(Boolean);
-  }
-  return groups.includes('naleko-talentflow-admin');
-}
 
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Admin role required"});
   const claims = extractClaims(event);
-  if (!hasAdminRole(claims)) {
-    return respond(403, { error: 'Admin role required' });
-  }
+  const R = await rolesHelper();
+  const denied = R.requireRole(event, { roles: ['admin'] });
+  if (denied) return denied;
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
 
   const userId     = event.pathParameters?.userId;
   const callingSub = claims['sub'];
@@ -99,12 +88,12 @@ exports.handler = async (event) => {
       TableName: USERS_TABLE,
       Key: marshall({ PK: `USER#${userId}`, SK: 'PROFILE' }),
     }));
-    if (!result.Item) {
-      return respond(404, { error: 'User not found' });
+    if (!result.Item || !T.ownsRow(unmarshall(result.Item), tenantId)) {
+      return T.notFound();
     }
     user = unmarshall(result.Item);
   } catch (err) {
-    console.error('adminDeactivateUser: DynamoDB read failed', { userId, error: err.message });
+    console.error('adminDeactivateUser: DynamoDB read failed', { userId, error: err?.name });
     return respond(500, { error: 'Failed to retrieve user' });
   }
 
@@ -119,7 +108,7 @@ exports.handler = async (event) => {
       Username:   user.email,
     }));
   } catch (err) {
-    console.error('adminDeactivateUser: Cognito disable failed', { userId, error: err.message });
+    console.error('adminDeactivateUser: Cognito disable failed', { userId, error: err?.name });
     return respond(500, { error: 'Failed to disable user in Cognito' });
   }
 
@@ -138,7 +127,7 @@ exports.handler = async (event) => {
       }),
     }));
   } catch (err) {
-    console.error('adminDeactivateUser: DynamoDB update failed (Cognito already disabled)', { userId, error: err.message });
+    console.error('adminDeactivateUser: DynamoDB update failed (Cognito already disabled)', { userId, error: err?.name });
     return respond(500, { error: 'User disabled in Cognito but registry update failed — contact administrator' });
   }
 
