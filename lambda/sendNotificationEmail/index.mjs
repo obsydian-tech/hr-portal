@@ -9,7 +9,8 @@
  *
  * Email routing:
  *   PASSED         → employee: "Your [doc type] has been approved ✓"
- *   FAILED         → employee: "Your [doc type] needs attention — please re-upload"
+ *   FAILED         → employee: "Your [doc type] needs a new copy" (ONB-20; HR's reason is not in it)
+ *   PASSED, FAILED → nothing for a test employee
  *   waiting        → the employee's HR partner, else HR_EMAIL: "Document to check: [name], [doc type]"
  *                    (nothing for a test employee)
  *   completed      → employee: "🎉 Onboarding complete — you're all set!", only when the employee is VERIFIED
@@ -107,6 +108,13 @@ const DOC_TYPE_NAMES = {
   MATRIC_CERTIFICATE: 'Matric certificate',
   TERTIARY_QUALIFICATION: 'Tertiary qualification',
 };
+// ONB-20: the names the person sees for each type, as the rows on their checklist say them.
+const KIT_TYPE_NAMES = {
+  NATIONAL_ID: 'National ID',
+  BANK_CONFIRMATION: 'Bank account confirmation letter',
+  MATRIC_CERTIFICATE: 'Matric certificate',
+  TERTIARY_QUALIFICATION: 'Tertiary qualifications',
+};
 const CHECK_WORDS = { MATCHES: 'Matches', NEEDS_A_LOOK: 'Needs a look', DOESNT_MATCH: "Doesn't match" };
 
 const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -148,11 +156,21 @@ async function handleDocumentReviewed(detail) {
     return;
   }
 
+  // ONB-20: a test employee never gets a decision email, accepted or sent back.
+  if (isRobotEmail(employee.email)) {
+    logger.info('Decision email skipped: test employee', { employee_id });
+    return;
+  }
+
   // Fetch document for the human-readable doc type label
   let docTypeLabel = 'document';
+  let docType = '';
   if (document_id) {
     const doc = await getDocument(employee_id, document_id);
-    if (doc) docTypeLabel = formatDocType(doc.document_type);
+    if (doc) {
+      docType = doc.document_type;
+      docTypeLabel = formatDocType(doc.document_type);
+    }
   }
 
   const fullName = `${employee.first_name} ${employee.last_name}`.trim() || 'Employee';
@@ -185,26 +203,21 @@ async function handleDocumentReviewed(detail) {
     }
 
     case 'FAILED': {
+      // ONB-20: one email saying a document needs a new copy. HR's reason is not in it: the person
+      // reads it after signing in. Every value that goes into the HTML is escaped.
+      const typeName = KIT_TYPE_NAMES[docType] || docTypeLabel;
+      const firstName = employee.first_name.trim() || 'there';
       await sendEmail({
         to:      employee.email,
-        subject: `Action required: please re-upload your ${docTypeLabel}`,
+        subject: `Your ${typeName} needs a new copy`,
         textBody: [
-          `Hi ${employee.first_name || fullName},`,
+          `Hi ${firstName}. HR asked for a new copy of your ${typeName}. Sign in to Naleko People to see why and upload a new one: ${LOGIN_URL}`,
           '',
-          `Your ${docTypeLabel} could not be accepted. Please log in and re-upload a clear, valid copy of the document to continue your onboarding.`,
-          '',
-          `Login: ${LOGIN_URL}`,
-          '',
-          'If you believe this is an error, please contact your HR representative.',
-          '',
-          'The Naleko HR Team',
+          'Naleko People',
         ].join('\n'),
         htmlBody: `
-          <p>Hi ${employee.first_name || fullName},</p>
-          <p>Your <strong>${docTypeLabel}</strong> could not be accepted. Please log in and re-upload a clear, valid copy of the document to continue your onboarding.</p>
-          <p><a href="${LOGIN_URL}">Log in to re-upload</a></p>
-          <p>If you believe this is an error, please contact your HR representative.</p>
-          <p>The Naleko HR Team</p>
+          <p>Hi ${escapeHtml(firstName)}. HR asked for a new copy of your ${escapeHtml(typeName)}. Sign in to Naleko People to see why and upload a new one: <a href="${escapeHtml(LOGIN_URL)}">${escapeHtml(LOGIN_URL)}</a></p>
+          <p>Naleko People</p>
         `,
       });
       break;
