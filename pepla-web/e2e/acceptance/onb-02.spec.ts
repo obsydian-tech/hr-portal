@@ -136,7 +136,12 @@ function statValue(page: Page, label: string): Locator {
   return page.locator('.pp-stat').filter({ has: label_ }).locator('.pp-stat__value');
 }
 
-type ShownRow = { name: string; href: string; first: string; department: string; step: string; start: string; partner: string; text: string };
+/**
+ * `step` is the first line of the Step cell and `stepNote` the rest of it. ONB-10 (re-lock acceptance-lock/onb-02.1) adds
+ * a second line, "Overdue by 2 days", under the step word of a person whose documents are late; until then a cell
+ * was one word. Nothing else about the table changes.
+ */
+type ShownRow = { name: string; href: string; first: string; department: string; step: string; stepNote: string; start: string; partner: string; text: string };
 
 async function readRows(page: Page): Promise<ShownRow[]> {
   return personRows(page).evaluateAll((trs) =>
@@ -144,13 +149,15 @@ async function readRows(page: Page): Promise<ShownRow[]> {
       const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
       const a = tr.querySelector('a[href*="/hr/employees/"]') as HTMLAnchorElement;
       const cells = [...tr.querySelectorAll('td')].map((td) => clean((td as HTMLElement).innerText));
+      const stepLines = ((tr.querySelectorAll('td')[1] as HTMLElement | undefined)?.innerText ?? '').split('\n').map(clean).filter(Boolean);
       const name = clean(a.innerText);
       return {
         name,
         href: a.getAttribute('href') ?? '',
         first: cells[0] ?? '',
         department: clean((cells[0] ?? '').replace(name, '')),
-        step: cells[1] ?? '',
+        step: stepLines[0] ?? '',
+        stepNote: stepLines.slice(1).join(' '),
         start: cells[2] ?? '',
         partner: cells[3] ?? '',
         text: clean((tr as HTMLElement).innerText),
@@ -234,6 +241,7 @@ test.describe('ONB-02 HR home: who is starting', () => {
       expect(row, `${nameOf(p)} has a row, named first and last`).toBeTruthy();
       expect(row!.department, `${nameOf(p)}: department under the name`).toBe(p.department);
       expect(row!.step, `${nameOf(p)}: step`).toBe(stepOf(p));
+      expect(row!.stepNote, `${nameOf(p)}: nothing under the step word when no due date is late`).toBe('');
       expect(row!.start, `${nameOf(p)}: start date`).toBe(shownDate(p.planned_start_date));
       expect(row!.partner, `${nameOf(p)}: HR partner`).toBe(p.hr_staff_name || 'Not assigned');
     }

@@ -14,6 +14,8 @@ export interface MyStart {
   department?: string;
   /** YYYY-MM-DD */
   startDate?: string;
+  /** YYYY-MM-DD: when the required documents are due. Left out when there is no start date. */
+  documentsDue?: string;
   notice: Notice;
   consent: { version: string; acceptedAt: string } | null;
 }

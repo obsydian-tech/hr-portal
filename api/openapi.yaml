@@ -188,6 +188,9 @@ components:
         planned_start_date:
           type: string
           format: date
+        documents_due:
+          type: string
+          description: 'The date the required documents are due (YYYY-MM-DD): 7 days before the start date. An empty string when there is no start date.'
         created_at:
           type: string
           format: date-time
@@ -2659,6 +2662,29 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  firstName:
+                    type: string
+                  company:
+                    type: string
+                  department:
+                    type: string
+                  startDate:
+                    type: string
+                    format: date
+                  documentsDue:
+                    type: string
+                    format: date
+                    description: 'The date the required documents are due: 7 days before the start date. Left out when there is no start date.'
+                  notice:
+                    type: object
+                  consent:
+                    type: object
+                    nullable: true
         '403':
           description: Forbidden
           content:

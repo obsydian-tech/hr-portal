@@ -5,6 +5,7 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { stepOf } from '../shared/onboarding-step.mjs';
+import { documentsDueDate } from '../shared/due-date.mjs';
 import { hrOrAgent, inGroup } from '../shared/hr-group.mjs';
 import { requireTenant, tenantFilter, andFilter, readsLegacyRows } from '../shared/tenant.mjs';
 
@@ -175,6 +176,7 @@ const handlerFn = async (event) => {
       step:               stepOf(item),
       offer_accept_date:  item.offer_accept_date || '',
       planned_start_date: item.planned_start_date || '',
+      documents_due:      documentsDueDate(item.planned_start_date, tenantId) ?? '',
       created_at:         item.created_at,
       created_by:         item.created_by,
       hr_staff_id:        item.hr_staff_id || item.created_by || '',

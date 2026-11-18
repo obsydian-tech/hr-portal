@@ -1,0 +1,7 @@
+{
+  "about": "ONB-10 builds nothing in these two Lambdas (and getMyDocuments gets no due date: that one is checked by what it answers, because ONB-20 changes it). sha256 of each file on develop 8b6ad7d. A later card that must change one of them re-locks this file.",
+  "files": {
+    "lambda/reviewDocumentVerification/index.mjs": "c51474b9bd1b94e2aab1085c2507ef4e535fcb2d7ebc4781741d690ce49d4205",
+    "lambda/generateDocumentUploadUrl/index.mjs": "8b6c2a3dd6500cb95d513ec947d4698c35f0fe899faad0a5b01fa44edf5936bc"
+  }
+}

@@ -15,6 +15,10 @@ import type { BrowserContext, Route } from '@playwright/test';
  * step the stored stage gives (stepOfStage below), as lambda/getEmployees does for
  * a row written before ONB-09.
  *
+ * ONB-10: `documents_due` is carried only when a test gives it (as the Lambda answers it, with "" for none). The
+ * fake never works it out from `planned_start_date`: the date is the backend's answer, so a test that does not
+ * mention it (ONB-02, ONB-09) never sees an overdue line however late it runs.
+ *
  * Every call is recorded in `calls`. Nothing here calls AWS or any AI service.
  */
 
@@ -39,6 +43,8 @@ export type ApiPerson = {
   id_number_last4: string;
   /** ONB-09: set it to answer this step instead of the one the stage gives. */
   step?: string | null;
+  /** ONB-10: the date the person's documents are due (YYYY-MM-DD), as getEmployees answers it. Left out unless a test gives it. */
+  documents_due?: string;
 };
 
 /** ONB-09's step codes, in order. */
