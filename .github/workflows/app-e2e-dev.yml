@@ -192,6 +192,20 @@ jobs:
       - name: Load test logins (masked)
         run: python3 scripts/ci/load-e2e-logins.py
 
+      # TEN-04: the company walk calls the agent API with its key. The address comes from the API's name, the key from
+      # the secret the agent API already uses on pepla-dev (masked, never printed). Without access the walk reports
+      # that the key is missing; nothing else here fails.
+      - name: Load the agent API address and key (masked)
+        run: |
+          addr=$(aws apigatewayv2 get-apis --region af-south-1 --query "Items[?Name=='naleko-agent-api'].ApiEndpoint | [0]" --output text)
+          echo "E2E_AGENT_API_URL=$addr" >> "$GITHUB_ENV"
+          if key=$(aws secretsmanager get-secret-value --region af-south-1 --secret-id naleko/agent/api-key --query SecretString --output text 2>/dev/null); then
+            echo "::add-mask::$key"
+            echo "E2E_AGENT_KEY=$key" >> "$GITHUB_ENV"
+          else
+            echo "::warning::could not read naleko/agent/api-key; the TEN-04 company walk will stop at the missing key"
+          fi
+
       - name: Install app and browser
         working-directory: hr-portal
         run: |
