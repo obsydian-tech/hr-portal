@@ -25,6 +25,11 @@ SKIP_FILE = re.compile(r"(\.test\.|\.spec\.|\.md$|\.zip$|^jest\.config\.|^\.)")
 SHARED_IMPORT = re.compile(r"""(['"])\.\./shared/""")
 EPOCH = (1980, 1, 1, 0, 0, 0)
 
+# Lambdas whose code lives outside lambda/ (ONB-22: the MCP server is in mcp/, with its own package.json and lock).
+EXTERNAL = {
+    "nalekoMcpServer": ROOT / "mcp",
+}
+
 # Files a Lambda reads at runtime that live elsewhere in the repo.
 EXTRA_FILES = {
     "serveAgentManifest": [("api/agent-tools.json", "tools.json")],
@@ -79,11 +84,12 @@ def main() -> int:
     shutil.rmtree(WORK, ignore_errors=True)
     OUT.mkdir(parents=True)
     manifest, failed = {}, []
-    for d in sorted(p for p in SRC.iterdir() if p.is_dir()):
-        name = d.name
+    folders = sorted([p for p in SRC.iterdir() if p.is_dir()] + list(EXTERNAL.values()), key=lambda p: ({v: k for k, v in EXTERNAL.items()}.get(p, p.name)))
+    for d in folders:
+        name = {v: k for k, v in EXTERNAL.items()}.get(d, d.name)
         if name == "shared" or (wanted and name not in wanted):
             continue
-        if not ((d / "index.js").exists() or (d / "index.mjs").exists()):
+        if not ((d / "index.js").exists() or (d / "index.mjs").exists() or (d / "lambda-handler.mjs").exists()):
             continue
         build = WORK / name
         copy_tree(d, build)

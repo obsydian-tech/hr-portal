@@ -1,6 +1,6 @@
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import { guardAi, isRobotCaller, markRobot } from '../shared/ai-guard.mjs';
+import { guardAi, isRobotCaller, isRobotEmail, markRobot } from '../shared/ai-guard.mjs';
 import { hrOrAgent } from '../shared/hr-group.mjs';
 import { requireTenant, ownsItem, notFound } from '../shared/tenant.mjs';
 import { redactNumbers, hasNumberRun } from '../shared/pii-redact.mjs';
@@ -124,6 +124,25 @@ const handlerFn = async (event) => {
 
   if (!ownsItem(item, tenantId)) {
     return { ...notFound(), headers: CORS_HEADERS };
+  }
+
+  // ONB-22: the person the document is about decides, as in classifyOnboardingRisk: a test person, or one with no
+  // email on record, never reaches the model, whoever asks (the agent has no claims to look at).
+  try {
+    const emp = await dynamo.send(new GetItemCommand({
+      TableName: 'employees',
+      Key: { employee_id: { S: item.employeeId?.S ?? '' } },
+      ProjectionExpression: 'email, tenant_id',
+    }));
+    // An employee row that is there decides: no email on record, another company's row, or a test address fails closed. No row at all
+    // (an orphan; the PII-01 acceptance rows have none) is left to the other guards.
+    if (emp.Item) {
+      const email = ownsItem(emp.Item, tenantId) ? emp.Item.email?.S : undefined;
+      if (!email || isRobotEmail(email)) markRobot(true);
+    }
+  } catch (err) {
+    logger.error('Employee lookup failed', { errorName: err?.name ?? 'Error', verificationId });
+    markRobot(true);
   }
 
   // ── 2. Build prompt — fixed words, redacted free text, last check; any failure means no model call ─────
