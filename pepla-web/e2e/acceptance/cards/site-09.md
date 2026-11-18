@@ -74,3 +74,7 @@ Tolerances: boxes 1px; pixels 1% (channel difference over 24); timing 250ms; sta
 - AC-11 "tilt" (pointer tilt) is not tested: the kit's Recruitment page has none.
 - The hero card's last step under `data-site-still` is read from the kit's own run (its state between the last step at 8.7s and the restart at 13.7s), since the kit's script shows the first step, not the last, under `data-site-still`.
 - Link targets ("Book a demo", "Get started", "Learn more") are not judged (SITE-16).
+
+## Child lock .1: fonts before every region compare
+
+`compareRegion` (the parity of every region and demo step) first calls `fontsAndResize`: both pages wait for `document.fonts.ready` and get a `resize` event, then 150 ms, before the pages settle and compare. Found on CI: the kit's sub-menu pill was 119px wide against 115px on the page, because the kit script measures before the web font loads (the same fault as SITE-08 child lock .1). No tolerance changed. The step is exported so later Learn more cards use it.
