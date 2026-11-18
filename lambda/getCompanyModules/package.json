@@ -1,0 +1,7 @@
+{
+  "name": "get-company-modules-lambda",
+  "version": "1.0.0",
+  "description": "MOD-01 GET /v1/company/modules",
+  "private": true,
+  "type": "module"
+}

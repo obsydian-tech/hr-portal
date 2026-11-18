@@ -573,7 +573,11 @@ test.describe('TEN-05 · One sign-in pool with five roles, every group in Terraf
     expect(new Set(pms).size, 'panel members: nobody twice').toBe(pms.length);
 
     for (const r of [hm, pm]) {
-      expect(JSON.stringify(aws(r)), 'no read of the tenants table until Iggie grants it (R5)').not.toContain(TENANTS);
+      // MOD-01 (re-locked by acceptance-lock/mod-01): the module check's GetItem of the caller's own Company row is the one
+      // tenants table read allowed; the lists are still not narrowed by a Member read (R5).
+      const modulesRead = (c: any) => c.service === 'dynamodb' && c.op === 'GetItem' && c.table === TENANTS && c.input?.Key?.pk?.S === `TENANT#${A}` && c.input?.Key?.sk?.S === 'PROFILE';
+      expect(aws(r).filter(modulesRead).length, 'the module check reads A\'s Company row at most once').toBeLessThanOrEqual(1);
+      expect(JSON.stringify(aws(r).filter((c: any) => !modulesRead(c))), 'no other read of the tenants table until Iggie grants it (R5)').not.toContain(TENANTS);
       expect(aws(r).filter((c: any) => c.service === 'cognito' && c.input?.UserPoolId !== 'af-south-1_Ten05Fake'), 'only the Naleko pool is read').toEqual([]);
     }
     // Panel members by candidate: the scoring links of another company's candidate stay out (TEN-03, unchanged).

@@ -41,6 +41,13 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand:   jest.fn(p => ({ _cmd: 'PutEvents', ...p })),
 }));
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 // Deterministic ulid
 jest.mock('ulid', () => ({ ulid: jest.fn(() => '01HTEST00000000000000000') }));
 

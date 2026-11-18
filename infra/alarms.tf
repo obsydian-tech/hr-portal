@@ -17,6 +17,7 @@ module "alarms" {
 
   lambda_names = [
     "createEmployee",
+    "getCompanyModules",
     "getHrPartners",
     "checkEmployeeEmail",
     "lookupInvite",

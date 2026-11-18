@@ -120,6 +120,13 @@ beforeEach(() => {
 
 // ── POST: schedule ────────────────────────────────────────────────────────────
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 describe('POST schedule interview', () => {
   test('SENIOR: writes a SCHEDULED interview with votesRequired=4, links it on the SAGA, notifies panel', async () => {
     happyChain();

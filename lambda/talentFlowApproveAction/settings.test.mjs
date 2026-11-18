@@ -26,6 +26,13 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 describe('AC-2 a missing setting stops talentFlowApproveAction at start', () => {
   test('ENVIRONMENT unset: load throws "Missing setting ENVIRONMENT" and logs one line', async () => {
     delete process.env.ENVIRONMENT;

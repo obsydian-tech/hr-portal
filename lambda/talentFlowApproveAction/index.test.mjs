@@ -81,6 +81,13 @@ beforeEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 describe('talentFlowApproveAction', () => {
 
   // ── GET ─────────────────────────────────────────────────────────────────────

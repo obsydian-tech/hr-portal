@@ -173,11 +173,20 @@ export const ENV: Record<string, string> = {
 /** Makes every matching fake call throw an Error carrying `message` (after it is recorded). */
 export type Failure = { service: 'dynamodb'; ops?: string[]; message: string; name?: string };
 
+const MOD01_TENANTS = 'naleko-people-dev-tenants';
+const MOD01_FOUNDING: Row = { pk: { S: 'TENANT#ten_aaaaaaaaaaaaaaaaaaaaaaaaaa' }, sk: { S: 'PROFILE' }, tenant_id: { S: 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa' }, status: { S: 'ACTIVE' }, founding: { BOOL: true } };
+
 /** Calls `handler` once with `event` in a fresh process against `tables`. */
 export function runHandler(handler: string, tables: Tables, event: unknown, opts: { env?: Record<string, string>; fail?: Failure } = {}): Run {
   const dir = mkdtempSync(join(tmpdir(), 'be-17-lambda-'));
   const worldFile = join(dir, 'world.json');
   const eventFile = join(dir, 'event.json');
+  // MOD-01 (re-locked by acceptance-lock/mod-01): talentFlowApproveAction asks the module check, which reads the founding
+  // company's row (founding, so both modules on) from the tenants table.
+  if (handler === HANDLER.pending) {
+    tables = { [MOD01_TENANTS]: [MOD01_FOUNDING], ...tables };
+    opts = { ...opts, env: { TENANTS_TABLE: MOD01_TENANTS, ...(opts.env ?? {}) } };
+  }
   writeFileSync(worldFile, JSON.stringify({ tables: structuredClone(tables), pageSize: 4, ...(opts.fail ? { fail: opts.fail } : {}) }));
   writeFileSync(eventFile, JSON.stringify(event));
   const out = execFileSync(process.execPath, ['--no-warnings', '--import', join(FAKE_AWS, 'register.mjs'), join(FAKE_AWS, 'run.mjs'), handler, eventFile], {

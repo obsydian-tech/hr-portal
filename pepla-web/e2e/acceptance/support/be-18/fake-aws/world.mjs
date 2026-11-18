@@ -9,6 +9,8 @@ export const world = JSON.parse(readFileSync(process.env.BE17_WORLD, 'utf8'));
 world.tables ??= {};
 export const calls = [];
 export const KEYS = {
+  // MOD-01 (re-locked by acceptance-lock/mod-01): the company list, read by the module check.
+  'naleko-people-dev-tenants': ['pk', 'sk'],
   employees: ['employee_id'],
   documents: ['employee_id', 'document_id'],
   'document-verification': ['verificationId'],

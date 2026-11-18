@@ -36,6 +36,10 @@ exports.handler = async (event) => {
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;
+  // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
+  const { requireModule } = await import('../shared/modules.mjs');
+  const moduleOff = await requireModule(event, 'recruitment');
+  if (moduleOff) return moduleOff;
 
   const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
   if (!userId) return response(401, { error: 'Unauthorized' });
