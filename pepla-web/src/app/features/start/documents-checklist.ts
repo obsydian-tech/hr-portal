@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { PpButton, PpDocumentChecklist, PpDocumentRow, PpLozenge, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, formatDate } from '../../ds';
 import { SIGN_IN_MESSAGES } from '../../core/auth/auth.messages';
 import { DOCUMENT_TYPES, MyDocumentsService, type DocumentType } from '../../core/start/my-documents.service';
-import { DOCUMENT_INFO, STATE_WORDS } from './document-types';
+import { DOCUMENT_INFO, SENT_BACK_BUTTON, STATE_WORDS, returnedLine } from './document-types';
 
 const TERTIARY_META = 'Degree, diploma or certificate. You can add more than one.';
 
@@ -34,7 +34,7 @@ const TERTIARY_META = 'Degree, diploma or certificate. You can add more than one
       @case ('ready') {
         <pp-document-checklist heading="Upload your documents" subheading="Batsi reads your ID and bank letter. HR decides every document." [done]="done()" [total]="4" progressLabel="Complete" [progressText]="done() + ' of 4 complete'">
           @for (r of rows(); track r.type) {
-            <li ppDocumentRow [name]="r.name" [icon]="r.icon" [meta]="r.meta" [status]="r.tone" [statusText]="r.stateText" [statusIcon]="r.stateIcon" [next]="r.next">
+            <li ppDocumentRow [name]="r.name" [icon]="r.icon" [meta]="r.meta" [status]="r.tone" [statusText]="r.stateText" [statusIcon]="r.stateIcon" [reason]="r.reason" [next]="r.next">
               @if (r.required) { <pp-lozenge>Required</pp-lozenge> }
               @if (r.canUpload) { <a ppButton size="large" [routerLink]="r.link">{{ r.button }}</a> }
             </li>
@@ -64,18 +64,22 @@ export class DocumentsChecklist {
       const info = DOCUMENT_INFO[type];
       const words = STATE_WORDS[state];
       const newest = d?.files[0];
+      // Qualifications show a reason on the file it belongs to (the upload page), not on this row.
+      const sentBack = state === 'SENT_BACK' && type !== 'TERTIARY_QUALIFICATION' ? newest : undefined;
       return {
         type,
         name: info.name,
         icon: info.icon,
-        meta: type === 'TERTIARY_QUALIFICATION' ? TERTIARY_META : newest ? `Uploaded ${formatDate(newest.uploadedAt, { year: true })}` : '',
+        meta: type === 'TERTIARY_QUALIFICATION' ? TERTIARY_META : newest ? `Uploaded ${formatDate(newest.uploadedAt, { year: true })}${sentBack ? returnedLine(sentBack) : ''}` : '',
+        // HR's reason, as text, only on a sent-back row; none recorded means no reason line (W-3).
+        reason: sentBack?.reason ?? undefined,
         required: d?.required ?? false,
         tone: words.tone,
         stateText: words.text,
         stateIcon: words.icon,
         next: type === next,
         canUpload: type === 'TERTIARY_QUALIFICATION' || state === 'NOT_UPLOADED' || state === 'SENT_BACK',
-        button: info.button,
+        button: state === 'SENT_BACK' ? SENT_BACK_BUTTON[type] : info.button,
         link: `/start/documents/${info.slug}`,
       };
     });

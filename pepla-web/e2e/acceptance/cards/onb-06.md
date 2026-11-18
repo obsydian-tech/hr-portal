@@ -68,3 +68,7 @@ Locked test files this card touches: `support/fixtures.ts` only. It touches none
   but `Content-Type` goes to S3 is the headers of the PUT itself.
 - ONB-24's AC-13 requires the sentence "We can't reach Naleko People. Check your connection and try again." to be written once, in
   `auth.messages.ts`, and imported elsewhere: the documents service imports `SIGN_IN_MESSAGES.offline`, it does not repeat it.
+
+ONB-20 changes two things here, and only these: on a sent-back row the button says "Upload a new ID", "Upload a new letter" or
+"Upload a new certificate" (W-1; tertiary stays "Upload qualification"), and AC-6 lets the one sent-back file carry its
+reason (the same words stay barred on every other file). Re-locked as `acceptance-lock/onb-06.1`.
