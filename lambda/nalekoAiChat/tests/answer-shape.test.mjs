@@ -43,3 +43,13 @@ describe('checksOf', () => {
     expect(checksOf([{ toolName: 'list_verifications', toolArgs: {}, result: { documents: [] }, isError: false }])).toBeUndefined();
   });
 });
+
+describe('checksOf newest upload', () => {
+  it('a numeric old upload time still compares against an ISO one', () => {
+    const rows = checksOf([call('EMP-1', [
+      { document_id: 'doc_1', document_type: 'NATIONAL_ID', check: 'DOESNT_MATCH', arrived_at: Date.parse('2026-11-03T00:00:00Z') },
+      { document_id: 'doc_2', document_type: 'NATIONAL_ID', check: 'MATCHES', arrived_at: '2026-11-01T00:00:00Z' },
+    ])]);
+    expect(rows[0]).toEqual({ label: 'ID document', result: "Doesn't match" });
+  });
+});

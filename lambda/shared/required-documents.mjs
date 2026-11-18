@@ -33,7 +33,7 @@ function uploadedAt(doc) {
 }
 
 /** Newer first: the larger upload time; ties go to the larger document_id. */
-function isNewer(a, b) {
+export function isNewer(a, b) {
   const ta = uploadedAt(a);
   const tb = uploadedAt(b);
   if (ta !== tb) return ta > tb;

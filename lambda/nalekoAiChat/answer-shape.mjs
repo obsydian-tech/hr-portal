@@ -1,7 +1,7 @@
 /**
  * CHAT-05: the check rows of an answer, worked out from the turn's own tool results. Pure functions, no AWS call, no model call.
  */
-import { requiredFor } from '../shared/required-documents.mjs';
+import { requiredFor, isNewer as sharedIsNewer } from '../shared/required-documents.mjs';
 import { redactNumbers } from '../shared/pii-redact.mjs';
 
 const LABELS = {
@@ -14,14 +14,8 @@ const ORDER = Object.keys(LABELS);
 const RESULTS = { MATCHES: 'Matches', NEEDS_A_LOOK: 'Needs a look', DOESNT_MATCH: "Doesn't match", READING: 'Being checked' };
 const MISSING = 'Missing';
 
-function isNewer(a, b) {
-  const ta = Date.parse(a.arrived_at ?? '');
-  const tb = Date.parse(b.arrived_at ?? '');
-  const na = Number.isFinite(ta) ? ta : -Infinity;
-  const nb = Number.isFinite(tb) ? tb : -Infinity;
-  if (na !== nb) return na > nb;
-  return String(a.document_id ?? '') > String(b.document_id ?? '');
-}
+// The same rule HR's screens use for the newest upload (a numeric or ISO upload time, else the number in doc_<ms>).
+const isNewer = (a, b) => sharedIsNewer({ ...a, upload_timestamp: a.arrived_at }, { ...b, upload_timestamp: b.arrived_at });
 
 export function checksOf(toolCallsMade) {
   const calls = (toolCallsMade ?? []).filter((c) => c.toolName === 'list_verifications' && !c.isError && typeof c.toolArgs?.employee_id === 'string' && c.toolArgs.employee_id !== '');
