@@ -248,8 +248,14 @@ export async function pixelRatio(p: Pair, appSel: string, kitSel: string, slice 
   return all ? bad / all : 1;
 }
 
+/** Lock check .1 (same as SITE-08 .1): the kit's sub-menu script measures its pills when it first runs, before the web font has loaded (pill 119px in the kit against 115px on the page on CI). Both pages wait for document.fonts.ready and get a resize event, so every script that measures runs again on the same fonts. */
+export async function fontsAndResize(p: Pair): Promise<void> {
+  for (const page of [p.app, p.kit]) { await page.evaluate(async () => { await document.fonts.ready; window.dispatchEvent(new Event('resize')); }); await sleep(150); }
+}
+
 /** A region of the app page against the same region of the kit page: every kit item in order and within 1px, and at most 1% of pixels different. */
 export async function compareRegion(p: Pair, label: string, appSel: string, kitSel: string, o: { skip?: string; hide?: string; skipRoot?: boolean } = {}): Promise<void> {
+  await fontsAndResize(p);
   await settle(p.kit); await settle(p.app);
   const r = await compareScopes(p.app, p.kit, label, appSel, kitSel, o.skip ?? '', false, o.skipRoot ?? false);
   expect(r.kitElements, `${label}: the kit region has elements`).toBeGreaterThanOrEqual(3);
