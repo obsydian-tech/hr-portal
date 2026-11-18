@@ -11,6 +11,7 @@ import type { MeFake } from './support/onb-05/me-fake';
 import { rolePairsOf } from './support/onb-10/iam';
 import { forgetSignIn } from './support/sign-in-again';
 import { STEP_CODES, giveSteps, type StepCode, type StepPerson, type StepValue } from './support/onb-19/step-me';
+import { openAndReadMe } from './support/onb-19/me-answer';
 import {
   BAR_LABEL, CARD, HEADING, LEFT, META, NAV_LABEL, NOT_FOUND, OFFLINE, STEP_LABELS, TABLE, TITLE, TODAY_DOCS_META, TODAY_TRACKER, TRY_AGAIN, UPLOAD_BANK, UPLOAD_ID,
   describe as stepLine, doneText, type Mark,
@@ -1075,12 +1076,12 @@ test.describe('ONB-19 Where am I: four steps', () => {
     await expect(page).toHaveURL(START, { timeout: 30_000 });
     await expect(page.getByRole('heading', { level: 1, name: `Welcome, ${employee.givenName}`, exact: true })).toBeVisible({ timeout: 30_000 });
 
-    // Reads only: open the page, and read the answer GET /v1/me gave it.
-    const answered = page.waitForResponse((r) => r.request().method() === 'GET' && /\/v1\/me$/.test(new URL(r.url()).pathname), { timeout: 30_000 });
-    await page.goto(ONBOARDING);
-    const answer = await answered;
-    expect(answer.status(), 'GET /v1/me answers').toBe(200);
-    const body = (await answer.json()) as Record<string, unknown>;
+    // Reads only: open the page, and read the answer GET /v1/me gave it (ONB-19.1: only a call the page itself made,
+    // its body read as it arrives, so a late call from Today cannot be the one read; see support/onb-19/me-answer.ts).
+    const answer = await openAndReadMe(page, ONBOARDING, ONBOARDING_URL);
+    expect(answer.status, 'GET /v1/me answers').toBe(200);
+    expect(answer.body, `GET /v1/me answers a JSON object (got: ${answer.text.slice(0, 200)})`).not.toBeNull();
+    const body = answer.body!;
     expect(STEP_CODES as string[], 'GET /v1/me answers a step that is one of the four (other tests move the persona)').toContain(body['step']);
     const step = body['step'] as StepCode;
     await expect(header(page), 'the page').toBeVisible({ timeout: 30_000 });

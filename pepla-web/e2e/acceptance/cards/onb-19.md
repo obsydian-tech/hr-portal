@@ -40,3 +40,15 @@ nowhere else in the tests.
   "My onboarding" (`/start/onboarding`). Locks: acceptance-lock/onb-05.3.
 - `support/mod-02/baseline.json`: the employee block of both projects gains the My onboarding item (label, href, icon,
   box). HR, the top bar and every redirect are byte for byte as before. Locks: acceptance-lock/mod-02.2.
+
+## ONB-19.1: AC-12 reads the answer the page got (lock acceptance-lock/onb-19.1)
+
+The first pepla-dev run after the merge (run 44392612187, develop 7f10393) failed AC-12 on the test, not the app: GET
+/v1/me answered 200, then reading its body failed with "Response body is not available for a response that was navigated
+away from". The test waited for any GET /v1/me, so a call Today still had on its way could be the one it caught, and that
+body is gone once the browser leaves Today.
+
+AC-12 now opens the page through `support/onb-19/me-answer.ts`: only a GET /v1/me sent by the newly opened My onboarding
+page counts, and its body is read inside the response handler as it arrives. What AC-12 checks is unchanged: a 200, a
+`step` that is one of the four, and the page, title, line, steps, bar and sidebar matching that step. It also now says
+plainly when the answer is not JSON. No other test, word or file changes.
