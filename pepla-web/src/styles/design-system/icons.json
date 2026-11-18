@@ -122,11 +122,6 @@
       "group": "Places and modules"
     },
     {
-      "name": "briefcase",
-      "meaning": "Roles (open roles to hire for)",
-      "group": "Places and modules"
-    },
-    {
       "name": "layout-grid",
       "meaning": "Modules switched on for a company",
       "group": "Places and modules"

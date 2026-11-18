@@ -1,6 +1,6 @@
 {
   "repo": "obsydian-tech/pepla-design-system",
-  "ref": "dc593c47c7d8fb79c7ccf29311392ad166506114",
+  "ref": "c3788a56d9bffeb0724b14ae7b99a64388197799",
   "files": {
     "tokens/palette.css": "7e52116852dc514a5715d3218fbca047c30c54939a4605c8f40c656334dfdb66",
     "tokens/colors.css": "60316015cc9a3fd292d88e073ae6fb8370721c324010ac8ec467e56432dbbb72",
@@ -14,7 +14,7 @@
     "site.css": "7c3d983a85b005c092ea60a438b4e8b5684c8ebc091c9fbdfb2589b0cb81e70b",
     "assets/site-signature.svg": "59c95dfcfb27da53363c4a7e20329ae653b6620efec93457f6cb041382407219",
     "assets/site-grain.png": "bf8ab2e967a1cf73be254c7767eef4f048c3198774206854dc350cecd6a8f404",
-    "icons.json": "6c3c5c65a1fddefd81fd1e93d79485d799d1d9e6003501f2164b2b3a0adc0c06",
+    "icons.json": "89214a25e3fa836ad1a868b1171510115ca8f0ae7676358e01e7580dcb2b4e17",
     "index.css": "1eef33f7e1e8513bfc69392f04a004699ba815eedd43a369fdf7359b0d4d70dc",
     "platform.css": "4ecf68ee61e9cdcf028ed0f7815cfa3b7aa7f3980fba9cc99d648c711e3cdd06"
   }
