@@ -16,11 +16,11 @@ import { type Env, type LearnPageSpec, type Plant } from '../site-08/learn-page'
 
 /**
  * The design system ref the kit is read at. At or after 8dc3091 (DS #47: no closing band note, which SITE-08 removes from the app) and at or after
- * c3788a5 (DS #49: demos keep playing under reduced motion). This is dc593c4, the design system main head on 17 Nov. The SITE-08 helper's own default,
+ * c3788a5 (DS #49: demos keep playing under reduced motion). This is dee75b0 (DS #54, 18 Nov: the Recruitment tile line on the Onboarding ending is removed from the kit; the scripts are the same as at dc593c4, the pin before). The SITE-08 helper's own default,
  * the ref in `sync.json` (e9a352f), has the closing band note and the older reduced motion scripts, so SITE-10 sets `SITE_KIT_REF` for its own tests
  * (`useKitRef`, put back afterwards so no other spec in the run sees it). `SITE_10_KIT_REF` overrides this one.
  */
-export const KIT_REF = process.env['SITE_10_KIT_REF'] || 'dc593c47c7d8fb79c7ccf29311392ad166506114';
+export const KIT_REF = process.env['SITE_10_KIT_REF'] || 'dee75b046aa8330912e1fd5f5c6ee072c736997a';
 let savedRef: string | undefined;
 export function useKitRef(): void { savedRef = process.env['SITE_KIT_REF']; process.env['SITE_KIT_REF'] = KIT_REF; }
 export function restoreKitRef(): void { if (savedRef === undefined) delete process.env['SITE_KIT_REF']; else process.env['SITE_KIT_REF'] = savedRef; }
@@ -682,6 +682,48 @@ export async function tapInNormalMotion(env: Env, spec: LearnPageSpec): Promise<
       expect(passed, `in normal motion a tap on the tab for #${id} puts the section's top ${want}px from the top (taps landed at ${tops.join(', ')}px)`).toBe(true);
     }
   });
+}
+
+// ------------------------------------------------------------------------------------------------ the tile line that is removed (DS #54)
+
+/**
+ * Iggie, 18 Nov, approved hiding a public claim until the code behind it is built. The design system removed it from the kit (PR #54, dee75b0): the Recruitment tile in
+ * "Works together with" on the Onboarding page ending keeps its title and its "Learn more" and has no line of text. The kit is the oracle for the absence, and the line is
+ * also named here so a page that still holds it fails with its name. No new wording was written.
+ */
+export const REMOVED_LINE = 'Accepted offers start onboarding with no retyping.';
+const flat = (s: string): string => s.replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').toLowerCase();
+/** True when the removed line is in this markup (the live page's outerHTML or the prerendered file): in its text, or in an attribute; case, white space and comments between its words do not matter. */
+export function removedLineIn(markup: string): boolean {
+  const raw = flat(markup.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ''));
+  const k = flat(REMOVED_LINE);
+  return raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').includes(k) || raw.includes(k);
+}
+export type EndingFacts = { markup: string; tiles: Array<{ title: string; text: string | null }>; recruitmentTileHasText: boolean };
+/** The "Works together with" tiles of a page (`root` is 'body' on the app and '.pp-site-stage' on the kit screen): title and line of text of each (null when a tile has none). */
+export function endingFacts(root: string): EndingFacts {
+  const r = document.querySelector(root)!;
+  const txt = (e: Element | null) => (e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+  const tiles = Array.from(r.querySelectorAll('.pp-site-related .pp-site-tile')).map((t) => ({ title: txt(t.querySelector('.pp-site-tile__title')), text: t.querySelector('.pp-site-tile__text') ? txt(t.querySelector('.pp-site-tile__text')) : null }));
+  const rec = Array.from(r.querySelectorAll('.pp-site-related .pp-site-tile')).find((t) => txt(t.querySelector('.pp-site-tile__title')) === 'Recruitment');
+  return { markup: r.outerHTML, tiles, recruitmentTileHasText: !!rec?.querySelector('.pp-site-tile__text') };
+}
+/**
+ * The removal read on a page against the kit: every problem as a sentence, empty when the page is as the kit is. The kit is read too (a kit ref from before DS #54 holds the line
+ * and fails loudly); the page must not hold the line anywhere, its Recruitment tile has no text, and its tiles (titles and lines, in order) are the kit's.
+ */
+export function endingProblems(app: EndingFacts, kit: EndingFacts): string[] {
+  const p: string[] = [];
+  if (removedLineIn(kit.markup)) p.push(`the kit screen still holds "${REMOVED_LINE}" (the kit ref is from before DS #54)`);
+  if (kit.recruitmentTileHasText) p.push('the kit\'s Recruitment tile has a line of text (the kit ref is from before DS #54)');
+  if (removedLineIn(app.markup)) p.push(`the page holds the removed tile line "${REMOVED_LINE}"`);
+  if (app.recruitmentTileHasText) p.push('the Recruitment tile on the page has a line of text; the kit\'s has none');
+  if (JSON.stringify(app.tiles) !== JSON.stringify(kit.tiles)) p.push(`the "Works together with" tiles are ${JSON.stringify(app.tiles)}, the kit's are ${JSON.stringify(kit.tiles)}`);
+  return p;
+}
+/** Both pages' ending facts, read once the pair is open. */
+export async function endingOf(p: Pair): Promise<{ app: EndingFacts; kit: EndingFacts }> {
+  return { app: await p.app.evaluate(endingFacts, 'body'), kit: await p.kit.evaluate(endingFacts, '.pp-site-stage') };
 }
 
 export { deviceOf };
