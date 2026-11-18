@@ -25,6 +25,7 @@
 
 const { isIdToken } = require('../shared/id-token');
 const { tenantHelper } = require('../shared/tf-tenant.js');
+const { rolesHelper } = require('../shared/tf-roles.js');
 const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig } = require('../shared/config-reader');
@@ -63,18 +64,12 @@ function parseGroups(rawGroups) {
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"message": "Forbidden: IT Admin or IT Specialist group required."});
   const claims   = extractClaims(event);
-  const groups   = parseGroups(claims['cognito:groups']);
   const userSub  = claims.sub;
-  // DEBUG — remove once auth is confirmed working
-  console.log('[getItTasks] sub:', userSub, 'groups_raw:', claims['cognito:groups'], 'parsed:', JSON.stringify(groups));
-
-  const isITSpecialist = groups.includes('ITSpecialist') && !groups.includes('ITAdmin');
-  const isITAdmin      = groups.includes('ITAdmin');
-  const isAdmin        = claims['custom:isAdmin'] === 'true' || groups.includes('TalentFlowAdmin') || isITAdmin;
-
-  if (!isITSpecialist && !isAdmin) {
-    return respond(403, { message: 'Forbidden: IT Admin or IT Specialist group required.' });
-  }
+  const R = await rolesHelper();
+  const denied = R.requireRole(event, { roles: ['admin'], perms: ['perm-it'] });
+  if (denied) return denied;
+  const isAdmin        = R.isItLead(event);
+  const isITSpecialist = !isAdmin;
 
   // TEN-03: after the group check, the company check. The company is the sign-in's; tenantId in the query or body is not read.
   const T = await tenantHelper();

@@ -55,18 +55,30 @@ EMPLOYEE_ID = "E2E-EMP-0001"  # custom:employee_id holds at most 20 characters
 # AI cost guardrail: every test login is in this group, and the AI Lambdas
 # never call Bedrock or Textract for its members (lambda/shared/ai-guard.mjs).
 ROBOT_GROUP = "e2e-robots"
+# TEN-05: groups the Terraform apply adds after the merge. Until pepla-dev has them, the seed leaves them out
+# (one warning) so the other tests still run; every other group stays required.
+TEN05_GROUPS = {"admin", "manager", "guest", "perm-recruitment", "perm-it", "perm-approve-offers"}
 
 NALEKO_PERSONAS = {
     "hr": {
         "attrs": {"custom:role": "hr_staff", "custom:staff_id": HR_STAFF_ID,
                   "given_name": "Thandi", "family_name": "Demo-HR"},
-        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr"],
+        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
     },
     # TEN-02: the HR login of the second company (B). Its Member row is written below.
     "hr-b": {
         "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRB1",
                   "given_name": "Zanele", "family_name": "Companyb-Lead"},
-        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr"],
+        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
+    },
+    # TEN-05: an IT login and a guest login of company A in the Naleko pool.
+    "it": {
+        "attrs": {"given_name": "Lindo", "family_name": "Demo-IT"},
+        "groups": ["naleko-it-provisioning", "perm-it"],
+    },
+    "guest": {
+        "attrs": {"given_name": "Nandi", "family_name": "Demo-Guest"},
+        "groups": ["guest"],
     },
     "employee": {
         "attrs": {"custom:role": "employee", "custom:employee_id": EMPLOYEE_ID,
@@ -382,11 +394,18 @@ def main() -> None:
 
     naleko = pool_id(cognito, NALEKO_POOL)
     tf = pool_id(cognito, TF_POOL)
-    require_groups(cognito, naleko, sorted({g for p in NALEKO_PERSONAS.values() for g in p["groups"]} | {ROBOT_GROUP}))
+    wanted = {g for p in NALEKO_PERSONAS.values() for g in p["groups"]} | {ROBOT_GROUP}
+    have = {g["GroupName"] for page in cognito.get_paginator("list_groups").paginate(UserPoolId=naleko)
+            for g in page["Groups"]}
+    not_yet = sorted((wanted & TEN05_GROUPS) - have)
+    if not_yet:
+        print(f"warning: pepla-dev does not have {', '.join(not_yet)} yet (Terraform adds them); logins are seeded without them")
+    require_groups(cognito, naleko, sorted(wanted - set(not_yet)))
     made_groups = ensure_groups(cognito, tf, [ROBOT_GROUP])
 
     for role, p in NALEKO_PERSONAS.items():
-        ensure_user(cognito, naleko, role, secret_password(sm, role), p["attrs"], p["groups"] + [ROBOT_GROUP])
+        ensure_user(cognito, naleko, role, secret_password(sm, role), p["attrs"],
+                    [g for g in p["groups"] if g not in not_yet] + [ROBOT_GROUP])
     for group in TF_GROUPS:
         role = f"tf-{group.lower()}"
         ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group, ROBOT_GROUP])

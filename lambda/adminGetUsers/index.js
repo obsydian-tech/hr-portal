@@ -16,6 +16,8 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
+const { rolesHelper } = require('../shared/tf-roles.js');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 const { DynamoDBClient, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -38,33 +40,16 @@ function extractClaims(event) {
   return event.requestContext?.authorizer?.jwt?.claims || {};
 }
 
-function hasAdminRole(claims) {
-  // Path 1: TalentFlow pool token — custom:roles injected by pre-token trigger
-  try {
-    const roles = JSON.parse(claims['custom:roles'] || '[]');
-    if (Array.isArray(roles) && roles.includes('ADMIN')) return true;
-  } catch { /* fall through */ }
-
-  // Path 2: Naleko pool token (pool consolidation, Epic 5).
-  // API Gateway HTTP API v2 serialises cognito:groups as a bracket-wrapped
-  // space-separated string: '[group1 group2]'. Strip brackets then split.
-  const raw = claims['cognito:groups'];
-  if (!raw) return false;
-  let groups;
-  try { groups = JSON.parse(raw); } catch { /* not JSON */ }
-  if (!Array.isArray(groups)) {
-    groups = String(raw).replace(/^\[|\]$/g, '').split(' ');
-  }
-  return groups.includes('naleko-talentflow-admin');
-}
 
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"error": "Admin role required"});
   const claims = extractClaims(event);
-  console.info('adminGetUsers auth', { rolesRaw: claims['custom:roles'], groupsRaw: claims['cognito:groups'] });
-  if (!hasAdminRole(claims)) {
-    return respond(403, { error: 'Admin role required' });
-  }
+  const R = await rolesHelper();
+  const denied = R.requireRole(event, { roles: ['admin'] });
+  if (denied) return denied;
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
 
   const qs        = event.queryStringParameters || {};
   const limit     = Math.min(parseInt(qs.limit || '50', 10), 100);
@@ -87,15 +72,17 @@ exports.handler = async (event) => {
     exprValues[':q'] = { S: search };
   }
 
+  const f = T.andFilter(
+    { FilterExpression: filterParts.join(' AND '), ExpressionAttributeNames: exprNames, ExpressionAttributeValues: exprValues },
+    { ...T.tenantFilter(tenantId), ExpressionAttributeValues: { ':tenant_id': { S: tenantId } } },
+  );
   const params = {
     TableName:        USERS_TABLE,
-    FilterExpression: filterParts.join(' AND '),
-    ExpressionAttributeValues: exprValues,
+    FilterExpression: f.FilterExpression,
+    ExpressionAttributeValues: f.ExpressionAttributeValues,
+    ExpressionAttributeNames: f.ExpressionAttributeNames,
     Limit: limit,
   };
-  if (Object.keys(exprNames).length) {
-    params.ExpressionAttributeNames = exprNames;
-  }
   if (nextToken) {
     try {
       params.ExclusiveStartKey = JSON.parse(Buffer.from(nextToken, 'base64').toString('utf8'));
@@ -116,7 +103,7 @@ exports.handler = async (event) => {
     console.info('adminGetUsers', { count: users.length, status: status || 'all' });
     return respond(200, response);
   } catch (err) {
-    console.error('adminGetUsers error', { error: err.message });
+    console.error('adminGetUsers error', { error: err?.name });
     return respond(500, { error: 'Failed to retrieve users' });
   }
 };

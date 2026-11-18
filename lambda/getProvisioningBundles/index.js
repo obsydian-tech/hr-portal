@@ -16,6 +16,7 @@
 
 const { isIdToken } = require('../shared/id-token');
 const { tenantHelper } = require('../shared/tf-tenant.js');
+const { rolesHelper } = require('../shared/tf-roles.js');
 const { DynamoDBClient, QueryCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 
@@ -52,8 +53,8 @@ exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(401, {"message": "Unauthorized."});
   const claims   = extractClaims(event);
   const hmUserId = claims.sub;
-  const groups   = parseGroups(claims['cognito:groups']);
-  const isAdmin  = claims['custom:isAdmin'] === 'true' || groups.includes('TalentFlowAdmin');
+  const R = await rolesHelper();
+  const isAdmin = R.holds(event, { roles: ['admin'] });
 
   if (!hmUserId) return respond(401, { message: 'Unauthorized.' });
 
