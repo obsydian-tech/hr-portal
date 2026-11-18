@@ -111,11 +111,22 @@ export type Probe = {
   want: (c: Caller) => Outcome;
   /** The role check this route has: its refusal is 403 {"error":"Forbidden"} with no AWS call. */
   gated: boolean;
+  /** REC-01 (rec-01.1): this route's answer was moved on purpose, so the frozen develop answer no longer applies. */
+  movedBy?: string;
 };
 
 const yesNo = (b: boolean) => (b ? 'yes' : 'no');
 const admin = (c: Caller) => yesNo(has(c, 'admin'));
 const itRead = (c: Caller) => has(c, 'admin') || has(c, 'perm-it');
+/** REC-01 rule 1: the admin role, or a Recruiter (hr_staff with perm-recruitment, or an old TalentFlow HR name that gives that tick and no role). */
+const recruiterOrAdmin = (c: Caller) => {
+  const r = grantOfCaller(c);
+  if (r.roles.includes('admin')) return 'yes';
+  if (!r.perms.includes('perm-recruitment')) return 'no';
+  if (r.roles.includes('hr_staff')) return 'yes';
+  const names = [...groupsList(c), ...(() => { try { const l = JSON.parse(String(c.claims?.['custom:roles'] ?? '[]')); return Array.isArray(l) ? l.map((x) => CLAIM_ROLES[x]).filter(Boolean) as string[] : []; } catch { return []; } })()];
+  return names.some((n) => OLD_GROUPS[n] && OLD_GROUPS[n]!.roles.length === 0 && OLD_GROUPS[n]!.perms.includes('perm-recruitment')) ? 'yes' : 'no';
+};
 const itFinish = (c: Caller) => has(c, 'perm-it');
 
 export const PROBES: Probe[] = [
@@ -126,7 +137,7 @@ export const PROBES: Probe[] = [
   { name: 'DELETE /v1/admin/users/{userId}', handler: 'adminDeactivateUser', ask: { method: 'DELETE', path: { userId: TEN05.userA2 } }, read: 'gate', want: admin, gated: true },
   { name: 'POST /v1/config', handler: 'manageTalentFlowConfig', ask: { method: 'POST', body: { configType: 'PANEL_CONFIG', data: { x: 1 } } }, read: 'gate', ok: [200, 201], want: admin, gated: true },
   { name: 'PUT /v1/config', handler: 'manageTalentFlowConfig', ask: { method: 'PUT', body: { configType: 'SCORING_WEIGHTS', data: { weights: { skills: 45 } } } }, read: 'gate', ok: [200, 201], want: admin, gated: true },
-  { name: 'GET /v1/config (no role check today)', handler: 'manageTalentFlowConfig', ask: { query: { configType: 'SCORING_WEIGHTS', active: 'true' } }, read: 'gate', want: () => 'yes', gated: false },
+  { name: 'GET /v1/config (no role check today)', handler: 'manageTalentFlowConfig', ask: { query: { configType: 'SCORING_WEIGHTS', active: 'true' } }, read: 'gate', want: recruiterOrAdmin, gated: true, movedBy: 'REC-01' },
   { name: 'GET /v1/it/tasks/{taskId}', handler: 'getItTask', ask: { path: { taskId: ID.taskA } }, read: 'gate', want: (c) => yesNo(itRead(c)), gated: true },
   { name: 'POST /v1/it/tasks/{taskId}/claim', handler: 'claimItTask', ask: { method: 'POST', path: { taskId: ID.taskA } }, read: 'gate', want: (c) => yesNo(itRead(c)), gated: true },
   { name: 'GET /v1/it/tasks', handler: 'getItTasks', ask: {}, read: 'itList', want: (c) => (!itRead(c) ? 'no' : itLead(c) ? 'all' : 'scoped'), gated: true },

@@ -89,7 +89,9 @@ function saga(id: string, first: string, last: string, c: string, extra: Record<
 function interview(id: string, iv: string, c: string, extra: Record<string, Plain> = {}): Row {
   return av({
     PK: `CANDIDATE#${id}`, SK: `INTERVIEW#${iv}`, interviewId: iv, candidateId: id, ...company(c), interviewType: 'HR_SCREEN', status: 'SCHEDULED',
-    scheduledAt: '2026-12-01T09:00:00.000Z', votesRequired: 1, createdAt: NOW, ...extra,
+    scheduledAt: '2026-12-01T09:00:00.000Z', votesRequired: 1, createdAt: NOW,
+    // REC-01: the voter is the signed-in person and must be on the panel; company staff sit on their own company's panel.
+    panelMemberIds: [c === A ? SUB.staffA : SUB.staffB], ...extra,
   });
 }
 function offer(id: string, c: string): Row {
