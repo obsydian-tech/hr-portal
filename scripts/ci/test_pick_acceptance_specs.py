@@ -91,6 +91,29 @@ class Balance(unittest.TestCase):
             self.assertLessEqual(sum(1 for c in g if m.JOURNEY_RE.search(specs[c])), 1)
         self.assertEqual(sorted(c for g in groups for c in g), sorted(specs))
 
+    def test_balances_by_measured_seconds(self):
+        specs = {c: "x" for c in ("big-1", "big-2", "mid-1", "mid-2", "small-1", "small-2")}
+        seconds = {"big-1": 1400, "big-2": 1300, "mid-1": 700, "mid-2": 600, "small-1": 100, "small-2": 50}
+        groups = m.balance(sorted(specs), specs, 2, seconds)
+        loads = sorted(sum(seconds[c] for c in g) for g in groups)
+        self.assertLessEqual(loads[1] - loads[0], 100)
+        self.assertEqual(sorted(c for g in groups for c in g), sorted(specs))
+
+    def test_unknown_spec_gets_a_guess(self):
+        self.assertEqual(m.weight("new-1", "x", {}), m.DEFAULT_SECONDS)
+        self.assertEqual(m.weight("new-2", "runJourney", {}), m.DEFAULT_JOURNEY_SECONDS)
+
+    def test_real_file_covers_every_spec_and_six_shards_stay_under_30_minutes(self):
+        import pathlib
+        specs = {p.name[: -len(".spec.ts")]: p.read_text()
+                 for p in pathlib.Path("pepla-web/e2e/acceptance").glob("*.spec.ts")}
+        seconds = m.load_seconds()
+        self.assertTrue(seconds, "acceptance-spec-seconds.json did not load")
+        groups = m.balance(sorted(specs), specs, m.MAX_SHARDS, seconds)
+        self.assertEqual(len(groups), 6)
+        self.assertEqual(sorted(c for g in groups for c in g), sorted(specs))
+        self.assertLess(max(sum(m.weight(c, specs[c], seconds) for c in g) for g in groups), 30 * 60)
+
 
 if __name__ == "__main__":
     unittest.main()

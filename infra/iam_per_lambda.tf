@@ -154,6 +154,20 @@ resource "aws_iam_role_policy" "cognito_post_auth" {
     Version = "2012-10-17"
     Statement = [
       {
+        # TEN-06: a moved person's pending row becomes their Member row, and goes.
+        Sid      = "TenantsMoveWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem", "dynamodb:DeleteItem"]
+        Resource = aws_dynamodb_table.tenants.arn
+      },
+      {
+        # TEN-06: the moved person's groups, in this pool only.
+        Sid      = "NalekoPoolGroups"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminAddUserToGroup"]
+        Resource = aws_cognito_user_pool.naleko_dev.arn
+      },
+      {
         Sid      = "TenantsMemberRead"
         Effect   = "Allow"
         Action   = ["dynamodb:Query"]
@@ -2456,6 +2470,61 @@ resource "aws_iam_role_policy" "get_company_modules" {
         Effect   = "Allow"
         Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
         Resource = "*"
+      }
+    ]
+  })
+}
+
+# ─── TEN-06: userMigration ────────────────────────────────────────────────────
+resource "aws_iam_role" "user_migration" {
+  name        = "naleko-userMigration-role"
+  description = "Execution role for userMigration Lambda (TEN-06)"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "user_migration" {
+  name = "naleko-userMigration-policy"
+  role = aws_iam_role.user_migration.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/userMigration:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # The TalentFlow pool only: the sign-in check, the lookup and the person's groups.
+        Sid      = "TalentFlowPool"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminInitiateAuth", "cognito-idp:AdminGetUser", "cognito-idp:AdminListGroupsForUser"]
+        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${var.talent_flow_user_pool_id}"
+      },
+      {
+        # Pending rows only (MIGRATE#<email>); never a Member row.
+        Sid      = "PendingRowWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.tenants.arn
+        Condition = {
+          "ForAllValues:StringLike" = { "dynamodb:LeadingKeys" = ["MIGRATE#*"] }
+        }
       }
     ]
   })

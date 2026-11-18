@@ -226,6 +226,21 @@ resource "aws_cognito_user_pool_client" "talent_flow_web" {
 }
 
 # ---------------------------------------------------------------------------
+# TEN-06: server-only client. The user migration Lambda of the Naleko pool checks a TalentFlow person's email and
+# password with it (AdminInitiateAuth, ADMIN_USER_PASSWORD_AUTH) and nothing else. No sign-in page uses it.
+# ---------------------------------------------------------------------------
+
+resource "aws_cognito_user_pool_client" "talent_flow_migration" {
+  name         = "${local.tf_cognito_client_name}-migration"
+  user_pool_id = aws_cognito_user_pool.talent_flow.id
+
+  explicit_auth_flows           = ["ALLOW_ADMIN_USER_PASSWORD_AUTH"]
+  generate_secret               = false
+  prevent_user_existence_errors = "ENABLED"
+  enable_token_revocation       = true
+}
+
+# ---------------------------------------------------------------------------
 # 4. User Pool Groups - 7 internal staff roles
 #    for_each on tf_cognito_groups set - each group added with no IAM role
 #    for MVP1. IAM role attachment deferred to TF-008.
