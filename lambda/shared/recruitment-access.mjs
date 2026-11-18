@@ -20,7 +20,7 @@
  *             role (an old admin or hiring manager), do not.
  *   D-REC-1.2 / 1.4 A route that opens one candidate answers 404, never 403, to anyone who may not see that candidate.
  */
-import { OLD_GROUPS, OLD_ROLE_GROUP, ROLES, PERMS, grantOfNames, groupsOf, holds, rolesOf } from './roles.mjs';
+import { OLD_GROUPS, ROLES, PERMS, grantOfNames, groupsOf, holds, rolesOf } from './roles.mjs';
 import { json } from './hr-group.mjs';
 
 const [ROLE_ADMIN, ROLE_HR, ROLE_MANAGER] = [ROLES[0], ROLES[1], ROLES[2]];
@@ -32,16 +32,11 @@ const claimsOf = (event) => event?.requestContext?.authorizer?.jwt?.claims;
 const isId = (c) => c?.token_use === undefined || c?.token_use === 'id';
 const present = (v) => typeof v === 'string' && v !== '';
 
-/** Every group name the caller holds: the groups claim, and the old app's roles as the old group they stand for. */
+/** Every real group name the caller holds (the groups claim only; the old custom:roles claim is not a group, REC-01.1). */
 function namesOf(event) {
   const c = claimsOf(event);
   if (!c || !isId(c)) return [];
-  const names = groupsOf(c);
-  try {
-    const l = JSON.parse(String(c['custom:roles'] ?? '[]'));
-    if (Array.isArray(l)) for (const r of l) if (OLD_ROLE_GROUP[r]) names.push(OLD_ROLE_GROUP[r]);
-  } catch { /* nothing */ }
-  return names;
+  return groupsOf(c);
 }
 
 /** True when this one name is an old group that carries the Recruitment tick and no role (D-REC-1.3). */
