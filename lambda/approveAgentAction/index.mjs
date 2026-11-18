@@ -256,8 +256,19 @@ async function handleApprove(event, actionId, tenantId) {
     return json(409, { error: `This proposal is already ${statusOf(now2)}`, ...stand(now2) });
   }
 
-  const end = (await stillWaiting(action, tenantId)) ?? (await runReview(event, action));
-  await setRun(actionId, tenantId, { run_status: end.run_status, ...(end.error_code ? { error_code: end.error_code } : {}), updatedAt: new Date().toISOString() });
+  // After the claim nothing may escape: a failed read or write is a code, the event is still published, and HR decides by hand.
+  let end;
+  try {
+    end = (await stillWaiting(action, tenantId)) ?? (await runReview(event, action));
+  } catch (err) {
+    log('approve_run_failed', { errorName: err?.name ?? 'Error' });
+    end = { run_status: 'FAILED', error_code: 'RUN_FAILED' };
+  }
+  try {
+    await setRun(actionId, tenantId, { run_status: end.run_status, ...(end.error_code ? { error_code: end.error_code } : {}), updatedAt: new Date().toISOString() });
+  } catch (err) {
+    log('approve_final_write_failed', { errorName: err?.name ?? 'Error' });
+  }
   await publish('proposal.approved', {
     action_id: actionId, type: action.type, proposed_by: { kind: action.proposed_by_kind, id: action.proposed_by_id },
     approved_by: who.email, approved_by_name: who.name, document_id: action.document_id, employee_id: action.employee_id,
