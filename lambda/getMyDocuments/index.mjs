@@ -4,7 +4,7 @@ import { isIdToken, json } from '../shared/hr-group.mjs';
 import { groupsOf } from '../shared/document-check.mjs';
 import { NEW_EMPLOYEES_ONLY, NOT_FOUND, emailIsVerified, findEmployee } from '../shared/consent.mjs';
 import { requireTenant, ownsRow, tenantFilter } from '../shared/tenant.mjs';
-import { requiredFor } from '../shared/required-documents.mjs';
+import { hasFile, requiredFor } from '../shared/required-documents.mjs';
 import { DOCUMENT_TYPES } from '../shared/upload-link.mjs';
 
 const logger = new Logger({ serviceName: 'getMyDocuments' });
@@ -13,9 +13,6 @@ const DOCUMENTS = process.env.DOCUMENTS_TABLE || 'documents';
 
 /** Only these attributes of a documents row are read. Nothing about the check, the key or the verification. */
 const READ = 'document_id, document_type, ocr_status, ocr_started_at, ocr_completed_at, hr_reviewed_at, hr_reviewed_by_name, hr_decision_notes, upload_timestamp, file_name';
-
-/** A row counts when a file arrived: it is not PENDING, or the reader has started or finished on it. */
-const counts = (r) => r.ocr_status !== 'PENDING' || !!r.ocr_started_at || !!r.ocr_completed_at;
 
 /** What one stored row means for the person. */
 function stateOf(r) {
@@ -128,7 +125,7 @@ export const handler = async (event) => {
     const e = found.row;
     if (!ownsRow({ tenant_id: e.tenant_id?.S }, tenantId)) return json(404, { error: NOT_FOUND });
 
-    const rows = (await readRows(e.employee_id.S, tenantId)).filter(counts);
+    const rows = (await readRows(e.employee_id.S, tenantId)).filter(hasFile);
     const required = requiredFor(tenantId);
     const documents = DOCUMENT_TYPES.map((type) => {
       const mine = rows.filter((r) => r.document_type === type).sort(newestFirst);

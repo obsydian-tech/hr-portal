@@ -4,7 +4,7 @@
   "description": "Shared utilities for TalentFlow workflow Lambdas",
   "private": true,
   "scripts": {
-    "test": "jest --coverage && node --test tenant.test.mjs modules.test.mjs recruitment-access.test.mjs risk-summary.test.mjs due-date.test.mjs"
+    "test": "jest --coverage && node --test tenant.test.mjs modules.test.mjs recruitment-access.test.mjs risk-summary.test.mjs due-date.test.mjs reminder-email.test.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.0.0",
