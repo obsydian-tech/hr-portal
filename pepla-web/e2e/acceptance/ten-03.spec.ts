@@ -10,6 +10,7 @@ import { attributes, blocks } from './support/infra-harness';
 import { isCardGrant } from './support/ten-04.2/grants';
 import { policyOf, squash as tfSquash } from './support/onb-15/tf-policy';
 import { devEnv } from './support/ten-02/dev';
+import { chat02Grant } from './support/ten-02/relock';
 import { legacyWorld } from './support/ten-03/legacy';
 import { changed, masked, notReads, sent, withB, wrote } from './support/ten-03/checks';
 
@@ -660,13 +661,20 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
         // TEN-06 (re-lock ten-03.2): the sign-in trigger moves a TalentFlow person in (ten-06.spec.ts AC-7 pins it).
         const ten06 = /cognito_post_auth/.test(key) && ((/^dynamodb:(PutItem|DeleteItem)$/.test(action!) && /tenants/i.test(res!)) || (action === 'cognito-idp:AdminAddUserToGroup' && /naleko_dev/.test(res!)));
         if (effect === 'Allow' && cond === 'null' && ten06) continue;
+        // CHAT-02 (re-lock ten-03.N): the chat Lambdas keep chats and read the company switch (chat-02.spec.ts AC-31 pins the new roles).
+        if (effect === 'Allow' && cond === 'null' && /naleko_ai_chat|ai_chat/.test(key) && chat02Grant(action!, res!)) continue;
         expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && (tenants || indexOfTalent)) || (MOD01_GET(p) && MOD01_ROLE(key, cur.role)) || TEN042_QUERY(p, key, cur.role), `role policy ${key}: new grant "${p}" is only a Query on the tenants table (TalentFlow trigger) or on an index of a TalentFlow, IT or bundle table, or one of the TEN-04.2 table grants`).toBe(true);
       }
     }
+    const ONB22_POLICIES = new Set(['infra/create_proposal', 'infra/approve_agent_action_onb22', 'infra/summarise_verification_employees', 'infra/naleko_mcp_server_agent_key']);
     // Policies that are new: only the TalentFlow pre-token trigger's, and only a Query on the tenants table.
     for (const [key, cur] of Object.entries(now)) {
       if (baseline[key]) continue;
+      if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock ten-03.4): its own role, locked in onb-21.spec.ts AC-8.
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock ten-03.2): locked in ten-06.spec.ts AC-7.
+      if (/ask_batsi|stored_chats/.test(key) || /ask_batsi/.test(cur.role)) continue; // CHAT-02 (re-lock ten-03.N): locked in chat-02.spec.ts AC-31.
+      // ONB-22.1 (re-lock ten-03.6): the agent proposal and approval rights are new role policies of their own (a new role, and second policies on three roles ten-02 pins); onb-22.spec.ts AC-8 pins exactly these.
+      if (ONB22_POLICIES.has(key)) continue;
       // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.
       const mod01 = (cur.pairs ?? []).length > 0 && MOD01_ROLE(key, cur.role) && (cur.pairs ?? []).every((p) => MOD01_GET(p) || (key === 'infra/get_company_modules' && MOD01_OWN(p)));
       // TEN-04.2: or it is one of the three table Queries of that card, on its role, and nothing else.
