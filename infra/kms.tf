@@ -46,6 +46,8 @@ module "kms_pii" {
     aws_iam_role.get_my_documents.arn,
     aws_iam_role.create_my_upload_link.arn,
     aws_iam_role.tenant_pre_token.arn,
+    # TEN-06: writes pending rows in the encrypted tenants table.
+    aws_iam_role.user_migration.arn,
     # TEN-02: read Member rows in the tenants table.
     aws_iam_role.cognito_post_auth.arn,
     aws_iam_role.get_hr_partners.arn,

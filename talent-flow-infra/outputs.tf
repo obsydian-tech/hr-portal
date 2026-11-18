@@ -70,6 +70,11 @@ output "cognito_client_id" {
   value       = aws_cognito_user_pool_client.talent_flow_web.id
 }
 
+output "cognito_migration_client_id" {
+  description = "TEN-06: server-only client the Naleko pool's userMigration Lambda signs TalentFlow people in with. Goes into infra/env/*.tfvars as talent_flow_server_client_id."
+  value       = aws_cognito_user_pool_client.talent_flow_migration.id
+}
+
 # ── DynamoDB outputs (added TF-004 / NH-107) ──────────────────────────────────
 
 output "dynamodb_state_table_name" {

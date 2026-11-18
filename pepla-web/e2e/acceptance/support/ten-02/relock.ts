@@ -20,6 +20,13 @@ export function tenancyGrant(action: string, resource: string, reaches: readonly
   return false;
 }
 
+/** TEN-06: what cognitoPostAuth gains to move a person: PutItem and DeleteItem on the tenants table, AdminAddUserToGroup on the Naleko pool. */
+export function ten06Grant(action: string, resource: string): boolean {
+  if (action === 'dynamodb:PutItem' || action === 'dynamodb:DeleteItem') return /^(\$\{)?aws_dynamodb_table\.tenants\.arn\}?$/.test(resource);
+  if (action === 'cognito-idp:AdminAddUserToGroup') return /^(\$\{)?aws_cognito_user_pool\.naleko_dev\.arn\}?$/.test(resource);
+  return false;
+}
+
 /** The DynamoDB tables (Terraform labels or names) a list of resources names. */
 /** Terraform labels use _ where table names use - (document_verification is table/document-verification). */
 export function tablesIn(resources: readonly string[]): string[] {
@@ -59,6 +66,8 @@ export function onlyTenancyAdded(before: TfResource, after: TfResource): string[
   for (const p of now) {
     if (old.has(key(p))) continue;
     if (p.effect === 'Allow' && p.condition === 'null' && tenancyGrant(p.action, p.resource, reaches, writesMembers)) continue;
+    // TEN-06 re-lock: the sign-in trigger moves a TalentFlow person in (their pending row becomes a Member row and goes; their groups are added).
+    if (p.effect === 'Allow' && p.condition === 'null' && after.name === 'cognito_post_auth' && ten06Grant(p.action, p.resource)) continue;
     wrong.push(`added beyond TEN-02: ${key(p)}`);
   }
   return wrong;

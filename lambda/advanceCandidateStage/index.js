@@ -180,7 +180,7 @@ exports.handler = async (event) => {
   if (moduleOff) return moduleOff;
 
   // Extract userId from JWT claims for action tracking (INTEL-001)
-  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+  const userId = T.userIdOf(event);
 
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return badRequest('Missing candidateId path parameter');

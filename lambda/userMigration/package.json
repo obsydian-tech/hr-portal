@@ -1,0 +1,9 @@
+{
+  "name": "user-migration",
+  "version": "1.0.0",
+  "description": "Lambda: Cognito user migration trigger - moves a TalentFlow person to the one sign-in pool (TEN-06)",
+  "type": "module",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0"
+  }
+}
