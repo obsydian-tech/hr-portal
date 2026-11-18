@@ -68,3 +68,7 @@ Tolerances: boxes 1px; pixels 1% (channel difference over 24); timing 250ms; sta
 - The kit's static markup (before any demo starts) shows each demo's last step and the hero card's first; AC-3 compares the page in that state, as the kit draws it (the spec's "first step" there means the kit's resting state).
 - AC-11 "tilt", grain and a flying card: the kit's Onboarding page has none, so there is nothing to judge; reduced motion is judged on what the kit has (timings, no script slides).
 - Link targets ("Book a demo", "Get started", "Learn more") are not judged (SITE-16).
+
+## Child lock .1: tab title (18 Nov)
+
+Iggie chose "all recommended" on the site wording cards: the tab title is the page name, a middle dot, then the brand: `Onboarding and Offboarding · Naleko People` (the page name is the kit's breadcrumb current item). AC-1 and the banned-words read pin this exact title, in the live page and in the prerendered file.
