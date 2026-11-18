@@ -7,6 +7,7 @@ import {
 } from './support/ten-03/world';
 import { ROUTES } from './support/ten-03/routes';
 import { attributes, blocks } from './support/infra-harness';
+import { isCardGrant } from './support/ten-04.2/grants';
 import { policyOf, squash as tfSquash } from './support/onb-15/tf-policy';
 import { devEnv } from './support/ten-02/dev';
 import { legacyWorld } from './support/ten-03/legacy';
@@ -441,9 +442,10 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       { name: 'GET /v1/it/tasks', handler: 'getItTasks', caller: 'staffA', own: {}, mine: [ID.taskA], theirs: [ID.taskB, NAME.b1] },
       { name: 'GET /v1/provisioning/bundles', handler: 'getProvisioningBundles', caller: 'staffA', own: {}, mine: [ID.bundleA], theirs: [ID.bundleB, NAME.b1] },
       { name: 'GET /v1/notifications', handler: 'getUserNotifications', caller: 'staffA', own: {}, mine: [ID.notifA], theirs: [ID.notifB] },
-      // Not listed: GET /v1/hiring-managers and GET /v1/panel-members read people from Cognito, which holds no company. Filtering them
-      // needs a Member-row lookup in the tenants table, a new read grant for those two roles that AC-10 does not allow and that is
-      // an IAM change for Iggie to decide. They keep the company check (AC-2) and are not narrowed by company until TEN-05.
+      // TEN-04.2 (re-locked by acceptance-lock/ten-03.3): GET /v1/hiring-managers and GET /v1/panel-members read people from Cognito, which holds
+      // no company, and narrow them by the Member rows of the tenants table (ten-04.2.spec.ts judges the detail). Here: A's person listed, B's not.
+      { name: 'GET /v1/panel-members', handler: 'getPanelMembers', caller: 'staffA', own: {}, mine: ['panel.a@example.test'], theirs: ['panel.b@example.test', 'Paul', 'sub-panel-b'] },
+      { name: 'GET /v1/hiring-managers', handler: 'getHiringManagers', caller: 'staffA', own: {}, mine: ['hm.a@example.test'], theirs: ['hm.b@example.test', 'Hugo', 'sub-hm-b'] },
       { name: 'GET /v1/intelligence/tiles', handler: 'getIntelligenceTiles', caller: 'staffA', own: { query: { role: 'TA' } }, mine: [ID.a1], theirs: [ID.b1, NAME.b1] },
     ];
     for (const l of lists) {
@@ -616,6 +618,9 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
         'submit_vote', 'submit_vote_by_token', 'update_candidate'].map((r) => `talent-flow-infra/${r}`),
     ]);
     const MOD01_ROLE = (key: string, role: string) => MOD01_ROLES.has(`${key.split('/')[0]}/${role}`);
+    // TEN-04.2 (re-locked by acceptance-lock/ten-03.3): more table-level grants, each one (role, action, table) and nothing broader (support/ten-04.2/grants.ts):
+    // the card's own three (createProvisioningBundle on the state table, getPanelMembers and getHiringManagers on the tenants table) and PR 407's five (dev read grants).
+    const TEN042_QUERY = (p: string, key: string, role: string) => isCardGrant(p, key.split('/')[0]!, role);
     const MOD01_GET = (p: string) => /^Allow dynamodb:GetItem (aws_dynamodb_table\.tenants\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(\$\{local\.tf_tenants_table\}|naleko-people-\$\{var\.environment\}-tenants)) null$/.test(p);
     const MOD01_OWN = (p: string) => /^Allow logs:(CreateLogGroup|CreateLogStream|PutLogEvents) arn:aws:logs:[^:]+:[^:]+:log-group:\/aws\/lambda\/getCompanyModules:\* null$/.test(p) || /^Allow xray:(PutTraceSegments|PutTelemetryRecords) \* null$/.test(p);
     const baseline = JSON.parse(readFileSync(join(__dirname, 'support', 'ten-03', 'iam-6123d0e', 'policies.json'), 'utf8')) as Record<string, { pairs?: string[]; squash?: string }>;
@@ -655,7 +660,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
         // TEN-06 (re-lock ten-03.2): the sign-in trigger moves a TalentFlow person in (ten-06.spec.ts AC-7 pins it).
         const ten06 = /cognito_post_auth/.test(key) && ((/^dynamodb:(PutItem|DeleteItem)$/.test(action!) && /tenants/i.test(res!)) || (action === 'cognito-idp:AdminAddUserToGroup' && /naleko_dev/.test(res!)));
         if (effect === 'Allow' && cond === 'null' && ten06) continue;
-        expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && (tenants || indexOfTalent)) || (MOD01_GET(p) && MOD01_ROLE(key, cur.role)), `role policy ${key}: new grant "${p}" is only a Query on the tenants table (TalentFlow trigger) or on an index of a TalentFlow, IT or bundle table`).toBe(true);
+        expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && (tenants || indexOfTalent)) || (MOD01_GET(p) && MOD01_ROLE(key, cur.role)) || TEN042_QUERY(p, key, cur.role), `role policy ${key}: new grant "${p}" is only a Query on the tenants table (TalentFlow trigger) or on an index of a TalentFlow, IT or bundle table, or one of the TEN-04.2 table grants`).toBe(true);
       }
     }
     // Policies that are new: only the TalentFlow pre-token trigger's, and only a Query on the tenants table.
@@ -664,10 +669,12 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock ten-03.2): locked in ten-06.spec.ts AC-7.
       // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.
       const mod01 = (cur.pairs ?? []).length > 0 && MOD01_ROLE(key, cur.role) && (cur.pairs ?? []).every((p) => MOD01_GET(p) || (key === 'infra/get_company_modules' && MOD01_OWN(p)));
-      expect.soft(/pre_token/.test(key) || /pre_token/.test(cur.role) || mod01, `new role policy ${key} belongs to the TalentFlow pre-token trigger`).toBe(true);
+      // TEN-04.2: or it is one of the three table Queries of that card, on its role, and nothing else.
+      const ten042 = (cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => TEN042_QUERY(p, key, cur.role));
+      expect.soft(/pre_token/.test(key) || /pre_token/.test(cur.role) || mod01 || ten042, `new role policy ${key} belongs to the TalentFlow pre-token trigger`).toBe(true);
       for (const p of cur.pairs ?? []) {
         const [effect, action, res, cond] = [p.split(' ')[0], p.split(' ')[1], p.split(' ')[2], p.split(' ').slice(3).join(' ')];
-        expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && /tenants/i.test(res!)) || (mod01 && (MOD01_GET(p) || MOD01_OWN(p))), `new role policy ${key}: "${p}" is only a Query on the tenants table`).toBe(true);
+        expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && /tenants/i.test(res!)) || (mod01 && (MOD01_GET(p) || MOD01_OWN(p))) || (ten042 && TEN042_QUERY(p, key, cur.role)), `new role policy ${key}: "${p}" is only a Query on the tenants table`).toBe(true);
       }
     }
     // The move script's needs go to no Lambda role: no TransactWriteItems anywhere.

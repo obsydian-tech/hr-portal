@@ -56,10 +56,10 @@ function respond(statusCode, body) {
 }
 
 exports.handler = async (event) => {
-  // TEN-03: the company check. The pool holds no company, so the list is not narrowed by it until TEN-05
-  // (narrowing needs a read grant on the tenants table: an IAM change for Iggie).
+  // TEN-03: the company check. TEN-04.2: the pool holds no company, so the list is narrowed to the company's people by
+  // their Member rows (inCompany). A failed Member read answers 500, never the whole pool.
   const T = await tenantHelper();
-  const { refusal } = T.requireTenant(event);
+  const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;
   // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
   const { requireModule } = await import('../shared/modules.mjs');
@@ -68,10 +68,10 @@ exports.handler = async (event) => {
 
   const R = await rolesHelper();
   const groups = [...new Set([...(HM_GROUP ? [HM_GROUP] : []), ...R.HIRING_MANAGER_GROUPS])];
-  const users = [];
+  const pool = [];
   const seen = new Set();
-  try {
-    for (const group of groups) {
+  for (const group of groups) {
+    try {
       let nextToken;
       do {
         const result = await cognito.send(new ListUsersInGroupCommand({
@@ -79,12 +79,19 @@ exports.handler = async (event) => {
           GroupName:  group,
           NextToken:  nextToken,
         }));
-        for (const u of result.Users ?? []) if (!seen.has(u.Username)) { seen.add(u.Username); users.push(u); }
+        for (const u of result.Users ?? []) if (!seen.has(u.Username)) { seen.add(u.Username); pool.push(u); }
         nextToken = result.NextToken;
       } while (nextToken);
+    } catch (err) {
+      console.warn(`getHiringManagers: skipping group "${group}"`, { error: err?.name });
     }
+  }
+  let users;
+  try {
+    const { inCompany } = await import('../shared/membership.mjs');
+    users = await inCompany(pool, tenantId);
   } catch (err) {
-    console.error('getHiringManagers: Cognito list failed', { error: err?.name });
+    console.error('getHiringManagers: Member read failed', { error: err?.name });
     return respond(500, { error: 'Failed to retrieve hiring managers' });
   }
 

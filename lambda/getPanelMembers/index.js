@@ -136,8 +136,8 @@ async function getEmailLinkMembers(T, tenantId, candidateId) {
 }
 
 exports.handler = async (event) => {
-  // TEN-03: the company comes from the sign-in only. The pool holds no company, so the system users are not
-  // narrowed by it until TEN-05 (narrowing needs a read grant on the tenants table: an IAM change for Iggie).
+  // TEN-03: the company comes from the sign-in only. TEN-04.2: the pool holds no company, so the system users are
+  // narrowed to the company's people by their Member rows (inCompany). A failed Member read answers 500, never the whole pool.
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;
@@ -153,7 +153,9 @@ exports.handler = async (event) => {
     const seen    = new Set();
     const members = [];
 
+    const { inCompany } = await import('../shared/membership.mjs');
     const R = await require('../shared/tf-roles.js').rolesHelper();
+    const pool = [];
     for (const group of R.PANEL_GROUPS) {
       let users;
       try {
@@ -162,13 +164,15 @@ exports.handler = async (event) => {
         console.warn(`getPanelMembers: skipping group "${group}"`, { error: err?.name });
         continue;
       }
-      for (const user of users) {
-        const email = (user.Attributes || []).find((a) => a.Name === 'email')?.Value
-                      || user.Username;
-        if (!seen.has(email)) {
-          seen.add(email);
-          members.push(mapCognitoUser(user, tenantId));
-        }
+      pool.push(...users);
+    }
+    // One tenants Query per listed person (TEN-04.2, accepted); a batch read is a later card if a pool grows past about 200 people.
+    for (const user of await inCompany(pool, tenantId)) {
+      const email = (user.Attributes || []).find((a) => a.Name === 'email')?.Value
+                    || user.Username;
+      if (!seen.has(email)) {
+        seen.add(email);
+        members.push(mapCognitoUser(user, tenantId));
       }
     }
 
@@ -194,7 +198,7 @@ exports.handler = async (event) => {
 
     return respond(200, { members, total: members.length, candidateId: candidateId || null });
   } catch (err) {
-    console.error('getPanelMembers error', err);
+    console.error('getPanelMembers error', { error: err?.name });
     return respond(500, { message: 'Failed to retrieve panel members' });
   }
 };

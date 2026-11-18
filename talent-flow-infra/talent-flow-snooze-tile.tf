@@ -182,3 +182,19 @@ resource "aws_iam_role_policy" "snooze_tile_modules_read" {
     }]
   })
 }
+
+# Walk fix: snoozeTile checks the candidate is the caller's company (candidateIsOurs: one Query by key on the state table). Its role could not, so it answered 500.
+resource "aws_iam_role_policy" "snooze_tile_state_read" {
+  name = "walk-state-read-snooze-tile"
+  role = aws_iam_role.snooze_tile.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCandidateSaga"
+      Effect   = "Allow"
+      Action   = ["dynamodb:Query"]
+      Resource = [aws_dynamodb_table.talent_flow_state.arn]
+    }]
+  })
+}
