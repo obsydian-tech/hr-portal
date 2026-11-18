@@ -46,7 +46,7 @@ async function publishEvent(detailType, detail) {
       }],
     }));
   } catch (err) {
-    logger.warn('EventBridge publish failed', { detailType, error: err.message });
+    logger.warn('EventBridge publish failed', { detailType, errorName: err?.name ?? 'Error' });
   }
 }
 
@@ -274,6 +274,7 @@ async function moveStepForward(employeeId) {
       upload_timestamp: item.upload_timestamp?.N ?? item.upload_timestamp?.S,
     }));
     const step = stepFromDocuments(docs, requiredFor(null));
+    let moved = false;
 
     // A row with no stored step counts as before every step.
     const before = stepsBefore(step);
@@ -288,14 +289,39 @@ async function moveStepForward(employeeId) {
         ...companyCondition(`attribute_exists(employee_id) AND stage <> :verified AND (attribute_not_exists(step)${beforeList ? ` OR step IN (${beforeList})` : ''})`, values),
         ExpressionAttributeValues: values,
       }));
+      moved = true;
       logger.info('Step moved forward', { employeeId, step });
     } catch (condErr) {
       if (condErr.name !== 'ConditionalCheckFailedException') throw condErr;
     }
-    return step;
+    return { step, moved };
   } catch (stepErr) {
-    logger.warn('Failed to update step', { error: stepErr.message, employeeId });
-    return undefined;
+    logger.warn('Failed to update step', { errorName: stepErr?.name ?? 'Error', employeeId });
+    return { step: undefined, moved: false };
+  }
+}
+
+/**
+ * ONB-11: start the risk check. Step Functions is waiting on the person's task token; it is signalled only by the read
+ * that moved the person to In review (every required document is in), so the check runs once, on the whole set.
+ * Non-fatal: a failed signal (a spent token after a send-back, a network error) never changes the read or its events.
+ */
+async function signalRiskCheck(employeeId, output) {
+  try {
+    const empRecord = await dynamodb.send(new GetItemCommand({
+      TableName: EMPLOYEES_TABLE(),
+      Key: { employee_id: { S: employeeId } },
+      ProjectionExpression: 'sfn_task_token, tenant_id',
+    }));
+    const taskToken = ownsItem(empRecord.Item, TENANT) ? empRecord.Item?.sfn_task_token?.S : undefined;
+    if (!taskToken) {
+      logger.info('No SFN task token on employee record: orchestration not active', { employeeId });
+      return;
+    }
+    await sfn.send(new SendTaskSuccessCommand({ taskToken, output: JSON.stringify({ employeeId, ...output }) }));
+    logger.info('Step Functions signalled: every required document is in', { employeeId });
+  } catch (sfnErr) {
+    logger.warn('Failed to signal Step Functions', { errorName: sfnErr?.name ?? 'Error', employeeId });
   }
 }
 
@@ -362,7 +388,7 @@ const handlerFn = async (event) => {
       robot = !emp.Item || isRobotEmail(emp.Item.email?.S);
       record = { last_name: emp.Item?.last_name?.S, id_number_last4: emp.Item?.id_number_last4?.S };
     } catch (guardErr) {
-      logger.warn('Employee lookup for AI guard failed; skipping AI', { error: guardErr.message });
+      logger.warn('Employee lookup for AI guard failed; skipping AI', { errorName: guardErr?.name ?? 'Error' });
     }
     markRobot(robot);
     const skipped = robot || aiSwitchedOff();
@@ -496,43 +522,16 @@ const handlerFn = async (event) => {
     } catch (stageErr) {
       // ConditionalCheckFailedException = already past INVITED/ACTIVE — fine.
       if (stageErr.name !== 'ConditionalCheckFailedException') {
-        logger.warn('Failed to bump stage to DOCUMENTS_SUBMITTED', { error: stageErr.message, employeeId });
+        logger.warn('Failed to bump stage to DOCUMENTS_SUBMITTED', { errorName: stageErr?.name ?? 'Error', employeeId });
       }
     }
 
     // 7c2. ONB-09: the step follows the documents (In review when every required document is in).
-    const step = await moveStepForward(employeeId);
+    const { step, moved } = await moveStepForward(employeeId);
 
-    // 7d. NH-42: Signal Step Functions that OCR + verification is complete.
-    // createEmployee stored a task token on the employee record when it started
-    // the StateMachine. We read it here and send SendTaskSuccess so the
-    // WaitForDocumentUpload state can resume and proceed to AssessRisk.
-    try {
-      const empRecord = await dynamodb.send(new GetItemCommand({
-        TableName: EMPLOYEES_TABLE(),
-        Key: { employee_id: { S: employeeId } },
-        ProjectionExpression: 'sfn_task_token, tenant_id',
-      }));
-      const taskToken = ownsItem(empRecord.Item, TENANT) ? empRecord.Item?.sfn_task_token?.S : undefined;
-      if (taskToken) {
-        await sfn.send(new SendTaskSuccessCommand({
-          taskToken,
-          output: JSON.stringify({
-            employeeId,
-            verificationId,
-            ocrStatus,
-            confidence: validationResult.confidence,
-            check,
-          }),
-        }));
-        logger.info('Step Functions signaled — OCR complete', { employeeId, ocrStatus });
-      } else {
-        logger.info('No SFN task token on employee record — orchestration not active', { employeeId });
-      }
-    } catch (sfnErr) {
-      // Non-fatal: OCR result is already written to DynamoDB and events published.
-      // Log the error but return success so the S3 trigger does not retry.
-      logger.warn('Failed to signal Step Functions', { error: sfnErr.message, employeeId });
+    // 7d. ONB-11: the risk check starts only when this read moved the person to In review.
+    if (moved && step === 'IN_REVIEW') {
+      await signalRiskCheck(employeeId, { verificationId, ocrStatus, confidence: validationResult.confidence, check });
     }
 
     // 8. Return the result
@@ -549,7 +548,7 @@ const handlerFn = async (event) => {
       },
     };
   } catch (error) {
-    logger.error('Error processing document', { error });
+    logger.error('Error processing document', { errorName: error?.name ?? 'Error' });
 
     // ONB-07: a file that could not be read waits for HR as Needs a look. A machine never refuses a
     // document. Stamping ocr_completed_at also stops S3's retries from reading the file again.
@@ -569,11 +568,12 @@ const handlerFn = async (event) => {
         })
       );
       logger.warn('Document could not be read: waits for HR', { documentId });
-      const step = await moveStepForward(employeeId);
+      const { step, moved } = await moveStepForward(employeeId);
+      if (moved && step === 'IN_REVIEW') await signalRiskCheck(employeeId, { ocrStatus: 'MANUAL_REVIEW', check: 'NEEDS_A_LOOK' });
       await tellHrOnce({ employeeId, documentId, documentType, check: 'NEEDS_A_LOOK' });
       return { statusCode: 200, body: { documentId: `doc_${documentId}`, employeeId, ocrStatus: 'MANUAL_REVIEW', check: 'NEEDS_A_LOOK', step } };
     } catch (updateError) {
-      logger.error('Failed to update document status', { error: updateError });
+      logger.error('Failed to update document status', { errorName: updateError?.name ?? 'Error' });
     }
 
     throw error;
