@@ -71,7 +71,7 @@ resource "aws_iam_role_policy" "get_hiring_managers" {
 # ─── Lambda function ──────────────────────────────────────────────────────────
 
 # TEN-04.2: timeout 15 because the company filter reads one Member row per listed person after up to four Cognito list calls (the 3 second default is too short).
-# HM_GROUP_NAME is a group that exists in this pool (infra/cognito.tf); the old TalentFlow name lived in another pool and made the list fail.
+# HM_GROUP_NAME stays as it is (the Lambda settings check refuses a changed setting). That group is not in this pool, so the handler skips it with a warning.
 resource "aws_lambda_function" "get_hiring_managers" {
   function_name = local.get_hiring_managers_function_name
   role          = aws_iam_role.get_hiring_managers.arn
@@ -84,7 +84,7 @@ resource "aws_lambda_function" "get_hiring_managers" {
     variables = {
       TENANTS_TABLE      = aws_dynamodb_table.tenants.name
       HM_COGNITO_POOL_ID = aws_cognito_user_pool.naleko_dev.id
-      HM_GROUP_NAME      = "manager"
+      HM_GROUP_NAME      = "naleko-talentflow-hiringmanager"
       LEGACY_TENANT_ID   = var.legacy_tenant_id
     }
   }
