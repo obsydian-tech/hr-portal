@@ -22,7 +22,7 @@ const OTHER_AI = /bedrock|textract|anthropic|openai|comprehend|rekognition|sagem
 
 export async function resolve(specifier, context, next) {
   // PII-01: a test can swap the shared redactor for a broken one (only in the harness, never in the real code), to prove
-  // the handler fails closed. PII01_REDACTOR: throw | miss12 | identity | check-throws.
+  // the handler fails closed. PII01_REDACTOR: throw | miss12 | identity | check-throws | old-separators.
   const swap = process.env.PII01_REDACTOR;
   if (swap && /(^|\/)pii-redact\.mjs$/.test(specifier)) return { url: new URL(`redactor-${swap}.mjs`, HERE).href, shortCircuit: true };
   if (MAP[specifier]) return { url: new URL(MAP[specifier], HERE).href, shortCircuit: true };

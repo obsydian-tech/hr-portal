@@ -30,10 +30,16 @@ runs the summary on dev for one document whose review notes hold a made-up numbe
 ## What the tests pin (read before you build)
 
 - **The rule is judged by an oracle written in the spec, not by your regex.** A run of six or more digits (any Unicode
-  digit) with **up to three** separators (space, tab, line break, no-break space, dot, hyphen) between two digits. This is
-  **stricter than the card's regex**: the card's single optional separator misses `Acc  6212  3456  789` (two spaces) and
-  `6212\r\n3456\r\n789` (Windows line breaks). Both are tested. The card said "the builder keeps the rule or a stricter
-  one; the tests decide".
+  digit) with **up to three characters that are neither a letter nor a digit** between two digits (`[^\p{L}\p{Nd}]{0,3}`):
+  spaces, line breaks, every dash (en dash, non-breaking hyphen, minus), slash, comma, colon, underscore, zero-width and soft
+  hyphen, left-to-right mark, joiner, combining marks. This is wider than the card's first rule and its first lock (child
+  lock `pii-01.1`, security review of 18 Nov): the old separator set (space, tab, line break, no-break space, dot, hyphen)
+  leaked `6212–3456–789`, `6212/3456/789`, `62,123,456,789` and zero-width shapes. `hasNumberRun` must use the same wide rule,
+  so the last check is a net that still catches what a weaker redactor misses (AC-6 injects exactly that).
+- **Kept on purpose:** `Page 3 of 12`, `R 1 500`, `18 November 2026`, and a gap of four spaces between two groups
+  (`Col 6212    3456 end.`) are not touched. Dates written with slashes or hyphens (`18/11/2026`, `2026-11-18`) are removed.
+- **Leftovers no rule here catches** (written in the card, not promises): digits spelled out in words, OCR letters for
+  digits (`62l2 34S6`), column gaps of four or more characters, circled or superscript digits.
 - The placeholder is `[removed]` (AC-4 and AC-10 pin it, as the card does). Renaming it later is a child lock.
 - `redactNumbers` must replace the whole run with `[removed]`. `hasNumberRun` must be true exactly when `redactNumbers` changes
   the text. `NUMBER_RUN` is exported and is a `RegExp`. Calls must not keep state between them (a `g` regex with `.test`).

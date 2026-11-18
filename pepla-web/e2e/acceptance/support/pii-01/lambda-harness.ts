@@ -56,7 +56,7 @@ export type Call =
   | { service: 'http'; op: string }
   | { service: 'log'; level: string; message: string; extra?: unknown };
 
-export type Redactor = 'throw' | 'miss12' | 'identity' | 'check-throws';
+export type Redactor = 'throw' | 'miss12' | 'identity' | 'check-throws' | 'old-separators';
 
 export type Run = {
   status: number;

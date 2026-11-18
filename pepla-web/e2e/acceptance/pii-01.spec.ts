@@ -36,10 +36,11 @@ function lambdaOnce(testInfo: TestInfo): void {
 // ---------------------------------------------------------------- the oracle
 
 /**
- * A run of six or more digits, any Unicode digit, with up to three separators (spaces, tabs, line breaks, non-breaking
- * spaces, dots, hyphens) between two digits. Stricter than the card's rule on purpose (two spaces, CRLF).
+ * A run of six or more digits, any Unicode digit, with up to three characters that are neither a letter nor a digit between
+ * two digits (spaces, line breaks, every dash, slash, comma, colon, underscore, invisible and combining characters).
+ * Wider than the card's first rule on purpose (security review, 18 Nov: en dash, slash, zero-width space and the like).
  */
-const DIGIT_RUN = /\p{Nd}(?:[\s .\-]{0,3}\p{Nd}){5,}/u;
+const DIGIT_RUN = /\p{Nd}(?:[^\p{L}\p{Nd}]{0,3}\p{Nd}){5,}/u;
 const runIn = (text: string) => DIGIT_RUN.test(text);
 const digitsOf = (s: string) => s.replace(/[^\p{Nd}]/gu, '');
 /** True when `text` holds `piece`. A yes or no, so a failing test never prints the prompt or a number. */
@@ -156,6 +157,22 @@ test('AC-1 No number reaches the model, whatever the row holds', async ({}, test
   }
 });
 
+const ODD_NUMBERS = [
+  'Acc 6212\u20133456\u2013789', 'Acc 6212\u20113456\u2011789', 'Acc 6212/3456/789', 'Acc 62,123,456,789', 'Acc 6212:3456:789', 'Acc 6212_3456_789',
+  'Acc 6212\u200b3456\u200b789', 'Acc 6212\u00ad3456\u00ad789', 'Acc 6212\u200e3456\u200e789',
+];
+
+test('AC-1 Numbers with a dash, slash, comma, colon, underscore or an invisible character between the digits never reach the model', async ({}, testInfo) => {
+  lambdaOnce(testInfo);
+  for (const type of ['BANK_CONFIRMATION', 'NATIONAL_ID', 'MATRIC_CERTIFICATE', 'OTHER']) {
+    const run = ask([ver(VER_A, COMPANY_A, { documentType: type, reviewNotes: ODD_NUMBERS.join('; ') + ' does not match', ocrText: `${MARKER} ` + ODD_NUMBERS.join(' ') })], HR_A);
+    const label = `${type}, numbers with odd separators in the notes and the text`;
+    expect.soft(run.status, `${label}: still answers`).toBe(200);
+    expectClean(allPrompts(run), ['3456', '123,456'], label);
+    expect.soft(modelCalls(run).length, `${label}: one model call`).toBe(1);
+  }
+});
+
 test('AC-1 A failed model call is not tried again with the original text', async ({}, testInfo) => {
   lambdaOnce(testInfo);
   const run = ask([ver(VER_A, COMPANY_A, { reviewNotes: NOTES_PLANTED, ocrText: OCR_PLANTED })], HR_A, VER_A, { world: { modelFails: 'ThrottlingException', modelFailMessage: `throttled for ${P.account11}` } });
@@ -204,9 +221,30 @@ const SHAPES: Shape[] = [
   { label: 'a number inside brackets', text: 'Ref (6212345678)', plant: '6212345678', keep: 'Ref' },
   { label: 'a 30-digit run', text: 'Ref ' + '7391846205'.repeat(3), plant: '7391846205', keep: 'Ref' },
   { label: 'a passport-like pattern with two letters', text: 'Passport AB123456789', plant: 'AB123456789', keep: 'Passport' },
+  // shapes of the security review (18 Nov): anything between digits that is not a letter or a digit
+  { label: 'en dash between groups', text: 'Acc 6212\u20133456\u2013789', plant: '3456', keep: 'Acc' },
+  { label: 'non-breaking hyphen between groups', text: 'Acc 6212\u20113456\u2011789', plant: '3456', keep: 'Acc' },
+  { label: 'minus sign between groups', text: 'Acc 6212\u22123456\u2212789', plant: '3456', keep: 'Acc' },
+  { label: 'slashes between groups', text: 'Acc 6212/3456/789', plant: '3456', keep: 'Acc' },
+  { label: 'commas between groups', text: 'Acc 62,123,456,789', plant: '123,456', keep: 'Acc' },
+  { label: 'colons between groups', text: 'Acc 6212:3456:789', plant: '3456', keep: 'Acc' },
+  { label: 'underscores between groups', text: 'Acc 6212_3456_789', plant: '3456', keep: 'Acc' },
+  { label: 'zero-width spaces between groups', text: 'Acc 6212\u200b3456\u200b789', plant: '3456', keep: 'Acc' },
+  { label: 'soft hyphens between groups', text: 'Acc 6212\u00ad3456\u00ad789', plant: '3456', keep: 'Acc' },
+  { label: 'left-to-right marks between groups', text: 'Acc 6212\u200e3456\u200e789', plant: '3456', keep: 'Acc' },
+  { label: 'zero-width joiners between groups', text: 'Acc 6212\u200d3456\u200d789', plant: '3456', keep: 'Acc' },
+  { label: 'a combining mark after each digit', text: 'Acc ' + [...'62123456789'].map((d) => d + '\u0301').join(''), plant: '3\u03014\u0301', keep: 'Acc' },
+  { label: 'two different separators in a row', text: 'Acc 6212-/3456 \u2013 789', plant: '3456', keep: 'Acc' },
+  { label: 'a spaced en dash between groups (three separators in a row)', text: 'Acc 6212 \u2013 3456 \u2013 789', plant: '3456', keep: 'Acc' },
+  { label: 'a spaced slash between groups (three separators in a row)', text: 'Acc 6212 / 3456 / 789', plant: '3456', keep: 'Acc' },
+  { label: 'a date written with slashes', text: 'Signed 18/11/2026', plant: '18/11/2026', keep: 'Signed' },
 ];
 /** Words and short numbers that must stay (the text is not blanked out). */
-const KEPT_TEXT = 'Page 3 of 12. Signed on 18 November 2026. Fee R 1 500.';
+const KEPT_TEXT = 'Page 3 of 12. Signed on 18 November 2026. Fee R 1 500. Col 6212    3456 end. Ref 6212a3456b789 end.';
+/** Known leftover (card, "What this does not catch"): a gap of four or more characters between digit groups is a column gap, not a number. */
+const GAP_KEPT = 'Col 6212    3456 end.';
+/** Letters between digit groups end a run: 4 + 4 + 3 digits, no group reaches six. */
+const LETTERS_KEPT = 'Ref 6212a3456b789 end.';
 
 test('AC-2 Every shape of a number is removed from the text, and the words around it stay', async ({}, testInfo) => {
   lambdaOnce(testInfo);
@@ -227,7 +265,7 @@ test('AC-2 Words and short numbers are kept, and the text is still cut to 2000 c
   const text = `${KEPT_TEXT} ${filler}`;
   const run = ask([ver(VER_A, COMPANY_A, { ocrText: text + ' TAIL-MARKER' })], HR_A);
   const prompt = onlyPrompt(run, 'kept text');
-  for (const kept of ['Page 3 of 12', '18 November 2026', 'R 1 500']) expect.soft(holds(prompt, kept), `the text "${kept}" is kept as it was`).toBe(true);
+  for (const kept of ['Page 3 of 12', '18 November 2026', 'R 1 500', GAP_KEPT, LETTERS_KEPT]) expect.soft(holds(prompt, kept), `the text "${kept}" is kept as it was`).toBe(true);
   expect.soft(holds(prompt, 'TAIL-MARKER'), 'text past 2000 characters is cut, as today').toBe(false);
   const excerpt = prompt.slice(prompt.indexOf('Page 3 of 12'));
   expect.soft(excerpt.length, 'the excerpt is not longer than 2000 characters plus the closing words of the prompt').toBeLessThanOrEqual(2050);
@@ -399,6 +437,20 @@ test('AC-6 Fail closed: a redactor that misses a number is stopped by the last c
   }
 });
 
+test('AC-6 A redactor with only the old separators is stopped by the last check, which uses the wide rule', async ({}, testInfo) => {
+  lambdaOnce(testInfo);
+  for (const type of ['MATRIC_CERTIFICATE', 'BANK_CONFIRMATION']) {
+    const rows = [ver(VER_A, COMPANY_A, { documentType: type, reviewNotes: 'Account 6212\u20133456\u2013789 does not match', ocrText: `${MARKER} Acc 6212/3456/789` })];
+    const run = ask(rows, HR_A, VER_A, { redactor: 'old-separators' });
+    const label = `old-separator redactor, ${type}`;
+    expect.soft(run.status, `${label}: answers 502`).toBe(502);
+    expect.soft(run.body, `${label}: with the words it has today`).toEqual(OLD_502);
+    expect.soft(bedrockAttempts(run).length, `${label}: the model is not asked`).toBe(0);
+    expectNoLogOf(run, ['3456', MARKER, 'does not match'], label);
+    expect.soft(errorLines(run).some((l) => l.includes('errorName')), `${label}: an error line carries errorName`).toBe(true);
+  }
+});
+
 test('AC-6 A row with nothing to clean still reaches the model, and a good redactor never trips the check', async ({}, testInfo) => {
   lambdaOnce(testInfo);
   const run = ask([ver(VER_A, COMPANY_A, { documentType: 'MATRIC_CERTIFICATE', reviewNotes: 'Name matches the register.', ocrText: 'Certificate of passing. Page 3 of 12.', status: 'PASSED', ocrConfidence: 92 })], HR_A);
@@ -538,7 +590,7 @@ test('AC-9 No log line holds a number, a note word, a word of the text or a serv
 
 const SHARED_SAMPLES: string[] = [
   ...SHAPES.map((s) => s.text),
-  'Date 18 November 2026', 'R 1 500', 'Page 3 of 12', 'No numbers at all here.', '', ' ', '12345', '12 34 5', 'Fee R 1 500 and 3 pages', 'Ref 12-34-5',
+  'Date 18 November 2026', 'R 1 500', 'Page 3 of 12', GAP_KEPT, LETTERS_KEPT, 'No numbers at all here.', '', ' ', '12345', '12 34 5', 'Fee R 1 500 and 3 pages', 'Ref 12-34-5',
   'Acc 6212345678 and Tel 0821234567 and ID 9013015009087', 'x'.repeat(50), '1 2 3 4 5 6', 'a1b2c3d4e5f6',
   '[removed] Acc [removed]',
 ];
@@ -586,7 +638,7 @@ test('AC-10 The shared file `lambda/shared/pii-redact.mjs` removes every shape a
       expect.soft(holds(s.red, REMOVED), `shape "${shape.label}": it is replaced by ${REMOVED}`).toBe(true);
     }
   });
-  for (const kept of ['Date 18 November 2026', 'R 1 500', 'Page 3 of 12', 'No numbers at all here.', '12345', 'Fee R 1 500 and 3 pages']) {
+  for (const kept of ['Date 18 November 2026', 'R 1 500', 'Page 3 of 12', GAP_KEPT, LETTERS_KEPT, 'No numbers at all here.', '12345', 'Fee R 1 500 and 3 pages']) {
     const s = p.samples![SHARED_SAMPLES.indexOf(kept)]!;
     expect.soft(s.red, `"${kept}" is not changed`).toBe(kept);
     expect.soft(s.has, `"${kept}" is not a number run`).toBe(false);
