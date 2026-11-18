@@ -126,7 +126,7 @@ exports.handler = async (event) => {
   }
   const desired = new Set(wanted.groups);
   if (!wanted.hasRole) for (const g of current) if (R.ROLES.includes(g)) desired.add(g);
-  const managed = new Set([...R.MANAGED_GROUPS, ...R.OLD_MANAGED_GROUPS]);
+  const managed = new Set([...R.MANAGED_GROUPS, ...R.OLD_MANAGED_GROUPS, ...Object.keys(R.OLD_GROUPS)]);
   const toAdd    = [...desired].filter((g) => !current.includes(g));
   const toRemove = current.filter((g) => managed.has(g) && !desired.has(g));
 
