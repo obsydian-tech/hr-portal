@@ -70,18 +70,22 @@ resource "aws_iam_role_policy" "get_hiring_managers" {
 
 # ─── Lambda function ──────────────────────────────────────────────────────────
 
+# TEN-04.2: timeout 15 because the company filter reads one Member row per listed person after up to four Cognito list calls (the 3 second default is too short).
+# HM_GROUP_NAME is a group that exists in this pool (infra/cognito.tf); the old TalentFlow name lived in another pool and made the list fail.
 resource "aws_lambda_function" "get_hiring_managers" {
   function_name = local.get_hiring_managers_function_name
   role          = aws_iam_role.get_hiring_managers.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
   filename      = local.placeholder_zip
+  timeout       = 15
 
   environment {
     variables = {
       TENANTS_TABLE      = aws_dynamodb_table.tenants.name
       HM_COGNITO_POOL_ID = aws_cognito_user_pool.naleko_dev.id
-      HM_GROUP_NAME      = "naleko-talentflow-hiringmanager"
+      HM_GROUP_NAME      = "manager"
+      LEGACY_TENANT_ID   = var.legacy_tenant_id
     }
   }
 
@@ -143,6 +147,22 @@ resource "aws_iam_role_policy" "get_hiring_managers_modules_read" {
       Sid      = "ReadCompanyModules"
       Effect   = "Allow"
       Action   = ["dynamodb:GetItem"]
+      Resource = [aws_dynamodb_table.tenants.arn]
+    }]
+  })
+}
+
+# TEN-04.2: getHiringManagers keeps only the company's people, one Member row Query (pk = USER#<sub>) per listed person.
+resource "aws_iam_role_policy" "get_hiring_managers_member_read" {
+  name = "ten042-member-read-get-hiring-managers"
+  role = aws_iam_role.get_hiring_managers.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadMembers"
+      Effect   = "Allow"
+      Action   = ["dynamodb:Query"]
       Resource = [aws_dynamodb_table.tenants.arn]
     }]
   })

@@ -672,6 +672,7 @@ resource "aws_lambda_function" "get_panel_members" {
       COGNITO_POOL_ID  = local.tf_naleko_pool_id
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
+      LEGACY_TENANT_ID = var.legacy_tenant_id
     }
   }
 
@@ -1596,6 +1597,22 @@ resource "aws_iam_role_policy" "mark_notif_read_notifications_read" {
       Effect   = "Allow"
       Action   = ["dynamodb:GetItem"]
       Resource = [aws_dynamodb_table.talent_flow_notifications.arn]
+    }]
+  })
+}
+
+# TEN-04.2: getPanelMembers keeps only the company's people, one Member row Query (pk = USER#<sub>) per listed person.
+resource "aws_iam_role_policy" "get_panel_members_member_read" {
+  name = "ten042-member-read-get-panel-members"
+  role = aws_iam_role.get_panel_members.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadMembers"
+      Effect   = "Allow"
+      Action   = ["dynamodb:Query"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
     }]
   })
 }
