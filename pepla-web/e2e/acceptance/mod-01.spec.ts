@@ -546,7 +546,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
   test('AC-7 No other way to write modules', async ({}, testInfo) => {
     once(testInfo.project.name);
     const WRITE = /\b(PutItem|UpdateItem|TransactWriteItems|BatchWriteItem|Put|Update|TransactWrite|BatchWrite)Command\b|\b(PutItem|UpdateItem|TransactWriteItems|BatchWriteItem|put_item|update_item|batch_write_item|transact_write_items|batch_writer)\b/;
-    const ALLOWED = ['scripts/tenancy/lib/set-modules.mjs', 'scripts/ci/seed-dev.py'];
+    // ONB-21 (re-lock mod-01.4): sendDocumentReminders names the modules attribute to READ it and PutItem-writes its own claim rows in another table; it never writes a modules attribute (onb-21.spec.ts AC-7).
+    const ALLOWED = ['scripts/tenancy/lib/set-modules.mjs', 'scripts/ci/seed-dev.py', 'lambda/sendDocumentReminders/index.mjs'];
     const writers: string[] = [];
     for (const f of [...sources(LAMBDA), ...sources(join(REPO, 'scripts'))]) {
       const rel = relative(REPO, f);
@@ -684,6 +685,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
     for (const [key, cur] of Object.entries(all)) {
       if (baseline[key]) continue;
       if (cur.stack === 'infra' && cur.role === role) continue; // getCompanyModules' own, judged above
+      if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock mod-01.4): its own role, locked in onb-21.spec.ts AC-8.
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock mod-01.1): its own role, locked in ten-06.spec.ts AC-7.
       if ((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => ten042(p, cur.stack, cur.role))) continue; // TEN-04.2: one of the three table Queries
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);
