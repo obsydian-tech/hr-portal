@@ -67,3 +67,8 @@ card whose test lands an employee on `/start` finds the page's call answered. It
 One field is added to the list of what `GET /v1/me` may answer: `documentsDue` (AC-4's `LISTED`, and nothing else in the
 test). `support/onb-05/me-fake.ts` answers it only when a test gives the person one. Locks: acceptance-lock/onb-05.2
 (the same commit as ONB-10's).
+
+## Re-locked by ONB-19
+
+`step` joins the list of what `GET /v1/me` may answer (AC-5's `LISTED`, after `documentsDue`), and AC-7's sidebar has two
+items, Today then My onboarding. Locks: acceptance-lock/onb-05.3 (the same commit as ONB-19's).
