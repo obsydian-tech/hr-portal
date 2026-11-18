@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Subscription, filter, firstValueFrom, map } from 'rxjs';
@@ -86,6 +86,16 @@ export class ChatService {
       window.addEventListener('online', () => this.online.set(true));
       window.addEventListener('offline', () => this.online.set(false));
     }
+    // A different person (or nobody) is signed in now, for any reason, sign-out or an expired session included:
+    // nothing of the last person's conversation, waiting count or page may be shown to the next.
+    let signedInAs: string | null | undefined;
+    effect(() => {
+      const sub = this.auth.user()?.sub ?? null;
+      untracked(() => {
+        if (signedInAs !== undefined && sub !== signedInAs) this.clear();
+        signedInAs = sub;
+      });
+    });
     effect(() => {
       const url = this.url();
       if (url.split('?')[0] === CHAT_PAGE) return;
