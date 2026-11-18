@@ -59,8 +59,8 @@ export const handler = async (event) => {
       last_name:    item.last_name?.S,
       department:   item.department?.S,
       stage:        item.stage?.S,
-      risk_band:    item.risk_band?.S,
-      risk_reason:  item.risk_reason?.S,
+      risk_band:    item.riskBand?.S,
+      risk_reason:  item.riskReason?.S,
       created_at:   item.created_at?.S,
       updated_at:   item.updated_at?.S,
     };
@@ -73,7 +73,7 @@ export const handler = async (event) => {
       body: JSON.stringify({ employee }),
     };
   } catch (error) {
-    logger.error('Error fetching employee', { error: error.message, employeeId });
+    logger.error('Error fetching employee', { errorName: error?.name ?? 'Error', employeeId });
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
