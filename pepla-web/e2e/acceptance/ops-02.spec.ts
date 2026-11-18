@@ -162,9 +162,7 @@ test.describe('OPS-02 Dev test run starts after app-only merges', () => {
 
   test('AC-3 Docs-only changes start nothing; one doc plus one app file still starts the run', () => {
     for (const [what, files] of Object.entries(DOCS_ONLY)) {
-      for (const event of ['pull_request', 'push'] as const) {
-        expect(starts(APP_TESTS, event, files), `${what}: no "App tests on dev" on ${event}`).toBe(false);
-      }
+      expect(starts(APP_TESTS, 'push', files), `${what}: no "App tests on dev" on push`).toBe(false);
       expect(starts(DEPLOY, 'push', files), `${what}: no "Deploy Lambdas"`).toBe(false);
       expect(starts(RETAKE, 'push', files), `${what}: no "Help pictures retake"`).toBe(false);
       for (const event of ['pull_request', 'push'] as const) {
@@ -173,11 +171,9 @@ test.describe('OPS-02 Dev test run starts after app-only merges', () => {
     }
 
     const mixed = ['pepla-web/README.md', 'pepla-web/src/main.ts'];
-    for (const event of ['pull_request', 'push'] as const) {
-      expect(starts(APP_TESTS, event, mixed), `one doc and one pepla-web/src file start "App tests on dev" on ${event}`).toBe(true);
-    }
+    expect(starts(APP_TESTS, 'push', mixed), 'one doc and one pepla-web/src file start "App tests on dev" on push').toBe(true);
     expect(starts(DEPLOY, 'push', ['lambda/README.md', 'lambda/onboarding/index.mjs']), 'a doc and a Lambda file still deploy').toBe(true);
-    expect(starts(APP_TESTS, 'pull_request', ['hr-portal/src/app/app.ts']), 'a current app change still starts it').toBe(true);
+    expect(starts(APP_TESTS, 'push', ['hr-portal/src/app/app.ts']), 'a current app change still starts it').toBe(true);
 
     const ciOn = workflow(CI).on;
     for (const event of ['pull_request', 'push'] as const) {

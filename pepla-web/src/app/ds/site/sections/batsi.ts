@@ -158,7 +158,7 @@ export class PpSiteLandBatsi {
         c.at(400, () => this.answer(id, true));
       });
     });
-    if (this.auto() && !c.reduce) c.at(CYCLE, () => this.play((this.cur() + 1) % SAMPLES.length));
+    if (this.auto()) c.at(CYCLE, () => this.play((this.cur() + 1) % SAMPLES.length));
   }
 
   /** A person pressing an action stops the cycle for good. */

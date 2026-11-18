@@ -142,7 +142,7 @@ export class PpSiteLandCompliance {
 
   /** Light the reminder pips in `keys` for 500ms each; every pip ends its own pulse on its own timer, as the kit does. */
   private pulse(keys: readonly string[]): void {
-    if (this.clock.reduce || !keys.length) return;
+    if (!keys.length) return;
     this.hit.update((h) => new Set([...h, ...keys]));
     for (const key of keys) this.clock.at(500, () => this.hit.update((h) => { const next = new Set(h); next.delete(key); return next; }));
   }

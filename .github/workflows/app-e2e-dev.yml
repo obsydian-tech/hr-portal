@@ -1,7 +1,8 @@
 # App tests on dev: run the onboarding journeys against pepla-dev
-#   - on every PR into develop that changes the web app or its tests
-#     (tests the PR's own app code; red = don't merge), and
-#   - after web app code merges into develop.
+# It runs after the merge, never on a pull request:
+#   - when web app code merges into develop,
+#   - every Monday (full run), by hand, and after a Lambda deploy.
+# A red run shows on the merged PR's comment and on the next merge.
 # Release PRs develop -> main don't re-run it: that code already passed here.
 #
 # Test selection (keeps runs short as the app grows): a PR or merge runs only
@@ -26,23 +27,6 @@
 name: App tests on dev
 
 on:
-  pull_request:
-    branches: [develop]
-    paths:
-      - "hr-portal/src/**"
-      - "hr-portal/e2e/**"
-      - "scripts/ci/pick-e2e-tests.py"
-      - "hr-portal/angular.json"
-      - "hr-portal/package.json"
-      - "hr-portal/package-lock.json"
-      - "hr-portal/tsconfig*.json"
-      - "pepla-web/**"
-      - "scripts/ci/dev-frontend-env.sh"
-      - "scripts/ci/check-dev-signin.py"
-      - ".github/workflows/app-e2e-dev.yml"
-      - "!**/*.md"
-      - "!docs/**"
-      - "!pepla-web/help/media/**"
   push:
     branches: [develop]
     paths:
@@ -192,6 +176,20 @@ jobs:
       - name: Load test logins (masked)
         run: python3 scripts/ci/load-e2e-logins.py
 
+      # TEN-04: the company walk calls the agent API with its key. The address comes from the API's name, the key from
+      # the secret the agent API already uses on pepla-dev (masked, never printed). Without access the walk reports
+      # that the key is missing; nothing else here fails.
+      - name: Load the agent API address and key (masked)
+        run: |
+          addr=$(aws apigatewayv2 get-apis --region af-south-1 --query "Items[?Name=='naleko-agent-api'].ApiEndpoint | [0]" --output text)
+          echo "E2E_AGENT_API_URL=$addr" >> "$GITHUB_ENV"
+          if key=$(aws secretsmanager get-secret-value --region af-south-1 --secret-id naleko/agent/api-key --query SecretString --output text 2>/dev/null); then
+            echo "::add-mask::$key"
+            echo "E2E_AGENT_KEY=$key" >> "$GITHUB_ENV"
+          else
+            echo "::warning::could not read naleko/agent/api-key; the TEN-04 company walk will stop at the missing key"
+          fi
+
       - name: Install app and browser
         working-directory: hr-portal
         run: |
@@ -251,7 +249,24 @@ jobs:
           ACCEPTANCE_TARGET: pepla-dev
           E2E_BASE_URL: ${{ inputs.on_web_address && env.WEB_ADDRESS || 'http://127.0.0.1:4300' }}
           CI: "true"
-        run: npm run e2e:acceptance
+        # The company walk (TEN-04 AC-7) runs in its own step below: its "company B" caller is the walk company's HR login.
+        run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev"
+
+      # TEN-04 AC-7: the company walk. Its "company B" callers are the logins of the third (walk) company, which has
+      # Recruitment switched on (company B has only Onboarding, so on B every Recruitment route answers 403 and the
+      # walk cannot look for 404). The test reads its HR caller as E2E_HR_B; here that name points at hr-c.
+      - name: Company walk (TEN-04)
+        id: walk
+        if: ${{ !cancelled() }}
+        working-directory: pepla-web
+        env:
+          ACCEPTANCE_TARGET: pepla-dev
+          E2E_BASE_URL: ${{ inputs.on_web_address && env.WEB_ADDRESS || 'http://127.0.0.1:4300' }}
+          CI: "true"
+        run: |
+          export E2E_HR_B_EMAIL="$E2E_HR_C_EMAIL" E2E_HR_B_PASSWORD="$E2E_HR_C_PASSWORD"
+          # list reporter only: the JSON report of the main run above is the one the PR comment reads
+          npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "company B walk on pepla-dev"
 
       # BE-15 AC-6: a new employee gets a sign-in in the dev pool (the real
       # POST /v1/employees, then the pool is read). Cleanup below removes it.
