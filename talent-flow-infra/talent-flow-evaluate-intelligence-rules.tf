@@ -38,6 +38,7 @@ resource "aws_lambda_function" "evaluate_intelligence_rules" {
 
   environment {
     variables = {
+      TENANTS_TABLE            = local.tf_tenants_table
       STATE_TABLE_NAME         = aws_dynamodb_table.talent_flow_state.name
       CONFIG_TABLE_NAME        = aws_dynamodb_table.talent_flow_config.name
       USERS_TABLE_NAME         = aws_dynamodb_table.talent_flow_users.name
@@ -254,3 +255,20 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
 #
 # Tables and the state KMS key are referenced directly from talent-flow-dynamodb.tf
 # and talent-flow-kms.tf (no data sources), so a fresh account applies in one pass.
+
+# MOD-01: evaluateIntelligenceRules asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "evaluate_intelligence_rules_modules_read" {
+  name = "mod01-modules-read-evaluate-intelligence-rules"
+  role = aws_iam_role.evaluate_intelligence_rules.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}

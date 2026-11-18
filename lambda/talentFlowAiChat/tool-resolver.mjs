@@ -28,6 +28,7 @@
  *   GSI1: GSI1PK=TENANT#{tenantId}#ACTIVE  GSI1SK=CONFIG#{configType}
  */
 
+import { modulesOf } from '../shared/modules.mjs';
 import { DynamoDBClient, GetItemCommand, QueryCommand, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { randomUUID } from 'crypto';
@@ -332,6 +333,14 @@ export const TOOL_MAP = {
 export async function resolveToolCall(toolName, args, context) {
   const fn = TOOL_MAP[toolName];
   if (!fn) throw new Error(`Unknown tool: "${toolName}". Valid tools: ${Object.keys(TOOL_MAP).join(', ')}`);
+
+  // MOD-01: every tool here reads or changes Recruitment data. A company with Recruitment off gets none of it
+  // (Ask Batsi itself stays open). The company is the sign-in's (context.tenantId), never the model's.
+  const on = await modulesOf(context?.tenantId);
+  if (!on.includes('recruitment')) {
+    console.warn('Module off, skipped', { tenantId: context?.tenantId, toolName });
+    return { error: 'Forbidden' };
+  }
 
   // HITL gate: intercept write tools before execution
   if (isWriteTool(toolName)) {

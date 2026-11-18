@@ -41,6 +41,13 @@ jest.unstable_mockModule('@aws-sdk/util-dynamodb', () => ({
   unmarshall: jest.fn((obj) => obj),
 }));
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 // ─── Dynamic import (after all mocks declared) ───────────────────────────────
 
 let handler;

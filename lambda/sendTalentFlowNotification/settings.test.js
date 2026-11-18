@@ -30,6 +30,13 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 describe('AC-2 a missing setting stops sendTalentFlowNotification at start', () => {
   for (const name of Object.keys(SETTINGS)) {
     test(`${name} unset: load throws "Missing setting ${name}" and logs one line`, () => {

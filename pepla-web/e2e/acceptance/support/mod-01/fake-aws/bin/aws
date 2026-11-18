@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+// MOD-01: new. A stand-in for the aws command line on the script's PATH. It answers only
+// `aws sts get-caller-identity` (from world.sts, as the SDK fake does), in JSON or as --query X --output text.
+// Anything else is refused with exit 254, so a script cannot reach AWS through the command line either.
+const { readFileSync } = require('node:fs');
+const args = process.argv.slice(2);
+const world = JSON.parse(readFileSync(process.env.TEN03_WORLD, 'utf8'));
+const who = world.sts ?? { Account: '424556617428', Arn: 'arn:aws:sts::424556617428:assumed-role/mod01-operator/mod01-test', UserId: 'AROAMOD01FAKE:mod01-test' };
+if (args[0] === 'sts' && args[1] === 'get-caller-identity') {
+  const q = args.indexOf('--query');
+  const field = q >= 0 ? args[q + 1] : undefined;
+  if (field) process.stdout.write(String(who[field] ?? '') + '\n');
+  else process.stdout.write(JSON.stringify({ UserId: who.UserId ?? 'AROAMOD01FAKE:mod01-test', Account: who.Account, Arn: who.Arn }) + '\n');
+  process.exit(0);
+}
+process.stderr.write('MOD-01 fake aws: only "sts get-caller-identity" is answered here\n');
+process.exit(254);

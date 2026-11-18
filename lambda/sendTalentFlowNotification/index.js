@@ -120,6 +120,12 @@ async function processRecord(record) {
     console.warn('Notification skipped: the message carries no company');
     return;
   }
+  // MOD-01: a company with Recruitment off is skipped, never thrown.
+  const { modulesOf } = await import('../shared/modules.mjs');
+  if (!(await modulesOf(tenantId)).includes('recruitment')) {
+    console.warn('Module off, skipped', { tenantId });
+    return;
+  }
   if (!recipientEmail) throw new Error('Missing required field: recipientEmail');
   if (!type) throw new Error('Missing required field: type');
 

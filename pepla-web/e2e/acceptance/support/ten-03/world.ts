@@ -59,6 +59,9 @@ export const TABLE = {
 
 type Plain = string | number | boolean | null | undefined | Plain[] | { [k: string]: Plain };
 /** A row as DynamoDB stores it, from plain values (maps and lists too). */
+/** MOD-01: both companies have Recruitment on (a string set), so the module check lets these routes through. */
+const RECRUITMENT_ON = { SS: ['onboarding', 'recruitment'] };
+
 export function av(values: Record<string, Plain>): Row {
   const one = (v: Plain): Record<string, unknown> =>
     v === null ? { NULL: true }
@@ -168,8 +171,8 @@ export function tables(): Tables {
       av({ pk: `USER#${SUB.hmB}`, sk: `TENANT#${B}`, tenant_id: B }),
       av({ pk: `USER#${SUB.panelA}`, sk: `TENANT#${A}`, tenant_id: A }),
       av({ pk: `USER#${SUB.panelB}`, sk: `TENANT#${B}`, tenant_id: B }),
-      av({ pk: `TENANT#${A}`, sk: 'PROFILE', tenant_id: A, name: 'Company A', status: 'ACTIVE' }),
-      av({ pk: `TENANT#${B}`, sk: 'PROFILE', tenant_id: B, name: 'Company B', status: 'ACTIVE' }),
+      { ...av({ pk: `TENANT#${A}`, sk: 'PROFILE', tenant_id: A, name: 'Company A', status: 'ACTIVE' }), modules: RECRUITMENT_ON },
+      { ...av({ pk: `TENANT#${B}`, sk: 'PROFILE', tenant_id: B, name: 'Company B', status: 'ACTIVE' }), modules: RECRUITMENT_ON },
     ],
   };
 }

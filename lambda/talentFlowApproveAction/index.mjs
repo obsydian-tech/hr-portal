@@ -40,6 +40,7 @@ import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { groupsOf } from '../shared/document-check.mjs';
 import { isIdToken } from '../shared/hr-group.mjs';
 import { requireTenant, ownsRow, andFilter, tenantFilter } from '../shared/tenant.mjs';
+import { requireModule } from '../shared/modules.mjs';
 
 // BE-19 W-1: the refusal for approve and reject, the old app's own 403 sentence (Iggie chose it, 17 Nov).
 const NOT_ALLOWED = 'You do not have permission to perform this action.';
@@ -233,6 +234,8 @@ export const handler = async (event) => {
     }
     const t = requireTenant(event);
     if (t.refusal) return t.refusal;
+    const moduleOff = await requireModule(event, 'recruitment'); // MOD-01
+    if (moduleOff) return moduleOff;
     return handleListPending(t.tenantId);
   }
 
@@ -267,6 +270,9 @@ export const handler = async (event) => {
   const t = requireTenant(event);
   if (t.refusal) return t.refusal;
   const tenantId = t.tenantId;
+  // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
+  const moduleOff = await requireModule(event, 'recruitment');
+  if (moduleOff) return moduleOff;
 
   console.log(JSON.stringify({ event: 'hitl_request', method, actionId, route, staffId }));
 

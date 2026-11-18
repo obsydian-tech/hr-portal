@@ -606,6 +606,18 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
 
   test('AC-10 Roles hold exactly this', async ({}, testInfo) => {
     once(testInfo.project.name);
+    // MOD-01 rule 8 (re-locked by acceptance-lock/mod-01): the roles of the Lambdas that ask the module check may GetItem the
+    // tenants table, nothing more; getCompanyModules' own role has only its log group, X-Ray and that GetItem.
+    const MOD01_ROLES = new Set([
+      ...['get_company_modules', 'get_candidate_events', 'get_hiring_managers'].map((r) => `infra/${r}`),
+      ...['acknowledge_tile', 'advance_candidate_stage', 'advance_offer_state', 'ai_chat', 'approve_action', 'capture_sentiment', 'create_candidate', 'create_offer',
+        'dismiss_tile', 'evaluate_intelligence_rules', 'generate_scoring_link', 'get_candidate', 'get_candidates', 'get_intelligence_tiles', 'get_notifications',
+        'get_offer', 'get_panel_members', 'manage_config', 'mark_notif_read', 'orchestrate_workflow', 'schedule_interview', 'send_notification', 'snooze_tile',
+        'submit_vote', 'submit_vote_by_token', 'update_candidate'].map((r) => `talent-flow-infra/${r}`),
+    ]);
+    const MOD01_ROLE = (key: string, role: string) => MOD01_ROLES.has(`${key.split('/')[0]}/${role}`);
+    const MOD01_GET = (p: string) => /^Allow dynamodb:GetItem (aws_dynamodb_table\.tenants\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(\$\{local\.tf_tenants_table\}|naleko-people-\$\{var\.environment\}-tenants)) null$/.test(p);
+    const MOD01_OWN = (p: string) => /^Allow logs:(CreateLogGroup|CreateLogStream|PutLogEvents) arn:aws:logs:[^:]+:[^:]+:log-group:\/aws\/lambda\/getCompanyModules:\* null$/.test(p) || /^Allow xray:(PutTraceSegments|PutTelemetryRecords) \* null$/.test(p);
     const baseline = JSON.parse(readFileSync(join(__dirname, 'support', 'ten-03', 'iam-6123d0e', 'policies.json'), 'utf8')) as Record<string, { pairs?: string[]; squash?: string }>;
     const L = (v: unknown): string[] => (v === undefined ? [] : Array.isArray(v) ? (v as string[]) : [v as string]);
     const now: Record<string, { pairs?: string[]; squash?: string; role: string }> = {};
@@ -640,16 +652,18 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
         const [effect, action, res, cond] = [p.split(' ')[0], p.split(' ')[1], p.split(' ')[2], p.split(' ').slice(3).join(' ')];
         const tenants = /tenants/i.test(res!) && isPreToken;
         const indexOfTalent = /\/index\//.test(res!) && (TALENT_TABLE.test(res!) || /^(it-tasks|provisioning-bundles)$/.test(tableOf(res!) ?? ''));
-        expect.soft(effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && (tenants || indexOfTalent), `role policy ${key}: new grant "${p}" is only a Query on the tenants table (TalentFlow trigger) or on an index of a TalentFlow, IT or bundle table`).toBe(true);
+        expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && (tenants || indexOfTalent)) || (MOD01_GET(p) && MOD01_ROLE(key, cur.role)), `role policy ${key}: new grant "${p}" is only a Query on the tenants table (TalentFlow trigger) or on an index of a TalentFlow, IT or bundle table`).toBe(true);
       }
     }
     // Policies that are new: only the TalentFlow pre-token trigger's, and only a Query on the tenants table.
     for (const [key, cur] of Object.entries(now)) {
       if (baseline[key]) continue;
-      expect.soft(/pre_token/.test(key) || /pre_token/.test(cur.role), `new role policy ${key} belongs to the TalentFlow pre-token trigger`).toBe(true);
+      // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.
+      const mod01 = (cur.pairs ?? []).length > 0 && MOD01_ROLE(key, cur.role) && (cur.pairs ?? []).every((p) => MOD01_GET(p) || (key === 'infra/get_company_modules' && MOD01_OWN(p)));
+      expect.soft(/pre_token/.test(key) || /pre_token/.test(cur.role) || mod01, `new role policy ${key} belongs to the TalentFlow pre-token trigger`).toBe(true);
       for (const p of cur.pairs ?? []) {
         const [effect, action, res, cond] = [p.split(' ')[0], p.split(' ')[1], p.split(' ')[2], p.split(' ').slice(3).join(' ')];
-        expect.soft(effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && /tenants/i.test(res!), `new role policy ${key}: "${p}" is only a Query on the tenants table`).toBe(true);
+        expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && /tenants/i.test(res!)) || (mod01 && (MOD01_GET(p) || MOD01_OWN(p))), `new role policy ${key}: "${p}" is only a Query on the tenants table`).toBe(true);
       }
     }
     // The move script's needs go to no Lambda role: no TransactWriteItems anywhere.

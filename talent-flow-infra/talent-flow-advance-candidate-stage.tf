@@ -124,6 +124,7 @@ resource "aws_lambda_function" "advance_candidate_stage" {
 
   environment {
     variables = {
+      TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config # read by config-reader.js
       EPIC3_ENABLED        = "true"                # set live in prod; kept to match
@@ -168,4 +169,21 @@ resource "aws_lambda_permission" "advance_candidate_stage_api" {
   # APIGW v2 sends execute-api ARNs as the caller context; using .arn causes
   # AccessDeniedException → silent HTTP 500 with Lambda never invoked.
   source_arn = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# MOD-01: advanceCandidateStage asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "advance_candidate_stage_modules_read" {
+  name = "mod01-modules-read-advance-candidate-stage"
+  role = aws_iam_role.advance_candidate_stage.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
 }

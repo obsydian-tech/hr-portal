@@ -76,6 +76,13 @@ const activeItem = {
 
 // ── GET tests ─────────────────────────────────────────────────────────────────
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 test('GET: returns all versions when ?active not set', async () => {
   const items = [
     { ...activeItem, version: 1, isActive: false },

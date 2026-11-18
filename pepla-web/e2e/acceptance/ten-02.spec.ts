@@ -943,6 +943,7 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
     // Every role that touches the tenants table: only Query (PutItem for the two that write Member rows), only on the
     // table and its tenant-index, and it can read the PII key through dynamodb_read_role_arns (or already could).
     const roles = new Set(resources('aws_iam_role').map((b) => b.labels[1]!));
+    const MOD01_READERS = ['get_company_modules', 'get_candidate_events', 'get_hiring_managers'];
     let touching = 0;
     for (const role of roles) {
       if (role === 'tenant_pre_token') continue; // TEN-01, locked there.
@@ -955,11 +956,13 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
       const fn = resources('aws_lambda_function').find((b) => (attributes(b.body).get('role') ?? '') === `aws_iam_role.${role}.arn`);
       const fnName = (fn ? attributes(fn.body).get('function_name') ?? '' : '').replace(/"/g, '');
       for (const s of mine) {
-        const allowed = MEMBER_WRITERS.includes(fnName) ? ['dynamodb:Query', 'dynamodb:PutItem'] : ['dynamodb:Query'];
+        // MOD-01 rule 8 (re-locked by acceptance-lock/mod-01): the modules read adds GetItem for the Recruitment Lambdas of this stack.
+        const allowed = [...(MEMBER_WRITERS.includes(fnName) ? ['dynamodb:Query', 'dynamodb:PutItem'] : ['dynamodb:Query']), ...(MOD01_READERS.includes(role) ? ['dynamodb:GetItem'] : [])];
         expect.soft(list(s.Action).filter((a) => !allowed.includes(a)), `${role}: on the tenants table only ${allowed.join(' and ')}`).toEqual([]);
         expect.soft(list(s.Resource).filter((r) => !(isTenants(r) && (!indexOf(r) || indexOf(r) === 'tenant-index'))), `${role}: tenants statement names only the table and its tenant-index`).toEqual([]);
         expect.soft(s.Condition, `${role}: tenants statement has no condition to widen it`).toBeUndefined();
         if (list(s.Action).includes('dynamodb:PutItem')) expect.soft(list(s.Resource).filter((r) => indexOf(r)), `${role}: PutItem names the table, never an index`).toEqual([]);
+        if (list(s.Action).includes('dynamodb:GetItem')) expect.soft(list(s.Resource).filter((r) => indexOf(r)), `${role}: GetItem names the table, never an index`).toEqual([]);
       }
       // New KMS access goes through the read list only. These roles already held the PII key themselves at develop
       // 48fe4c6 (infra/iam_per_lambda.tf), before this card; that grant is not new.
@@ -999,7 +1002,9 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
     // The PII key's role lists stay lists of roles (nothing else joins them).
     // Re-locked by TEN-03: the TalentFlow pre-token trigger's role lives in the other Terraform stack (talent-flow-infra), so it
     // cannot be written as aws_iam_role.<name>.arn. It may appear as one quoted role ARN naming talentFlowPreTokenTrigger, nothing else quoted.
-    expect(squash(kmsRead), 'dynamodb_read_role_arns is a list of aws_iam_role.<name>.arn (and, since TEN-03, one quoted ARN of the TalentFlow pre-token trigger role)').toMatch(/^\[(?:(?:aws_iam_role\.\w+\.arn|"arn:aws:iam::[^":,\]]*:role\/[^":,\]]*talentFlowPreTokenTrigger[^":,\]]*"),?)+\]$/);
+    // Re-locked by MOD-01 (rule 8): the TalentFlow Lambdas that read the modules join as quoted role ARNs with the role path, named one by one.
+    const MOD01_TF = 'getCandidate|updateCandidate|advanceCandidateStage|scheduleInterview|submitVote|captureSentiment|generateScoringLink|getOffer|createOffer|advanceOfferState|dismissTile|snoozeTile|acknowledgeTile|getCandidates|createCandidate|getIntelligenceTiles|manageTalentFlowConfig|getUserNotifications|markNotificationRead|getPanelMembers|talentFlowApproveAction|talentFlowAiChat|submitVoteByToken|evaluateIntelligenceRules|sendTalentFlowNotification|orchestrateTalentFlowWorkflow';
+    expect(squash(kmsRead), 'dynamodb_read_role_arns is a list of aws_iam_role.<name>.arn (and, since TEN-03, one quoted ARN of the TalentFlow pre-token trigger role; since MOD-01, the quoted ARNs of the TalentFlow Lambdas that read the modules)').toMatch(new RegExp(`^\\[(?:(?:aws_iam_role\\.\\w+\\.arn|"arn:aws:iam::[^":,\\]]*:role\\/[^":,\\]]*talentFlowPreTokenTrigger[^":,\\]]*"|"arn:aws:iam::\\$\\{var\\.aws_account_id\\}:role\\/talent-flow\\/talent-flow-role-(?:${MOD01_TF})"),?)+\\]$`));
   });
 
   test('AC-16 The owner is matched on the sign-in id', async ({}, testInfo) => {

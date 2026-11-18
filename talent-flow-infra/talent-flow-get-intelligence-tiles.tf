@@ -27,6 +27,7 @@ resource "aws_lambda_function" "get_intelligence_tiles" {
 
   environment {
     variables = {
+      TENANTS_TABLE         = local.tf_tenants_table
       STATE_TABLE_NAME      = aws_dynamodb_table.talent_flow_state.name
       DISMISSALS_TABLE_NAME = aws_dynamodb_table.intelligence_dismissals.name
       CONFIG_TABLE_NAME     = aws_dynamodb_table.talent_flow_config.name
@@ -190,4 +191,21 @@ resource "aws_lambda_permission" "get_intelligence_tiles_api" {
   function_name = aws_lambda_function.get_intelligence_tiles.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*"
+}
+
+# MOD-01: getIntelligenceTiles asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "get_intelligence_tiles_modules_read" {
+  name = "mod01-modules-read-get-intelligence-tiles"
+  role = aws_iam_role.get_intelligence_tiles.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
 }

@@ -36,7 +36,12 @@ from pathlib import Path
 
 ACC = "pepla-web/e2e/acceptance/"
 SPEC_DIR = "e2e/acceptance/"  # relative to pepla-web/
-MAX_SHARDS = 4
+MAX_SHARDS = 6
+# Measured seconds per spec file (both widths), refreshed by hand from a full run's
+# Playwright "list" lines. A spec missing from the file gets a guess (below).
+SECONDS_FILE = Path(__file__).with_name("acceptance-spec-seconds.json")
+DEFAULT_SECONDS = 60
+DEFAULT_JOURNEY_SECONDS = 600
 
 # Any "<prefix>-<number>" token; which prefixes are cards comes from the spec files
 # (be, onb, help, ops, and whatever comes next), not from a list here.
@@ -164,20 +169,37 @@ def pick(
 # ---------------------------------------------------------------- git side
 
 
-def weight(text: str) -> int:
-    """Rough minutes-ish cost of a spec: journeys with pictures and video dominate the run."""
-    return 10 if JOURNEY_RE.search(text) else 1
+def load_seconds() -> dict[str, float]:
+    """Measured seconds per spec, keyed by card (site-08), from acceptance-spec-seconds.json."""
+    try:
+        raw = json.loads(SECONDS_FILE.read_text())["seconds"]
+    except (OSError, ValueError, KeyError):
+        return {}
+    return {k[: -len(".spec.ts")]: float(v) for k, v in raw.items() if k.endswith(".spec.ts")}
 
 
-def balance(cards: list[str], specs: dict[str, str], shards: int) -> list[list[str]]:
-    """Spread specs over shards, heaviest first onto the lightest shard (Playwright's own
-    --shard splits by test count, which put every journey spec in one 16 minute shard)."""
+def weight(card: str, text: str, seconds: dict[str, float]) -> float:
+    """Measured seconds for a spec. Unknown specs: 10 minutes for a journey (helpRun or
+    runJourney: pictures and video), 1 minute for the rest."""
+    if card in seconds:
+        return seconds[card]
+    return DEFAULT_JOURNEY_SECONDS if JOURNEY_RE.search(text) else DEFAULT_SECONDS
+
+
+def balance(
+    cards: list[str], specs: dict[str, str], shards: int, seconds: dict[str, float] | None = None
+) -> list[list[str]]:
+    """Spread specs over shards by measured time, heaviest first onto the lightest shard
+    (Playwright's own --shard splits by test count, and a weight of 1 per spec put site-04
+    and help-04, 38 minutes together, in one shard)."""
+    seconds = seconds if seconds is not None else {}
     groups: list[list[str]] = [[] for _ in range(shards)]
-    load = [0] * shards
-    for c in sorted(cards, key=lambda c: (-weight(specs[c]), c)):
+    load = [0.0] * shards
+    w = {c: weight(c, specs[c], seconds) for c in cards}
+    for c in sorted(cards, key=lambda c: (-w[c], c)):
         i = load.index(min(load))
         groups[i].append(c)
-        load[i] += weight(specs[c])
+        load[i] += w[c]
     return [sorted(g) for g in groups]
 
 
@@ -228,7 +250,8 @@ def main() -> None:
 
     chosen = sorted(cards) if mode == "selected" else sorted(specs)
     n = 0 if mode == "none" else min(MAX_SHARDS, len(chosen))
-    groups = balance(chosen, specs, n)
+    seconds = load_seconds()
+    groups = balance(chosen, specs, n, seconds)
     matrix = {
         "include": [
             {
@@ -243,7 +266,11 @@ def main() -> None:
     }
     out = {"mode": mode, "matrix": json.dumps(matrix), "reason": reason}
     for g in groups:
-        print("shard:", " ".join(g), file=sys.stderr)
+        print(
+            f"shard: {sum(weight(c, specs[c], seconds) for c in g) / 60:.1f} min est:",
+            " ".join(g),
+            file=sys.stderr,
+        )
     for k, v in out.items():
         print(f"{k}={v}")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
