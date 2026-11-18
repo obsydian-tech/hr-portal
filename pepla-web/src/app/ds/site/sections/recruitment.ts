@@ -157,7 +157,7 @@ export class PpSiteLandRecruitment {
     c.at(600, () => this.move('c4', 2));
     c.at(1800, () => { this.move('c1', 4); this.setCand('c1', { note: 'Offer signed · starts 1 Dec' }); });
     c.at(3000, () => this.setCand('c3', { state: 'risk' }));
-    c.at(3800, () => { this.draftOn.set(true); if (c.reduce) this.draft.set(DRAFT_TEXT); else this.type(0); });
+    c.at(3800, () => { this.draftOn.set(true); this.type(0); });
     c.at(7600, () => { this.pressed.set(true); c.at(400, () => this.finish()); });
   }
 

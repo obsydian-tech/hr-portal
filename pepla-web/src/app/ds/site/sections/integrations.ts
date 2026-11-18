@@ -207,7 +207,6 @@ export class PpSiteLandIntegrations {
     this.hit.set(0);
     if (k === 'api') { this.approved.set(false); this.pressed.set(false); }
     const cs = CHARS[k];
-    if (c.reduce) { this.n.set(cs.length); this.typing.set(false); this.steps.update((s) => ({ ...s, [k]: k === 'mcp' ? 2 : 3 })); if (k === 'api') { this.approved.set(true); this.pressed.set(true); } if (this.auto && k !== 'ev') this.play(ORDER[ORDER.indexOf(k) + 1]); return; }
     this.n.set(0);
     this.typing.set(true);
     let t = 0;
@@ -238,7 +237,7 @@ export class PpSiteLandIntegrations {
     const lt = sec.querySelector<HTMLElement>('.pp-site-glow');
     const gr = sec.querySelector<HTMLElement>('.pp-site-glow__grid');
     if (!win || !lt || !gr) return;
-    const R = 550, t0 = win.performance.now(), slow = this.clock.reduce ? 0.5 : 1;
+    const R = 550, t0 = win.performance.now();
     let px: [number, number] | null = null, vis = false, raf = 0;
     const put = (x: number, y: number): void => { lt.style.transform = `translate(${x - R}px,${y - R}px)`; gr.style.transform = `translate(${R - x}px,${R - y}px)`; };
     const move = (e: PointerEvent): void => { if (e.pointerType !== 'mouse') return; const r = sec.getBoundingClientRect(); px = [e.clientX - r.left, e.clientY - r.top]; put(px[0], px[1]); };
@@ -246,7 +245,7 @@ export class PpSiteLandIntegrations {
     const drift = (now: number): void => {
       raf = 0;
       if (!vis) return;
-      if (!px) { const t = ((now - t0) / 1000) * slow; put(sec.clientWidth * (0.62 + 0.2 * Math.sin(t / 5)), sec.clientHeight * (0.4 + 0.16 * Math.cos(t / 6.5))); }
+      if (!px) { const t = (now - t0) / 1000; put(sec.clientWidth * (0.62 + 0.2 * Math.sin(t / 5)), sec.clientHeight * (0.4 + 0.16 * Math.cos(t / 6.5))); }
       raf = win.requestAnimationFrame(drift);
     };
     sec.addEventListener('pointermove', move);
