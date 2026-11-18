@@ -49,6 +49,9 @@ function respond(statusCode, body) {
 }
 
 exports.handler = async (event) => {
+  // REC-01: who may read one candidate's history is judged after the company and module checks. Anyone who may not gets
+  // 404, as for a candidate that does not exist.
+  const RA = await import('../shared/recruitment-access.mjs');
   // TEN-03: the company is the sign-in's. The candidate must be this company's; another company's is 404.
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
@@ -92,6 +95,40 @@ exports.handler = async (event) => {
     }
   }
 
+  // REC-01: a Recruiter reads the history of any candidate of the company. The hiring manager of the candidate (salary
+  // removed) and a panel member of one of its interviews (no offer, no salary) need the candidate's own rows to prove it.
+  // Where this role cannot read the state table, that is not proven, so they get 404 (fail closed) until it can.
+  let relation = RA.isRecruiter(event) ? 'recruiter' : null;
+  if (!relation) {
+    if (!stateReadable) {
+      console.warn(JSON.stringify({ event: 'get_candidate_events_access_not_proven', candidateId }));
+      return T.notFound();
+    }
+    try {
+      const saga = await dynamo.send(new QueryCommand({
+        TableName: STATE_TABLE,
+        KeyConditionExpression: 'PK = :pk AND SK = :sk',
+        ExpressionAttributeValues: { ':pk': { S: `CANDIDATE#${candidateId}` }, ':sk': { S: 'SAGA' } },
+        Limit: 1,
+      }));
+      const candidate = saga.Items && saga.Items[0] ? unmarshall(saga.Items[0]) : null;
+      if (!candidate || !T.ownsRow(candidate, tenantId)) return T.notFound();
+      relation = await RA.relationOf(event, candidate, async () => {
+        const res = await dynamo.send(new QueryCommand({
+          TableName: STATE_TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+          ExpressionAttributeValues: { ':pk': { S: `CANDIDATE#${candidateId}` }, ':prefix': { S: 'INTERVIEW#' } },
+          ProjectionExpression: 'interviewId, panelMemberIds, tenant_id',
+        }));
+        return (res.Items || []).map((i) => unmarshall(i)).filter((i) => T.ownsRow(i, tenantId));
+      });
+    } catch (err) {
+      console.warn(JSON.stringify({ event: 'get_candidate_events_access_not_proven', candidateId, error: err.name }));
+      return T.notFound();
+    }
+    if (!relation) return T.notFound();
+  }
+
   const PK = `CANDIDATE#${candidateId}`;
 
   // Build key condition — optionally add SK >= since filter
@@ -116,7 +153,7 @@ exports.handler = async (event) => {
 
     const result = await dynamo.send(new QueryCommand(params));
 
-    const events = (result.Items ?? []).map((item) => unmarshall(item)).filter((rec) => (stateReadable ? T.ownsRow(rec, tenantId) || rec.tenant_id === undefined : T.ownsRow(rec, tenantId))).map((rec) => {
+    let events = (result.Items ?? []).map((item) => unmarshall(item)).filter((rec) => (stateReadable ? T.ownsRow(rec, tenantId) || rec.tenant_id === undefined : T.ownsRow(rec, tenantId))).map((rec) => {
       // Parse detail back from JSON string to object for frontend convenience
       let detail = rec.detail;
       if (typeof detail === 'string') {
@@ -133,6 +170,9 @@ exports.handler = async (event) => {
         detail,
       };
     });
+    // REC-01: the hiring manager's history has no salary; a panel member's has no offer event and no offer or salary field.
+    if (relation === 'hiringManager') events = RA.forHiringManager(events);
+    if (relation === 'panel') events = RA.forPanelMember(events.filter((e) => !RA.aboutOffer(e)));
 
     // Encode next page cursor
     let nextToken;

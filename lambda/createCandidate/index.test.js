@@ -54,8 +54,10 @@ jest.mock('ulid', () => ({ ulid: jest.fn(() => '01HTEST00000000000000000') }));
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const TEN = 'ten_0123456789abcdefghijklmnop';
+// REC-01: a Recruiter is HR with the Recruitment tick; the role check comes before anything else.
+const RECRUITER = { tenant_id: TEN, 'cognito:groups': '[hr_staff perm-recruitment]' };
 
-function makeEvent(overrides = {}, claims = { tenant_id: TEN }) {
+function makeEvent(overrides = {}, claims = RECRUITER) {
   return {
     httpMethod: 'POST',
     path: '/candidates',
@@ -139,6 +141,16 @@ describe('createCandidate', () => {
     const response = await handler(makeEvent({}, {}));
     expect(response.statusCode).toBe(403);
     expect(parseBody(response)).toEqual({ error: 'Forbidden' });
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+    expect(mockEbSend).not.toHaveBeenCalled();
+  });
+
+  test('REC-01: a caller who is not a Recruiter gets 403 before any AWS call', async () => {
+    for (const groups of ['[hr_staff]', '[perm-recruitment]', '[admin]', '[manager]', '[employee]', '[guest]', undefined]) {
+      const res = await handler(makeEvent({}, { tenant_id: TEN, ...(groups ? { 'cognito:groups': groups } : {}) }));
+      expect(res.statusCode).toBe(403);
+      expect(parseBody(res)).toEqual({ error: 'Forbidden' });
+    }
     expect(mockDynamoSend).not.toHaveBeenCalled();
     expect(mockEbSend).not.toHaveBeenCalled();
   });

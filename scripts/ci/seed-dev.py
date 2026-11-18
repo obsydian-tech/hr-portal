@@ -26,6 +26,9 @@ What it makes, every run, idempotently:
     for B). Only that login belongs to B; every other test login stays in the first company.
   * TEN-01: the first company's row (TENANT#<id> / PROFILE) in the tenants table,
     written once and never changed after. The id comes from infra/env/dev.tfvars.
+  * REC-01: two more Naleko-pool logins of the first company, a manager (group manager, no tick) and an HR login
+    without the Recruitment tick (group hr_staff only); two candidates in talent-flow-state, the manager as hiring
+    manager of one and not of the other; and an interview of the first with the employee login on its panel.
 Output is role names and counts only: the repo and its Actions logs are public.
 """
 import json
@@ -79,6 +82,16 @@ NALEKO_PERSONAS = {
     "guest": {
         "attrs": {"given_name": "Nandi", "family_name": "Demo-Guest"},
         "groups": ["guest"],
+    },
+    # REC-01: a manager (hiring manager of one seeded candidate) and HR without the Recruitment tick.
+    "manager": {
+        "attrs": {"given_name": "Mpho", "family_name": "Demo-Manager"},
+        "groups": ["manager"],
+    },
+    "hr-notick": {
+        "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRN1",
+                  "given_name": "Hlengiwe", "family_name": "Demo-NoTick"},
+        "groups": ["hr_staff"],
     },
     "employee": {
         "attrs": {"custom:role": "employee", "custom:employee_id": EMPLOYEE_ID,
@@ -403,6 +416,49 @@ def set_dev_modules(ddb) -> int:
     return changed
 
 
+# REC-01: two candidates of the first company, so the access checks have something to tell apart. Fixed ids, so every run
+# finds the same rows; invented people on the blackhole domain. The manager login is the hiring manager of the first and
+# not of the second; the employee login is on the panel of the first one's interview.
+STATE_TABLE = "talent-flow-state"
+SEED_CANDIDATES = [
+    ("CAND-SEEDDEV00000000000000001", "Thabo", "Seed-One", "MANAGER"),
+    ("CAND-SEEDDEV00000000000000002", "Naomi", "Seed-Two", "OTHER"),
+]
+SEED_INTERVIEW_ID = "iv-seed-dev-0001"
+OTHER_HIRING_MANAGER = "seed-other-hiring-manager"
+
+
+def seed_candidates(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
+    """Write the two seeded candidates (and the interview with the employee login on its panel). Idempotent."""
+    if not manager_sub or not employee_sub:
+        print("warning: the manager or employee login has no sub; the seeded candidates were not written")
+        return 0
+    now = "2026-11-10T08:00:00.000Z"
+    written = 0
+    for cid, first, last, who in SEED_CANDIDATES:
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"},
+            "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+            "firstName": {"S": first}, "lastName": {"S": last},
+            "email": {"S": f"pepla-demo-{first.lower()}.{last.lower()}@{MAIL_DOMAIN}"},
+            "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": "APPLICATION_REVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+            "hiringManagerId": {"S": manager_sub if who == "MANAGER" else OTHER_HIRING_MANAGER},
+            "seed": {"S": SEED_TAG},
+        })
+        written += 1
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"CANDIDATE#{SEED_CANDIDATES[0][0]}"}, "SK": {"S": f"INTERVIEW#{SEED_INTERVIEW_ID}"},
+        "interviewId": {"S": SEED_INTERVIEW_ID}, "candidateId": {"S": SEED_CANDIDATES[0][0]}, "tenant_id": {"S": tenant_id},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "votesRequired": {"N": "2"}, "votesSubmitted": {"N": "0"}, "panelMemberIds": {"L": [{"S": employee_sub}]},
+        "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+    })
+    return written + 1
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -449,6 +505,12 @@ def main() -> None:
         if (first, last) == ("Naledi", "Dlamini"):
             seeded_documents = seed_documents(ddb, ns, eid, tid)
 
+    try:
+        seeded_candidates = seed_candidates(ddb, tid, user_sub(cognito, naleko, "manager"), employee_sub)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the seeded candidates were not written")
+        seeded_candidates = 0
+
     ddb.put_item(TableName="employees", Item=employee_item(
         EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
         "Operations", "New Starter", "INVITED", tenant_id=tid, owner_sub=employee_sub))
@@ -460,7 +522,8 @@ def main() -> None:
           f"demo people {len(DEMO_PEOPLE) + 1}; persona documents reset {docs_removed}; "
           f"persona consents reset {consents_removed}; "
           f"demo documents {seeded_documents}; founding company row written {founding_written}; "
-          f"second company rows written {second_written}; company modules set {modules_set}")
+          f"second company rows written {second_written}; company modules set {modules_set}; "
+          f"recruitment rows seeded {seeded_candidates}")
 
 
 if __name__ == "__main__":

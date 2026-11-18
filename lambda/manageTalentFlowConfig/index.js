@@ -106,6 +106,11 @@ async function companyOf(event) {
 }
 
 async function handleGet(event) {
+  // REC-01: Recruitment settings are read by a Recruiter or an admin. The role answer comes first, before any AWS call.
+  // (Saving, below, stays admin only through isAdmin.)
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notAllowed = RA.requireRecruiterOrAdmin(event);
+  if (notAllowed) return notAllowed;
   const { tenantId, refusal } = await companyOf(event);
   if (refusal) return refusal;
   const qs = event.queryStringParameters || {};

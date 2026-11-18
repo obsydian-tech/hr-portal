@@ -530,3 +530,66 @@ describe('handler – duplicate vote on the same interview', () => {
     expect(mockEbSend).not.toHaveBeenCalled();
   });
 });
+
+// =============================================================================
+// 20.  REC-01: a person votes as themselves, and only on an interview whose panel they are on
+// =============================================================================
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
+describe('handler – a person calling the API (REC-01)', () => {
+  const INTERVIEW = { PK: 'CANDIDATE#cand1', SK: 'INTERVIEW#int1', tenant_id: TEN, panelMemberIds: ['p-1'], votesRequired: 3 };
+  const apiEvent = (sub, body = {}) => ({
+    requestContext: { authorizer: { jwt: { claims: { sub, tenant_id: TEN, token_use: 'id' } } } },
+    pathParameters: { id: 'cand1' },
+    body: JSON.stringify({ candidateId: 'cand1', interviewId: 'int1', rating: 'YES', scores: SCORES, ...body }),
+  });
+  const stored = () => mockDynamoSend.mock.calls.map((c) => c[0]).filter((c) => c._cmd === 'PutItem');
+
+  beforeEach(() => {
+    getConfig.mockResolvedValue(WEIGHTS);
+    mockDynamoSend.mockImplementation(async (cmd) => {
+      if (cmd._cmd === 'GetItem') {
+        if (cmd.Key?.SK === 'SAGA') return { Item: SAGA };
+        if (cmd.Key?.SK === 'INTERVIEW#int1') return { Item: INTERVIEW };
+        return {};
+      }
+      if (cmd._cmd === 'Query') return { Items: [] };
+      if (cmd._cmd === 'UpdateItem') return { Attributes: { votesSubmitted: 1, votesRequired: 3 } };
+      return {};
+    });
+  });
+
+  it('stores the vote under the signed-in person, not the voterId in the body', async () => {
+    const res = await handler(apiEvent('p-1', { voterId: 'someone-else', staffId: 'STAFF-1' }));
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).voterId).toBe('p-1');
+    expect(stored()).toHaveLength(1);
+    expect(stored()[0].Item.voterId).toBe('p-1');
+    expect(stored()[0].Item.SK).toMatch(/^VOTE#p-1#/);
+  });
+
+  it('refuses a person who is not on the panel (403 Forbidden) and writes nothing', async () => {
+    const res = await handler(apiEvent('p-2', { voterId: 'p-1' }));
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Forbidden' });
+    expect(stored()).toHaveLength(0);
+  });
+
+  it('refuses a vote with no interview, or an interview of another candidate (403)', async () => {
+    expect((await handler(apiEvent('p-1', { interviewId: undefined }))).statusCode).toBe(403);
+    expect((await handler(apiEvent('p-1', { interviewId: 'int-other' }))).statusCode).toBe(403);
+    expect(stored()).toHaveLength(0);
+  });
+
+  it('refuses a sign-in that carries no person id (403)', async () => {
+    const e = apiEvent('p-1');
+    delete e.requestContext.authorizer.jwt.claims.sub;
+    expect((await handler(e)).statusCode).toBe(403);
+    expect(stored()).toHaveLength(0);
+  });
+});
