@@ -192,7 +192,8 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
     expect(allowedNow, 'recordConsent is not in allowed_role_arns (no Encrypt, GenerateDataKey or direct Decrypt)').not.toContain(ROLE);
     expect(readNow, 'recordConsent stays in dynamodb_read_role_arns (Decrypt only, only through DynamoDB)').toContain(ROLE);
     expect(allowedNow, 'the start page (this card\'s other role) is not given encrypt rights either').not.toContain('aws_iam_role.get_my_start.arn');
-    for (const r of allowedNow) expect(listAttr(kmsBase!.body, 'allowed_role_arns'), `allowed_role_arns gains no role (${r})`).toContain(r);
+    // CHAT-02 (re-lock be-18.N): the two new Ask Batsi roles keep chats and read the company list; chat-02.spec.ts AC-31 pins them.
+    for (const r of allowedNow.filter((x) => !/ask_batsi_chats|admin_set_ask_batsi/.test(x))) expect(listAttr(kmsBase!.body, 'allowed_role_arns'), `allowed_role_arns gains no role (${r})`).toContain(r);
     const senderNow = listAttr(kmsNow!.body, 'cognito_sender_decrypt_role_arns');
     for (const r of [ROLE, 'aws_iam_role.get_my_start.arn']) expect(senderNow, `${r} gets no direct Decrypt through cognito_sender_decrypt_role_arns`).not.toContain(r);
 

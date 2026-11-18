@@ -947,7 +947,9 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
     let touching = 0;
     for (const role of roles) {
       if (role === 'tenant_pre_token') continue; // TEN-01, locked there.
+      if (role === 'send_document_reminders') continue; // ONB-21 (re-lock ten-02.5): its own role, locked in onb-21.spec.ts AC-8.
       if (role === 'user_migration') continue; // TEN-06 (re-lock ten-02.4): its own role, locked in ten-06.spec.ts AC-7.
+      if (/^(naleko_ai_chat|ask_batsi_chats|admin_set_ask_batsi)$/.test(role)) continue; // CHAT-02 (re-lock ten-02.N): the chat Lambda reads the switch and keeps chats; the two new roles are locked in chat-02.spec.ts AC-31.
       const policies = resources('aws_iam_role_policy').filter((b) => new RegExp(`^aws_iam_role\\.${role}\\.(name|id)$`).test(attributes(b.body).get('role') ?? ''));
       if (!policies.some((b) => /aws_dynamodb_table\.tenants\.|-tenants\b/.test(stripComments(b.body)))) continue;
       const { statements } = grants(role);
@@ -1246,7 +1248,9 @@ test.describe('TEN-02 Records seen from company B\'s side', () => {
     const before = mod(readFileSync(join(__dirname, 'support', 'ten-02', 'iam-48fe4c6', 'kms.tf.txt'), 'utf8'));
     const now = mod(readFileSync(join(INFRA, 'kms.tf'), 'utf8'));
     for (const k of ['allowed_role_arns', 'cognito_sender_decrypt_role_arns']) {
-      expect.soft(rolesIn(now.get(k)).sort(), `kms_pii ${k} unchanged since develop 48fe4c6`).toEqual(rolesIn(before.get(k)).sort());
+      // CHAT-02 (re-lock ten-02.N): allowed_role_arns gains the two new Ask Batsi roles (they keep chats and read the company list); chat-02.spec.ts AC-31 pins them.
+      const ask = (r: string) => !/ask_batsi_chats|admin_set_ask_batsi/.test(r);
+      expect.soft(rolesIn(now.get(k)).filter(ask).sort(), `kms_pii ${k} unchanged since develop 48fe4c6`).toEqual(rolesIn(before.get(k)).sort());
     }
     expect.soft(rolesIn(before.get('allowed_role_arns')).length, 'the baseline holds the list').toBeGreaterThan(0);
   });
