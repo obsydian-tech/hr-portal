@@ -142,6 +142,10 @@ DEMO_PEOPLE = [
     ("Mwila", "Phiri", "Operations", "Driver", "INVITED"),
 ]
 
+# ONB-10: Pieter's documents were due on 3 Nov 2026, so he is always overdue; Mwila starts in 2030, so he never is.
+# Everyone else, and the test employee, start on 1 Dec 2026.
+START_DATES = {("Pieter", "van Wyk"): "2026-11-10", ("Mwila", "Phiri"): "2030-01-01"}
+
 # ONB-09: the stored onboarding step of each current stage. Chipo (TRAINING) and Ayesha (ONBOARDED)
 # get none on purpose: pepla-dev keeps two rows like the prod ones, and the API answers their step from
 # the stage.
@@ -229,7 +233,8 @@ def user_sub(cognito, pool: str, role: str) -> str:
 
 
 def employee_item(employee_id: str, first: str, last: str, email: str, dept: str,
-                  title: str, stage: str, tenant_id: str = "", owner_sub: str = "") -> dict:
+                  title: str, stage: str, tenant_id: str = "", owner_sub: str = "",
+                  start_date: str = "2026-12-01") -> dict:
     item = {
         "employee_id": {"S": employee_id},
         "first_name": {"S": first},
@@ -241,7 +246,7 @@ def employee_item(employee_id: str, first: str, last: str, email: str, dept: str
         "job_title": {"S": title},
         "stage": {"S": stage},
         "offer_accept_date": {"S": "2026-11-01"},
-        "planned_start_date": {"S": "2026-12-01"},
+        "planned_start_date": {"S": start_date},
         "created_at": {"S": "2026-11-01T08:00:00.000Z"},
         "created_by": {"S": HR_STAFF_ID},
         "hr_staff_id": {"S": HR_STAFF_ID},
@@ -594,6 +599,35 @@ def seed_ten04_rows(ddb, tenant_id: str, tf_sub: str) -> int:
     return written
 
 
+def remove_foreign_bundles(ddb, founding_tenant: str) -> int:
+    """TEN-04.2: earlier walks left a bundle of another company that holds the founding company's seeded candidate.
+    The route now refuses that, so such a row is stale test data. Found by a Query of the byCandidateId index (never a Scan),
+    deleted by its own key, only while it still carries the same company and candidate (a changed row is left alone).
+    Dev only: main() exits unless the account is pepla-dev, before anything runs. Counts only in the output."""
+    removed = 0
+    cid = TEN04["candidate"]
+    kwargs = {
+        "TableName": "provisioning-bundles", "IndexName": "byCandidateId",
+        "KeyConditionExpression": "candidateId = :c", "FilterExpression": "tenant_id <> :f",
+        "ExpressionAttributeValues": {":c": {"S": cid}, ":f": {"S": founding_tenant}},
+    }
+    while True:
+        res = ddb.query(**kwargs)
+        for item in res.get("Items", []):
+            try:
+                ddb.delete_item(
+                    TableName="provisioning-bundles", Key={"bundleId": item["bundleId"]},
+                    ConditionExpression="tenant_id = :t AND candidateId = :c",
+                    ExpressionAttributeValues={":t": item["tenant_id"], ":c": {"S": cid}})
+                removed += 1
+            except ClientError as e:
+                if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                    raise
+        if not res.get("LastEvaluatedKey"):
+            return removed
+        kwargs["ExclusiveStartKey"] = res["LastEvaluatedKey"]
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -630,6 +664,11 @@ def main() -> None:
     walk_written = ensure_walk_company(ddb, walk_subs)
     modules_set = set_dev_modules(ddb)
     ten04_written = seed_ten04_rows(ddb, founding_tenant_id(), user_sub(cognito, naleko, "tf"))
+    try:
+        foreign_bundles_removed = remove_foreign_bundles(ddb, founding_tenant_id())
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the provisioning bundles table is not there; stale bundles were not looked for")
+        foreign_bundles_removed = 0
 
     tid = founding_tenant_id()
     employee_sub = user_sub(cognito, naleko, "employee")
@@ -639,7 +678,8 @@ def main() -> None:
         email = f"pepla-demo-{first.lower()}.{last.lower().replace(' ', '')}@{MAIL_DOMAIN}"
         eid = str(uuid.uuid5(ns, email))
         ddb.put_item(TableName="employees",
-                     Item=employee_item(eid, first, last, email, dept, title, stage, tenant_id=tid))
+                     Item=employee_item(eid, first, last, email, dept, title, stage, tenant_id=tid,
+                                        start_date=START_DATES.get((first, last), "2026-12-01")))
         if (first, last) == ("Naledi", "Dlamini"):
             seeded_documents = seed_documents(ddb, ns, eid, tid)
 
@@ -662,6 +702,7 @@ def main() -> None:
           f"demo documents {seeded_documents}; founding company row written {founding_written}; "
           f"second company rows written {second_written}; company modules set {modules_set}; "
           f"walk company rows written {walk_written}; TEN-04 walk rows written {ten04_written}; "
+          f"stale bundles of another company removed {foreign_bundles_removed}; "
           f"recruitment rows seeded {seeded_candidates}")
 
 

@@ -24,9 +24,9 @@
  */
 
 const { isIdToken } = require('../shared/id-token');
-const { tenantHelper } = require('../shared/tf-tenant.js');
+const { tenantHelper, candidateIsOurs } = require('../shared/tf-tenant.js');
 const { rolesHelper } = require('../shared/tf-roles.js');
-const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, PutItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
 const { getConfig } = require('../shared/config-reader');
@@ -36,6 +36,7 @@ const eb     = new EventBridgeClient({});
 
 const BUNDLES_TABLE = process.env.BUNDLES_TABLE;
 const EB_BUS_NAME   = process.env.EB_BUS_NAME || 'naleko-onboarding';
+const STATE_TABLE   = process.env.STATE_TABLE_NAME || 'talent-flow-state';
 
 function respond(statusCode, body) {
   return {
@@ -125,8 +126,15 @@ exports.handler = async (event) => {
 
   const { candidateId, candidateName, candidateRole, seniority, department, startDate, templateId, items: manualItems } = body;
 
-  if (!candidateId || !candidateName || !candidateRole || !startDate) {
+  if (typeof candidateId !== 'string' || !candidateId || !candidateName || !candidateRole || !startDate) {
     return respond(400, { message: 'candidateId, candidateName, candidateRole, and startDate are required.' });
+  }
+
+  try {
+    if (!(await candidateIsOurs(dynamo.send.bind(dynamo), QueryCommand, STATE_TABLE, candidateId, tenantId))) return respond(404, { error: 'Not found' });
+  } catch (err) {
+    console.error('[createProvisioningBundle] candidate check failed', { error: err?.name });
+    return respond(500, { error: 'Failed to create provisioning bundle' });
   }
 
   const bundleId = crypto.randomUUID();
@@ -146,7 +154,7 @@ exports.handler = async (event) => {
         templateName = matched.name ?? templateName;
       }
     } catch (err) {
-      console.warn('[createProvisioningBundle] PROVISIONING_TEMPLATES load failed, using empty items:', err.message);
+      console.warn('[createProvisioningBundle] PROVISIONING_TEMPLATES load failed, using empty items:', { error: err?.name });
     }
   }
 
@@ -185,7 +193,7 @@ exports.handler = async (event) => {
       }],
     }));
   } catch (ebErr) {
-    console.warn('[createProvisioningBundle] EventBridge publish failed (non-fatal):', ebErr.message);
+    console.warn('[createProvisioningBundle] EventBridge publish failed (non-fatal):', { error: ebErr?.name });
   }
 
   console.info(`[createProvisioningBundle] bundleId=${bundleId} candidate=${candidateId} items=${items.length}`);

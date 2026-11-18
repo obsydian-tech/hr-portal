@@ -94,6 +94,7 @@ export type FileState = 'uploading' | 'done' | 'agent' | 'error';
           @case ('error') { <span class="pp-file__status pp-file__status--danger" role="alert"><svg ppIcon="octagon-alert" />{{ error() }}</span> }
         }
       </span>
+      @if (reason()) { <span class="pp-file__meta"><span class="pp-file__status pp-file__status--danger"><svg ppIcon="octagon-alert" />{{ reason() }}</span></span> }
     </div>
     <div class="pp-file__actions">
       @if (state() === 'error' && retryable()) { <button ppButton [size]="buttonSize()" (click)="retry.emit()">Try again</button> }
@@ -123,6 +124,8 @@ export class PpFile {
   readonly statusText = input<string>();
   readonly statusTone = input<'success' | 'danger' | 'neutral'>('success');
   readonly statusIcon = input<IconName>();
+  /** Why HR sent a stored file back: plain text, on its own line under the file's words. */
+  readonly reason = input<string>();
   /** `large` where the page is used on a phone (44 pixels or more). */
   readonly buttonSize = input<'small' | 'large'>('small');
   /** False where a file cannot be removed (no Remove button). */

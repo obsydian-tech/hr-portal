@@ -111,7 +111,9 @@ exports.handler = async (event) => {
     ? (event.detail || (typeof event.body === 'string' ? JSON.parse(event.body) : event.body))
     : event;
 
-  const { candidateId, scores, rating, interviewId, submittedByTA } = message || {};
+  const { scores, rating, interviewId, submittedByTA } = message || {};
+  // A person's vote is made on the candidate's own route (/v1/candidates/{id}/votes): the path names the candidate when the body does not.
+  const candidateId = (byPerson ? event.pathParameters?.id : undefined) ?? message?.candidateId;
   // The voter: the signed-in person (a person never names one), or, for the VoteSubmitted event, the voter it names.
   const voterId = byPerson ? RA.callerId(event) : message?.voterId;
   if (byPerson && !voterId) return RA.forbidden();
@@ -119,7 +121,7 @@ exports.handler = async (event) => {
   // ── Step 1: Validate required fields ─────────────────────────────────────
   if (!candidateId) return badRequest('Missing required field: candidateId');
   // A person's vote on a candidate is made on that candidate's own route.
-  if (byPerson && event.pathParameters?.id && event.pathParameters.id !== candidateId) return badRequest('candidateId does not match the route');
+  if (byPerson && event.pathParameters?.id && message?.candidateId && event.pathParameters.id !== message.candidateId) return badRequest('candidateId does not match the route');
   if (!voterId)     return badRequest('Missing required field: voterId');
   if (!rating)      return badRequest('Missing required field: rating');
   if (!VALID_RATINGS.includes(rating)) {

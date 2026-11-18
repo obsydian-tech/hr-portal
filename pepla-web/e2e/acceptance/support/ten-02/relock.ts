@@ -68,6 +68,9 @@ export function onlyTenancyAdded(before: TfResource, after: TfResource): string[
     if (p.effect === 'Allow' && p.condition === 'null' && tenancyGrant(p.action, p.resource, reaches, writesMembers)) continue;
     // TEN-06 re-lock: the sign-in trigger moves a TalentFlow person in (their pending row becomes a Member row and goes; their groups are added).
     if (p.effect === 'Allow' && p.condition === 'null' && after.name === 'cognito_post_auth' && ten06Grant(p.action, p.resource)) continue;
+    // TEN-04.2 re-lock (ten-03.3): createProvisioningBundle Queries the TalentFlow state table to check the candidate is the company's (table ARN only).
+    if (p.effect === 'Allow' && p.condition === 'null' && after.name === 'create_provisioning_bundle' && p.action === 'dynamodb:Query'
+      && /^(aws_dynamodb_table\.talent_flow_state\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-state|\$\{local\.tf_state_table\}))$/.test(p.resource)) continue;
     wrong.push(`added beyond TEN-02: ${key(p)}`);
   }
   return wrong;

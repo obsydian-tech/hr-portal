@@ -188,6 +188,12 @@ const handlerFn = async (event) => {
           hr_staff_id: employee.hr_staff_id || employee.created_by || '',
           hr_staff_name: employee.hr_staff_name || '',
           hr_staff_email: employee.hr_staff_email || '',
+          // ONB-11: the risk check, for HR only. The employee's own view has none of these keys.
+          ...(isHr ? {
+            risk_band: employee.riskBand ?? null,
+            risk_reason: employee.riskReason ?? null,
+            risk_assessed_at: employee.riskAssessedAt ?? null,
+          } : {}),
         },
         documents: enrichedDocs.map(doc => ({
           document_id: doc.document_id,

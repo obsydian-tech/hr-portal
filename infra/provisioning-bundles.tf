@@ -120,6 +120,24 @@ resource "aws_iam_role_policy" "create_provisioning_bundle" {
   })
 }
 
+# TEN-04.2: createProvisioningBundle proves the candidate is the caller's company before it writes (a Query by key on the state table).
+resource "aws_iam_role_policy" "create_provisioning_bundle_candidate_read" {
+  name = "ten042-candidate-read-create-provisioning-bundle"
+  role = aws_iam_role.create_provisioning_bundle.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "CandidateOwnerRead"
+      Effect   = "Allow"
+      Action   = ["dynamodb:Query"]
+      Resource = ["arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/talent-flow-state"]
+    }]
+  })
+}
+
+# TEN-04.2: STATE_TABLE_NAME is the table the candidate check reads, the same table as the statement above.
+# No LEGACY_TENANT_ID on this Lambda on purpose: a candidate row with no company is nobody's.
 resource "aws_lambda_function" "create_provisioning_bundle" {
   function_name = "createProvisioningBundle"
   role          = aws_iam_role.create_provisioning_bundle.arn
@@ -134,6 +152,7 @@ resource "aws_lambda_function" "create_provisioning_bundle" {
       BUNDLES_TABLE     = local.bundles_table_name
       CONFIG_TABLE_NAME = "talent-flow-config"
       EB_BUS_NAME       = local.eb_bus_name
+      STATE_TABLE_NAME  = "talent-flow-state"
     }
   }
   tracing_config { mode = "Active" }

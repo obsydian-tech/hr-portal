@@ -1,0 +1,98 @@
+{
+ "policies": {
+  "infra/process_document_ocr": {
+   "role": "process_document_ocr",
+   "stack": "infra",
+   "pairs": [
+    "Allow bedrock:InvokeModel * null",
+    "Allow dynamodb:GetItem aws_dynamodb_table.employees.arn null",
+    "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+    "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+    "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+    "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+    "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+    "Allow dynamodb:UpdateItem aws_dynamodb_table.employees.arn null",
+    "Allow events:PutEvents aws_cloudwatch_event_bus.naleko_onboarding.arn null",
+    "Allow kms:Decrypt module.kms_pii.key_arn null",
+    "Allow kms:DescribeKey module.kms_pii.key_arn null",
+    "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+    "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+    "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/processDocumentOCR:* null",
+    "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/processDocumentOCR:* null",
+    "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/processDocumentOCR:* null",
+    "Allow s3:GetObject arn:aws:s3:::${local.document_uploads_bucket}/* null",
+    "Allow states:SendTaskSuccess * null",
+    "Allow textract:AnalyzeDocument * null",
+    "Allow xray:PutTelemetryRecords * null",
+    "Allow xray:PutTraceSegments * null"
+   ]
+  },
+  "infra/classify_onboarding_risk": {
+   "role": "classify_onboarding_risk",
+   "stack": "infra",
+   "pairs": [
+    "Allow bedrock:InvokeModel * null",
+    "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+    "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+    "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification/index/employeeId-index null",
+    "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+    "Allow kms:Decrypt module.kms_pii.key_arn null",
+    "Allow kms:DescribeKey module.kms_pii.key_arn null",
+    "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/classifyOnboardingRisk:* null",
+    "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/classifyOnboardingRisk:* null",
+    "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/classifyOnboardingRisk:* null",
+    "Allow xray:PutTelemetryRecords * null",
+    "Allow xray:PutTraceSegments * null"
+   ]
+  },
+  "infra/sfn_onboarding": {
+   "role": "sfn_onboarding",
+   "stack": "infra",
+   "pairs": [
+    "Allow dynamodb:UpdateItem aws_dynamodb_table.employees.arn null",
+    "Allow events:PutEvents aws_cloudwatch_event_bus.naleko_onboarding.arn null",
+    "Allow lambda:InvokeFunction aws_lambda_function.classify_onboarding_risk.arn null",
+    "Allow logs:CreateLogDelivery * null",
+    "Allow logs:CreateLogGroup * null",
+    "Allow logs:CreateLogStream * null",
+    "Allow logs:DeleteLogDelivery * null",
+    "Allow logs:DescribeLogGroups * null",
+    "Allow logs:DescribeResourcePolicies * null",
+    "Allow logs:GetLogDelivery * null",
+    "Allow logs:ListLogDeliveries * null",
+    "Allow logs:PutLogEvents * null",
+    "Allow logs:PutResourcePolicy * null",
+    "Allow logs:UpdateLogDelivery * null",
+    "Allow xray:GetSamplingRules * null",
+    "Allow xray:GetSamplingTargets * null",
+    "Allow xray:PutTelemetryRecords * null",
+    "Allow xray:PutTraceSegments * null"
+   ]
+  }
+ },
+ "roles": {
+  "process_document_ocr": "resource\"aws_iam_role\"\"process_document_ocr\"{name=\"naleko-processDocumentOCR-role\"description=\"ExecutionroleforprocessDocumentOCRLambda\"path=\"/naleko/\"assume_role_policy=jsonencode({Version=\"2012-10-17\"Statement=[{Action=\"sts:AssumeRole\"Effect=\"Allow\"Principal={Service=\"lambda.amazonaws.com\"}}]})}",
+  "classify_onboarding_risk": "resource\"aws_iam_role\"\"classify_onboarding_risk\"{name=\"naleko-classifyOnboardingRisk-role\"description=\"ExecutionroleforclassifyOnboardingRiskLambda-Bedrockriskclassifier\"path=\"/naleko/\"assume_role_policy=jsonencode({Version=\"2012-10-17\"Statement=[{Action=\"sts:AssumeRole\"Effect=\"Allow\"Principal={Service=\"lambda.amazonaws.com\"}}]})}",
+  "sfn_onboarding": "resource\"aws_iam_role\"\"sfn_onboarding\"{name=\"naleko-sfn-onboarding-role\"description=\"Executionroleforthenaleko-onboarding-flowstatemachine\"path=\"/naleko/\"assume_role_policy=jsonencode({Version=\"2012-10-17\"Statement=[{Action=\"sts:AssumeRole\"Effect=\"Allow\"Principal={Service=\"states.amazonaws.com\"}}]})}"
+ },
+ "tables": {
+  "employees": "resource\"aws_dynamodb_table\"\"employees\"{name=\"employees\"deletion_protection_enabled=truebilling_mode=\"PAY_PER_REQUEST\"hash_key=\"employee_id\"table_class=\"STANDARD\"attribute{name=\"employee_id\"type=\"S\"}attribute{name=\"email\"type=\"S\"}attribute{name=\"stage\"type=\"S\"}attribute{name=\"created_by\"type=\"S\"}global_secondary_index{name=\"email-index\"hash_key=\"email\"projection_type=\"ALL\"}global_secondary_index{name=\"stage-index\"hash_key=\"stage\"projection_type=\"ALL\"}global_secondary_index{name=\"created_by-index\"hash_key=\"created_by\"projection_type=\"ALL\"}attribute{name=\"tenant_id\"type=\"S\"}global_secondary_index{name=\"tenant-index\"hash_key=\"tenant_id\"range_key=\"employee_id\"projection_type=\"ALL\"}server_side_encryption{enabled=truekms_key_arn=module.kms_pii.key_arn}point_in_time_recovery{enabled=true}ttl{enabled=falseattribute_name=\"\"}tags={DataClassification=\"PII\"RetentionYears=\"7\"}lifecycle{prevent_destroy=true}}",
+  "documents": "resource\"aws_dynamodb_table\"\"documents\"{name=\"documents\"deletion_protection_enabled=truebilling_mode=\"PAY_PER_REQUEST\"hash_key=\"employee_id\"range_key=\"document_id\"table_class=\"STANDARD\"attribute{name=\"employee_id\"type=\"S\"}attribute{name=\"document_id\"type=\"S\"}attribute{name=\"tenant_id\"type=\"S\"}global_secondary_index{name=\"tenant-index\"hash_key=\"tenant_id\"range_key=\"employee_id\"projection_type=\"ALL\"}server_side_encryption{enabled=truekms_key_arn=module.kms_pii.key_arn}point_in_time_recovery{enabled=true}ttl{enabled=falseattribute_name=\"\"}tags={DataClassification=\"PII\"RetentionYears=\"7\"}lifecycle{prevent_destroy=true}}",
+  "document_verification": "resource\"aws_dynamodb_table\"\"document_verification\"{name=\"document-verification\"deletion_protection_enabled=truebilling_mode=\"PAY_PER_REQUEST\"hash_key=\"verificationId\"table_class=\"STANDARD\"attribute{name=\"verificationId\"type=\"S\"}attribute{name=\"employeeId\"type=\"S\"}global_secondary_index{name=\"employeeId-index\"hash_key=\"employeeId\"projection_type=\"ALL\"}attribute{name=\"tenant_id\"type=\"S\"}global_secondary_index{name=\"tenant-index\"hash_key=\"tenant_id\"range_key=\"employeeId\"projection_type=\"ALL\"}server_side_encryption{enabled=truekms_key_arn=module.kms_pii.key_arn}point_in_time_recovery{enabled=true}ttl{enabled=falseattribute_name=\"\"}lifecycle{prevent_destroy=true}}",
+  "employee_invites": "resource\"aws_dynamodb_table\"\"employee_invites\"{name=\"employee_invites\"deletion_protection_enabled=truebilling_mode=\"PAY_PER_REQUEST\"hash_key=\"token_hash\"attribute{name=\"token_hash\"type=\"S\"}attribute{name=\"employee_id\"type=\"S\"}global_secondary_index{name=\"employee-index\"hash_key=\"employee_id\"projection_type=\"ALL\"}ttl{attribute_name=\"ttl\"enabled=true}point_in_time_recovery{enabled=true}lifecycle{prevent_destroy=true}}",
+  "employee_consents": "resource\"aws_dynamodb_table\"\"employee_consents\"{name=\"employee_consents\"deletion_protection_enabled=truebilling_mode=\"PAY_PER_REQUEST\"hash_key=\"employee_id\"range_key=\"notice_version\"attribute{name=\"employee_id\"type=\"S\"}attribute{name=\"notice_version\"type=\"S\"}point_in_time_recovery{enabled=true}server_side_encryption{enabled=truekms_key_arn=module.kms_pii.key_arn}tags={Ticket=\"NH-174\"DataClassification=\"Personal\"}lifecycle{prevent_destroy=true}}"
+ },
+ "routes": [
+  "GET /agent/v1/employees/risk-report",
+  "GET /agent/v1/verifications",
+  "GET /agent/v1/verifications/{id}/summary",
+  "GET /v1/employees/{id}/verifications",
+  "GET /v1/verifications",
+  "GET /v1/verifications/{id}",
+  "GET /v1/verifications/{id}/summary",
+  "PATCH /v1/verifications/{id}/review",
+  "POST /agent/v1/employees/{id}/assess-risk",
+  "POST /v1/employees/{id}/assess-risk",
+  "POST /v1/verifications/{id}/external"
+ ]
+}

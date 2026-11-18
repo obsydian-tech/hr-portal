@@ -14,6 +14,7 @@ import {
 } from './support/mod-01/iam';
 import { attributes } from './support/infra-harness';
 import { devEnv } from './support/ten-02/dev';
+import { isCardGrant } from './support/ten-04.2/grants';
 
 /**
  * MOD-01 · A company has modules switched on, and the server refuses a module that is off (epic Modules).
@@ -545,7 +546,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
   test('AC-7 No other way to write modules', async ({}, testInfo) => {
     once(testInfo.project.name);
     const WRITE = /\b(PutItem|UpdateItem|TransactWriteItems|BatchWriteItem|Put|Update|TransactWrite|BatchWrite)Command\b|\b(PutItem|UpdateItem|TransactWriteItems|BatchWriteItem|put_item|update_item|batch_write_item|transact_write_items|batch_writer)\b/;
-    const ALLOWED = ['scripts/tenancy/lib/set-modules.mjs', 'scripts/ci/seed-dev.py'];
+    // ONB-21 (re-lock mod-01.4): sendDocumentReminders names the modules attribute to READ it and PutItem-writes its own claim rows in another table; it never writes a modules attribute (onb-21.spec.ts AC-7).
+    const ALLOWED = ['scripts/tenancy/lib/set-modules.mjs', 'scripts/ci/seed-dev.py', 'lambda/sendDocumentReminders/index.mjs'];
     const writers: string[] = [];
     for (const f of [...sources(LAMBDA), ...sources(join(REPO, 'scripts'))]) {
       const rel = relative(REPO, f);
@@ -663,6 +665,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
     const baseline = JSON.parse(readFileSync(join(__dirname, 'support', 'mod-01', 'iam-6122df1', 'policies.json'), 'utf8')) as Record<string, { role: string; pairs?: string[]; squash?: string }>;
     const gatedRoles = new Set<string>();
     for (const name of GATED_LAMBDAS) for (const { stack, block } of lambdaNamed(name)) { const r = roleResourceOf(block); const info = r ? roleInfo(stack, r) : undefined; if (r) gatedRoles.add(`${stack}:${r}`); if (info) gatedRoles.add(`name:${info.name}`); }
+    // TEN-04.2 (re-locked by acceptance-lock/ten-03.3): more table-level grants, one (role, action, table) each (support/ten-04.2/grants.ts); ten-03.spec.ts AC-10 pins exactly these.
+    const ten042 = (p: string, stack: string, role: string) => isCardGrant(p, stack, role);
     const isGated = (key: string, role: string) => { const stack = key.split('/')[0] as Stack; return gatedRoles.has(`${stack}:${role}`) || gatedRoles.has(`name:${valueOf(stack, role)}`); };
     for (const [key, was] of Object.entries(baseline)) {
       const cur = all[key];
@@ -674,15 +678,19 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       for (const p of (cur.pairs ?? []).filter((x) => !(was.pairs ?? []).includes(x))) {
         // TEN-06 (re-lock mod-01.1): the sign-in trigger moves a TalentFlow person in; ten-06.spec.ts AC-7 pins exactly this.
         if (/cognito_post_auth/.test(key) && /^Allow (dynamodb:(PutItem|DeleteItem) \$?\{?aws_dynamodb_table\.tenants\.arn\}? null|cognito-idp:AdminAddUserToGroup \$?\{?aws_cognito_user_pool\.naleko_dev\.arn\}? null)$/.test(p)) continue;
+        if (ten042(p, cur.stack, cur.role)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null') && isGated(key, cur.role), `role policy ${key}: new grant "${p}" is only GetItem on the tenants table, on a gated Lambda's role`).toBe(true);
       }
     }
     for (const [key, cur] of Object.entries(all)) {
       if (baseline[key]) continue;
       if (cur.stack === 'infra' && cur.role === role) continue; // getCompanyModules' own, judged above
+      if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock mod-01.4): its own role, locked in onb-21.spec.ts AC-8.
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock mod-01.1): its own role, locked in ten-06.spec.ts AC-7.
+      if ((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => ten042(p, cur.stack, cur.role))) continue; // TEN-04.2: one of the three table Queries
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);
       for (const p of cur.pairs ?? [`unreadable ${cur.squash}`]) {
+        if (ten042(p, cur.stack, cur.role)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null'), `new role policy ${key}: "${p}" is only GetItem on the tenants table`).toBe(true);
       }
     }
@@ -777,7 +785,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
     expect(hrB.email, 'the HR test login of company B is set (E2E_HR_B_EMAIL, from load-e2e-logins.py)').toBeTruthy();
     const { api, clientId, region } = devEnv();
     const oldEnv = join(REPO, 'hr-portal', 'src', 'environments', 'environment.ts');
-    const tfApi = (/talentFlow\s*:\s*\{[^}]*?apiUrl\s*:\s*['"`]([^'"`]+)['"`]/s.exec(existsSync(oldEnv) ? readFileSync(oldEnv, 'utf8') : '')?.[1] ?? '').replace(/\/+$/, '');
+    const tfApi = (/talentFlow\s*:\s*\{[^}]*?apiUrl\s*:\s*['"`]([^'"`]+)['"`]/s.exec(existsSync(oldEnv) ? readFileSync(oldEnv, 'utf8') : '')?.[1] ?? '').replace(/\/+$/, '').replace(/\/v1$/, ''); // the dev E2E writes talentFlow.apiUrl with a trailing /v1; the routes below add it
     expect(tfApi, 'the TalentFlow API address is written for pepla-dev (hr-portal environment.ts, talentFlow.apiUrl)').toMatch(/^https:\/\/[^/]+\.execute-api\./);
     const signIn = async (login: { email: string; password: string }) => {
       const r = await page.request.post(`https://cognito-idp.${region}.amazonaws.com/`, {

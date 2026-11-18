@@ -53,7 +53,8 @@
         "secretsmanager:DescribeSecret", "secretsmanager:GetResourcePolicy", "secretsmanager:ListSecretVersionIds",
         "sns:GetSubscriptionAttributes", "sns:GetTopicAttributes", "sns:ListSubscriptionsByTopic", "sns:ListTagsForResource",
         "sqs:GetQueueAttributes", "sqs:GetQueueUrl", "sqs:ListDeadLetterSourceQueues", "sqs:ListQueueTags",
-        "states:DescribeStateMachine", "states:ListStateMachineVersions", "states:ListTagsForResource"
+        "states:DescribeStateMachine", "states:ListStateMachineVersions", "states:ListTagsForResource",
+        "states:ValidateStateMachineDefinition"
       ],
       "Resource": "*"
     },
@@ -172,6 +173,16 @@
       "Action": ["kms:CreateGrant", "kms:DescribeKey"],
       "Resource": "arn:aws:kms:${region}:${account_id}:key/*",
       "Condition": {
+        "ForAnyValue:StringEquals": { "kms:ResourceAliases": "alias/naleko-onboarding-pii" }
+      }
+    },
+    {
+      "Sid": "DecryptPiiKeyThroughDynamoDb",
+      "Effect": "Allow",
+      "Action": ["kms:Decrypt"],
+      "Resource": "arn:aws:kms:${region}:${account_id}:key/*",
+      "Condition": {
+        "StringEquals": { "kms:ViaService": "dynamodb.${region}.amazonaws.com" },
         "ForAnyValue:StringEquals": { "kms:ResourceAliases": "alias/naleko-onboarding-pii" }
       }
     },

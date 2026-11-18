@@ -188,6 +188,9 @@ components:
         planned_start_date:
           type: string
           format: date
+        documents_due:
+          type: string
+          description: 'The date the required documents are due (YYYY-MM-DD): 7 days before the start date. An empty string when there is no start date.'
         created_at:
           type: string
           format: date-time
@@ -201,6 +204,30 @@ components:
         hr_staff_email:
           type: string
           format: email
+        risk_band:
+          type: string
+          nullable: true
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+          - UNKNOWN
+          - null
+          description: 'HR only, and only in the answer of GET /v1/employees/{id}/verifications (the employee''s own view
+            has no such key). The result of the risk check, or null before one has run. LOW: every check matches with high
+            confidence. MEDIUM: some checks need a look or have low confidence. HIGH: checks do not match or documents are
+            missing. UNKNOWN: the check could not be made (the model failed or answered badly, or AI is off or skipped for
+            test data). The check runs once, on its own, when every required document is in.'
+        risk_reason:
+          type: string
+          nullable: true
+          description: 'HR only, in the verifications answer. One sentence stored with the result, shown as written. Null
+            before a check has run.'
+        risk_assessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 'HR only, in the verifications answer. When the check ran. Null before a check has run.'
         riskBand:
           type: string
           enum:
@@ -2602,7 +2629,8 @@ paths:
       security:
       - CognitoJWT: []
       x-tenant: token
-      x-roles: []
+      x-roles:
+      - hr_staff
   /agent/v1/ai-chat:
     post:
       summary: POST /agent/v1/ai-chat
@@ -2634,6 +2662,29 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  firstName:
+                    type: string
+                  company:
+                    type: string
+                  department:
+                    type: string
+                  startDate:
+                    type: string
+                    format: date
+                  documentsDue:
+                    type: string
+                    format: date
+                    description: 'The date the required documents are due: 7 days before the start date. Left out when there is no start date.'
+                  notice:
+                    type: object
+                  consent:
+                    type: object
+                    nullable: true
         '403':
           description: Forbidden
           content:
@@ -3528,7 +3579,8 @@ paths:
       security:
       - CognitoJWT: []
       x-tenant: token
-      x-roles: []
+      x-roles:
+      - hr_staff
   /v1/config/{id}:
     put:
       summary: PUT /v1/config/{id}

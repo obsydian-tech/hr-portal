@@ -19,6 +19,10 @@ import { stepOfStage } from './employees-fake';
  * ONB-09: `employee.step` is the person's own `step` when the test gives one
  * (a value, null, or undefined to leave the field out), else the step the
  * stored stage gives (employees-fake.ts stepOfStage).
+ * ONB-11: `employee.risk_band`, `risk_reason` and `risk_assessed_at` are in the
+ * answer, as the Lambda gives them to HR, when the test gives the field (a
+ * value, or null before any check has run); a person with none of the three
+ * keys is the employee's own view, where the answer has no risk key at all.
  * Nothing here calls AWS or any AI service.
  */
 
@@ -49,6 +53,10 @@ export type StoredEmployee = {
   hr_staff_email: string;
   /** ONB-09: the stored step, when the test gives one. */
   step?: string | null;
+  /** ONB-11: what HR is told about the risk check; a field left out is left out of the answer (the employee's view). */
+  risk_band?: string | null;
+  risk_reason?: string | null;
+  risk_assessed_at?: string | null;
 };
 
 /** A document-verification row, as stored (the parts this card reads). */
@@ -193,6 +201,9 @@ export function answerFor(person: FakePerson): unknown {
       hr_staff_id: e.hr_staff_id,
       hr_staff_name: e.hr_staff_name,
       hr_staff_email: e.hr_staff_email,
+      ...('risk_band' in e ? { risk_band: e.risk_band } : {}),
+      ...('risk_reason' in e ? { risk_reason: e.risk_reason } : {}),
+      ...('risk_assessed_at' in e ? { risk_assessed_at: e.risk_assessed_at } : {}),
     },
     documents: documents.map(({ _order, ...d }) => d),
     summary: {

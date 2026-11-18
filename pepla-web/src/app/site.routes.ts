@@ -10,6 +10,7 @@ export const siteRoutes: Routes = [
   { path: '', pathMatch: 'full', loadComponent: () => import('./features/public/public-page').then((m) => m.PublicPage), canActivate: [siteStyles], title: 'Naleko People' },
   { path: 'Home', loadComponent: () => import('./features/public/public-page').then((m) => m.PublicPage), canActivate: [siteStyles], title: 'Naleko People' },
   { path: 'product/recruitment', loadComponent: () => import('./ds/site/learn/recruitment/recruitment.page').then((m) => m.RecruitmentPage), canActivate: [siteStyles], title: 'Naleko People' },
+  { path: 'product/onboarding', loadComponent: () => import('./ds/site/learn/onboarding/onboarding.page').then((m) => m.OnboardingPage), canActivate: [siteStyles], title: 'Naleko People' },
   { path: '', loadChildren: () => import('./app.routes').then((m) => m.routes) },
   { path: '**', loadComponent: () => import('./features/public/public-page').then((m) => m.NotFoundPage), canActivate: [siteStyles], title: 'Naleko People' },
 ];

@@ -7,8 +7,8 @@ import {
   PpSkeleton, PpSkeletonGroup, formatDate, type Crumb,
 } from '../../ds';
 import { SIGN_IN_MESSAGES } from '../../core/auth/auth.messages';
-import { MyDocumentsService, uploadTypeOf, type DocumentType, type Sending } from '../../core/start/my-documents.service';
-import { DOCUMENT_INFO, STATE_WORDS, typeOfSlug } from './document-types';
+import { MyDocumentsService, uploadTypeOf, type DocumentType, type MyFile, type Sending } from '../../core/start/my-documents.service';
+import { DOCUMENT_INFO, STATE_WORDS, returnedLine, typeOfSlug } from './document-types';
 
 const BAD_FILE = "This file can't be used. Use a PDF, JPG or PNG up to 10 MB.";
 const HINT = 'PDF, JPG or PNG, up to 10 MB. A phone photo is fine if all four corners show.';
@@ -73,7 +73,7 @@ const sizeText = (bytes: number) => (bytes >= MB ? `${megabytes(bytes)} MB` : `$
                 }
               }
               @for (f of stored(); track f.fileName + f.uploadedAt) {
-                <pp-file [name]="f.fileName" [size]="'Uploaded ' + date(f.uploadedAt)" state="done" [removable]="false" [statusText]="words[f.state].text" [statusTone]="f.state === 'SENT_BACK' ? 'danger' : 'success'" [statusIcon]="words[f.state].icon" />
+                <pp-file [name]="f.fileName" [size]="'Uploaded ' + date(f.uploadedAt) + returned(f)" state="done" [removable]="false" [statusText]="words[f.state].text" [statusTone]="f.state === 'SENT_BACK' ? 'danger' : 'success'" [statusIcon]="words[f.state].icon" [reason]="f.state === 'SENT_BACK' ? (f.reason ?? undefined) : undefined" />
               }
             </pp-file-list>
           </div>
@@ -134,6 +134,11 @@ export class DocumentUploadPage {
 
   protected percent(a: Attempt): number {
     return a.file.size ? Math.min(100, Math.round((a.loaded / a.file.size) * 100)) : 0;
+  }
+
+  /** " · Returned by <name>, <date>" for a sent-back file, else nothing. */
+  protected returned(f: MyFile): string {
+    return f.state === 'SENT_BACK' ? returnedLine(f) : '';
   }
 
   protected date(iso: string): string {
