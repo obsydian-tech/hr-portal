@@ -23,7 +23,15 @@ export const NOT_FOUND = "We can't find your record. Ask your HR team.";
 export const CHANGED = 'The notice has changed. Read it again.';
 export const BAD_BODY = 'Send the notice version';
 
-export type Person = { firstName: string; company?: string; department?: string; startDate?: string; consents: Record<string, string> };
+export type Person = {
+  firstName: string;
+  company?: string;
+  department?: string;
+  startDate?: string;
+  /** ONB-10: the date the person's documents are due (YYYY-MM-DD). Answered only when set, as the Lambda leaves it out when there is none. */
+  documentsDue?: string;
+  consents: Record<string, string>;
+};
 export type Canned = { status: number; body?: unknown } | 'offline';
 export type MeCall = { method: 'GET' | 'POST'; path: string; body: unknown; rawBody: string | null; headers: Record<string, string>; pageUrl: string; email: string };
 
@@ -146,6 +154,7 @@ export class MeFake {
       company,
       ...(who.department ? { department: who.department } : {}),
       ...(who.startDate ? { startDate: who.startDate } : {}),
+      ...(who.documentsDue ? { documentsDue: who.documentsDue } : {}),
       notice: { version: this.current, ...n },
       consent: accepted ? { version: this.current, acceptedAt: accepted } : null,
     };
