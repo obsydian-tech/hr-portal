@@ -43,11 +43,13 @@ export function makeModel(ops: OpInfo[], w: World, leak: Leak): { send: Send; it
     const row = ROWS[req.op];
     const tenant = String(o.tenant);
     const co = coOf(req.login);
-    const forbidden: Res = { status: 403, body: leak === 'forbidden-body' ? { message: 'no' } : { error: 'Forbidden' } };
-    const notFound = (i?: Item): Res => ({ status: 404, body: leak === 'notfound-body' ? { message: 'nothing' } : leak === 'id-echo' && i ? { error: 'Not found', email: i.email } : { error: 'Not found' } });
     if (!row) return { status: 500, body: {} };
+    // ten-04.1: a row can name the route's own 403 and 404 bodies; the model answers them the way the real route does.
+    const forbidden: Res = { status: 403, body: leak === 'forbidden-body' ? { message: 'no' } : (row.forbiddenBody ?? { error: 'Forbidden' }) };
+    const notFoundBody = (row.notFoundBody ?? { error: 'Not found' }) as Record<string, unknown>;
+    const notFound = (i?: Item): Res => ({ status: 404, body: leak === 'notfound-body' ? { message: 'nothing' } : leak === 'id-echo' && i ? { ...notFoundBody, email: i.email } : notFoundBody });
     if (row.kind === 'none') return { status: 200, body: 'docs' };
-    if (row.kind === 'stored') return leak === 'stored-leak' ? { status: 200, body: show(items[0]!) } : { status: 404, body: { error: 'Not found' } };
+    if (row.kind === 'stored') return leak === 'stored-leak' ? { status: 200, body: show(items[0]!) } : row.refusal ?? { status: 404, body: { error: 'Not found' } };
     if (tenant === 'agent' || row.kind === 'agent') {
       if (leak === 'agent-all') return { status: 200, body: { items: items.map(show) } };
       return { status: 200, body: { items: items.filter((i) => i.co === 'A').map(show) } };
