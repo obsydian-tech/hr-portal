@@ -259,7 +259,7 @@ resource "aws_iam_role_policy" "evaluate_intelligence_rules" {
 # MOD-01: evaluateIntelligenceRules asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "evaluate_intelligence_rules_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-evaluate-intelligence-rules"
   role = aws_iam_role.evaluate_intelligence_rules.id
 
   policy = jsonencode({

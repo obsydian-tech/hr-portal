@@ -169,7 +169,7 @@ resource "aws_lambda_permission" "acknowledge_tile_api" {
 # MOD-01: acknowledgeTile asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "acknowledge_tile_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-acknowledge-tile"
   role = aws_iam_role.acknowledge_tile.id
 
   policy = jsonencode({

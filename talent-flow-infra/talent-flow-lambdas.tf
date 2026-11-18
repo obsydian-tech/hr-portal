@@ -1231,7 +1231,7 @@ resource "aws_lambda_function" "admin_deactivate_user" {
 # MOD-01: getCandidate asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "get_candidate_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-get-candidate"
   role = aws_iam_role.get_candidate.id
 
   policy = jsonencode({
@@ -1248,7 +1248,7 @@ resource "aws_iam_role_policy" "get_candidate_modules_read" {
 # MOD-01: updateCandidate asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "update_candidate_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-update-candidate"
   role = aws_iam_role.update_candidate.id
 
   policy = jsonencode({
@@ -1265,7 +1265,7 @@ resource "aws_iam_role_policy" "update_candidate_modules_read" {
 # MOD-01: scheduleInterview asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "schedule_interview_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-schedule-interview"
   role = aws_iam_role.schedule_interview.id
 
   policy = jsonencode({
@@ -1282,7 +1282,7 @@ resource "aws_iam_role_policy" "schedule_interview_modules_read" {
 # MOD-01: submitVote asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "submit_vote_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-submit-vote"
   role = aws_iam_role.submit_vote.id
 
   policy = jsonencode({
@@ -1299,7 +1299,7 @@ resource "aws_iam_role_policy" "submit_vote_modules_read" {
 # MOD-01: captureSentiment asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "capture_sentiment_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-capture-sentiment"
   role = aws_iam_role.capture_sentiment.id
 
   policy = jsonencode({
@@ -1316,7 +1316,7 @@ resource "aws_iam_role_policy" "capture_sentiment_modules_read" {
 # MOD-01: generateScoringLink asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "generate_scoring_link_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-generate-scoring-link"
   role = aws_iam_role.generate_scoring_link.id
 
   policy = jsonencode({
@@ -1333,7 +1333,7 @@ resource "aws_iam_role_policy" "generate_scoring_link_modules_read" {
 # MOD-01: getOffer asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "get_offer_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-get-offer"
   role = aws_iam_role.get_offer.id
 
   policy = jsonencode({
@@ -1350,7 +1350,7 @@ resource "aws_iam_role_policy" "get_offer_modules_read" {
 # MOD-01: createOffer asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "create_offer_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-create-offer"
   role = aws_iam_role.create_offer.id
 
   policy = jsonencode({
@@ -1367,7 +1367,7 @@ resource "aws_iam_role_policy" "create_offer_modules_read" {
 # MOD-01: advanceOfferState asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "advance_offer_state_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-advance-offer-state"
   role = aws_iam_role.advance_offer_state.id
 
   policy = jsonencode({
@@ -1384,7 +1384,7 @@ resource "aws_iam_role_policy" "advance_offer_state_modules_read" {
 # MOD-01: getCandidates asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "get_candidates_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-get-candidates"
   role = aws_iam_role.get_candidates.id
 
   policy = jsonencode({
@@ -1401,7 +1401,7 @@ resource "aws_iam_role_policy" "get_candidates_modules_read" {
 # MOD-01: createCandidate asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "create_candidate_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-create-candidate"
   role = aws_iam_role.create_candidate.id
 
   policy = jsonencode({
@@ -1418,7 +1418,7 @@ resource "aws_iam_role_policy" "create_candidate_modules_read" {
 # MOD-01: manageTalentFlowConfig asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "manage_config_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-manage-config"
   role = aws_iam_role.manage_config.id
 
   policy = jsonencode({
@@ -1435,7 +1435,7 @@ resource "aws_iam_role_policy" "manage_config_modules_read" {
 # MOD-01: getUserNotifications asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "get_notifications_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-get-notifications"
   role = aws_iam_role.get_notifications.id
 
   policy = jsonencode({
@@ -1452,7 +1452,7 @@ resource "aws_iam_role_policy" "get_notifications_modules_read" {
 # MOD-01: markNotificationRead asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "mark_notif_read_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-mark-notif-read"
   role = aws_iam_role.mark_notif_read.id
 
   policy = jsonencode({
@@ -1469,7 +1469,7 @@ resource "aws_iam_role_policy" "mark_notif_read_modules_read" {
 # MOD-01: getPanelMembers asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "get_panel_members_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-get-panel-members"
   role = aws_iam_role.get_panel_members.id
 
   policy = jsonencode({
@@ -1486,7 +1486,7 @@ resource "aws_iam_role_policy" "get_panel_members_modules_read" {
 # MOD-01: talentFlowApproveAction asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "approve_action_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-approve-action"
   role = aws_iam_role.approve_action.id
 
   policy = jsonencode({
@@ -1503,7 +1503,7 @@ resource "aws_iam_role_policy" "approve_action_modules_read" {
 # MOD-01: talentFlowAiChat asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "ai_chat_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-ai-chat"
   role = aws_iam_role.ai_chat.id
 
   policy = jsonencode({
@@ -1520,7 +1520,7 @@ resource "aws_iam_role_policy" "ai_chat_modules_read" {
 # MOD-01: submitVoteByToken asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "submit_vote_by_token_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-submit-vote-by-token"
   role = aws_iam_role.submit_vote_by_token.id
 
   policy = jsonencode({
@@ -1537,7 +1537,7 @@ resource "aws_iam_role_policy" "submit_vote_by_token_modules_read" {
 # MOD-01: sendTalentFlowNotification asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "send_notification_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-send-notification"
   role = aws_iam_role.send_notification.id
 
   policy = jsonencode({
@@ -1554,7 +1554,7 @@ resource "aws_iam_role_policy" "send_notification_modules_read" {
 # MOD-01: orchestrateTalentFlowWorkflow asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "orchestrate_workflow_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-orchestrate-workflow"
   role = aws_iam_role.orchestrate_workflow.id
 
   policy = jsonencode({

@@ -465,7 +465,7 @@ output "talent_flow_events_table_arn" {
 # MOD-01: getCandidateEvents asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "get_candidate_events_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-get-candidate-events"
   role = aws_iam_role.get_candidate_events.id
 
   policy = jsonencode({

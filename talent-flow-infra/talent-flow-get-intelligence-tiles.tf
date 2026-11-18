@@ -196,7 +196,7 @@ resource "aws_lambda_permission" "get_intelligence_tiles_api" {
 # MOD-01: getIntelligenceTiles asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "get_intelligence_tiles_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-get-intelligence-tiles"
   role = aws_iam_role.get_intelligence_tiles.id
 
   policy = jsonencode({

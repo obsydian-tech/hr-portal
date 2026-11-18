@@ -174,7 +174,7 @@ resource "aws_lambda_permission" "advance_candidate_stage_api" {
 # MOD-01: advanceCandidateStage asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
 # tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
 resource "aws_iam_role_policy" "advance_candidate_stage_modules_read" {
-  name = "mod01-modules-read"
+  name = "mod01-modules-read-advance-candidate-stage"
   role = aws_iam_role.advance_candidate_stage.id
 
   policy = jsonencode({
