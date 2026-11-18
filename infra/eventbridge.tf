@@ -74,6 +74,10 @@ resource "aws_cloudwatch_metric_alarm" "audit_dead_letter_depth" {
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+
+  # The ops topic exists only where prod monitoring is on, so this is empty elsewhere.
+  alarm_actions = module.alarms[*].sns_topic_arn
+  ok_actions    = module.alarms[*].sns_topic_arn
 }
 
 resource "aws_cloudwatch_metric_alarm" "audit_log_consumer_errors" {
@@ -88,6 +92,10 @@ resource "aws_cloudwatch_metric_alarm" "audit_log_consumer_errors" {
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+
+  # The ops topic exists only where prod monitoring is on, so this is empty elsewhere.
+  alarm_actions = module.alarms[*].sns_topic_arn
+  ok_actions    = module.alarms[*].sns_topic_arn
 }
 
 resource "aws_lambda_permission" "audit_log_consumer_eventbridge" {
