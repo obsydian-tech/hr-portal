@@ -89,6 +89,13 @@ const BUTTON: Record<DocType, string> = {
   MATRIC_CERTIFICATE: 'Upload matric',
   TERTIARY_QUALIFICATION: 'Upload qualification',
 };
+/** ONB-20 (W-1): on a sent-back row the button says "a new copy"; the tertiary one is always "Upload qualification". */
+const BUTTON_SENT_BACK: Record<DocType, string> = {
+  NATIONAL_ID: 'Upload a new ID',
+  BANK_CONFIRMATION: 'Upload a new letter',
+  MATRIC_CERTIFICATE: 'Upload a new certificate',
+  TERTIARY_QUALIFICATION: 'Upload qualification',
+};
 const SLUG: Record<DocType, string> = { NATIONAL_ID: 'national-id', BANK_CONFIRMATION: 'bank-letter', MATRIC_CERTIFICATE: 'matric', TERTIARY_QUALIFICATION: 'qualifications' };
 const DESCRIPTION: Record<DocType, string> = {
   NATIONAL_ID: 'Your South African ID book or card.',
@@ -130,7 +137,10 @@ const welcome = (page: Page, name: string) => page.getByRole('heading', { name: 
 const checklistHeading = (page: Page) => page.getByRole('heading', { name: HEADING, exact: true });
 const row = (page: Page, type: DocType) => page.getByRole('listitem').filter({ has: page.getByText(NAMES[type], { exact: true }) });
 /** The row's button, found by its words (a link that looks like a button counts). */
-const rowAction = (page: Page, type: DocType) => row(page, type).getByRole('button', { name: BUTTON[type], exact: true }).or(row(page, type).getByRole('link', { name: BUTTON[type], exact: true }));
+const rowAction = (page: Page, type: DocType, sentBack = false) => {
+  const name = (sentBack ? BUTTON_SENT_BACK : BUTTON)[type];
+  return row(page, type).getByRole('button', { name, exact: true }).or(row(page, type).getByRole('link', { name, exact: true }));
+};
 const anyAction = (page: Page, type: DocType) => row(page, type).getByRole('button').or(row(page, type).getByRole('link'));
 const lozenge = (page: Page, type: DocType, state: DocState) => row(page, type).getByText(STATE_WORD[state], { exact: true });
 const fileInput = (page: Page) => page.locator('input[type="file"]');
@@ -265,7 +275,7 @@ test.describe('ONB-06 Documents and upload', () => {
     // Buttons: none on a row HR has or is deciding on (accepted, with HR), one on a sent-back row, always one on tertiary.
     await expect(anyAction(page, 'NATIONAL_ID'), 'accepted: no button').toHaveCount(0);
     await expect(anyAction(page, 'MATRIC_CERTIFICATE'), 'with HR: no button').toHaveCount(0);
-    await expect(rowAction(page, 'BANK_CONFIRMATION'), 'sent back: "Upload bank letter"').toBeVisible();
+    await expect(rowAction(page, 'BANK_CONFIRMATION', true), 'sent back: "Upload a new letter" (ONB-20 W-1)').toBeVisible();
     await expect(rowAction(page, 'TERTIARY_QUALIFICATION'), 'tertiary: "Upload qualification"').toBeVisible();
 
     // One call for the list, nothing else; the sidebar has no Documents item (ONB-19 adds the items).
@@ -719,7 +729,7 @@ test.describe('ONB-06 Documents and upload', () => {
         row(page, 'NATIONAL_ID').getByText(REQUIRED, { exact: true }),
         row(page, 'BANK_CONFIRMATION').getByText(REQUIRED, { exact: true }),
       ],
-      [rowAction(page, 'BANK_CONFIRMATION'), rowAction(page, 'MATRIC_CERTIFICATE'), rowAction(page, 'TERTIARY_QUALIFICATION')],
+      [rowAction(page, 'BANK_CONFIRMATION', true), rowAction(page, 'MATRIC_CERTIFICATE'), rowAction(page, 'TERTIARY_QUALIFICATION')],
     );
 
     for (const type of DOC_TYPES) {
@@ -1229,11 +1239,17 @@ test.describe('ONB-06 Documents and upload', () => {
       'uploads/', 's3_key', 'ver-doc_', 'verification_id', 'verificationId', '9506145009087', 'id_number', 'extracted_data', 'confidence', '0.9731', 'reasoning',
       'The ID number', 'MATCH', 'check', 'Thandi Nkosi', 'Checked by hand', 'hr_reviewed', 'ocr_', 'tenant', TEN_A, 'X-Amz', 'first_name', 'salary', 'bank_account', '62841937055', 'First National', 'Private HR note',
     ];
-    const text = JSON.stringify(run.body);
+    // ONB-20: the one sent-back file carries HR's reason ("Checked by hand" is what the fake stores on every decided row).
+    // It is read out here and the rest of the answer is still held to the full list, so the same words on the accepted
+    // ID and the accepted tertiary file stay barred.
+    expect(sentBack.reason, 'the sent-back file carries its reason').toBe('Checked by hand');
+    const rest = JSON.parse(JSON.stringify(run.body));
+    delete rest.documents.find((d: any) => d.type === 'BANK_CONFIRMATION').files[0].reason;
+    const text = JSON.stringify(rest);
     for (const s of secrets) expect(text, `the list holds no "${s}"`).not.toContain(s);
     // The key names and every string value in the answer are known words.
     const allowedWords = new Set(['documents', 'type', 'required', 'state', 'files', 'fileName', 'uploadedAt', ...DOC_TYPES, 'NOT_UPLOADED', 'WITH_HR', 'SENT_BACK', 'ACCEPTED', 'id-book.pdf', 'bank.pdf', 'matric.pdf', 'bsc.pdf']);
-    const unknown = strings(run.body).filter((s) => !allowedWords.has(s) && !/^\d{4}-\d{2}-\d{2}T/.test(s) && !SENT_BACK_ONLY.includes(s) && s !== 'The letter is dated 2 Aug 2026');
+    const unknown = strings(rest).filter((s) => !allowedWords.has(s) && !/^\d{4}-\d{2}-\d{2}T/.test(s) && !SENT_BACK_ONLY.includes(s) && s !== 'The letter is dated 2 Aug 2026');
     expect(unknown, 'every key and value in the answer is one of the listed ones').toEqual([]);
   });
 

@@ -1,0 +1,21 @@
+{
+  "about": "ONB-20 builds nothing in these two Lambdas. sha256 of each file on develop 08f2aa0 (MOD-01 merged). A later card that must change one of them re-locks this file.",
+  "files": {
+    "lambda/reviewDocumentVerification/index.mjs": "c51474b9bd1b94e2aab1085c2507ef4e535fcb2d7ebc4781741d690ce49d4205",
+    "lambda/generateDocumentUploadUrl/index.mjs": "8b6c2a3dd6500cb95d513ec947d4698c35f0fe899faad0a5b01fa44edf5936bc"
+  },
+  "routes": [
+    "GET /agent/v1/verifications",
+    "GET /agent/v1/verifications/{id}/summary",
+    "GET /v1/documents/{id}/url",
+    "GET /v1/employees/{id}/verifications",
+    "GET /v1/me/documents",
+    "GET /v1/verifications",
+    "GET /v1/verifications/{id}",
+    "GET /v1/verifications/{id}/summary",
+    "PATCH /v1/verifications/{id}/review",
+    "POST /v1/employees/{employee_id}/documents/upload-url",
+    "POST /v1/me/documents/upload-url",
+    "POST /v1/verifications/{id}/external"
+  ]
+}
