@@ -210,7 +210,8 @@ const sleep = (page: Page, ms: number) => page.waitForTimeout(ms);
 // ---------------------------------------------------------------- Lambda helpers
 
 const EMPLOYEE_ONLY = { error: NOT_EMPLOYEE };
-const LISTED = ['firstName', 'company', 'department', 'startDate', 'notice', 'consent'];
+// ONB-10 (re-lock acceptance-lock/onb-05.2): `documentsDue` is the one field added to the list.
+const LISTED = ['firstName', 'company', 'department', 'startDate', 'documentsDue', 'notice', 'consent'];
 
 /** Every string anywhere in a value. */
 function strings(v: unknown, out: string[] = []): string[] {
