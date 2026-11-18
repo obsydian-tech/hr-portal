@@ -12,6 +12,7 @@ import { rolePairsOf } from './support/onb-10/iam';
 import { forgetSignIn } from './support/sign-in-again';
 import { STEP_CODES, giveSteps, type StepCode, type StepPerson, type StepValue } from './support/onb-19/step-me';
 import { openAndReadMe } from './support/onb-19/me-answer';
+import { sentBy } from './support/onb-19/sent-by';
 import {
   BAR_LABEL, CARD, HEADING, LEFT, META, NAV_LABEL, NOT_FOUND, OFFLINE, STEP_LABELS, TABLE, TITLE, TODAY_DOCS_META, TODAY_TRACKER, TRY_AGAIN, UPLOAD_BANK, UPLOAD_ID,
   describe as stepLine, doneText, type Mark,
@@ -314,11 +315,13 @@ test.describe('ONB-19 Where am I: four steps', () => {
     // 1. Neither required document in. The line is the Documents step's words too.
     setStep('DOCUMENTS');
     setDocs(docs('NOT_UPLOADED', 'NOT_UPLOADED', { MATRIC_CERTIFICATE: 'NOT_UPLOADED', TERTIARY_QUALIFICATION: 'NOT_UPLOADED' }));
-    let before = documentsCalls();
+    // ONB-19.2: only calls My onboarding itself sends count; Today's own late call does not (support/onb-19/sent-by.ts).
+    const fromThePage = sentBy(page, 'GET', /\/v1\/me\/documents$/, ONBOARDING_URL);
     await open(page);
     await expect(message(page, LEFT.both).first(), 'both missing: the line').toBeVisible();
     await tone(LEFT.both, 'information');
-    expect(documentsCalls() - before, 'consent is done: GET /v1/me/documents is asked once').toBe(1);
+    expect(fromThePage.count(), 'consent is done: GET /v1/me/documents is asked once').toBe(1);
+    fromThePage.stop();
     await expectUploads(page, [UPLOAD_ID, UPLOAD_BANK], 'both missing');
     expect(await upload(page, UPLOAD_ID).getAttribute('href'), 'Upload ID leads to its upload page').toMatch(/\/start\/documents\/national-id$/);
     expect(await upload(page, UPLOAD_BANK).getAttribute('href'), 'Upload bank letter leads to its upload page').toMatch(/\/start\/documents\/bank-letter$/);
@@ -399,7 +402,7 @@ test.describe('ONB-19 Where am I: four steps', () => {
     // 9. Before consent: the one line, a link to Today, and no documents call at all.
     setStep('DOCUMENTS', false);
     setDocs(docs('NOT_UPLOADED', 'NOT_UPLOADED'));
-    before = documentsCalls();
+    const before = documentsCalls();
     const meBefore = me!.gets().length;
     await open(page);
     await expect(page.getByText(LEFT.consent, { exact: true }), 'before consent: "Accept the privacy notice first."').toBeVisible();

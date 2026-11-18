@@ -52,3 +52,13 @@ AC-12 now opens the page through `support/onb-19/me-answer.ts`: only a GET /v1/m
 page counts, and its body is read inside the response handler as it arrives. What AC-12 checks is unchanged: a 200, a
 `step` that is one of the four, and the page, title, line, steps, bar and sidebar matching that step. It also now says
 plainly when the answer is not JSON. No other test, word or file changes.
+
+## ONB-19.2: AC-2 counts only the documents calls My onboarding sends (lock acceptance-lock/onb-19.2)
+
+AC-2 failed now and then on develop ("consent is done: GET /v1/me/documents is asked once", got 2), mostly on a phone.
+It counted every GET /v1/me/documents the stand-in had logged since Today showed its heading. Today's own documents list
+asks GET /v1/me/documents just after that heading shows, and the stand-in logs a call only after reading its headers,
+so Today's call could land inside the count.
+
+AC-2's first case now counts with `support/onb-19/sent-by.ts`: a call counts only when the page that sent it, read the
+moment it is sent, is My onboarding. A page that asks twice still counts two. Nothing else in AC-2 changes.
