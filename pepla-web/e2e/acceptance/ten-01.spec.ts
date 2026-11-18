@@ -142,11 +142,23 @@ function expectClaim(what: string, event: any, run: Run, tenantId: string | null
   }
 }
 
-/** The only AWS call: one Query on the tenants table (never a Scan, a GetItem or an index). */
+/**
+ * The only AWS calls: one Query on the tenants table (never a Scan, a GetItem or an index), the Member rows of the person.
+ * TEN-06 re-lock (ten-01.3): a person with no Member row may cost one more Query on the same table, for the pending row
+ * of a TalentFlow person who is moving (key MIGRATE#<email>); nothing else.
+ */
 function expectOneQuery(what: string, run: Run): void {
-  expect(awsCalls(run.calls), `${what}: the only AWS call is one Query on the tenants table`).toEqual([`dynamodb Query ${TENANTS_TABLE}`]);
-  const q = run.calls.find((c) => c.service === 'dynamodb') as { input: any };
-  expect(q.input.IndexName, `${what}: on the table, not an index`).toBeUndefined();
+  const calls = awsCalls(run.calls);
+  expect(calls.length, `${what}: one Query on the tenants table (and, for a person with no Member row, one for the pending row)`).toBeGreaterThanOrEqual(1);
+  expect(calls.length, `${what}: at most two calls`).toBeLessThanOrEqual(2);
+  const firstPk = String((run.calls.find((c) => c.service === 'dynamodb') as { input: any }).input.ExpressionAttributeValues?.[':pk']?.S ?? '');
+  const members = ((run.tables[TENANTS_TABLE] ?? []) as any[]).filter((r) => String(r?.pk?.S ?? r?.pk) === firstPk && /^TENANT#/.test(String(r?.sk?.S ?? r?.sk)));
+  if (members.length > 0) expect(calls.length, `${what}: the person has a Member row, so the one Query is all it needs`).toBe(1);
+  expect(calls, `${what}: only Queries on the tenants table`).toEqual(calls.map(() => `dynamodb Query ${TENANTS_TABLE}`));
+  const qs = run.calls.filter((c) => c.service === 'dynamodb') as { input: any }[];
+  for (const q of qs) expect(q.input.IndexName, `${what}: on the table, not an index`).toBeUndefined();
+  expect(String(qs[0]!.input.ExpressionAttributeValues?.[':pk']?.S ?? ''), `${what}: the first Query is for the person's Member rows`).toMatch(/^USER#/);
+  if (qs[1]) expect(String(qs[1].input.ExpressionAttributeValues?.[':pk']?.S ?? ''), `${what}: the second Query is for a pending row`).toMatch(/^MIGRATE#/);
 }
 
 function expectSkipLogged(what: string, run: Run, reason: string): void {

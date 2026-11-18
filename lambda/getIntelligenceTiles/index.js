@@ -130,7 +130,7 @@ exports.handler = async (event) => {
 
     // EPIC 1 Task 1.2: Apply dismissal/snooze overlay
     // Extract userId from JWT claims
-    const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+    const userId = T.userIdOf(event);
 
     // Fetch user's dismissal overlay (single query, no N+1)
     const dismissalOverlay = userId ? await fetchDismissalOverlay(T, tenantId, userId) : new Map();
