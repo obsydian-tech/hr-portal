@@ -2785,6 +2785,12 @@ paths:
       x-roles:
       - hr_staff
   /v1/chats/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
     get:
       summary: GET /v1/chats/{id}
       description: One of the caller's chats with every message. Another person's chat is 404.
