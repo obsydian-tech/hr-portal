@@ -78,3 +78,7 @@ Tolerances: boxes 1px; pixels 1% (channel difference over 24); timing 250ms; sta
 ## Child lock .1: fonts before every region compare
 
 `compareRegion` (the parity of every region and demo step) first calls `fontsAndResize`: both pages wait for `document.fonts.ready` and get a `resize` event, then 150 ms, before the pages settle and compare. Found on CI: the kit's sub-menu pill was 119px wide against 115px on the page, because the kit script measures before the web font loads (the same fault as SITE-08 child lock .1). No tolerance changed. The step is exported so later Learn more cards use it.
+
+## Child lock .2: tab title and the two public claims (18 Nov)
+
+Iggie chose "all recommended" on the site wording cards: the tab title is the page name, a middle dot, then the brand: `Recruitment · Naleko People` (the page name is the kit's breadcrumb current item). AC-1 and the banned-words read pin this exact title, in the live page and in the prerendered file. The two public claims on this page ("A person makes every hire or reject decision" and "A signed offer starts onboarding with no retyping") are to be hidden until the code behind them is built; that needs the design system kit changed first and is a separate lock.

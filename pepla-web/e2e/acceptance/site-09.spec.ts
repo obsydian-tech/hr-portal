@@ -20,7 +20,8 @@ import { allowed, changedFiles, isThisCard, outside, refused, stripComments } fr
  */
 
 const once = (why: string) => test.skip(test.info().project.name === 'phone-390', `Runs once, in desktop-1280: ${why}`);
-const TITLE = 'Naleko People';
+/** Iggie, 18 Nov: the tab title is the page name from the kit's breadcrumb, then a middle dot, then the brand. */
+const TITLE = 'Recruitment · Naleko People';
 
 // Both pages are drawn the same way on every machine: no sub-pixel (LCD) text and no font hinting (SITE-02 AC-2).
 test.use({ launchOptions: { args: ['--disable-lcd-text', '--font-render-hinting=none'] } });
@@ -85,7 +86,7 @@ test.describe('SITE-09 Learn more page: Recruitment', () => {
     const file = prerenderedFile(out.dir);
     expect(file, 'the build output holds product/recruitment/index.html (or product/recruitment.html)').toBeTruthy();
     const html = readText(file!);
-    expect(html, 'the prerendered page has the tab title').toMatch(/<title>\s*Naleko People\s*<\/title>/);
+    expect(html, 'the prerendered page has the tab title').toMatch(new RegExp('<title>\\s*' + TITLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*</title>'));
     expect(html, 'the prerendered page holds the header').toMatch(/<header[\s>]/);
     expect((html.match(/<main[\s>]/g) ?? []).length, 'the prerendered page holds one main').toBe(1);
     const words = htmlText(html);
