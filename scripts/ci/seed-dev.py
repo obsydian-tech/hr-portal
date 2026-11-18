@@ -628,6 +628,16 @@ def remove_foreign_bundles(ddb, founding_tenant: str) -> int:
         kwargs["ExclusiveStartKey"] = res["LastEvaluatedKey"]
 
 
+def reset_persona(ddb, tenant_id: str, employee_sub: str) -> tuple[int, int]:
+    """The employee test login's own row, back to a clean start: stage INVITED, no documents, no accepted notice.
+    The seed runs it once; the dev E2E workflow runs it again before the one test that needs the clean start
+    (ONB-10 AC-8), because ONB-07 and ONB-08 upload and accept the persona's required documents earlier in the run."""
+    ddb.put_item(TableName="employees", Item=employee_item(
+        EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
+        "Operations", "New Starter", "INVITED", tenant_id=tenant_id, owner_sub=employee_sub))
+    return reset_employee_documents(ddb, EMPLOYEE_ID), reset_employee_consents(ddb, EMPLOYEE_ID)
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -689,11 +699,7 @@ def main() -> None:
         print("warning: the TalentFlow state table is not there; the seeded candidates were not written")
         seeded_candidates = 0
 
-    ddb.put_item(TableName="employees", Item=employee_item(
-        EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
-        "Operations", "New Starter", "INVITED", tenant_id=tid, owner_sub=employee_sub))
-    docs_removed = reset_employee_documents(ddb, EMPLOYEE_ID)
-    consents_removed = reset_employee_consents(ddb, EMPLOYEE_ID)
+    docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
     print(f"seed-dev: groups created {made_groups}; "
           f"logins {len(NALEKO_PERSONAS) + len(TF_GROUPS)}; "

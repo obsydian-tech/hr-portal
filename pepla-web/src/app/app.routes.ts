@@ -21,6 +21,7 @@ const appRoutes: Routes = [
     loadComponent: () => import('./features/start/employee-shell').then((m) => m.EmployeeShell),
     children: [
       { path: '', loadComponent: () => import('./features/start/start.page').then((m) => m.StartPage), title: 'Welcome · Naleko People' },
+      { path: 'onboarding', loadComponent: () => import('./features/start/onboarding.page').then((m) => m.OnboardingPage), title: 'My onboarding · Naleko People' },
       { path: 'privacy-notice', loadComponent: () => import('./features/start/privacy-notice.page').then((m) => m.PrivacyNoticePage), title: 'Privacy notice · Naleko People' },
       { path: 'documents/:type', canActivate: [knownDocumentGuard], loadComponent: () => import('./features/start/document-upload.page').then((m) => m.DocumentUploadPage), title: documentTitle },
     ],

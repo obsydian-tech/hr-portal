@@ -241,6 +241,14 @@ jobs:
           npx ng serve --host 127.0.0.1 --port 4300 > /tmp/ng-serve-pepla-web.log 2>&1 &
           npx wait-on http://127.0.0.1:4300 --timeout 180000
 
+      # MOD-01 AC-10 runs scripts/tenancy/set-modules.mjs as a child process. It needs the script's own packages and
+      # the ones lambda/shared/modules.mjs (which it imports) needs.
+      - name: Install the packages set-modules needs
+        if: ${{ !cancelled() }}
+        run: |
+          npm ci --prefix scripts
+          npm ci --prefix lambda/shared
+
       - name: Run new app acceptance tests
         id: acceptance
         if: ${{ !cancelled() }}
@@ -250,7 +258,9 @@ jobs:
           E2E_BASE_URL: ${{ inputs.on_web_address && env.WEB_ADDRESS || 'http://127.0.0.1:4300' }}
           CI: "true"
         # The company walk (TEN-04 AC-7) runs in its own step below: its "company B" caller is the walk company's HR login.
-        run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev"
+        # ONB-10 AC-8 runs in its own step after that: ONB-07 and ONB-08 upload and accept the test login's required
+        # documents earlier in this run, and AC-8 needs one still to give.
+        run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev|ONB-10 Due dates and Overdue.*AC-8 pepla-dev"
 
       # TEN-04 AC-7: the company walk. Its "company B" callers are the logins of the third (walk) company, which has
       # Recruitment switched on (company B has only Onboarding, so on B every Recruitment route answers 403 and the
@@ -267,6 +277,25 @@ jobs:
           export E2E_HR_B_EMAIL="$E2E_HR_C_EMAIL" E2E_HR_B_PASSWORD="$E2E_HR_C_PASSWORD"
           # list reporter only: the JSON report of the main run above is the one the PR comment reads
           npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "company B walk on pepla-dev"
+
+      # ONB-10 AC-8: the employee test login's checklist with a required document still to give. The login is put
+      # back to the seed's clean start first (stage INVITED, no documents, notice not accepted), then the one test runs.
+      - name: Put the employee test login back to its clean start
+        if: ${{ !cancelled() }}
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/reset-dev-persona.py
+
+      - name: Due dates on the test login's checklist (ONB-10)
+        id: due-dates
+        if: ${{ !cancelled() }}
+        working-directory: pepla-web
+        env:
+          ACCEPTANCE_TARGET: pepla-dev
+          E2E_BASE_URL: ${{ inputs.on_web_address && env.WEB_ADDRESS || 'http://127.0.0.1:4300' }}
+          CI: "true"
+        # list reporter only, as the company walk: the JSON report of the main run is the one the PR comment reads
+        run: npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "ONB-10 Due dates and Overdue.*AC-8 pepla-dev"
 
       # BE-15 AC-6: a new employee gets a sign-in in the dev pool (the real
       # POST /v1/employees, then the pool is read). Cleanup below removes it.
