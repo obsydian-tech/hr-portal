@@ -40,6 +40,18 @@ export type World = { ids: Record<Kind, string>; tenantA: string; markers: strin
 const NOT_FOUND = { error: 'Not found' };
 const FORBIDDEN = { error: 'Forbidden' };
 const ECHO_VALUES = (row: Row) => Object.values(row.query ?? {}).filter((v) => v !== TENANT_A_QUERY);
+/** ten-04.1: every string the caller typed in the body (except company A's id), so an answer that repeats them is not counted as data. */
+const typedStrings = (v: unknown, out: string[] = []): string[] => {
+  if (typeof v === 'string') out.push(v);
+  else if (Array.isArray(v)) v.forEach((x) => typedStrings(x, out));
+  else if (v && typeof v === 'object') Object.values(v as Record<string, unknown>).forEach((x) => typedStrings(x, out));
+  return out;
+};
+/** ten-04.1: the answer as text, without the keys a row names as changing by themselves. */
+const plainText = (b: unknown, volatile: string[] = []) => {
+  const strip = (v: unknown): unknown => Array.isArray(v) ? v.map(strip) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k]) => !volatile.includes(k)).map(([k, x]) => [k, strip(x)])) : v;
+  return text(strip(b));
+};
 
 const fill = (path: string, ids: Record<string, Kind> | undefined, w: World, made = 'ten04-made-up-token') =>
   path.replace(/\{([^}]+)\}/g, (_m, name: string) => encodeURIComponent(ids?.[name] ? w.ids[ids[name]!] : made));
@@ -78,7 +90,7 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
     if (!ro) { problems.push(`${why}: the read-back route ${r.op} is not in the file`); return null; }
     const login = pickLogin(rolesOf(ro), A_LOGINS);
     if (!login) { problems.push(`${why}: no login of company A may call ${r.op}`); return null; }
-    const res = await call({ login, op: ro.key, api: ro.api, method: 'GET', path: fill(ro.path, r.ids, w), query: {} });
+    const res = await call({ login, op: ro.key, api: ro.api, method: 'GET', path: fill(ro.path, r.ids, w), query: r.query ?? {} });
     if (res.status !== 200) { problems.push(`${why}: company A reading ${r.op} got ${res.status}, not 200`); return null; }
     return text(res.body);
   };
@@ -107,7 +119,10 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
       if (tenant !== 'stored-record') problems.push(`${label}: the company is the stored record's, so x-tenant must be stored-record (it is ${tenant})`);
       const one = await call(reqFor(o, 'anon', row));
       const two = await call(reqFor(o, 'anon', row, { path: fill(o.path, row.ids, w, 'ten04-made-up-other') }));
-      if (one.status < 400 || one.status >= 500) problems.push(`${label}: a made-up token answered ${one.status}, not a refusal`);
+      if (row.refusal) {
+        // ten-04.1: this route answers a fixed body for every made-up token (ONB-04 AC-9), so it is judged on that exact answer.
+        if (one.status !== row.refusal.status || text(one.body) !== text(row.refusal.body)) problems.push(`${label}: a made-up token did not get the fixed refusal ${row.refusal.status} ${text(row.refusal.body)} (it got ${one.status} ${text(one.body)})`);
+      } else if (one.status < 400 || one.status >= 500) problems.push(`${label}: a made-up token answered ${one.status}, not a refusal`);
       if (one.status !== two.status || text(one.body) !== text(two.body)) problems.push(`${label}: two made-up tokens did not get the same answer`);
       for (const m of holds(one.body, w.markers)) problems.push(`${label}: a made-up token's answer holds ${m} of company A`);
       continue;
@@ -128,18 +143,20 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
     const bLogin = pickLogin(roles, B_LOGINS);
     const hasRole = bLogin !== undefined && (roles.length === 0 || LOGIN_ROLES[bLogin].some((r) => roles.includes(r)));
     const as = (bLogin ?? 'hrB') as LoginName;
-    const echo = row.echo ? ECHO_VALUES(row) : [];
+    const echo = row.echo ? [...ECHO_VALUES(row), ...typedStrings(row.body).filter((x) => x !== A_BODY)] : [];
+    const forbiddenBody = row.forbiddenBody ?? FORBIDDEN;
+    const notFoundBody = row.notFoundBody ?? NOT_FOUND;
 
     if (row.kind === 'list') {
       const plain = await call(reqFor(o, as, row, { query: Object.fromEntries(Object.entries(row.query ?? {}).filter(([, v]) => v !== TENANT_A_QUERY)) }));
       if (!hasRole) {
         if (plain.status !== 403) problems.push(`${label}: no login of company B has a role it accepts (${roles.join(', ')}), so it must answer 403; it answered ${plain.status}`);
-        else if (text(plain.body) !== text(FORBIDDEN)) problems.push(`${label}: the 403 body is not {"error":"Forbidden"}`);
+        else if (text(plain.body) !== text(forbiddenBody)) problems.push(`${label}: the 403 body is not ${text(forbiddenBody)}`);
       } else {
         if (plain.status !== 200) problems.push(`${label}: company B's list answered ${plain.status}, not 200`);
         for (const m of holds(plain.body, w.markers, echo)) problems.push(`${label}: company B's list holds ${m} of company A`);
         const named = await call(reqFor(o, as, row, { query: { ...subQuery(row.query, w), tenantId: w.tenantA, tenant_id: w.tenantA, company: w.tenantA } }));
-        if (named.status !== plain.status || text(named.body) !== text(plain.body)) problems.push(`${label}: naming company A in the query (tenantId, tenant_id, company) changed the answer`);
+        if (named.status !== plain.status || plainText(named.body, row.volatile) !== plainText(plain.body, row.volatile)) problems.push(`${label}: naming company A in the query (tenantId, tenant_id, company) changed the answer`);
       }
       continue;
     }
@@ -151,10 +168,10 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
       const r = await call(reqFor(o, as, row));
       if (!hasRole) {
         if (r.status !== 403) problems.push(`${label}: no login of company B has a role it accepts (${roles.join(', ')}), so it must answer 403; it answered ${r.status}`);
-        else if (text(r.body) !== text(FORBIDDEN)) problems.push(`${label}: the 403 body is not {"error":"Forbidden"}`);
+        else if (text(r.body) !== text(forbiddenBody)) problems.push(`${label}: the 403 body is not ${text(forbiddenBody)}`);
       } else {
         if (r.status !== 404) problems.push(`${label}: company A's id, asked by company B, answered ${r.status}, not 404`);
-        else if (text(r.body) !== text(NOT_FOUND)) problems.push(`${label}: the 404 body is not {"error":"Not found"}`);
+        else if (text(r.body) !== text(notFoundBody)) problems.push(`${label}: the 404 body is not ${text(notFoundBody)}`);
       }
       for (const m of holds(r.body, w.markers)) problems.push(`${label}: the answer to company B holds ${m} of company A`);
       if (isWrite && row.read && before !== null) {
@@ -168,7 +185,7 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
       const before = row.read ? await readBack(row, `${label} (before)`) : null;
       const r = await call(reqFor(o, as, row));
       if (!hasRole && r.status !== 403) problems.push(`${label}: no login of company B has a role it accepts (${roles.join(', ')}), so it must answer 403; it answered ${r.status}`);
-      for (const m of holds(r.body, w.markers)) problems.push(`${label}: the answer to company B holds ${m} of company A`);
+      for (const m of holds(r.body, w.markers, echo)) problems.push(`${label}: the answer to company B holds ${m} of company A`);
       if (row.read && before !== null) {
         const after = await readBack(row, `${label} (after)`);
         if (after !== null && after !== before) problems.push(`${label}: after company B's create naming company A, company A's ${row.read.op} is not as it was`);

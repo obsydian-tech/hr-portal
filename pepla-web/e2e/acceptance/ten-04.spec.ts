@@ -379,7 +379,7 @@ test.describe('TEN-04 · every route is described, and a company B walk proves n
     expect(tenantA, 'company A\'s sign-in carries its company (tenant_id)').toMatch(/^ten_[0-9a-z]{26}$/);
     const world: World = {
       ids: { employee: ids['employee']!, document: ids['document']!, candidate: ids['candidate']!, interview: ids['interview']!, tile: ids['tile']!, config: ids['config']!, itTask: ids['itTask']!, bundle: ids['bundle']!, notification: ids['notification']!, action: ids['action']!, user: sub } as Record<Kind, string>,
-      tenantA, markers: [...Object.entries(ids).filter(([k]) => k !== 'names' && k !== '_note').map(([, v]) => v as string), ...ids.names, tenantA], bMarkers: ['Zanele', 'Companyb'],
+      tenantA, markers: [...Object.entries(ids).filter(([k]) => k !== 'names' && k !== '_note').map(([, v]) => v as string), ...ids.names, tenantA], bMarkers: ['Companyb', 'zanele.companyb', 'ten04-b-'],
     };
     const send = async (req: Req): Promise<Res> => {
       const qs = new URLSearchParams(req.query).toString();
