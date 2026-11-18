@@ -6,7 +6,7 @@ import { expect, test } from './support/fixtures';
 import { COGNITO, SIGNED_IN_MARKERS, apiPatterns, logIn, pathOf } from './support/site-01/public-site';
 import { deviceOf, sleep } from './support/site-08/kit';
 import { checkMotion, checkPageParity, checkPageWords, checkSections, checkSubmenu, checkTop, type Env } from './support/site-08/learn-page';
-import { BANNED, DEMOS, KIT_REF, ROUTE, TABS, TAB_IDS, axeStates, bannedIn, boardFlight, checkDemo, checkHeroCard, compareRegion, expectSame, headingTexts, kitHeadings, openPair, openRecruitment, orderFacts, recruitmentSpec, reducedDemos, restoreKitRef, sectionFacts, sidewaysScroll, stillDemos, useKitRef, using, visibleUnderBars, wholePageWords, OMIT } from './support/site-09/page';
+import { BANNED, DEMOS, KIT_REF, NEW_LEAD, REMOVED, ROUTE, TABS, TAB_IDS, axeStates, bannedIn, boardFlight, checkDemo, checkHeroCard, compareRegion, expectSame, headingTexts, kitHeadings, openPair, openRecruitment, offerMarkupIn, orderFacts, recruitmentSpec, reducedDemos, removalFacts, removalOf, removalProblems, removedIn, restoreKitRef, sectionFacts, sidewaysScroll, stillDemos, useKitRef, using, visibleUnderBars, wholePageWords, OMIT } from './support/site-09/page';
 import { builtSite, htmlText, prerenderedFile, readText, serveStatic, stop } from './support/site-09/build';
 import { allowed, changedFiles, isThisCard, outside, refused, stripComments } from './support/site-09/files';
 
@@ -109,7 +109,7 @@ test.describe('SITE-09 Learn more page: Recruitment', () => {
   });
 
   // ---------------------------------------------------------------- AC-2
-  test('AC-2 every word is the kit\'s, both ways: the page and the kit screen have the same text nodes and accessible names; no lorem, placeholder, Masked, Claude or pepla anywhere', async ({ page, browser, baseURL }) => {
+  test('AC-2 every word is the kit\'s, both ways: the page and the kit screen have the same text nodes and accessible names; none of the removed sentences is on the page or in the prerendered file and the hero lead is the new one; no lorem, placeholder, Masked, Claude or pepla anywhere', async ({ page, browser, baseURL }) => {
     test.setTimeout(8 * 60_000);
     const env = envOf(page, browser, baseURL);
     const spec = recruitmentSpec(deviceOf(page));
@@ -123,6 +123,11 @@ test.describe('SITE-09 Learn more page: Recruitment', () => {
       expect(w.kit.names.filter((t) => !w.app.names.includes(t)), 'accessible names on the kit screen that are not on the page').toEqual([]);
       expect(await bannedIn(p.app), 'no lorem, placeholder, "Masked", "Claude" or "pepla" in text, attribute, class, href or the title').toEqual([]);
       expect(await p.app.title(), 'the tab title').toBe(TITLE);
+      // The two hidden claims (DS #54): none of the removed sentences is on the page, and the hero lead is the kit's shorter one.
+      const rm = await removalOf(p);
+      expect(removedIn(rm.kit.markup), 'control: the kit screen holds none of the removed sentences (a kit ref from before DS #54 would)').toEqual([]);
+      expect(removedIn(rm.app.markup), 'none of the removed sentences is on the page (hero clause, Offer demo words, link under it, trust strip item)').toEqual([]);
+      expect(rm.app.lead, 'the hero lead is the kit\'s: it ends after "go quiet." with no offer clause').toBe(NEW_LEAD);
     });
     // The prerendered file too: title, attributes and text.
     if (deviceOf(page) === 'desktop') {
@@ -130,6 +135,9 @@ test.describe('SITE-09 Learn more page: Recruitment', () => {
       expect(file, 'the build holds the prerendered page').toBeTruthy();
       const html = readText(file!).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, '');
       expect(html.match(BANNED) ?? [], 'no lorem, placeholder, "Masked", "Claude" or "pepla" in the prerendered page').toEqual([]);
+      expect(removedIn(html), 'none of the removed sentences is in the prerendered page').toEqual([]);
+      expect(offerMarkupIn(html), 'the prerendered page holds no Offer demo markup').toEqual([]);
+      expect(htmlText(html), 'the prerendered page holds the new hero lead').toContain(NEW_LEAD);
     }
   });
 
@@ -155,11 +163,11 @@ test.describe('SITE-09 Learn more page: Recruitment', () => {
   });
 
   // ---------------------------------------------------------------- AC-5
-  test('AC-5 sub-menu and sections: six tabs in order, each scrolls to its section, scrolling sets the current tab; the ids are as listed; the ending, closing band and footer follow in the kit\'s order', async ({ page, browser, baseURL }) => {
+  test('AC-5 sub-menu and sections: five tabs in order and no Offer to onboarding, each scrolls to its section, scrolling sets the current tab; the ids are as listed; no Offer demo, the trust strip is the kit\'s; the ending, closing band and footer follow in the kit\'s order', async ({ page, browser, baseURL }) => {
     test.setTimeout(10 * 60_000);
     const env = envOf(page, browser, baseURL);
     const spec = recruitmentSpec(deviceOf(page));
-    // Demos stay on their first step (a view that never reports): the tap check below scrolls smoothly past all five, and a page busy playing them can start the scroll late.
+    // Demos stay on their first step (a view that never reports): the tap check below scrolls smoothly past all four, and a page busy playing them can start the scroll late.
     await checkSubmenu(env, spec, { deaf: true });
     await checkSections(env, spec);
     await using(openPair(env, spec, 'frozen', { keepOmit: true }), async ({ app, kit }) => {
@@ -170,13 +178,57 @@ test.describe('SITE-09 Learn more page: Recruitment', () => {
       expect(facts.filter((f) => !f.named || !f.name), 'each section is named by a heading inside it').toEqual([]);
       expect(facts.map((f) => f.id), 'the section ids').toEqual([...TAB_IDS, 'demo']);
       expect(facts.at(-1)!.tag, 'the closing band #demo is a section').toBe('section');
+      // The Offer demo is removed from the kit (DS #54): the pills, the demo list and the trust strip are the kit's, and nothing of the Offer demo is left.
+      const rm = { app: await app.evaluate(removalFacts, 'body'), kit: await kit.evaluate(removalFacts, '.pp-site-stage') };
+      expect(rm.app.tabs.map((x) => x.split('>')[0]), 'the pills, as the kit has them').toEqual([...TABS]);
+      expect(rm.app.demos, 'the demo sections are the four of the kit, no Offer demo').toEqual(['hiring-board', 'panels', 'follow-ups', 'risk']);
+      expect(rm.app.strip, 'the Recruitment trust strip has the kit\'s three items').toEqual(['Every move and view logged', 'Built for POPIA', 'All data stays in South Africa']);
+      expect(removalProblems(rm.app, rm.kit), 'the page is as the kit is where the claims were removed').toEqual([]);
       const appOrder = await app.evaluate(orderFacts), kitOrder = await kit.evaluate(orderFacts);
-      expect(appOrder.map((o) => o.replace(/#.*$/, '')), 'page top, sub-menu, five demos, Ask Batsi, strip, related, questions, closing band, footer follow in the kit\'s order').toEqual(kitOrder.map((o) => o.replace(/#.*$/, '')));
+      expect(appOrder.map((o) => o.replace(/#.*$/, '')), 'page top, sub-menu, four demos, Ask Batsi, strip, related, questions, closing band, footer follow in the kit\'s order').toEqual(kitOrder.map((o) => o.replace(/#.*$/, '')));
       expect(appOrder.filter((o) => /#/.test(o) && o.split('#')[1]).map((o) => o.split('#')[1]), 'the ids of the sections in that order').toEqual(kitOrder.filter((o) => o.split('#')[1]).map((o) => o.split('#')[1]));
     });
   });
 
-  // ---------------------------------------------------------------- AC-6 to AC-10
+  // ---------------------------------------------------------------- Plants: each removal check fails when the removed item is added back
+  // The checks of AC-2 and AC-5 are run on the page after one removed item is put back into it (edited in after it loads), and must name it. The control, the page as it is, finds nothing.
+  const OLD_LEAD = 'Naleko People keeps one hiring board per role. Panels score candidates against the same criteria, Batsi watches each stage for candidates who go quiet, and a signed offer starts onboarding with no retyping.';
+  const PLANTS: Array<{ name: string; expect: RegExp[]; put: (p: Page) => Promise<void> }> = [
+    { name: 'the hero lead clause', expect: [/removed hero lead clause/, /removed offer demo title/, /the hero lead is "/],
+      put: (p) => p.evaluate((l) => { document.querySelector('.pp-site-form-page__lead')!.textContent = l; }, OLD_LEAD) },
+    { name: 'the trust strip item', expect: [/removed trust strip item/, /the trust strip items are/],
+      put: (p) => p.evaluate((w) => { const s = document.querySelector('section.pp-site-strip .pp-site-strip__item')!; const c = s.cloneNode(true) as HTMLElement; c.textContent = w; s.parentElement!.insertBefore(c, s); }, REMOVED['trust strip item']) },
+    { name: 'the Offer demo section', expect: [/the page holds 1 Offer demo section/, /data-demo="offer"/, /the demo sections are/, /removed offer demo title/],
+      put: (p) => p.evaluate(() => { const r = document.querySelector('[id="risk"]')!; r.insertAdjacentHTML('afterend', '<section id="offer" class="pp-site-demo" data-demo="offer" aria-labelledby="zz-offer-h"><h2 id="zz-offer-h">A signed offer starts onboarding with no retyping.</h2></section>'); }) },
+    { name: 'the sub-menu link Offer to onboarding', expect: [/removed offer demo eyebrow or sub-menu link/, /link\(s\) to the Offer demo/, /the sub-menu pills are/],
+      put: (p) => p.evaluate(() => { const l = document.querySelector('nav[aria-label="On this page"] .pp-site-subnav__link')!; const a = l.cloneNode(true) as HTMLAnchorElement; a.textContent = 'Offer to onboarding'; a.setAttribute('href', '#offer'); l.parentElement!.appendChild(a); }) },
+    { name: 'the link under the Offer demo', expect: [/removed link under the offer demo/, /link\(s\) to the Offer demo or under it/],
+      put: (p) => p.evaluate(() => { document.querySelector('[id="risk"] .pp-site-demo__text')!.insertAdjacentHTML('beforeend', '<a class="pp-link pp-link--standalone" href="#"><span>Learn more about Onboarding and Offboarding</span></a>'); }) },
+  ];
+  test('Plants: each removal check fails, and names the item, when the removed hero clause, strip item, Offer demo, sub-menu link or link under the demo is put back; the unplanted page passes', async ({ page, browser, baseURL }) => {
+    test.setTimeout(8 * 60_000);
+    const env = envOf(page, browser, baseURL);
+    const spec = recruitmentSpec(deviceOf(page));
+    const read = async (plant?: (p: Page) => Promise<void>) => using(openPair(env, spec, 'frozen', { keepOmit: true, plant }), async (p) => { const f = await removalOf(p); return { problems: removalProblems(f.app, f.kit), live: removedIn(f.app.markup) }; });
+    const control = await read();
+    expect(control.problems, 'control: the page as it is has none of the removed items').toEqual([]);
+    for (const pl of PLANTS) {
+      const got = await read(pl.put);
+      expect(got.problems.length, `${pl.name} put back: the removal check fails`).toBeGreaterThan(0);
+      for (const re of pl.expect) expect(got.problems.join('\n'), `${pl.name} put back: the failure says so (${re})`).toMatch(re);
+    }
+    // The prerendered file is read by the same words. Planted in a stand-in file, one removed sentence at a time (also with a comment between its words, as the framework can leave one).
+    const file = '<html><head><title>Recruitment · Naleko People</title></head><body><header></header><main><h1>Every candidate tracked</h1><p>' + NEW_LEAD + '</p></main></body></html>';
+    expect(removedIn(file), 'control: the stand-in file holds none of the removed sentences').toEqual([]);
+    expect(offerMarkupIn(file), 'control: the stand-in file holds no Offer demo markup').toEqual([]);
+    for (const [name, words] of Object.entries(REMOVED)) {
+      expect(removedIn(file.replace('</main>', `<p>${words}</p></main>`)), `${name} added to the file is found`).toContain(name);
+      expect(removedIn(file.replace('</main>', `<p>${words.replace(' ', ' <!---->')}</p></main>`)), `${name} with a comment between words is found`).toContain(name);
+    }
+    for (const bit of ['<section id="offer" class="pp-site-demo" data-demo="offer"></section>', '<a href="#offer-x">x</a>', '<div class="pp-site-offer__card"></div>']) expect(offerMarkupIn(file.replace('</main>', `${bit}</main>`)).length, `${bit} added to the file is found`).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------- AC-6 to AC-9
   // The shape of a hiring board, as laid out: the words and the list side by side from 1024, the board below them at full width (stacked on a phone).
   const boardLayout = (p: Page) => p.evaluate(() => {
     const head = document.querySelector('[id="hiring-board"] .pp-site-demo__head')!.getBoundingClientRect();
@@ -227,12 +279,6 @@ test.describe('SITE-09 Learn more page: Recruitment', () => {
       expect(on, 'the offer shows Signed').toContain('Signed');
       expect(on, 'the count drops to 2 flagged').toContain('2 flagged');
     },
-    offer: async (p) => {
-      expect(await count(p, '[id="offer"] .pp-site-offer__card--live'), 'the offer and the employee record are both live').toBe(2);
-      expect(await count(p, '[id="offer"] .pp-site-offer__value:not(.pp-site-offer__value--in)'), 'the details have been carried to the employee record').toBe(0);
-      expect(await count(p, '[id="offer"] .pp-site-suggest.pp-site-step--in'), 'onboarding opens and HR is told').toBe(1);
-      expect((await onTexts(p, 'offer')).join(' | '), 'the offer is signed and the employee record created').toMatch(/Signed[\s\S]*(Created|Active)|(Created|Active)[\s\S]*Signed/);
-    },
   };
   const hand = { score: { at: 3_000, sel: '.pp-site-score__decide .pp-button--primary', ms: 5_000, label: 'Move to Offer by hand' } } as const;
 
@@ -247,7 +293,7 @@ test.describe('SITE-09 Learn more page: Recruitment', () => {
   }
 
   // ---------------------------------------------------------------- AC-11
-  test('AC-11 motion, phone, accessibility: the SITE-08 motion rules hold on the page, the board flight stops under reduced motion while the demos keep their timings; at 390 nothing is under the header or sub-menu and nothing scrolls sideways; axe finds nothing with each demo on its first and last step and one question open; one h1', async ({ page, browser, baseURL }) => {
+  test('AC-11 motion, phone, accessibility: the SITE-08 motion rules hold on the page, the board flight stops under reduced motion while the four demos keep their timings; at 390 nothing is under the header or sub-menu and nothing scrolls sideways; axe finds nothing with each demo on its first and last step and one question open; one h1', async ({ page, browser, baseURL }) => {
     test.setTimeout(15 * 60_000);
     const d = deviceOf(page);
     const env = envOf(page, browser, baseURL);
