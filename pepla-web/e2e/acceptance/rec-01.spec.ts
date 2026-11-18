@@ -99,7 +99,7 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
       const [rec, adm, app, id] = answer(i, c) as any[];
       const wantRecruiter = RECRUITERS.some((x) => x.name === c.name) || [C.recruiterB.name, C.recruiterD.name].includes(c.name);
       const wantAdmin = adminNames.has(c.name);
-      const wantApprover = ['Approver (perm-approve-offers)', 'Old FinanceLead', 'Old TalentFlowAdmin', 'Old custom:isAdmin "true", no group'].includes(c.name);
+      const wantApprover = ['Approver (perm-approve-offers)', 'Old FinanceLead', C.taFinanceLead.name, 'Old TalentFlowAdmin', 'Old custom:isAdmin "true", no group'].includes(c.name);
       expect.soft(rec === null, `requireRecruiter(${c.name}): ${wantRecruiter ? 'null (passes)' : '403 Forbidden'} (got ${JSON.stringify(rec)?.slice(0, 120)})`).toBe(wantRecruiter);
       if (!wantRecruiter) expect.soft(refused(rec), `requireRecruiter(${c.name}): the answer is 403 {"error":"Forbidden"}`).toBe(true);
       expect.soft(adm === null, `requireAdmin(${c.name}): ${wantAdmin ? 'null' : '403'} (got ${JSON.stringify(adm)?.slice(0, 120)})`).toBe(wantAdmin);
@@ -345,6 +345,14 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
     const plainBody = { ...(vote.own.body as object) };
     const plain = run(vote, C.panel2A, { body: plainBody });
     if (statusOf(plain) !== 200) wrong.push(`a vote with no voterId in the body is accepted (got ${describe(plain)})`);
+    // S-1: a PanelMember carrying the old pool's TA claim votes as themself and has no Recruiter rights.
+    const taVote = run(vote, C.taPanelOn2, { body: { ...(vote.own.body as object), voterId: SUB.recA } });
+    const taStored = votesOf(taVote.tables).filter((r) => r['candidateId'] === ID.c2);
+    if (statusOf(taVote) !== 200 || taStored.length !== 1 || taStored[0]!['voterId'] !== SUB.panel2A) wrong.push(`a panel member with the TA claim votes as themself (got ${describe(taVote)}, stored ${JSON.stringify(taStored.map((r) => r['voterId']))})`);
+    const taCreate = run(routeOf('createCandidate'), C.taPanelOn2);
+    if (statusOf(taCreate) !== 403 || calls(taCreate).length) wrong.push(`a panel member with the TA claim cannot create a candidate: 403 with no AWS call (got ${describe(taCreate)})`);
+    const taOther = run(vote, C.taPanelMember);
+    if (statusOf(taOther) !== 403 || votesOf(taOther.tables).length !== base) wrong.push(`a TA-claim person on no panel cannot vote (got ${describe(taOther)})`);
     // Not on the panel: 403 and nothing written. This includes the Recruiter and a panel member of another interview.
     for (const c of [C.recruiter, C.panelA, C.hmC1, C.adminHr, C.employee, C.oldHr]) {
       const t = tables();

@@ -124,7 +124,8 @@ const recruiterOrAdmin = (c: Caller) => {
   if (r.roles.includes('admin')) return 'yes';
   if (!r.perms.includes('perm-recruitment')) return 'no';
   if (r.roles.includes('hr_staff')) return 'yes';
-  const names = [...groupsList(c), ...(() => { try { const l = JSON.parse(String(c.claims?.['custom:roles'] ?? '[]')); return Array.isArray(l) ? l.map((x) => CLAIM_ROLES[x]).filter(Boolean) as string[] : []; } catch { return []; } })()];
+  // S-1: group names only. The custom:roles TA claim is given to everyone who is not ADMIN, HM or IT, so it is not HR.
+  const names = groupsList(c);
   return names.some((n) => OLD_GROUPS[n] && OLD_GROUPS[n]!.roles.length === 0 && OLD_GROUPS[n]!.perms.includes('perm-recruitment')) ? 'yes' : 'no';
 };
 const itFinish = (c: Caller) => has(c, 'perm-it');
