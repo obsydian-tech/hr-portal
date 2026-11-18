@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
-  PpButton, PpCard, PpCell, PpEmptyState, PpEmptyStateActions, PpLink, PpPageHeader, PpPageHeaderActions, PpPagination, PpSearch,
+  PpButton, PpCard, PpCell, PpDeadline, PpEmptyState, PpEmptyStateActions, PpLink, PpPageHeader, PpPageHeaderActions, PpPagination, PpSearch,
   PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpStat, PpStatRow, PpTableDirective, PpTableWrap, formatDate,
 } from '../../ds';
 import { AuthService } from '../../core/auth/auth.service';
+import { deadlineOf } from '../../core/deadline';
 import {
-  STEPS, countBySteps, matchesSearch, orderNewEmployees, todayInSouthAfrica, type NewEmployee,
+  STEPS, countBySteps, isOverdue, matchesSearch, orderNewEmployees, todayInSouthAfrica, type NewEmployee,
 } from '../../core/employees/employee';
 import { EmployeesService } from '../../core/employees/employees.service';
 
@@ -19,7 +20,7 @@ const PAGE_SIZE = 20;
 @Component({
   selector: 'app-hr-home',
   imports: [
-    RouterLink, PpButton, PpCard, PpCell, PpEmptyState, PpEmptyStateActions, PpLink, PpPageHeader, PpPageHeaderActions, PpPagination, PpSearch,
+    RouterLink, PpButton, PpCard, PpCell, PpDeadline, PpEmptyState, PpEmptyStateActions, PpLink, PpPageHeader, PpPageHeaderActions, PpPagination, PpSearch,
     PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpStat, PpStatRow, PpTableDirective, PpTableWrap,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -45,7 +46,13 @@ const PAGE_SIZE = 20;
           </pp-skeleton-group>
         } @else {
           <pp-stat-row>
-            @for (step of steps; track step) { <pp-stat [label]="step" [value]="counts()[step]" /> }
+            @for (step of steps; track step) {
+              @if (step === 'Documents' && overdueCount() > 0) {
+                <pp-stat [label]="step" [value]="counts()[step]" [meta]="overdueCount() + ' overdue'" metaTone="attention" />
+              } @else {
+                <pp-stat [label]="step" [value]="counts()[step]" />
+              }
+            }
           </pp-stat-row>
         }
 
@@ -79,7 +86,12 @@ const PAGE_SIZE = 20;
                             <a ppLink [routerLink]="['/hr/employees', p.id]">{{ p.name }}</a>
                             @if (p.department) { <div class="pp-text pp-text--small pp-text--subtle">{{ p.department }}</div> }
                           </td>
-                          <td ppCell label="Step">{{ p.step ?? 'Not set' }}</td>
+                          <td ppCell label="Step">
+                            <span>{{ p.step ?? 'Not set' }}</span>
+                            @if (lateOf(p); as late) {
+                              <div><time ppDeadline [inline]="true" [due]="late.due" [now]="late.now" [text]="late.words"></time></div>
+                            }
+                          </td>
                           <td ppCell label="Start date">{{ startDate(p) }}</td>
                           <td ppCell label="HR partner">{{ p.hrPartner || 'Not assigned' }}</td>
                         </tr>
@@ -114,6 +126,9 @@ export class HrHomePage {
   protected readonly counts = computed(() => countBySteps(this.people()));
   private readonly ordered = computed(() => orderNewEmployees(this.people(), todayInSouthAfrica()));
   protected readonly matches = computed(() => this.ordered().filter((p) => matchesSearch(p, this.query())));
+  private readonly today = computed(() => todayInSouthAfrica());
+  /** How many people are overdue, across everyone loaded (all pages), whatever the search says. */
+  protected readonly overdueCount = computed(() => this.people().filter((p) => isOverdue(p, this.today())).length);
   protected readonly pageRows = computed(() => {
     const from = (this.page() - 1) * PAGE_SIZE;
     return this.matches().slice(from, from + PAGE_SIZE);
@@ -136,6 +151,15 @@ export class HrHomePage {
   protected search(value: string | null): void {
     this.query.set(value ?? '');
     this.page.set(1);
+  }
+
+  /** The chip words for an overdue person; nothing for anyone else. */
+  protected lateOf(p: NewEmployee): { words: string; due: Date; now: Date } | null {
+    const today = this.today();
+    if (!isOverdue(p, today)) return null;
+    const d = deadlineOf(p.documentsDue, today);
+    // Midday, so the design system's chip counts the same whole days in any browser time zone.
+    return d ? { words: d.words, due: new Date(`${p.documentsDue}T12:00:00`), now: new Date(`${today}T12:00:00`) } : null;
   }
 
   protected startDate(p: NewEmployee): string {

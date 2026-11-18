@@ -142,6 +142,10 @@ DEMO_PEOPLE = [
     ("Mwila", "Phiri", "Operations", "Driver", "INVITED"),
 ]
 
+# ONB-10: Pieter's documents were due on 3 Nov 2026, so he is always overdue; Mwila starts in 2030, so he never is.
+# Everyone else, and the test employee, start on 1 Dec 2026.
+START_DATES = {("Pieter", "van Wyk"): "2026-11-10", ("Mwila", "Phiri"): "2030-01-01"}
+
 # ONB-09: the stored onboarding step of each current stage. Chipo (TRAINING) and Ayesha (ONBOARDED)
 # get none on purpose: pepla-dev keeps two rows like the prod ones, and the API answers their step from
 # the stage.
@@ -229,7 +233,8 @@ def user_sub(cognito, pool: str, role: str) -> str:
 
 
 def employee_item(employee_id: str, first: str, last: str, email: str, dept: str,
-                  title: str, stage: str, tenant_id: str = "", owner_sub: str = "") -> dict:
+                  title: str, stage: str, tenant_id: str = "", owner_sub: str = "",
+                  start_date: str = "2026-12-01") -> dict:
     item = {
         "employee_id": {"S": employee_id},
         "first_name": {"S": first},
@@ -241,7 +246,7 @@ def employee_item(employee_id: str, first: str, last: str, email: str, dept: str
         "job_title": {"S": title},
         "stage": {"S": stage},
         "offer_accept_date": {"S": "2026-11-01"},
-        "planned_start_date": {"S": "2026-12-01"},
+        "planned_start_date": {"S": start_date},
         "created_at": {"S": "2026-11-01T08:00:00.000Z"},
         "created_by": {"S": HR_STAFF_ID},
         "hr_staff_id": {"S": HR_STAFF_ID},
@@ -639,7 +644,8 @@ def main() -> None:
         email = f"pepla-demo-{first.lower()}.{last.lower().replace(' ', '')}@{MAIL_DOMAIN}"
         eid = str(uuid.uuid5(ns, email))
         ddb.put_item(TableName="employees",
-                     Item=employee_item(eid, first, last, email, dept, title, stage, tenant_id=tid))
+                     Item=employee_item(eid, first, last, email, dept, title, stage, tenant_id=tid,
+                                        start_date=START_DATES.get((first, last), "2026-12-01")))
         if (first, last) == ("Naledi", "Dlamini"):
             seeded_documents = seed_documents(ddb, ns, eid, tid)
 
