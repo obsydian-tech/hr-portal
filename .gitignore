@@ -31,6 +31,7 @@ hr-portal/.angular/cache/
 
 # ─── Tests / coverage ──────────────────────────────────────
 hr-portal/coverage/
+lambda/*/coverage/
 hr-portal/testem.log
 hr-portal/typings/
 
