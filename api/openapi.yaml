@@ -190,8 +190,7 @@ components:
           format: date
         documents_due:
           type: string
-          format: date
-          description: 'The date the required documents are due: 7 days before the start date. Empty when there is no start date.'
+          description: 'The date the required documents are due (YYYY-MM-DD): 7 days before the start date. An empty string when there is no start date.'
         created_at:
           type: string
           format: date-time
