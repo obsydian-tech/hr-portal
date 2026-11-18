@@ -27,6 +27,19 @@ export function ten06Grant(action: string, resource: string): boolean {
   return false;
 }
 
+/**
+ * CHAT-02: what the two Ask Batsi chat Lambdas (nalekoAiChat's role naleko_ai_chat, talentFlowAiChat's role ai_chat) gain to keep
+ * each person's chats and read the company switch: GetItem/Query/PutItem/UpdateItem on the ask-batsi-chats table and GetItem on the
+ * tenants table. chat-02.spec.ts AC-31 pins the two new Lambdas' own roles.
+ */
+export function chat02Grant(action: string, resource: string): boolean {
+  const chats = /^(\$\{)?aws_dynamodb_table\.ask_batsi_chats\.arn\}?$|:table\/ask-batsi-chats$/.test(resource);
+  const tenants = /^(\$\{)?aws_dynamodb_table\.tenants\.arn\}?$|:table\/[\w-]*tenants$/.test(resource);
+  if (chats) return /^dynamodb:(GetItem|Query|PutItem|UpdateItem)$/.test(action);
+  if (tenants) return action === 'dynamodb:GetItem';
+  return false;
+}
+
 /** The DynamoDB tables (Terraform labels or names) a list of resources names. */
 /** Terraform labels use _ where table names use - (document_verification is table/document-verification). */
 export function tablesIn(resources: readonly string[]): string[] {
@@ -71,6 +84,8 @@ export function onlyTenancyAdded(before: TfResource, after: TfResource): string[
     // TEN-04.2 re-lock (ten-03.3): createProvisioningBundle Queries the TalentFlow state table to check the candidate is the company's (table ARN only).
     if (p.effect === 'Allow' && p.condition === 'null' && after.name === 'create_provisioning_bundle' && p.action === 'dynamodb:Query'
       && /^(aws_dynamodb_table\.talent_flow_state\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-state|\$\{local\.tf_state_table\}))$/.test(p.resource)) continue;
+    // CHAT-02 re-lock: the chat Lambdas keep chats and read the company switch.
+    if (p.effect === 'Allow' && p.condition === 'null' && /^(naleko_ai_chat|ai_chat)$/.test(after.name ?? '') && chat02Grant(p.action, p.resource)) continue;
     wrong.push(`added beyond TEN-02: ${key(p)}`);
   }
   return wrong;

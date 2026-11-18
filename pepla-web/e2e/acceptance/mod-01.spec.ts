@@ -96,7 +96,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
 
     const keys = runModule([{ get: 'MODULE_KEYS' }, { get: 'modulesOf' }, { get: 'requireModule' }], { tables: world, env });
     expect(keys.importError, `modules.mjs imports (${keys.importError?.message})`).toBeUndefined();
-    expect(keys.results[0]?.value, 'MODULE_KEYS is the one list: onboarding, recruitment').toEqual(BOTH);
+    // CHAT-02 (re-lock mod-01.N): Ask Batsi is the third key; the founding default below still holds the first two.
+    expect(keys.results[0]?.value, 'MODULE_KEYS is the one list: onboarding, recruitment, ask_batsi').toEqual([...BOTH, 'ask_batsi']);
     expect(keys.results[1]?.type, 'modulesOf is exported').toBe('function');
     expect(keys.results[2]?.type, 'requireModule is exported').toBe('function');
     expect(callLines(keys), 'importing the helper makes no AWS call').toEqual([]);
@@ -547,7 +548,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
     once(testInfo.project.name);
     const WRITE = /\b(PutItem|UpdateItem|TransactWriteItems|BatchWriteItem|Put|Update|TransactWrite|BatchWrite)Command\b|\b(PutItem|UpdateItem|TransactWriteItems|BatchWriteItem|put_item|update_item|batch_write_item|transact_write_items|batch_writer)\b/;
     // ONB-21 (re-lock mod-01.4): sendDocumentReminders names the modules attribute to READ it and PutItem-writes its own claim rows in another table; it never writes a modules attribute (onb-21.spec.ts AC-7).
-    const ALLOWED = ['scripts/tenancy/lib/set-modules.mjs', 'scripts/ci/seed-dev.py', 'lambda/sendDocumentReminders/index.mjs'];
+    const ALLOWED = ['scripts/tenancy/lib/set-modules.mjs', 'scripts/ci/seed-dev.py', 'lambda/sendDocumentReminders/index.mjs', 'lambda/adminSetAskBatsi/index.mjs'];
+    // CHAT-02 (re-lock mod-01.5): the Ask Batsi switch has its own admin route; chat-02.spec.ts AC-22 pins what it writes.
     const writers: string[] = [];
     for (const f of [...sources(LAMBDA), ...sources(join(REPO, 'scripts'))]) {
       const rel = relative(REPO, f);
@@ -676,6 +678,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       const lost = (was.pairs ?? []).filter((p) => !(cur.pairs ?? []).includes(p));
       expect.soft(lost, `role policy ${key}: nothing it had is taken away`).toEqual([]);
       for (const p of (cur.pairs ?? []).filter((x) => !(was.pairs ?? []).includes(x))) {
+        // CHAT-02 (re-lock mod-01.N): the two chat Lambdas keep and read the person's chats and read the company switch; chat-02.spec.ts AC-31 pins it.
+        if (/naleko_ai_chat|ai_chat/.test(key) && /^Allow dynamodb:(GetItem|Query|PutItem|UpdateItem) (aws_dynamodb_table\.ask_batsi_chats\.arn|aws_dynamodb_table\.tenants\.arn|\$?\{?arn:aws:dynamodb:[^ ]*table\/ask-batsi-chats\}?|arn:aws:dynamodb:[^ ]*table\/ask-batsi-chats) null$/.test(p)) continue;
         // TEN-06 (re-lock mod-01.1): the sign-in trigger moves a TalentFlow person in; ten-06.spec.ts AC-7 pins exactly this.
         if (/cognito_post_auth/.test(key) && /^Allow (dynamodb:(PutItem|DeleteItem) \$?\{?aws_dynamodb_table\.tenants\.arn\}? null|cognito-idp:AdminAddUserToGroup \$?\{?aws_cognito_user_pool\.naleko_dev\.arn\}? null)$/.test(p)) continue;
         if (ten042(p, cur.stack, cur.role)) continue;
@@ -686,6 +690,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       if (baseline[key]) continue;
       if (cur.stack === 'infra' && cur.role === role) continue; // getCompanyModules' own, judged above
       if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock mod-01.4): its own role, locked in onb-21.spec.ts AC-8.
+      if (/ask_batsi|stored_chats/.test(key) || /ask_batsi/.test(cur.role)) continue; // CHAT-02 (re-lock mod-01.N): their own roles, judged in chat-02.spec.ts AC-31.
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock mod-01.1): its own role, locked in ten-06.spec.ts AC-7.
       if ((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => ten042(p, cur.stack, cur.role))) continue; // TEN-04.2: one of the three table Queries
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);
