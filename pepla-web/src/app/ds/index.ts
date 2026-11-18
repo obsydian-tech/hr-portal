@@ -20,6 +20,7 @@ export * from './data/table/table';
 export * from './agent/agent';
 export * from './agent/activity-log';
 export * from './agent/panel';
+export * from './agent/launcher';
 export * from './records/records';
 export * from './records/approvals';
 export * from './records/progress';

@@ -38,6 +38,7 @@ const appRoutes: Routes = [
     ],
   },
   { path: 'dev/design-system', loadComponent: () => import('./dev/design-system.page').then((m) => m.DesignSystemPage), title: 'Design system · Naleko People' },
+  ...['dev/ask-batsi', 'dev/ask-batsi/chat', 'dev/ask-batsi/chat/:id'].map((path) => ({ path, loadComponent: () => import('./dev/ask-batsi.page').then((m) => m.AskBatsiPage), title: 'Ask Batsi prototype · Naleko People' })),
   { path: 'dev/parity', loadComponent: () => import('./dev/parity.page').then((m) => m.ParityPage), title: 'Parity · Naleko People' },
   { path: 'dev/site', loadComponent: () => import('./ds/site/gallery.page').then((m) => m.SiteGalleryPage), canActivate: [siteStyles], title: 'Site parts · Naleko People' },
   { path: 'dev/site-landing', loadComponent: () => import('./ds/site/landing.gallery').then((m) => m.SiteLandingGalleryPage), canActivate: [siteStyles], title: 'Landing sections · Naleko People' },

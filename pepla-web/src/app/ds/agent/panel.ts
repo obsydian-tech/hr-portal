@@ -32,12 +32,15 @@ export interface PanelSuggestion { icon: IconName; label: string; link: string; 
     <ng-template #layer>
       <aside [class]="classes()" [attr.role]="inline() ? null : 'dialog'" [attr.aria-modal]="inline() ? null : 'true'" [attr.aria-labelledby]="id + '-t'" [style.--_height]="inlineSize()" cdkTrapFocus [cdkTrapFocusAutoCapture]="false">
         <div class="pp-agent-panel__header">
-          @if (phone()) { <ng-container [ngTemplateOutlet]="closeButton" /> } @else { <ng-container [ngTemplateOutlet]="avatar" /> }
+          @if (page()) { <ng-container [ngTemplateOutlet]="avatar" /> } @else if (phone()) { <ng-container [ngTemplateOutlet]="closeButton" /> } @else { <ng-container [ngTemplateOutlet]="avatar" /> }
           <div class="pp-agent-panel__heading">
-            <span class="pp-agent-panel__title" role="heading" [attr.aria-level]="level()" [id]="id + '-t'">Batsi</span>
+            <span class="pp-agent-panel__title" role="heading" [attr.aria-level]="page() ? 1 : level()" [id]="id + '-t'">{{ heading() }}</span>
             @if (context()) { <span class="pp-agent-panel__context">{{ context() }}</span> }
           </div>
-          @if (phone()) { <ng-container [ngTemplateOutlet]="avatar" /> } @else { <ng-container [ngTemplateOutlet]="closeButton" /> }
+          @if (page()) { } @else {
+            @if (expandable()) { <button ppButton appearance="subtle" icon="maximize-2" [iconOnly]="true" type="button" aria-label="Open as a full page" (click)="expand.emit()"></button> }
+            @if (phone()) { <ng-container [ngTemplateOutlet]="avatar" /> } @else { <ng-container [ngTemplateOutlet]="closeButton" /> }
+          }
         </div>
         <div #log class="pp-agent-panel__log" role="log" aria-label="Conversation with Batsi" (scroll)="scrolled()">
           @for (m of messages(); track $index) {
@@ -97,6 +100,12 @@ export class PpAgentPanel extends PpLayer {
   readonly level = input<2 | 3>(2);
   /** Docs only: the phone sheet at any width. In the app the screen width decides. */
   readonly sheet = input(false);
+  /** Proposed: the full-page chat (AI chat mode): a centred reading column, no frame, no Close. */
+  readonly page = input(false);
+  readonly heading = input('Batsi');
+  /** Shows the Expand button that opens the same chat as a full page. */
+  readonly expandable = input(false);
+  readonly expand = output<void>();
   readonly send = output<string>();
   readonly stop = output<void>();
   readonly approve = output<Proposal>();
@@ -108,7 +117,7 @@ export class PpAgentPanel extends PpLayer {
   protected readonly draft = signal('');
   private readonly narrow = toSignal(inject(BreakpointObserver).observe('(max-width: 767px)').pipe(map((r) => r.matches)), { initialValue: false });
   protected readonly phone = () => this.sheet() || (!this.inline() && this.narrow());
-  protected readonly classes = () => ['pp-agent-panel', this.inline() && 'pp-agent-panel--inline', this.sheet() && 'pp-agent-panel--sheet'].filter(Boolean).join(' ');
+  protected readonly classes = () => ['pp-agent-panel', this.page() && 'pp-agent-panel--page', this.inline() && 'pp-agent-panel--inline', this.sheet() && 'pp-agent-panel--sheet'].filter(Boolean).join(' ');
   private atEnd = true;
   private readonly injector = inject(Injector);
 
