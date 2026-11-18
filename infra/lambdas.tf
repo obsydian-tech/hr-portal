@@ -1448,3 +1448,44 @@ resource "aws_lambda_function" "get_company_modules" {
     ignore_changes = [filename, source_code_hash]
   }
 }
+
+# ─── TEN-06: userMigration ────────────────────────────────────────────────────
+# Cognito calls it when a person is not in this pool yet: it checks the TalentFlow pool and keeps a pending row.
+resource "aws_lambda_function" "user_migration" {
+  function_name = "userMigration"
+  role          = aws_iam_role.user_migration.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      TENANTS_TABLE         = aws_dynamodb_table.tenants.name
+      LEGACY_TENANT_ID      = var.founding_tenant_id
+      TALENT_FLOW_POOL_ID   = var.talent_flow_user_pool_id
+      TALENT_FLOW_CLIENT_ID = var.talent_flow_server_client_id
+    }
+  }
+
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/userMigration"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}
+
+resource "aws_lambda_permission" "user_migration" {
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.user_migration.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.naleko_dev.arn
+}

@@ -92,7 +92,7 @@ exports.handler = async (event) => {
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return badRequest('Missing candidateId path parameter');
 
-  const createdBy = event.requestContext?.authorizer?.jwt?.claims?.sub || 'unknown';
+  const createdBy = T.userIdOf(event) || 'unknown';
 
   let body;
   try {

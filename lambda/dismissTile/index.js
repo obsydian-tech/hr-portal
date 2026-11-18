@@ -50,7 +50,7 @@ exports.handler = async (event) => {
     }
 
     // Extract userId from JWT claims
-    const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+    const userId = T.userIdOf(event);
     if (!userId) {
       return errorResponse(401, 'Unauthorized: missing user ID in token');
     }

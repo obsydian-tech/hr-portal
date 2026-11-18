@@ -6,6 +6,7 @@ import {
   CognitoUserSession,
 } from 'amazon-cognito-identity-js';
 import { environment } from '../../../../environments/environment';
+import { legacyClaimsOf } from './legacy-claims';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -122,6 +123,8 @@ export class TalentFlowAuthService {
         Username: email.trim(),
         Pool: this.userPool,
       });
+      // TEN-06: the one pool's migration trigger needs the password itself (HTTPS only), so no SRP here.
+      this.cognitoUser.setAuthenticationFlowType('USER_PASSWORD_AUTH');
 
       this.cognitoUser.authenticateUser(authDetails, {
         onSuccess: (session: CognitoUserSession) => {
@@ -233,7 +236,9 @@ export class TalentFlowAuthService {
     const payload = session.getIdToken().decodePayload();
     const givenName = payload['given_name'] ?? '';
     const familyName = payload['family_name'] ?? '';
-    const groups: string[] = payload['cognito:groups'] ?? [];
+    // TEN-06: the one pool's groups, turned back into the TalentFlow names and claims the screens read.
+    const legacy = legacyClaimsOf(payload['cognito:groups'] ?? []);
+    const groups: string[] = legacy.groups;
 
     return {
       sub: payload['sub'] ?? '',
@@ -243,7 +248,7 @@ export class TalentFlowAuthService {
       fullName: `${givenName} ${familyName}`.trim(),
       // custom:isAdmin is injected by talentFlowPreTokenTrigger Lambda for
       // TalentFlowAdmin group members. Only present in TF pool JWTs.
-      isAdmin: payload['custom:isAdmin'] === 'true',
+      isAdmin: legacy.isAdmin,
       groups,
     };
   }

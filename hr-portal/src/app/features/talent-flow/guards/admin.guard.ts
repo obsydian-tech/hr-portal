@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { legacyClaimsOf } from '../services/legacy-claims';
 
 /**
  * adminGuard — functional route guard (Angular 19 CanActivateFn pattern).
@@ -16,7 +17,7 @@ export const adminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  const isAdmin = (auth.currentUser()?.groups ?? []).includes('naleko-talentflow-admin');
+  const isAdmin = legacyClaimsOf(auth.currentUser()?.groups ?? []).isAdmin;
   if (isAdmin) return true;
 
   // Authenticated but not admin — redirect to TalentFlow dashboard

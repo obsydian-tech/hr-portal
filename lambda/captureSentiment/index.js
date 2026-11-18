@@ -56,7 +56,7 @@ exports.handler = async (event) => {
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return badRequest('Missing candidateId');
 
-  const capturedBy = event.requestContext?.authorizer?.jwt?.claims?.sub || 'unknown';
+  const capturedBy = T.userIdOf(event) || 'unknown';
 
   let body;
   try {

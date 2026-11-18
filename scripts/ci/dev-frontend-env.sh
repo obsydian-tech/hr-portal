@@ -23,14 +23,12 @@ api() { aws apigatewayv2 get-apis --region "$REGION" \
 
 NALEKO_POOL=$(pool naleko-dev-user-pool)
 NALEKO_CLIENT=$(client "$NALEKO_POOL" pepla-web-dev)
-TF_POOL=$(pool talent-flow-user-pool)
-TF_CLIENT=$(client "$TF_POOL" talent-flow-web-client)
 EMP_API=$(api employees)
 DOC_API=$(api document-upload-api)
 AGENT_API=$(api naleko-agent-api)
 TF_API=$(api talent-flow-api)
 
-for v in NALEKO_POOL NALEKO_CLIENT TF_POOL TF_CLIENT EMP_API DOC_API AGENT_API TF_API; do
+for v in NALEKO_POOL NALEKO_CLIENT EMP_API DOC_API AGENT_API TF_API; do
   [ -n "${!v}" ] && [ "${!v}" != "None" ] || { echo "::error::$v not found in pepla-dev"; exit 1; }
 done
 
@@ -48,7 +46,7 @@ export const environment = {
     tenantId: 'NALEKO',
     agentApiUrl: '${AGENT_API}',
     agentApiKey: '',
-    cognitoConfig: { userPoolId: '${TF_POOL}', clientId: '${TF_CLIENT}', region: '${REGION}' },
+    cognitoConfig: { userPoolId: '${NALEKO_POOL}', clientId: '${NALEKO_CLIENT}', region: '${REGION}' },
   },
 };
 TS

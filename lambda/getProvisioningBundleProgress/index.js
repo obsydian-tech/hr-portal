@@ -96,7 +96,7 @@ function buildActivityLog(tasks) {
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(401, {"message": "Unauthorized."});
   const claims  = extractClaims(event);
-  const userId  = claims.sub;
+  let userId  = claims.sub;
   const R = await rolesHelper();
   const isAdmin = R.holds(event, { roles: ['admin'] });
   const isIT    = R.holds(event, { perms: ['perm-it'] });
@@ -105,6 +105,7 @@ exports.handler = async (event) => {
 
   // TEN-03: after the sign-in checks, the company check. The company is the sign-in's.
   const T = await tenantHelper();
+  userId = T.userIdOf(event) || userId; // TEN-06: a moved person's old id, as stored records know it
   const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;
 
