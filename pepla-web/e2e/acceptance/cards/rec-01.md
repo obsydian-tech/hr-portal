@@ -7,7 +7,7 @@ Test files: `rec-01.spec.ts` and `support/rec-01/` (`lambda-harness.ts`, `world.
 
 Spec: `onboarding-cards/specs/REC-01.md` (17 Nov 2026), read with REC-00. Review page: `onboarding-cards/specs/REC-01-tests-for-review.md`.
 
-Locks: rec-01, rec-01.1 (the moved hunks go in the child locks of the cards they belong to: mod-01.2, ten-03 and ten-05 children; names set by the coordinator)
+Locks: rec-01 (the first tests), rec-01.1 (S-1: the TA claim is not HR); the moved hunks of other cards: mod-01.2, ten-03.2, ten-05.2, ten-05.3
 
 Written against develop 08f2aa0 (MOD-01 merged, PR 393).
 
@@ -20,9 +20,13 @@ fake AWS (`support/rec-01/fake-aws`, MOD-01's copy, no code changed). AC-7 and A
 
 ## Decisions the tests make where the card is silent (for the BA to confirm)
 
-- D-REC-1.3 Old TalentFlow HR names (`naleko-talentflow-hr`, `HRDirector`, custom:roles `TA`) pass the Recruiter check until TEN-06
-  moves those people. TEN-05's locked table gives them the Recruitment tick and no `hr_staff`; mapping them to `hr_staff` would open
-  Onboarding HR routes that BE-17.1 pins shut. The bridge reads TEN-05's table through `grantOfNames`, so the new file names no group.
+- D-REC-1.3 Old TalentFlow HR *group names* (`naleko-talentflow-hr`, `HRDirector`) pass the Recruiter check until TEN-06 moves those
+  people. TEN-05's locked table gives them the Recruitment tick and no `hr_staff`; mapping them to `hr_staff` would open Onboarding HR
+  routes that BE-17.1 pins shut. The bridge reads TEN-05's table through `grantOfNames`, so the new file names no group.
+  **The custom:roles claim "TA" does not count (S-1, 18 Nov).** The old pool's pre-token trigger gives `["TA"]` to everyone who is
+  not ADMIN, HM or IT (PanelMember, FinanceLead, ComplianceOfficer, ITSpecialist, no group), so the claim says nothing about HR. The
+  new file must not read `custom:roles` at all. AC-1, AC-2 and AC-5 pin it with those callers carrying the claim; a panel member with
+  the claim still votes as themself and is not a Recruiter.
 - D-REC-1.4 A route that opens one candidate (candidate, history, interviews, offer) answers 404 `{"error":"Not found"}` to everyone who
   is not a Recruiter, that candidate's hiring manager or (not the offer) a panel member of its interviews. That includes Guest, an
   IT-only person and a person with no group (coordinator's call, 18 Nov: not 403). A panel member can have any role, so the row

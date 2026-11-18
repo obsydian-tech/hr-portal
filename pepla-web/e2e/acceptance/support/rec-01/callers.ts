@@ -25,7 +25,15 @@ export const C = {
   // Today's TalentFlow pool people (TEN-05's OLD_GROUPS; TEN-06 moves them later).
   oldHr: p('Old TalentFlow HR (naleko-talentflow-hr)', ['naleko-talentflow-hr'], 'sub-oldhr-a'),
   hrDirector: p('Old HRDirector', ['HRDirector'], 'sub-hrdirector-a'),
+  // S-1: the old pool's pre-token trigger gives custom:roles ["TA"] to everyone who is not ADMIN, HM or IT. The claim is not HR.
   taClaim: p('Old custom:roles ["TA"], no group', [], 'sub-ta-a', { claims: { 'custom:roles': '["TA"]' } }),
+  taNoGroupsClaim: p('Old custom:roles ["TA"], no groups claim', undefined, 'sub-ta-b', { claims: { 'custom:roles': '["TA"]' } }),
+  taPanelMember: p('PanelMember with the TA claim (on no panel)', ['PanelMember'], 'sub-ta-panel-a', { claims: { 'custom:roles': '["TA"]' } }),
+  taFinanceLead: p('Old FinanceLead with the TA claim', ['FinanceLead'], 'sub-ta-finance-a', { claims: { 'custom:roles': '["TA"]' } }),
+  taCompliance: p('ComplianceOfficer with the TA claim', ['ComplianceOfficer'], 'sub-ta-compliance-a', { claims: { 'custom:roles': '["TA"]' } }),
+  taItSpecialist: p('ITSpecialist with the TA claim', ['ITSpecialist'], 'sub-ta-itspec-a', { claims: { 'custom:roles': '["TA"]' } }),
+  /** A PanelMember with the TA claim who IS on the panel of I2: votes as themself, and is not a Recruiter. */
+  taPanelOn2: p('PanelMember with the TA claim, on the panel of I2', ['PanelMember'], SUB.panel2A, { claims: { 'custom:roles': '["TA"]' } }),
   oldAdmin: p('Old TalentFlowAdmin', ['TalentFlowAdmin'], 'sub-oldadmin-a'),
   oldAdminClaim: p('Old custom:isAdmin "true", no group', [], 'sub-oldadminclaim-a', { claims: { 'custom:isAdmin': 'true' } }),
   oldHm: p('Old HiringManager (hiring manager of C1)', ['HiringManager'], SUB.hmA),
@@ -57,12 +65,13 @@ export const RECRUITER_FORMS: Caller[] = [
   { name: 'groups as a real list', groups: [], sub: SUB.recA, claims: { 'cognito:groups': ['hr_staff', 'perm-recruitment'] } },
 ];
 
-/** Who gets through the Recruiter check (rule 1; the old TalentFlow HR names count until TEN-06, decision D-REC-1.3). */
-export const RECRUITERS: Caller[] = [C.recruiter, C.adminHr, C.oldHr, C.hrDirector, C.taClaim, ...RECRUITER_FORMS];
+/** Who gets through the Recruiter check (rule 1; the old TalentFlow HR group names count until TEN-06, decision D-REC-1.3; the TA claim does not, S-1). */
+export const RECRUITERS: Caller[] = [C.recruiter, C.adminHr, C.oldHr, C.hrDirector, ...RECRUITER_FORMS];
 /** Everyone of company A who is not a Recruiter, as the cases of "403 everywhere". */
 export const NOT_RECRUITERS: Caller[] = [
   C.hrNoTick, C.tickNoHr, C.adminOnly, C.hmC1, C.hmOther, C.panelA, C.panel2A, C.approver, C.employee, C.guest, C.itOnly, C.noGroups,
   C.oldAdmin, C.oldAdminClaim, C.oldHm, C.oldOnboardingHr, C.financeLead,
+  C.taClaim, C.taNoGroupsClaim, C.taPanelMember, C.taFinanceLead, C.taCompliance, C.taItSpecialist,
   C.nearHrStaffx, C.nearXhrStaff, C.nearTickx, C.nearXtick, C.nearUpper, C.nearOneString, C.nearAdmins,
 ];
 /** Admin by role (new or old name or claim). */
