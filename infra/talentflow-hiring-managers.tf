@@ -79,6 +79,7 @@ resource "aws_lambda_function" "get_hiring_managers" {
 
   environment {
     variables = {
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
       HM_COGNITO_POOL_ID = aws_cognito_user_pool.naleko_dev.id
       HM_GROUP_NAME      = "naleko-talentflow-hiringmanager"
     }
@@ -128,4 +129,21 @@ resource "aws_lambda_permission" "get_hiring_managers_apigw" {
   function_name = aws_lambda_function.get_hiring_managers.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${data.aws_apigatewayv2_api.talent_flow_api.execution_arn}/*/*/v1/hiring-managers"
+}
+
+# MOD-01: getHiringManagers asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "get_hiring_managers_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.get_hiring_managers.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = [aws_dynamodb_table.tenants.arn]
+    }]
+  })
 }

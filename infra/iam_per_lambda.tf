@@ -2414,3 +2414,49 @@ resource "aws_iam_role_policy" "tenant_pre_token" {
     ]
   })
 }
+
+# ─── MOD-01: getCompanyModules ───────────────────────────────────────────────
+# Reads one Company row. KMS decrypt through kms_pii dynamodb_read_role_arns (infra/kms.tf), nothing else.
+resource "aws_iam_role" "get_company_modules" {
+  name        = "naleko-getCompanyModules-role"
+  description = "Execution role for getCompanyModules Lambda (MOD-01)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "get_company_modules" {
+  name = "naleko-getCompanyModules-policy"
+  role = aws_iam_role.get_company_modules.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "CompanyRowRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = [aws_dynamodb_table.tenants.arn]
+      },
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/getCompanyModules:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      }
+    ]
+  })
+}

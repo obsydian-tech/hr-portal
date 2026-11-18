@@ -35,6 +35,7 @@ resource "aws_lambda_function" "create_candidate" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME       = local.tf_table_state
       IDEMPOTENCY_TABLE_NAME = local.tf_table_idempotency
       CONFIG_TABLE_NAME      = local.tf_table_config
@@ -74,6 +75,7 @@ resource "aws_lambda_function" "orchestrate_workflow" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
@@ -112,6 +114,7 @@ resource "aws_lambda_function" "schedule_interview" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME       = local.tf_table_state
       CONFIG_TABLE_NAME      = local.tf_table_config
       NOTIFICATION_QUEUE_URL = aws_sqs_queue.talent_flow_notification.url
@@ -151,6 +154,7 @@ resource "aws_lambda_function" "submit_vote" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
@@ -227,6 +231,7 @@ resource "aws_lambda_function" "manage_config" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       CONFIG_TABLE_NAME = local.tf_table_config
       AWS_ACCOUNT_ID    = var.aws_account_id
       ENVIRONMENT       = var.environment
@@ -269,6 +274,7 @@ resource "aws_lambda_function" "send_notification" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       NOTIFICATION_QUEUE_URL   = aws_sqs_queue.talent_flow_notification.url
       CONFIG_TABLE_NAME        = local.tf_table_config
       NOTIFICATIONS_TABLE_NAME = local.tf_table_notifications
@@ -348,6 +354,7 @@ resource "aws_lambda_function" "ai_chat" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME           = local.tf_table_state
       CONFIG_TABLE_NAME          = local.tf_table_config
       AGENT_AUDIT_TABLE_NAME     = local.tf_table_agent_audit
@@ -431,6 +438,7 @@ resource "aws_lambda_function" "approve_action" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       PENDING_ACTIONS_TABLE_NAME = local.tf_table_pending_actions
       EVENTBRIDGE_BUS_NAME       = local.tf_event_bus_name
       AWS_ACCOUNT_ID             = var.aws_account_id
@@ -588,6 +596,7 @@ resource "aws_lambda_function" "get_candidates" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
     }
@@ -623,6 +632,7 @@ resource "aws_lambda_function" "get_candidate" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
     }
@@ -658,6 +668,7 @@ resource "aws_lambda_function" "get_panel_members" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       COGNITO_POOL_ID  = local.tf_naleko_pool_id
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
@@ -695,6 +706,7 @@ resource "aws_lambda_function" "get_notifications" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       NOTIFICATIONS_TABLE_NAME = local.tf_table_notifications
       ENVIRONMENT              = var.environment
     }
@@ -730,6 +742,7 @@ resource "aws_lambda_function" "capture_sentiment" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
       ENVIRONMENT          = var.environment
@@ -767,6 +780,7 @@ resource "aws_lambda_function" "mark_notif_read" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       NOTIFICATIONS_TABLE_NAME = local.tf_table_notifications
       ENVIRONMENT              = var.environment
     }
@@ -803,6 +817,7 @@ resource "aws_lambda_function" "create_offer" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME       = local.tf_table_state
       CONFIG_TABLE_NAME      = local.tf_table_config
       EVENTBRIDGE_BUS_NAME   = local.tf_event_bus_name
@@ -841,6 +856,7 @@ resource "aws_lambda_function" "get_offer" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
     }
@@ -877,6 +893,7 @@ resource "aws_lambda_function" "advance_offer_state" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
       ENVIRONMENT          = var.environment
@@ -915,6 +932,7 @@ resource "aws_lambda_function" "update_candidate" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
       ENVIRONMENT          = var.environment
@@ -953,6 +971,7 @@ resource "aws_lambda_function" "generate_scoring_link" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME = local.tf_table_state
       FRONTEND_URL     = var.frontend_url
       TOKEN_TTL_DAYS   = "7"
@@ -992,6 +1011,7 @@ resource "aws_lambda_function" "submit_vote_by_token" {
 
   environment {
     variables = {
+      TENANTS_TABLE = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
@@ -1206,4 +1226,344 @@ resource "aws_lambda_function" "admin_deactivate_user" {
   }
 
   tags = merge(local.tf_tags, { Ticket = "Admin-S1", Purpose = "AdminUserDeactivate" })
+}
+
+# MOD-01: getCandidate asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "get_candidate_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.get_candidate.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: updateCandidate asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "update_candidate_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.update_candidate.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: scheduleInterview asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "schedule_interview_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.schedule_interview.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: submitVote asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "submit_vote_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.submit_vote.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: captureSentiment asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "capture_sentiment_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.capture_sentiment.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: generateScoringLink asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "generate_scoring_link_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.generate_scoring_link.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: getOffer asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "get_offer_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.get_offer.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: createOffer asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "create_offer_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.create_offer.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: advanceOfferState asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "advance_offer_state_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.advance_offer_state.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: getCandidates asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "get_candidates_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.get_candidates.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: createCandidate asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "create_candidate_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.create_candidate.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: manageTalentFlowConfig asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "manage_config_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.manage_config.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: getUserNotifications asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "get_notifications_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.get_notifications.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: markNotificationRead asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "mark_notif_read_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.mark_notif_read.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: getPanelMembers asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "get_panel_members_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.get_panel_members.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: talentFlowApproveAction asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "approve_action_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.approve_action.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: talentFlowAiChat asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "ai_chat_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.ai_chat.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: submitVoteByToken asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "submit_vote_by_token_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.submit_vote_by_token.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: sendTalentFlowNotification asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "send_notification_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.send_notification.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# MOD-01: orchestrateTalentFlowWorkflow asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "orchestrate_workflow_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.orchestrate_workflow.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
 }

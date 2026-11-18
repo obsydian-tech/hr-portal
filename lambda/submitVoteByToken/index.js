@@ -134,6 +134,12 @@ exports.handler = async (event) => {
     console.warn('Token carries no company');
     return forbidden('Invalid or expired scoring link');
   }
+  // MOD-01: the link's company must have Recruitment on; if not, the answer is the expired-link one, nothing new.
+  const { modulesOf } = await import('../shared/modules.mjs');
+  if (!(await modulesOf(tenantId)).includes('recruitment')) {
+    console.warn('Module off, skipped', { tenantId });
+    return gone('Scoring link has expired');
+  }
   const { candidateId, panelMemberId, panelMemberEmail, panelMemberName } = tokenRecord;
   const voterId = panelMemberId; // identity derived from token record, not JWT
 

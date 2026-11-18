@@ -97,7 +97,12 @@ async function getAllVersions(tenantId, configType) {
 // TEN-03: the company is the sign-in's. tenantId in the query or body is not read.
 async function companyOf(event) {
   const T = await tenantHelper();
-  return { T, ...T.requireTenant(event) };
+  const t = T.requireTenant(event);
+  if (t.refusal) return { T, ...t };
+  // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
+  const { requireModule } = await import('../shared/modules.mjs');
+  const moduleOff = await requireModule(event, 'recruitment');
+  return moduleOff ? { T, refusal: moduleOff } : { T, ...t };
 }
 
 async function handleGet(event) {

@@ -86,6 +86,10 @@ exports.handler = async (event) => {
   if (event.requestContext) {
     const t = T.requireTenant(event);
     if (t.refusal) return t.refusal;
+    // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
+    const { requireModule } = await import('../shared/modules.mjs');
+    const moduleOff = await requireModule(event, 'recruitment');
+    if (moduleOff) return moduleOff;
     tenantId = t.tenantId;
   } else {
     tenantId = await eventTenant(event.detail || event);

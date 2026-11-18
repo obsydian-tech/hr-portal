@@ -115,6 +115,12 @@ async function processRecord(item, eventName) {
     console.warn('[evaluateIntelligenceRules] Skipping record: it carries no company');
     return { status: 'skipped', reason: 'no_company' };
   }
+  // MOD-01: a company with Recruitment off is skipped, never thrown.
+  const { modulesOf } = await import('../shared/modules.mjs');
+  if (!(await modulesOf(tenantId)).includes('recruitment')) {
+    console.warn('[evaluateIntelligenceRules] Module off, skipped', { tenantId });
+    return { status: 'skipped', reason: 'module_off' };
+  }
 
   // Step 1: Load INTELLIGENCE_RULES config for tenant
   let intelligenceConfig;

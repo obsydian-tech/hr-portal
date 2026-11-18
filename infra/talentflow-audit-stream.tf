@@ -302,6 +302,7 @@ resource "aws_lambda_function" "get_candidate_events" {
 
   environment {
     variables = {
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
       EVENTS_TABLE_NAME = aws_dynamodb_table.talent_flow_events.name
     }
   }
@@ -459,4 +460,21 @@ output "talent_flow_events_table_name" {
 output "talent_flow_events_table_arn" {
   description = "DynamoDB table ARN for candidate event timeline (FE-006)"
   value       = aws_dynamodb_table.talent_flow_events.arn
+}
+
+# MOD-01: getCandidateEvents asks lambda/shared/modules.mjs whether Recruitment is on: one GetItem on the company's row in the
+# tenants table (infra/tenancy.tf). Add only. KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf).
+resource "aws_iam_role_policy" "get_candidate_events_modules_read" {
+  name = "mod01-modules-read"
+  role = aws_iam_role.get_candidate_events.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCompanyModules"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = [aws_dynamodb_table.tenants.arn]
+    }]
+  })
 }

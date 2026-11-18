@@ -47,6 +47,12 @@ exports.handler = async (event) => {
     console.warn('orchestrate: skipped, the event carries no company');
     return;
   }
+  // MOD-01: a company with Recruitment off is skipped, never thrown.
+  const { modulesOf } = await import('../shared/modules.mjs');
+  if (!(await modulesOf(tenantId)).includes('recruitment')) {
+    console.warn('orchestrate: Module off, skipped', { tenantId });
+    return;
+  }
   if (!candidateId) {
     console.error('orchestrate: missing candidateId in event.detail');
     throw new Error('Missing required fields: candidateId');

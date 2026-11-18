@@ -1418,3 +1418,33 @@ resource "aws_lambda_permission" "tenant_pre_token" {
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.naleko_dev.arn
 }
+
+# ─── MOD-01: getCompanyModules ───────────────────────────────────────────────
+resource "aws_lambda_function" "get_company_modules" {
+  function_name = "getCompanyModules"
+  role          = aws_iam_role.get_company_modules.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 10
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/getCompanyModules"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+}

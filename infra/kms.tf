@@ -52,6 +52,37 @@ module "kms_pii" {
     # TEN-03: the TalentFlow pre-token trigger reads Member rows in the tenants table. Its role lives in the
     # talent-flow-infra stack, so it is named by ARN: that stack applies first (the role must exist), then this one.
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow-role-talentFlowPreTokenTrigger",
+    # MOD-01: getCompanyModules and every Lambda that asks modules.mjs read the company row in the tenants table.
+    # The TalentFlow roles live in talent-flow-infra, named by ARN (their path /talent-flow/ is part of it).
+    aws_iam_role.get_company_modules.arn,
+    aws_iam_role.get_candidate_events.arn,
+    aws_iam_role.get_hiring_managers.arn,
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getCandidate",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-updateCandidate",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-advanceCandidateStage",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-scheduleInterview",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-submitVote",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-captureSentiment",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-generateScoringLink",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getOffer",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-createOffer",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-advanceOfferState",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-dismissTile",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-snoozeTile",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-acknowledgeTile",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getCandidates",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-createCandidate",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getIntelligenceTiles",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-manageTalentFlowConfig",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getUserNotifications",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-markNotificationRead",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getPanelMembers",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-talentFlowApproveAction",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-talentFlowAiChat",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-submitVoteByToken",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-evaluateIntelligenceRules",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-sendTalentFlowNotification",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-orchestrateTalentFlowWorkflow",
   ]
 
   # ONB-24: Cognito encrypts reset codes under a grant the deploy role makes (RootFullAdmin covers it).

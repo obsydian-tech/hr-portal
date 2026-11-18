@@ -742,3 +742,31 @@ resource "aws_lambda_permission" "resend_invite" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
 }
+
+# ---------------------------------------------------------------------------
+# MOD-01: GET /v1/company/modules (employees_api, the API the app calls through employeesApiUrl). Any signed-in
+# person whose sign-in carries a company; the employees_api CORS already allows GET and the authorization header.
+# ---------------------------------------------------------------------------
+
+resource "aws_apigatewayv2_integration" "get_company_modules" {
+  api_id                 = aws_apigatewayv2_api.employees_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_company_modules.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "get_company_modules" {
+  api_id             = aws_apigatewayv2_api.employees_api.id
+  route_key          = "GET /v1/company/modules"
+  target             = "integrations/${aws_apigatewayv2_integration.get_company_modules.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.employees_api_cognito.id
+}
+
+resource "aws_lambda_permission" "get_company_modules" {
+  statement_id  = "AllowEmployeesAPIInvokeGetCompanyModules"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.get_company_modules.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}

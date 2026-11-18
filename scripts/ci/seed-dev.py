@@ -383,6 +383,26 @@ def ensure_second_company(ddb, hr_b_sub: str) -> int:
     return written
 
 
+# MOD-01: the dev companies' modules, set on every run (the founding company both, company B Onboarding only), so a
+# test that turned Recruitment on for B is put back. Only an existing Company row is changed. Prod is never seeded:
+# there the set-modules script does it, with an audit row.
+DEV_MODULES = {"founding": ["onboarding", "recruitment"], "second": ["onboarding"]}
+
+
+def set_dev_modules(ddb) -> int:
+    changed = 0
+    for tid, keys in ((founding_tenant_id(), DEV_MODULES["founding"]), (SECOND_TENANT_ID, DEV_MODULES["second"])):
+        try:
+            ddb.update_item(TableName=TENANTS_TABLE, Key={"pk": {"S": f"TENANT#{tid}"}, "sk": {"S": "PROFILE"}},
+                            UpdateExpression="SET #m = :m", ConditionExpression="attribute_exists(pk)",
+                            ExpressionAttributeNames={"#m": "modules"}, ExpressionAttributeValues={":m": {"SS": keys}})
+            changed += 1
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+    return changed
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -415,6 +435,7 @@ def main() -> None:
     if not hr_b_sub:
         print("warning: the company B login has no sub; its Member row was not written")
     second_written = ensure_second_company(ddb, hr_b_sub) if hr_b_sub else 0
+    modules_set = set_dev_modules(ddb)
 
     tid = founding_tenant_id()
     employee_sub = user_sub(cognito, naleko, "employee")
@@ -439,7 +460,7 @@ def main() -> None:
           f"demo people {len(DEMO_PEOPLE) + 1}; persona documents reset {docs_removed}; "
           f"persona consents reset {consents_removed}; "
           f"demo documents {seeded_documents}; founding company row written {founding_written}; "
-          f"second company rows written {second_written}")
+          f"second company rows written {second_written}; company modules set {modules_set}")
 
 
 if __name__ == "__main__":
