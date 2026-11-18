@@ -162,6 +162,12 @@ export class PpSideNavigation {
     </label>
     <div class="pp-top-navigation__actions">
       <button ppButton appearance="subtle" icon="search" [iconOnly]="true" class="pp-top-navigation__search-button" aria-label="Search" (click)="search.emit('')"></button>
+      @if (showAsk()) {
+        <button ppButton [appearance]="compact() ? 'subtle' : 'default'" icon="sparkles" [iconOnly]="compact()" [attr.aria-label]="waiting() ? 'Ask Batsi, ' + waiting() + ' waiting' : (compact() ? 'Ask Batsi' : null)" aria-haspopup="dialog" [attr.aria-expanded]="askOpen()" [pressed]="askOpen() || undefined" (click)="ask.emit()">
+          @if (!compact()) { Ask Batsi }
+          @if (waiting()) { <span class="pp-top-navigation__badge" aria-hidden="true">{{ waiting() }}</span> }
+        </button>
+      }
       <button ppButton appearance="subtle" icon="bell" [iconOnly]="true" [attr.aria-label]="bellLabel()" aria-haspopup="dialog" [attr.aria-expanded]="notificationsOpen()"
               [attr.aria-controls]="notificationsOpen() ? notificationsId() ?? null : null" [pressed]="notificationsOpen() || undefined" (click)="notifications.emit()">
         @if (unread()) { <span class="pp-top-navigation__badge" aria-hidden="true">{{ unread() }}</span> }
@@ -194,6 +200,12 @@ export class PpTopNavigation {
   /** The modules popup or drawer is open, so the button says so. */
   readonly launcherOpen = input(false);
   readonly launcher = output<void>();
+  /** The Ask Batsi button (proposed): opens the agent panel. Icon only on phone. */
+  readonly showAsk = input(false);
+  readonly askOpen = input(false);
+  /** Proposals waiting for this person. */
+  readonly waiting = input(0);
+  readonly ask = output<void>();
   private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
   /** "/" jumps to search from anywhere except a field. */
   @HostListener('document:keydown', ['$event']) protected slash(e: KeyboardEvent) {

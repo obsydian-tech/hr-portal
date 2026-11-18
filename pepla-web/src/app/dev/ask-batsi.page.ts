@@ -3,11 +3,11 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs';
-import { PpAgentLauncher, PpAgentPanel, PpAppShell, PpButton, PpButtonGroup, PpInlineMessage, PpSideNavigation, NavSection, PanelMessage, PanelSuggestion, Proposal } from '../ds';
+import { PpAgentPanel, PpAppShell, PpButton, PpButtonGroup, PpInlineMessage, PpSideNavigation, PpTopNavigation, NavSection, PanelMessage, PanelSuggestion, Proposal } from '../ds';
 import words from './ask-batsi.words.json';
 
 /**
- * Prototype of the Ask Batsi chat: a bottom right bubble that opens the side panel, and a full page with past chats.
+ * Prototype of the Ask Batsi chat: the top bar Ask Batsi button opens the side panel (no bubble), and the panel expands to a full page with past chats.
  * Fake data and fixed replies: nothing here calls an AI or any network. Every sentence comes from ask-batsi.words.json
  * (approved or "proposed, not approved").
  */
@@ -71,7 +71,7 @@ export class FakeChat {
 
 @Component({
   selector: 'app-ask-batsi-page',
-  imports: [PpAgentLauncher, PpAgentPanel, PpAppShell, PpButton, PpButtonGroup, PpInlineMessage, PpSideNavigation],
+  imports: [PpAgentPanel, PpAppShell, PpButton, PpButtonGroup, PpInlineMessage, PpSideNavigation, PpTopNavigation],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <pp-inline-message tone="warning">{{ banner }}</pp-inline-message>
@@ -80,6 +80,7 @@ export class FakeChat {
     </pp-button-group>
     <pp-app-shell [inline]="true" [inlineHeight]="narrow() ? 1100 : 800" [phone]="narrow()">
       @if (!narrow()) { <pp-side-navigation company="Mokoena Logistics" [inline]="true" [inlineHeight]="800" [sections]="sections()" /> }
+      @if (!fullPage()) { <pp-top-navigation userName="Thandeka Dlamini" [inline]="true" [compact]="narrow()" [showAsk]="true" [waiting]="2" [askOpen]="panelOpen()" (ask)="panelOpen.set(!panelOpen())" /> }
       @if (narrow() && fullPage()) {
         <pp-button-group>
           <button ppButton size="small" icon="arrow-left" type="button" (click)="go('/dev/ask-batsi')">{{ backLabel }}</button>
@@ -98,8 +99,6 @@ export class FakeChat {
           <pp-agent-panel [open]="panelOpen()" [inline]="true" [inlineHeight]="640" context="Looking at Kagiso Molefe" [placeholder]="placeholder" [expandable]="true"
             [messages]="chat.messages()" [suggestions]="chat.messages().length > 1 ? [] : suggestions" [working]="chat.working()"
             (send)="chat.ask($event)" (stop)="chat.stop()" (approve)="chat.approve()" (review)="chat.approve()" (expand)="expand()" (openChange)="panelOpen.set($event)" />
-        } @else {
-          <pp-agent-launcher [waiting]="2" (open)="panelOpen.set(true)" />
         }
       }
     </pp-app-shell>`,
@@ -116,7 +115,7 @@ export class AskBatsiPage {
   protected readonly newLabel = w('P18');
   protected go(url: string) { this.router.navigateByUrl(url); }
   protected readonly placeholder = w('W04', { name: 'Kagiso' });
-  protected readonly panelOpen = signal(true);
+  protected readonly panelOpen = signal(false);
   protected readonly fullPage = computed(() => this.route.snapshot.routeConfig?.path?.includes('chat') ?? false);
   protected readonly pastChat = computed(() => PAST.find((p) => p.id === this.params()?.get('id')));
   protected readonly shown = computed(() => this.pastChat()?.messages ?? this.chat.messages());

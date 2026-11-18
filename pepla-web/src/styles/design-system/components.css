@@ -2998,40 +2998,6 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-agent-log__outcome--failed > svg { color: var(--color-icon-danger); }
 .pp-agent-log__outcome--waiting > svg { color: var(--color-icon-information); }
 
-/* ---- agent/agent-launcher ---- */
-/* Agent launcher. Spec: agent-launcher.md. The bubble at the bottom right that opens the agent panel. */
-.pp-agent-launcher {
-  position: fixed;
-  z-index: var(--layer-navigation);
-  right: max(var(--space-250), env(safe-area-inset-right));
-  bottom: max(var(--space-250), env(safe-area-inset-bottom));
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-100);
-  min-width: var(--size-control-large);
-  min-height: var(--size-control-large);
-  padding: 0 var(--space-200);
-  border: var(--border-width) solid var(--color-border-agent);
-  border-radius: var(--radius-full);
-  background: var(--elevation-surface-raised);
-  box-shadow: var(--elevation-shadow-overlay);
-  color: var(--color-text-agent);
-  font: var(--font-label);
-  cursor: pointer;
-}
-.pp-agent-launcher > svg { width: var(--size-icon-medium); height: var(--size-icon-medium); color: var(--color-icon-agent); }
-.pp-agent-launcher:hover { background: var(--color-background-neutral-subtle-hovered); }
-.pp-agent-launcher:focus-visible { outline: var(--border-width-focused) solid var(--color-border-focused); outline-offset: 2px; }
-.pp-agent-launcher--inline { position: absolute; }
-.pp-agent-launcher--round { padding: 0; width: var(--size-control-large); }
-.pp-agent-launcher__badge { position: absolute; top: calc(var(--space-050) * -1); right: calc(var(--space-050) * -1); min-width: var(--size-icon-small); height: var(--size-icon-small); padding: 0 var(--space-050); border-radius: var(--radius-full); background: var(--color-background-brand-bold); color: var(--color-text-inverse); font: var(--font-label-small); display: inline-flex; align-items: center; justify-content: center; }
-.pp-agent-launcher[hidden] { display: none; }
-
-.pp-app-shell__main:has(> .pp-agent-launcher--inline) { position: relative; }
-.pp-agent-launcher--inline { height: var(--size-control-large); align-self: auto; }
-.pp-app-shell--phone .pp-side-navigation--inline { width: 100%; border: 0; height: auto; }
-
 /* ---- agent/agent-mark ---- */
 /* Agent mark. Spec: agent-mark.md. With the proposal card, the only mint in the product (rule 1). */
 .pp-agent-mark {
@@ -3123,6 +3089,9 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-agent-panel--page .pp-agent-panel__input-row { padding: var(--space-100); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-xlarge); background: var(--elevation-surface-raised); }
 .pp-agent-panel--page .pp-agent-panel__input-row .pp-textarea { border: 0; box-shadow: none; background: transparent; }
 .pp-agent-panel--page .pp-agent-panel__hint { text-align: center; }
+
+/* Phone: a list of chats fills the width */
+.pp-app-shell--phone .pp-side-navigation--inline { width: 100%; border: 0; height: auto; }
 
 /* ---- agent/agent-proposal-card ---- */
 /* Agent proposal card. Spec: agent-proposal-card.md. Rule 2: the agent proposes, a person approves.

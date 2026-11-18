@@ -6,7 +6,6 @@ import { PpSplitButton } from './actions/split-button';
 import { PpAgentLog } from './agent/activity-log';
 import { PpAgentMark, PpConfidence, PpProposalCard, PpProposalRow, PpProposalList } from './agent/agent';
 import { PpAgentPanel } from './agent/panel';
-import { PpAgentLauncher } from './agent/launcher';
 import { PpAvatar, PpAvatarGroup, PpPerson } from './core/avatar';
 import { PpIcon } from './core/icon';
 import { PpLogo, PpAppIcon, PpIconTile } from './core/logo';
@@ -52,7 +51,6 @@ export const PP_ALL = [
   PpProposalRow,
   PpProposalList,
   PpAgentPanel,
-  PpAgentLauncher,
   PpAvatar,
   PpAvatarGroup,
   PpPerson,
