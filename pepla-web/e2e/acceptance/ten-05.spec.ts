@@ -6,10 +6,10 @@ import { attributes, blocks, tfFiles, type Block } from './support/infra-harness
 import { devEnv } from './support/ten-02/dev';
 import { DOCUMENT_CHECK, HR_GROUP_HELPER, LAMBDA, REPO, ROLES_HELPER, awsCalls, httpEvent, runModule, type Run } from './support/ten-05/lambda-harness';
 import {
-  A, B, CALLER_SUB, ID, POOL_GROUPS, TABLE, TENANTS, TEN05, ask, aws, bodyOf, describe, pool, rowsOf, statusOf, tables, type Caller,
+  A, B, CALLER_SUB, ID, POOL_GROUPS, TABLE, TENANTS, TEN05, ask, aws, bodyOf, describe, pool, rowsOf, statusOf, tables, type Ask, type Caller,
 } from './support/ten-05/world';
 import {
-  ALL_CALLERS, NEW_CALLERS, NEW_GROUPS, NOBODY_CALLERS, OLD_CALLERS, OLD_GROUPS, OLD_MANAGED, PERMS, PROBES, ROLES, ROLE_HANDLERS, grantOf, grantOfCaller, type Probe,
+  ALL_CALLERS, NEW_CALLERS, NEW_GROUPS, NOBODY_CALLERS, OLD_CALLERS, OLD_GROUPS, OLD_MANAGED, PERMS, UPDATE_MANAGED, PROBES, ROLES, ROLE_HANDLERS, grantOf, grantOfCaller, type Probe,
 } from './support/ten-05/access';
 
 /**
@@ -362,7 +362,7 @@ test.describe('TEN-05 · One sign-in pool with five roles, every group in Terraf
     const world = () => ({ pool: pool([], POOL_GROUPS) });
     const groupsOf = (r: Run, username: string) => [...(r.cognito.users.find((u) => u.username === username)?.groups ?? [])].sort();
     const touched = (r: Run) => r.calls.filter((c: any) => c.service === 'cognito' && /UserToGroup|UserFromGroup/.test(c.op)).map((c: any) => String(c.input?.GroupName));
-    const allowed = new Set([...NEW_GROUPS, ...OLD_MANAGED]);
+    const allowed = new Set(UPDATE_MANAGED()); // TEN-05.1 (S-1): the eight, today's four and every old name
     const NEW_EMAIL = 'new.person@example.test';
     const create = (body: Record<string, unknown>, who: Caller = adminA) => ask('adminCreateUser', who, { method: 'POST', body: { email: NEW_EMAIL, givenName: 'Nomsa', familyName: 'New', ...body } }, world());
     const sortedList = (l: string[]) => [...l].sort();
@@ -403,8 +403,10 @@ test.describe('TEN-05 · One sign-in pool with five roles, every group in Terraf
     const A_USER = 'thandeka.a@example.test';
     const u1 = ask('adminUpdateUser', adminA, { method: 'PUT', path: { userId: TEN05.userA }, body: { role: 'manager', permissions: ['perm-recruitment'], tenant_id: B } }, world());
     expect(statusOf(u1), `update, new form: 200\n${describe(u1)}`).toBe(200);
-    expect(groupsOf(u1, A_USER), 'update, new form: managed groups set, e2e-robots and the old module groups kept').toEqual(sortedList(['manager', 'perm-recruitment', 'e2e-robots', 'naleko-onboarding-hr', 'naleko-talentflow-admin']));
-    expect(touched(u1).filter((gname) => !allowed.has(gname)), 'update: adds or removes only the eight and today\'s managed TalentFlow names').toEqual([]);
+    // TEN-05.1 (S-1): every old group name that is not wanted goes too (naleko-talentflow-admin, naleko-onboarding-hr, ...); e2e-robots stays.
+    expect(groupsOf(u1, A_USER), 'update, new form: managed groups set, every old group name removed, e2e-robots kept').toEqual(sortedList(['manager', 'perm-recruitment', 'e2e-robots']));
+    expect(grantOf(groupsOf(u1, A_USER)).roles, 'update, new form: the demoted admin has no admin role left').not.toContain('admin');
+    expect(touched(u1).filter((gname) => !allowed.has(gname)), 'update: adds or removes only the eight, today\'s four managed TalentFlow names and the old names of OLD_GROUPS').toEqual([]);
     const added = u1.calls.filter((c: any) => c.service === 'cognito' && c.op === 'AdminAddUserToGroup').map((c: any) => c.input.GroupName);
     expect(added.filter((gname: string) => !NEW_GROUPS.includes(gname)), 'update: never adds an old group name').toEqual([]);
     const u2 = ask('adminUpdateUser', adminA, { method: 'PUT', path: { userId: TEN05.userA2 }, body: { roles: ['IT'] } }, world());
@@ -413,6 +415,19 @@ test.describe('TEN-05 · One sign-in pool with five roles, every group in Terraf
     const u3 = ask('adminUpdateUser', adminA, { method: 'PUT', path: { userId: TEN05.userA2 }, body: { roles: ['ADMIN'] } }, world());
     expect(groupsOf(u3, 'musa.a@example.test'), 'update, old roles ADMIN: admin and every tick, the old role group replaced').toEqual(sortedList(['admin', ...PERMS, 'e2e-robots']));
     for (const r of [u1, u2, u3]) expect(touched(r), 'update: e2e-robots is never added or removed').not.toContain('e2e-robots');
+    // TEN-05.1 (S-1): a user in every old name, e2e-robots and a name nobody manages, demoted with the old TA role.
+    {
+      const OTHER = 'reports-readers';
+      const w = pool([], [...new Set([...POOL_GROUPS, ...Object.keys(OLD_GROUPS), OTHER])]);
+      const musa = w.users.find((x) => x.username === 'musa.a@example.test')!;
+      musa.groups = ['manager', 'e2e-robots', OTHER, ...Object.keys(OLD_GROUPS)];
+      const r = ask('adminUpdateUser', adminA, { method: 'PUT', path: { userId: TEN05.userA2 }, body: { roles: ['TA'] } }, { pool: w });
+      expect(statusOf(r), `update, old roles TA on a user in every old name: 200\n${describe(r)}`).toBe(200);
+      expect(groupsOf(r, 'musa.a@example.test'), 'update, old roles TA: every old name removed, the role kept, e2e-robots and the unmanaged name kept').toEqual(sortedList(['manager', 'perm-recruitment', 'e2e-robots', OTHER]));
+      expect(grantOf(groupsOf(r, 'musa.a@example.test')).roles, 'update, old roles TA: no admin role is left').toEqual(['manager']);
+      expect(touched(r), 'update: the unmanaged name is never touched').not.toContain(OTHER);
+      expect(touched(r).filter((gname) => !allowed.has(gname)), 'update: touches only managed names').toEqual([]);
+    }
     for (const r of [u1, u2, u3]) expect(JSON.stringify(aws(r)), 'update: no read or write of the tenants table').not.toContain(TENANTS);
     const bad = ask('adminUpdateUser', adminA, { method: 'PUT', path: { userId: TEN05.userA2 }, body: { role: 'e2e-robots' } }, world());
     expect(statusOf(bad), 'update, role e2e-robots: 400').toBe(400);
@@ -469,6 +484,55 @@ test.describe('TEN-05 · One sign-in pool with five roles, every group in Terraf
         expect(aws(r), `${h}, ${c.name}: no AWS call`).toEqual([]);
       }
     }
+  });
+
+  test('AC-5 A group that cannot be removed fails the update: 500, and the user row is not written', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    const adminA: Caller = { name: 'admin of A', groups: ['admin'] };
+    const w = () => pool([], POOL_GROUPS);
+    const fail = { service: 'cognito' as const, ops: ['AdminRemoveUserFromGroup'], name: 'InternalErrorException', message: 'fake Cognito: AdminRemoveUserFromGroup is unavailable' };
+    const r = ask('adminUpdateUser', adminA, { method: 'PUT', path: { userId: TEN05.userA }, body: { role: 'manager', permissions: [] } }, { pool: w(), fail });
+    expect(statusOf(r), `update, removal fails: 500\n${describe(r)}`).toBe(500);
+    expect(bodyOf(r), 'update, removal fails: {"error":"Failed to remove a group in Cognito"}').toEqual({ error: 'Failed to remove a group in Cognito' });
+    expect(r.calls.filter((c: any) => c.service === 'cognito' && c.op === 'AdminRemoveUserFromGroup').length, 'update, removal fails: a removal was tried').toBeGreaterThan(0);
+    expect(r.calls.filter((c: any) => c.service === 'dynamodb' && !['GetItem', 'Query'].includes(c.op)), 'update, removal fails: the user row is not written').toEqual([]);
+    expect(rowsOf(r.tables, TABLE.users).find((x) => x['email'] === 'thandeka.a@example.test')?.['roles'], 'update, removal fails: the stored roles are unchanged').toEqual(['IT']);
+    // The same update with nothing failing still succeeds (the fault is the only difference).
+    const ok = ask('adminUpdateUser', adminA, { method: 'PUT', path: { userId: TEN05.userA }, body: { role: 'manager', permissions: [] } }, { pool: w() });
+    expect(statusOf(ok), `update, nothing failing: 200\n${describe(ok)}`).toBe(200);
+  });
+
+  test('AC-5 Errors are logged by name only: an AWS error\'s message never reaches the log or the answer', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    test.setTimeout(240_000);
+    const MARK = 'ten05-private-detail-4417 thandeka.a@example.test arn:aws:cognito-idp:af-south-1:000000000000:userpool/x';
+    const adminA: Caller = { name: 'admin of A', groups: ['admin'] };
+    const manager: Caller = { name: 'manager of A', groups: ['manager', 'perm-recruitment'] };
+    const routes: Array<[string, Caller, Ask]> = [
+      ['adminCreateUser', adminA, { method: 'POST', body: { email: 'new.person@example.test', givenName: 'Nomsa', familyName: 'New', role: 'manager', permissions: [] } }],
+      ['adminUpdateUser', adminA, { method: 'PUT', path: { userId: TEN05.userA2 }, body: { role: 'guest' } }],
+      ['adminDeactivateUser', adminA, { method: 'DELETE', path: { userId: TEN05.userA2 } }],
+      ['adminGetUsers', adminA, {}],
+      ['getHiringManagers', manager, {}],
+      ['getPanelMembers', manager, {}],
+      ['getPanelMembers', manager, { query: { candidateId: ID.a1 } }],
+    ];
+    const failed: string[] = [];
+    for (const [h, who, a] of routes) {
+      for (const service of ['cognito', 'dynamodb'] as const) {
+        const r = ask(h, who, a, { pool: pool([], POOL_GROUPS), fail: { service, name: 'InternalErrorException', message: MARK } });
+        const hit = r.calls.some((c: any) => c.service === service);
+        const logs = r.calls.filter((c: any) => c.service === 'log').map((c: any) => `${c.message} ${JSON.stringify(c.extra ?? '')}`).join('\n');
+        if (!hit) continue; // this route does not call that service
+        if (logs.includes('ten05-private-detail-4417')) failed.push(`${h} ${JSON.stringify(a.query ?? {})}, ${service} fails: the log carries the error message`);
+        if (JSON.stringify(bodyOf(r) ?? '').includes('ten05-private-detail-4417')) failed.push(`${h}, ${service} fails: the answer carries the error message`);
+        if (r.error && String(r.error.message).includes('ten05-private-detail-4417')) failed.push(`${h}, ${service} fails: the Lambda threw the error out`);
+      }
+    }
+    expect(failed, 'no AWS error message reaches the log or the answer').toEqual([]);
+    // The check can see a log line: a failing update logs something (by name).
+    const seen = ask('adminUpdateUser', adminA, routes[1]![2], { pool: pool([], POOL_GROUPS), fail: { service: 'cognito', name: 'InternalErrorException', message: MARK } });
+    expect(seen.calls.filter((c: any) => c.service === 'log').length, 'a failing update writes a log line').toBeGreaterThan(0);
   });
 
   // ---------------------------------------------------------------- AC-6

@@ -6,7 +6,8 @@ Test files: `ten-05.spec.ts` and `support/ten-05/`, plus the TEN-05 groups in `b
 
 Spec: [NH-197](https://obsydian.atlassian.net/browse/NH-197)
 
-Lock: acceptance-lock/ten-05 (AC-1 to AC-9; be-16.spec.ts is re-locked in the same commit)
+Locks: acceptance-lock/ten-05 (AC-1 to AC-9; be-16.spec.ts is re-locked in the same commit) and acceptance-lock/ten-05.1
+(the security review's changes, P10 to P13)
 
 Nothing here opens the app. The Lambda tests run the real handlers, each call in a fresh Node process (a cold
 Lambda), against `support/ten-05/fake-aws`: a copy of TEN-03's fake AWS with code added only. It adds
@@ -35,6 +36,15 @@ Pinned by the verifier (the reasons are in `TEN-05-refresh.md` and `TEN-05-tests
 - P8 The three user admin role policies stay as develop has them, and no Cognito action has a `*` resource.
 - P9 The company comes from the token only. An `x-tenant-id` header or a `tenant_id`, `tenantId` or `company` query
   value changes nothing on the user admin routes or the pickers (AC-5, AC-6).
+- P10 (ten-05.1, S-3) PanelMember and FinanceLead are not managers: PanelMember gives nothing, FinanceLead only
+  `perm-approve-offers`. Neither may create a bundle. HiringManager and `naleko-talentflow-hiringmanager` stay
+  `manager` + `perm-recruitment`. The picker lists do not change.
+- P11 (ten-05.1, S-1) User admin update removes every managed name that is not wanted: the eight, today's four and every
+  old name in `OLD_GROUPS`. A demoted admin has no admin role left. `e2e-robots` and any other name are never touched.
+- P12 (ten-05.1) When a group cannot be removed, update answers 500 `{"error":"Failed to remove a group in Cognito"}`
+  and does not write the user row.
+- P13 (ten-05.1, S-4) The user admin routes and both pickers log an AWS error by its name only. The error's message
+  never reaches the log or the answer.
 
 - AC-4 and AC-8 read code and Terraform as text. AC-7 compiles `deriveModules` from `auth.service.ts`.
 - AC-9 runs on pepla-dev only (@pepla-dev). It needs `scripts/tenancy/ten-05-dev-count.json` (`{"candidates": n}`,
