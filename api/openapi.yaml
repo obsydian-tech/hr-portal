@@ -2787,6 +2787,11 @@ paths:
                     type: string
                     format: date
                     description: 'The date the required documents are due: 7 days before the start date. Left out when there is no start date.'
+                  step:
+                    type: string
+                    nullable: true
+                    enum: [INVITED, DOCUMENTS, IN_REVIEW, VERIFIED]
+                    description: 'Where the signed-in person is in onboarding, the same step HR sees (ONB-09). null for an archived or unknown record.'
                   notice:
                     type: object
                   consent:

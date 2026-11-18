@@ -31,6 +31,7 @@ const registry = signal<NavEntry[]>([
   { id: 'hr-today', group: 'Today', label: 'Today', icon: 'house', route: '/hr', roles: [ROLE.hrStaff] },
   { id: 'hr-documents', group: 'Today', label: 'Documents to check', icon: 'files', route: '/hr/documents', roles: [ROLE.hrStaff] },
   { id: 'employee-today', group: 'Today', label: 'Today', icon: 'house', route: '/start', roles: [ROLE.employee] },
+  { id: 'employee-onboarding', group: 'Today', label: 'My onboarding', icon: 'list-checks', route: '/start/onboarding', roles: [ROLE.employee] },
 ]);
 export const navEntries = registry.asReadonly();
 export function registerNav(entries: NavEntry[]): void {
