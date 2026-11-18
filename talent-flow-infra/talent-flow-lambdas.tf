@@ -1567,3 +1567,35 @@ resource "aws_iam_role_policy" "orchestrate_workflow_modules_read" {
     }]
   })
 }
+
+# Walk fix: captureSentiment reads the candidate row (GetItem) before it writes the sentiment. Its role had UpdateItem only.
+resource "aws_iam_role_policy" "capture_sentiment_state_read" {
+  name = "walk-state-read-capture-sentiment"
+  role = aws_iam_role.capture_sentiment.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCandidateState"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = [aws_dynamodb_table.talent_flow_state.arn]
+    }]
+  })
+}
+
+# Walk fix: markNotificationRead reads the notification (GetItem) before it marks it read. Its role had UpdateItem only.
+resource "aws_iam_role_policy" "mark_notif_read_notifications_read" {
+  name = "walk-notifications-read-mark-notif-read"
+  role = aws_iam_role.mark_notif_read.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadNotification"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = [aws_dynamodb_table.talent_flow_notifications.arn]
+    }]
+  })
+}

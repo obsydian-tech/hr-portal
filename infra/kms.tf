@@ -59,6 +59,8 @@ module "kms_pii" {
     aws_iam_role.get_company_modules.arn,
     aws_iam_role.get_candidate_events.arn,
     aws_iam_role.get_hiring_managers.arn,
+    # Walk fix: queryAuditLog Queries/Scans the onboarding-events table, which this key encrypts (AccessDeniedException in its log).
+    aws_iam_role.query_audit_log.arn,
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getCandidate",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-updateCandidate",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-advanceCandidateStage",
