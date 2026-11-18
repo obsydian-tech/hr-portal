@@ -42,7 +42,8 @@ const once = (projectName: string) => {
 };
 const FORBIDDEN = { error: 'Forbidden' };
 /** The rule 4 routes whose role check refuses a person in no group before any AWS call (develop 6122df1, TEN-05). */
-const ROLE_CHECKED = ['POST /v1/config', 'PUT /v1/config', 'GET /v1/actions/pending (HR)', 'POST /v1/actions/{id}/approve (HR)', 'POST /v1/actions/{id}/reject (HR)'];
+// REC-01 adds a role answer to the Recruitment routes below (the first fifteen); TEN-05's admin-only and HR routes follow.
+const ROLE_CHECKED = ['PATCH /v1/candidates/{id}', 'PUT /v1/candidates/{id}/stage', 'PATCH /v1/candidates/{id}/interviews/{interviewId}', 'POST /v1/candidates/{id}/interviews', 'POST /v1/candidates/{id}/sentiment', 'POST /v1/candidates/{id}/scoring-links', 'POST /v1/candidates/{id}/offer', 'PUT /v1/candidates/{id}/offer', 'POST /v1/intelligence/tiles/{id}/dismiss', 'POST /v1/intelligence/tiles/{id}/snooze', 'POST /v1/intelligence/tiles/{id}/acknowledge', 'GET /v1/candidates', 'POST /v1/candidates', 'GET /v1/intelligence/tiles', 'GET /v1/config', 'POST /v1/config', 'PUT /v1/config', 'GET /v1/actions/pending (HR)', 'POST /v1/actions/{id}/approve (HR)', 'POST /v1/actions/{id}/reject (HR)'];
 const READ_FAILED = 'Modules read failed';
 const MODULE_OFF = 'Module off, skipped';
 const STANDARD_PACK_LINE = 'Recruitment Standard pack: not available yet (REC-12)';
