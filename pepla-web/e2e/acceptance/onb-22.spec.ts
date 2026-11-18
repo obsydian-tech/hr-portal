@@ -3,6 +3,8 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
+import { attributes } from './support/infra-harness';
+import { policyOf, type TfResource } from './support/onb-15/tf-policy';
 import { common, expectOnly, grants, lambdaNamed, list, resources, roleOf, settingsOf, squash as tfSquash } from './support/ten-01/tf';
 import {
   A, AGENT_SECRET, B, D, HR, P, REPO, REVIEW_NAME, V, auditRows, awsCalls, bedrockOf, bodyOf, call, callEvent, callTogether, describe, document, eventFor, find, httpIn, httpOf, invokesOf, logLines,
@@ -56,7 +58,7 @@ const accept = (doc: string) => ({ type: 'ACCEPT_DOCUMENT', document_id: doc });
 const listActions = (caller: Caller, t: Tables): Run => call('approveAgentAction', caller, { path: '/agent/v1/actions', route: '/agent/v1/actions' }, { tables: t });
 const getAction = (caller: Caller, id: string, t: Tables): Run =>
   call('approveAgentAction', caller, { path: `/agent/v1/actions/${id}`, route: '/agent/v1/actions/{actionId}', pathParameters: { actionId: id } }, { tables: t });
-const decide = (verb: 'approve' | 'reject', caller: Caller, id: string, t: Tables, body?: unknown, opts: { invokeFail?: string; noLambdaClient?: boolean; fail?: unknown } = {}): Run =>
+const decide = (verb: 'approve' | 'reject', caller: Caller, id: string, t: Tables, body?: unknown, opts: { invokeFail?: string; noLambdaClient?: boolean; fail?: unknown; eventBridgeDown?: boolean | string; eventBridgeFailFirst?: number } = {}): Run =>
   call('approveAgentAction', caller, { method: 'POST', path: `/agent/v1/actions/${id}/${verb}`, route: `/agent/v1/actions/{actionId}/${verb}`, pathParameters: { actionId: id }, body }, { tables: t, ...opts });
 
 type PendingOver = Partial<{ id: string; doc: string; emp: string; name: string; docType: string; check: string; tenant: string; status: string; created: string; expires: number; run: string; approvedBy: string; approvedByName: string; approvedAt: string }>;
@@ -207,14 +209,17 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     expect(JSON.stringify(created), 'no file name, no link in the event').not.toMatch(/letter\.pdf|uploads\/|s3/i);
     expect(auditRows(r.tables).map((a) => `${a['detailType']} ${a['actor']}`), 'the audit table holds it, tagged AGENT').toEqual(['proposal.created AGENT']);
     expect(bedrockOf(r.calls), 'no AI call').toEqual([]);
-    // The same Idempotency-Key twice: one proposal.
+    // ONB-22.1 (M-2): no idempotency table. The open-proposal check (decision 14) is what stops a second proposal, so an Idempotency-Key
+    // changes nothing: the same key twice is a 201 and then a 409 that names the first, and the table is never touched.
     const k = { 'idempotency-key': 'onb22-key-0001' };
     const first = propose('agentA', accept(D.nomsaBank), tables(), { headers: k });
+    expect(statusOf(first), 'the first call with a key: 201').toBe(201);
     const second = propose('agentA', accept(D.nomsaBank), first.tables, { headers: k });
-    expect(statusOf(second), `the same key again answers like the first time (${describe(second)})`).toBe(201);
-    expect(bodyOf(second), 'with the same id').toEqual(bodyOf(first));
+    expect(statusOf(second), `the same key again: 409 with the first one's id (${describe(second)})`).toBe(409);
+    expect(bodyOf(second), 'it names the first proposal').toMatchObject({ action_id: bodyOf(first).action_id });
     expect(rowsOf(second.tables, 'naleko-pending-actions').length, 'still one row').toBe(1);
     expect(publishedOf(second.calls), 'and no second event').toEqual([]);
+    for (const run of [r, first, second]) expect(awsCalls(run.calls).filter((c) => /idempotency/i.test(c)), 'createProposal reads and writes no idempotency table').toEqual([]);
   });
 
   test('AC-2 A proposal is refused: another type, extra keys, no id; another company\'s or unknown document; a document that is not waiting with a Matches check', async ({}, testInfo) => {
@@ -555,6 +560,88 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     expectEnd('the document is gone', g, 'REFUSED', 'NOT_FOUND', gone);
   });
 
+  // ---- ONB-22.1 (the security review: M-3 and S-1)
+
+  const claimsOfRun = (run: Run) => run.calls.filter((c) => c.service === 'dynamodb' && c.op === 'UpdateItem' && c.table === 'naleko-pending-actions');
+  const valuesOf = (c: Run['calls'][number]) => JSON.stringify(c.input?.ExpressionAttributeValues ?? {});
+
+  test('AC-3 The claim writes RUNNING at once, and a decided row is kept 90 days, so the row and the events say what happened even if the Lambda dies mid-run (Lambda)', async ({}, testInfo) => {
+    once(testInfo);
+    const { id, run } = approveNomsa();
+    expect(statusOf(run), `200 (${describe(run)})`).toBe(200);
+    const writes = claimsOfRun(run);
+    expect(writes.length, 'the claim, then the end of the run').toBeGreaterThanOrEqual(2);
+    expect(valuesOf(writes[0]!), 'the claim itself carries run_status RUNNING (one write: approved and running)').toContain('"RUNNING"');
+    expect(valuesOf(writes[0]!), 'and who approved').toContain(HR.a.email);
+    const stored = actionRow(run.tables, id)!;
+    expect(stored, 'the run ended: RAN').toMatchObject({ status: 'APPROVED', run_status: 'RAN' });
+    const ninety = 90 * 86400;
+    const now = Math.floor(Date.now() / 1000);
+    expect(typeof stored['expiresAt'], 'expiresAt stays epoch seconds (the table\'s TTL)').toBe('number');
+    expect(Math.abs((stored['expiresAt'] as number) - (now + ninety)), 'an approved row is kept 90 days from the decision').toBeLessThan(3600);
+    const declined = decide('reject', 'hrA', 'act-onb22-0001', withPending([pending({ id: 'act-onb22-0001' })]));
+    expect(statusOf(declined), 'a decline: 200').toBe(200);
+    expect(Math.abs((actionRow(declined.tables, 'act-onb22-0001')!['expiresAt'] as number) - (now + ninety)), 'a declined row is kept 90 days from the decision too').toBeLessThan(3600);
+    expect(valuesOf(claimsOfRun(declined)[0]!), 'a decline never says RUNNING').not.toContain('RUNNING');
+    // A row that has not been answered keeps its 7 days (the claim only moves the time when it decides).
+    const open = rowsOf(withPending([pending({ id: 'act-open-1' })]), 'naleko-pending-actions')[0]!;
+    expect(Math.abs((open['expiresAt'] as number) - (now + 7 * 86400)), 'an open row keeps its 7 days').toBeLessThan(3600);
+    // The table's tag says what the table now does.
+    const tag = /resource "aws_dynamodb_table" "pending_actions" \{[\s\S]*?RetentionDays\s*=\s*"(\d+)"/.exec(text('infra/dynamodb.tf'))?.[1];
+    expect(tag, 'the pending table\'s RetentionDays tag says 90').toBe('90');
+  });
+
+  test('AC-3 The approval and the decline events are published with one retry; with the bus down the answer is still 200, the row still holds who and what, and the log holds an error name only (Lambda)', async ({}, testInfo) => {
+    once(testInfo);
+    const failed = (run: Run, type: string) => run.calls.filter((c) => c.service === 'events-failed' && c.detailType === type).length;
+    // One failed put, then it works: the event is there once.
+    const retry = decide('approve', 'hrA', 'act-onb22-0001', withPending([pending({ id: 'act-onb22-0001' })]), undefined, { eventBridgeFailFirst: 1 });
+    expect(statusOf(retry), `approve with one failed put: 200 (${describe(retry)})`).toBe(200);
+    expect(bodyOf(retry), 'and run').toMatchObject({ status: 'APPROVED', run_status: 'RAN' });
+    expect(failed(retry, 'proposal.approved'), 'one failed put').toBe(1);
+    expect(eventOf(retry, 'proposal.approved').length, 'then the retry reaches the bus: the event is published once').toBe(1);
+    expect(eventOf(retry, 'proposal.approved')[0], 'with both names').toMatchObject({ approved_by: HR.a.email, proposed_by: { kind: 'AGENT', id: 'default' }, tenant_id: A });
+    expect(auditRows(retry.tables).map((a) => a['detailType']), 'and the audit table has it').toContain('proposal.approved');
+    const retryReject = decide('reject', 'hrA', 'act-onb22-0001', withPending([pending({ id: 'act-onb22-0001' })]), undefined, { eventBridgeFailFirst: 1 });
+    expect(statusOf(retryReject), 'decline with one failed put: 200').toBe(200);
+    expect(failed(retryReject, 'proposal.rejected'), 'one failed put').toBe(1);
+    expect(eventOf(retryReject, 'proposal.rejected').length, 'the retry reaches the bus').toBe(1);
+    // The bus is down for good: one retry and then it stops. Nothing else is lost.
+    const down = decide('approve', 'hrA', 'act-onb22-0001', withPending([pending({ id: 'act-onb22-0001' })]), undefined, { eventBridgeDown: 'proposal.' });
+    expect(statusOf(down), `approve with the bus down: still 200 (${describe(down)})`).toBe(200);
+    expect(bodyOf(down), 'the review ran').toMatchObject({ status: 'APPROVED', run_status: 'RAN' });
+    expect(failed(down, 'proposal.approved'), 'one put and one retry, and no loop').toBe(2);
+    expect(eventOf(down, 'proposal.approved'), 'nothing reached the bus').toEqual([]);
+    expect(actionRow(down.tables, 'act-onb22-0001'), 'the row is the record: who, when, and how the run ended').toMatchObject({ status: 'APPROVED', approved_by: HR.a.email, approved_by_name: 'Thandi Mokoena', run_status: 'RAN' });
+    expect(Number.isFinite(Date.parse(String(actionRow(down.tables, 'act-onb22-0001')!['approved_at']))), 'with the time').toBe(true);
+    expect(docRow(down.tables, P.nomsa.id, D.nomsaBank), 'the document is decided').toMatchObject({ ocr_status: 'PASSED', hr_reviewed_by: HR.a.email });
+    const lines = logLines(down.calls);
+    const failLines = lines.filter((l) => /publish_failed/.test(l));
+    expect(failLines.length, 'each failed put is logged').toBe(2);
+    expect(failLines.join('\n'), 'by error name only').toContain('InternalException');
+    expect(lines.join('\n'), 'never the error\'s words').not.toMatch(/fake EventBridge is down/);
+    const downReject = decide('reject', 'hrA', 'act-onb22-0001', withPending([pending({ id: 'act-onb22-0001' })]), undefined, { eventBridgeDown: 'proposal.' });
+    expect(statusOf(downReject), 'decline with the bus down: still 200').toBe(200);
+    expect(actionRow(downReject.tables, 'act-onb22-0001'), 'and the row says who').toMatchObject({ status: 'REJECTED', rejected_by: HR.a.email, rejected_by_name: 'Thandi Mokoena' });
+    expect(failed(downReject, 'proposal.rejected'), 'one put and one retry').toBe(2);
+  });
+
+  test('AC-3 An HR sign-in whose token has no email cannot approve or decline: 403 before anything is read or run (Lambda)', async ({}, testInfo) => {
+    once(testInfo);
+    const t = withPending([pending({ id: 'act-onb22-0001' })]);
+    for (const caller of ['hrNoEmail', 'hrBlankEmail'] as Caller[]) {
+      for (const verb of ['approve', 'reject'] as const) {
+        const r = decide(verb, caller, 'act-onb22-0001', t);
+        expect(statusOf(r), `${caller} ${verb}: 403 (${describe(r)})`).toBe(403);
+        expect(bodyOf(r).error, `${caller} ${verb}: the same words as any other refusal`).toBe('Only HR can answer a proposal');
+        expect(awsCalls(r.calls), `${caller} ${verb}: nothing read, nothing run`).toEqual([]);
+        expect(rowsOf(r.tables, 'naleko-pending-actions'), `${caller} ${verb}: the proposal is unchanged`).toEqual(rowsOf(t, 'naleko-pending-actions'));
+      }
+    }
+    const ok = decide('approve', 'hrA', 'act-onb22-0001', t);
+    expect(statusOf(ok), 'the same proposal, with an email in the token: it works (so the 403 above is the email)').toBe(200);
+  });
+
   test('AC-3 The agent reads the audit log: the proposal, the decision and the approval, with the type and who (Lambda)', async ({}, testInfo) => {
     once(testInfo);
     const made = propose('agentA', accept(D.nomsaBank));
@@ -752,9 +839,15 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
       list(KEYS.two),
       { advance: 5 * 60_000 }, // after the cache time the same holds
       list(KEYS.four),
+      // ONB-22.1 (M-1): a warm container still holds KEYS.four from the call above. The key rotates, the cache time passes, and only then is
+      // the OLD key presented first. It must be refused (the cache is 4 minutes, decision 10), or rotating a leaked key cuts nothing off.
+      { rotate: { secretId: AGENT_SECRET, set: { AWSCURRENT: KEYS.three, AWSPREVIOUS: KEYS.four } } },
+      { advance: 5 * 60_000 },
+      list(KEYS.four), // the old key, first, on a warm container
+      list(KEYS.three), // the new key
     ];
     const run = mcp(steps, { AWSCURRENT: KEYS.one });
-    const [a1, a2, a3, a4, a5, a6, a7, a8, a9] = run.answers;
+    const [a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11] = run.answers;
     expect(a1!.status, 'the first key works').toBe(200);
     expect(a2!.status, 'the new key works at once (a forced re-read, not a wait for the cache)').toBe(200);
     expect(a3!.status, 'the old key, now only the previous version, is refused').toBe(401);
@@ -767,7 +860,11 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     expect(httpIn(run, a1!)[0]!.headers['x-api-key'], 'the agent API is called with the secret\'s key').toBe(KEYS.one);
     expect(httpIn(run, a2!)[0]!.headers['x-api-key'], 'after the rotation: with the new key, not the one the container started with').toBe(KEYS.two);
     expect(httpIn(run, a6!)[0]!.headers['x-api-key'], 'and after the next one: the newest').toBe(KEYS.four);
-    expect(a9, 'no step lost').toBeUndefined();
+    expect(a9!.status, 'M-1: five minutes after a rotation the old key, presented first, is refused (the cache lasts 4 minutes)').toBe(401);
+    expect(httpIn(run, a9!), 'with no agent call').toEqual([]);
+    expect(a10!.status, 'and the new key works').toBe(200);
+    expect(httpIn(run, a10!)[0]!.headers['x-api-key'], 'with the secret\'s current key').toBe(KEYS.three);
+    expect(a11, 'no step lost').toBeUndefined();
     const blob = JSON.stringify([logLinesOf(run.calls), run.answers.map((a) => a.body)]);
     for (const k of Object.values(KEYS)) expect(blob, `the key ${k} is in no log line and no answer`).not.toContain(k);
     expect(run.calls.filter((c) => c.service === 'secretsmanager').every((c) => c['secretId'] === AGENT_SECRET), 'every secret read is naleko/agent/api-key').toBe(true);
@@ -902,6 +999,11 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     expect(bedrockOf(realRisk.calls).length, 'a real person\'s risk check does call the model').toBeGreaterThan(0);
     const noMail = summary('agentA', summaryTables(undefined));
     expect(bedrockOf(noMail.calls), 'a person with no email on record fails closed: no Bedrock call (P6)').toEqual([]);
+    // ONB-22.1: no employee row at all is not a robot (PII-01's locked rows have verifications with no employee row and expect the model to be asked); a row that is there but
+    // empty of an email still fails closed (the line above).
+    const orphan = summaryTables('nomsa.real@baker-a.example');
+    orphan.employees = orphan.employees!.filter((e) => e['employee_id'] !== ROBOT.id);
+    expect(bedrockOf(summary('agentA', orphan).calls).length, 'a verification with no employee row at all reaches the model path (the PII-01 rows rely on it)').toBeGreaterThan(0);
     // HR's own sign-in keeps working as before: the person's own check, not the caller's.
     const hrReal = summary('hrA', summaryTables('nomsa.real@baker-a.example'));
     expect(bedrockOf(hrReal.calls).length, 'HR asking about a real person: the model is called').toBeGreaterThan(0);
@@ -1107,18 +1209,21 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
 
   test('AC-8 IAM: createProposal holds only what it needs; approveAgentAction\'s existing policy is byte for byte and the new rights are a second policy; the MCP role reads one secret (text)', async ({}, testInfo) => {
     once(testInfo);
-    // createProposal: logs, X-Ray, Put and Query on the pending table and its index, Get on three tables, PutEvents on the bus.
+    // createProposal: logs, X-Ray, Put and Query on the pending table and its index, Get on three tables, Query and Scan on documents (findDocument), PutEvents on the bus.
     const cp = lambdaNamed('createProposal');
     const role = roleOf(cp);
     const actions = expectOnly(role, 'createProposal', (a, res) => {
       const c = common('createProposal', a, res);
       if (c !== undefined) return c;
-      if (a === 'dynamodb:PutItem' || a === 'dynamodb:Query') return res.every((r) => /pending_actions/.test(r)) ? null : `${a} only on the pending actions table and its index`;
+      if (a === 'dynamodb:PutItem') return res.every((r) => /pending_actions/.test(r)) ? null : `${a} only on the pending actions table and its index`;
+      // ONB-22.1 (M-2): findDocument reads the company index with a Query, and the founding company's documents with a Scan (until TEN-02 step 2).
+      if (a === 'dynamodb:Query') return res.every((r) => /pending_actions/.test(r) || /aws_dynamodb_table\.documents\.arn\}?(\/index\/tenant-index)?$/.test(r)) ? null : `${a} only on the pending actions table and the documents table and its company index`;
+      if (a === 'dynamodb:Scan') return res.every((r) => /aws_dynamodb_table\.documents\.arn$/.test(r)) ? null : `${a} only on the documents table`;
       if (a === 'dynamodb:GetItem') return res.every((r) => /aws_dynamodb_table\.(documents|document_verification|employees)\.arn$/.test(r)) ? null : 'GetItem only on documents, document-verification and employees';
       if (a === 'events:PutEvents') return res.every((r) => /event_bus/i.test(r)) ? null : 'PutEvents only on the onboarding bus';
       return 'an action this Lambda has no use for';
     });
-    expect(sorted([...new Set(actions)]), 'exactly the actions of "What gets built" 16').toEqual(sorted(['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents', 'xray:PutTraceSegments', 'xray:PutTelemetryRecords', 'dynamodb:PutItem', 'dynamodb:Query', 'dynamodb:GetItem', 'events:PutEvents']));
+    expect(sorted([...new Set(actions)]), 'exactly the actions of "What gets built" 16').toEqual(sorted(['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents', 'xray:PutTraceSegments', 'xray:PutTelemetryRecords', 'dynamodb:PutItem', 'dynamodb:Query', 'dynamodb:Scan', 'dynamodb:GetItem', 'events:PutEvents']));
     // approveAgentAction: the old policy is untouched; the new one is separate.
     const iam = text('infra/iam_per_lambda.tf');
     expect(sq(block(iam, 'resource "aws_iam_role_policy" "approve_agent_action"')), 'the existing policy resource is byte for byte (ten-02 pins it)').toBe(baseline['approvePolicy']);
@@ -1130,6 +1235,26 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
       const r = roleOf(lambdaNamed(fn));
       const own = resources('aws_iam_role_policy').filter((b) => new RegExp(`^aws_iam_role\\.${r}\\.(name|id)$`).test(attr(b.body, 'role') ?? ''));
       expect(own.length, `${fn}: the new rights are a second policy resource on its role`).toBeGreaterThanOrEqual(2);
+    }
+    // ONB-22.1 (checker): the two small second policies hold exactly one right each, nothing more (a Scan or a PutItem here would pass the count above).
+    const statementsOf = (policy: string) => {
+      const b = resources('aws_iam_role_policy').find((x) => x.labels[1] === policy);
+      expect(b, `the policy resource ${policy} exists`).toBeDefined();
+      const r: TfResource = { type: 'aws_iam_role_policy', name: policy, raw: b!.raw, body: b!.body, attrs: attributes(b!.body) };
+      const doc = policyOf(r) as unknown as { Statement: any };
+      return (Array.isArray(doc.Statement) ? doc.Statement : [doc.Statement]) as Array<{ Effect?: string; Action?: string | string[]; Resource?: string | string[]; Condition?: unknown; NotAction?: unknown; NotResource?: unknown }>;
+    };
+    const emp = statementsOf('summarise_verification_employees');
+    expect(emp.map((x) => [x.Effect, sorted(list(x.Action)), sorted(list(x.Resource).map((r) => r.replace(/\$\{|\}/g, '')))]), 'summariseVerification\'s second policy: Allow dynamodb:GetItem on the employees table and nothing else').toEqual([['Allow', ['dynamodb:GetItem'], ['aws_dynamodb_table.employees.arn']]]);
+    const keyPolicy = statementsOf('naleko_mcp_server_agent_key');
+    expect(keyPolicy.length, 'the MCP key policy has one statement').toBe(1);
+    expect(keyPolicy[0]!.Effect, 'Allow').toBe('Allow');
+    expect(sorted(list(keyPolicy[0]!.Action)), 'exactly secretsmanager:GetSecretValue').toEqual(['secretsmanager:GetSecretValue']);
+    expect(list(keyPolicy[0]!.Resource).length, 'on one secret').toBe(1);
+    expect(list(keyPolicy[0]!.Resource)[0], 'the real one, naleko/agent/api-key, and no wildcard beyond the version suffix').toMatch(/:secret:naleko\/agent\/api-key\*?$/);
+    for (const st of [...emp, ...keyPolicy]) {
+      expect(st.NotAction ?? st.NotResource, 'no NotAction or NotResource').toBeUndefined();
+      expect(st.Condition, 'no condition that could widen it').toBeUndefined();
     }
     const approveRole = roleOf(lambdaNamed('approveAgentAction'));
     const mine = resources('aws_iam_role_policy').filter((b) => new RegExp(`^aws_iam_role\\.${approveRole}\\.(name|id)$`).test(attr(b.body, 'role') ?? ''));
@@ -1165,6 +1290,44 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     const sumRole = roleOf(lambdaNamed('summariseVerification'));
     const sumGets = grants(sumRole).statements.filter((s) => list(s.Action).includes('dynamodb:GetItem')).flatMap((s) => list(s.Resource));
     expect(sumGets.some((r) => /aws_dynamodb_table\.employees\.arn$/.test(r)), 'summariseVerification may read the employees table (one GetItem)').toBe(true);
+  });
+
+  test('AC-8 Every DynamoDB call createProposal makes is covered by its own Terraform policy, for a company with its own rows and for the founding company; it reads only the name fields (Lambda and text)', async ({}, testInfo) => {
+    once(testInfo);
+    // ONB-22.1 (M-2). The fake AWS does not enforce IAM, so a role that is too small passes every other test and fails on the real stack with a 500.
+    // Here the calls the code really makes are read from the run, and each one must have an Allow in createProposal's policy.
+    const own = propose('agentA', accept(D.nomsaBank));
+    const founding = propose('agentA', accept(D.nomsaBank), tables(), { env: { LEGACY_TENANT_ID: A } });
+    const again = propose('agentA', accept(D.nomsaBank), own.tables);
+    for (const [name, run, code] of [['own rows', own, 201], ['the founding company', founding, 201], ['a second proposal', again, 409]] as [string, Run, number][]) expect(statusOf(run), `${name}: the proposal answers ${code} (${describe(run)})`).toBe(code);
+    const TABLES: Record<string, string> = { 'naleko-pending-actions': 'pending_actions', documents: 'documents', 'document-verification': 'document_verification', employees: 'employees' };
+    const stmts = grants(roleOf(lambdaNamed('createProposal'))).statements;
+    const arnOf = (r: string) => r.replace(/\$\{|\}/g, '');
+    const allowed = (op: string, table: string, index?: string) => {
+      const tf = TABLES[table];
+      if (!tf) return false;
+      return stmts.some((s) => list(s.Action).includes(`dynamodb:${op}`) && list(s.Resource).map(arnOf).some((r) => (index ? new RegExp(`^aws_dynamodb_table\\.${tf}\\.arn/index/(\\*|${index})$`).test(r) : r === `aws_dynamodb_table.${tf}.arn`)));
+    };
+    const made = new Set<string>();
+    for (const run of [own, founding, again]) {
+      // The audit consumer runs in the same fake process and writes the audit table: that is its own Lambda's right, not createProposal's.
+      for (const c of run.calls.filter((x) => x.service === 'dynamodb' && x.table !== 'onboarding-events')) {
+        const key = `${c.op} ${c.table}${c.input?.IndexName ? '/' + c.input.IndexName : ''}`;
+        made.add(key);
+        expect(allowed(c.op!, c.table ?? '', c.input?.IndexName), `createProposal's policy allows ${key} (the code makes this call)`).toBe(true);
+      }
+    }
+    expect([...made].some((k) => k.startsWith('Scan documents')), 'the founding company\'s run does reach the documents Scan (so the right is tested, not assumed)').toBe(true);
+    expect([...made].some((k) => /idempotency/i.test(k)), 'and no idempotency table is used').toBe(false);
+    // S-2: only the name fields (and the company field the ownership check needs) are read from the employee.
+    for (const run of [own, founding]) {
+      const gets = run.calls.filter((c) => c.service === 'dynamodb' && c.op === 'GetItem' && c.table === 'employees');
+      expect(gets.length, 'one read of the employee').toBe(1);
+      const input = gets[0]!.input ?? {};
+      const names = input.ExpressionAttributeNames ?? {};
+      const read = String(input.ProjectionExpression ?? '').split(',').map((x: string) => x.trim()).filter(Boolean).map((x: string) => names[x] ?? x);
+      expect(sorted(read), 'the employee read names its fields: first_name, last_name and tenant_id only').toEqual(['first_name', 'last_name', 'tenant_id']);
+    }
   });
 
   // ---------------------------------------------------------------------------------------------- AC-9

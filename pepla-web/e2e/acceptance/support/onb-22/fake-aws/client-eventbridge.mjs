@@ -5,11 +5,22 @@ import { calls, world } from './world.mjs';
 import { pathToFileURL } from 'node:url';
 export class PutEventsCommand { constructor(input) { this.input = input; } }
 let seq = 0;
+let attempts = 0;
 export class EventBridgeClient {
   constructor() { this.config = {}; }
   async send(cmd) {
     if (!(cmd instanceof PutEventsCommand)) throw new Error('fake EventBridge: only PutEvents is supported');
-    if (world.eventBridgeDown) { const e = new Error('fake EventBridge is down'); e.name = 'InternalException'; throw e; }
+    // ONB-22.1: eventBridgeDown: true fails every put; eventBridgeDown: 'proposal.' fails only entries whose type starts with that (so the review
+    // Lambda, which runs in this same process, still publishes); eventBridgeFailFirst: N fails the first N 'proposal.' puts and then works.
+    // A failed put is recorded as service 'events-failed' (not 'events'), so publishedOf still lists only what reached the bus.
+    const entries = cmd.input.Entries ?? [];
+    const isProposal = entries.some((e) => String(e.DetailType).startsWith('proposal.'));
+    if (isProposal) attempts += 1;
+    const down = world.eventBridgeDown === true || (typeof world.eventBridgeDown === 'string' && entries.some((e) => String(e.DetailType).startsWith(world.eventBridgeDown)));
+    if (down || (isProposal && attempts <= Number(world.eventBridgeFailFirst ?? 0))) {
+      for (const e of entries) calls.push({ service: 'events-failed', op: 'PutEvents', detailType: e.DetailType });
+      const e = new Error('fake EventBridge is down'); e.name = 'InternalException'; throw e;
+    }
     for (const e of cmd.input.Entries ?? []) {
       const detail = JSON.parse(e.Detail ?? '{}');
       calls.push({ service: 'events', op: 'PutEvents', bus: e.EventBusName, source: e.Source, detailType: e.DetailType, detail });

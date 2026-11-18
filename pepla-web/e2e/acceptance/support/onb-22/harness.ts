@@ -134,7 +134,7 @@ export function tables(): Tables {
 
 // ------------------------------------------------------------------ who calls
 
-export type Caller = 'hrA' | 'hrA2' | 'hrB' | 'hrReadonlyA' | 'employeeA' | 'agentA' | 'agentB' | 'accessTokenA' | 'noTenantHr' | 'managerA';
+export type Caller = 'hrA' | 'hrA2' | 'hrB' | 'hrReadonlyA' | 'employeeA' | 'agentA' | 'agentB' | 'accessTokenA' | 'noTenantHr' | 'managerA' | 'hrNoEmail' | 'hrBlankEmail';
 
 function claimsOf(who: { sub: string; email: string; first: string; last: string; staff: string }, tenant: string | undefined, groups: string[], extra: Record<string, unknown> = {}) {
   return {
@@ -153,6 +153,9 @@ export function authorizerOf(caller: Caller): unknown {
     case 'employeeA': return jwt(claimsOf({ sub: 'sub-emp-nomsa', email: P.nomsa.mail, first: P.nomsa.first, last: P.nomsa.last, staff: '' }, A, ['employee']));
     case 'accessTokenA': return jwt(claimsOf(HR.a, A, ['hr_staff'], { token_use: 'access' }));
     case 'noTenantHr': return jwt(claimsOf(HR.a, undefined, ['hr_staff']));
+    // ONB-22.1 (S-1): an HR sign-in whose token carries no email (missing, or empty).
+    case 'hrNoEmail': return jwt(claimsOf(HR.a, A, ['hr_staff'], { email: undefined }));
+    case 'hrBlankEmail': return jwt(claimsOf(HR.a, A, ['hr_staff'], { email: '' }));
     case 'agentA': return { lambda: { actor: 'AGENT', tenant_id: A } };
     case 'agentB': return { lambda: { actor: 'AGENT', tenant_id: B } };
   }
@@ -214,7 +217,7 @@ export function settings(extra: Record<string, string | undefined> = {}): Record
 
 export type Call = { service: string; op?: string; [k: string]: any };
 export type Run = { response?: any; responses?: any[]; error?: { name: string; message: string; stack: string }; calls: Call[]; tables: Tables };
-export type World = { tables?: Tables; secrets?: Record<string, Record<string, string>>; fetch?: unknown; invokeFail?: string; eventBridgeDown?: boolean; fail?: unknown };
+export type World = { tables?: Tables; secrets?: Record<string, Record<string, string>>; fetch?: unknown; invokeFail?: string; eventBridgeDown?: boolean | string; eventBridgeFailFirst?: number; fail?: unknown };
 
 export function runNode(script: string, args: string[], world: World, files: Record<string, unknown>, env: Record<string, string | undefined>, cwd?: string): any {
   const dir = mkdtempSync(join(tmpdir(), 'onb-22-'));
@@ -247,7 +250,7 @@ export function call(handler: string, caller: Caller, a: Ask, opts: Opts = {}): 
   return callEvent(handler, eventFor(caller, a), opts);
 }
 export function callEvent(handler: string, event: unknown, opts: Opts = {}): Run {
-  const r = runNode(join(FAKE_AWS, 'run.mjs'), [handlerOf(handler)], { tables: opts.tables ?? tables(), secrets: opts.secrets ?? { [AGENT_SECRET]: { AWSCURRENT: 'onb22-agent-key' } }, fetch: opts.fetch, invokeFail: opts.invokeFail, eventBridgeDown: opts.eventBridgeDown, fail: opts.fail }, { 'event.json': event }, settings({ ...(opts.noLambdaClient ? { ONB22_NO_LAMBDA_CLIENT: '1' } : {}), ...(opts.env ?? {}) }));
+  const r = runNode(join(FAKE_AWS, 'run.mjs'), [handlerOf(handler)], { tables: opts.tables ?? tables(), secrets: opts.secrets ?? { [AGENT_SECRET]: { AWSCURRENT: 'onb22-agent-key' } }, fetch: opts.fetch, invokeFail: opts.invokeFail, eventBridgeDown: opts.eventBridgeDown, eventBridgeFailFirst: opts.eventBridgeFailFirst, fail: opts.fail }, { 'event.json': event }, settings({ ...(opts.noLambdaClient ? { ONB22_NO_LAMBDA_CLIENT: '1' } : {}), ...(opts.env ?? {}) }));
   return r as Run;
 }
 /** Two or more calls started together in one warm container. */
