@@ -408,7 +408,8 @@ test.describe('ONB-10 Due dates and Overdue', () => {
     const a = bodyOf(meA) as Record<string, unknown>;
     expect(a['startDate'], 'startDate is as it was').toBe(START.a1);
     expect(a['documentsDue'], 'documentsDue is the date HR sees for the same row').toBe(listA[EMP.a1]!['documents_due']);
-    expect(Object.keys(a).sort(), 'one new field, nothing else changed').toEqual(['company', 'consent', 'department', 'documentsDue', 'firstName', 'notice', 'startDate'].sort());
+    // ONB-19 (child lock acceptance-lock/onb-10.1): `step` is the one other field GET /v1/me answers.
+    expect(Object.keys(a).sort(), 'one new field, nothing else changed (and ONB-19\'s step)').toEqual(['company', 'consent', 'department', 'documentsDue', 'firstName', 'notice', 'startDate', 'step'].sort());
     const meB = ask('getMyStart', 'empB', {}, { tables: seeded() });
     expect((bodyOf(meB) as Record<string, unknown>)['documentsDue'], 'B\'s employee gets B\'s date').toBe('2026-02-24');
     expect(JSON.stringify(bodyOf(meB)), 'and never A\'s').not.toContain('2026-11-24');
