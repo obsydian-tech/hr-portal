@@ -1,0 +1,14 @@
+{
+  "_note": "TEN-04 AC-7: the ids of company A's rows that scripts/ci/seed-dev.py writes for the walk (rule 3, Seed). employee and document are the rows TEN-02 already seeds (Naledi and her bank confirmation); the rest are new. The walk reads these, so the seed must write exactly these ids. The sign-in id of a user (admin users routes) is read at run time from the 'victim' login's token.",
+  "employee": "39349d7d-472f-5ebb-928d-066cdf88afa8",
+  "document": "doc_1762243200000",
+  "candidate": "CAND-01TEN04AAAAAAAAAAAAAAA1",
+  "interview": "iv-ten04-a-0001",
+  "tile": "tile-CAND-01TEN04AAAAAAAAAAAAAAA1-RULE-SLA-002",
+  "config": "cfg-ten04-a-0001",
+  "itTask": "task-ten04-a-0001",
+  "bundle": "bundle-ten04-a-0001",
+  "notification": "NOTIF#2026-11-10T08:00:00.000Z#notif-ten04-a-0001",
+  "action": "act-ten04-a-0001",
+  "names": ["Naledi", "Dlamini", "pepla-demo-", "Demo-HR", "Demo-IT", "Demo-Starter", "TEN04A"]
+}
