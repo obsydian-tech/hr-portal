@@ -45,8 +45,11 @@ function curl(url: string): string {
 export function syncJson(): { repo: string; ref: string } {
   return JSON.parse(readFileSync(join(DS, 'sync.json'), 'utf8'));
 }
-/** The design system ref the landing kit is compared at: PR #47 removed the closing band note from the landing and every Learn more kit. */
-export const LANDING_KIT_REF = '8dc3091b48774490fa3d0e0bb0fcd7825aac3d9a';
+/**
+ * The design system ref the landing kit is compared at (SITE-03 and SITE-04 both read it): design system main at 17 Nov 2026. It carries PR #47
+ * (the closing band note removed) and PR #49 (reduced motion: demos keep playing, only large movement stops). Child lock 04.7.
+ */
+export const LANDING_KIT_REF = 'dc593c47c7d8fb79c7ccf29311392ad166506114';
 /** A file of the design system repo at the ref the app is synced to (or at pinnedRef), cached in the OS temp folder. */
 export function dsFile(path: string, pinnedRef?: string): string {
   const { repo, ref: syncRef } = syncJson();

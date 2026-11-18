@@ -5,12 +5,13 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { PEPLA_WEB, KEYS, SECTION, STILL, FREEZE_VIEW, GATED_VIEW, bodyOf, compareSection, comparePage, dsFile, LANDING_KIT_REF, deviceOf, exampleName, fromFirstChange, galleryId, gotoLanding, kitMarkup, openKit, sameTimeline, sec, settle, sleep, timeline, wordsOf, type Device, type Key, type Step } from './support/site-04/landing2';
+import { SCOPED_VIEW, centre, freezeTimers, loopsIn } from './support/site-04/reduced-motion';
 
 /**
  * SITE-04 · Landing sections part 2: Compliance, Leave, Trust and POPIA, Integrations, Platform, About, the closing band, the assembled page.
  * No backend. Runs against `ng serve` through E2E_BASE_URL. See cards/site-04.md for the contract (it builds on cards/site-03.md).
  * The desktop device is read in a 1456 wide window (the stage is then the kit's 1440), the phone device at 390.
- * Both sides are driven by the same actions: the kit page (its markup and its preview scripts, at the ref in sync.json) is the oracle.
+ * Both sides are driven by the same actions: the kit page (its markup and its preview scripts, at the ref LANDING_KIT_REF pins) is the oracle.
  */
 
 const once = (why: string) => test.skip(test.info().project.name === 'phone-390', why);
@@ -143,8 +144,8 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
     const d = deviceOf(page);
     const origin = new URL(baseURL!).origin;
     const stageWidth = async (p: Page) => p.locator('.pp-site-stage').first().evaluate((el) => el.getBoundingClientRect().width);
-    // First step: nothing is ever "in view", so no demo starts. Last step: the demos have played to their end (the kit's own script ignores reduced
-    // motion for Trust, Integrations and Platform, so both pages play for real and both are read after the end of the longest demo).
+    // First step: nothing is ever "in view", so no demo starts. Last step: the demos have played to their end (both pages play for real, in normal
+    // motion, and both are read after the end of the longest demo; the same demos under reduced motion are judged in AC-10).
     const run = async (label: string, last: boolean) => {
       for (const k of KEYS) {
         if (last && k === 'integrations') continue; // its cycle never ends: each tab's end is judged in AC-6
@@ -289,7 +290,7 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
   });
 
   // ---------------------------------------------------------------- AC-6
-  test('AC-6 Integrations: three tabs play in order and the panel reacts, a pressed tab plays alone and stops the cycle, arrow keys move between tabs, the light follows a mouse and ignores touch', async ({ browser, baseURL, page, isMobile }) => {
+  test('AC-6 Integrations: three tabs play in order and the panel reacts, a pressed tab plays alone and stops the cycle, arrow keys move between tabs, the light follows a mouse and ignores touch, and drifts as fast under reduced motion', async ({ browser, baseURL, page, isMobile }) => {
     test.setTimeout(10 * 60_000);
     const CODE = '.pp-site-editor__code';
     // The cycle: REST API, then MCP server, then Events, as the kit plays it (the typing is judged by its end).
@@ -321,7 +322,9 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
       const w = await world(browser, baseURL!, page, 'integrations');
       try {
         // Lock check: 400ms after the start, as the tab presses: a key pressed at once landed within a sample of the REST API start on one page only.
-        const r = await both(w, 8_000, async (p, scope) => { await sleep(400); await p.locator(`${scope} [role="tab"]`).first().focus(); await p.keyboard.press('ArrowRight'); await sleep(300); await p.keyboard.press('ArrowRight'); }, CODE);
+        // Child lock 04.7 check: the window is 9.5s, not 8s. The keys reach the kit page 100 to 200ms after the page, so the third item of Events (about 7.9s
+        // on the page, 8.1s on the kit) fell inside an 8s window on one side only ("first difference at #5: page ..., kit none", the failure of this line on develop).
+        const r = await both(w, 9_500, async (p, scope) => { await sleep(400); await p.locator(`${scope} [role="tab"]`).first().focus(); await p.keyboard.press('ArrowRight'); await sleep(300); await p.keyboard.press('ArrowRight'); }, CODE);
         await expectSame('Integrations, arrow keys', r.app, r.kit, TOL);
         await expect(w.app.locator(`${w.a} [role="tab"][aria-selected="true"]`)).toHaveAccessibleName('Events');
         const tab = w.app.locator(`${w.a} [role="tab"]`).first();
@@ -329,7 +332,7 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
         expect(await w.app.locator(`${w.a} [role="tablist"]`).count(), 'there is a tablist').toBe(1);
       } finally { await w.ctx.close(); }
     }
-    // The light: a mouse pointer moves it and the graph paper the other way; touch does nothing; reduced motion drifts at half the speed.
+    // The light: a mouse pointer moves it and the graph paper the other way; touch does nothing; reduced motion drifts at the same speed as normal motion.
     {
       const pos = async (p: Page, scope: string) => p.evaluate((sc) => { const root = document.querySelector(sc)!; const t = (s: string) => (root.querySelector(s) as HTMLElement | null)?.style.transform ?? ''; return { light: t('.pp-site-glow'), grid: t('.pp-site-glow__grid') }; }, scope);
       const w = await world(browser, baseURL!, page, 'integrations', {}, false);
@@ -358,27 +361,43 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
       } finally { await w.ctx.close(); }
     }
     {
-      // Drift: with no pointer the light drifts on its own; under reduced motion at half the speed (the kit's rule).
-      const speed = async (p: Page, scope: string) => {
-        const read = () => p.evaluate((sc) => (document.querySelector(sc + ' .pp-site-glow') as HTMLElement).style.transform, scope);
-        await p.locator(scope).scrollIntoViewIfNeeded();
-        await sleep(300);
-        const nums = (s: string) => (s.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
-        const a = nums(await read());
-        await sleep(2000);
-        const b = nums(await read());
-        return Math.hypot((b[0] ?? 0) - (a[0] ?? 0), (b[1] ?? 0) - (a[1] ?? 0));
-      };
+      // Drift: with no pointer the light drifts on its own, and under reduced motion at the same speed (child lock 04.7: design system PR #49 stopped
+      // halving it; "slow light keeps its full pace"). The light moves on the kit script's own curve, x = W (0.62 + 0.2 sin(t/5)), y = H (0.4 + 0.16 cos(t/6.5)),
+      // t in seconds times the pace. Child lock 04.7 check: how far it goes in 2s depends on where in its loop the 2s fall (one page measured 79px and 107px
+      // in the same 2s, with nothing wrong; the app and the kit page are read at different times in their loops, and the kit's loop starts when its script
+      // runs), so distances cannot be compared. The pace can: for every step between two looks (every 40ms for 3s) the speed that curve gives at the place
+      // the light is in is worked out, and the pace is the distance moved over the distance the curve gives. 1 is the kit's pace, 0.5 is halved.
+      const slowOf = (p: Page, scope: string): Promise<number> => p.evaluate(async (sc) => {
+        const g = document.querySelector(sc + ' .pp-site-glow') as HTMLElement;
+        const sec = g.parentElement as HTMLElement;
+        const W = sec.clientWidth, H = sec.clientHeight, R = 550;
+        const read = (): number[] | null => { const m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(g.style.transform); return m ? [Number(m[1]) + R, Number(m[2]) + R, performance.now()] : null; };
+        const pts: number[][] = [];
+        const start = performance.now();
+        while (performance.now() - start < 3000) { const r = read(); if (r) pts.push(r); await new Promise((res) => setTimeout(res, 40)); }
+        let meas = 0, model = 0;
+        for (let i = 1; i < pts.length; i++) {
+          const [x0, y0, ta] = pts[i - 1]!, [x1, y1, tb] = pts[i]!;
+          const dt = (tb! - ta!) / 1000;
+          if (dt <= 0) continue;
+          const sx = Math.max(-1, Math.min(1, ((x0! + x1!) / 2 / W - 0.62) / 0.2)), cy = Math.max(-1, Math.min(1, ((y0! + y1!) / 2 / H - 0.4) / 0.16));
+          meas += Math.abs(x1! - x0!) + Math.abs(y1! - y0!);
+          model += (0.04 * W * Math.sqrt(1 - sx * sx) + ((0.16 * H) / 6.5) * Math.sqrt(1 - cy * cy)) * dt;
+        }
+        return model > 0 ? meas / model : 0;
+      }, scope);
+      const pace = async (p: Page, scope: string) => { await p.locator(scope).scrollIntoViewIfNeeded(); await sleep(300); return slowOf(p, scope); };
       const run = async (reduced: boolean) => {
         const w = await world(browser, baseURL!, page, 'integrations', { reducedMotion: reduced ? 'reduce' : 'no-preference' }, false);
-        try { return { app: await speed(w.app, w.a), kit: await speed(w.kit, w.k) }; } finally { await w.ctx.close(); }
+        try { return { app: await pace(w.app, w.a), kit: await pace(w.kit, w.k) }; } finally { await w.ctx.close(); }
       };
       const normal = await run(false);
       const reduced = await run(true);
-      expect(normal.app, 'the light drifts on its own').toBeGreaterThan(1);
-      expect(Math.abs(normal.app - normal.kit), `the drift is as far as the kit's (${normal.app.toFixed(1)}px against ${normal.kit.toFixed(1)}px in 2s)`).toBeLessThan(Math.max(6, normal.kit * 0.35));
-      expect(reduced.app, 'under reduced motion it still drifts, slower').toBeLessThan(normal.app * 0.8);
-      expect(Math.abs(reduced.app - reduced.kit), `and as far as the kit's (${reduced.app.toFixed(1)}px against ${reduced.kit.toFixed(1)}px)`).toBeLessThan(Math.max(6, reduced.kit * 0.35));
+      const ok = (v: number) => v > 0.8 && v < 1.25;
+      expect(ok(normal.kit), `the kit's light drifts at its own pace (${normal.kit.toFixed(2)}; this is the measure working)`).toBe(true);
+      expect(ok(normal.app), `the light drifts on its own, at the kit's pace (${normal.app.toFixed(2)} against ${normal.kit.toFixed(2)})`).toBe(true);
+      expect(ok(reduced.kit), `the kit's light under reduced motion keeps its pace (${reduced.kit.toFixed(2)}, design system PR #49)`).toBe(true);
+      expect(ok(reduced.app), `under reduced motion the light drifts at the kit's pace, not half (${reduced.app.toFixed(2)} against ${reduced.kit.toFixed(2)})`).toBe(true);
     }
     // The menu's "MCP server" and "Events" links scroll to Integrations and switch the tab, on the landing route.
     // (Lock check: on `/` the first selected tab is Ask Batsi's question tab, so the tab is looked for in the editor.)
@@ -513,49 +532,81 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
   });
 
   // ---------------------------------------------------------------- AC-10
-  test('AC-10 under reduced motion every demo shows its end at once and leaves no timer; data-site-still stops every loop; only transform, opacity, clip-path and stroke-dashoffset animate; replay, tab and route leave clean up', async ({ browser, baseURL, page }) => {
-    test.setTimeout(14 * 60_000);
+  // Child lock 04.7 (design system PR #49, Iggie 13 Nov, confirmed 17 Nov): under reduced motion the demos keep playing at their normal timings;
+  // only grain, the flying board card, pointer tilt and other large movement stop. Each demo is judged against the kit page under the same setting.
+  test('AC-10 under reduced motion every demo plays as the kit plays it, at the same times, and leaves no timer when it ends; the CSS loops keep running; data-site-still stops every loop; only transform, opacity, clip-path and stroke-dashoffset animate; replay, tab and route leave clean up', async ({ browser, baseURL, page }) => {
+    test.setTimeout(20 * 60_000);
     const d = deviceOf(page);
+    const R = { reducedMotion: 'reduce' } as const;
     const hook = (p: Page) => p.evaluate(() => { const c = (window as unknown as { __ppSiteClock?: { pending(): number; observers(): number } }).__ppSiteClock; return c ? { pending: c.pending(), observers: c.observers() } : null; });
-    // Reduced motion: Compliance and Leave show the kit's end state (the kit honours reduced motion for these two) at once; Trust, Platform and
-    // Integrations show the end of the run (every row in, every switch on, the last tab typed): there at once, and no timer is left.
-    for (const k of ['compliance', 'leave'] as const) {
-      const run = async (isKit: boolean) => {
-        const w = await world(browser, baseURL!, page, k, { reducedMotion: 'reduce' }, false);
-        try {
-          const p = isKit ? w.kit : w.app;
-          const scope = isKit ? w.k : w.a;
-          await p.locator(scope).scrollIntoViewIfNeeded();
-          await sleep(900);
-          const steps = await timeline(p, scope, 900);
-          return { last: steps.at(-1)!.sig.split(' ')[0], pending: isKit ? 0 : (await hook(p))?.pending ?? -1 };
-        } finally { await w.ctx.close(); }
-      };
-      const app = await run(false);
-      const kit = await run(true);
-      expect(app.last, `${k}: reduced motion shows the kit's end state at once`).toBe(kit.last);
-      expect(app.pending, `${k}: no timer is left (window.__ppSiteClock.pending() is 0)`).toBe(0);
+    const pending = async (p: Page) => (await hook(p))?.pending ?? -1;
+    const CODE = '.pp-site-editor__code';
+    // Under reduced motion the whole run of each demo is the kit's, state by state, as in AC-3 to AC-7.
+    for (const [k, ms, label] of [['compliance', 14_500, 'Compliance'], ['leave', 11_500, 'Leave'], ['trust', 13_000, 'Trust and POPIA'], ['platform', 8_000, 'Platform']] as const) {
+      const w = await world(browser, baseURL!, page, k, R);
+      try {
+        const r = await both(w, ms);
+        // Platform: a module's tint ends 44 to 53ms before the next module's item arrives, a pair of states one 20ms look can merge or split. Child lock 04.7
+        // check: AC-7 counts every state (gap 0) and flakes on that (this line failed 1 run in 3 on the oracle at load 4); here the states under 100ms are dropped on
+        // both pages, which sits between that pair (under 53ms) and every other gap of the run (250ms and more), so it does not depend on one look.
+        await expectSame(`${label} under reduced motion, the run`, r.app, r.kit, TOL, k === 'platform' ? 100 : 45);
+        expect(fromFirstChange(r.app).length, `${label}: the run passes through many states, not one`).toBeGreaterThan(5);
+      } finally { await w.ctx.close(); }
     }
     {
-      // The end state of the kit's own run, in normal motion, is what the others show under reduced motion.
-      const endOf = async (k: Key, wait: number, skip: string) => {
-        const w = await world(browser, baseURL!, page, k, {}, true);
-        try { await Promise.all([fire(w.kit), fire(w.app)]); await sleep(wait); const [k1] = await Promise.all([timeline(w.kit, w.k, 400, skip)]); return k1.at(-1)!.sig.split(' ')[0]; } finally { await w.ctx.close(); }
-      };
-      const reducedEnd = async (k: Key, skip: string) => {
-        const w = await world(browser, baseURL!, page, k, { reducedMotion: 'reduce' }, false);
-        try { await w.app.locator(w.a).scrollIntoViewIfNeeded(); await sleep(1500); const s = await timeline(w.app, w.a, 400, skip); return { last: s.at(-1)!.sig.split(' ')[0], pending: (await hook(w.app))?.pending ?? -1 }; } finally { await w.ctx.close(); }
-      };
-      for (const [k, wait, skip] of [['trust', 13_000, ''], ['platform', 8_000, ''], ['integrations', 46_000, '.pp-site-editor__code']] as const) {
-        const kitEnd = await endOf(k, wait, skip);
-        const r = await reducedEnd(k, skip);
-        expect(r.last, `${k}: under reduced motion the end state shows at once`).toBe(kitEnd);
-        expect(r.pending, `${k}: no timer is left`).toBe(0);
+      // Integrations: the cycle (REST API, MCP server, Events) is the kit's. (A pressed tab is judged against the kit in AC-6; under reduced motion
+      // it takes the same path, and what is left behind when it ends is read below.)
+      const w = await world(browser, baseURL!, page, 'integrations', R);
+      try {
+        const r = await both(w, 46_000, undefined, CODE);
+        await expectSame('Integrations under reduced motion, the cycle', r.app, r.kit, TOL);
+        expect(fromFirstChange(r.app).length, 'the cycle passes through its states (steps, tabs, typed code skipped), not one').toBeGreaterThanOrEqual(10);
+        const code = async (p: Page, scope: string) => (await p.locator(`${scope} ${CODE}`).innerText()).replace(/\s+/g, ' ').trim();
+        expect(await code(w.app, w.a), 'the Events code is typed in full under reduced motion, the kit text').toBe(await code(w.kit, w.k));
+      } finally { await w.ctx.close(); }
+    }
+    // The clock under reduced motion runs the demos as in normal motion: a timer is queued while a demo plays and none is left when it ends. Read on a
+    // page with one section and the views left to themselves (a gated page fires every section's demo at once, and the hook adds them all up).
+    const solo = async (k: Key, fn: (p: Page, scope: string) => Promise<void>) => {
+      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', ...R });
+      await ctx.addInitScript(SCOPED_VIEW, ID(k, d));
+      try { const p = await ctx.newPage(); await gotoLanding(p, [ID(k, d)]); await centre(p, APP(k, d), ({ compliance: '.pp-site-watch', leave: '.pp-site-leave', integrations: '.pp-site-integrations' } as Partial<Record<Key, string>>)[k]); await fn(p, APP(k, d)); } finally { await ctx.close(); }
+    };
+    for (const [k, end, label] of [['compliance', 15_000, 'Compliance'], ['leave', 12_500, 'Leave'], ['trust', 14_000, 'Trust and POPIA'], ['platform', 9_500, 'Platform']] as const) {
+      await solo(k, async (p) => {
+        await sleep(2000);
+        expect(await pending(p), `${label}: while it plays timers are queued (window.__ppSiteClock.pending() is above 0)`).toBeGreaterThan(0);
+        await sleep(end - 2000);
+        expect(await pending(p), `${label}: when the run ends no timer is left (window.__ppSiteClock.pending() is 0)`).toBe(0);
+      });
+    }
+    await solo('integrations', async (p, scope) => {
+      await sleep(2000);
+      expect(await pending(p), 'Integrations: while it plays timers are queued').toBeGreaterThan(0);
+      await sleep(20_000);
+      expect(await pending(p), 'Integrations: it cycles, so a timer is still queued after the first tab has ended').toBeGreaterThan(0);
+      await hit(p, `${scope} [role="tab"] >> nth=1`);
+      await sleep(13_000);
+      expect(await pending(p), 'Integrations: a pressed tab plays alone and stops the cycle for good, and when it ends no timer is left').toBe(0);
+    });
+    // The CSS loops keep running under reduced motion: the same ones, at the same lengths, as on the kit page (read before any demo starts).
+    {
+      let running = 0;
+      for (const k of KEYS) {
+        const w = await world(browser, baseURL!, page, k, R);
+        try {
+          await sleep(1200);
+          const app = await loopsIn(w.app, [w.a]);
+          const kit = await loopsIn(w.kit, [w.k]);
+          expect(app, `${k}: under reduced motion the loops that run are the kit's, at the kit's lengths`).toEqual(kit);
+          running += app.length;
+        } finally { await w.ctx.close(); }
       }
+      expect(running, 'under reduced motion the sections still have loops that run (slower, not stopped)').toBeGreaterThan(0);
     }
     // Still mode: with and without it, count the loops that run in the six sections.
-    const loops = async (still: boolean) => {
-      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone' });
+    const loops = async (still: boolean, reduced = false) => {
+      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: reduced ? 'reduce' : 'no-preference' });
       try {
         if (still) await ctx.addInitScript(() => { const set = () => document.documentElement?.setAttribute('data-site-still', ''); set(); new MutationObserver(set).observe(document, { childList: true }); });
         const p = await ctx.newPage();
@@ -566,13 +617,15 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
     };
     expect((await loops(false)).length, 'in normal motion the sections have loops that run').toBeGreaterThan(0);
     expect(await loops(true), 'with data-site-still no loop runs').toEqual([]);
+    expect(await loops(true, true), 'with data-site-still no loop runs, under reduced motion too (still mode is its own rule and is unchanged)').toEqual([]);
 
     // Only transform, opacity, clip-path and stroke-dashoffset animate while the demos play, and no width, height, left or top is written.
     const ALLOWED = new Set(['transform', 'opacity', 'clip-path', 'clipPath', 'stroke-dashoffset', 'strokeDashoffset', 'offset', 'easing', 'composite', 'computedOffset']);
     const FORBIDDEN = /^(width|height|left|top|right|bottom|inline-size|block-size|inset(-.*)?|min-(width|height|inline-size|block-size)|max-(width|height|inline-size|block-size)|margin(-.*)?|padding(-.*)?)$/;
     const problems: string[] = [];
-    for (const [k, wait] of [['compliance', 14_000], ['leave', 11_000], ['trust', 13_000], ['integrations', 20_000], ['platform', 8_000], ['about', 1_500]] as const) {
-      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone' });
+    // Child lock 04.7: the rule holds under reduced motion too (the demos play there as well), so every section runs once in each setting.
+    for (const [motion, [k, wait]] of (['no-preference', 'reduce'] as const).flatMap((m) => ([['compliance', 14_000], ['leave', 11_000], ['trust', 13_000], ['integrations', 20_000], ['platform', 8_000], ['about', 1_500]] as const).map((x) => [m, x] as const))) {
+      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: motion });
       try {
         await ctx.addInitScript(() => {
           const w = window as unknown as { __s4: { anim: Set<string>; style: Set<string> } };
@@ -603,9 +656,9 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
         // Lock check: the design system's own button and switch colour transitions (the same on the kit page) are not demo motion and are let through.
         const dsColour = (x: string) => /^(button|input)\.pp-(button|toggle)\S*.* transitions (background-color|color|border-color|box-shadow|outline-color)$/.test(x);
         const bad = seen.anim.filter((x) => !ALLOWED.has(x.split(' ').at(-1)!) && !/transitions (transform|opacity|clip-path|stroke-dashoffset)/.test(x) && !dsColour(x));
-        problems.push(...bad.map((x) => `${k}: ${x}`), ...seen.style.map((x) => `${k}: ${x}`));
+        problems.push(...bad.map((x) => `${k} (${motion}): ${x}`), ...seen.style.map((x) => `${k} (${motion}): ${x}`));
         const left = await p.evaluate((re) => { const rx = new RegExp(re); const out: string[] = []; document.querySelectorAll('[style]').forEach((el) => { const st = (el as HTMLElement).style; for (let i = 0; i < st.length; i++) if (rx.test(st.item(i))) out.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)} has inline ${st.item(i)}`); }); return out; }, FORBIDDEN.source);
-        problems.push(...left.map((x) => `${k}: ${x}`));
+        problems.push(...left.map((x) => `${k} (${motion}): ${x}`));
       } finally { await ctx.close(); }
     }
     expect(problems, 'nothing but transform, opacity, clip-path and stroke-dashoffset animates; no inline width, height, left, top (or insets, margins, paddings) is written').toEqual([]);
@@ -699,11 +752,18 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
         }
       }
     }
-    // The keyboard and axe, on every section, with motion reduced so every demo sits in its end state and no control comes or goes while Tab walks.
+    // The keyboard and axe, on every section, with motion reduced. Under reduced motion the demos play (child lock 04.7), so to keep the walk
+    // deterministic the views are gated and fired once, the demos play for 14.5s (Compliance's run ends at 14s, Leave's at 11s, Trust's at 12.5s,
+    // Platform's at 8s; Integrations is in the middle of its cycle), then every timer is cancelled and the style that stills transitions is added.
+    // Tab then walks a page that does not change, so no control comes or goes while it walks (the controls are read after the freeze).
     const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: 'reduce' });
     try {
+      await ctx.addInitScript(GATED_VIEW);
       const p = await ctx.newPage();
       await gotoLanding(p, KEYS.map((k) => ID(k, d)));
+      await fire(p);
+      await sleep(14_500);
+      await freezeTimers(p);
       await p.addStyleTag({ content: STILL });
       const problems: string[] = [];
       for (const k of KEYS) {
@@ -743,12 +803,12 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
       await p.keyboard.press('Space');
       await sleep(300);
       expect(await toggle.isChecked(), 'Space on a module switch flips it').toBe(!was);
-      // Lock check: under reduced motion Replay ends where it started, and the old check (done count <= 1) could not fail. In normal motion,
-      // with Compliance alone: 3s into the run the register has moved on from 3 Nov, and Enter on Replay takes it back to 3 Nov.
-      await p.emulateMedia({ reducedMotion: 'no-preference' });
+      // Replay, still under reduced motion (child lock 04.7; before it Replay under reduced motion ended where it started and the check had to run in
+      // normal motion), with Compliance alone: 3s into the run the register has moved on from 3 Nov, and Enter on Replay takes it back to 3 Nov.
       await gotoLanding(p, [ID('compliance', d)]);
       const cmpRoot = p.locator(APP('compliance', d));
       await cmpRoot.scrollIntoViewIfNeeded();
+      await fire(p);
       await sleep(3000);
       const today = async () => (await cmpRoot.locator('.pp-site-ledger__today').innerText()).replace(/\s+/g, ' ');
       expect(await today(), 'the run has moved on from 3 Nov').not.toContain('3 Nov');
@@ -758,8 +818,11 @@ test.describe('SITE-04 Landing sections, part 2, and the assembled page', () => 
       expect(await today(), 'Enter on Replay plays the run again from 3 Nov').toContain('3 Nov');
     } finally { await ctx.close(); }
     // The whole page: axe finds nothing serious or critical.
+    // (Every demo on the page is on its first step here, as in AC-2's first step: under reduced motion they play when scrolled to, so the page would
+    // otherwise be read in the middle of a fade. Each section's end state is walked above.)
     const full = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: 'reduce' });
     try {
+      await full.addInitScript(FREEZE_VIEW);
       const p = await full.newPage();
       await p.goto('/');
       await p.waitForLoadState('networkidle');
