@@ -1,5 +1,5 @@
 {
- "_about": "The HR and employee shells as develop 06201c3 draws them (MOD-02 AC-5, AC-9). Read by support/mod-02/shell-snapshot.ts. Taken with the no-backend fakes: Jane Smith (HR), John Doe (employee).",
+ "_about": "The HR and employee shells as develop 06201c3 draws them (MOD-02 AC-5, AC-9). Read by support/mod-02/shell-snapshot.ts. Taken with the no-backend fakes: Jane Smith (HR), John Doe (employee). Employee blocks re-taken for ONB-19: the sidebar now holds Today and My onboarding (acceptance-lock/mod-02.2).",
  "dependencies": [
   "@angular/aria",
   "@angular/cdk",
@@ -63,6 +63,10 @@
         "icon": "fcfb4a1076"
        },
        {
+        "label": "Ask Batsi",
+        "icon": "31a002755b"
+       },
+       {
         "label": "Search",
         "icon": "3e937b0929"
        },
@@ -125,6 +129,13 @@
        "icon": "32525f84bd",
        "count": null,
        "current": "page"
+      },
+      {
+       "label": "My onboarding",
+       "href": "/start/onboarding",
+       "icon": "3f2f8691c0",
+       "count": null,
+       "current": null
       }
      ],
      "topBar": {
@@ -167,6 +178,12 @@
       {
        "x": 16,
        "y": 89,
+       "width": 240,
+       "height": 40
+      },
+      {
+       "x": 16,
+       "y": 129,
        "width": 240,
        "height": 40
       }
@@ -218,6 +235,10 @@
         "icon": "fcfb4a1076"
        },
        {
+        "label": "Ask Batsi",
+        "icon": "31a002755b"
+       },
+       {
         "label": "Search",
         "icon": "3e937b0929"
        },
@@ -280,6 +301,13 @@
        "icon": "32525f84bd",
        "count": null,
        "current": "page"
+      },
+      {
+       "label": "My onboarding",
+       "href": "/start/onboarding",
+       "icon": "3f2f8691c0",
+       "count": null,
+       "current": null
       }
      ],
      "topBar": {
@@ -322,6 +350,12 @@
       {
        "x": 8,
        "y": 81,
+       "width": 304,
+       "height": 48
+      },
+      {
+       "x": 8,
+       "y": 129,
        "width": 304,
        "height": 48
       }

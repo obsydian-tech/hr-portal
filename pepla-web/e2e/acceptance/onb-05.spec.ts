@@ -210,8 +210,9 @@ const sleep = (page: Page, ms: number) => page.waitForTimeout(ms);
 // ---------------------------------------------------------------- Lambda helpers
 
 const EMPLOYEE_ONLY = { error: NOT_EMPLOYEE };
-// ONB-10 (re-lock acceptance-lock/onb-05.2): `documentsDue` is the one field added to the list.
-const LISTED = ['firstName', 'company', 'department', 'startDate', 'documentsDue', 'notice', 'consent'];
+// ONB-10 (re-lock acceptance-lock/onb-05.2): `documentsDue` is a field added to the list.
+// ONB-19 (re-lock acceptance-lock/onb-05.3): `step` is the other one.
+const LISTED = ['firstName', 'company', 'department', 'startDate', 'documentsDue', 'step', 'notice', 'consent'];
 
 /** Every string anywhere in a value. */
 function strings(v: unknown, out: string[] = []): string[] {
@@ -694,16 +695,19 @@ test.describe('ONB-05 Privacy notice and consent', () => {
   });
 
   // -------------------------------------------------------------- AC-7
-  test('AC-7 The frame: one sidebar item, the company, Sign out in the account menu; the next person sees only their own page; HR lands on /hr; no HR API from an employee page', async ({ page, signIn, employee, hr, watch, appOrigin, cognito, me }) => {
+  test('AC-7 The frame: two sidebar items (ONB-19), the company, Sign out in the account menu; the next person sees only their own page; HR lands on /hr; no HR API from an employee page', async ({ page, signIn, employee, hr, watch, appOrigin, cognito, me }) => {
     noBackendOnly();
     await signInEmployee(page, signIn, employee);
     await expect(formHeading(page)).toBeVisible();
 
     await openSidebar(page);
     const links = sidebar(page).getByRole('link');
-    await expect(links, 'exactly one sidebar item').toHaveCount(1);
+    // ONB-19 (re-lock acceptance-lock/onb-05.3): My onboarding is the second item, after Today.
+    await expect(links, 'exactly two sidebar items').toHaveCount(2);
     await expect(links.first()).toHaveAccessibleName('Today');
     expect(await links.first().getAttribute('href'), 'Today is /start').toMatch(/^\/start\/?$/);
+    await expect(links.nth(1)).toHaveAccessibleName('My onboarding');
+    expect(await links.nth(1).getAttribute('href'), 'My onboarding is /start/onboarding').toBe('/start/onboarding');
     await expect(sidebar(page).getByText(ME_COMPANY, { exact: true })).toBeVisible();
     await links.first().click();
     await expect(page).toHaveURL(START);

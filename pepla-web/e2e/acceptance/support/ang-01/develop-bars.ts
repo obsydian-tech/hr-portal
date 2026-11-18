@@ -183,6 +183,7 @@ export const HR_BAR: Record<'desktop-1280' | 'phone-390', string[]> = {
     "button:Open menu:hidden",
     "a:Naleko People home:hidden",
     "input:Search people and documents:shown",
+    "button:Ask Batsi:shown",
     "button:Search:hidden",
     "button:Notifications:shown",
     "button:Your account, Jane Smith:shown"
@@ -191,6 +192,7 @@ export const HR_BAR: Record<'desktop-1280' | 'phone-390', string[]> = {
     "button:Open menu:shown",
     "a:Naleko People home:shown",
     "input:Search people and documents:hidden",
+    "button:Ask Batsi:shown",
     "button:Search:shown",
     "button:Notifications:shown",
     "button:Your account, Jane Smith:shown"
