@@ -82,6 +82,10 @@ exports.handler = async (event) => {
   // TEN-03: a person calling the API gets the company from the sign-in. The VoteSubmitted event has none: it names
   // its company in tenant_id. The company is never read from the body, query, path or headers.
   const T = await tenantHelper();
+  // REC-01: a person votes as themselves (the voter is the sign-in, never the body) and only on an interview whose panel
+  // they are on. The VoteSubmitted event is the system, not a person: it keeps naming its voter.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const byPerson = !!event.requestContext;
   let tenantId;
   if (event.requestContext) {
     const t = T.requireTenant(event);
@@ -103,16 +107,21 @@ exports.handler = async (event) => {
   // Only available when called via API Gateway (not EventBridge)
   const userId = T.userIdOf(event);
 
-  const detail = event.detail || event.body
+  const message = event.detail || event.body
     ? (event.detail || (typeof event.body === 'string' ? JSON.parse(event.body) : event.body))
     : event;
 
-  const { voterId, scores, rating, interviewId, submittedByTA } = detail || {};
-  // A call through the API names the candidate in the path (/v1/candidates/{id}/votes); the path wins over the body.
-  const candidateId = event.requestContext ? (event.pathParameters?.id ?? detail?.candidateId) : detail?.candidateId;
+  const { scores, rating, interviewId, submittedByTA } = message || {};
+  // A person's vote is made on the candidate's own route (/v1/candidates/{id}/votes): the path names the candidate when the body does not.
+  const candidateId = (byPerson ? event.pathParameters?.id : undefined) ?? message?.candidateId;
+  // The voter: the signed-in person (a person never names one), or, for the VoteSubmitted event, the voter it names.
+  const voterId = byPerson ? RA.callerId(event) : message?.voterId;
+  if (byPerson && !voterId) return RA.forbidden();
 
   // ── Step 1: Validate required fields ─────────────────────────────────────
   if (!candidateId) return badRequest('Missing required field: candidateId');
+  // A person's vote on a candidate is made on that candidate's own route.
+  if (byPerson && event.pathParameters?.id && message?.candidateId && event.pathParameters.id !== message.candidateId) return badRequest('candidateId does not match the route');
   if (!voterId)     return badRequest('Missing required field: voterId');
   if (!rating)      return badRequest('Missing required field: rating');
   if (!VALID_RATINGS.includes(rating)) {
@@ -137,6 +146,25 @@ exports.handler = async (event) => {
   } catch (err) {
     console.error('Failed to read SAGA record', { candidateId, error: err.message });
     return serverError('Failed to read candidate record');
+  }
+
+  // ── REC-01: a person must be on the panel of the interview they vote on ──────────────────────────────────────
+  // The interview must be named and must be this candidate's. Not on its panel (a Recruiter included) is 403, and
+  // nothing is written. The row is read before anything else is written.
+  if (byPerson) {
+    if (!interviewId) return RA.forbidden();
+    let interviewRow;
+    try {
+      const res = await dynamo.send(new GetItemCommand({
+        TableName: STATE_TABLE,
+        Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
+      }));
+      interviewRow = res.Item ? unmarshall(res.Item) : null;
+    } catch (err) {
+      console.error('Failed to read interview record', { candidateId, interviewId, error: err.name });
+      return serverError('Failed to read interview record');
+    }
+    if (!interviewRow || !T.ownsRow(interviewRow, tenantId) || !RA.panelMemberOf(interviewRow, voterId)) return RA.forbidden();
   }
 
   const configVersion = saga.configVersion;
@@ -237,7 +265,7 @@ exports.handler = async (event) => {
         weightedScore,
         configVersionUsed: configVersion,
         createdAt:        timestamp,
-        submittedByTA:    submittedByTA || null,
+        submittedByTA:    byPerson ? null : (submittedByTA || null), // a person votes as themselves: nobody else entered it (REC-07 adds HR entering for a member)
         updatedBy:        userId || undefined,  // INTEL-001: Track who submitted the vote for action tracking
       }, tenantId), { removeUndefinedValues: true }),
       ConditionExpression: 'attribute_not_exists(SK)',

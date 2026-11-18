@@ -81,6 +81,10 @@ exports.handler = async (event) => {
   let candidateId, tenantId, outcome, inputConfigVersion;
 
   if (isHttp) {
+    // REC-01: only a Recruiter (HR with the Recruitment tick) may make an offer by hand. The role answer comes first.
+    const RA = await import('../shared/recruitment-access.mjs');
+    const notRecruiter = RA.requireRecruiter(event);
+    if (notRecruiter) return notRecruiter;
     // Manual creation — TA-initiated fallback from the Offer tab
     candidateId        = event.pathParameters?.id ?? event.pathParameters?.candidateId;
     const body         = event.body

@@ -25,6 +25,10 @@ const TTL_DAYS = 90;
  * Lambda handler
  */
 exports.handler = async (event) => {
+  // REC-01: only a Recruiter (HR with the Recruitment tick) may do this. The role answer comes first, before any AWS call.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notRecruiter = RA.requireRecruiter(event);
+  if (notRecruiter) return notRecruiter;
   // TEN-03: the company comes from the sign-in only.
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);

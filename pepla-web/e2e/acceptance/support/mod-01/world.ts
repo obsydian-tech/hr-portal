@@ -102,6 +102,8 @@ function interview(id: string, iv: string, c: string): Row {
   return av({
     PK: `CANDIDATE#${id}`, SK: `INTERVIEW#${iv}`, interviewId: iv, candidateId: id, ...company(c), interviewType: 'HR_SCREEN', status: 'SCHEDULED',
     scheduledAt: '2026-12-01T09:00:00.000Z', votesRequired: 1, createdAt: NOW,
+    // REC-01: the voter is the signed-in person and must be on the panel; company staff sit on their own company's panel.
+    panelMemberIds: [c === A ? SUB.staffA : c === B ? SUB.staffB : SUB.staffC],
   });
 }
 function offer(id: string, c: string): Row {
