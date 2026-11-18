@@ -151,11 +151,12 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: 'list_verifications',
-    description: 'List document verifications, optionally filtered by status.',
+    description: 'List document verifications, optionally filtered by status. For a question about one person, pass employee_id: the answer then holds that one person\'s documents with their check.',
     input_schema: {
       type: 'object',
       properties: {
         status: { type: 'string', enum: ['PENDING', 'VERIFIED', 'FAILED'] },
+        employee_id: { type: 'string', description: 'Employee ID e.g. EMP-0000012. Use it for a question about one person.' },
         limit:  { type: 'number' },
       },
     },
@@ -238,7 +239,7 @@ export const TOOL_MAP = {
     agentPost(`/agent/v1/employees/${encodeURIComponent(args.id)}/assess-risk`, {}),
 
   list_verifications: (args, _context) =>
-    agentGet(`/agent/v1/verifications${qs({ status: args.status, limit: args.limit })}`),
+    agentGet(`/agent/v1/verifications${qs({ status: args.status, limit: args.limit, employee_id: args.employee_id })}`),
 
   get_verification_summary: (args, _context) =>
     agentGet(`/agent/v1/verifications/${encodeURIComponent(args.id)}/summary`),
