@@ -63,6 +63,10 @@
         "icon": "fcfb4a1076"
        },
        {
+        "label": "Ask Batsi",
+        "icon": "31a002755b"
+       },
+       {
         "label": "Search",
         "icon": "3e937b0929"
        },
@@ -229,6 +233,10 @@
        {
         "label": "Open menu",
         "icon": "fcfb4a1076"
+       },
+       {
+        "label": "Ask Batsi",
+        "icon": "31a002755b"
        },
        {
         "label": "Search",
