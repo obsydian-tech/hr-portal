@@ -1,6 +1,7 @@
 import { mask, type DlItem, type VerificationCheck } from '../../ds';
 import { CHECK_WORD, DOCUMENT_TYPES, type Check, type DocumentType, type HrDecision } from '../employees/employee-detail';
 import { typeName } from './documents-to-check';
+import type { RevealRef } from './reveal-log.service';
 
 export type Compared = 'AGREES' | 'DIFFERS' | 'NOT_READ' | 'NOT_ON_RECORD';
 export type ComparedField = 'SURNAME' | 'ID_NUMBER' | 'ACCOUNT_HOLDER';
@@ -18,13 +19,14 @@ export interface ApiDocumentDetail {
   verification?: {
     confidence?: number | string | null;
     extracted_data?: {
-      id_number?: string | null;
       id_number_last4?: string | null;
+      id_number_available?: boolean;
+      account_number_last4?: string | null;
+      account_number_available?: boolean;
       name?: string | null;
       surname?: string | null;
       account_holder?: string | null;
       bank_name?: string | null;
-      account_number?: string | null;
       branch_code?: string | null;
       account_type?: string | null;
     } | null;
@@ -148,11 +150,8 @@ export function confidenceOf(confidence: number | string | null | undefined): Co
 }
 
 /** A hidden number: the last four digits show, with Show to see the rest. */
-function hiddenRow(term: string, value: string | null | undefined, last4: string | null | undefined, record: string): DlItem {
-  if (!unread(value)) {
-    const full = value!.trim();
-    return { term, reveal: { record, value: full, masked: mask(full), maskedLabel: term } };
-  }
+function hiddenRow(term: string, available: boolean | undefined, last4: string | null | undefined, record: string, ref: RevealRef): DlItem {
+  if (available && !unread(last4)) return { term, reveal: { record, ref, masked: mask(`xxxx${last4!.trim()}`), maskedLabel: term, notice: true } };
   if (!unread(last4)) return { term, value: mask(`xxxx${last4!.trim()}`) };
   return { term, value: NOT_READ };
 }
@@ -171,13 +170,13 @@ export function toDocumentDetail(a: ApiDocumentDetail): DocumentDetail {
     rows = [
       { term: 'First names', value: shown(read.name) },
       { term: 'Surname', value: shown(read.surname) },
-      hiddenRow('ID number', read.id_number, read.id_number_last4 ?? read.id_number?.slice(-4), employeeName),
+      hiddenRow('ID number', read.id_number_available, read.id_number_last4, employeeName, { documentId: d.document_id, employeeId: d.employee_id ?? e?.employee_id ?? '', field: 'id_number' }),
     ];
   } else if (type === 'BANK_CONFIRMATION') {
     rows = [
       { term: 'Account holder', value: shown(read.account_holder) },
       { term: 'Bank', value: shown(read.bank_name) },
-      hiddenRow('Account number', read.account_number, null, employeeName),
+      hiddenRow('Account number', read.account_number_available, read.account_number_last4, employeeName, { documentId: d.document_id, employeeId: d.employee_id ?? e?.employee_id ?? '', field: 'account_number' }),
       { term: 'Branch code', value: shown(read.branch_code) },
       { term: 'Account type', value: shown(read.account_type) },
     ];

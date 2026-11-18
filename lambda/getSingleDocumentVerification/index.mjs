@@ -29,6 +29,11 @@ async function kmsDecrypt(ciphertext) {
   }
 }
 
+const unusable = (v) => v === undefined || v === null || ['', 'NOT_FOUND', 'KMS_UNAVAILABLE'].includes(String(v).trim());
+/** ONB-14: a number can be shown when the row holds one (ciphertext, or a plain one from before NH-11). */
+const idAvailable = (row) => (row.idNumber_encrypted ? !unusable(row.idNumber_encrypted) : !unusable(row.idNumber));
+const accountAvailable = (row) => !unusable(row.accountNumber);
+
 /** The document row within the caller's company: one GetItem when the caller gave employee_id, else the company's rows. */
 async function findDocument(documentId, employeeId, tenantId) {
   if (employeeId) {
@@ -91,8 +96,11 @@ export const handler = async (event) => {
         decision: verData.decision,
         reasoning: verData.reasoning,
         extracted_data: {
-          id_number: idNumber,
+          // ONB-14: the full numbers leave this answer. They come only from POST /v1/verifications/{id}/reveal, which records the Show.
           id_number_last4: verData.idNumber_last4 ?? null,
+          account_number_last4: accountAvailable(verData) ? String(verData.accountNumber).trim().slice(-4) : null,
+          id_number_available: idAvailable(verData),
+          account_number_available: accountAvailable(verData),
           name: verData.name,
           surname: verData.surname,
           date_of_birth: verData.dateOfBirth,
@@ -100,7 +108,6 @@ export const handler = async (event) => {
           citizenship: verData.citizenship,
           account_holder: verData.accountHolder,
           bank_name: verData.bankName,
-          account_number: verData.accountNumber,
           branch_code: verData.branchCode,
           account_type: verData.accountType,
         },

@@ -120,18 +120,10 @@ const handlerFn = async (event) => {
           ? unmarshall(verResult.Items[0]) 
           : null;
 
-        // NH-11: decrypt id_number for HR review.
-        // New records store idNumber_encrypted (ciphertext) + idNumber_last4.
-        // Legacy records (pre-NH-11) may still have idNumber in plain.
-        let decryptedIdNumber = null;
-        if (verification) {
-          if (verification.idNumber_encrypted) {
-            decryptedIdNumber = await kmsDecrypt(verification.idNumber_encrypted);
-          } else if (verification.idNumber) {
-            // Legacy pre-NH-11 record — return as-is
-            decryptedIdNumber = verification.idNumber;
-          }
-        }
+        // ONB-14: no full number leaves this answer; Show asks POST /v1/verifications/{id}/reveal, which records it.
+        const unusable = (v) => v === undefined || v === null || ['', 'NOT_FOUND', 'KMS_UNAVAILABLE'].includes(String(v).trim());
+        const idAvailable = verification ? (verification.idNumber_encrypted ? !unusable(verification.idNumber_encrypted) : !unusable(verification.idNumber)) : false;
+        const accountAvailable = verification ? !unusable(verification.accountNumber) : false;
 
         return {
           ...doc,
@@ -140,8 +132,10 @@ const handlerFn = async (event) => {
             confidence: verification.confidence,
             decision: verification.decision,
             reasoning: verification.reasoning,
-            id_number: decryptedIdNumber,
             id_number_last4: verification.idNumber_last4 || null,
+            account_number_last4: accountAvailable ? String(verification.accountNumber).trim().slice(-4) : null,
+            id_number_available: idAvailable,
+            account_number_available: accountAvailable,
             name: verification.name,
             surname: verification.surname,
             date_of_birth: verification.dateOfBirth,

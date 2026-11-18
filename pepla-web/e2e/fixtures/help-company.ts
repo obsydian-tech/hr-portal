@@ -98,6 +98,8 @@ export const HELP_NEW_EMPLOYEE_STEPS: Readonly<Record<string, 'INVITED' | 'DOCUM
  * fails the ID check digit.
  */
 const JOHAN_ID_NUMBER = '8500015009087';
+/** ONB-14: no answer holds the full number now; the made-up one stays here so the checks on it (help-02) can still look at it. */
+export const HELP_MADE_UP_ID_NUMBERS = { johan: JOHAN_ID_NUMBER } as const;
 const JOHAN_UPLOADED = '2026-02-26T08:00:00Z';
 
 export const HELP_JOHAN_DETAIL = (() => {
@@ -114,7 +116,7 @@ export const HELP_JOHAN_DETAIL = (() => {
         check: 'MATCHES',
         hr_decision: null,
         hr_decided_at: null,
-        verification: { id_number: JOHAN_ID_NUMBER, id_number_last4: JOHAN_ID_NUMBER.slice(-4) },
+        verification: { id_number_last4: JOHAN_ID_NUMBER.slice(-4), id_number_available: true },
       },
       {
         document_id: 'sunbird-johan-bank',
@@ -168,7 +170,7 @@ export const HELP_DOCUMENT_PAGES = (() => {
   return {
     [id!.document_id]: {
       ...base(id),
-      verification: { confidence: 96, extracted_data: { name: e.first_name, surname: e.last_name, id_number: id!.verification!.id_number, id_number_last4: id!.verification!.id_number_last4 } },
+      verification: { confidence: 96, extracted_data: { name: e.first_name, surname: e.last_name, id_number_last4: id!.verification!.id_number_last4, id_number_available: true } },
       comparisons: [{ field: 'SURNAME', result: 'AGREES' }, { field: 'ID_NUMBER', result: 'AGREES' }],
     },
     [bank!.document_id]: {

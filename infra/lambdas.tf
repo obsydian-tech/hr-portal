@@ -1489,3 +1489,39 @@ resource "aws_lambda_permission" "user_migration" {
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.naleko_dev.arn
 }
+
+# ─── ONB-14: revealDocumentField (the one place a full ID or account number leaves, after the audit bus took the Show) ───
+resource "aws_lambda_function" "reveal_document_field" {
+  function_name = "revealDocumentField"
+  role          = aws_iam_role.reveal_document_field.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 15
+  architectures = ["x86_64"]
+
+  # At most five Shows at once: a stolen HR session cannot pull every number quickly (ONB-14 S-1).
+  reserved_concurrent_executions = 5
+
+  environment {
+    variables = {
+      LEGACY_TENANT_ID = var.legacy_tenant_id
+      KMS_KEY_ARN      = module.kms_pii.key_arn
+      EVENT_BUS_NAME   = aws_cloudwatch_event_bus.naleko_onboarding.name
+      ENVIRONMENT      = var.environment
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/revealDocumentField"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash, last_modified]
+  }
+}

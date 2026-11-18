@@ -138,6 +138,15 @@ resource "aws_apigatewayv2_stage" "document_upload_api_default" {
     throttling_rate_limit  = 50
   }
 
+  # ONB-14: Show is slow on purpose (S-1)
+  route_settings {
+    route_key              = "POST /v1/verifications/{id}/reveal"
+    throttling_burst_limit = 5
+    throttling_rate_limit  = 2
+  }
+
+  depends_on = [aws_apigatewayv2_route.reveal_document_field]
+
   lifecycle {
     ignore_changes = [deployment_id]
   }
@@ -769,4 +778,28 @@ resource "aws_lambda_permission" "get_company_modules" {
   function_name = aws_lambda_function.get_company_modules.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.employees_api.execution_arn}/*/*"
+}
+
+# POST /v1/verifications/{id}/reveal (ONB-14)
+resource "aws_apigatewayv2_integration" "reveal_document_field" {
+  api_id                 = aws_apigatewayv2_api.document_upload_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.reveal_document_field.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "reveal_document_field" {
+  api_id             = aws_apigatewayv2_api.document_upload_api.id
+  route_key          = "POST /v1/verifications/{id}/reveal"
+  target             = "integrations/${aws_apigatewayv2_integration.reveal_document_field.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.document_upload_api_cognito.id
+}
+
+resource "aws_lambda_permission" "reveal_document_field" {
+  statement_id  = "AllowDocAPIInvokeRevealDocumentField"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.reveal_document_field.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.document_upload_api.execution_arn}/*/*"
 }
