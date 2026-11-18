@@ -1,0 +1,6 @@
+{
+  "infra/agent_api": "[\"authorization\",\"x-api-key\",\"content-type\"]",
+  "infra/employees_api": "[\"authorization\",\"content-type\",\"idempotency-key\"]",
+  "infra/document_upload_api": "[\"authorization\",\"content-type\",\"idempotency-key\"]",
+  "talent-flow-infra/talent_flow_api": "[\"authorization\",\"content-type\"]"
+}

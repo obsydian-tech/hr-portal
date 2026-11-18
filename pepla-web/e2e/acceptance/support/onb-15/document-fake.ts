@@ -20,8 +20,14 @@ import type { BrowserContext, Route } from '@playwright/test';
  *
  * Every call needs `Authorization: Bearer <JWT>`, as the API's Cognito authorizer does, or it gets
  * 401. Every call is recorded in `calls`. The file link points at FILE_ORIGIN, which the fake also
- * answers with a small PDF. Nothing here calls AWS or any AI service.
+ * answers with a small PDF.
+ * ONB-14: the GET answer carries no full ID number or account number: `extracted_data` holds `id_number_last4`,
+ * `account_number_last4`, `id_number_available` and `account_number_available`. The full number comes only from `reveal`,
+ * the fake of POST <documentUploadApiUrl>/v1/verifications/<document id>/reveal (support/onb-14/reveal-fake.ts).
+ * Nothing here calls AWS or any AI service.
  */
+
+import { RevealFake } from '../onb-14/reveal-fake';
 
 export type DocumentType = 'NATIONAL_ID' | 'BANK_CONFIRMATION' | 'MATRIC_CERTIFICATE' | 'TERTIARY_QUALIFICATION';
 export type Check = 'READING' | 'MATCHES' | 'NEEDS_A_LOOK' | 'DOESNT_MATCH';
@@ -144,6 +150,7 @@ export function answerFor(d: FakeDocument): Record<string, unknown> {
   const r = v?.read ?? {};
   const decision = hrDecisionOf(d);
   const idLast4 = r.id_number ? String(r.id_number).replace(/\D/g, '').slice(-4) : null;
+  const shownable = (v: unknown) => !notRead(v);
   return {
     document: {
       document_id: d.document_id,
@@ -162,8 +169,10 @@ export function answerFor(d: FakeDocument): Record<string, unknown> {
           decision: 'MANUAL_REVIEW',
           reasoning: v.reasoning ?? 'Sample data.',
           extracted_data: {
-            id_number: r.id_number ?? null,
             id_number_last4: idLast4,
+            account_number_last4: shownable(r.account_number) ? String(r.account_number).slice(-4) : null,
+            id_number_available: shownable(r.id_number),
+            account_number_available: shownable(r.account_number),
             name: r.name ?? null,
             surname: r.surname ?? null,
             date_of_birth: r.date_of_birth ?? null,
@@ -171,7 +180,6 @@ export function answerFor(d: FakeDocument): Record<string, unknown> {
             citizenship: r.citizenship ?? null,
             account_holder: r.account_holder ?? null,
             bank_name: r.bank_name ?? null,
-            account_number: r.account_number ?? null,
             branch_code: r.branch_code ?? null,
             account_type: r.account_type ?? null,
           },
@@ -233,8 +241,20 @@ export class DocumentFake {
   /** Who decided first, for decideMode 'conflict'. */
   otherHr = { name: 'Sam Peters', at: '2026-11-14T07:15:00.000Z', decision: 'PASSED' as 'PASSED' | 'FAILED' };
   private held: Array<() => void> = [];
+  /** ONB-14: POST /v1/verifications/<document id>/reveal, answered from the same documents. */
+  readonly reveal: RevealFake;
 
-  constructor(private readonly appOrigin: string) {}
+  /** The full number the stored document holds for a field, and whose document it is (what the Lambda reads). */
+  readonly revealLookup = (documentId: string, field: 'id_number' | 'account_number'): { value: string; employeeId: string } | undefined => {
+    const d = this.documents.get(documentId);
+    const read = d?.verification?.read;
+    const value = field === 'id_number' && d?.document_type === 'NATIONAL_ID' ? read?.id_number : field === 'account_number' && d?.document_type === 'BANK_CONFIRMATION' ? read?.account_number : undefined;
+    return d && value && !notRead(value) ? { value: String(value), employeeId: d.employee.employee_id } : undefined;
+  };
+
+  constructor(private readonly appOrigin: string) {
+    this.reveal = new RevealFake(appOrigin, this.revealLookup);
+  }
 
   add(...docs: FakeDocument[]): void {
     for (const d of docs) this.documents.set(d.document_id, structuredClone(d));
@@ -267,6 +287,7 @@ export class DocumentFake {
       route.fulfill({ status: 200, headers: { 'content-type': 'text/html' }, body: '<!doctype html><title>Sample document</title><p>ONB-15 sample document. Sample data.</p>' }),
     );
     await context.route((url) => isDocumentApi(url, this.appOrigin), (route) => this.handle(route));
+    await this.reveal.install(context);
   }
 
   private async handle(route: Route): Promise<void> {

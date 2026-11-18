@@ -244,7 +244,9 @@ test.describe('TEN-04 · every route is described, and a company B walk proves n
       const [m, p] = key.split(' ') as [string, string];
       contains(op, strip(raw.paths[p]?.[m.toLowerCase()]), key, changed);
     }
-    expect.soft(changed, 'every earlier operation keeps its paths, fields and wording (add-only)').toEqual([]);
+    // ONB-14 (re-lock ten-04.N): the GET answer of one verification no longer holds the two full numbers, and its description says so.
+    const onb14 = new Set(['GET /v1/verifications/{id}.description', 'GET /v1/verifications/{id}.responses.200.content.application/json.schema.properties.verification.properties.extracted_data.properties.id_number', 'GET /v1/verifications/{id}.responses.200.content.application/json.schema.properties.verification.properties.extracted_data.properties.account_number']);
+    expect.soft(changed.filter((c) => !onb14.has(c)), 'every earlier operation keeps its paths, fields and wording (add-only)').toEqual([]);
     expect.soft(Object.keys(baseline).length, 'the baseline holds the 23 operations on develop 6122df1').toBe(23);
   });
 
