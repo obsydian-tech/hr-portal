@@ -24,9 +24,10 @@ const TABLE = process.env.PROMPT_CACHE_TABLE_NAME ?? 'talent-flow-prompt-cache';
  * @param {string} modelId          - Bedrock model ID chosen by intent router
  * @returns {string} 64-char hex SHA-256 digest
  */
-export function buildCacheKey(systemPrompt, firstUserMessage, modelId) {
+export function buildCacheKey(systemPrompt, firstUserMessage, modelId, tenantId = '') {
+  // CHAT-02: the company is part of the key, so one company never reads another's cached answer.
   return createHash('sha256')
-    .update(systemPrompt + '||' + firstUserMessage + '||' + modelId)
+    .update(systemPrompt + '||' + firstUserMessage + '||' + modelId + (tenantId ? '||' + tenantId : ''))
     .digest('hex');
 }
 

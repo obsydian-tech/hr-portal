@@ -355,6 +355,7 @@ resource "aws_lambda_function" "ai_chat" {
   environment {
     variables = {
       TENANTS_TABLE              = local.tf_tenants_table
+      CHATS_TABLE                = "ask-batsi-chats"
       STATE_TABLE_NAME           = local.tf_table_state
       CONFIG_TABLE_NAME          = local.tf_table_config
       AGENT_AUDIT_TABLE_NAME     = local.tf_table_agent_audit
@@ -1514,6 +1515,23 @@ resource "aws_iam_role_policy" "ai_chat_modules_read" {
       Effect   = "Allow"
       Action   = ["dynamodb:GetItem"]
       Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# CHAT-02: talentFlowAiChat keeps and reads Ask Batsi chats in the ask-batsi-chats table (infra/ask_batsi_chats.tf). Add only.
+# KMS decrypt comes through kms_pii dynamodb_read_role_arns (infra/kms.tf), where this role already is.
+resource "aws_iam_role_policy" "ai_chat_chats" {
+  name = "chat02-chats-ai-chat"
+  role = aws_iam_role.ai_chat.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ChatsTable"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/ask-batsi-chats"]
     }]
   })
 }

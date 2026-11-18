@@ -24,6 +24,9 @@ import { marshall }                                            from '@aws-sdk/ut
 import { resolveToolCall, TOOL_DEFINITIONS }                   from './tool-resolver.mjs';
 import { inGroup } from '../shared/hr-group.mjs';
 import { requireTenant } from '../shared/tenant.mjs';
+import { requireModule } from '../shared/modules.mjs';
+import { redactNumbers } from '../shared/pii-redact.mjs';
+import { appendExchange, ChatNotFound, historyOf, getHeader, isChatId, redactToolOutputs } from '../shared/ask-batsi-chats.mjs';
 import { sanitisePii }                                         from './pii-sanitiser.mjs';
 import { classifyIntent, selectModel }                         from './intent-classifier.mjs';
 import { buildCacheKey, getCached, setCached }                 from './cache.mjs';
@@ -90,7 +93,7 @@ async function checkRateLimit(staffId) {
       return retryAfter;
     }
     // Fail open so legit users aren't blocked by IAM / network errors
-    console.error(JSON.stringify({ event: 'rate_limit_check_failed', err: err.message }));
+    console.error(JSON.stringify({ event: 'rate_limit_check_failed', error: err?.name ?? 'Error' }));
     return null;
   }
 }
@@ -120,11 +123,12 @@ async function writeAuditRecord({
     conversation_id:     conversationId,
     bedrock_request_id:  bedrockRequestId,
     guardrail_action:    guardrailAction ?? 'NONE',
-    employees_accessed:  JSON.stringify(employeesAccessed ?? []),
-    promptSummary:       truncate(promptSummary),
-    responseSummary:     truncate(responseSummary),
+    employees_accessed:  redactNumbers(JSON.stringify(employeesAccessed ?? [])),
+    // CHAT-02: the audit record holds masked text only.
+    promptSummary:       truncate(typeof promptSummary === 'string' ? redactNumbers(promptSummary) : promptSummary),
+    responseSummary:     truncate(typeof responseSummary === 'string' ? redactNumbers(responseSummary) : responseSummary),
     toolCallsMade:       JSON.stringify(toolCallsMade),
-    tool_outputs_raw:    toolOutputsRaw ? JSON.stringify(toolOutputsRaw) : '{}',
+    tool_outputs_raw:    toolOutputsRaw ? JSON.stringify(redactToolOutputs(toolOutputsRaw)) : '{}',
     latencyMs,
     inputTokens,
     outputTokens,
@@ -138,7 +142,7 @@ async function writeAuditRecord({
       Item:      marshall(item, { removeUndefinedValues: true }),
     }));
   } catch (err) {
-    console.error(JSON.stringify({ event: 'audit_write_error', error: err.message }));
+    console.error(JSON.stringify({ event: 'audit_write_error', error: err?.name ?? 'Error' }));
   }
 }
 
@@ -255,7 +259,7 @@ async function maybeSummariseHistory(messages) {
       { role: 'assistant', content: 'Understood. I have the context from the prior conversation.' },
     ];
   } catch (err) {
-    console.warn(JSON.stringify({ event: 'history_summarise_failed', error: err.message }));
+    console.warn(JSON.stringify({ event: 'history_summarise_failed', error: err?.name ?? 'Error' }));
     return messages;
   }
 }
@@ -391,7 +395,7 @@ async function runAgenticLoop(messages, context, modelId) {
           if (toolName === 'get_sla_status')       structuredData.slaStatus       = result;
           if (toolName === 'get_config')           structuredData.config          = result;
         } catch (err) {
-          console.warn(JSON.stringify({ event: 'tool_call_failed', toolName, error: err.message }));
+          console.warn(JSON.stringify({ event: 'tool_call_failed', toolName, error: err?.name ?? 'Error' }));
           result  = { error: err.message };
           isError = true;
         }
@@ -459,6 +463,15 @@ async function runAgenticLoop(messages, context, modelId) {
 
 // ─── Lambda handler ───────────────────────────────────────────────────────────
 
+/** CHAT-02: a chat that could not be stored. Only the error name is logged, never the text. */
+function storeFailure(err, headers) {
+  if (err instanceof ChatNotFound) {
+    return { statusCode: 404, headers, body: JSON.stringify({ error: 'Not found' }) };
+  }
+  console.error(JSON.stringify({ event: 'chat_store_error', error: err?.name ?? 'Error' }));
+  return { statusCode: 500, headers, body: JSON.stringify({ error: 'Something went wrong' }) };
+}
+
 export const handler = async (event) => {
   const start = Date.now();
 
@@ -470,6 +483,9 @@ export const handler = async (event) => {
   // TEN-03: after the group check, the company check. The company is the sign-in's.
   const { tenantId, refusal } = requireTenant(event);
   if (refusal) return refusal;
+  // CHAT-02: Ask Batsi is a per-company switch, OFF until an admin turns it on.
+  const switchedOff = await requireModule(event, 'ask_batsi');
+  if (switchedOff) return switchedOff;
   const staffId = claims['custom:staff_id'];
   if (!staffId) {
     console.warn(JSON.stringify({ event: 'missing_staff_id' }));
@@ -527,7 +543,7 @@ export const handler = async (event) => {
     templateId           = 'freeform',
     slots                = {},
     screenContext        = {},
-    conversationHistory  = [],
+    chatId: requestedChatId,   // CHAT-02: history comes from the stored chat, never from the caller
     followUpText         = '',
   } = body;
 
@@ -539,7 +555,24 @@ export const handler = async (event) => {
 
   // 4. Build messages
   const userXml = buildUserMessage(templateId, slots, screenContext, staffId, effectiveMessage);
-  const rawHistory = [...conversationHistory];
+  const jsonHeaders = { 'Content-Type': 'application/json' };
+  let chatId = null;
+  let rawHistory = [];
+  if (requestedChatId !== undefined && requestedChatId !== null) {
+    if (!isChatId(requestedChatId)) {
+      return { statusCode: 404, headers: jsonHeaders, body: JSON.stringify({ error: 'Not found' }) };
+    }
+    try {
+      const header = await getHeader(tenantId, staffId, requestedChatId);
+      if (!header) {
+        return { statusCode: 404, headers: jsonHeaders, body: JSON.stringify({ error: 'Not found' }) };
+      }
+      chatId = requestedChatId;
+      rawHistory = await historyOf(tenantId, staffId, chatId);
+    } catch (err) {
+      return storeFailure(err, jsonHeaders);
+    }
+  }
   const summarisedHistory = await maybeSummariseHistory(rawHistory);
   const messages = [
     ...summarisedHistory,
@@ -562,8 +595,9 @@ export const handler = async (event) => {
 
   // 6. Prompt cache lookup (SIMPLE only)
   let cacheHitResponse = null;
-  const cacheKey = intentClass === 'SIMPLE'
-    ? buildCacheKey(SYSTEM_PROMPT, effectiveMessage, selectedModelId)
+  // CHAT-02: only a chat's first question may use the cache, and the key carries the company.
+  const cacheKey = intentClass === 'SIMPLE' && !chatId
+    ? buildCacheKey(SYSTEM_PROMPT, effectiveMessage, selectedModelId, tenantId)
     : null;
 
   if (cacheKey) {
@@ -571,13 +605,24 @@ export const handler = async (event) => {
     if (cacheHitResponse) {
       console.log(JSON.stringify({ event: 'prompt_cache', cache_hit: true, model_id: selectedModelId }));
       const pii = sanitisePii(cacheHitResponse);
+      let savedId;
+      try {
+        savedId = await appendExchange({
+          tenantId, staffId, chatId,
+          question: redactNumbers(effectiveMessage),
+          answer:   redactNumbers(pii.sanitised),
+        });
+      } catch (err) {
+        return storeFailure(err, jsonHeaders);
+      }
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message:         pii.sanitised,
           toolCallsMade:   [],
-          conversationId:  `${staffId}-${Date.now()}`,
+          chatId:          savedId,
+          conversationId:  savedId,
           structuredData:  {},
           latencyMs:       Date.now() - start,
           guardrailAction: pii.fired ? 'MASKED' : 'NONE',
@@ -595,11 +640,11 @@ export const handler = async (event) => {
   try {
     loopResult = await runAgenticLoop(messages, context, selectedModelId);
   } catch (err) {
-    console.error(JSON.stringify({ event: 'bedrock_pipeline_error', error: err.message, stack: err.stack }));
+    console.error(JSON.stringify({ event: 'bedrock_pipeline_error', error: err?.name ?? 'Error' }));
     return {
       statusCode: 502,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'AI service error', detail: err.message }),
+      body: JSON.stringify({ error: 'AI service error' }),
     };
   }
 
@@ -626,10 +671,25 @@ export const handler = async (event) => {
     t => t.result?.status === 'PENDING_APPROVAL'
   );
 
+  // CHAT-02: store the exchange (masked) before answering.
+  let savedChatId;
+  try {
+    savedChatId = await appendExchange({
+      tenantId, staffId, chatId,
+      question: redactNumbers(effectiveMessage),
+      answer:   redactNumbers(pii.sanitised),
+      tools:    [...new Set(loopResult.toolCallsMade.map(t => t.toolName))],
+      proposalIds: loopResult.toolCallsMade.map(t => t.result?.actionId).filter(id => typeof id === 'string'),
+    });
+  } catch (err) {
+    return storeFailure(err, jsonHeaders);
+  }
+
   const response = {
     message:         pii.sanitised,
     toolCallsMade:   loopResult.toolCallsMade.map(t => ({ tool: t.toolName, isError: t.isError })),
-    conversationId:  `${staffId}-${Date.now()}`,
+    chatId:          savedChatId,
+    conversationId:  savedChatId,
     structuredData:  loopResult.structuredData,
     latencyMs,
     guardrailAction: pii.fired ? 'MASKED' : 'NONE',

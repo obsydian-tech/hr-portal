@@ -135,6 +135,9 @@ resource "aws_lambda_function" "naleko_ai_chat" {
       # TEN-02: the company rule, and the one company Batsi chat serves (the agent key's).
       LEGACY_TENANT_ID = var.legacy_tenant_id
       AGENT_TENANT_ID  = var.founding_tenant_id
+      # CHAT-02: stored chats, and the company list the Ask Batsi switch is read from.
+      CHATS_TABLE   = aws_dynamodb_table.ask_batsi_chats.name
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
     }
   }
 
