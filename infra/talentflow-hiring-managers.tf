@@ -79,7 +79,7 @@ resource "aws_lambda_function" "get_hiring_managers" {
 
   environment {
     variables = {
-      TENANTS_TABLE = aws_dynamodb_table.tenants.name
+      TENANTS_TABLE      = aws_dynamodb_table.tenants.name
       HM_COGNITO_POOL_ID = aws_cognito_user_pool.naleko_dev.id
       HM_GROUP_NAME      = "naleko-talentflow-hiringmanager"
     }

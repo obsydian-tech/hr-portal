@@ -27,7 +27,7 @@ resource "aws_lambda_function" "acknowledge_tile" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE         = local.tf_tenants_table
       DISMISSALS_TABLE_NAME = aws_dynamodb_table.intelligence_dismissals.name
     }
   }

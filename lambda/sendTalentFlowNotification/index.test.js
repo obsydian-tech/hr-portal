@@ -75,6 +75,13 @@ beforeEach(() => {
 
 // ── _resolveTemplateAlias (unit) ──────────────────────────────────────────────
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 describe('_resolveTemplateAlias', () => {
   test('returns config value when type is present in config', () => {
     const templates = { INTERVIEW_SCHEDULED: 'my-custom-alias-v2' };

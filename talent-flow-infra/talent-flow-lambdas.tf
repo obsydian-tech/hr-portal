@@ -35,7 +35,7 @@ resource "aws_lambda_function" "create_candidate" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE          = local.tf_tenants_table
       STATE_TABLE_NAME       = local.tf_table_state
       IDEMPOTENCY_TABLE_NAME = local.tf_table_idempotency
       CONFIG_TABLE_NAME      = local.tf_table_config
@@ -75,7 +75,7 @@ resource "aws_lambda_function" "orchestrate_workflow" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
@@ -114,7 +114,7 @@ resource "aws_lambda_function" "schedule_interview" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE          = local.tf_tenants_table
       STATE_TABLE_NAME       = local.tf_table_state
       CONFIG_TABLE_NAME      = local.tf_table_config
       NOTIFICATION_QUEUE_URL = aws_sqs_queue.talent_flow_notification.url
@@ -154,7 +154,7 @@ resource "aws_lambda_function" "submit_vote" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
@@ -231,7 +231,7 @@ resource "aws_lambda_function" "manage_config" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE     = local.tf_tenants_table
       CONFIG_TABLE_NAME = local.tf_table_config
       AWS_ACCOUNT_ID    = var.aws_account_id
       ENVIRONMENT       = var.environment
@@ -274,7 +274,7 @@ resource "aws_lambda_function" "send_notification" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE            = local.tf_tenants_table
       NOTIFICATION_QUEUE_URL   = aws_sqs_queue.talent_flow_notification.url
       CONFIG_TABLE_NAME        = local.tf_table_config
       NOTIFICATIONS_TABLE_NAME = local.tf_table_notifications
@@ -354,7 +354,7 @@ resource "aws_lambda_function" "ai_chat" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE              = local.tf_tenants_table
       STATE_TABLE_NAME           = local.tf_table_state
       CONFIG_TABLE_NAME          = local.tf_table_config
       AGENT_AUDIT_TABLE_NAME     = local.tf_table_agent_audit
@@ -438,7 +438,7 @@ resource "aws_lambda_function" "approve_action" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE              = local.tf_tenants_table
       PENDING_ACTIONS_TABLE_NAME = local.tf_table_pending_actions
       EVENTBRIDGE_BUS_NAME       = local.tf_event_bus_name
       AWS_ACCOUNT_ID             = var.aws_account_id
@@ -596,7 +596,7 @@ resource "aws_lambda_function" "get_candidates" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE    = local.tf_tenants_table
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
     }
@@ -632,7 +632,7 @@ resource "aws_lambda_function" "get_candidate" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE    = local.tf_tenants_table
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
     }
@@ -668,7 +668,7 @@ resource "aws_lambda_function" "get_panel_members" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE    = local.tf_tenants_table
       COGNITO_POOL_ID  = local.tf_naleko_pool_id
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
@@ -706,7 +706,7 @@ resource "aws_lambda_function" "get_notifications" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE            = local.tf_tenants_table
       NOTIFICATIONS_TABLE_NAME = local.tf_table_notifications
       ENVIRONMENT              = var.environment
     }
@@ -742,7 +742,7 @@ resource "aws_lambda_function" "capture_sentiment" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
       ENVIRONMENT          = var.environment
@@ -780,7 +780,7 @@ resource "aws_lambda_function" "mark_notif_read" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE            = local.tf_tenants_table
       NOTIFICATIONS_TABLE_NAME = local.tf_table_notifications
       ENVIRONMENT              = var.environment
     }
@@ -817,7 +817,7 @@ resource "aws_lambda_function" "create_offer" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE          = local.tf_tenants_table
       STATE_TABLE_NAME       = local.tf_table_state
       CONFIG_TABLE_NAME      = local.tf_table_config
       EVENTBRIDGE_BUS_NAME   = local.tf_event_bus_name
@@ -856,7 +856,7 @@ resource "aws_lambda_function" "get_offer" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE    = local.tf_tenants_table
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
     }
@@ -893,7 +893,7 @@ resource "aws_lambda_function" "advance_offer_state" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
       ENVIRONMENT          = var.environment
@@ -932,7 +932,7 @@ resource "aws_lambda_function" "update_candidate" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
       ENVIRONMENT          = var.environment
@@ -971,7 +971,7 @@ resource "aws_lambda_function" "generate_scoring_link" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE    = local.tf_tenants_table
       STATE_TABLE_NAME = local.tf_table_state
       FRONTEND_URL     = var.frontend_url
       TOKEN_TTL_DAYS   = "7"
@@ -1011,7 +1011,7 @@ resource "aws_lambda_function" "submit_vote_by_token" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name

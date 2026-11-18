@@ -38,7 +38,7 @@ resource "aws_lambda_function" "evaluate_intelligence_rules" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE            = local.tf_tenants_table
       STATE_TABLE_NAME         = aws_dynamodb_table.talent_flow_state.name
       CONFIG_TABLE_NAME        = aws_dynamodb_table.talent_flow_config.name
       USERS_TABLE_NAME         = aws_dynamodb_table.talent_flow_users.name

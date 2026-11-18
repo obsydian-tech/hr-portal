@@ -79,6 +79,13 @@ function makeEvent(overrides = {}) {
 const { handler } = require('./index');
 
 // ── Test 1: happy path ────────────────────────────────────────────────────────
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
 test('happy path: calls UpdateItem then PutEvents and returns without error', async () => {
   await expect(handler(makeEvent())).resolves.toBeUndefined();
   expect(mockDynamoSend).toHaveBeenCalledTimes(1);

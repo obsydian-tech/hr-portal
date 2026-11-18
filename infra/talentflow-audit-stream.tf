@@ -302,7 +302,7 @@ resource "aws_lambda_function" "get_candidate_events" {
 
   environment {
     variables = {
-      TENANTS_TABLE = aws_dynamodb_table.tenants.name
+      TENANTS_TABLE     = aws_dynamodb_table.tenants.name
       EVENTS_TABLE_NAME = aws_dynamodb_table.talent_flow_events.name
     }
   }

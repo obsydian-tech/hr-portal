@@ -124,7 +124,7 @@ resource "aws_lambda_function" "advance_candidate_stage" {
 
   environment {
     variables = {
-      TENANTS_TABLE = local.tf_tenants_table
+      TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
       CONFIG_TABLE_NAME    = local.tf_table_config # read by config-reader.js
       EPIC3_ENABLED        = "true"                # set live in prod; kept to match
