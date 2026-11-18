@@ -116,11 +116,13 @@ export class StartPage {
     const c = this.me()?.consent;
     return c ? formatDate(c.acceptedAt, { year: true, time: true }) : '';
   });
-  protected readonly steps = computed<Step[]>(() =>
-    this.me()?.consent
-      ? [{ label: 'Consent', state: 'done' }, { label: 'Documents', state: 'current', meta: 'Upload your ID and your bank letter.' }]
-      : [{ label: 'Consent', state: 'current' }, { label: 'Documents', state: 'upcoming' }],
-  );
+  protected readonly steps = computed<Step[]>(() => {
+    const m = this.me();
+    if (!m?.consent) return [{ label: 'Consent', state: 'current' }, { label: 'Documents', state: 'upcoming' }];
+    // ONB-19: once the documents are in, Today stops asking for them. Any other step, or none, is as ONB-05 made it.
+    if (m.step === 'IN_REVIEW' || m.step === 'VERIFIED') return [{ label: 'Consent', state: 'done' }, { label: 'Documents', state: 'done', meta: 'Your ID and bank letter are in.' }];
+    return [{ label: 'Consent', state: 'done' }, { label: 'Documents', state: 'current', meta: 'Upload your ID and your bank letter.' }];
+  });
 
   constructor() {
     void this.service.load();
