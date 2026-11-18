@@ -36,7 +36,7 @@ export interface LearnQuestion {
 
 export interface LearnAsk { key: string; title: string; lead: string; questions: readonly LearnQuestion[] }
 export interface LearnStrip { label: string; items: readonly { icon: IconName; text: string }[]; link?: { text: string; href: string } }
-export interface LearnTile { icon: IconName; title: string; text: string; href: string }
+export interface LearnTile { icon: IconName; title: string; text?: string; href: string }
 export interface LearnFaq { lead: string; link: { text: string; href: string }; items: readonly { q: string; a: string }[] }
 
 /** What closes a Learn more page: Ask Batsi, the strip, "Works together with" and the questions. */
