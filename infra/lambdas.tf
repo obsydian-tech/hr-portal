@@ -1501,8 +1501,8 @@ resource "aws_lambda_function" "reveal_document_field" {
   timeout       = 15
   architectures = ["x86_64"]
 
-  # At most five Shows at once: a stolen HR session cannot pull every number quickly (ONB-14 S-1).
-  reserved_concurrent_executions = 5
+  # reserved_concurrent_executions is omitted on purpose, as for every other Lambda (NH-71): the dev account limit is 10 and AWS
+  # keeps at least 100 unreserved, so any reservation fails the apply. The route throttle in apigateway.tf (ONB-14 S-1) limits Shows.
 
   environment {
     variables = {
