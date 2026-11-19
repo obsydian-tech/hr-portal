@@ -1,4 +1,5 @@
 import { policyOf, type TfResource } from '../onb-15/tf-policy';
+import { ownerLinkGrant } from '../onb-11/owner-link';
 
 /**
  * TEN-02 re-locks: what TEN-02 may add to an onboarding role, and nothing more (spec section E).
@@ -84,6 +85,8 @@ export function onlyTenancyAdded(before: TfResource, after: TfResource): string[
     // TEN-04.2 re-lock (ten-03.3): createProvisioningBundle Queries the TalentFlow state table to check the candidate is the company's (table ARN only).
     if (p.effect === 'Allow' && p.condition === 'null' && after.name === 'create_provisioning_bundle' && p.action === 'dynamodb:Query'
       && /^(aws_dynamodb_table\.talent_flow_state\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-state|\$\{local\.tf_state_table\}))$/.test(p.resource)) continue;
+    // ONB-11 re-lock (ten-02.7): createEmployee links the new person's sign-in to their employees row (one UpdateItem on that table).
+    if (p.effect === 'Allow' && ownerLinkGrant(p.action, p.resource, after.name ?? '', p.condition)) continue;
     // CHAT-02 re-lock: the chat Lambdas keep chats and read the company switch.
     if (p.effect === 'Allow' && p.condition === 'null' && /^(naleko_ai_chat|ai_chat)$/.test(after.name ?? '') && chat02Grant(p.action, p.resource)) continue;
     wrong.push(`added beyond TEN-02: ${key(p)}`);

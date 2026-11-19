@@ -7,6 +7,7 @@ import { forgetSignIn } from './support/sign-in-again';
 import { blocks, tfFiles } from './support/infra-harness';
 import { policyOf, resourcesNamed } from './support/onb-15/tf-policy';
 import { tablesIn, tenancyGrant } from './support/ten-02/relock';
+import { ownerLinkGrant } from './support/onb-11/owner-link';
 import type { Statement } from './support/ops-05/iam-eval';
 import {
   AGENT, CREATE, EMPLOYEE, EMAIL_CHECK, HR, PAGE, PARTNERS, POOL, REPO, aiReached, aws, body, cognitoCalls, create, createEvent, dynamoCalls, emailCheck,
@@ -1157,7 +1158,9 @@ test.describe('ONB-03 Add a new employee', () => {
       || /^Allow cognito-idp:(AdminGetUser|AdminListGroupsForUser) arn:aws:cognito-idp:af-south-1:000000000000:userpool\/\$\{aws_cognito_user_pool\.naleko_dev\.id\}$/.test(x);
     // TEN-02 (re-lock): the company grants (Member rows, the employees tenant-index) are TEN-02's to judge.
     const ten02 = (x: string) => { const [effect, action, resource] = x.split(' '); return effect === 'Allow' && tenancyGrant(action!, resource!, tablesIn(before.map((b) => b.split(' ')[2]!)), true); };
-    const added = after.filter((x) => !before.includes(x) && !onb04(x) && !ten02(x));
+    // ONB-11 (re-lock onb-03.7): createEmployee links the new person's sign-in to their employees row (one UpdateItem on that table; ONB-11 AC-11).
+    const onb11 = (x: string) => { const [effect, action, resource] = x.split(' '); return effect === 'Allow' && ownerLinkGrant(action!, resource!, 'create_employee'); };
+    const added = after.filter((x) => !before.includes(x) && !onb04(x) && !ten02(x) && !onb11(x));
     const removed = before.filter((x) => !after.includes(x) && !/^Allow cognito-idp:AdminSetUserPassword /.test(x));
     expect(removed, 'createEmployee\'s policy loses nothing (but AdminSetUserPassword, ONB-04)').toEqual([]);
     expect(added, 'createEmployee\'s policy gains exactly ListUsersInGroup on the pool').toHaveLength(1);

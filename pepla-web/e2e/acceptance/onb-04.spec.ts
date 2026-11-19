@@ -6,6 +6,7 @@ import { ON_DEV, expect, test, type Login, type SignInPage } from './support/fix
 import { blocks, stripComments, tfFiles } from './support/infra-harness';
 import { policyOf, resourcesNamed } from './support/onb-15/tf-policy';
 import { tablesIn, tenancyGrant } from './support/ten-02/relock';
+import { ownerLinkGrant } from './support/onb-11/owner-link';
 import type { Statement } from './support/ops-05/iam-eval';
 import {
   APP_URL, COMPANY, DAY, GOOD_PASSWORD, HR, INVITES, LINK, LINK_IN_TEXT, LOOKUP, OTHER_PASSWORD, PARTNER, REDEEM, REPO, ROBOT_ADDRESS, ROBOT_HR, T0,
@@ -730,7 +731,7 @@ test.describe('ONB-04 Invite link instead of a password', () => {
     const wantAdded = [['dynamodb:PutItem', isTable], ['dynamodb:Query', isIndex], ['dynamodb:UpdateItem', isTable], ['cognito-idp:AdminGetUser', isPool], ['cognito-idp:AdminListGroupsForUser', isPool]] as const;
     for (const [action, on] of wantAdded) expect(added.some((r) => r.action === action && on(r.resource)), `createEmployee gains ${action} on ${action.startsWith('cognito-idp:') ? 'the pool' : 'the invite table'}${action === 'dynamodb:Query' ? '\'s employee-index' : ''}`).toBe(true);
     // TEN-02 (re-lock): the company grants (Member rows, the employees tenant-index) are TEN-02's, not this card's.
-    expect(added.filter((r) => !wantAdded.some(([action, on]) => r.action === action && on(r.resource)) && !tenancyGrant(r.action, r.resource, tablesIn(before.map((b) => b.split(' ')[2]!)), true)).map(show), 'and nothing else').toEqual([]);
+    expect(added.filter((r) => !wantAdded.some(([action, on]) => r.action === action && on(r.resource)) && !tenancyGrant(r.action, r.resource, tablesIn(before.map((b) => b.split(' ')[2]!)), true) && !(r.effect === 'Allow' && ownerLinkGrant(r.action, r.resource, 'create_employee'))).map(show), 'and nothing else').toEqual([]);
     for (const r of now) {
       expect(r.action, `createEmployee: no wildcard action (${r.action})`).not.toMatch(/\*/);
       if (r.resource === '*') expect(r.action, 'createEmployee: Resource "*" only for X-Ray').toMatch(/^xray:/);
