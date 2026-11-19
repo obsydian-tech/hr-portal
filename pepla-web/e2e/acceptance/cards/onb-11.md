@@ -54,6 +54,18 @@ HR page, the employee page included, so the line failed for a button that is not
 exactly one `<main>` so it cannot pass by looking at nothing. A risk-check button in the page content still fails.
 Nothing else in the test changes. Locks: acceptance-lock/onb-11.3.
 
+## Re-locked by ONB-22 (child lock onb-11.6)
+AC-7 pinned the exact keys `getEmployee` (the agent's route) answers. ONB-22 adds one key, `step` (the person's onboarding
+step, for the agent's proposals), so the list grows from 10 keys to 11. Nothing else in the test changes: the band and
+reason, the employee's own view (no risk key anywhere) and the refusals for strangers and other companies stay as they
+were. Locks: acceptance-lock/onb-11.6.
+
+## Re-locked by ONB-14 (child lock onb-11.7)
+AC-10 checks that the risk and verification routes are unchanged. ONB-14 adds one verification route,
+`POST /v1/verifications/{id}/reveal` (the recorded Show), so the test leaves that one route out before it compares the
+list. This is the same line ONB-14's own lock (acceptance-lock/onb-14, which is also onb-11.4) already carries, moved
+onto onb-11.6 so the file holds both changes. Nothing else in the test changes. Locks: acceptance-lock/onb-11.7.
+
 ## What is new and what holds today
 
 New (red on develop): the flow call (AC-1), the flow rules in the prompt (AC-3), the stored `FLOW`/`HR`
