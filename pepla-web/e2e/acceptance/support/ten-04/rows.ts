@@ -85,8 +85,8 @@ export const ROWS: Record<string, Row> = {
   'GET /agent/v1/verifications/{id}/summary': { kind: 'covered' },
   'POST /agent/v1/employees/{id}/assess-risk': { kind: 'covered' },
   'GET /agent/v1/actions/{actionId}': { kind: 'covered' },
-  'POST /agent/v1/actions/{actionId}/approve': write({ actionId: 'action' }, {}, { op: 'GET /agent/v1/actions/{actionId}', ids: { actionId: 'action' } }),
-  'POST /agent/v1/actions/{actionId}/reject': write({ actionId: 'action' }, {}, { op: 'GET /agent/v1/actions/{actionId}', ids: { actionId: 'action' } }),
+  'POST /agent/v1/actions/{actionId}/approve': { kind: 'covered' },
+  'POST /agent/v1/actions/{actionId}/reject': { kind: 'covered' },
   'GET /agent/agent-tools.json': { kind: 'none' },
   // ---- agent API, signed-in people
   'GET /agent/v1/actions/pending': list(),
