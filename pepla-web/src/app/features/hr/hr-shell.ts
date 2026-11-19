@@ -7,6 +7,8 @@ import { RegistrationService } from '../../core/employees/registration.service';
 import { navEntries, sectionsFor } from '../../core/nav';
 import { ModulesService } from '../../core/modules.service';
 import { rolesOf } from '../../core/roles';
+import { CHAT_PAGE, ChatService } from '../hr-assistant/chat.service';
+import { HrChat } from '../hr-assistant/assistant-panel';
 
 /**
  * The frame for every HR page: sidebar, top bar with the account menu, and the page. ONB-01 gives it
@@ -14,12 +16,12 @@ import { rolesOf } from '../../core/roles';
  */
 @Component({
   selector: 'app-hr-shell',
-  imports: [RouterOutlet, PpAppShell, PpSideNavigation, PpTopNavigation, PpDropdownMenu, PpMenuSection, PpMenuItem],
+  imports: [RouterOutlet, PpAppShell, PpSideNavigation, PpTopNavigation, PpDropdownMenu, PpMenuSection, PpMenuItem, HrChat],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <pp-app-shell>
       <pp-side-navigation company="HR" [sections]="sections()" [(open)]="menuOpen" />
-      <pp-top-navigation home="/hr" [userName]="userName()" [menuOpen]="menuOpen()" [accountOpen]="accountOpen()" (menu)="menuOpen.set(!menuOpen())" (account)="accountOpen.set(!accountOpen())" />
+      <pp-top-navigation home="/hr" [userName]="userName()" [menuOpen]="menuOpen()" [accountOpen]="accountOpen()" [showAsk]="true" [waiting]="chat.waiting()" [askOpen]="askOpen()" (ask)="openAsk()" (menu)="menuOpen.set(!menuOpen())" (account)="accountOpen.set(!accountOpen())" />
       <pp-dropdown-menu [trigger]="false" [(open)]="accountOpen" [origin]="avatar()" [returnTo]="avatar()" label="Your account">
         <pp-menu-section [heading]="userName()">
           <button ppMenuItem icon="log-out" (click)="signOut()">Sign out</button>
@@ -27,6 +29,7 @@ import { rolesOf } from '../../core/roles';
       </pp-dropdown-menu>
       <router-outlet />
     </pp-app-shell>
+    <app-hr-chat [(open)]="askOpen" (expand)="expand()" />
   `,
 })
 export class HrShell {
@@ -45,6 +48,8 @@ export class HrShell {
     return sectionsFor(navEntries(), { roles, perms, modules: this.modulesService.modules() }, (e) =>
       e.route === '/hr/documents' && waiting !== null ? { count: waiting, countLabel: 'waiting' } : null);
   });
+  protected readonly chat = inject(ChatService);
+  protected readonly askOpen = signal(false);
   protected readonly menuOpen = signal(false);
   protected readonly accountOpen = signal(false);
   protected readonly userName = () => this.auth.user()?.fullName ?? '';
@@ -54,7 +59,21 @@ export class HrShell {
     return this.host.querySelector<HTMLElement>('.pp-top-navigation__avatar') ?? undefined;
   }
 
+  /** Ask Batsi in the top bar: the side panel. What waits for the person is read now, not on page load. */
+  protected openAsk(): void {
+    if (this.router.url.split('?')[0] === CHAT_PAGE) return; // the full page is already the chat
+    this.askOpen.set(true);
+    void this.chat.loadWaiting();
+  }
+
+  /** The panel's Expand button: the same conversation, as a page. */
+  protected expand(): void {
+    this.askOpen.set(false);
+    void this.router.navigateByUrl(CHAT_PAGE);
+  }
+
   protected async signOut(): Promise<void> {
+    this.chat.clear();
     await this.auth.signOut();
     this.documents.forget();
     this.registration.clear();

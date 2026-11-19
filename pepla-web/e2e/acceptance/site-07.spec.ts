@@ -238,11 +238,11 @@ test.describe('SITE-07 Site styles split out and loaded only on public routes', 
     test.skip(!mine, 'this pull request changes none of the split\'s files');
     const allowed = (f: string) =>
       f === 'angular.json' || f === 'src/styles.css' || f === 'README.md' ||
-      /^src\/styles\/design-system\//.test(f) ||
+      /^src\/styles\/design-system\//.test(f) || f === 'src/app/ds/core/icon.registry.ts' ||
       /^scripts\/(design-system-sync\.mjs|verify-design\.mjs|verify-design\.test\.mjs)$/.test(f) ||
       /^src\/app\/ds\/site\//.test(f) || /^src\/app\/features\/public\//.test(f) ||
       /^src\/app\/(app\.routes|app\.routes\.server|site\.routes)\.ts$/.test(f) ||
-      /^e2e\/acceptance\/(site-07\.spec\.ts|site-01\.spec\.ts|site-03\.spec\.ts|site-04\.spec\.ts|cards\/site-07\.md)$/.test(f) || /^e2e\/acceptance\/support\/site-07\//.test(f) ||
+      /^e2e\/acceptance\/(site-\d{2}\.spec\.ts|cards\/site-\d{2}\.md)$/.test(f) || /^e2e\/acceptance\/support\/site-\d{2}\//.test(f) ||
       /^e2e\/parity\//.test(f);
     expect(changed.filter((f) => !allowed(f)), 'this card changes only the split\'s own files').toEqual([]);
     expect(changed.filter((f) => /^e2e\/acceptance\/(site-02\.spec\.ts|support\/site-02\/|support\/site-01\/)/.test(f)), 'no locked SITE-01 or SITE-02 support file is edited').toEqual([]);

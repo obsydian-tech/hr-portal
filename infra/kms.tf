@@ -63,6 +63,8 @@ module "kms_pii" {
     aws_iam_role.get_company_modules.arn,
     aws_iam_role.get_candidate_events.arn,
     aws_iam_role.get_hiring_managers.arn,
+    # ONB-21: the daily reminder reads the tenants and employees tables (decrypt only, through DynamoDB).
+    aws_iam_role.send_document_reminders.arn,
     # Walk fix: queryAuditLog Queries/Scans the onboarding-events table, which this key encrypts (AccessDeniedException in its log).
     aws_iam_role.query_audit_log.arn,
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getCandidate",

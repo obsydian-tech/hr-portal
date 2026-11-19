@@ -123,3 +123,9 @@ variable "talent_flow_server_client_id" {
   type        = string
   default     = ""
 }
+
+variable "document_reminders_enabled" {
+  description = "ONB-21: whether the daily document reminder rule is ENABLED. Off by default (prod stays off until go-live, OPS-04); env/dev.tfvars turns it on."
+  type        = bool
+  default     = false
+}

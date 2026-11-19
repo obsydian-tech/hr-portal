@@ -3076,9 +3076,26 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-agent-panel__suggestions { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; background: var(--elevation-surface-raised); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-large); overflow: hidden; }
 .pp-agent-panel__suggestions > li + li { border-top: var(--border-width) solid var(--color-border); }
 .pp-agent-panel__suggestion { display: flex; align-items: center; gap: var(--space-150); min-height: 44px; padding: var(--space-100) var(--space-200); color: var(--color-text); font: var(--font-body); text-decoration: none; }
+/* A row drawn as a button (picking it asks the question) drops the browser's button look and fills its row like the link row */
+button.pp-agent-panel__suggestion { box-sizing: border-box; width: 100%; margin: 0; border: 0; border-radius: 0; background: transparent; text-align: start; cursor: pointer; appearance: none; }
+button.pp-agent-panel__suggestion:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+button.pp-agent-panel__suggestion:disabled > svg { color: var(--color-text-disabled); }
 .pp-agent-panel__suggestion > svg { width: var(--size-icon-medium); height: var(--size-icon-medium); flex: none; color: var(--color-icon-subtle); }
-.pp-agent-panel__suggestion:hover { background: var(--color-background-neutral-subtle-hovered); }
+.pp-agent-panel__suggestion:not(:disabled):hover { background: var(--color-background-neutral-subtle-hovered); }
 .pp-agent-panel__suggestion:focus-visible { outline: var(--border-width-focused) solid var(--color-border-focused); outline-offset: calc(var(--border-width-focused) * -1); }
+
+/* Panel as a full page (AI chat mode): a centred reading column, no frame. */
+.pp-agent-panel--page { position: relative; inset: auto; z-index: auto; width: 100%; height: var(--_height, 100%); border: 0; border-radius: 0; box-shadow: none; background: var(--elevation-surface); }
+.pp-agent-panel--page .pp-agent-panel__header { background: var(--elevation-surface); }
+.pp-agent-panel--page .pp-agent-panel__log,
+.pp-agent-panel--page .pp-agent-panel__composer { padding-inline: max(var(--layout-gutter-phone), calc((100% - var(--layout-reading-max)) / 2)); background: var(--elevation-surface); }
+.pp-agent-panel--page .pp-agent-panel__composer { border-top: 0; }
+.pp-agent-panel--page .pp-agent-panel__input-row { padding: var(--space-100); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-xlarge); background: var(--elevation-surface-raised); }
+.pp-agent-panel--page .pp-agent-panel__input-row .pp-textarea { border: 0; box-shadow: none; background: transparent; }
+.pp-agent-panel--page .pp-agent-panel__hint { text-align: center; }
+
+/* Phone: a list of chats fills the width */
+.pp-app-shell--phone .pp-side-navigation--inline { width: 100%; border: 0; height: auto; }
 
 /* ---- agent/agent-proposal-card ---- */
 /* Agent proposal card. Spec: agent-proposal-card.md. Rule 2: the agent proposes, a person approves.
