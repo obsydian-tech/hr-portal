@@ -1293,7 +1293,9 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     const reads = (/dynamodb_read_role_arns\s*=\s*\[([\s\S]*?)\n\s*\]/.exec(kms)?.[1] ?? '').split('\n').map((l) => l.trim().replace(/,$/, '')).filter(Boolean);
     // Child lock onb-22.3: the roles of other cards that read tables behind the PII key may also be listed: CHAT-02's two (ask_batsi_chats, admin_set_ask_batsi) and ONB-21's reminder sender.
     // Child lock onb-22.7: and the onboarding state machine's role (ONB-11 AC-11), which stores a task token on the employees row through DynamoDB and so needs to decrypt through it.
-    const OTHER_CARDS = ['aws_iam_role.ask_batsi_chats.arn', 'aws_iam_role.admin_set_ask_batsi.arn', 'aws_iam_role.send_document_reminders.arn', 'aws_iam_role.sfn_onboarding.arn'];
+    const OTHER_CARDS = ['aws_iam_role.ask_batsi_chats.arn', 'aws_iam_role.admin_set_ask_batsi.arn', 'aws_iam_role.send_document_reminders.arn', 'aws_iam_role.sfn_onboarding.arn',
+      // Child lock onb-22.8 (CHAT-15): the hourly leaver-chats job's role (TalentFlow stack, so a quoted ARN with the role path) may also be listed; chat-15.spec.ts AC-12 pins it exactly.
+      '"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-deleteLeaverChats"'];
     const addedRoles = reads.filter((l) => !(baseline['kmsReadRoles'] as string[]).includes(l) && !OTHER_CARDS.includes(l)).sort();
     expect(addedRoles, 'dynamodb_read_role_arns gains exactly the four roles (and, apart from them, only the four roles of CHAT-02, ONB-21 and ONB-11)').toEqual(['createProposal', 'approveAgentAction', 'queryAuditLog', 'summariseVerification'].map((f) => `aws_iam_role.${roleOf(lambdaNamed(f))}.arn`).sort());
     expect((baseline['kmsReadRoles'] as string[]).filter((l) => !reads.includes(l)), 'and takes none away').toEqual([]);
