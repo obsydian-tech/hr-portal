@@ -28,7 +28,7 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Sid      = "Logs"
         Effect   = "Allow"
@@ -110,7 +110,17 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
       },
-    ]
+      ], var.environment == "dev" ? [
+      {
+        # Dev only (Iggie, 19 Nov 2026): Bedrock checks the model's Marketplace
+        # subscription on first use and denies InvokeModel without these.
+        # Marketplace actions only accept Resource "*". Prod is unchanged.
+        Sid      = "BedrockMarketplaceEnable"
+        Effect   = "Allow"
+        Action   = ["aws-marketplace:ViewSubscriptions", "aws-marketplace:Subscribe"]
+        Resource = "*"
+      },
+    ] : [])
   })
 }
 
