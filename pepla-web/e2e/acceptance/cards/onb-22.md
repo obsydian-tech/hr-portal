@@ -40,3 +40,6 @@ Only `onb-22.spec.ts` AC-8 changes, in three lines, so that ONB-22 and CHAT-02 (
 - The agent API's CORS may also allow `DELETE` (Delete chat). Every other part of the block (headers, origins, max age) is still compared with the baseline, and no method but `DELETE` may be added.
 - The table count is the baseline (17) plus `ask_batsi_chats` and `reminders` when those two tables exist. Any other new table still fails.
 - `dynamodb_read_role_arns` may also hold `ask_batsi_chats`, `admin_set_ask_batsi` (CHAT-02) and `send_document_reminders` (ONB-21), besides the four roles of this card. Any other role still fails.
+
+## Child lock onb-22.6 (first dev run of AC-7, 19 Nov)
+Only the one line of `onb-22.spec.ts` AC-7 (pepla-dev) that checks the agent key cannot approve its own proposal changes. It expected 403. On pepla-dev the approve and decline routes use the HR sign-in check at the API gateway (`infra/agent_api.tf`, authorization_type JWT), so an agent key with no sign-in is turned away there with 401, before any code runs. The line now accepts 401 or 403. Any other answer (200, 404, 500) still fails, and the next lines still need HR's own call to approve (200) and the action to run once. Nothing else changes. Locks: acceptance-lock/onb-22.6.

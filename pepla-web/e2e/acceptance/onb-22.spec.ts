@@ -1075,7 +1075,8 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     expect(mine.status(), 'HR lists the proposals').toBe(200);
     expect(((await mine.json()) as any).items.map((i: any) => i.action_id), 'the new proposal is in HR\'s list').toContain(actionId);
     const asAgent = await post(`${agent}/agent/v1/actions/${actionId}/approve`, agentHeaders);
-    expect(asAgent.status(), 'the agent key cannot approve its own proposal').toBe(403);
+    // onb-22.6: on pepla-dev the API gateway turns the agent key away at the HR sign-in check, before any code runs, so the answer is 401 (the fake API in the other tests answers 403). Either way the key is refused.
+    expect([401, 403], `the agent key cannot approve its own proposal (it got ${asAgent.status()})`).toContain(asAgent.status());
     const approved = await post(`${agent}/agent/v1/actions/${actionId}/approve`, hrHeaders);
     expect(approved.status(), 'HR approves').toBe(200);
     expect(await approved.json(), 'and it ran').toMatchObject({ status: 'APPROVED', run_status: 'RAN' });
