@@ -1382,8 +1382,15 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
 
   test('AC-10 Nothing else moves: the review, the single read, the file link and the sign-in code are not edited (hash)', async ({}, testInfo) => {
     once(testInfo);
+    // ONB-22.2 (19 Nov 2026): ONB-14 (NH-182, its AC-4 and security review C-1) takes id_number and account_number out of the
+    // single-verification answer, so that one file may also be exactly ONB-14's version (PR 429 at 4ec4147). Any other edit of
+    // it, and any edit of the other four files, still fails.
+    const alsoAllowed: Record<string, string[]> = {
+      'lambda/getSingleDocumentVerification/index.mjs': ['c3b9ffb0c78bdae0a8192dff7936bb52e6d3ba5187cbf884980b1fc8c1c0ac72'],
+    };
     for (const [file, sha] of Object.entries(baseline['hashes'] as Record<string, string>)) {
-      expect(createHash('sha256').update(readFileSync(join(REPO, file))).digest('hex'), `${file} is as it was (a hash of develop ${baseline['commit']}): it is run by the new code, not edited`).toBe(sha);
+      const now = createHash('sha256').update(readFileSync(join(REPO, file))).digest('hex');
+      expect([sha, ...(alsoAllowed[file] ?? [])], `${file} is as it was (a hash of develop ${baseline['commit']}${alsoAllowed[file] ? ', or ONB-14\'s version' : ''}): it is run by the new code, not edited`).toContain(now);
     }
     for (const spec of ['ten-02', 'ten-04', 'be-17.1', 'be-18', 'be-19', 'be-20', 'onb-15', 'onb-20', 'ops-05']) {
       expect(existsSync(join(here, `${spec}.spec.ts`)), `${spec}.spec.ts is in the folder, and the builder runs it before the PR`).toBe(true);

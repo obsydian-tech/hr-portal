@@ -22,6 +22,9 @@ One test commit on top of 378c8cb (`onb-22`, `ten-04.4`). It changes `onb-22.spe
 Test changes: M-1 old key refused 5 minutes after a rotation (warm container); M-2 no idempotency table, and a guard test reads the DynamoDB calls `createProposal` really makes and checks its policy covers each (own rows and founding company); M-3 `RUNNING` on the claim, decided rows kept 90 days (and the `RetentionDays` tag), events published with one retry, a bus-down test; S-1 HR token with no email is 403; S-2 the employee read holds `first_name`, `last_name`, `tenant_id`.
 Cross-card checks against develop `ade6d09` (PII-01, #414): `get_verification_summary`'s manifest entry must stay exactly as on develop (PII-01 AC-11 pins it), and `summariseVerification` fails closed only when the employee row is there (no email, another company's row, a test address); no row at all is left to the other guards, because PII-01's locked rows have none (pinned by one added case in onb-22 AC-6).
 
+## Child lock onb-22.2 (ONB-14, 19 Nov)
+One test commit on top of 69ed58b (`onb-22.1`). It changes only AC-10 in `onb-22.spec.ts`. ONB-14 (NH-182, its AC-4 and security review C-1) must stop `GET /v1/verifications/{id}` returning `id_number` and `account_number`, which edits `lambda/getSingleDocumentVerification/index.mjs`. AC-10 now takes that file as either develop c859f0f's hash or exactly ONB-14's (PR 429 at 4ec4147, sha256 `c3b9ffb0...ac72`). The other four hashes are unchanged and the baseline file is not touched. A later edit of that file needs another child lock.
+
 ## Owed
 - Step 0 (prove the code findings on dev with AWS reads): a Mac thread.
 - AC-7 (pepla-dev) runs only after the seed change and a dev deploy.
