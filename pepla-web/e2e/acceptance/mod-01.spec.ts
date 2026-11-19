@@ -15,6 +15,7 @@ import {
 import { attributes } from './support/infra-harness';
 import { devEnv } from './support/ten-02/dev';
 import { isCardGrant } from './support/ten-04.2/grants';
+import { MARKETPLACE_DEV_KEY, marketplaceDev } from './support/marketplace-dev/grant';
 
 /**
  * MOD-01 · A company has modules switched on, and the server refuses a module that is off (epic Modules).
@@ -691,6 +692,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       if (baseline[key]) continue;
       if (cur.stack === 'infra' && cur.role === role) continue; // getCompanyModules' own, judged above
       if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock mod-01.4): its own role, locked in onb-21.spec.ts AC-8.
+      // Ask Batsi dev Marketplace grant (re-lock mod-01.9): judged before the ask_batsi skip below, and it must be exactly this.
+      if (key === MARKETPLACE_DEV_KEY || cur.role === 'naleko_ai_chat') { expect.soft(marketplaceDev(key, cur.role, cur.pairs), `${key}: only on the chat role, dev only, exactly the two Marketplace actions on *`).toBe(true); continue; }
       if (/ask_batsi|stored_chats/.test(key) || /ask_batsi/.test(cur.role)) continue; // CHAT-02 (re-lock mod-01.N): their own roles, judged in chat-02.spec.ts AC-31.
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock mod-01.1): its own role, locked in ten-06.spec.ts AC-7.
       // ONB-22.1 (re-lock mod-01.6): the agent proposal and approval rights are new role policies of their own (a new role, and second policies on three roles ten-02 pins); onb-22.spec.ts AC-8 pins exactly these.
