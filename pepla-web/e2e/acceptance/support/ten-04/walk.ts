@@ -69,6 +69,16 @@ const holds = (b: unknown, markers: string[], echo: string[] = []) => {
   return markers.filter((m) => t.includes(m));
 };
 
+/** ten-04.5: keys the platform itself rewrites on company A's own rows (the hourly SLA monitor, the orchestrator), so they are not company B's doing. */
+export const SELF_CHANGING = ['slaStatus', 'slaBreachedAt', 'slaBreachedStage', 'configVersion'];
+/** ten-04.5: where two answers first differ, a short stretch of each, so a failing line says what changed. */
+export const firstDifference = (before: string, after: string) => {
+  let i = 0;
+  while (i < before.length && i < after.length && before[i] === after[i]) i++;
+  const cut = (t: string) => t.slice(Math.max(0, i - 60), i + 120);
+  return `before: ...${cut(before)}... after: ...${cut(after)}...`;
+};
+
 export type Problem = string;
 export type Walked = { problems: Problem[]; sent: number; created: number };
 
@@ -92,7 +102,7 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
     if (!login) { problems.push(`${why}: no login of company A may call ${r.op}`); return null; }
     const res = await call({ login, op: ro.key, api: ro.api, method: 'GET', path: fill(ro.path, r.ids, w), query: r.query ?? {} });
     if (res.status !== 200) { problems.push(`${why}: company A reading ${r.op} got ${res.status}, not 200`); return null; }
-    return text(res.body);
+    return plainText(res.body, SELF_CHANGING);
   };
 
   // Every operation needs a row, and says where its company comes from.
@@ -176,7 +186,7 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
       for (const m of holds(r.body, w.markers)) problems.push(`${label}: the answer to company B holds ${m} of company A`);
       if (isWrite && row.read && before !== null) {
         const after = await readBack(row, `${label} (after)`);
-        if (after !== null && after !== before) problems.push(`${label}: after company B's write, company A's row (${row.read.op}) is not as it was`);
+        if (after !== null && after !== before) problems.push(`${label}: after company B's write, company A's row (${row.read.op}) is not as it was (${firstDifference(before, after)})`);
       }
       continue;
     }
@@ -188,7 +198,7 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
       for (const m of holds(r.body, w.markers, echo)) problems.push(`${label}: the answer to company B holds ${m} of company A`);
       if (row.read && before !== null) {
         const after = await readBack(row, `${label} (after)`);
-        if (after !== null && after !== before) problems.push(`${label}: after company B's create naming company A, company A's ${row.read.op} is not as it was`);
+        if (after !== null && after !== before) problems.push(`${label}: after company B's create naming company A, company A's ${row.read.op} is not as it was (${firstDifference(before, after)})`);
       }
     }
   }
