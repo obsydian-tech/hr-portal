@@ -16,6 +16,7 @@ import { attributes } from './support/infra-harness';
 import { devEnv } from './support/ten-02/dev';
 import { isCardGrant } from './support/ten-04.2/grants';
 import { MARKETPLACE_DEV_KEY, marketplaceDev } from './support/marketplace-dev/grant';
+import { ownerLinkGrant } from './support/onb-11/owner-link';
 
 /**
  * MOD-01 · A company has modules switched on, and the server refuses a module that is off (epic Modules).
@@ -687,6 +688,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
         // TEN-06 (re-lock mod-01.1): the sign-in trigger moves a TalentFlow person in; ten-06.spec.ts AC-7 pins exactly this.
         if (/cognito_post_auth/.test(key) && /^Allow (dynamodb:(PutItem|DeleteItem) \$?\{?aws_dynamodb_table\.tenants\.arn\}? null|cognito-idp:AdminAddUserToGroup \$?\{?aws_cognito_user_pool\.naleko_dev\.arn\}? null)$/.test(p)) continue;
         if (ten042(p, cur.stack, cur.role)) continue;
+        // ONB-11 (re-lock mod-01.13): createEmployee links the new person's sign-in to their employees row (one UpdateItem; onb-11.spec.ts AC-11 needs it).
+        { const [e, a, r, ...c] = p.split(' '); if (e === 'Allow' && ownerLinkGrant(a!, r!, cur.role, c.join(' '))) continue; }
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null') && isGated(key, cur.role), `role policy ${key}: new grant "${p}" is only GetItem on the tenants table, on a gated Lambda's role`).toBe(true);
       }
     }
