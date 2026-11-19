@@ -1,6 +1,9 @@
 import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, contentChild, inject, input, model, output, viewChild } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { A11yModule } from '@angular/cdk/a11y';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 import { PpIcon } from '../core/icon';
 import { PpMark } from '../core/mark';
 import { IconName } from '../core/icon.registry';
@@ -161,6 +164,18 @@ export class PpSideNavigation {
       @if (!compact()) { <kbd>/</kbd> }
     </label>
     <div class="pp-top-navigation__actions">
+      @if (showAsk()) {
+        <!-- Ask Batsi opens the agent panel. The only way in: no floating bubble. A phone shows the icon alone. -->
+        @if (narrow() || compact()) {
+          <button ppButton appearance="subtle" icon="sparkles" [iconOnly]="true" [attr.aria-label]="askLabel()" aria-haspopup="dialog" [attr.aria-expanded]="askOpen()" (click)="ask.emit()">
+            @if (waiting()) { <span class="pp-top-navigation__badge" aria-hidden="true">{{ waiting() }}</span> }
+          </button>
+        } @else {
+          <button ppButton appearance="default" size="small" icon="sparkles" [attr.aria-label]="askLabel()" aria-haspopup="dialog" [attr.aria-expanded]="askOpen()" (click)="ask.emit()">
+            <span>Ask Batsi</span>@if (waiting()) { <span class="pp-top-navigation__badge" aria-hidden="true">{{ waiting() }}</span> }
+          </button>
+        }
+      }
       <button ppButton appearance="subtle" icon="search" [iconOnly]="true" class="pp-top-navigation__search-button" aria-label="Search" (click)="search.emit('')"></button>
       <button ppButton appearance="subtle" icon="bell" [iconOnly]="true" [attr.aria-label]="bellLabel()" aria-haspopup="dialog" [attr.aria-expanded]="notificationsOpen()"
               [attr.aria-controls]="notificationsOpen() ? notificationsId() ?? null : null" [pressed]="notificationsOpen() || undefined" (click)="notifications.emit()">
@@ -194,6 +209,15 @@ export class PpTopNavigation {
   /** The modules popup or drawer is open, so the button says so. */
   readonly launcherOpen = input(false);
   readonly launcher = output<void>();
+  /** The Ask Batsi button, before Notifications (off by default). */
+  readonly showAsk = input(false);
+  /** How many of Batsi's proposals wait for this person; the button says so. */
+  readonly waiting = input(0);
+  /** The Batsi panel is open, so the button says so. */
+  readonly askOpen = input(false);
+  readonly ask = output<void>();
+  protected readonly narrow = toSignal(inject(BreakpointObserver).observe('(max-width: 767px)').pipe(map((r) => r.matches)), { initialValue: false });
+  protected readonly askLabel = computed(() => this.waiting() ? `Ask Batsi, ${this.waiting()} waiting` : 'Ask Batsi');
   private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
   /** "/" jumps to search from anywhere except a field. */
   @HostListener('document:keydown', ['$event']) protected slash(e: KeyboardEvent) {

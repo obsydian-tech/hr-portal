@@ -1,0 +1,10 @@
+{
+  "name": "ask-batsi-chats-lambda",
+  "version": "1.0.0",
+  "description": "CHAT-02 the routes for a person's stored Ask Batsi chats: list, open, delete one, delete all",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}

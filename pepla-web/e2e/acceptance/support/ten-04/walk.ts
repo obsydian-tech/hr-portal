@@ -47,9 +47,13 @@ const typedStrings = (v: unknown, out: string[] = []): string[] => {
   else if (v && typeof v === 'object') Object.values(v as Record<string, unknown>).forEach((x) => typedStrings(x, out));
   return out;
 };
-/** ten-04.1: the answer as text, without the keys a row names as changing by themselves. */
+/** ten-04.1: the answer as text, without the keys a row names as changing by themselves.
+ *  ten-04.7: each object's keys in name order. DynamoDB does not keep the order of a row's fields from one read to the next
+ *  (run 44428593151: the same company A row came back first as {"GSI1PK",...} then as {"configType",...}), so only the order
+ *  is set aside. Every key, every value and the order of rows in a list are still compared. */
+const byName = ([a]: [string, unknown], [b]: [string, unknown]) => (a < b ? -1 : a > b ? 1 : 0);
 const plainText = (b: unknown, volatile: string[] = []) => {
-  const strip = (v: unknown): unknown => Array.isArray(v) ? v.map(strip) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k]) => !volatile.includes(k)).map(([k, x]) => [k, strip(x)])) : v;
+  const strip = (v: unknown): unknown => Array.isArray(v) ? v.map(strip) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k]) => !volatile.includes(k)).sort(byName).map(([k, x]) => [k, strip(x)])) : v;
   return text(strip(b));
 };
 

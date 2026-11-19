@@ -14,6 +14,8 @@ module "dashboards" {
   lambda_names = [
     "createEmployee",
     "getCompanyModules",
+    "askBatsiChats",
+    "adminSetAskBatsi",
     "getHrPartners",
     "checkEmployeeEmail",
     "lookupInvite",

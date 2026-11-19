@@ -18,7 +18,7 @@ async function render(): Promise<string> {
 }
 
 describe('the Recruitment page on the server', () => {
-  it('holds one h1, the six tabs in order, the five demo sections and the closing band, each id once', async () => {
+  it('holds one h1, the five tabs in order, the four demo sections and the closing band, each id once', async () => {
     const html = await render();
     expect(html.match(/<h1[\s>]/g)?.length, 'one h1').toBe(1);
     expect(html.match(/<main[\s>]/g)?.length, 'one main').toBe(1);
@@ -26,7 +26,9 @@ describe('the Recruitment page on the server', () => {
     const tabs = [...html.matchAll(/class="pp-site-subnav__link"[^>]*>([^<]*)</g)].map((m) => m[1]);
     expect(tabs).toEqual(RECRUITMENT_TABS.map((t) => t.label));
     for (const id of [...RECRUITMENT_TABS.map((t) => t.id), 'demo']) expect(html.match(new RegExp(`\\sid="${id}"`, 'g'))?.length, `#${id} once`).toBe(1);
-    for (const d of Object.values(RECRUITMENT_DEMOS)) expect(html, d.title).toContain(d.title);
+    // The Offer to onboarding section is hidden until the code makes it true (design system #54).
+    for (const [key, d] of Object.entries(RECRUITMENT_DEMOS)) if (key !== 'offer') expect(html, d.title).toContain(d.title);
+    expect(html).not.toContain(RECRUITMENT_DEMOS.offer.title);
   });
 
   it('shows the hero card, the board and every demo as the finished page, and nothing as hidden', async () => {
@@ -37,8 +39,7 @@ describe('the Recruitment page on the server', () => {
     expect(html).toContain('pp-site-board__log--in');
     expect(html).toContain('Moved to Offer by Jane Smith, reason recorded');
     expect(html).toContain('Offer signed · Hired');
-    expect(html).toContain('Onboarding opened for John Doe. Jane Smith notified.');
-    expect(html.match(/pp-site-demo__again--in/g)?.length, 'every demo shows Play again').toBe(5);
+    expect(html.match(/pp-site-demo__again--in/g)?.length, 'every demo shows Play again').toBe(4);
     expect(html).not.toContain('pp-site-reveal--in');
   });
 
