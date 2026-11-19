@@ -43,9 +43,20 @@ jest.unstable_mockModule('@aws-sdk/util-dynamodb', () => ({
 
 // MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
 jest.unstable_mockModule('../../shared/modules.mjs', () => ({
-  MODULE_KEYS: ['onboarding', 'recruitment'],
-  modulesOf: async () => ['onboarding', 'recruitment'],
+  MODULE_KEYS: ['onboarding', 'recruitment', 'ask_batsi'],
+  modulesOf: async () => ['onboarding', 'recruitment', 'ask_batsi'],
   requireModule: async () => null,
+}));
+
+// CHAT-02: the chat store has its own tests (shared/ask-batsi-chats.test.mjs); here it keeps what it is given.
+const mockAppend = jest.fn(async ({ chatId }) => chatId ?? '01HZZZZZZZZZZZZZZZZZZZZZZZ');
+jest.unstable_mockModule('../../shared/ask-batsi-chats.mjs', () => ({
+  appendExchange: (...a) => mockAppend(...a),
+  ChatNotFound: class ChatNotFound extends Error {},
+  historyOf: async () => [],
+  getHeader: async () => ({}),
+  isChatId: (id) => typeof id === 'string' && /^[0-9A-Z]{26}$/.test(id),
+  redactToolOutputs: (x) => x,
 }));
 
 // ─── Dynamic import (after all mocks declared) ───────────────────────────────
