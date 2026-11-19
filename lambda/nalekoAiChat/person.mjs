@@ -1,7 +1,6 @@
 /**
  * CHAT-09: everything about one person that the person page shows, for Batsi (the model) after get_employee.
  * Built from get_employee's raw answer and one more Agent API call (CHAT-05's per-person documents). Page words only.
- * TRIAL BUILD (tests' proof only, not for merge).
  */
 import { requiredFor } from '../shared/required-documents.mjs';
 import { daysBetween, todayInJohannesburg, writtenDate } from '../shared/due-date.mjs';
