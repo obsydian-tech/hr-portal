@@ -18,6 +18,8 @@ module "alarms" {
   lambda_names = [
     "createEmployee",
     "getCompanyModules",
+    "askBatsiChats",
+    "adminSetAskBatsi",
     "getHrPartners",
     "checkEmployeeEmail",
     "lookupInvite",
