@@ -1,6 +1,5 @@
 /**
  * CHAT-09: Batsi's people list: every page, HR home's order, filters and counts, page words, kept under the size cut.
- * TRIAL BUILD (tests' proof only, not for merge).
  */
 import { todayInJohannesburg, todayWritten, writtenDate } from '../shared/due-date.mjs';
 import { STEP_WORDS, overdue } from './person.mjs';
