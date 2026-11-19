@@ -175,22 +175,35 @@ const statValue = (page: Page, label: string) => stat(page, label).locator('.pp-
 const attentionLines = (page: Page) => page.locator('.pp-stat__meta--attention');
 
 type HomeRow = { name: string; step: string; note: string[]; chips: ChipInfo[]; start: string };
+// Child lock onb-10.2: reading the table while it changes page (page 1 to a one-row page 2) hung on a row that was gone. A read that
+// finds the table changed under it, or a row missing, is made again from the start; the same rows are read and nothing else is accepted.
 async function readHome(page: Page): Promise<HomeRow[]> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await readHomeOnce(page);
+    } catch (err) {
+      if (attempt >= 4) throw err;
+      await page.waitForTimeout(250);
+    }
+  }
+}
+async function readHomeOnce(page: Page): Promise<HomeRow[]> {
   const rows = personRows(page);
   const n = await rows.count();
   const out: HomeRow[] = [];
   for (let i = 0; i < n; i++) {
     const tr = rows.nth(i);
     const cell = tr.locator('td').nth(1);
-    const lines = (await cell.innerText()).split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const lines = (await cell.innerText({ timeout: 2000 })).split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
     out.push({
-      name: (await tr.locator('a[href*="/hr/employees/"]').innerText()).replace(/\s+/g, ' ').trim(),
+      name: (await tr.locator('a[href*="/hr/employees/"]').innerText({ timeout: 2000 })).replace(/\s+/g, ' ').trim(),
       step: lines[0] ?? '',
       note: lines.slice(1),
       chips: await chipsIn(cell),
-      start: (await tr.locator('td').nth(2).innerText()).replace(/\s+/g, ' ').trim(),
+      start: (await tr.locator('td').nth(2).innerText({ timeout: 2000 })).replace(/\s+/g, ' ').trim(),
     });
   }
+  if ((await rows.count()) !== n) throw new Error('the table changed while it was read');
   return out;
 }
 
