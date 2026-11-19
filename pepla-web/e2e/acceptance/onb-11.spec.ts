@@ -760,7 +760,7 @@ test.describe('ONB-11 Risk check on the full set', () => {
     expect(agent.status, `getEmployee answers 200 (${agent.raw.slice(0, 200)})`).toBe(200);
     const a = agent.body.employee as Record<string, unknown>;
     expect([a['risk_band'], a['risk_reason']], 'getEmployee answers the stored band and reason').toEqual([risk.band, risk.reason]);
-    expect(Object.keys(a).sort(), 'getEmployee keeps its keys').toEqual(['created_at', 'department', 'email', 'employee_id', 'first_name', 'last_name', 'risk_band', 'risk_reason', 'stage', 'updated_at'].sort());
+    expect(Object.keys(a).sort(), 'getEmployee keeps its keys, plus the six CHAT-09 adds (onb-11.5)').toEqual(['created_at', 'department', 'email', 'employee_id', 'first_name', 'last_name', 'risk_band', 'risk_reason', 'stage', 'updated_at', 'job_title', 'step', 'planned_start_date', 'documents_due', 'hr_staff_name', 'risk_assessed_at'].sort());
     const agentOther = ran(runHandler(GET_EMPLOYEE, withRisk(), agentEmployeeEvent(P.id, { kind: 'agent', tenant: COMPANY_B })), 'getEmployee');
     expect(agentOther.status, "another company's agent gets 404").toBe(404);
   });
@@ -986,7 +986,8 @@ test.describe('ONB-11 Risk check on the full set', () => {
         if (m && /risk|verifications/.test(m[1]!)) routes.add(m[1]!);
       }
     }
-    expect([...routes].sort(), 'the risk and verification routes are unchanged').toEqual(base.routes);
+    // ONB-14 (re-lock onb-11.N): the one new verification route is the recorded Show.
+    expect([...routes].filter((r) => r !== 'POST /v1/verifications/{id}/reveal').sort(), 'the risk and verification routes are unchanged').toEqual(base.routes);
     const stepFn = readFileSync(join(REPO, 'infra', 'stepfunctions.tf'), 'utf8');
     expect(stepFn, 'stepfunctions.tf still reads the definition from the file').toMatch(/file\(\s*"\$\{path\.module\}\/step-functions\/naleko-onboarding-flow\.asl\.json"\s*\)|naleko-onboarding-flow\.asl\.json/);
   });
