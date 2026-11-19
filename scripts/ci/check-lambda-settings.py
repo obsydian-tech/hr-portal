@@ -77,6 +77,9 @@ ALLOWED_NEW = {
 ALLOWED_REMOVED = {
     ("aws_lambda_function.get_panel_members", "TENANT_ID"),
     ("aws_lambda_function.monitor_slas", "TENANT_ID"),
+    # ONB-22: the MCP server reads the agent key from its secret at run time, so the baked key and the unused REST base go.
+    ("aws_lambda_function.naleko_mcp_server", "NALEKO_AGENT_KEY"),
+    ("aws_lambda_function.naleko_mcp_server", "REST_API_BASE"),
 }
 
 ROOTS = ["infra", "talent-flow-infra"]

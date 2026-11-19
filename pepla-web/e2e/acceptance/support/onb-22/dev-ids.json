@@ -1,0 +1,7 @@
+{
+  "_note": "ONB-22 AC-7: ids scripts/ci/seed-dev.py writes (employee id is uuid5 of NS and the email; company B has its own waiting document).",
+  "employee": "f6a38d15-96a9-54c3-a3f0-4898f187257e",
+  "email": "onb22.agent.test@blackhole.postmarkapp.com",
+  "document": "doc-onb22-0001",
+  "documentB": "doc-onb22-b-0001"
+}

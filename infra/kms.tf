@@ -33,6 +33,10 @@ module "kms_pii" {
   # Decrypt/DescribeKey only, and only via DynamoDB.
   dynamodb_read_role_arns = [
     aws_iam_role.check_employee_email.arn,
+    # ONB-22: the proposal Lambdas and the two agent reads open the encrypted rows through DynamoDB.
+    aws_iam_role.create_proposal.arn,
+    aws_iam_role.approve_agent_action.arn,
+    aws_iam_role.summarise_verification.arn,
     aws_iam_role.lookup_invite.arn,
     aws_iam_role.redeem_invite.arn,
     aws_iam_role.get_invite.arn,

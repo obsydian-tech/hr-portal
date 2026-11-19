@@ -12,7 +12,10 @@ Exposes **7 tools** to any MCP-compatible AI client (Claude Desktop, Cursor, Cla
 | `get_verification_summary` | Get a Bedrock-generated plain-English summary |
 | `assess_employee_risk` | Run Bedrock risk classification (LOW/MEDIUM/HIGH) |
 | `query_audit_log` | Query the POPIA-compliant audit log |
-| `onboard_new_employee` | **Composite**: creates employee then immediately runs risk assessment |
+| `propose_accept_document` | Only proposes Accept document for a document whose check is Matches. A person decides |
+| `get_proposal_status` | Reads the status of a proposal made through `propose_accept_document` |
+
+**The hosted server checks the key.** Send your agent key in the `x-api-key` header on every request. The server checks it before anything else and answers 401 when it is missing or wrong. It reads the key from Secrets Manager (`naleko/agent/api-key`), so when the key is rotated, customers send the new key (the old one stops working within minutes).
 
 ---
 
