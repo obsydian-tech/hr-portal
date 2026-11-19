@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
-import { FREEZE_VIEW, GATED_VIEW, MODULE_SCRIPTS, compareScopes, deviceOf, fire, fromFirstChange, gotoLearn, kitDocument, openKitDocument, sameTimeline, screens, settle, settled, sleep, timeline, wordsOf, TOL, type Device } from './kit';
+import { freezeTimers, loopsIn, tiltCompare, transitionsIn } from './reduced-motion';
+import { FREEZE_VIEW, GATED_VIEW, MODULE_SCRIPTS, compareScopes, deviceOf, fire, fromFirstChange, gotoLearn, kitDocument, openKitDocument, sameTimeline, screens, settle, settled, sleep, timeline, wordsOf, TOL, type Device, type Step } from './kit';
 
 /**
  * SITE-08 AC-12: the page-level checks of a whole Learn more page, for SITE-09 to SITE-14 to import and never edit
@@ -369,28 +370,78 @@ export async function judgeEnding(app: Page, kit: Page, label: string, chips: nu
 const ALLOWED = new Set(['transform', 'opacity', 'clip-path', 'clipPath', 'stroke-dashoffset', 'strokeDashoffset', 'offset', 'easing', 'composite', 'computedOffset']);
 
 /**
- * Reduced motion, page side: record every step or timeline item that SLIDES. Lock check T2: the design system's own `.pp-site-step` pop is a
- * CSS transition of opacity and transform that no reduced-motion rule switches off (the kit slides it too), so a page built from the synced
- * classes cannot stop it. What the kit does stop under reduced motion is the script-driven slide (the Recruitment reorder, `element.animate`),
- * so that is what is judged: any animation that is not a plain CSS transition and moves something by transform.
+ * Reduced motion, page side (child lock .2, the rule of design system PR #49): records every SCRIPT-driven animation that moves something by transform,
+ * translate, rotate, scale or an offset path, on any element: the flying board card, a step that slides in by `element.animate`, a tilt made with the
+ * Web Animations API. Under reduced motion there must be none (the kit stops its flight; the demos otherwise keep playing, so a step's CSS fade and the
+ * design system's own `.pp-site-step` pop are not "large movement" and are not recorded here: they are the kit's own and are judged by the timeline
+ * compare). Both `Element.prototype.animate` calls (any length) and the running animations that nobody has a call for (polled every 30ms) are seen.
+ * CSS loops are judged by `loopsIn` (same names and lengths as the kit), pointer tilt by `tiltCompare`. The name and the signature are unchanged
+ * (SITE-09 imports this file); before .2 it recorded only `.pp-site-step` and `.pp-site-timeline` slides and ignored CSS transitions.
  */
 export const SLID_PROBE = () => {
-  const w = window as unknown as { __slid: Set<string> };
+  const w = window as unknown as { __slid: Set<string>; __slidOn?: boolean };
   w.__slid = new Set();
+  const MOVES = /^(transform|translate|rotate|scale|offsetPath|offsetDistance|offsetRotate)$/;
+  const name = (t: Element | null | undefined) => (t ? `${t.tagName.toLowerCase()}.${String(t.className).slice(0, 40)}` : '?');
+  if (!w.__slidOn) {
+    w.__slidOn = true;
+    const real = Element.prototype.animate;
+    Element.prototype.animate = function (this: Element, kf: Keyframe[] | PropertyIndexedKeyframes | null, o?: number | KeyframeAnimationOptions) {
+      const keys = Array.isArray(kf) ? kf.flatMap((k) => Object.keys(k)) : Object.keys(kf ?? {});
+      if (keys.some((k) => MOVES.test(k))) w.__slid.add(name(this));
+      return real.call(this, kf, o);
+    } as typeof Element.prototype.animate;
+  }
+  // Child lock .2 (lock check T-flight-css): a LARGE move made by a CSS transition (a card that flies by a class and a transition) is not a script slide, but it is the same
+  // movement. Recorded apart (`__slidCss`) and compared with the kit's by the caller (the design system's own pop, 8px, and hover lifts are small and are the kit's too).
+  const w2 = w as unknown as { __slidCss: Set<string> };
+  w2.__slidCss = new Set();
+  const big = (kf: Keyframe) => {
+    const k = kf as Record<string, unknown>;
+    try {
+      if (typeof k['transform'] === 'string' && k['transform'] !== 'none') { const m = new DOMMatrix(k['transform']); if (Math.hypot(m.e, m.f) > 16 || Math.abs(m.b) > 0.05) return true; }
+      if (typeof k['translate'] === 'string' && (k['translate'].match(/-?\d+(\.\d+)?/g) ?? []).some((n) => Math.abs(Number(n)) > 16)) return true;
+      if (typeof k['rotate'] === 'string' && (k['rotate'].match(/-?\d+(\.\d+)?/g) ?? []).some((n) => Number(n) !== 0)) return true;
+    } catch { /* an unreadable value is not recorded */ }
+    return false;
+  };
+  // A hover lift (a button, a card) is a CSS transition too, and it comes and goes with the pointer: whatever the pointer causes is judged by `tiltCompare`, so nothing is recorded
+  // for 1.2s after a pointer event (the transition back runs after the pointer has left).
+  let lastPtr = -1e9;
+  for (const ev of ['pointermove', 'mousemove', 'pointerdown', 'mouseover']) document.addEventListener(ev, () => { lastPtr = performance.now(); }, true);
   setInterval(() => {
     for (const a of document.getAnimations()) {
-      if (a instanceof CSSTransition) continue;
+      if (a instanceof CSSTransition) {
+        const t = (a.effect as KeyframeEffect | null)?.target as Element | null;
+        if (performance.now() - lastPtr < 1200) continue;
+        if (t && /^(transform|translate|rotate|scale)$/.test(a.transitionProperty) && (a.effect as KeyframeEffect).getKeyframes().some(big)) w2.__slidCss.add(`${name(t)} transitions ${a.transitionProperty}`);
+        continue;
+      }
+      if (a instanceof CSSAnimation) continue;
       const t = (a.effect as KeyframeEffect | null)?.target as Element | null;
-      if (t?.closest('.pp-site-step, .pp-site-timeline') && Object.keys((a.effect as KeyframeEffect).getKeyframes()[0] ?? {}).includes('transform')) w.__slid.add(String(t.className));
+      if (t && (a.effect as KeyframeEffect).getKeyframes().some((k) => Object.keys(k).some((x) => MOVES.test(x)))) w.__slid.add(name(t));
     }
   }, 30);
 };
+
+/** What SLID_PROBE recorded of large moves made by CSS transitions (child lock .2). The page's list must be the kit's. */
+export const slidCssOf = (p: Page): Promise<string[]> => p.evaluate(() => [...((window as unknown as { __slidCss?: Set<string> }).__slidCss ?? [])].sort());
 
 /** Control for SLID_PROBE: put a script slide on a step by hand and say whether the probe recorded it. */
 export async function slidControlSees(p: Page): Promise<boolean> {
   await p.evaluate(() => { (document.querySelector('.pp-site-step') as HTMLElement).animate([{ transform: 'translateY(8px)' }, { transform: 'none' }], { duration: 600 }); });
   await sleep(150);
   return p.evaluate(() => (window as unknown as { __slid: Set<string> }).__slid.size > 0);
+}
+
+/** Two timelines of one demo are the same: the same states in the same order, each within `TOL`, states under 45ms not compared. Used under reduced motion, where the kit plays as it does in normal motion. */
+export function expectSameRun(label: string, app: Step[], kit: Step[], gap = 45): void {
+  const a = settled(fromFirstChange(app), gap), k = settled(fromFirstChange(kit), gap);
+  expect(kit.length, `${label}: the kit page moved at all`).toBeGreaterThan(1);
+  const h = (x: Step) => x.sig.split(' ')[0];
+  const at = a.findIndex((x, i) => !k[i] || h(x) !== h(k[i]!));
+  expect(a.map(h), `${label}: the page passes through the same states, in the same order, as the kit${at < 0 ? '' : ` (first difference at #${at}: page "${a[at]?.sig.slice(0, 200) ?? 'none'}", kit "${k[at]?.sig.slice(0, 200) ?? 'none'}")`}`).toEqual(k.map(h));
+  expect(sameTimeline(a, k, TOL).late, `${label}: each state shows within ${TOL}ms of when the kit shows it`).toEqual([]);
 }
 
 export const MOTION_PROBE = () => {
@@ -423,7 +474,11 @@ export async function motionProblems(app: Page): Promise<string[]> {
   return [...bad, ...seen.style, ...left];
 }
 
-/** Motion: only transform and opacity animate (the kit's FAQ row height and the design system's button colours aside) and no inline width, height, left, top, inset, margin or padding is written; reduced motion still steps and nothing slides; data-site-still shows every demo's end at once and nothing loops. */
+/**
+ * Motion: only transform and opacity animate (the kit's FAQ row height and the design system's button colours aside) and no inline width, height, left, top, inset, margin or padding is written;
+ * under reduced motion every demo still plays at the kit's timings (the rule of design system PR #49: only grain, the flying board card, pointer tilt and other large movement stop), nothing is
+ * moved by a script, the CSS loops are the kit's, the pointer tilts nothing; `data-site-still` shows every demo's end at once and nothing loops, with or without reduced motion.
+ */
 export async function checkMotion(env: Env, spec: LearnPageSpec, opts: Opts = {}): Promise<void> {
   const d = spec.device;
   const vp = env.page.viewportSize()!;
@@ -441,45 +496,68 @@ export async function checkMotion(env: Env, spec: LearnPageSpec, opts: Opts = {}
     await sleep(1500);
     expect(await motionProblems(app), `${spec.name}: only transform and opacity animate; no inline width, height, left, top, inset, margin or padding`).toEqual([]);
   } finally { await ctx.close(); }
-  // Reduced motion: the demos still step, and no step slides.
-  const ids = (await using(openPair(env, spec, 'frozen'), async ({ kit }) => kit.evaluate(() => Array.from(document.querySelectorAll('section.pp-site-demo[data-live]')).map((s) => s.id)))).map(normId);
-  expect(ids.length, 'the kit page has a demo that plays').toBeGreaterThan(0);
-  await using(openPair(env, spec, 'gated', opts, { reducedMotion: 'reduce' }), async ({ app }) => {
-    await app.evaluate(SLID_PROBE);
-    const rec = timeline(app, `[id="${ids[0]}"]`, 3500);
-    await sleep(300); await fire(app);
-    expect((await rec).length, `${spec.name}: under reduced motion the demo still steps`).toBeGreaterThanOrEqual(2);
-    expect(await app.evaluate(() => [...(window as unknown as { __slid: Set<string> }).__slid]), `${spec.name}: under reduced motion no step slides`).toEqual([]);
-    expect(await slidControlSees(app), `${spec.name}: control: the probe records a script slide put on a step (so the check above cannot pass by seeing nothing)`).toBe(true);
+  // Reduced motion: the demos keep playing at the kit's timings. Nothing is moved by a script, the loops are the kit's, the pointer tilts nothing.
+  const kitIds = await using(openPair(env, spec, 'frozen'), async ({ kit }) => kit.evaluate(() => Array.from(document.querySelectorAll('section.pp-site-demo[data-live]')).map((s) => s.id)));
+  expect(kitIds.length, 'the kit page has a demo that plays').toBeGreaterThan(0);
+  const appIds = kitIds.map(normId);
+  await using(openPair(env, spec, 'gated', opts, { reducedMotion: 'reduce' }), async ({ app, kit }) => {
+    for (const p of [app, kit]) await p.evaluate(SLID_PROBE);
+    // Nothing has started (the views are gated): the pointer goes over the page.
+    expect(await transitionsIn(app, '[data-s8-root]'), `${spec.name}: under reduced motion every transition has the kit's property, length and delay (none removed, none slowed)`).toEqual(await transitionsIn(kit, '[data-s8-root]'));
+    const tilt = await tiltCompare(app, kit, '[data-s8-root]', '[data-s8-root]');
+    expect(tilt.app.filter((m) => !tilt.kit.includes(m)), `${spec.name}: under reduced motion the pointer tilts nothing (what moves is what the kit's hover rules move)`).toEqual([]);
+    const run = async (p: Page, list: string[]) => { const rec = Promise.all(list.map((id) => timeline(p, `[id="${id}"]`, 10_500))); await sleep(300); await fire(p); return rec; };
+    const [a, k] = await Promise.all([run(app, appIds), run(kit, kitIds)]);
+    appIds.forEach((id, i) => expectSameRun(`${spec.name}: under reduced motion demo ${id} still plays at the kit's timings`, a[i]!, k[i]!));
+    const slid = (p: Page) => p.evaluate(() => [...(window as unknown as { __slid: Set<string> }).__slid]);
+    expect(await slid(kit), 'the kit moves nothing by script under reduced motion (the rule of design system PR #49)').toEqual([]);
+    expect(await slid(app), `${spec.name}: under reduced motion nothing moves by script (no flying card, no sliding step)`).toEqual([]);
+    expect(await slidCssOf(app), `${spec.name}: under reduced motion no large move is made by a CSS transition that the kit does not make (no flying card)`).toEqual(await slidCssOf(kit));
+    expect(await loopsIn(app, ['[data-s8-root]']), `${spec.name}: under reduced motion the CSS loops are the kit's, at the kit's lengths (no grain)`).toEqual(await loopsIn(kit, ['[data-s8-root]']));
+    expect(await slidControlSees(app), `${spec.name}: control: the probe records a script slide put on a step (so the checks above cannot pass by seeing nothing)`).toBe(true);
   });
-  // Still mode: every demo shows its end at once, and nothing loops.
-  const still = await env.browser.newContext({ baseURL: env.baseURL, viewport: vp, hasTouch: d === 'phone', isMobile: d === 'phone' });
-  try {
-    await still.addInitScript(GATED_VIEW);
-    await still.addInitScript(() => { const set = () => document.documentElement?.setAttribute('data-site-still', ''); set(); new MutationObserver(set).observe(document, { childList: true }); });
-    const app = await still.newPage();
-    await spec.open(app);
-    await fire(app);
-    await sleep(400);
-    const r = await app.evaluate(() => ({
-      hidden: Array.from(document.querySelectorAll('section.pp-site-demo .pp-site-step')).filter((e) => getComputedStyle(e).opacity !== '1').length,
-      loops: document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity && (a as CSSAnimation).animationName !== 'pp-site-blink').map((a) => String(((a.effect as KeyframeEffect).target as Element | null)?.className).slice(0, 40)),
-    }));
-    expect(r.hidden, `${spec.name}: data-site-still shows every step of every demo at once`).toBe(0);
-    expect(r.loops, `${spec.name}: data-site-still stops every loop`).toEqual([]);
-  } finally { await still.close(); }
+  // Still mode: every demo shows its end at once, and nothing loops, with and without reduced motion.
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    const still = await env.browser.newContext({ baseURL: env.baseURL, viewport: vp, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: motion });
+    try {
+      await still.addInitScript(GATED_VIEW);
+      await still.addInitScript(() => { const set = () => document.documentElement?.setAttribute('data-site-still', ''); set(); new MutationObserver(set).observe(document, { childList: true }); });
+      const app = await still.newPage();
+      await spec.open(app);
+      if (opts.plant) await opts.plant(app);
+      await fire(app);
+      await sleep(400);
+      const r = await app.evaluate(() => ({
+        hidden: Array.from(document.querySelectorAll('section.pp-site-demo .pp-site-step')).filter((e) => getComputedStyle(e).opacity !== '1').length,
+        loops: document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity && (a as CSSAnimation).animationName !== 'pp-site-blink').map((a) => String(((a.effect as KeyframeEffect).target as Element | null)?.className).slice(0, 40)),
+      }));
+      expect(r.hidden, `${spec.name} (${motion}): data-site-still shows every step of every demo at once`).toBe(0);
+      expect(r.loops, `${spec.name} (${motion}): data-site-still stops every loop`).toEqual([]);
+    } finally { await still.close(); }
+  }
 }
 
 // ------------------------------------------------------------------------------------------------ accessibility
 
-/** Accessibility: axe (wcag2a, wcag2aa) finds nothing on the page, and no element that Tab reaches sits inside an aria-hidden container (use inert). */
+/**
+ * Accessibility: axe (wcag2a, wcag2aa) finds nothing on the page, and no element that Tab reaches sits inside an aria-hidden container (use inert).
+ * Read twice (child lock .2): on the first step of every demo (views never report), and after every demo has played to its end under reduced
+ * motion (the demos play there, so they are read where they stop: views fired, 11s, timers cancelled, animations stilled).
+ */
 export async function checkAccessibility(env: Env, spec: LearnPageSpec, opts: Opts = {}): Promise<void> {
-  await using(openPair(env, spec, 'frozen', opts, { reducedMotion: 'reduce' }), async ({ app }) => {
+  const read = async (app: Page, what: string) => {
     await app.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important}.pp-site-reveal{opacity:1!important;transform:none!important}' });
     for (let i = 0; i < 2; i++) await app.evaluate(async () => { await Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))); });
     const axe = await new AxeBuilder({ page: app }).exclude('.pp-site-shine__copy').withTags(['wcag2a', 'wcag2aa']).analyze();
-    expect(axe.violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), `${spec.name}: axe finds nothing`).toEqual([]);
-    expect(await hiddenFocusables(app), `${spec.name}: nothing Tab can reach sits inside an aria-hidden container`).toEqual([]);
+    expect(axe.violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), `${spec.name} (${what}): axe finds nothing`).toEqual([]);
+    expect(await hiddenFocusables(app), `${spec.name} (${what}): nothing Tab can reach sits inside an aria-hidden container`).toEqual([]);
+  };
+  await using(openPair(env, spec, 'frozen', opts), async ({ app }) => read(app, 'first step'));
+  await using(openPair(env, spec, 'gated', opts, { reducedMotion: 'reduce' }), async ({ app }) => {
+    await fire(app);
+    await sleep(11_000);
+    await freezeTimers(app);
+    await read(app, 'every demo played to its end, reduced motion');
   });
 }
 /** The focusable elements (reached by Tab) that have an aria-hidden ancestor and no inert one. */
