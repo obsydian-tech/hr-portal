@@ -25,6 +25,7 @@ import { classifyIntent, selectModel } from './intent-classifier.mjs';
 import { buildCacheKey, getCached, setCached } from './cache.mjs';
 import { hrOnly } from '../shared/hr-group.mjs';
 import { requireTenant } from '../shared/tenant.mjs';
+import { checksOf } from './answer-shape.mjs';
 import { requireModule } from '../shared/modules.mjs';
 import { redactNumbers } from '../shared/pii-redact.mjs';
 import { appendExchange, ChatNotFound, historyOf, getHeader, isChatId, redactToolOutputs } from '../shared/ask-batsi-chats.mjs';
@@ -205,7 +206,7 @@ function truncateToolResponse(content) {
 
 // ─── System prompt (cached per warm container) ────────────────────────────────
 
-const SYSTEM_PROMPT = `You are Naleko AI, an HR onboarding assistant for South African companies.
+const SYSTEM_PROMPT = `You are Batsi, an HR onboarding assistant for South African companies.
 You help HR clerks with onboarding tasks: checking employee status, risk assessments, document verifications, and audit logs.
 
 Rules:
@@ -214,6 +215,7 @@ Rules:
 - Never expose raw PII in your responses — refer to employees by ID or first name only.
 - When onboarding a new employee, always return a draft for human review (the onboard_new_employee tool handles this automatically).
 - Be concise and factual. Prefer bullet lists for data-heavy responses.
+- When you looked up one person's documents, the screen shows each check as a row, so answer in one short sentence and do not list the checks again.
 - If a tool call fails, explain what went wrong and suggest next steps.
 - Always operate on behalf of the authenticated HR clerk. Never impersonate another user.`;
 
@@ -836,6 +838,9 @@ export const handler = async (event) => {
     logger.warn('PII sanitiser fired', { matchedPatterns: pii.matchedPatterns, staffId });
   }
 
+  // CHAT-05: the check rows, worked out from this turn's own tool results.
+  const checks = checksOf(loopResult.toolCallsMade);
+
   // CHAT-02: store the exchange (masked) before answering.
   const toolNames = [...new Set(loopResult.toolCallsMade.map(t => t.toolName))];
   const proposalIds = loopResult.toolCallsMade
@@ -859,7 +864,7 @@ export const handler = async (event) => {
     toolCallsMade:   loopResult.toolCallsMade.map(t => ({ tool: t.toolName, isError: t.isError })),
     chatId:          savedChatId,
     conversationId:  savedChatId,
-    structuredData:  loopResult.structuredData,
+    structuredData:  checks ? { ...loopResult.structuredData, checks } : loopResult.structuredData,
     latencyMs,
     guardrailAction: pii.fired ? 'MASKED' : 'NONE',
     // NH-58: status + pendingAction shape aligns with Angular AiChatResponse model.
