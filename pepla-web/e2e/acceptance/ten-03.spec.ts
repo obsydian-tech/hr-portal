@@ -666,6 +666,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
     // Policies that are new: only the TalentFlow pre-token trigger's, and only a Query on the tenants table.
     for (const [key, cur] of Object.entries(now)) {
       if (baseline[key]) continue;
+      if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock ten-03.4): its own role, locked in onb-21.spec.ts AC-8.
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock ten-03.2): locked in ten-06.spec.ts AC-7.
       // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.
       const mod01 = (cur.pairs ?? []).length > 0 && MOD01_ROLE(key, cur.role) && (cur.pairs ?? []).every((p) => MOD01_GET(p) || (key === 'infra/get_company_modules' && MOD01_OWN(p)));

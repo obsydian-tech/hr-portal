@@ -180,7 +180,6 @@ export const RECRUITMENT_TABS: readonly LearnTab[] = [
   { id: 'panels', label: 'Interview panels' },
   { id: 'follow-ups', label: 'Reminders and follow-ups' },
   { id: 'risk', label: 'Candidate risk' },
-  { id: 'offer', label: 'Offer to onboarding' },
   { id: 'questions', label: 'Questions' },
 ];
 

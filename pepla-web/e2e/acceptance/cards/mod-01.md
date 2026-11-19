@@ -12,6 +12,7 @@ AC-2, `be-18.spec.ts` AC-3 and AC-4, `be-19.spec.ts` AC-1 (through `support/be-1
 `fake-aws/world.mjs`), `ten-02.spec.ts` AC-13, `ten-03.spec.ts` AC-10 and, through `support/ten-03/world.ts`, ten-03 Control, AC-1,
 AC-3 (both), AC-4, AC-5, AC-6 and ten-05 Control, AC-3 (both), and `ten-05.spec.ts` AC-6. These files are re-locked by
 acceptance-lock/mod-01 itself.)
+Locks (re-lock): acceptance-lock/mod-01.4 (ONB-21, 18 Nov 2026): AC-7 lets `lambda/sendDocumentReminders/index.mjs` name `modules` (it reads it; it writes only claim rows), AC-8 skips the new role `send_document_reminders`. See `cards/onb-21.md`.
 
 Written against develop 6122df1 (TEN-03, TEN-05 and MOD-02 in). The IAM baseline `iam-6122df1/policies.json` is taken from
 that commit (107 role policies; TEN-05 changed none, so it holds the same policies as 91fef10).

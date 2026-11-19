@@ -28,11 +28,15 @@ export const isThisCard = (f: string): boolean => /^src\/app\/ds\/site\/learn\/r
  * What SITE-09 may change (spec AC-12): the site's own folder, the public pages, the two route files `site.routes.ts` and `app.routes.server.ts`, and the site
  * tests (`site-NN`, two digits, as the earlier cards' lists are widened to). Whole paths, anchored at both ends. `app.routes.ts` and the design system README are
  * not in the list: this card adds no gallery route and edits no README.
+ * SITE-09.4: the design system sync (src/styles/design-system/ except site.css, which stays refused, and the icon list ds/core/icon.registry.ts) is here
+ * too, because a sync that moves the kit ref can force edits under ds/site/learn/recruitment/ in the same pull request.
  */
 export const allowed = (f: string): boolean =>
   /^src\/app\/ds\/site\/(?!\.\.)[\w./-]+$/.test(f) ||
   /^src\/app\/features\/public\/[\w./-]+$/.test(f) ||
   /^src\/app\/(app\.routes\.server|site\.routes)\.ts$/.test(f) ||
+  /^src\/styles\/design-system\/(?!site\.css$)[\w./-]+$/.test(f) ||
+  f === 'src/app/ds/core/icon.registry.ts' ||
   /^e2e\/acceptance\/site-\d{2}\.spec\.ts$/.test(f) ||
   /^e2e\/acceptance\/cards\/site-\d{2}\.md$/.test(f) ||
   /^e2e\/acceptance\/support\/site-\d{2}\/[\w./-]+$/.test(f);
