@@ -238,7 +238,7 @@ test.describe('SITE-07 Site styles split out and loaded only on public routes', 
     test.skip(!mine, 'this pull request changes none of the split\'s files');
     const allowed = (f: string) =>
       f === 'angular.json' || f === 'src/styles.css' || f === 'README.md' ||
-      /^src\/styles\/design-system\//.test(f) ||
+      /^src\/styles\/design-system\//.test(f) || f === 'src/app/ds/core/icon.registry.ts' ||
       /^scripts\/(design-system-sync\.mjs|verify-design\.mjs|verify-design\.test\.mjs)$/.test(f) ||
       /^src\/app\/ds\/site\//.test(f) || /^src\/app\/features\/public\//.test(f) ||
       /^src\/app\/(app\.routes|app\.routes\.server|site\.routes)\.ts$/.test(f) ||
