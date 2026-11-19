@@ -38,3 +38,26 @@ export function documentsDueDate(plannedStartDate, tenantId) {
   start.setUTCDate(start.getUTCDate() - dueDaysFor(tenantId));
   return start.toISOString().slice(0, 10);
 }
+
+/** ONB-21: the reminder goes out from this many days before the due date up to the due date itself. */
+export const REMINDER_DAYS_BEFORE_DUE = 2;
+
+const JOHANNESBURG = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/** Today's calendar date in South Africa, as YYYY-MM-DD. */
+export function todayInJohannesburg(now = new Date()) {
+  return JOHANNESBURG.format(now);
+}
+
+/** Whole calendar days from one date to another; NaN when either is not a real date. */
+export function daysBetween(fromIso, toIso) {
+  const from = parseDay(fromIso);
+  const to = parseDay(toIso);
+  return from === null || to === null ? NaN : Math.round((to - from) / 86_400_000);
+}
+
+/** True from 2 days before the due date up to and including the due date. False for a past or unreal date. Never throws. */
+export function reminderDue(dueIso, todayIso) {
+  const days = daysBetween(todayIso, dueIso);
+  return Number.isFinite(days) && days >= 0 && days <= REMINDER_DAYS_BEFORE_DUE;
+}
