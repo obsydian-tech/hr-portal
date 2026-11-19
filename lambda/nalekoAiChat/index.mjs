@@ -25,10 +25,13 @@ import { classifyIntent, selectModel } from './intent-classifier.mjs';
 import { buildCacheKey, getCached, setCached } from './cache.mjs';
 import { hrOnly } from '../shared/hr-group.mjs';
 import { requireTenant } from '../shared/tenant.mjs';
+import { checksOf } from './answer-shape.mjs';
+import { agentGet } from './tool-resolver.mjs';
+import { personFacts } from './person.mjs';
+import { todayWritten } from '../shared/due-date.mjs';
 import { requireModule } from '../shared/modules.mjs';
 import { redactNumbers } from '../shared/pii-redact.mjs';
 import { appendExchange, ChatNotFound, historyOf, getHeader, isChatId, redactToolOutputs } from '../shared/ask-batsi-chats.mjs';
-import { checksOf } from './answer-shape.mjs';
 
 // TEN-02: Batsi calls the Agent API with the server's key, which carries AGENT_TENANT_ID. Only that company may use it.
 let TENANT = null;
@@ -212,11 +215,18 @@ You help HR clerks with onboarding tasks: checking employee status, risk assessm
 Rules:
 - Only assist with HR onboarding tasks. Politely decline all other requests.
 - Never reveal salary benchmarks, employment law advice, or individual performance ratings.
-- Never expose raw PII in your responses — refer to employees by ID or first name only.
+- You may show what the HR person sees on the person page: name, email, job title, department, start date, step and HR partner. Never show ID numbers, phone numbers or bank account numbers.
 - When onboarding a new employee, always return a draft for human review (the onboard_new_employee tool handles this automatically).
 - Be concise and factual. Prefer bullet lists for data-heavy responses.
 - When you looked up one person's documents, the screen shows each check as a row, so answer in one short sentence and do not list the checks again.
-- If a tool call fails, explain what went wrong and suggest next steps.
+- If a lookup fails, say so in plain words and use its say sentence when it gives one. Never show tool names, record ids or error codes.
+- Today's date is given in <today>. Use it for words like today, Monday, this week and soonest. A week runs from Monday to Sunday.
+- When the question is about the person in <employee_in_focus> (he, she, they or this person), call get_employee with that id first.
+- A person is ready to start only when get_employee says ready_to_start yes. Otherwise say no and give its reasons.
+- Use the step words Invited, Documents, In review and Verified. Never use stage words such as ACTIVE.
+- The start date is the start field. Never give the date a person was added as their start date.
+- If a lookup has no answer for something, say plainly that you could not find it. Do not guess and do not send HR to another system.
+- Write dates as the lookups write them, for example 10 Nov 2026.
 - Always operate on behalf of the authenticated HR clerk. Never impersonate another user.`;
 
 // ─── Template → message synthesiser (NH-58) ─────────────────────────────────
@@ -257,7 +267,8 @@ function buildUserMessage(templateId, slots, screenContext, staffId, userMessage
     .map(([k, v]) => `  <${k}>${v}</${k}>`)
     .join('\n');
 
-  return `<context>
+  return `<today>${todayWritten()}</today>
+<context>
   <staff_id>${staffId}</staff_id>
   <current_view>${screenContext?.view ?? 'unknown'}</current_view>
   <employee_in_focus>${screenContext?.employeeId ?? 'none'}</employee_in_focus>
@@ -414,6 +425,21 @@ async function invokeClaude(messages, modelId) {
  * @param {string}  modelId       - resolved Bedrock model ID (NH-69)
  * @returns {{ finalText: string, toolCallsMade: Array, structuredData: object }}
  */
+const SAY = {
+  NOTHING_TO_CHECK: "None of this person's documents has been checked yet, so there is nothing to assess.",
+  NOT_FOUND: 'I could not find that person in this company.',
+  NOT_ALLOWED: 'I could not get this information just now.',
+  UNAVAILABLE: 'I could not get this information just now. Try again in a minute.',
+};
+/** CHAT-09: what a failed lookup means, in a fixed sentence. Never the error text. */
+function failedLookup(err) {
+  const outcome = err?.status === 404 && err?.apiText === 'No verifications found for employee' ? 'NOTHING_TO_CHECK'
+    : err?.status === 404 ? 'NOT_FOUND'
+    : err?.status === 401 || err?.status === 403 ? 'NOT_ALLOWED'
+    : 'UNAVAILABLE';
+  return { outcome, say: SAY[outcome] };
+}
+
 async function runAgenticLoop(messages, context, modelId) {
   const toolCallsMade  = [];
   let   structuredData = {};
@@ -505,9 +531,13 @@ async function runAgenticLoop(messages, context, modelId) {
           if (toolName === 'get_employee')            structuredData.employee        = result;
           if (toolName === 'list_verifications')      structuredData.verifications   = result;
           if (toolName === 'onboard_new_employee')    structuredData.hitlDraft       = result;
+          // CHAT-09: the model gets the person page's facts, not the raw record.
+          if (toolName === 'get_employee') {
+            result = await personFacts(result, (id) => agentGet(`/agent/v1/verifications?employee_id=${encodeURIComponent(id)}`));
+          }
         } catch (err) {
           logger.warn('Tool call failed', { toolName, error: err?.name ?? 'Error' });
-          result   = { error: err.message };
+          result   = failedLookup(err);
           isError  = true;
         }
 
@@ -803,7 +833,7 @@ export const handler = async (event) => {
   }
 
   // ── 6. Agentic loop ───────────────────────────────────────────────────────
-  const context = { staffId, tenantId };
+  const context = { staffId, tenantId, sub: claims['sub'], username: claims['cognito:username'], staffIdClaim: claims['custom:staff_id'] };
   let loopResult;
   try {
     loopResult = await runAgenticLoop(messages, context, selectedModelId);
