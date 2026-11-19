@@ -1,0 +1,267 @@
+{
+ "_note": "ONE place for every sentence on the Ask Batsi chat screens. status: approved = Iggie already approved it (source says where); proposed = NOT approved, a placeholder. The kit page, the Angular prototype and the wording sheet are all built from this file.",
+ "W01": {
+  "where": "Panel title",
+  "text": "Batsi",
+  "status": "approved",
+  "source": "Design system agent panel spec; recruitment kit group G"
+ },
+ "W02": {
+  "where": "Panel context line",
+  "text": "Looking at {name}",
+  "status": "approved",
+  "source": "Design system agent panel spec ('Looking at Kagiso Molefe')"
+ },
+ "W03": {
+  "where": "Composer hint",
+  "text": "Batsi changes nothing until you approve.",
+  "status": "approved",
+  "source": "Recruitment wording group G (proposal note, kit)"
+ },
+ "W04": {
+  "where": "Composer placeholder",
+  "text": "Ask anything about {name}",
+  "status": "approved",
+  "source": "Recruitment kit Ask Batsi screen"
+ },
+ "W05": {
+  "where": "Suggestion 1",
+  "text": "Is {name} ready to start on Monday?",
+  "status": "approved",
+  "source": "Landing Ask Batsi section, first sample question (name replaced by the person on the page)"
+ },
+ "W06": {
+  "where": "Suggestion 2",
+  "text": "Who hasn’t sent their documents?",
+  "status": "approved",
+  "source": "Landing Ask Batsi section, second sample question"
+ },
+ "W07": {
+  "where": "Suggestion 3",
+  "text": "Which candidates are at risk?",
+  "status": "approved",
+  "source": "Landing Ask Batsi section, third sample question"
+ },
+ "W08": {
+  "where": "Answer sentence",
+  "text": "Four of five checks are complete.",
+  "status": "approved",
+  "source": "Landing Ask Batsi section, first chat"
+ },
+ "W09": {
+  "where": "Answer rows",
+  "text": "ID document: Matches / Bank letter: Matches / Tax number: Captured / Contract: Signed / UIF reference number: Missing",
+  "status": "approved",
+  "source": "Landing Ask Batsi section, first chat"
+ },
+ "W10": {
+  "where": "Batsi's question before it acts",
+  "text": "Ask {name} for his UIF reference number?",
+  "status": "approved",
+  "source": "Landing Ask Batsi section, first chat (John Doe replaced by the person on the page)"
+ },
+ "W11": {
+  "where": "Proposal buttons",
+  "text": "Approve / Edit / Decline",
+  "status": "approved",
+  "source": "Design system agent proposal card spec. The landing chat says 'Send request' and 'Not now': see decision D-3"
+ },
+ "W12": {
+  "where": "Proposal label",
+  "text": "Suggested by Batsi",
+  "status": "approved",
+  "source": "Recruitment wording group G"
+ },
+ "W13": {
+  "where": "Outcome after approval",
+  "text": "Approved by {approver}.",
+  "status": "approved",
+  "source": "Design system agent proposal card spec (outcomes are past tense and name the person)"
+ },
+ "W14": {
+  "where": "Result after sending",
+  "text": "Request sent to {name}.",
+  "status": "approved",
+  "source": "Landing Ask Batsi section, first chat (John Doe replaced)"
+ },
+ "W15": {
+  "where": "Not on HR work: lead",
+  "text": "Batsi stays on HR work.",
+  "status": "approved",
+  "source": "Ask Batsi page wording, approved 17 Nov"
+ },
+ "W16": {
+  "where": "Not on HR work: what is declined",
+  "text": "Salary benchmarks, employment law advice and individual performance ratings are not given, and requests outside HR work are declined.",
+  "status": "approved",
+  "source": "Ask Batsi page wording, Limits lead, approved 17 Nov"
+ },
+ "W17": {
+  "where": "Personal details",
+  "text": "ID numbers, phone numbers and bank account numbers are removed from Batsi’s answers.",
+  "status": "approved",
+  "source": "Ask Batsi page wording Q4, approved 17 Nov"
+ },
+ "W18": {
+  "where": "Logging",
+  "text": "Each question and answer is kept in the audit log with the name of the person who asked and the time.",
+  "status": "approved",
+  "source": "Ask Batsi page wording Q5, approved 17 Nov"
+ },
+ "P01": {
+  "where": "Panel context line, no person on the page",
+  "text": "Looking at Today",
+  "status": "proposed",
+  "source": "New. The design system spec says 'Getting started' for a page with no person."
+ },
+ "P02": {
+  "where": "First message, empty chat",
+  "text": "Hi {first name}. Pick a question or ask me.",
+  "status": "proposed",
+  "source": "New. Shorter than the kit's 'I can tell you about Kagiso's status or his offer. Pick a topic below or ask me.'"
+ },
+ "P03": {
+  "where": "Working line",
+  "text": "Batsi is reading 5 onboarding checklists",
+  "status": "proposed",
+  "source": "Pattern from the design system spec; the number is real data at run time"
+ },
+ "P04": {
+  "where": "Stop button result",
+  "text": "Stopped. Nothing was changed.",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P05": {
+  "where": "Drafted message inside a proposal",
+  "text": "Hi {first name}, please add your UIF reference number in your portal so we can finish your onboarding.",
+  "status": "proposed",
+  "source": "New. A drafted message to a new employee"
+ },
+ "P06": {
+  "where": "Proposal that needs someone else",
+  "text": "Waiting for {approver} to approve.",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P07": {
+  "where": "Why the asker cannot approve",
+  "text": "You asked for this. Only {approver} can approve it.",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P08": {
+  "where": "Declined request: reply",
+  "text": "I can only help with HR work. I do not give salary benchmarks, employment law advice or individual performance ratings.",
+  "status": "proposed",
+  "source": "First-person version of W15 and W16"
+ },
+ "P09": {
+  "where": "Error reply",
+  "text": "I could not answer that. Try again in a few minutes.",
+  "status": "proposed",
+  "source": "Pattern from the design system spec ('I could not reach payroll. Try again in a few minutes.')"
+ },
+ "P10": {
+  "where": "Error button",
+  "text": "Try again",
+  "status": "proposed",
+  "source": "Design system agent panel spec"
+ },
+ "P11": {
+  "where": "Hourly limit reached",
+  "text": "You have reached the hourly limit for questions. Try again in {n} minutes.",
+  "status": "proposed",
+  "source": "New. The code limits each person to 50 questions an hour"
+ },
+ "P12": {
+  "where": "Not switched on for the company",
+  "text": "Ask Batsi is not switched on for your company.",
+  "status": "proposed",
+  "source": "New. AI is a paid module per company"
+ },
+ "P13": {
+  "where": "Not switched on: next step",
+  "text": "Ask your administrator to switch it on.",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P14": {
+  "where": "Offline banner",
+  "text": "You are offline. You can ask again when you are back online.",
+  "status": "proposed",
+  "source": "New. The design system spec asks for a warning above the composer"
+ },
+ "P15": {
+  "where": "New message button",
+  "text": "New message",
+  "status": "proposed",
+  "source": "Design system agent panel spec"
+ },
+ "P16": {
+  "where": "Prototype banner",
+  "text": "Proposed wording, not approved. Sample data, no AI is called.",
+  "status": "proposed",
+  "source": "Prototype only; never shown to customers"
+ },
+ "P17": {
+  "where": "Full page: back link",
+  "text": "Back to Today",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P18": {
+  "where": "Full page: start a chat",
+  "text": "New chat",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P19": {
+  "where": "Full page: search past chats",
+  "text": "Search chats",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P20": {
+  "where": "Past chats: group headings",
+  "text": "Today / Yesterday / Previous 7 days",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P21": {
+  "where": "Top bar button that opens the panel",
+  "text": "Ask Batsi",
+  "status": "approved",
+  "source": "Already in the design system top bar (recruitment and onboarding kits) and the approved name 'Ask Batsi'"
+ },
+ "P22": {
+  "where": "Panel: expand button label",
+  "text": "Open as a full page",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P23": {
+  "where": "Full page: past chats title on phone",
+  "text": "Chats",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P24": {
+  "where": "Past chat names",
+  "text": "The first question of the chat, shortened",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P25": {
+  "where": "Delete a chat",
+  "text": "Delete chat",
+  "status": "proposed",
+  "source": "New"
+ },
+ "P26": {
+  "where": "Top bar button when proposals wait (read aloud)",
+  "text": "Ask Batsi, {n} waiting",
+  "status": "proposed",
+  "source": "New. Same pattern as the bell's '2 unread'"
+ }
+}
