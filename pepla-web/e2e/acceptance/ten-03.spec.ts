@@ -673,6 +673,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock ten-03.4): its own role, locked in onb-21.spec.ts AC-8.
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock ten-03.2): locked in ten-06.spec.ts AC-7.
       if (/ask_batsi|stored_chats/.test(key) || /ask_batsi/.test(cur.role)) continue; // CHAT-02 (re-lock ten-03.N): locked in chat-02.spec.ts AC-31.
+      if (/reveal_document_field/.test(key) || /reveal_document_field/.test(cur.role)) continue; // ONB-14 (re-lock ten-03.N): its own role, locked in onb-14.spec.ts AC-9 (HR only, GetItem on two tables, no tenants table, no KMS list).
       // ONB-22.1 (re-lock ten-03.6): the agent proposal and approval rights are new role policies of their own (a new role, and second policies on three roles ten-02 pins); onb-22.spec.ts AC-8 pins exactly these.
       if (ONB22_POLICIES.has(key)) continue;
       // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.

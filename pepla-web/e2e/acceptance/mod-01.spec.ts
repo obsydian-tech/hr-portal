@@ -692,6 +692,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       if (cur.stack === 'infra' && cur.role === role) continue; // getCompanyModules' own, judged above
       if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock mod-01.4): its own role, locked in onb-21.spec.ts AC-8.
       if (/ask_batsi|stored_chats/.test(key) || /ask_batsi/.test(cur.role)) continue; // CHAT-02 (re-lock mod-01.N): their own roles, judged in chat-02.spec.ts AC-31.
+      if (/reveal_document_field/.test(key) || /reveal_document_field/.test(cur.role)) continue; // ONB-14 (re-lock mod-01.N): its own role, locked in onb-14.spec.ts AC-9 (HR only, no tenants table, no KMS list).
       if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock mod-01.1): its own role, locked in ten-06.spec.ts AC-7.
       // ONB-22.1 (re-lock mod-01.6): the agent proposal and approval rights are new role policies of their own (a new role, and second policies on three roles ten-02 pins); onb-22.spec.ts AC-8 pins exactly these.
       if (ONB22_POLICIES.has(key)) continue;
