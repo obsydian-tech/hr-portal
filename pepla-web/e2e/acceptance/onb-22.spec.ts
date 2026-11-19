@@ -1280,7 +1280,8 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
         seen.add(a);
         expect(a, `approveAgentAction: ${a} has no wildcard`).not.toMatch(/\*/);
         const res = list(s.Resource);
-        if (a === 'lambda:InvokeFunction') expect(res.every((r) => /review_document_verification\.arn$/.test(r)), 'it may invoke the review function and nothing else').toBe(true);
+        // onb-22.3 (CHAT-06): approving Batsi's "register a new employee" also runs createEmployee, and nothing else is added.
+        if (a === 'lambda:InvokeFunction') expect(res.every((r) => /(review_document_verification|create_employee)\.arn$/.test(r)), 'it may invoke the review function (and, since CHAT-06, createEmployee) and nothing else').toBe(true);
         else if (a.startsWith('xray:')) continue;
         else expect(res.includes('*'), `${a}: no "*" resource`).toBe(false);
       }
