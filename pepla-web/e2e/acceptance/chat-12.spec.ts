@@ -6,7 +6,7 @@ import { ON_DEV, expect, test as base, type Login, type SignInPage } from './sup
 
 /**
  * CHAT-12 · The chat keeps its message box in place: on the full page and in the side panel the header and the message
- * box stay on screen and only the conversation scrolls between them (the way ChatGPT and Claude do it).
+ * box stay on screen and only the conversation scrolls between them (the way other chat apps do it).
  * Card notes and what the tests fix where the card is silent: cards/chat-12.md. Fake answers only: nothing calls a paid AI.
  * Each test runs at 1280 and 390 wide.
  */
@@ -140,7 +140,11 @@ test.describe('Full page chat', () => {
     chat!.mode = 'hold';
     await composer(page).fill('A slow question');
     await sendButton(page).click();
+    await expect(page.getByText('A slow question')).toBeVisible();
+    await expect.poll(() => log(page).evaluate((e) => e.scrollHeight - e.scrollTop - e.clientHeight), { message: 'the question was followed first' }).toBeLessThanOrEqual(24);
+    await page.waitForTimeout(150);
     await scrollLog(page, 'top');
+    await page.waitForTimeout(150);
     chat!.reply = () => ({ message: LONG });
     chat!.release();
     await expect(page.getByText('Line 14:')).toHaveCount(5);
@@ -188,9 +192,9 @@ test.describe('Side panel', () => {
     await longConversation(page, chat!);
     const behind = () => page.evaluate(() => ({ w: document.scrollingElement!.scrollTop, m: document.querySelector('main')!.scrollTop }));
     const before = await behind();
-    await scrollLog(page, 'top');
+    await scrollLog(page, 'bottom');
     await log(page).hover();
-    await page.mouse.wheel(0, -600);
+    await page.mouse.wheel(0, 600);
     await page.waitForTimeout(150);
     expect(await behind(), 'the page behind did not move').toEqual(before);
   });

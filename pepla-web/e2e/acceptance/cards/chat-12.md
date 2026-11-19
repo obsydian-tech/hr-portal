@@ -10,7 +10,7 @@ These tests add files only; no other card's file changed.
 
 ## What the card asks (Iggie, 19 Nov, his words in the thread)
 
-The full page scrolled as a whole, so the box and the header scrolled away once answers got long. Wanted: the way ChatGPT and Claude do it. The message box stays at the bottom of the screen, the header stays at the top, the conversation scrolls on its own between them and the view follows the newest message. Both the side panel and the full page.
+The full page scrolled as a whole, so the box and the header scrolled away once answers got long. Wanted: the way other chat apps do it. The message box stays at the bottom of the screen, the header stays at the top, the conversation scrolls on its own between them and the view follows the newest message. Both the side panel and the full page.
 
 ## The tests
 
