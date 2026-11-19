@@ -237,7 +237,8 @@ const OUTCOME_LOZENGE: Record<Exclude<ProposalState, 'waiting' | 'declining'>, {
           <p class="pp-proposal__note" role="status"><span>Waiting for {{ blockedBy() }} to approve.</span> <span>You asked for this. Only {{ blockedBy() }} can approve it.</span></p>
         } @else {
         <footer class="pp-card__footer">
-          <div class="pp-button-group pp-button-group--stack-phone">
+          <!-- In the chat form (quote set) the buttons stay in reading order and wrap: Approve and Edit, Decline under them on a phone. -->
+          <div class="pp-button-group" [class.pp-button-group--stack-phone]="quote() === undefined">
             <button ppButton [appearance]="quote() !== undefined ? 'default' : 'agent'" icon="check" [attr.aria-describedby]="id" [disabled]="items().length > 0 && !chosen()" (click)="approve.emit()">{{ approveText() }}</button>
             @if (!items().length) { <button ppButton appearance="default" [attr.aria-describedby]="id" (click)="edit.emit()">Edit</button> }
             <button ppButton appearance="subtle" [attr.aria-describedby]="id" (click)="state.set('declining')">{{ items().length ? 'Decline all' : 'Decline' }}</button>
