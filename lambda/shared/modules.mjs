@@ -2,7 +2,7 @@
  * MOD-01: which modules a company has switched on, decided on the server.
  *
  * modules on the Company row (pk TENANT#<id>, sk PROFILE) is a string set of keys from MODULE_KEYS. A row with no
- * modules attribute counts as every key only when founding = true. A missing row, a row that is not ACTIVE, or a read
+ * modules attribute counts as onboarding and recruitment only when founding = true (CHAT-02: never ask_batsi, which an admin turns on). A missing row, a row that is not ACTIVE, or a read
  * error gives none (fail closed) and logs "Modules read failed" with the company id only.
  *
  * Every Recruitment handler, after requireTenant:
@@ -16,18 +16,26 @@ import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { json } from './hr-group.mjs';
 import { TENANT_ID_PATTERN, requireTenant } from './tenant.mjs';
 
-export const MODULE_KEYS = Object.freeze(['onboarding', 'recruitment']);
+export const MODULE_KEYS = Object.freeze(['onboarding', 'recruitment', 'ask_batsi']);
+
+/** CHAT-02: the keys a founding row with no modules attribute counts as on. Ask Batsi is never one of them: an admin turns it on. */
+export const FOUNDING_DEFAULT = Object.freeze(MODULE_KEYS.filter((k) => k !== 'ask_batsi'));
 
 const CACHE_MS = 60_000;
 const cache = new Map();
 let client;
 const dynamo = () => (client ??= new DynamoDBClient({}));
 
+/** The keys a stored Company row has on: null for a missing row or one that is not ACTIVE. Used by the Ask Batsi admin route. */
+export function modulesOfRow(item) {
+  return fromRow(item);
+}
+
 function fromRow(item) {
   if (!item) return null;
   if (item.status?.S !== 'ACTIVE') return null;
   const stored = item.modules;
-  if (stored === undefined) return item.founding?.BOOL === true ? [...MODULE_KEYS] : [];
+  if (stored === undefined) return item.founding?.BOOL === true ? [...FOUNDING_DEFAULT] : [];
   const keys = Array.isArray(stored.SS) ? stored.SS : Array.isArray(stored.L) ? stored.L.map((v) => v?.S) : [];
   return MODULE_KEYS.filter((k) => keys.includes(k));
 }
