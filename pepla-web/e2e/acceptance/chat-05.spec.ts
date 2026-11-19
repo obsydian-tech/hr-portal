@@ -229,10 +229,10 @@ test.describe('CHAT-05 · Ask Batsi answers carry the check rows', () => {
           expect.soft(Object.keys(item).sort(), `${label}: an item is as before`).toEqual(['confidence', 'created_at', 'decision', 'document_id', 'document_type', 'employee_id', 'employee_name', 'verification_id']);
           expect.soft(item.employee_name, `${label}: with the person's name`).toBe(`${T.first} ${T.last}`);
         }
-        // documents: one item per read document, four keys, no confidence, no file.
+        // documents: one item per read document, six keys (chat-05.2: HR's decision and when, for CHAT-09), no confidence, no file.
         const docs = sortedDocs(r.json?.documents);
         expect(docs, `${label}: documents hold one item per read document with its check (an upload link with no file is not there)`).toEqual(EXPECTED_DOCUMENTS);
-        for (const d of docs) expect.soft(Object.keys(d).sort(), `${label}: a document item has exactly four keys`).toEqual(['arrived_at', 'check', 'document_id', 'document_type']);
+        for (const d of docs) expect.soft(Object.keys(d).sort(), `${label}: a document item has exactly six keys`).toEqual(['arrived_at', 'check', 'document_id', 'document_type', 'hr_decided_at', 'hr_decision']);
         expect.soft(r.text, `${label}: no file key or file name`).not.toMatch(/SECRET|uploads\/|s3_key|file_name/);
         expect.soft(r.text, `${label}: nothing of company B's row that names this person`).not.toMatch(/ver-b-twin|doc-b-twin/);
         expect.soft(r.text, `${label}: no other person's row`).not.toMatch(/ver-other|ver-b-|doc-other|doc-b-/);
@@ -346,7 +346,7 @@ test.describe('CHAT-05 · Ask Batsi answers carry the check rows', () => {
     expect(noChecksKey(onboard), 'and no checks').toBe(true);
   });
 
-  test('AC-7 The system prompt names Batsi and adds one line; the three limit lines are byte for byte as on develop', async () => {
+  test('AC-7 The system prompt names Batsi and adds one line; the limit lines are byte for byte (chat-05.2: CHAT-09\'s fact lines)', async () => {
     test.setTimeout(120_000);
     const a = askAbout(NOMSA, [doc('d-id', ID, 'MATCHES', AT(1)), doc('d-bank', BANK, 'MATCHES', AT(2))]);
     expect(a.status, `200 (${WHAT(a)})`).toBe(200);
@@ -357,12 +357,24 @@ test.describe('CHAT-05 · Ask Batsi answers carry the check rows', () => {
     expect(prompt, 'it no longer says Naleko AI').not.toMatch(/Naleko AI/i);
     const lines = prompt.split('\n');
     expect(lines[0], 'the first line is the same sentence with the new name').toBe('You are Batsi, an HR onboarding assistant for South African companies.');
-    // The three lines that limit what Batsi does, byte for byte as on develop (c00bf96).
+    // The three lines that limit what Batsi does, byte for byte. chat-05.2 (CHAT-09, Iggie 19 Nov 15:15 SAST "Yes, same as the page"): the third is
+    // the person-page line that replaces "first name only"; the other two are as on develop (c00bf96).
     const LIMITS = [
       '- Only assist with HR onboarding tasks. Politely decline all other requests.',
       '- Never reveal salary benchmarks, employment law advice, or individual performance ratings.',
-      '- Never expose raw PII in your responses — refer to employees by ID or first name only.',
+      '- You may show what the HR person sees on the person page: name, email, job title, department, start date, step and HR partner. Never show ID numbers, phone numbers or bank account numbers.',
     ];
+    // chat-05.2: CHAT-09's seven fact lines, byte for byte.
+    const FACTS = [
+      '- Today\'s date is given in <today>. Use it for words like today, Monday, this week and soonest. A week runs from Monday to Sunday.',
+      '- When the question is about the person in <employee_in_focus> (he, she, they or this person), call get_employee with that id first.',
+      '- A person is ready to start only when get_employee says ready_to_start yes. Otherwise say no and give its reasons.',
+      '- Use the step words Invited, Documents, In review and Verified. Never use stage words such as ACTIVE.',
+      '- The start date is the start field. Never give the date a person was added as their start date.',
+      '- If a lookup has no answer for something, say plainly that you could not find it. Do not guess and do not send HR to another system.',
+      '- Write dates as the lookups write them, for example 10 Nov 2026.',
+    ];
+    for (const l of FACTS) expect.soft(lines, `the fact line is there byte for byte: ${l.slice(0, 40)}…`).toContain(l);
     for (const l of LIMITS) expect.soft(lines, `the limit line is kept byte for byte: ${l.slice(0, 40)}…`).toContain(l);
     // Everything else is as it was, and exactly one line is added.
     const OLD = [
@@ -372,11 +384,11 @@ test.describe('CHAT-05 · Ask Batsi answers carry the check rows', () => {
       ...LIMITS,
       '- When onboarding a new employee, always return a draft for human review (the onboard_new_employee tool handles this automatically).',
       '- Be concise and factual. Prefer bullet lists for data-heavy responses.',
-      '- If a tool call fails, explain what went wrong and suggest next steps.',
+      '- If a lookup fails, say so in plain words and use its say sentence when it gives one. Never show tool names, record ids or error codes.',
       '- Always operate on behalf of the authenticated HR clerk. Never impersonate another user.',
     ];
     for (const l of OLD) expect.soft(lines, `the old line is kept: ${l.slice(0, 40)}…`).toContain(l);
-    const added = lines.slice(1).filter((l) => !OLD.includes(l));
+    const added = lines.slice(1).filter((l) => !OLD.includes(l) && !FACTS.includes(l));
     expect(added.length, `exactly one line is added: ${JSON.stringify(added)}`).toBe(1);
     expect(added[0], 'it says the screen shows each check as a row, so one short sentence').toMatch(/row/i);
     expect(added[0], 'about the checks').toMatch(/check/i);
