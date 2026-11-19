@@ -335,6 +335,8 @@ jobs:
             pepla-web/e2e/acceptance/.output/
           retention-days: 7
           if-no-files-found: ignore
+          # .output/ starts with a dot: without this the action skips it, and the screenshots and traces never arrive.
+          include-hidden-files: true
 
       # One comment per PR, updated on each run: which journeys passed, how
       # long they took, and where the failure evidence is. On a push to
