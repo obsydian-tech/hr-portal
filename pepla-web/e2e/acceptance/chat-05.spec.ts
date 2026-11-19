@@ -341,11 +341,9 @@ test.describe('CHAT-05 · Ask Batsi answers carry the check rows', () => {
       draft: { first_name: 'Lerato', last_name: 'Molefe', email: 'lerato.molefe@baker-a.example', department: 'Finance', job_title: 'Accountant', phone: '0825550123' },
     });
     expect(onboard.json.structuredData.hitlDraft?.hitl, 'the old hitlDraft field is still there').toBe(true);
-    expect(onboard.json.message, 'with its fixed text').toBe('Please review the employee details above and confirm to proceed with onboarding.');
-    expect(noProposals(onboard), 'no proposals key (CHAT-06 builds the proposal)').toBe(true);
+    // chat-05.1 (CHAT-06): the message, the proposal and the pending row of this path are CHAT-06's now (chat-06.spec.ts AC-1, AC-2).
+    // What stays CHAT-05's: the old app's fields above, and no check rows.
     expect(noChecksKey(onboard), 'and no checks').toBe(true);
-    expect(writes(onboard.run, PENDING), 'no row is written to naleko-pending-actions by this card').toEqual([]);
-    expect(tablesOf(onboard.run, PENDING), 'the table is as it was').toEqual([]);
   });
 
   test('AC-7 The system prompt names Batsi and adds one line; the three limit lines are byte for byte as on develop', async () => {
