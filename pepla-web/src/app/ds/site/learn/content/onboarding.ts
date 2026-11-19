@@ -65,7 +65,6 @@ export const ONBOARDING_ENDING: LearnEnding = {
     {
       icon: 'user-plus',
       title: 'Recruitment',
-      text: 'Accepted offers start onboarding with no retyping.',
       href: '#',
     },
     {

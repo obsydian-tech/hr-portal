@@ -561,9 +561,9 @@ resource "aws_lambda_function" "naleko_mcp_server" {
 
   environment {
     variables = {
-      AGENT_API_BASE   = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
-      REST_API_BASE    = "https://${aws_apigatewayv2_api.employees_api.id}.execute-api.${var.aws_region}.amazonaws.com"
-      NALEKO_AGENT_KEY = data.aws_secretsmanager_secret_version.agent_api_key.secret_string
+      AGENT_API_BASE = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
+      # ONB-22: the key is read from its secret at run time (no key in a setting, none in Terraform state).
+      AGENT_API_KEY_SECRET_NAME = aws_secretsmanager_secret.agent_api_key.name
     }
   }
 
@@ -578,14 +578,6 @@ resource "aws_lambda_function" "naleko_mcp_server" {
   lifecycle {
     ignore_changes = [filename, source_code_hash]
   }
-}
-
-# Resolves the agent API key from Secrets Manager at plan/apply time
-data "aws_secretsmanager_secret_version" "agent_api_key" {
-  secret_id = aws_secretsmanager_secret.agent_api_key.id
-
-  # In a fresh account (pepla-dev) the first version must exist before it is read.
-  depends_on = [aws_secretsmanager_secret_version.agent_api_key]
 }
 
 # Lambda Function URL — RESPONSE_STREAM required for MCP HTTP+SSE transport
@@ -890,6 +882,41 @@ resource "aws_lambda_function" "get_batch_risk_report" {
   }
 }
 
+# ─── ONB-22: createProposal (an agent proposes Accept document) ───────────────────────────────────────────────────────────────────────
+resource "aws_lambda_function" "create_proposal" {
+  function_name = "createProposal"
+  role          = aws_iam_role.create_proposal.arn
+  handler       = "index.handler"
+  runtime       = "nodejs22.x"
+  filename      = local.placeholder_zip
+  memory_size   = 128
+  timeout       = 15
+  architectures = ["x86_64"]
+
+  environment {
+    variables = {
+      LEGACY_TENANT_ID      = var.legacy_tenant_id
+      PENDING_ACTIONS_TABLE = aws_dynamodb_table.pending_actions.name
+      EVENT_BUS_NAME        = aws_cloudwatch_event_bus.naleko_onboarding.name
+      KMS_KEY_ARN           = module.kms_pii.key_arn
+    }
+  }
+
+  ephemeral_storage { size = 512 }
+  tracing_config { mode = "Active" }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = "/aws/lambda/createProposal"
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = { Component = "HITLGate", Ticket = "ONB-22" }
+}
+
 # ─── NH-73: approveAgentAction ────────────────────────────────────────────────────────────────────────────────────────────────────────
 resource "aws_lambda_function" "approve_agent_action" {
   function_name = "approveAgentAction"
@@ -907,6 +934,9 @@ resource "aws_lambda_function" "approve_agent_action" {
       PENDING_ACTIONS_TABLE     = aws_dynamodb_table.pending_actions.name
       AGENT_API_BASE_URL        = "https://${aws_apigatewayv2_api.agent_api.id}.execute-api.${var.aws_region}.amazonaws.com"
       AGENT_API_KEY_SECRET_NAME = aws_secretsmanager_secret.agent_api_key.name
+      # ONB-22: the approver's decision runs through the real review function, and the answer is published.
+      EVENT_BUS_NAME       = aws_cloudwatch_event_bus.naleko_onboarding.name
+      REVIEW_FUNCTION_NAME = aws_lambda_function.review_document_verification.function_name
     }
   }
 

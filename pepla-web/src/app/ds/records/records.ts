@@ -497,7 +497,9 @@ export class PpChecklist {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <span class="pp-checklist-row__mark" aria-hidden="true"><svg [ppIcon]="mark()" /></span>
-    <span class="pp-checklist-row__body"><span class="pp-checklist-row__label">{{ label() }}</span>@if (owner()) {<span class="pp-checklist-row__owner">{{ owner() }}</span>}</span>
+    @if (flat()) { <span class="pp-checklist-row__label">{{ label() }}</span> } @else {
+      <span class="pp-checklist-row__body"><span class="pp-checklist-row__label">{{ label() }}</span>@if (owner()) {<span class="pp-checklist-row__owner">{{ owner() }}</span>}</span>
+    }
     <ng-content />
   `,
   host: { '[class]': '"pp-checklist-row" + (state() !== "open" ? " pp-checklist-row--" + state() : "")' },
@@ -507,6 +509,8 @@ export class PpChecklistRow {
   /** Who does it: "Kagiso", "IT, Sipho Ndlovu". Leave out when it is all one person's list. */
   readonly owner = input<string>();
   readonly state = input<'open' | 'done' | 'agent' | 'overdue'>('open');
+  /** The label sits straight in the row (no one to name under it), so the row's text, label and result, is one piece. Used in the chat. */
+  readonly flat = input(false);
   protected readonly mark = computed<IconName>(() => ({ open: 'circle-dashed', done: 'circle-check', agent: 'sparkles', overdue: 'circle-dashed' } as const)[this.state()]);
 }
 

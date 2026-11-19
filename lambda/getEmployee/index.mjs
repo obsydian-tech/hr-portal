@@ -13,6 +13,7 @@ import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { requireTenant, ownsRow, notFound } from '../shared/tenant.mjs';
+import { stepOf } from '../shared/onboarding-step.mjs';
 
 const dynamodb = new DynamoDBClient();
 const logger = new Logger({ serviceName: 'getEmployee' });
@@ -59,6 +60,7 @@ export const handler = async (event) => {
       last_name:    item.last_name?.S,
       department:   item.department?.S,
       stage:        item.stage?.S,
+      step:         stepOf({ stage: item.stage?.S, step: item.step?.S }),
       risk_band:    item.riskBand?.S,
       risk_reason:  item.riskReason?.S,
       created_at:   item.created_at?.S,

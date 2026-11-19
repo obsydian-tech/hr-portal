@@ -34,3 +34,9 @@ One test commit on top of 69ed58b (`onb-22.1`). It changes only AC-10 in `onb-22
 - Two defences guard an expired proposal (early check and the claim); the tests fail only when both are gone.
 - Two proposals made at the same moment for one document are not guarded.
 - Wrong-key calls read the secret once each (no throttle).
+
+## Child lock onb-22.3 (CHAT-02 and ONB-21 on the same develop as ONB-22)
+Only `onb-22.spec.ts` AC-8 changes, in three lines, so that ONB-22 and CHAT-02 (and ONB-21) can merge in either order:
+- The agent API's CORS may also allow `DELETE` (Delete chat). Every other part of the block (headers, origins, max age) is still compared with the baseline, and no method but `DELETE` may be added.
+- The table count is the baseline (17) plus `ask_batsi_chats` and `reminders` when those two tables exist. Any other new table still fails.
+- `dynamodb_read_role_arns` may also hold `ask_batsi_chats`, `admin_set_ask_batsi` (CHAT-02) and `send_document_reminders` (ONB-21), besides the four roles of this card. Any other role still fails.

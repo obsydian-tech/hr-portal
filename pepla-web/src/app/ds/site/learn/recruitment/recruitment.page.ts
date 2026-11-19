@@ -7,11 +7,11 @@ import { PpSiteHeader } from '../../header';
 import { PpSitePage } from '../../page';
 import { BAND_LIGHTS, BAND_LIGHTS_PHONE } from '../../sections/closing';
 import { PpSiteLandPilot } from '../../sections/pilot';
-import { RECRUITMENT_DEMOS, RECRUITMENT_ENDING, RECRUITMENT_OFFER_LINK, RECRUITMENT_TABS, RECRUITMENT_TOP } from '../content';
+import { RECRUITMENT_DEMOS, RECRUITMENT_ENDING, RECRUITMENT_TABS, RECRUITMENT_TOP } from '../content';
 import { PpSiteLearnPage } from '../learn.page';
 import { PpRecruitCard } from './recruitment.card';
 import { PpRecruitBoardDemo, PpRecruitDemo } from './recruitment.demo';
-import { PpRecruitBoard, PpRecruitOffer, PpRecruitRisk, PpRecruitScore } from './recruitment.panels';
+import { PpRecruitBoard, PpRecruitRisk, PpRecruitScore } from './recruitment.panels';
 import { PpSiteLearnTimeline } from '../learn.panels';
 
 /**
@@ -24,7 +24,7 @@ import { PpSiteLearnTimeline } from '../learn.panels';
 @Component({
   selector: 'app-recruitment-page',
   imports: [PpIcon, PpSitePage, PpSiteHeader, PpSiteFooter, PpSiteBand, PpSiteLandPilot, PpSiteLearnPage, PpSiteLearnTimeline, PpRecruitCard, PpRecruitDemo, PpRecruitBoardDemo,
-    PpRecruitBoard, PpRecruitScore, PpRecruitRisk, PpRecruitOffer],
+    PpRecruitBoard, PpRecruitScore, PpRecruitRisk],
   changeDetection: ChangeDetectionStrategy.OnPush,
   // The kit's page has no body margin. The style is added while the page is on screen and goes with it, so signed-in pages keep theirs.
   encapsulation: ViewEncapsulation.None,
@@ -39,7 +39,6 @@ import { PpSiteLearnTimeline } from '../learn.panels';
         <section ppRecruitDemo id="panels" uid="score" [text]="demos.score" engine="score" cream flip><div ppRecruitScore></div></section>
         <section ppRecruitDemo id="follow-ups" uid="follow" [text]="demos.follow" engine="timeline"><div ppSiteLearnTimeline></div></section>
         <section ppRecruitDemo id="risk" uid="risk" [text]="demos.risk" engine="risk" cream flip><div ppRecruitRisk></div></section>
-        <section ppRecruitDemo id="offer" uid="offer" [text]="demos.offer" engine="offer" [more]="offerLink"><div ppRecruitOffer></div></section>
         <section ppSiteBand ppSiteLearnBand id="demo" reveal [lights]="phone() ? bandPhone : bandDesktop" eyebrow="Book a demo" title="Naleko" accent="People."
           lead="Every employee hired, onboarded and compliant. One app for Recruitment, Onboarding and Offboarding, Leave Management and Compliance Management, with Ask Batsi built in.">
           <a class="pp-site-button pp-site-button--dark pp-site-button--large" href="#demo"><span>Book a demo</span><svg ppIcon="arrow-right" /></a>
@@ -57,7 +56,6 @@ export class RecruitmentPage {
   protected readonly tabs = RECRUITMENT_TABS;
   protected readonly ending = RECRUITMENT_ENDING;
   protected readonly demos = RECRUITMENT_DEMOS;
-  protected readonly offerLink = RECRUITMENT_OFFER_LINK;
   protected readonly bandDesktop = BAND_LIGHTS;
   protected readonly bandPhone = BAND_LIGHTS_PHONE;
   protected readonly phone = signal(false);

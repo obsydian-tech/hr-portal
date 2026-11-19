@@ -701,6 +701,12 @@ All infrastructure is managed via Terraform with remote state stored in S3 (`nal
 
 ---
 
+### ONB-22 — who approves, and how the MCP server checks keys
+
+An agent key can read onboarding data and can only *propose* one thing, Accept document (`POST /agent/v1/proposals`). A proposal waits in HR's list. Approving or declining it needs a signed-in HR person (Cognito ID token in `hr_staff`); the agent key is refused on those routes. Approving runs the real `reviewDocumentVerification` as the approver, so the screen's rules apply, and writes both names (`proposal.approved`, with the proposer and the approver) to the audit log.
+
+The hosted MCP server answers only calls that carry a valid `x-api-key`. It reads the key from Secrets Manager (current and pending versions, cached for at most 4 minutes), so a rotation takes effect without a redeploy. CI builds and deploys it from `mcp/`.
+
 ## 13. Threat Model
 
 ### Assets Under Protection

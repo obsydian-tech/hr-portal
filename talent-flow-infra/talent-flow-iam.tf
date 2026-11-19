@@ -627,6 +627,13 @@ resource "aws_iam_role_policy" "ai_chat" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_prompt_cache}"
       },
       {
+        # CHAT-02: stored Ask Batsi chats (table in the infra/ stack). KMS decrypt comes through kms_pii dynamodb_read_role_arns.
+        Sid      = "ChatsTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/ask-batsi-chats"
+      },
+      {
         Sid      = "KMSStateKey"
         Effect   = "Allow"
         Action   = local.tf_kms_actions
