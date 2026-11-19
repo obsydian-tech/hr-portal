@@ -26,6 +26,9 @@ import { buildCacheKey, getCached, setCached } from './cache.mjs';
 import { hrOnly } from '../shared/hr-group.mjs';
 import { requireTenant } from '../shared/tenant.mjs';
 import { checksOf } from './answer-shape.mjs';
+import { requireModule } from '../shared/modules.mjs';
+import { redactNumbers } from '../shared/pii-redact.mjs';
+import { appendExchange, ChatNotFound, historyOf, getHeader, isChatId, redactToolOutputs } from '../shared/ask-batsi-chats.mjs';
 
 // TEN-02: Batsi calls the Agent API with the server's key, which carries AGENT_TENANT_ID. Only that company may use it.
 let TENANT = null;
@@ -120,7 +123,7 @@ async function checkRateLimit(staffId) {
       return retryAfter;
     }
     // Any other error (network, IAM) — fail open so legit users aren't blocked
-    logger.error('Rate limit check failed — failing open', { err: err.message });
+    logger.error('Rate limit check failed — failing open', { error: err?.name ?? 'Error' });
     return null;
   }
 }
@@ -153,13 +156,14 @@ async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
     conversation_id:     conversationId,
     bedrock_request_id:  bedrockRequestId,
     guardrail_action:    guardrailAction ?? 'NONE',
-    employees_accessed:  JSON.stringify(employeesAccessed ?? []),
+    // CHAT-02: no ID, phone or bank number is kept, however it is spaced (the shared PII-01 redactor).
+    employees_accessed:  JSON.stringify((employeesAccessed ?? []).map((e) => redactNumbers(String(e)))),
     // Content fields (truncated — full content stored in S3 archive)
-    promptSummary:       truncate(promptSummary),
-    responseSummary:     truncate(responseSummary),
+    promptSummary:       truncate(redactNumbers(promptSummary)),
+    responseSummary:     truncate(redactNumbers(responseSummary)),
     toolCallsMade:       JSON.stringify(toolCallsMade),
     // NH-58: per-tool raw output for POPIA hallucination defence (truncated to 2KB per entry at capture time)
-    tool_outputs_raw:    toolOutputsRaw ? JSON.stringify(toolOutputsRaw) : '{}',
+    tool_outputs_raw:    toolOutputsRaw ? JSON.stringify(redactToolOutputs(toolOutputsRaw)) : '{}',
     // Performance + cost fields
     latencyMs,
     inputTokens,
@@ -176,7 +180,7 @@ async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
     }));
   } catch (err) {
     // Non-fatal — log and continue
-    logger.error('Audit write failed', { event: 'audit_write_error', error: err.message });
+    logger.error('Audit write failed', { event: 'audit_write_error', error: err?.name ?? 'Error' });
   }
 }
 
@@ -330,7 +334,7 @@ async function maybeSummariseHistory(messages, modelId) {
     ];
   } catch (err) {
     // Non-fatal — fall back to full history silently
-    logger.warn(JSON.stringify({ event: 'history_summarise_failed', error: err.message }));
+    logger.warn(JSON.stringify({ event: 'history_summarise_failed', error: err?.name ?? 'Error' }));
     return messages;
   }
 }
@@ -482,7 +486,7 @@ async function runAgenticLoop(messages, context, modelId) {
 
       for (const block of toolUseBlocks) {
         const { id: toolUseId, name: toolName, input: toolArgs } = block;
-        logger.info('Tool call', { toolName, toolArgs });
+        logger.info('Tool call', { toolName });
         // NH-57: track employee IDs accessed for audit schema
         const _empId = toolArgs?.id ?? toolArgs?.employee_id ?? null;
         if (_empId) employeesAccessed.add(_empId);
@@ -502,7 +506,7 @@ async function runAgenticLoop(messages, context, modelId) {
           if (toolName === 'list_verifications')      structuredData.verifications   = result;
           if (toolName === 'onboard_new_employee')    structuredData.hitlDraft       = result;
         } catch (err) {
-          logger.warn('Tool call failed', { toolName, error: err.message });
+          logger.warn('Tool call failed', { toolName, error: err?.name ?? 'Error' });
           result   = { error: err.message };
           isError  = true;
         }
@@ -595,6 +599,15 @@ async function runAgenticLoop(messages, context, modelId) {
 
 // ─── Lambda handler ───────────────────────────────────────────────────────────
 
+/** CHAT-02: a chat that could not be stored. Only the error name is logged, never the text. */
+function storeFailure(err, headers) {
+  if (err instanceof ChatNotFound) {
+    return { statusCode: 404, headers, body: JSON.stringify({ error: 'Not found' }) };
+  }
+  logger.error('Chat store error', { error: err?.name ?? 'Error' });
+  return { statusCode: 500, headers, body: JSON.stringify({ error: 'Something went wrong' }) };
+}
+
 export const handler = async (event) => {
   const refused = hrOnly(event, 'Only HR can use Batsi chat');
   if (refused) return refused;
@@ -642,6 +655,10 @@ export const handler = async (event) => {
     };
   }
 
+  // CHAT-02: after the robot and AI-off answers, Ask Batsi is a per-company switch, OFF until an admin turns it on.
+  const switchedOff = await requireModule(event, 'ask_batsi');
+  if (switchedOff) return switchedOff;
+
   // ── 1b. NH-80: Hourly rate limit check ─────────────────────────────────
   const retryAfter = await checkRateLimit(staffId);
   if (retryAfter !== null) {
@@ -675,7 +692,7 @@ export const handler = async (event) => {
     templateId           = 'freeform',
     slots                = {},
     screenContext        = {},
-    conversationHistory  = [],   // prior turns [{ role, content }]
+    chatId: requestedChatId,     // CHAT-02: history comes from the stored chat, never from the caller
     followUpText         = '',   // only present for templateId 'follow_up'
   } = body;
 
@@ -691,8 +708,25 @@ export const handler = async (event) => {
   // ── 3. Build messages array ───────────────────────────────────────────────
   const userXml = buildUserMessage(templateId, slots, screenContext, staffId, effectiveMessage);
 
-  // Replay prior turns then append this turn
-  const rawHistory = [...conversationHistory];
+  // CHAT-02: a follow-up loads its own stored chat. A chat that is not this person's is a 404.
+  const jsonHeaders = { 'Content-Type': 'application/json' };
+  let chatId = null;
+  let rawHistory = [];
+  if (requestedChatId !== undefined && requestedChatId !== null) {
+    if (!isChatId(requestedChatId)) {
+      return { statusCode: 404, headers: jsonHeaders, body: JSON.stringify({ error: 'Not found' }) };
+    }
+    try {
+      const header = await getHeader(tenantId, staffId, requestedChatId);
+      if (!header) {
+        return { statusCode: 404, headers: jsonHeaders, body: JSON.stringify({ error: 'Not found' }) };
+      }
+      chatId = requestedChatId;
+      rawHistory = await historyOf(tenantId, staffId, chatId);
+    } catch (err) {
+      return storeFailure(err, jsonHeaders);
+    }
+  }
 
   // ── 3a. NH-79: Maybe summarise history (every 8 user turns, Haiku only) ──
   // Pass MODEL_FAST placeholder — maybeSummariseHistory always uses MODEL_FAST regardless.
@@ -725,8 +759,9 @@ export const handler = async (event) => {
   // data changes) and must never be served stale.
   // cacheKey computed once — reused for lookup and store.
   let cacheHitResponse = null;
-  const cacheKey = intentClass === 'SIMPLE'
-    ? buildCacheKey(SYSTEM_PROMPT, effectiveMessage, selectedModelId)
+  // CHAT-02: only a chat's first question may use the cache, and the key carries the company.
+  const cacheKey = intentClass === 'SIMPLE' && !chatId
+    ? buildCacheKey(SYSTEM_PROMPT, effectiveMessage, selectedModelId, tenantId)
     : null;
   if (cacheKey) {
     cacheHitResponse = await getCached(cacheKey);
@@ -738,13 +773,24 @@ export const handler = async (event) => {
         model_id: selectedModelId,
       }));
       const pii = sanitisePii(cacheHitResponse);
+      let savedId;
+      try {
+        savedId = await appendExchange({
+          tenantId, staffId, chatId,
+          question: redactNumbers(effectiveMessage),
+          answer:   redactNumbers(pii.sanitised),
+        });
+      } catch (err) {
+        return storeFailure(err, jsonHeaders);
+      }
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message:         pii.sanitised,
           toolCallsMade:   [],
-          conversationId:  `${staffId}-${Date.now()}`,
+          chatId:          savedId,
+          conversationId:  savedId,
           structuredData:  {},
           latencyMs:       Date.now() - start,
           guardrailAction: pii.fired ? 'MASKED' : 'NONE',
@@ -762,11 +808,11 @@ export const handler = async (event) => {
   try {
     loopResult = await runAgenticLoop(messages, context, selectedModelId);
   } catch (err) {
-    logger.error('Bedrock pipeline error', { error: err.message, stack: err.stack });
+    logger.error('Bedrock pipeline error', { error: err?.name ?? 'Error' });
     return {
       statusCode: 502,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'AI service error', detail: err.message }),
+      body: JSON.stringify({ error: 'AI service error' }),
     };
   }
 
@@ -792,11 +838,32 @@ export const handler = async (event) => {
     logger.warn('PII sanitiser fired', { matchedPatterns: pii.matchedPatterns, staffId });
   }
 
+  // CHAT-05: the check rows, worked out from this turn's own tool results.
   const checks = checksOf(loopResult.toolCallsMade);
+
+  // CHAT-02: store the exchange (masked) before answering.
+  const toolNames = [...new Set(loopResult.toolCallsMade.map(t => t.toolName))];
+  const proposalIds = loopResult.toolCallsMade
+    .map(t => t.result?.actionId)
+    .filter(id => typeof id === 'string');
+  let savedChatId;
+  try {
+    savedChatId = await appendExchange({
+      tenantId, staffId, chatId,
+      question: redactNumbers(effectiveMessage),
+      answer:   redactNumbers(pii.sanitised),
+      tools:    toolNames,
+      proposalIds,
+    });
+  } catch (err) {
+    return storeFailure(err, jsonHeaders);
+  }
+
   const response = {
     message:         pii.sanitised,
     toolCallsMade:   loopResult.toolCallsMade.map(t => ({ tool: t.toolName, isError: t.isError })),
-    conversationId:  `${staffId}-${Date.now()}`,
+    chatId:          savedChatId,
+    conversationId:  savedChatId,
     structuredData:  checks ? { ...loopResult.structuredData, checks } : loopResult.structuredData,
     latencyMs,
     guardrailAction: pii.fired ? 'MASKED' : 'NONE',

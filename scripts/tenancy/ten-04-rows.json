@@ -1,3 +1,56 @@
 {
-  "GET /v1/company/modules": { "kind": "list" }
+  "GET /v1/company/modules": {
+    "kind": "list"
+  },
+  "POST /agent/v1/proposals": {
+    "kind": "agent"
+  },
+  "GET /agent/v1/actions": {
+    "kind": "list"
+  },
+  "POST /agent/v1/actions/{actionId}/approve": {
+    "kind": "byId",
+    "ids": {
+      "actionId": "action"
+    }
+  },
+  "POST /agent/v1/actions/{actionId}/reject": {
+    "kind": "byId",
+    "ids": {
+      "actionId": "action"
+    }
+  },
+  "GET /v1/chats": {
+    "kind": "list"
+  },
+  "GET /v1/chats/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "employee"
+    }
+  },
+  "DELETE /v1/chats/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "employee"
+    },
+    "read": {
+      "op": "GET /v1/chats"
+    }
+  },
+  "DELETE /v1/chats": {
+    "kind": "create",
+    "read": {
+      "op": "GET /v1/chats"
+    }
+  },
+  "PUT /v1/admin/company/ask-batsi": {
+    "kind": "create",
+    "body": {
+      "enabled": true
+    },
+    "read": {
+      "op": "GET /v1/company/modules"
+    }
+  }
 }

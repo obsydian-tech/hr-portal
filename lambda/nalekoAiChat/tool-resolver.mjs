@@ -75,13 +75,30 @@ async function pendingApproval(toolName, toolArgs, context) {
 
 /**
  * Fetch the agent API key from Secrets Manager (cached per warm container).
+ * ONB-22: `fresh` reads it again, for after a rotation.
  * @returns {Promise<string>}
  */
-async function getApiKey() {
-  if (_cachedApiKey) return _cachedApiKey;
+async function getApiKey(fresh = false) {
+  if (_cachedApiKey && !fresh) return _cachedApiKey;
   const result = await sm.send(new GetSecretValueCommand({ SecretId: SECRET_NAME }));
   _cachedApiKey = result.SecretString;
   return _cachedApiKey;
+}
+
+/**
+ * One call to the Agent API. A 401 or 403 means the key may have rotated since this container read it: read it again and
+ * try once more. Any other answer, and a second 401 or 403, is the answer (no loop).
+ */
+async function agentCall(method, path, body) {
+  const send = async (apiKey) => fetch(`${AGENT_API_BASE}${path}`, {
+    method,
+    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  let res = await send(await getApiKey());
+  if (res.status === 401 || res.status === 403) res = await send(await getApiKey(true));
+  if (!res.ok) throw new Error(`Agent API ${method} ${path} failed: ${res.status} ${res.statusText}`);
+  return res.json();
 }
 
 /**
@@ -90,14 +107,7 @@ async function getApiKey() {
  * @returns {Promise<object>}
  */
 export async function agentGet(path) {
-  const apiKey = await getApiKey();
-  const url    = `${AGENT_API_BASE}${path}`;
-  const res    = await fetch(url, {
-    method:  'GET',
-    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) throw new Error(`Agent API GET ${path} failed: ${res.status} ${res.statusText}`);
-  return res.json();
+  return agentCall('GET', path);
 }
 
 /**
@@ -107,15 +117,7 @@ export async function agentGet(path) {
  * @returns {Promise<object>}
  */
 export async function agentPost(path, body) {
-  const apiKey = await getApiKey();
-  const url    = `${AGENT_API_BASE}${path}`;
-  const res    = await fetch(url, {
-    method:  'POST',
-    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`Agent API POST ${path} failed: ${res.status} ${res.statusText}`);
-  return res.json();
+  return agentCall('POST', path, body);
 }
 
 /**
@@ -155,7 +157,8 @@ export const TOOL_DEFINITIONS = [
     input_schema: {
       type: 'object',
       properties: {
-        status: { type: 'string', enum: ['PENDING', 'VERIFIED', 'FAILED'] },
+        status:  { type: 'string', enum: ['PENDING', 'PROCESSING', 'PASSED', 'FAILED', 'MANUAL_REVIEW'] },
+        waiting: { type: 'boolean', description: 'Only the documents waiting for HR to decide' },
         employee_id: { type: 'string', description: 'Employee ID e.g. EMP-0000012. Use it for a question about one person.' },
         limit:  { type: 'number' },
       },
@@ -239,7 +242,7 @@ export const TOOL_MAP = {
     agentPost(`/agent/v1/employees/${encodeURIComponent(args.id)}/assess-risk`, {}),
 
   list_verifications: (args, _context) =>
-    agentGet(`/agent/v1/verifications${qs({ status: args.status, limit: args.limit, employee_id: args.employee_id })}`),
+    agentGet(`/agent/v1/verifications${qs({ status: args.status, waiting: args.waiting === true ? 'true' : undefined, limit: args.limit, employee_id: args.employee_id })}`),
 
   get_verification_summary: (args, _context) =>
     agentGet(`/agent/v1/verifications/${encodeURIComponent(args.id)}/summary`),

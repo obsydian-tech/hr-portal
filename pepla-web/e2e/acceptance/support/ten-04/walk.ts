@@ -47,9 +47,13 @@ const typedStrings = (v: unknown, out: string[] = []): string[] => {
   else if (v && typeof v === 'object') Object.values(v as Record<string, unknown>).forEach((x) => typedStrings(x, out));
   return out;
 };
-/** ten-04.1: the answer as text, without the keys a row names as changing by themselves. */
+/** ten-04.1: the answer as text, without the keys a row names as changing by themselves.
+ *  ten-04.7: each object's keys in name order. DynamoDB does not keep the order of a row's fields from one read to the next
+ *  (run 44428593151: the same company A row came back first as {"GSI1PK",...} then as {"configType",...}), so only the order
+ *  is set aside. Every key, every value and the order of rows in a list are still compared. */
+const byName = ([a]: [string, unknown], [b]: [string, unknown]) => (a < b ? -1 : a > b ? 1 : 0);
 const plainText = (b: unknown, volatile: string[] = []) => {
-  const strip = (v: unknown): unknown => Array.isArray(v) ? v.map(strip) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k]) => !volatile.includes(k)).map(([k, x]) => [k, strip(x)])) : v;
+  const strip = (v: unknown): unknown => Array.isArray(v) ? v.map(strip) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k]) => !volatile.includes(k)).sort(byName).map(([k, x]) => [k, strip(x)])) : v;
   return text(strip(b));
 };
 
@@ -67,6 +71,16 @@ const holds = (b: unknown, markers: string[], echo: string[] = []) => {
   let t = text(b);
   for (const e of echo) t = t.split(e).join('');
   return markers.filter((m) => t.includes(m));
+};
+
+/** ten-04.5: keys the platform itself rewrites on company A's own rows (the hourly SLA monitor, the orchestrator), so they are not company B's doing. */
+export const SELF_CHANGING = ['slaStatus', 'slaBreachedAt', 'slaBreachedStage', 'configVersion'];
+/** ten-04.5: where two answers first differ, a short stretch of each, so a failing line says what changed. */
+export const firstDifference = (before: string, after: string) => {
+  let i = 0;
+  while (i < before.length && i < after.length && before[i] === after[i]) i++;
+  const cut = (t: string) => t.slice(Math.max(0, i - 60), i + 120);
+  return `before: ...${cut(before)}... after: ...${cut(after)}...`;
 };
 
 export type Problem = string;
@@ -92,7 +106,7 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
     if (!login) { problems.push(`${why}: no login of company A may call ${r.op}`); return null; }
     const res = await call({ login, op: ro.key, api: ro.api, method: 'GET', path: fill(ro.path, r.ids, w), query: r.query ?? {} });
     if (res.status !== 200) { problems.push(`${why}: company A reading ${r.op} got ${res.status}, not 200`); return null; }
-    return text(res.body);
+    return plainText(res.body, SELF_CHANGING);
   };
 
   // Every operation needs a row, and says where its company comes from.
@@ -176,7 +190,7 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
       for (const m of holds(r.body, w.markers)) problems.push(`${label}: the answer to company B holds ${m} of company A`);
       if (isWrite && row.read && before !== null) {
         const after = await readBack(row, `${label} (after)`);
-        if (after !== null && after !== before) problems.push(`${label}: after company B's write, company A's row (${row.read.op}) is not as it was`);
+        if (after !== null && after !== before) problems.push(`${label}: after company B's write, company A's row (${row.read.op}) is not as it was (${firstDifference(before, after)})`);
       }
       continue;
     }
@@ -188,7 +202,7 @@ export async function walk(ops: OpInfo[], send: Send, w: World): Promise<Walked>
       for (const m of holds(r.body, w.markers, echo)) problems.push(`${label}: the answer to company B holds ${m} of company A`);
       if (row.read && before !== null) {
         const after = await readBack(row, `${label} (after)`);
-        if (after !== null && after !== before) problems.push(`${label}: after company B's create naming company A, company A's ${row.read.op} is not as it was`);
+        if (after !== null && after !== before) problems.push(`${label}: after company B's create naming company A, company A's ${row.read.op} is not as it was (${firstDifference(before, after)})`);
       }
     }
   }

@@ -3,7 +3,7 @@ import { Routes } from '@angular/router';
 import { siteStyles } from './ds/site/site-styles';
 import { ModulesService } from './core/modules.service';
 import { installTestHook, testRoutes } from './core/test-hook';
-import { employeeGuard, hrGuard, signedOutGuard } from './core/auth/auth.guard';
+import { adminGuard, employeeGuard, hrGuard, signedOutGuard } from './core/auth/auth.guard';
 import { documentTitle, knownDocumentGuard } from './features/start/document-types';
 
 /**
@@ -32,10 +32,20 @@ const appRoutes: Routes = [
     loadComponent: () => import('./features/hr/hr-shell').then((m) => m.HrShell),
     children: [
       { path: '', loadComponent: () => import('./features/hr/hr-home.page').then((m) => m.HrHomePage), title: 'Today · Naleko People' },
+      { path: 'ask-batsi', loadComponent: () => import('./features/hr-assistant/assistant-page').then((m) => m.AssistantPage), title: 'Ask Batsi · Naleko People' },
       { path: 'documents', loadComponent: () => import('./features/hr/documents.page').then((m) => m.DocumentsToCheckPage), title: 'Documents to check · Naleko People' },
       { path: 'documents/:id', loadComponent: () => import('./features/hr/document.page').then((m) => m.DocumentPage), title: 'Document · Naleko People' },
       { path: 'employees/new', loadComponent: () => import('./features/hr/register-employee.page').then((m) => m.RegisterEmployeePage), title: 'Register a new employee · Naleko People' },
       { path: 'employees/:id', loadComponent: () => import('./features/hr/employee-detail.page').then((m) => m.EmployeeDetailPage), title: 'Employee · Naleko People' },
+    ],
+  },
+  {
+    path: 'admin',
+    canActivate: [adminGuard],
+    loadComponent: () => import('./features/admin/admin-shell').then((m) => m.AdminShell),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'ask-batsi' },
+      { path: 'ask-batsi', loadComponent: () => import('./features/admin/company-switch.page').then((m) => m.CompanySwitchPage), title: 'Ask Batsi · Naleko People' },
     ],
   },
   { path: 'dev/design-system', loadComponent: () => import('./dev/design-system.page').then((m) => m.DesignSystemPage), title: 'Design system · Naleko People' },

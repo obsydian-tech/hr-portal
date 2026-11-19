@@ -5,6 +5,8 @@ import { PpButton, PpField, PpForm, PpLink, PpPassword, PpSectionMessage, PpSign
 import { isEmail, landingFor } from '../../core/auth/auth.errors';
 import { RESET_MESSAGES, SIGN_IN_MESSAGES, SignInProblem } from '../../core/auth/auth.messages';
 import { AuthService } from '../../core/auth/auth.service';
+import { landingFor as firstPage } from '../../core/nav';
+import { ROLE, rolesOf } from '../../core/roles';
 
 /**
  * ONB-01 and ONB-23: HR and employees sign in here with an email and password. Spec: the ONB-01 card (NH-147).
@@ -77,7 +79,11 @@ export class SignInPage {
     const result = await this.auth.signIn(this.email(), this.password());
     this.busy.set(false);
     if (result.ok) {
-      await this.router.navigateByUrl(landingFor(this.auth.isHr(), this.route.snapshot.queryParamMap.get('returnUrl')));
+      // An admin who is not HR (and not an employee) has no HR or employee page: they go to their own first page (CHAT-03).
+      const { roles, perms } = rolesOf(result.user.groups);
+      const adminOnly = roles.includes(ROLE.admin) && !roles.includes(ROLE.hrStaff);
+      const to = adminOnly ? firstPage(roles, perms, []) : landingFor(this.auth.isHr(), this.route.snapshot.queryParamMap.get('returnUrl'));
+      await this.router.navigateByUrl(to);
       return;
     }
     this.problem.set(result.problem);

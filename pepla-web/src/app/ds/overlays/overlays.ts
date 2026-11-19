@@ -23,6 +23,8 @@ export abstract class PpLayer implements OnDestroy {
   /** Height of the in-place frame, in pixels (docs only). */
   readonly inlineHeight = input<number>();
   protected inlineSize() { return this.inline() && this.inlineHeight() ? this.inlineHeight() + 'px' : null; }
+  /** Drawn in place on the page instead of over it. A layer that has a page form (the agent panel) says so here. */
+  protected inPlace(): boolean { return this.inline(); }
   readonly closed = output<void>();
   private readonly overlay = inject(Overlay);
   private readonly vcr = inject(ViewContainerRef);
@@ -32,7 +34,7 @@ export abstract class PpLayer implements OnDestroy {
 
   constructor() {
     effect(() => {
-      const show = this.open() && !this.inline();
+      const show = this.open() && !this.inPlace();
       untracked(() => {
         if (show && !this.ref) {
           this.opener = document.activeElement as HTMLElement;

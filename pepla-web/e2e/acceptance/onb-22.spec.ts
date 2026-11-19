@@ -1165,7 +1165,12 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     expect(sq(block(text('infra/agent_api.tf'), 'resource "aws_apigatewayv2_route" "agent_action_get"')), 'the agent\'s status read is as it was').toBe(baseline['routeGetAction']);
     const allTf = readdirSync(join(REPO, 'infra')).filter((f) => f.endsWith('.tf')).map((f) => text(`infra/${f}`).replace(/^\s*(#|\/\/).*$/gm, '')).join('\n');
     expect(allTf, 'no moved or removed block (nothing is replaced behind a rename)').not.toMatch(/^\s*(moved|removed)\s*\{[^}]*agent_action|^\s*removed\s*\{[^}]*(pending_actions|agent_action)/m);
-    expect(sq(block(text('infra/agent_api.tf'), 'cors_configuration')), 'no new request header: the agent API\'s CORS is as it was').toBe(baseline['agentCors']);
+    // CHAT-02 (child lock onb-22.3): the agent API's CORS may also allow DELETE, for Delete chat. Nothing else: no new header, no new origin.
+    const corsNow = sq(block(text('infra/agent_api.tf'), 'cors_configuration'));
+    const methodsOf = (c: string) => [...(/allow_methods=\[([^\]]*)\]/.exec(c)?.[1] ?? '').split(",")].map((m) => m.replace(/^"(.*)"$/, "$1")).filter(Boolean).sort();
+    const stripMethods = (c: string) => c.replace(/allow_methods=\[[^\]]*\]/, 'allow_methods=[]');
+    expect(stripMethods(corsNow), 'no new request header or origin: the agent API\'s CORS is as it was, apart from its method list').toBe(stripMethods(baseline['agentCors']));
+    expect([methodsOf(corsNow).join(','), methodsOf(baseline['agentCors']).join(',')].map((x, i) => (i === 0 ? x.split(',').filter((m) => m !== 'DELETE').join(',') : x)), 'the methods are the old ones, plus DELETE only (CHAT-02)').toEqual([methodsOf(baseline['agentCors']).join(','), methodsOf(baseline['agentCors']).join(',')]);
   });
 
   const roleFn = (fn: string) => {
@@ -1193,7 +1198,9 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     const attrs = [...clean.matchAll(/^\s*attribute\s*\{([^}]*)\}/gm)].map((m) => attr(m[1]!, 'name')?.replace(/"/g, '')).sort();
     expect(attrs, 'the attribute list holds the key and the two index keys, nothing else').toEqual(['actionId', 'createdAt', 'tenant_id']);
     const countNow = (allTfText().match(/resource "aws_dynamodb_table" "/g) ?? []).length;
-    expect(countNow, 'no new table (ops-05\'s count line stays)').toBe(baseline['tableCount']);
+    // Child lock onb-22.3: no table of this card, and only two tables of other cards are allowed on top: CHAT-02's ask-batsi-chats and ONB-21's reminders.
+    const otherCards = ['ask_batsi_chats', 'reminders'].filter((n) => new RegExp(`resource "aws_dynamodb_table" "${n}"`).test(allTfText())).length;
+    expect(countNow, 'no new table of this card (the count is the old one plus CHAT-02\'s chats table and ONB-21\'s reminders table, when they are there)').toBe((baseline['tableCount'] as number) + otherCards);
     // The new Lambda.
     const fn = lambdaNamed('createProposal');
     const a = (name: string) => attr(fn.body, name);
@@ -1283,8 +1290,10 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     const kms = text('infra/kms.tf').replace(/^\s*(#|\/\/).*$/gm, '');
     expect(sq(/allowed_role_arns\s*=\s*\[([\s\S]*?)\]/.exec(kms)?.[1] ?? ''), 'allowed_role_arns gains nothing').toBe(baseline['kmsAllowed']);
     const reads = (/dynamodb_read_role_arns\s*=\s*\[([\s\S]*?)\n\s*\]/.exec(kms)?.[1] ?? '').split('\n').map((l) => l.trim().replace(/,$/, '')).filter(Boolean);
-    const addedRoles = reads.filter((l) => !(baseline['kmsReadRoles'] as string[]).includes(l)).sort();
-    expect(addedRoles, 'dynamodb_read_role_arns gains exactly the four roles').toEqual(['createProposal', 'approveAgentAction', 'queryAuditLog', 'summariseVerification'].map((f) => `aws_iam_role.${roleOf(lambdaNamed(f))}.arn`).sort());
+    // Child lock onb-22.3: the roles of other cards that read tables behind the PII key may also be listed: CHAT-02's two (ask_batsi_chats, admin_set_ask_batsi) and ONB-21's reminder sender.
+    const OTHER_CARDS = ['aws_iam_role.ask_batsi_chats.arn', 'aws_iam_role.admin_set_ask_batsi.arn', 'aws_iam_role.send_document_reminders.arn'];
+    const addedRoles = reads.filter((l) => !(baseline['kmsReadRoles'] as string[]).includes(l) && !OTHER_CARDS.includes(l)).sort();
+    expect(addedRoles, 'dynamodb_read_role_arns gains exactly the four roles (and, apart from them, only the three roles of CHAT-02 and ONB-21)').toEqual(['createProposal', 'approveAgentAction', 'queryAuditLog', 'summariseVerification'].map((f) => `aws_iam_role.${roleOf(lambdaNamed(f))}.arn`).sort());
     expect((baseline['kmsReadRoles'] as string[]).filter((l) => !reads.includes(l)), 'and takes none away').toEqual([]);
     // summariseVerification reads the employee for the email.
     const sumRole = roleOf(lambdaNamed('summariseVerification'));
@@ -1382,8 +1391,15 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
 
   test('AC-10 Nothing else moves: the review, the single read, the file link and the sign-in code are not edited (hash)', async ({}, testInfo) => {
     once(testInfo);
+    // ONB-22.2 (19 Nov 2026): ONB-14 (NH-182, its AC-4 and security review C-1) takes id_number and account_number out of the
+    // single-verification answer, so that one file may also be exactly ONB-14's version (PR 429 at 4ec4147). Any other edit of
+    // it, and any edit of the other four files, still fails.
+    const alsoAllowed: Record<string, string[]> = {
+      'lambda/getSingleDocumentVerification/index.mjs': ['c3b9ffb0c78bdae0a8192dff7936bb52e6d3ba5187cbf884980b1fc8c1c0ac72'],
+    };
     for (const [file, sha] of Object.entries(baseline['hashes'] as Record<string, string>)) {
-      expect(createHash('sha256').update(readFileSync(join(REPO, file))).digest('hex'), `${file} is as it was (a hash of develop ${baseline['commit']}): it is run by the new code, not edited`).toBe(sha);
+      const now = createHash('sha256').update(readFileSync(join(REPO, file))).digest('hex');
+      expect([sha, ...(alsoAllowed[file] ?? [])], `${file} is as it was (a hash of develop ${baseline['commit']}${alsoAllowed[file] ? ', or ONB-14\'s version' : ''}): it is run by the new code, not edited`).toContain(now);
     }
     for (const spec of ['ten-02', 'ten-04', 'be-17.1', 'be-18', 'be-19', 'be-20', 'onb-15', 'onb-20', 'ops-05']) {
       expect(existsSync(join(here, `${spec}.spec.ts`)), `${spec}.spec.ts is in the folder, and the builder runs it before the PR`).toBe(true);

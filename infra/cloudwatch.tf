@@ -9,6 +9,9 @@
 locals {
   lambda_log_groups = toset([
     "/aws/lambda/getCompanyModules",
+    "/aws/lambda/askBatsiChats",
+    "/aws/lambda/adminSetAskBatsi",
+    "/aws/lambda/sendDocumentReminders",
     "/aws/lambda/cognitoEmailSender",
     "/aws/lambda/cognitoPostConfirmation",
     "/aws/lambda/agentAuthorizer",
@@ -30,6 +33,7 @@ locals {
     "/aws/lambda/recordConsent",
     "/aws/lambda/generateDocumentUploadUrl",
     "/aws/lambda/getBatchRiskReport",
+    "/aws/lambda/createProposal",
     "/aws/lambda/getDocumentPresignedUrl",
     "/aws/lambda/getDocumentVerifications",
     "/aws/lambda/getEmployee",
@@ -72,6 +76,7 @@ locals {
     "/aws/lambda/createMyUploadLink",
     "/aws/lambda/recordConsent",
     "/aws/lambda/getBatchRiskReport",
+    "/aws/lambda/createProposal",
     "/aws/lambda/getDocumentPresignedUrl",
     "/aws/lambda/getDocumentVerifications",
     "/aws/lambda/getEmployee",

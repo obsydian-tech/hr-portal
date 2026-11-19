@@ -5,13 +5,14 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { FREEZE_VIEW, GATED_VIEW, PEPLA_WEB, PIECES, STILL, TOL, compareExample, examples, exampleId, fire, fromFirstChange, gotoLearn, hit, openKitExample, pieceByName, sameTimeline, settle, settled, sleep, timeline, wordsOf, deviceOf, type Device, type Example, type Step } from './support/site-08/kit';
-import { MOTION_PROBE, SLID_PROBE, checkAccessibility, checkDemoView, slidControlSees, checkEnding, checkMotion, checkPageParity, checkPageWords, checkSections, checkSubmenu, checkTop, hiddenFocusables, judgeEnding, judgeTop, learnSampleSpec, motionProblems } from './support/site-08/learn-page';
+import { freezeTimers, loopsIn, tiltCompare, tiltControlSees, transitionsIn } from './support/site-08/reduced-motion';
+import { MOTION_PROBE, SLID_PROBE, checkAccessibility, checkDemoView, slidControlSees, checkEnding, checkMotion, slidCssOf, checkPageParity, checkPageWords, checkSections, checkSubmenu, checkTop, hiddenFocusables, judgeEnding, judgeTop, learnSampleSpec, motionProblems } from './support/site-08/learn-page';
 import { allowed, changedFiles, isThisCard, outside, refused } from './support/site-08/files';
 
 /**
  * SITE-08 · Learn more page frame: page top, sub-menu, demo section shell, page ending, shared demo pieces, the page helper.
- * No backend. Runs against `ng serve` through E2E_BASE_URL, with the design system kit read at SITE_KIT_REF (default: the ref in sync.json;
- * develop's ref lacks site-pages.html, so use SITE_KIT_REF=c0de954c2b1d60f5b65d894a2664cfa6ffeda2d0 until SITE-07 moves the ref). See cards/site-08.md.
+ * No backend. Runs against `ng serve` through E2E_BASE_URL, with the design system kit read at SITE_KIT_REF (default: 03df8e2aa41ed09dc7a1571f074b3d8c82ffde9a,
+ * the design system main head that holds PR #49, the reduced motion rule; child lock .2). See cards/site-08.md.
  * The desktop device is read in a 1456 wide window (the stage is then the kit's 1440), the phone device at 390.
  * Both sides are driven by the same actions: the kit (its markup and its preview scripts) is the oracle.
  */
@@ -68,6 +69,8 @@ async function both(w: World, ms: number, act?: Act, start = true, skip = ''): P
   const [app, kit] = await Promise.all([go(w.app, w.a, false), go(w.kit, w.k, true)]);
   return { app, kit };
 }
+/** How long each shared piece runs (the kit's last timer plus a margin): AC-6 and the reduced motion half of AC-8. */
+const PIECE_MS: Record<string, number> = { timeline: 7_000, 'document read': 9_000, suggestion: 6_500, 'live status': 7_000, 'approval decision and log line': 6_500, 'choices and slots': 10_500 };
 const inner = (ex: Example, sel: string) => (ex.family === 'piece' ? sel : sel);
 
 test.describe('SITE-08 Learn more page frame', () => {
@@ -267,8 +270,8 @@ test.describe('SITE-08 Learn more page frame', () => {
   });
 
   // ---------------------------------------------------------------- AC-8
-  test('AC-8 motion: only transform and opacity animate; reduced motion still steps and nothing slides; data-site-still shows the last step and nothing loops', async ({ browser, baseURL, page }) => {
-    test.setTimeout(12 * 60_000);
+  test('AC-8 motion: only transform and opacity animate; reduced motion keeps every demo playing at the kit\'s timings and stops only large movement; data-site-still shows the last step and nothing loops', async ({ browser, baseURL, page }) => {
+    test.setTimeout(30 * 60_000);
     const d = deviceOf(page);
     const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone' });
     try {
@@ -284,28 +287,68 @@ test.describe('SITE-08 Learn more page frame', () => {
       expect(await motionProblems(p), 'only transform and opacity animate (the kit\'s FAQ row height and the design system\'s button colours aside); no inline width, height, left, top, inset, margin or padding').toEqual([]);
     } finally { await ctx.close(); }
     const white = d === 'desktop' ? byName(d, 'Demo section, white') : byName(d, 'Demo section');
-    // Reduced motion: the demo still steps, and no step slides.
-    {
-      const w = await world(browser, baseURL!, page, white, 'gated', { reducedMotion: 'reduce' });
+    // Reduced motion (child lock .2; design system PR #49, ref c3788a5, kit pinned at 03df8e2). Every demo plays at its normal timings, as the kit plays it under reduced motion
+    // (fades, colour and status changes, typing, counts: the kit's scripts and the design system's slow loops); only grain, the flying board card, pointer tilt and other large
+    // movement stop. Before .2 this block judged the one white demo and said "no step slides", a workaround for a design system rule that does not exist and is not wanted.
+    // Every example of the gallery is opened under reduced motion beside the kit's: the pointer goes over it (nothing tilts), the demos and pieces and the first ending's Ask Batsi
+    // play (same states, same order, each within 250ms of the kit), no script moves anything (the flight), and the CSS loops running are the kit's at the kit's lengths (no grain).
+    const REDUCED = { reducedMotion: 'reduce' as const };
+    const press = async (pg: Page, scope: string) => { await hit(pg, `${scope} .pp-site-demo__again`); };
+    const run = (ex: Example): { ms: number; act?: Act; start: boolean; scope?: string } | undefined => {
+      if (ex.family === 'piece') return { ms: PIECE_MS[ex.name.replace('Piece: ', '')]!, start: true };
+      // The kit's phone demo and its cream and flipped desktop demo do not start by view (they are not `data-live`): they start with Play again, on both pages (lock check T9).
+      if (ex.family === 'demo' && /^Demo section/.test(ex.name)) { const byHand = ex.name !== 'Demo section, white'; return { ms: 5_200, act: byHand ? press : undefined, start: !byHand }; }
+      if (ex.family === 'ending' && /Recruitment/.test(ex.name)) return { ms: 9_500, start: false, scope: '.pp-site-batsi', act: async (pg) => { await pg.locator('.pp-site-batsi .pp-site-ask__chip').nth(0).evaluate((el) => (el as HTMLElement).click()); } };
+      return undefined;
+    };
+    let kitLoops = 0, runs = 0;
+    for (const ex of examples(d).filter((e) => e.family !== 'sample')) {
+      const w = await world(browser, baseURL!, page, ex, 'gated', REDUCED);
       try {
         for (const p of [w.app, w.kit]) await p.evaluate(SLID_PROBE);
-        const r = await both(w, 5_200, d === 'phone' ? async (p, scope) => { await hit(p, `${scope} .pp-site-demo__again`); } : undefined, d !== 'phone');
-        await expectSame('reduced motion, the demo steps', r.app, r.kit);
-        expect(await w.app.evaluate(() => [...(window as unknown as { __slid: Set<string> }).__slid]), 'reduced motion: no step slides').toEqual([]);
+        expect(await transitionsIn(w.app, w.a), `${ex.screen}: under reduced motion every transition has the kit's property, length and delay (none removed, none slowed)`).toEqual(await transitionsIn(w.kit, w.k));
+        const tilt = await tiltCompare(w.app, w.kit, w.a, w.k);
+        expect(tilt.app.filter((m) => !tilt.kit.includes(m)), `${ex.screen}: under reduced motion the pointer tilts nothing (what moves is what the kit's hover rules move)`).toEqual([]);
+        const r = run(ex);
+        if (r) {
+          const sub = r.scope ? { ...w, a: `${w.a} ${r.scope}`, k: r.scope } : w;
+          const res = await both(sub, r.ms, r.act, r.start);
+          await expectSame(`${ex.screen}, reduced motion, the run`, res.app, res.kit);
+          runs++;
+        } else await sleep(600);
+        const slid = (p: Page) => p.evaluate(() => [...(window as unknown as { __slid: Set<string> }).__slid]);
+        expect(await slid(w.kit), `${ex.screen}: the kit moves nothing by script under reduced motion (DS PR #49)`).toEqual([]);
+        expect(await slid(w.app), `${ex.screen}: under reduced motion nothing moves by script (no flying card, no sliding step)`).toEqual([]);
+        expect(await slidCssOf(w.app), `${ex.screen}: under reduced motion no large move is made by a CSS transition that the kit does not make (no flying card)`).toEqual(await slidCssOf(w.kit));
+        const k = await loopsIn(w.kit, [w.k]);
+        kitLoops += k.length;
+        expect(await loopsIn(w.app, [w.a]), `${ex.screen}: under reduced motion the CSS loops running are the kit's, at the kit's (slower) lengths; there is no grain`).toEqual(k);
       } finally { await w.ctx.close(); }
     }
-    // Lock check T2 (control): none of the gallery's kit demos slides by script (only the Recruitment hiring board does, and it is not a shared piece), so the
-    // block above could pass by seeing nothing. The probe is shown to be alive: a script slide put on a step by hand is recorded.
+    expect(runs, 'every demo (white; cream and flipped on desktop), the six pieces and Ask Batsi were each played under reduced motion').toBeGreaterThanOrEqual(d === 'desktop' ? 9 : 8);
+    expect(kitLoops, 'control: the kit runs CSS loops under reduced motion (the slow light), so the loop compare above could not pass by seeing nothing').toBeGreaterThan(0);
+    // The demo plays by timers under reduced motion too (a page that zero-delays them has none queued): timers are queued while it plays.
     {
-      const w = await world(browser, baseURL!, page, white, 'gated', { reducedMotion: 'reduce' });
+      const w = await world(browser, baseURL!, page, white, 'gated', REDUCED);
+      try {
+        if (d === 'phone') await hit(w.app, `${w.a} .pp-site-demo__again`); else await fire(w.app);
+        await sleep(600);
+        const pending = await w.app.evaluate(() => (window as unknown as { __ppSiteClock?: { pending(): number } }).__ppSiteClock?.pending() ?? -1);
+        expect(pending, 'under reduced motion the demo is still playing 600ms in, so timers are queued (window.__ppSiteClock.pending() above 0)').toBeGreaterThan(0);
+      } finally { await w.ctx.close(); }
+    }
+    // Controls: the two probes see what they are there to see (a script slide put on a step by hand, a pointer handler that tilts).
+    {
+      const w = await world(browser, baseURL!, page, white, 'gated', REDUCED);
       try {
         await w.app.evaluate(SLID_PROBE);
         expect(await slidControlSees(w.app), 'control: the reduced-motion probe records a script slide put on a step').toBe(true);
+        expect(await tiltControlSees(w.app, w.a), 'control: the pointer check sees a tilt put on the page').toBe(true);
       } finally { await w.ctx.close(); }
     }
-    // Still mode: every step shows at once; nothing loops.
-    {
-      const ctx2 = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone' });
+    // Still mode: every step shows at once; nothing loops; with and without reduced motion (it is a separate rule and wins over both).
+    for (const motion of ['no-preference', 'reduce'] as const) {
+      const ctx2 = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: motion });
       try {
         await ctx2.addInitScript(GATED_VIEW);
         await ctx2.addInitScript(() => { const set = () => document.documentElement?.setAttribute('data-site-still', ''); set(); new MutationObserver(set).observe(document, { childList: true }); });
@@ -313,14 +356,19 @@ test.describe('SITE-08 Learn more page frame', () => {
         await gotoLearn(p);
         await fire(p);
         await sleep(500);
-        const r = await p.evaluate(() => ({
-          hidden: Array.from(document.querySelectorAll('.pp-site-demo .pp-site-step')).filter((e) => getComputedStyle(e).opacity !== '1').length,
-          loops: document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity && (a as CSSAnimation).animationName !== 'pp-site-blink').map((a) => String(((a.effect as KeyframeEffect).target as Element | null)?.className).slice(0, 40)),
-        }));
-        expect(r.hidden, 'data-site-still: every step of every demo shows at once').toBe(0);
-        expect(r.loops, 'data-site-still: nothing loops').toEqual([]);
+        const r = await p.evaluate(() => {
+          const of = (e: Element | null | undefined) => (e?.closest('section[data-example]') as HTMLElement | null)?.dataset['example'] ?? '?';
+          return {
+            hidden: Array.from(document.querySelectorAll('.pp-site-demo .pp-site-step')).filter((e) => getComputedStyle(e).opacity !== '1').map((e) => of(e)),
+            loops: document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity && (a as CSSAnimation).animationName !== 'pp-site-blink').map((a) => `${of((a.effect as KeyframeEffect).target as Element)}: ${String(((a.effect as KeyframeEffect).target as Element | null)?.className).slice(0, 40)}`),
+            demos: document.querySelectorAll('section[data-example] .pp-site-demo .pp-site-step').length,
+          };
+        });
+        expect(r.demos, `data-site-still (${motion}): the gallery's demos have steps`).toBeGreaterThan(0);
+        expect(r.hidden, `data-site-still (${motion}): every step of every demo and piece shows at once (examples named)`).toEqual([]);
+        expect(r.loops, `data-site-still (${motion}): nothing loops, in any example`).toEqual([]);
         const pending = await p.evaluate(() => (window as unknown as { __ppSiteClock?: { pending(): number } }).__ppSiteClock?.pending() ?? -1);
-        expect(pending, 'data-site-still leaves no timer (window.__ppSiteClock.pending() is 0; the hook is on every /dev page, see cards/site-08.md)').toBe(0);
+        expect(pending, `data-site-still (${motion}) leaves no timer (window.__ppSiteClock.pending() is 0; the hook is on every /dev page, see cards/site-08.md)`).toBe(0);
       } finally { await ctx2.close(); }
     }
     // Replay and leaving the route clean up: after Play again the same timers are queued, and after leaving none is left.
@@ -367,23 +415,42 @@ test.describe('SITE-08 Learn more page frame', () => {
   });
 
   // ---------------------------------------------------------------- AC-10
-  test('AC-10 accessibility: axe finds nothing on the gallery, with a question open and Ask Batsi in each of its three states; nothing reachable by Tab sits inside an aria-hidden container', async ({ browser, baseURL, page }) => {
-    test.setTimeout(6 * 60_000);
+  test('AC-10 accessibility: axe finds nothing on the gallery, with a question open and Ask Batsi in each of its three states, on the first step of every demo and after every demo has played to its end; nothing reachable by Tab sits inside an aria-hidden container', async ({ browser, baseURL, page }) => {
+    test.setTimeout(8 * 60_000);
     const d = deviceOf(page);
-    const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: 'reduce' });
-    try {
-      await ctx.addInitScript(FREEZE_VIEW);
-      const p = await ctx.newPage();
-      await gotoLearn(p);
+    const read = async (p: Page, what: string) => {
       await p.addStyleTag({ content: STILL });
       for (let i = 0; i < 2; i++) await p.evaluate(async () => { await Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))); });
       const batsi = await p.evaluate(() => Array.from(document.querySelectorAll('section[data-example^="Ask Batsi"]')).map((s) => (s as HTMLElement).dataset['example']));
-      expect(batsi.length, 'the gallery shows Ask Batsi answered, waiting and approved').toBeGreaterThanOrEqual(3);
-      expect(await p.locator('.pp-site-faq__item--open').count(), 'a question is open').toBeGreaterThan(0);
+      expect(batsi.length, `${what}: the gallery shows Ask Batsi answered, waiting and approved`).toBeGreaterThanOrEqual(3);
+      expect(await p.locator('.pp-site-faq__item--open').count(), `${what}: a question is open`).toBeGreaterThan(0);
       const axe = await new AxeBuilder({ page: p }).exclude('.pp-site-shine__copy').withTags(['wcag2a', 'wcag2aa']).analyze();
-      expect(axe.violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), 'axe (wcag2a, wcag2aa) finds no violation').toEqual([]);
-      expect(await hiddenFocusables(p), 'no element Tab reaches sits inside an aria-hidden container (use inert)').toEqual([]);
-    } finally { await ctx.close(); }
+      expect(axe.violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`), `${what}: axe (wcag2a, wcag2aa) finds no violation`).toEqual([]);
+      expect(await hiddenFocusables(p), `${what}: no element Tab reaches sits inside an aria-hidden container (use inert)`).toEqual([]);
+    };
+    // Child lock .2: the demos play under reduced motion, so the gallery is read twice. First on the first step of every demo (the views never report, as before), then
+    // under reduced motion with every view fired: the demos play, are read where they stop (every timer cancelled, animations stilled), as SITE-03 AC-11 does since site-04.7.
+    {
+      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone' });
+      try {
+        await ctx.addInitScript(FREEZE_VIEW);
+        const p = await ctx.newPage();
+        await gotoLearn(p);
+        await read(p, 'first step');
+      } finally { await ctx.close(); }
+    }
+    {
+      const ctx = await browser.newContext({ baseURL, viewport: page.viewportSize()!, hasTouch: d === 'phone', isMobile: d === 'phone', reducedMotion: 'reduce' });
+      try {
+        await ctx.addInitScript(GATED_VIEW);
+        const p = await ctx.newPage();
+        await gotoLearn(p);
+        await fire(p);
+        await sleep(12_000); // the longest demo (choices and slots) ends at 10.5s
+        await freezeTimers(p);
+        await read(p, 'every demo played to its end, reduced motion');
+      } finally { await ctx.close(); }
+    }
   });
 
   // ---------------------------------------------------------------- AC-11
@@ -423,7 +490,7 @@ test.describe('SITE-08 Learn more page frame', () => {
 
   // ---------------------------------------------------------------- AC-12
   test('AC-12 the page helper: every check passes on the gallery\'s sample page and fails on a planted fault', async ({ browser, baseURL, page }) => {
-    test.setTimeout(25 * 60_000);
+    test.setTimeout(40 * 60_000);
     const env = { browser, baseURL: baseURL!, page };
     const spec = learnSampleSpec(deviceOf(page));
     expect(existsSync(join(PEPLA_WEB, 'e2e', 'acceptance', 'support', 'site-08', 'learn-page.ts')), 'support/site-08/learn-page.ts exists').toBe(true);
@@ -445,6 +512,29 @@ test.describe('SITE-08 Learn more page frame', () => {
     await expect(checkTop(env, spec, { plant: (p) => p.evaluate(() => { const h = document.createElement('h1'); h.textContent = 'A second headline'; document.querySelector('.pp-site-form-page__intro')!.appendChild(h); }) }), 'two h1 fail the page top check').rejects.toThrow();
     await expect(checkPageWords(env, spec, { plant: (p) => p.evaluate(() => { const e = document.querySelector('.pp-site-faq__a-text')!; e.textContent = (e.textContent ?? '') + ' Extra.'; }) }), 'a changed word fails the words check').rejects.toThrow();
     await expect(checkMotion(env, spec, { plant: (p) => p.evaluate(() => { (document.querySelector('nav[aria-label="On this page"]') as HTMLElement).style.width = '300px'; }) }), 'an inline width fails the motion check').rejects.toThrow();
+    // Child lock .2: the reduced motion rule. Each fault is put on the page after it has loaded and before the views fire; every one only shows under reduced motion (or data-site-still).
+    const skipped = (p: Page) => p.evaluate(() => { const real = window.setTimeout.bind(window); (window as unknown as { setTimeout: unknown }).setTimeout = (f: TimerHandler, ms?: number, ...a: unknown[]) => real(f, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : ms, ...a); });
+    const retimed = (p: Page) => p.evaluate(() => { const real = window.setTimeout.bind(window); (window as unknown as { setTimeout: unknown }).setTimeout = (f: TimerHandler, ms?: number, ...a: unknown[]) => real(f, (ms ?? 0) + (matchMedia('(prefers-reduced-motion: reduce)').matches && (ms ?? 0) > 100 ? 300 : 0), ...a); });
+    const flying = (p: Page) => p.evaluate(() => { new MutationObserver((ms) => { for (const m of ms) (m.target as HTMLElement).animate?.([{ transform: 'translate(60px, 30px)' }, { transform: 'none' }], { duration: 700 }); }).observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true }); });
+    // Lock check T-plant: grain also set an inline inset, which the normal-motion rule of the same check caught first (a wrong reason); these two used `document.querySelector('[data-s8-root]')!`, a marker that only the compared pair has; in the first (normal motion) context the plant threw a TypeError, and
+    // `.rejects.toThrow()` took that for the fault being caught. The root is the page's own parent now, present in every context, and each fault must be caught by the check that names it.
+    const pageRoot = () => document.querySelector('.pp-site-form-page--learn')!.parentElement as HTMLElement;
+    const grain = (p: Page) => p.evaluate((src) => { const root = new Function(`return (${src})()`)() as HTMLElement; root.insertAdjacentHTML('afterbegin', '<div aria-hidden="true" style="animation:pp-site-drift 3s linear infinite;color:transparent;font-size:1px">.</div>'); }, pageRoot.toString());
+    const tilt = (p: Page) => p.evaluate((src) => { const root = new Function(`return (${src})()`)() as HTMLElement; const lean = (e: MouseEvent) => { (root.querySelector('h1') as HTMLElement).style.transform = `rotate(${(e.clientX / innerWidth - 0.5) * 6}deg)`; }; root.addEventListener('pointermove', lean); root.addEventListener('mousemove', lean); }, pageRoot.toString());
+    const looping = (p: Page) => p.evaluate(() => { document.head.insertAdjacentHTML('beforeend', '<style>[data-site-still] .pp-site-demo__vis{animation:pp-site-drift 3s linear infinite!important}</style>'); });
+    // Lock check .2 (T-hover, T-flight-css, T-transition): a tilt that shows only while the pointer is over the page, a large move made by a CSS transition, and a fade slowed under reduced motion.
+    const hoverTilt = (p: Page) => p.evaluate(() => { document.head.insertAdjacentHTML('beforeend', '<style>@media (prefers-reduced-motion: reduce){.pp-site-form-page:hover{transform:rotate(2deg)!important}}</style>'); });
+    const cssFlight = (p: Page) => p.evaluate(() => { document.head.insertAdjacentHTML('beforeend', '<style>@media (prefers-reduced-motion: reduce){.pp-site-step:not(.pp-site-step--in){transform:translateX(80px)!important}}</style>'); });
+    const slowFade = (p: Page) => p.evaluate(() => { document.head.insertAdjacentHTML('beforeend', '<style>@media (prefers-reduced-motion: reduce){.pp-site-step{transition-duration:1.5s!important}}</style>'); });
+    await expect(checkMotion(env, spec, { plant: hoverTilt }), 'a tilt that shows only while the pointer is over the page fails the motion check').rejects.toThrow(/pointer tilts nothing/);
+    await expect(checkMotion(env, spec, { plant: cssFlight }), 'a large move made by a CSS transition under reduced motion fails the motion check').rejects.toThrow(/CSS transition/);
+    await expect(checkMotion(env, spec, { plant: slowFade }), 'a slowed fade under reduced motion fails the motion check').rejects.toThrow(/transition has the kit's property, length and delay/);
+    await expect(checkMotion(env, spec, { plant: skipped }), 'a demo that skips to its end under reduced motion fails the motion check').rejects.toThrow(/same states, in the same order/);
+    await expect(checkMotion(env, spec, { plant: retimed }), 'a demo that runs 300ms late under reduced motion fails the motion check').rejects.toThrow(/within 250ms/);
+    await expect(checkMotion(env, spec, { plant: flying }), 'a step that flies under reduced motion fails the motion check').rejects.toThrow(/nothing moves by script/);
+    await expect(checkMotion(env, spec, { plant: grain }), 'grain (a loop the kit does not have) under reduced motion fails the motion check').rejects.toThrow(/CSS loops are the kit's/);
+    await expect(checkMotion(env, spec, { plant: tilt }), 'a pointer tilt under reduced motion fails the motion check').rejects.toThrow(/pointer tilts nothing/);
+    await expect(checkMotion(env, spec, { plant: looping }), 'a loop under data-site-still fails the motion check').rejects.toThrow(/nothing loops|stops every loop/);
     await expect(checkAccessibility(env, spec, { plant: (p) => p.evaluate(() => { document.querySelector('.pp-site-faq__list')!.insertAdjacentHTML('beforeend', '<div aria-hidden="true"><button type="button">Hidden</button></div>'); }) }), 'a focusable control inside an aria-hidden container fails the accessibility check').rejects.toThrow();
     await expect(checkPageParity(env, spec, { plant: (p) => p.evaluate(() => { (document.querySelector('.pp-site-form-page__lead') as HTMLElement).style.paddingTop = '4px'; }) }), 'four more pixels above the lead fail the parity check').rejects.toThrow();
     // Lock check T10: the planted fault used to be `margin-top: 4px`, which does not move anything (it collapses into the 24px margin of the headline above), so the plant passed the check

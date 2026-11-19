@@ -36,12 +36,15 @@ export function syncJson(): { repo: string; ref: string } {
   return JSON.parse(readFileSync(join(DS, 'sync.json'), 'utf8'));
 }
 /**
- * The design system ref the tests read the kit at: the ref in sync.json, or `SITE_KIT_REF` when set. (develop's sync.json ref lacks
- * `project/ui_kits/site-pages.html`; it is in c0de954 and after, and SITE-07 moves the ref to at least that. Develop and test with
- * SITE_KIT_REF=c0de954c2b1d60f5b65d894a2664cfa6ffeda2d0 until then.)
+ * The design system ref the kit is read at when nothing overrides it: the design system main head of 18 Nov 2026, which holds PR #47 (no closing band
+ * note), #49 (reduced motion: the demos keep playing, only grain, the flying board card, pointer tilt and other large movement stop), #50, #51, #54 (the Recruitment closing claims "A person makes every hiring decision" and "no retyping" are gone from the ending and the top) and #57.
+ * Child lock .2 pins it here (SITE-04.7 did the same for the landing, `LANDING_KIT_REF`). Before, the default was the ref in `sync.json`, which develop
+ * moves when the design system is synced, so the oracle moved with it. `SITE_KIT_REF` still overrides (SITE-09 sets it for its own tests). The CSS is not
+ * read at this ref: both pages use the app's synced `src/styles/design-system` (its `site.css` is byte for byte the one at this ref).
  */
+export const SITE_KIT_REF = '03df8e2aa41ed09dc7a1571f074b3d8c82ffde9a';
 export function kitRef(): string {
-  return process.env['SITE_KIT_REF'] || syncJson().ref;
+  return process.env['SITE_KIT_REF'] || SITE_KIT_REF;
 }
 /** A file of the design system repo at the kit ref, cached by ref in the OS temp folder. A missing file fails with the reason. */
 export function dsFile(path: string): string {
@@ -52,7 +55,7 @@ export function dsFile(path: string): string {
   if (existsSync(file)) return readFileSync(file, 'utf8');
   let text: string;
   try { text = curl(`https://raw.githubusercontent.com/${repo}/${ref}/${path}`); } catch {
-    throw new Error(`site-08: the design system has no ${path} at ${ref} (or it could not be fetched). Set SITE_KIT_REF to a ref that has it, for example c0de954c2b1d60f5b65d894a2664cfa6ffeda2d0.`);
+    throw new Error(`site-08: the design system has no ${path} at ${ref} (or it could not be fetched). Set SITE_KIT_REF to a ref that has it (the default is 03df8e2aa41ed09dc7a1571f074b3d8c82ffde9a).`);
   }
   mkdirSync(dir, { recursive: true });
   writeFileSync(file, text);

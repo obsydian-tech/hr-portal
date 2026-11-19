@@ -164,7 +164,7 @@ const handlerFn = async (event) => {
     const employeeId = queryParams.employee_id;
     const limit = parseInt(queryParams.limit || '50');
 
-    if (caller === 'HR' && queryParams.waiting === 'true') {
+    if (queryParams.waiting === 'true') {
       return json(200, await waitingDocuments(tenantId));
     }
 

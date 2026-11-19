@@ -122,6 +122,11 @@
       "group": "Places and modules"
     },
     {
+      "name": "briefcase",
+      "meaning": "Roles (open roles to hire for)",
+      "group": "Places and modules"
+    },
+    {
       "name": "layout-grid",
       "meaning": "Modules switched on for a company",
       "group": "Places and modules"
@@ -614,6 +619,11 @@
     {
       "name": "panel-left",
       "meaning": "Collapse the sidebar",
+      "group": "Actions and navigation"
+    },
+    {
+      "name": "maximize-2",
+      "meaning": "Expand the agent panel to a full page",
       "group": "Actions and navigation"
     },
     {

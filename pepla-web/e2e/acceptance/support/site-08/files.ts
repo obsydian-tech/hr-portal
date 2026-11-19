@@ -27,12 +27,16 @@ export const isThisCard = (f: string): boolean => /^src\/app\/ds\/site\/learn\//
 /**
  * What the card, and the page cards built on it (SITE-09 to SITE-14, which add content under ds/site/learn/ and public routes), may change.
  * Whole paths, anchored at both ends where a name is exact. The signed-in code, ds/all.ts and every other card's locked test are not here.
+ * SITE-08.3: the design system sync (src/styles/design-system/, which holds sync.json, and the icon list ds/core/icon.registry.ts) is here too,
+ * because the kit the tests read follows sync.json, so moving it can force edits under ds/site/learn/ in the same pull request.
  */
 export const allowed = (f: string): boolean =>
   /^src\/app\/ds\/site\/(?!\.\.)[\w./-]+$/.test(f) ||
   /^src\/app\/features\/public\/[\w./-]+$/.test(f) ||
   /^src\/app\/(app\.routes|app\.routes\.server|site\.routes)\.ts$/.test(f) ||
   f === 'src/app/ds/README.md' ||
+  /^src\/styles\/design-system\/[\w./-]+$/.test(f) ||
+  f === 'src/app/ds/core/icon.registry.ts' ||
   /^e2e\/acceptance\/site-\d{2}\.spec\.ts$/.test(f) ||
   /^e2e\/acceptance\/cards\/site-\d{2}\.md$/.test(f) ||
   /^e2e\/acceptance\/support\/site-\d{2}\/[\w./-]+$/.test(f);

@@ -74,3 +74,11 @@ export function requiredIn(docs, type) {
 export function allRequiredIn(docs, required = REQUIRED_DOCUMENT_TYPES) {
   return required.every((type) => requiredIn(docs, type));
 }
+
+/** ONB-21: a row counts when a file arrived: it is not PENDING, or the reader has started or finished on it. The one rule. */
+export const hasFile = (doc) => doc?.ocr_status !== 'PENDING' || !!doc?.ocr_started_at || !!doc?.ocr_completed_at;
+
+/** ONB-21: the required types with no row that has a file, in the order of the list. */
+export function typesToGive(docs, required = REQUIRED_DOCUMENT_TYPES) {
+  return required.filter((type) => !(docs ?? []).some((doc) => doc?.document_type === type && hasFile(doc)));
+}
