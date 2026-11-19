@@ -47,6 +47,13 @@ employee's view. **The lock must not be pushed until Q1 is answered and `RISK_WO
   and `risk_assessed_at`, and the fake's answer carries each key only when the stored employee has it.
   Nothing existing changes.
 
+## Re-locked by CHAT-01 (child lock onb-11.3)
+AC-8's "no button to run the check" looked at the whole page. CHAT-01 puts an "Ask Batsi" button in the top bar of every
+HR page, the employee page included, so the line failed for a button that is not part of this card. It now looks inside
+`<main>` (the page content) only, with the same two names (`Ask Batsi`, `assess risk`), and first checks that the page has
+exactly one `<main>` so it cannot pass by looking at nothing. A risk-check button in the page content still fails.
+Nothing else in the test changes. Locks: acceptance-lock/onb-11.3.
+
 ## What is new and what holds today
 
 New (red on develop): the flow call (AC-1), the flow rules in the prompt (AC-3), the stored `FLOW`/`HR`

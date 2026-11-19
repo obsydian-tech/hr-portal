@@ -10,7 +10,7 @@ export const RECRUITMENT_TOP: LearnTop = {
   eyebrow: 'Recruitment',
   title: 'Every candidate tracked',
   shine: 'from application to signed offer.',
-  lead: 'Naleko People keeps one hiring board per role. Panels score candidates against the same criteria, Batsi watches each stage for candidates who go quiet, and a signed offer starts onboarding with no retyping.',
+  lead: 'Naleko People keeps one hiring board per role. Panels score candidates against the same criteria, and Batsi watches each stage for candidates who go quiet.',
   chips: ['Six hiring stages', 'Scored by panels', 'No automatic rejection'],
   rings: true,
 };
@@ -57,7 +57,6 @@ export const RECRUITMENT_ENDING: LearnEnding = {
   strip: {
     label: 'Trust',
     items: [
-      { icon: 'check', text: 'A person makes every hiring decision' },
       { icon: 'file-text', text: 'Every move and view logged' },
       { icon: 'lock', text: 'Built for POPIA' },
       { icon: 'map-pin', text: 'All data stays in South Africa' },
@@ -181,7 +180,6 @@ export const RECRUITMENT_TABS: readonly LearnTab[] = [
   { id: 'panels', label: 'Interview panels' },
   { id: 'follow-ups', label: 'Reminders and follow-ups' },
   { id: 'risk', label: 'Candidate risk' },
-  { id: 'offer', label: 'Offer to onboarding' },
   { id: 'questions', label: 'Questions' },
 ];
 

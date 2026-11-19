@@ -7,6 +7,8 @@ export const environment = {
   employeesApiUrl: 'https://employees-api.invalid',
   // The document upload API (documents and their checks). Same placeholder rule as above.
   documentUploadApiUrl: 'https://document-api.invalid',
+  // The Agent API (Ask Batsi: the chat, what waits for approval). Same placeholder rule as above.
+  agentApiUrl: 'https://agent-api.invalid',
   cognito: {
     userPoolId: 'af-south-1_NotConfigured',
     clientId: 'not-configured',

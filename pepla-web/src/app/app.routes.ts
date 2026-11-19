@@ -32,6 +32,7 @@ const appRoutes: Routes = [
     loadComponent: () => import('./features/hr/hr-shell').then((m) => m.HrShell),
     children: [
       { path: '', loadComponent: () => import('./features/hr/hr-home.page').then((m) => m.HrHomePage), title: 'Today · Naleko People' },
+      { path: 'ask-batsi', loadComponent: () => import('./features/hr-assistant/assistant-page').then((m) => m.AssistantPage), title: 'Ask Batsi · Naleko People' },
       { path: 'documents', loadComponent: () => import('./features/hr/documents.page').then((m) => m.DocumentsToCheckPage), title: 'Documents to check · Naleko People' },
       { path: 'documents/:id', loadComponent: () => import('./features/hr/document.page').then((m) => m.DocumentPage), title: 'Document · Naleko People' },
       { path: 'employees/new', loadComponent: () => import('./features/hr/register-employee.page').then((m) => m.RegisterEmployeePage), title: 'Register a new employee · Naleko People' },
