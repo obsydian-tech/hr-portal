@@ -61,6 +61,9 @@ module "kms_pii" {
     # MOD-01: getCompanyModules and every Lambda that asks modules.mjs read the company row in the tenants table.
     # The TalentFlow roles live in talent-flow-infra, named by ARN (their path /talent-flow/ is part of it).
     aws_iam_role.get_company_modules.arn,
+    # CHAT-02: both read the encrypted tenants table (the company switch) and the chats table; writes need no key right (BE-18).
+    aws_iam_role.ask_batsi_chats.arn,
+    aws_iam_role.admin_set_ask_batsi.arn,
     aws_iam_role.get_candidate_events.arn,
     aws_iam_role.get_hiring_managers.arn,
     # ONB-21: the daily reminder reads the tenants and employees tables (decrypt only, through DynamoDB).

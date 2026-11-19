@@ -9,7 +9,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import { GetItemCommand, TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
-import { MODULE_KEYS } from '../../../lambda/shared/modules.mjs';
+import { FOUNDING_DEFAULT, MODULE_KEYS } from '../../../lambda/shared/modules.mjs';
 import { seedFile } from '../module-seeds/index.mjs';
 
 export { MODULE_KEYS };
@@ -30,7 +30,7 @@ function ulid(now = Date.now()) {
 /** What a stored Company row has on (the attribute, or every key for a founding row with none). */
 export function storedModules(item) {
   const m = item?.modules;
-  if (m === undefined) return item?.founding?.BOOL === true ? [...MODULE_KEYS] : [];
+  if (m === undefined) return item?.founding?.BOOL === true ? [...FOUNDING_DEFAULT] : [];
   const keys = Array.isArray(m.SS) ? m.SS : Array.isArray(m.L) ? m.L.map((v) => v?.S) : [];
   return MODULE_KEYS.filter((k) => keys.includes(k));
 }

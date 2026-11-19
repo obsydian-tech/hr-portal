@@ -2843,6 +2843,169 @@ paths:
       - CognitoJWT: []
       x-tenant: token
       x-roles: []
+  /v1/chats:
+    get:
+      summary: GET /v1/chats
+      description: The caller's own stored Ask Batsi chats, newest first, 50 to a page. 403 while the company's Ask Batsi switch is off.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_chats
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+    delete:
+      summary: DELETE /v1/chats
+      description: Deletes every chat of the caller, for real. Works with the switch off.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: DELETE_v1_chats
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /v1/chats/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: GET /v1/chats/{id}
+      description: One of the caller's chats with every message. Another person's chat is 404.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_chats_id
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+    delete:
+      summary: DELETE /v1/chats/{id}
+      description: Deletes one of the caller's chats, for real. Works with the switch off.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: DELETE_v1_chats_id
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /v1/admin/company/ask-batsi:
+    put:
+      summary: PUT /v1/admin/company/ask-batsi
+      description: A company admin turns the company's Ask Batsi switch on or off. The body names enabled, true or false.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: PUT_v1_admin_company_ask_batsi
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
   /v1/me/consent:
     post:
       summary: POST /v1/me/consent
