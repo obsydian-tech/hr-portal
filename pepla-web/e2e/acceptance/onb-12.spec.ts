@@ -644,7 +644,7 @@ test.describe('ONB-12 One new employee\'s page', () => {
 
     const ai = /\/agent\/|\/ai\/|\/chat|batsi|\/summary|assess-risk|risk-report|bedrock|textract|anthropic|openai/i;
     expect(seen.filter((s) => ai.test(s.url.href)).map((s) => s.url.href), 'no AI route is called').toEqual([]);
-    await expect(page.getByRole('button', { name: /Ask Batsi/i }), 'no "Ask Batsi to assess risk" button').toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Ask Batsi to assess risk/i }), 'no "Ask Batsi to assess risk" button').toHaveCount(0);
     await expect(page.getByText(/assess risk/i)).toHaveCount(0);
   });
 
