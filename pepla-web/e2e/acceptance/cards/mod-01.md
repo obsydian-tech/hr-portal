@@ -87,3 +87,4 @@ what the module check and rule 8 force is changed; every changed test still pass
    hold its log group and X-Ray.
 4. `ten-05.spec.ts` AC-6: the pickers may make the module check's one GetItem of the caller's own Company row; any other read of
    the tenants table still fails (R5, the Member narrowing, is still owed).
+Locks (re-lock): acceptance-lock/mod-01.8 with acceptance-lock/ten-03.8 (Ask Batsi dev Marketplace grant, 19 Nov 2026, PR 437, CHAT-02): AC-8 (and ten-03 AC-10) allow one new role policy, `aws_iam_role_policy.naleko_ai_chat_ask_batsi_marketplace` on the chat role, created in dev only (`count = var.environment == "dev" ? 1 : 0`), holding exactly Allow `aws-marketplace:ViewSubscriptions` and `aws-marketplace:Subscribe` on `*` with no condition. See `support/marketplace-dev/grant.ts`.
