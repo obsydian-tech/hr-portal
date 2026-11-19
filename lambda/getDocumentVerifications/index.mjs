@@ -2,7 +2,7 @@ import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { groupsOf, checkOf } from '../shared/document-check.mjs';
+import { groupsOf, checkOf, hrDecisionOf } from '../shared/document-check.mjs';
 import { isIdToken } from '../shared/hr-group.mjs';
 import { requireTenant, ownsItem } from '../shared/tenant.mjs';
 import { companyRows } from '../shared/company-rows.mjs';
@@ -127,6 +127,8 @@ async function onePerson(tenantId, employeeId, { status, decision }) {
       document_type: d.document_type,
       check: checkOf(d, d.verification_id ? (byId.get(d.verification_id) ?? null) : null),
       arrived_at: d.upload_timestamp ?? d.uploaded_at ?? null,
+      hr_decision: hrDecisionOf(d),
+      hr_decided_at: d.hr_reviewed_at ?? null,
     }));
 
   return {

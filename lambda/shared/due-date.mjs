@@ -61,3 +61,18 @@ export function reminderDue(dueIso, todayIso) {
   const days = daysBetween(todayIso, dueIso);
   return Number.isFinite(days) && days >= 0 && days <= REMINDER_DAYS_BEFORE_DUE;
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** CHAT-09: a YYYY-MM-DD date (or the date part of an ISO time) as "10 Nov 2026", the page's format; empty when not a real date. */
+export function writtenDate(text) {
+  const d = parseDay(typeof text === 'string' ? text.slice(0, 10) : text);
+  return d ? `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}` : '';
+}
+
+/** CHAT-09: today in South Africa written out with its weekday, "Thursday 19 Nov 2026". */
+export function todayWritten(now = new Date()) {
+  const d = parseDay(todayInJohannesburg(now));
+  return d ? `${WEEKDAYS[d.getUTCDay()]} ${writtenDate(todayInJohannesburg(now))}` : '';
+}
