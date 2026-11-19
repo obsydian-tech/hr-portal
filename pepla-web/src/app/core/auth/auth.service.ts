@@ -19,14 +19,19 @@ export type SignInResult = { ok: true; user: SignedInUser } | { ok: false; probl
 export const HR_GROUP = 'hr_staff';
 /** New employees (ONB-17). */
 export const EMPLOYEE_GROUP = 'employee';
+/** A company admin (CHAT-03). An account whose only group is admin may sign in, to reach the Admin screen. */
+export const ADMIN_GROUP = 'admin';
+/** The groups that may use the new app. The old TalentFlow admin groups are not among them. */
+const APP_GROUPS: readonly string[] = [HR_GROUP, EMPLOYEE_GROUP, ADMIN_GROUP];
+const mayUseApp = (user: SignedInUser | null): boolean => !!user && user.groups.some((g) => APP_GROUPS.includes(g));
 /** Where the HR registration form keeps what HR has typed, for the tab. Any session end clears it (ONB-05). */
 export const REGISTRATION_DRAFT_KEY = 'naleko.registration.draft';
 
 /**
  * Signing in and out, and who is signed in. The only place that talks to Cognito.
  * Uses amazon-cognito-identity-js (SRP sign-in) against the Naleko pool and the pepla-web app client.
- * Signing in is by email and password only. A person in neither hr_staff nor employee is signed out
- * again before this returns, so no token is kept for them (ONB-23).
+ * Signing in is by email and password only. A person in none of hr_staff, employee or admin is signed out
+ * again before this returns, so no token is kept for them (ONB-23, CHAT-03).
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -46,7 +51,7 @@ export class AuthService {
   restore(): Promise<void> {
     this.restoring ??= this.readSession().then(async (session) => {
       const user = session ? toUser(session) : null;
-      if (user?.groups.includes(HR_GROUP) || user?.groups.includes(EMPLOYEE_GROUP)) this.current.set(user);
+      if (user && mayUseApp(user)) this.current.set(user);
       else if (session) {
         this.endSession();
         (await this.library).pool.getCurrentUser()?.signOut();
@@ -75,7 +80,7 @@ export class AuthService {
       return { ok: false, problem: outcome.problem };
     }
     const user = toUser(outcome.session);
-    if (!user.groups.includes(HR_GROUP) && !user.groups.includes(EMPLOYEE_GROUP)) {
+    if (!mayUseApp(user)) {
       this.forget(cognitoUser);
       return { ok: false, problem: 'noAccess' };
     }
