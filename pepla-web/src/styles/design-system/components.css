@@ -3058,12 +3058,13 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 /* Composer */
 .pp-agent-panel__composer { flex: none; display: flex; flex-direction: column; gap: var(--space-100); padding: var(--space-150) var(--space-250) var(--space-200); border-top: var(--border-width) solid var(--color-border); background: var(--elevation-surface-raised); }
 .pp-agent-panel__input-row { display: flex; align-items: flex-end; gap: var(--space-100); }
-.pp-agent-panel__input-row .pp-textarea { flex: 1; min-height: var(--size-control-large); resize: none; }
-.pp-agent-panel__hint { margin: 0; font: var(--font-body-small); color: var(--color-text-subtlest); }
+.pp-agent-panel__input-row .pp-textarea { flex: 1; min-width: 0; min-height: var(--size-control-large); resize: none; /* grows with what is typed, and with a long placeholder that wraps, up to four lines; then it scrolls */ field-sizing: content; max-height: calc(4lh + 2 * var(--space-100) + 2 * var(--border-width)); }
+.pp-agent-panel__hint { flex: none; margin: 0; font: var(--font-body-small); color: var(--color-text-subtlest); overflow-wrap: anywhere; }
 
 /* Phone: a full-screen sheet */
 @media (max-width: 767px) {
-  .pp-agent-panel:not(.pp-agent-panel--inline) { inset: 0; width: 100%; border: 0; box-shadow: none; }
+  /* The sheet is as tall as the screen the person can see (not behind a browser toolbar), so the line under the box is never cut off */
+  .pp-agent-panel:not(.pp-agent-panel--inline) { inset: 0; width: 100%; height: 100dvh; border: 0; box-shadow: none; }
   .pp-agent-panel:not(.pp-agent-panel--inline) .pp-agent-panel__header { padding: var(--space-150) var(--layout-gutter-phone); }
   .pp-agent-panel:not(.pp-agent-panel--inline) .pp-agent-panel__log { padding: var(--space-200) var(--layout-gutter-phone); }
   .pp-agent-panel:not(.pp-agent-panel--inline) .pp-agent-panel__composer { padding: var(--space-150) var(--layout-gutter-phone) calc(var(--space-150) + env(safe-area-inset-bottom)); }

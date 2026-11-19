@@ -561,7 +561,9 @@ test.describe('MOD-02 The module-aware shell and guards', () => {
     for (const mods of [[], ['onboarding'], ['onboarding', 'recruitment']]) {
       expect(await landing(['hr_staff'], [], mods), `hr_staff lands on /hr (modules ${mods})`).toBe('/hr');
       expect(await landing(['hr_staff'], ['perm-recruitment'], mods), `hr_staff with the tick lands on /hr (modules ${mods})`).toBe('/hr');
-      expect(await landing(['admin'], [], mods), `admin lands on /hr (modules ${mods})`).toBe('/hr');
+      // CHAT-03 (child lock mod-02.4): an admin who is not HR has no /hr page, so they land on the Ask Batsi screen; an admin who is also HR keeps /hr.
+      expect(await landing(['admin'], [], mods), `admin lands on /admin/ask-batsi (modules ${mods})`).toBe('/admin/ask-batsi');
+      expect(await landing(['admin', 'hr_staff'], [], mods), `admin who is also HR lands on /hr (modules ${mods})`).toBe('/hr');
       expect(await landing(['employee'], [], mods), `employee lands on /start (modules ${mods})`).toBe('/start');
       expect(await landing(['employee'], ['perm-recruitment'], mods), `employee with the tick lands on /start (modules ${mods})`).toBe('/start');
     }
