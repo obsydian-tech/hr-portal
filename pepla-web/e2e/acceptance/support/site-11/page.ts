@@ -16,11 +16,12 @@ import { type Env, type LearnPageSpec, type Plant } from '../site-08/learn-page'
 
 /**
  * The design system ref the kit is read at. At or after 8dc3091 (DS #47: no closing band note, which SITE-08 removes from the app) and at or after
- * c3788a5 (DS #49: demos keep playing under reduced motion). This is dc593c4, the design system main head on 17 Nov. The SITE-08 helper's own default,
+ * c3788a5 (DS #49: demos keep playing under reduced motion). This is 03df8e2, the ref in `sync.json` after the 18 Nov design system sync (the pin before was dc593c4;
+ * between them only DS #54 touched site kit files, the Recruitment and Onboarding pages, and nothing the Compliance page reads). The SITE-08 helper's own default,
  * the ref in `sync.json` (e9a352f), has the closing band note and the older reduced motion scripts, so SITE-11 sets `SITE_KIT_REF` for its own tests
  * (`useKitRef`, put back afterwards so no other spec in the run sees it). `SITE_11_KIT_REF` overrides this one.
  */
-export const KIT_REF = process.env['SITE_11_KIT_REF'] || 'dc593c47c7d8fb79c7ccf29311392ad166506114';
+export const KIT_REF = process.env['SITE_11_KIT_REF'] || '03df8e2aa41ed09dc7a1571f074b3d8c82ffde9a';
 let savedRef: string | undefined;
 export function useKitRef(): void { savedRef = process.env['SITE_KIT_REF']; process.env['SITE_KIT_REF'] = KIT_REF; }
 export function restoreKitRef(): void { if (savedRef === undefined) delete process.env['SITE_KIT_REF']; else process.env['SITE_KIT_REF'] = savedRef; }
