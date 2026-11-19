@@ -68,7 +68,6 @@ export const handler = async (event) => {
       updated_at:   item.updated_at?.S,
       // CHAT-09: what the person page shows, from the same row (same names as getEmployees).
       job_title:          item.job_title?.S ?? '',
-      step:               stepOf({ step: item.step?.S, stage: item.stage?.S }),
       planned_start_date: item.planned_start_date?.S ?? '',
       documents_due:      documentsDueDate(item.planned_start_date?.S, tenantId) ?? '',
       hr_staff_name:      item.hr_staff_name?.S ?? '',

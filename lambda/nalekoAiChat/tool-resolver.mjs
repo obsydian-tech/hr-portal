@@ -256,7 +256,7 @@ function qs(params) {
  */
 export const TOOL_MAP = {
   /**
-   * NH-53: always scopes to created_by={staffId} so the clerk only sees their own employees.
+   * CHAT-09: reads the company's list (every page, HR home's order); "mine" is decided here from the signed-in clerk, never from model input.
    */
   list_employees: (args, context) => listPeople(args, context, agentGet),
 
