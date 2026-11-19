@@ -262,6 +262,15 @@ jobs:
         # documents earlier in this run, and AC-8 needs one still to give.
         run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev|ONB-10 Due dates and Overdue.*AC-8 pepla-dev"
 
+      # Ask Batsi is off for every company until an admin turns it on (CHAT-02), and the seed puts the dev companies back
+      # to their modules on each run. The walk needs it on for company A and for the walk company (its "company B"):
+      # with it off every chat route answers 403 to both, and the walk could prove nothing about them.
+      - name: Switch Ask Batsi on for the walk companies
+        if: ${{ !cancelled() }}
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/dev-ask-batsi-on.py
+
       # TEN-04 AC-7: the company walk. Its "company B" callers are the logins of the third (walk) company, which has
       # Recruitment switched on (company B has only Onboarding, so on B every Recruitment route answers 403 and the
       # walk cannot look for 404). The test reads its HR caller as E2E_HR_B; here that name points at hr-c.
@@ -326,6 +335,8 @@ jobs:
             pepla-web/e2e/acceptance/.output/
           retention-days: 7
           if-no-files-found: ignore
+          # .output/ starts with a dot: without this the action skips it, and the screenshots and traces never arrive.
+          include-hidden-files: true
 
       # One comment per PR, updated on each run: which journeys passed, how
       # long they took, and where the failure evidence is. On a push to

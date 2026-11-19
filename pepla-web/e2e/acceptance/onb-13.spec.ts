@@ -916,8 +916,8 @@ test.describe('ONB-13 Documents to check', () => {
     }
     expect(r.calls.filter((c) => c.service === 'kms'), 'no ID number is decrypted').toEqual([]);
 
-    // Without waiting=true, HR's answer is today's.
-    const queries: Array<Record<string, string>> = [{}, { decision: 'MANUAL_REVIEW' }, { employee_id: 'EMP-1301' }, { status: 'PENDING' }, { limit: '3' }, { waiting: 'false' }];
+    // Without waiting=true, HR's answer is today's. CHAT-05 moved the ?employee_id= branch (it now reads every page and adds `documents`); chat-05.spec.ts AC-4 pins it.
+    const queries: Array<Record<string, string>> = [{}, { decision: 'MANUAL_REVIEW' }, { status: 'PENDING' }, { limit: '3' }, { waiting: 'false' }];
     for (const q of queries) {
       const today = runList(tables, HR, q, LIST_HANDLER_TODAY);
       const now = runList(tables, HR, q);
