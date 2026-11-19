@@ -1,0 +1,10 @@
+{
+  "name": "admin-set-ask-batsi-lambda",
+  "version": "1.0.0",
+  "description": "CHAT-02 PUT /v1/admin/company/ask-batsi: a company admin turns Ask Batsi on or off",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}

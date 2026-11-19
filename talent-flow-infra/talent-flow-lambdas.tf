@@ -355,6 +355,7 @@ resource "aws_lambda_function" "ai_chat" {
   environment {
     variables = {
       TENANTS_TABLE              = local.tf_tenants_table
+      CHATS_TABLE                = "ask-batsi-chats"
       STATE_TABLE_NAME           = local.tf_table_state
       CONFIG_TABLE_NAME          = local.tf_table_config
       AGENT_AUDIT_TABLE_NAME     = local.tf_table_agent_audit

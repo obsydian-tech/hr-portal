@@ -90,6 +90,20 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Resource = aws_dynamodb_table.prompt_cache.arn
       },
       {
+        # CHAT-02: keeps and reads each person's chats
+        Sid      = "ChatsTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+        Resource = aws_dynamodb_table.ask_batsi_chats.arn
+      },
+      {
+        # CHAT-02: the Ask Batsi switch is read from the company row
+        Sid      = "CompanySwitchRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = aws_dynamodb_table.tenants.arn
+      },
+      {
         # NH-50: KMS decrypt/encrypt for KMS-encrypted DynamoDB tables (agent_audit, prompt_cache)
         Sid      = "KMSAuditAndCache"
         Effect   = "Allow"
@@ -145,6 +159,9 @@ resource "aws_lambda_function" "naleko_ai_chat" {
       # TEN-02: the company rule, and the one company Batsi chat serves (the agent key's).
       LEGACY_TENANT_ID = var.legacy_tenant_id
       AGENT_TENANT_ID  = var.founding_tenant_id
+      # CHAT-02: stored chats, and the company list the Ask Batsi switch is read from.
+      CHATS_TABLE   = aws_dynamodb_table.ask_batsi_chats.name
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
     }
   }
 
