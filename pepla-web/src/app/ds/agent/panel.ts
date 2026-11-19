@@ -51,7 +51,7 @@ const CHECK_OTHER = { status: 'warning' as Status, icon: 'triangle-alert' as Ico
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-template #layer>
-      <aside [class]="classes()" [attr.role]="inPlace() ? null : 'dialog'" [attr.aria-modal]="inPlace() ? null : 'true'" [attr.aria-labelledby]="id + '-t'" [style.--_height]="inlineSize() ?? pageSize()" [cdkTrapFocus]="!page()" [cdkTrapFocusAutoCapture]="false">
+      <aside [class]="classes()" [attr.role]="inPlace() ? null : 'dialog'" [attr.aria-modal]="inPlace() ? null : 'true'" [attr.aria-labelledby]="id + '-t'" [style.--_height]="inlineSize()" [cdkTrapFocus]="!page()" [cdkTrapFocusAutoCapture]="false">
         <div class="pp-agent-panel__header">
           @if (page()) {
             <!-- The full page has no Close: it has the way back to where the person was. -->
@@ -185,8 +185,6 @@ export class PpAgentPanel extends PpLayer {
   protected override inPlace(): boolean { return this.inline() || this.page(); }
   protected readonly phone = () => this.sheet() || (!this.inPlace() && this.narrow());
   protected readonly classes = () => ['pp-agent-panel', this.inline() && !this.page() && 'pp-agent-panel--inline', this.page() && 'pp-agent-panel--page', this.sheet() && 'pp-agent-panel--sheet'].filter(Boolean).join(' ');
-  /** The page fills what is left under the top bar, so the composer stays on screen and the conversation scrolls inside. */
-  protected pageSize(): string | null { return this.page() ? 'calc(100dvh - var(--layout-topbar-height) - var(--space-300) - var(--space-600))' : null; }
   protected tone(result: string) { return CHECK_TONE[result.trim().toLowerCase()] ?? CHECK_OTHER; }
   /** A chat card has no sources or destinations to show: only the title and the drafted message. */
   protected cardProposal(c: PanelCard): Proposal {
