@@ -130,7 +130,7 @@ const CHECK_OTHER = { status: 'warning' as Status, icon: 'triangle-alert' as Ico
           @if (notice()) { <pp-section-message tone="warning" [heading]="notice()" /> }
           <div class="pp-agent-panel__input-row">
             <label class="pp-visually-hidden" [for]="id + '-in'">Message Batsi</label>
-            <textarea #box class="pp-textarea" [id]="id + '-in'" rows="1" [placeholder]="placeholder()" [value]="draft()" [disabled]="disabled()" (input)="draft.set($any($event.target).value)" (keydown.enter)="enter($event)"></textarea>
+            <textarea #box class="pp-textarea" [id]="id + '-in'" rows="1" [placeholder]="placeholder()" [value]="draft()" [disabled]="disabled()" (input)="draft.set($any($event.target).value); fit()" (keydown.enter)="enter($event)"></textarea>
             <button ppButton appearance="primary" icon="send" [iconOnly]="true" [size]="phone() ? 'large' : 'medium'" type="submit" aria-label="Send" [disabled]="disabled()" [attr.aria-disabled]="working() ? 'true' : null"></button>
           </div>
           @if (hint()) { <span class="pp-agent-panel__hint">{{ hint() }}</span> }
@@ -191,14 +191,28 @@ export class PpAgentPanel extends PpLayer {
     return { title: c.title, whyNow: '', sources: [], destinations: [], confidence: 'high', ...(c.blockedBy ? { status: { status: 'information' as Status, text: 'Waiting for approval', icon: 'clock' as IconName } } : {}) };
   }
   private atEnd = true;
+  /** Browsers that size a box to its words by themselves (`field-sizing`) need nothing here; the others are sized by hand. */
+  private readonly sizesItself = typeof CSS !== 'undefined' && CSS.supports('field-sizing', 'content');
   private readonly injector = inject(Injector);
 
   constructor() {
     super();
     // Open: focus goes to the composer.
     effect(() => { if (this.open() && !this.inPlace()) untracked(() => afterNextRender(() => this.box()?.nativeElement.focus(), { injector: this.injector })); });
+    // The box fits its words: when it opens, when the words or the placeholder change, and after a message is sent.
+    effect(() => { this.open(); this.draft(); this.placeholder(); untracked(() => afterNextRender(() => this.fit(), { injector: this.injector })); });
     // A new message: follow it down, unless the person has scrolled up to read.
     effect(() => { this.messages(); this.working(); untracked(() => afterNextRender(() => { const el = this.log()?.nativeElement; if (el && this.atEnd) el.scrollTop = el.scrollHeight; }, { injector: this.injector })); });
+  }
+  /** Grows the message box to show everything in it, a long placeholder that wraps too, up to four lines. */
+  @HostListener('window:resize') protected fit() {
+    const el = this.box()?.nativeElement;
+    if (!el || this.sizesItself) return;
+    el.style.height = 'auto';
+    const cs = getComputedStyle(el);
+    const edges = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+    const lines = parseFloat(cs.lineHeight) * 4 + edges;
+    el.style.height = `${Math.min(el.scrollHeight + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth), lines)}px`;
   }
   protected scrolled() { const el = this.log()!.nativeElement; this.atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 24; }
   protected enter(e: Event) { if ((e as KeyboardEvent).shiftKey) return; e.preventDefault(); this.submit(e); }
