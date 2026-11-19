@@ -28,3 +28,6 @@ legacy_tenant_id = "ten_hyyt49drh9efwb79h2a0cjee0s"
 # moved and nobody is locked out. A person with AWS access fills both in after the apply.
 talent_flow_user_pool_id     = ""
 talent_flow_server_client_id = ""
+
+# ONB-21: every seeded person on pepla-dev is a test login, so the daily reminder sends nothing real here.
+document_reminders_enabled = true

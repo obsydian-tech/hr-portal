@@ -24,3 +24,29 @@ describe('dueDaysFor', () => {
     for (const t of ['ten_A', 'ten_B', '', undefined]) assert.equal(dueDaysFor(t), 7);
   });
 });
+
+describe('reminder window (ONB-21)', async () => {
+  const { REMINDER_DAYS_BEFORE_DUE, daysBetween, reminderDue, todayInJohannesburg } = await import('./due-date.mjs');
+  it('names 2 days', () => assert.equal(REMINDER_DAYS_BEFORE_DUE, 2));
+  it('takes today from the Johannesburg calendar', () => {
+    assert.equal(todayInJohannesburg(new Date('2026-11-18T22:30:00Z')), '2026-11-19');
+    assert.equal(todayInJohannesburg(new Date('2026-11-18T21:59:00Z')), '2026-11-18');
+  });
+  it('counts whole days across a month, a year and a leap day', () => {
+    assert.equal(daysBetween('2026-11-22', '2026-11-24'), 2);
+    assert.equal(daysBetween('2026-12-31', '2027-01-02'), 2);
+    assert.equal(daysBetween('2028-02-28', '2028-03-01'), 2);
+    assert.equal(daysBetween('2026-11-24', '2026-11-22'), -2);
+  });
+  it('is due from 2 days before up to the due date, never after', () => {
+    assert.equal(reminderDue('2026-11-24', '2026-11-21'), false);
+    for (const today of ['2026-11-22', '2026-11-23', '2026-11-24']) assert.equal(reminderDue('2026-11-24', today), true, today);
+    assert.equal(reminderDue('2026-11-24', '2026-11-25'), false);
+  });
+  it('is false, and never throws, for a null, malformed or impossible date', () => {
+    for (const bad of [null, undefined, '', 'soon', '2026-02-30', 20261124]) {
+      assert.equal(reminderDue(bad, '2026-11-22'), false);
+      assert.equal(reminderDue('2026-11-24', bad), false);
+    }
+  });
+});
