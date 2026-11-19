@@ -25,15 +25,20 @@ export function accessGuard(need: Access, opts: { returnUrl?: boolean } = {}): C
 /** HR pages: signed-out people go to sign-in, and come back to the page they asked for. */
 export const hrGuard: CanActivateFn = accessGuard({ roles: ['hr_staff'] });
 
-/** The sign-in page: someone already signed in as HR goes on to HR home. */
+/** The sign-in page: someone already signed in goes on to their first page (the table in core/nav.ts). */
 export const signedOutGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   await auth.restore();
-  if (auth.isHr()) return router.createUrlTree(['/hr']);
-  if (auth.isEmployee()) return router.createUrlTree(['/start']);
-  return true;
+  const user = auth.user();
+  if (!user) return true;
+  const { roles, perms } = rolesOf(user.groups);
+  const to = landingFor(roles, perms, []);
+  return to === '/sign-in' ? true : router.createUrlTree([to]);
 };
+
+/** CHAT-03: the Admin area. Only the `admin` role of the person's own company; the server refuses anyone else as well. */
+export const adminGuard: CanActivateFn = accessGuard({ roles: ['admin'] });
 
 /** ONB-17: the employee's own pages. HR goes to HR home; nobody signed in goes to sign-in. */
 export const employeeGuard: CanActivateFn = accessGuard({ roles: ['employee'] }, { returnUrl: false });
