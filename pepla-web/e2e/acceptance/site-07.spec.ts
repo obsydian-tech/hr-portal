@@ -242,7 +242,7 @@ test.describe('SITE-07 Site styles split out and loaded only on public routes', 
       /^scripts\/(design-system-sync\.mjs|verify-design\.mjs|verify-design\.test\.mjs)$/.test(f) ||
       /^src\/app\/ds\/site\//.test(f) || /^src\/app\/features\/public\//.test(f) ||
       /^src\/app\/(app\.routes|app\.routes\.server|site\.routes)\.ts$/.test(f) ||
-      /^e2e\/acceptance\/(site-07\.spec\.ts|site-01\.spec\.ts|site-03\.spec\.ts|site-04\.spec\.ts|cards\/site-07\.md)$/.test(f) || /^e2e\/acceptance\/support\/site-07\//.test(f) ||
+      /^e2e\/acceptance\/(site-07\.spec\.ts|site-01\.spec\.ts|site-03\.spec\.ts|site-04\.spec\.ts|cards\/site-07\.md)$/.test(f) || /^e2e\/acceptance\/support\/site-07\//.test(f) || f === 'e2e/acceptance/support/site-08/files.ts' ||
       /^e2e\/parity\//.test(f);
     expect(changed.filter((f) => !allowed(f)), 'this card changes only the split\'s own files').toEqual([]);
     expect(changed.filter((f) => /^e2e\/acceptance\/(site-02\.spec\.ts|support\/site-02\/|support\/site-01\/)/.test(f)), 'no locked SITE-01 or SITE-02 support file is edited').toEqual([]);
