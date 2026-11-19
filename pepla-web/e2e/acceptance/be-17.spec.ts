@@ -613,7 +613,8 @@ test.describe('BE-17 Only HR reaches HR routes, now that employees can sign in',
     const OWN_ROLES = ['summarise_verification', 'trigger_external_verification', 'generate_document_upload_url', 'classify_onboarding_risk',
       'get_employee_by_email', 'get_employees', 'naleko_ai_chat', 'get_document_presigned_url', 'get_single_document_verification']
       .map((r) => `aws_iam_role.${r}.arn`);
-    const MAY_READ = ['aws_iam_role.generate_document_upload_url.arn', 'aws_iam_role.get_document_presigned_url.arn'];
+    // ONB-22.1 (re-lock be-17.4): summariseVerification reads the employee (to treat a test person as a robot), so its role reads the key through DynamoDB.
+    const MAY_READ = ['aws_iam_role.generate_document_upload_url.arn', 'aws_iam_role.get_document_presigned_url.arn', 'aws_iam_role.summarise_verification.arn'];
     const kmsBase = found('module', ['kms_pii'], base)[0]!;
     const kmsNow = found('module', ['kms_pii'], now)[0]!;
     for (const list of ['dynamodb_read_role_arns', 'allowed_role_arns']) {
