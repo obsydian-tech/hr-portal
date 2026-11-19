@@ -767,7 +767,9 @@ test.describe('CHAT-02 · Ask Batsi stored chats and the company switch', () => 
         const chats = kind === 'chats' && CHAT_ACTIONS.test(action) && new RegExp(`^(aws_dynamodb_table\\.${tf.block.labels[1]}\\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table/ask-batsi-chats)$`).test(res);
         const audit = kind === 'chats' && action === 'dynamodb:PutItem' && /agent_audit|naleko-agent-audit/.test(res);
         const tenants = (kind === 'tenants' && /^dynamodb:(GetItem|UpdateItem|PutItem)$/.test(action) && /tenants/.test(res)) || (kind === 'chats' && action === 'dynamodb:GetItem' && /tenants/.test(res));
-        expect.soft(effect === 'Allow' && cond === 'null' && (logsOk || xray || chats || audit || tenants), `${name}: "${p}" is logs, X-Ray or ${kind === 'chats' ? 'this table (and the audit table)' : 'the company list'} only; no *, no Scan, no AI`).toBe(true);
+        // chat-02.1 (CHAT-06): a reopened chat reads each of its proposals by key, GetItem on the pending table and nothing more.
+        const proposals = kind === 'chats' && action === 'dynamodb:GetItem' && /^(aws_dynamodb_table\.pending_actions\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/naleko-pending-actions)$/.test(res);
+        expect.soft(effect === 'Allow' && cond === 'null' && (logsOk || xray || chats || audit || tenants || proposals), `${name}: "${p}" is logs, X-Ray or ${kind === 'chats' ? 'this table (and the audit table)' : 'the company list'} only; no *, no Scan, no AI`).toBe(true);
       }
       expect.soft(pairs.some((p) => /dynamodb:/.test(p)), `${name}: it may reach DynamoDB`).toBe(true);
     }
