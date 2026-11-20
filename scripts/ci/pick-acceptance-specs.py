@@ -223,13 +223,15 @@ SITE_FILES = (  # S3, S5, S9
     "pepla-web/angular.json",
     "pepla-web/src/index.html",
     "pepla-web/src/polyfills.ts",
+    "pepla-web/src/app/dev/design-system.page.ts",  # site-02 AC-12 opens /dev/design-system
     ACC + "playwright.config.ts",
     ".github/workflows/pepla-web.yml",
     ".github/workflows/acceptance-lock.yml",
     "scripts/ci/pick-acceptance-specs.py",
     "scripts/ci/test_pick_acceptance_specs.py",
 )
-SITE_WORDS = re.compile(r"ds/site|pp-site|PpSite|DemoClock|site\.css")  # S10
+# S10. site-02 AC-12 also looks for ppSite and for a short path import ('../site'), so those count.
+SITE_WORDS = re.compile(r"ds/site|pp-site|PpSite|ppSite|DemoClock|site\.css|from\s+['\"]\.{1,2}/site['/\"]")
 # Known to be read by no site test (spec section 3, "not on the list"). Anything else is S11.
 NOT_SITE = (
     "lambda/", "api/", "infra/", "talent-flow-infra/", "bootstrap/", "mcp/", "scripts/", ".github/", "docs/",
@@ -288,6 +290,9 @@ def touches_site(changed: list[str], chain: set[str], read: Callable[[str], str 
             return f"{path} is app set-up or routes, read by the site tests"  # S4
         if path.endswith(DOC_SUFFIXES) and not path.startswith(APP):
             continue
+        if path == "pepla-web/src/app/ds/all.ts" and re.search("site", read(path) or "site", re.I):
+            # site-02 AC-12 fails if the gallery list mentions "site" in any case (PpComposite does)
+            return f"{path} now has the word site in it"
         if path.startswith(APP):
             text = read(path)
             if text is None:

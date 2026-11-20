@@ -199,6 +199,24 @@ class RuleASiteTouched(unittest.TestCase):
             self.runs_site("pepla-web/src/app/features/hr/hr-home.page.ts",
                            read=texts(**{"pepla-web/src/app/features/hr/hr-home.page.ts": words}))
 
+    def test_review_gaps_site_02_ac_12(self):
+        # the gallery list: any new name with "site" in it (PpComposite) must run site-02
+        self.runs_site("pepla-web/src/app/ds/all.ts", read=texts(**{"pepla-web/src/app/ds/all.ts": "PpComposite"}))
+        # without the word, the gallery list does not touch the site
+        res = run_a(["pepla-web/src/app/ds/all.ts"], read=texts(**{"pepla-web/src/app/ds/all.ts": "export const ALL = [PpButton];"}))
+        self.assertEqual(site_cards(res), LIGHT)
+        # unreadable (deleted): unsure, so it counts
+        self.runs_site("pepla-web/src/app/ds/all.ts", read=lambda p: None)
+        # the design system page
+        self.runs_site("pepla-web/src/app/dev/design-system.page.ts")
+        # a short path import of site code, outside the site pages' imports
+        for line in ("import { SITE_MENU } from '../site';", 'import { X } from "../site/menu";', "import { ppSiteThing } from './x';"):
+            self.runs_site("pepla-web/src/app/ds/agent/panel.ts", read=texts(**{"pepla-web/src/app/ds/agent/panel.ts": line}))
+
+    def test_review_gap_words_that_only_look_alike_do_not_count(self):
+        res = run_a(["pepla-web/src/app/ds/agent/panel.ts"], read=texts(**{"pepla-web/src/app/ds/agent/panel.ts": "import { y } from '../website-x'; // sites"}))
+        self.assertEqual(site_cards(res), LIGHT)
+
     def test_S10_a_deleted_file_is_unsure(self):
         self.runs_site("pepla-web/src/app/features/hr/gone.ts", read=lambda p: None)
 
@@ -230,7 +248,7 @@ class RuleANotSite(unittest.TestCase):
 
     def test_app_code_outside_the_site(self):
         for f in ("pepla-web/src/app/features/hr/hr-home.page.ts", "pepla-web/src/app/features/start/start.page.ts",
-                  "pepla-web/src/app/core/auth/auth.ts", "pepla-web/src/app/dev/design-system.page.ts",
+                  "pepla-web/src/app/core/auth/auth.ts", "pepla-web/src/app/dev/other.page.ts",
                   "pepla-web/src/app/ds/agent/panel.ts"):
             self.skips_site(f)
 
@@ -389,6 +407,27 @@ class The34PastPullRequests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------- step 5: timing list from the nightly run
+
+
+class WorkflowTiming(unittest.TestCase):
+    """The workflow's timing steps, read as text (review of PR 459, findings 1 and 2)."""
+
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+
+        cls.text = Path(".github/workflows/pepla-web.yml").read_text()
+
+    def test_every_shard_saves_its_timings_under_its_own_file_name(self):
+        self.assertIn("spec-seconds-shard-${{ matrix.shard }}.json", self.text)
+        self.assertNotIn("spec-seconds-shard.json", self.text)
+
+    def test_the_join_does_not_pile_shard_files_into_one_folder(self):
+        self.assertNotIn("merge-multiple", self.text)
+
+    def test_prs_read_the_newest_finished_nightly_even_when_it_was_red(self):
+        self.assertIn("--status completed", self.text)
+        self.assertNotIn("--status success", self.text)
 
 NOW = datetime(2026, 11, 21, 12, 0, tzinfo=timezone.utc)
 

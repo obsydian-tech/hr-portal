@@ -119,10 +119,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           dir="$RUNNER_TEMP/timing"; mkdir -p "$dir"
-          id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow pepla-web.yml --branch develop --event schedule --status success --limit 1 --json databaseId --jq '.[0].databaseId') || { echo "No nightly run found."; exit 0; }
-          [ -n "$id" ] || { echo "No nightly run found."; exit 0; }
-          gh run download "$id" --repo "$GITHUB_REPOSITORY" -n acceptance-spec-seconds -D "$dir" || { echo "No timing file on run $id."; exit 0; }
-          if [ -f "$dir/acceptance-spec-seconds.json" ]; then echo "file=$dir/acceptance-spec-seconds.json" >> "$GITHUB_OUTPUT"; fi
+          # The newest finished nightly runs, green or red: the timing job runs either way, so a
+          # red night still has good numbers. Take the first of the last five that has the file.
+          ids=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow pepla-web.yml --branch develop --event schedule --status completed --limit 5 --json databaseId --jq '.[].databaseId') || { echo "No nightly run found."; exit 0; }
+          for id in $ids; do
+            if gh run download "$id" --repo "$GITHUB_REPOSITORY" -n acceptance-spec-seconds -D "$dir" 2>/dev/null && [ -f "$dir/acceptance-spec-seconds.json" ]; then
+              echo "Timing file from nightly run $id."
+              echo "file=$dir/acceptance-spec-seconds.json" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "No timing file on run $id."
+          done
       - id: pick
         env:
           TIMING_FILE: ${{ steps.timing.outputs.file }}
@@ -212,13 +219,13 @@ jobs:
       # Nightly only: this shard's seconds per spec, joined by the `timing` job below.
       - name: Add up this shard's seconds per spec
         if: always() && github.event_name == 'schedule'
-        run: python3 ../scripts/ci/spec-seconds-from-results.py shard e2e/acceptance/.output/results.json spec-seconds-shard.json
+        run: python3 ../scripts/ci/spec-seconds-from-results.py shard e2e/acceptance/.output/results.json spec-seconds-shard-${{ matrix.shard }}.json
       - name: Keep this shard's seconds
         if: always() && github.event_name == 'schedule'
         uses: actions/upload-artifact@v4
         with:
           name: spec-seconds-shard-${{ matrix.shard }}
-          path: pepla-web/spec-seconds-shard.json
+          path: pepla-web/spec-seconds-shard-${{ matrix.shard }}.json
           retention-days: 2
           if-no-files-found: ignore
       # Failure pictures show fake people only. Short-lived. include-hidden-files:
@@ -246,9 +253,9 @@ jobs:
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
+          # Each group lands in its own folder (artifacts are not merged into one), and the join reads them all.
           pattern: spec-seconds-shard-*
           path: shards
-          merge-multiple: true
       - run: python3 scripts/ci/spec-seconds-from-results.py merge shards acceptance-spec-seconds.json
         continue-on-error: true
       - uses: actions/upload-artifact@v4
