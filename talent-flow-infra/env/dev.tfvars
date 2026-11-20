@@ -10,3 +10,6 @@ naleko_agent_jwt_authorizer_id = "4aeqy7"
 
 # BE-15: scoring links from pepla-dev point at the local app, not prod.
 frontend_url = "http://localhost:4200"
+
+# CHAT-15: the hourly job that deletes a leaver's Ask Batsi chats runs on pepla-dev.
+delete_leaver_chats_enabled = true

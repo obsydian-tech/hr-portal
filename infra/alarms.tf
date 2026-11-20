@@ -42,6 +42,7 @@ module "alarms" {
     "cognitoPostConfirmation",
     "tenantPreToken",
     "sendDocumentReminders",
+    "deleteLeaverChats",
   ]
 
   employees_api_id = aws_apigatewayv2_api.employees_api.id
