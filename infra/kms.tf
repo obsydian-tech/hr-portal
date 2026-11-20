@@ -73,6 +73,8 @@ module "kms_pii" {
     # Dev E2E (ONB-11 AC-11): the onboarding state machine's WaitForDocumentUpload state stores a task token on the
     # employees row with UpdateItem. Without this it gets AccessDenied on the PII key, and the invite then fails.
     aws_iam_role.sfn_onboarding.arn,
+    # CHAT-15: deleteLeaverChats reads and deletes in the encrypted chats table and writes the audit table (decrypt only, through DynamoDB). Its role lives in talent-flow-infra.
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-deleteLeaverChats",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getCandidate",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-updateCandidate",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-advanceCandidateStage",

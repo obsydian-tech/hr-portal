@@ -84,3 +84,9 @@ variable "agent_tenant_id" {
     error_message = "agent_tenant_id must be empty or ten_ followed by 26 lower-case letters or digits."
   }
 }
+
+variable "delete_leaver_chats_enabled" {
+  description = "CHAT-15: whether the hourly rule that deletes a leaver's Ask Batsi chats is ENABLED. Off by default (prod gets it in the release that gives prod Ask Batsi); env/dev.tfvars turns it on."
+  type        = bool
+  default     = false
+}
