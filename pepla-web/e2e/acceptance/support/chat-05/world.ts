@@ -225,13 +225,17 @@ export function routeTables(o: { legacy?: boolean; twinInB?: boolean } = {}): Ta
 export const LEGACY_ENV = { LEGACY_TENANT_ID: A };
 
 /** What a person's documents should answer, sorted by document_id. */
-export const EXPECTED_DOCUMENTS: Doc[] = [
-  doc('doc-t-bank-new', BANK, 'NEEDS_A_LOOK', '2026-11-06T08:00:00.000Z'),
-  doc('doc-t-bank-old', BANK, 'MATCHES', '2026-11-02T08:00:00.000Z'),
-  doc('doc-t-id-new', ID, 'MATCHES', '2026-11-05T08:00:00.000Z'),
-  doc('doc-t-id-old', ID, 'MATCHES', '2026-11-01T08:00:00.000Z'),
-  doc('doc-t-matric', MATRIC, 'READING', '2026-11-07T08:00:00.000Z'),
-  doc('doc-t-tertiary', TERTIARY, 'NEEDS_A_LOOK', '2026-11-08T08:00:00.000Z'),
+/** chat-05.2 (CHAT-09): each per-person document item also carries HR's decision and when it was made (hrDecisionOf, hr_reviewed_at). */
+export type DocWithDecision = Doc & { hr_decision: 'ACCEPTED' | 'NEW_ONE_ASKED' | null; hr_decided_at: string | null };
+const undecided = (d: Doc): DocWithDecision => ({ ...d, hr_decision: null, hr_decided_at: null });
+export const EXPECTED_DOCUMENTS: DocWithDecision[] = [
+  undecided(doc('doc-t-bank-new', BANK, 'NEEDS_A_LOOK', '2026-11-06T08:00:00.000Z')),
+  undecided(doc('doc-t-bank-old', BANK, 'MATCHES', '2026-11-02T08:00:00.000Z')),
+  undecided(doc('doc-t-id-new', ID, 'MATCHES', '2026-11-05T08:00:00.000Z')),
+  undecided(doc('doc-t-id-old', ID, 'MATCHES', '2026-11-01T08:00:00.000Z')),
+  undecided(doc('doc-t-matric', MATRIC, 'READING', '2026-11-07T08:00:00.000Z')),
+  // The tertiary qualification is PASSED with hr_reviewed_at: HR accepted it.
+  { ...doc('doc-t-tertiary', TERTIARY, 'NEEDS_A_LOOK', '2026-11-08T08:00:00.000Z'), hr_decision: 'ACCEPTED', hr_decided_at: '2026-11-09T08:00:00.000Z' },
 ];
 export const EXPECTED_VERIFICATION_IDS = ['ver-t-bank-new', 'ver-t-bank-old', 'ver-t-id-new', 'ver-t-id-old'];
 

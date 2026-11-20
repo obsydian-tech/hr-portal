@@ -13,6 +13,7 @@ import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-sec
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { randomUUID } from 'crypto';
+import { listPeople } from './people.mjs';
 
 const sm = new SecretsManagerClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 const db = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
@@ -85,6 +86,20 @@ async function getApiKey(fresh = false) {
   return _cachedApiKey;
 }
 
+
+const OUR_TEXTS = ['No verifications found for employee', 'Not found', 'Forbidden'];
+/** CHAT-09: the thrown error keeps its message and also carries the status and, when it is one of our fixed texts, that text. */
+async function failure(res, verb, path) {
+  const err = new Error(`Agent API ${verb} ${path} failed: ${res.status} ${res.statusText}`);
+  err.status = res.status;
+  try {
+    const body = await res.json();
+    const text = body?.message ?? body?.error;
+    if (OUR_TEXTS.includes(text)) err.apiText = text;
+  } catch { /* no body */ }
+  return err;
+}
+
 /**
  * One call to the Agent API. A 401 or 403 means the key may have rotated since this container read it: read it again and
  * try once more. Any other answer, and a second 401 or 403, is the answer (no loop).
@@ -97,7 +112,7 @@ async function agentCall(method, path, body) {
   });
   let res = await send(await getApiKey());
   if (res.status === 401 || res.status === 403) res = await send(await getApiKey(true));
-  if (!res.ok) throw new Error(`Agent API ${method} ${path} failed: ${res.status} ${res.statusText}`);
+  if (!res.ok) throw await failure(res, method, path);
   return res.json();
 }
 
@@ -127,15 +142,26 @@ export async function agentPost(path, body) {
 export const TOOL_DEFINITIONS = [
   {
     name: 'list_employees',
-    description: 'List employees created by this HR clerk. Supports optional limit.',
+    description: 'List the company\'s new employees in HR home\'s order, with counts by step and the overdue count over everyone the filters keep. Each person has name, department, job title, step, start and due dates (also written out), whether documents are overdue, HR partner and employee_id.',
     input_schema: {
       type: 'object',
-      properties: { limit: { type: 'number', description: 'Max results (default 20)' } },
+      properties: {
+        step: { type: 'array', items: { type: 'string', enum: ['Invited', 'Documents', 'In review', 'Verified'] } },
+        department: { type: 'string' },
+        starts_from: { type: 'string', description: 'YYYY-MM-DD, included' },
+        starts_to: { type: 'string', description: 'YYYY-MM-DD, included' },
+        no_start_date: { type: 'boolean' },
+        overdue: { type: 'boolean' },
+        hr_partner_is_me: { type: 'boolean' },
+        added_by_me: { type: 'boolean' },
+        sort: { type: 'string', enum: ['start', 'added', 'name'] },
+        limit: { type: 'number', description: 'People to show, at most 20 (default 20)' },
+      },
     },
   },
   {
     name: 'get_employee',
-    description: 'Get a single employee record by ID.',
+    description: 'Get what the person page shows about one person: name, email, job title, department, HR partner, step, start and due dates, risk, each document with its check and HR\'s decision, and whether the person is ready to start, with reasons.',
     input_schema: {
       type: 'object',
       properties: { id: { type: 'string', description: 'Employee ID e.g. EMP-0000012' } },
@@ -230,10 +256,9 @@ function qs(params) {
  */
 export const TOOL_MAP = {
   /**
-   * NH-53: always scopes to created_by={staffId} so the clerk only sees their own employees.
+   * CHAT-09: reads the company's list (every page, HR home's order); "mine" is decided here from the signed-in clerk, never from model input.
    */
-  list_employees: (args, context) =>
-    agentGet(`/agent/v1/employees${qs({ limit: args.limit ?? 20, created_by: context.staffId })}`),
+  list_employees: (args, context) => listPeople(args, context, agentGet),
 
   get_employee: (args, _context) =>
     agentGet(`/agent/v1/employees/${encodeURIComponent(args.id)}`),

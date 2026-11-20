@@ -760,7 +760,7 @@ test.describe('ONB-11 Risk check on the full set', () => {
     expect(agent.status, `getEmployee answers 200 (${agent.raw.slice(0, 200)})`).toBe(200);
     const a = agent.body.employee as Record<string, unknown>;
     expect([a['risk_band'], a['risk_reason']], 'getEmployee answers the stored band and reason').toEqual([risk.band, risk.reason]);
-    expect(Object.keys(a).sort(), 'getEmployee keeps its keys, plus the step ONB-22 adds (onb-11.6)').toEqual(['created_at', 'department', 'email', 'employee_id', 'first_name', 'last_name', 'risk_band', 'risk_reason', 'stage', 'step', 'updated_at'].sort());
+    expect(Object.keys(a).sort(), 'getEmployee keeps its keys, plus the step ONB-22 adds (onb-11.6) and the five more CHAT-09 adds (onb-11.8)').toEqual(['created_at', 'department', 'email', 'employee_id', 'first_name', 'last_name', 'risk_band', 'risk_reason', 'stage', 'step', 'updated_at', 'job_title', 'planned_start_date', 'documents_due', 'hr_staff_name', 'risk_assessed_at'].sort());
     const agentOther = ran(runHandler(GET_EMPLOYEE, withRisk(), agentEmployeeEvent(P.id, { kind: 'agent', tenant: COMPANY_B })), 'getEmployee');
     expect(agentOther.status, "another company's agent gets 404").toBe(404);
   });

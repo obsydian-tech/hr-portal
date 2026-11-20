@@ -14,6 +14,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { requireTenant, ownsRow, notFound } from '../shared/tenant.mjs';
 import { stepOf } from '../shared/onboarding-step.mjs';
+import { documentsDueDate } from '../shared/due-date.mjs';
 
 const dynamodb = new DynamoDBClient();
 const logger = new Logger({ serviceName: 'getEmployee' });
@@ -65,6 +66,12 @@ export const handler = async (event) => {
       risk_reason:  item.riskReason?.S,
       created_at:   item.created_at?.S,
       updated_at:   item.updated_at?.S,
+      // CHAT-09: what the person page shows, from the same row (same names as getEmployees).
+      job_title:          item.job_title?.S ?? '',
+      planned_start_date: item.planned_start_date?.S ?? '',
+      documents_due:      documentsDueDate(item.planned_start_date?.S, tenantId) ?? '',
+      hr_staff_name:      item.hr_staff_name?.S ?? '',
+      risk_assessed_at:   item.riskAssessedAt?.S ?? null,
     };
 
     tracer.putAnnotation('employeeId', employeeId);
