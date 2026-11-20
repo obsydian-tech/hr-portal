@@ -391,6 +391,13 @@ export class ChatService {
   }
   newChat(): void { this.startNew(); }
 
+  /** The visible "Back to Today" link (the list column on desktop, the chat header on phone). */
+  private focusBackLink(): void {
+    if (typeof document === 'undefined') return;
+    const links = Array.from(document.querySelectorAll<HTMLElement>('a')).filter((a) => a.textContent?.trim() === 'Back to Today' && a.getClientRects().length > 0);
+    links[0]?.focus();
+  }
+
   focusHeading(): void { this.focusRequest.set({ what: 'heading', n: ++this.focusN }); }
   focusBox(): void { this.focusRequest.set({ what: 'box', n: ++this.focusN }); }
 
@@ -422,7 +429,8 @@ export class ChatService {
     else this.chats.update((l) => l.filter((c) => c.chatId !== id));
     this.startNew();
     if (all && this.listState() === 'error') { /* the list could not be read before: still unknown */ } else void this.loadList();
-    setTimeout(() => this.focusBox(), 60);
+    // The message box is off when Ask Batsi is switched off, and the button just pressed is gone: focus goes to Back to Today.
+    setTimeout(() => (this.listState() === 'off' || this.notOn() ? this.focusBackLink() : this.focusBox()), 60);
   }
 
   /** The person's decision on a card: Approve or Decline go to the Agent API as that person. Edit has no behaviour yet. */
