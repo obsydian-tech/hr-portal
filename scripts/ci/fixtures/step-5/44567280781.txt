@@ -1,0 +1,5 @@
+pepla-web/e2e/acceptance/cards/chat-12.md
+pepla-web/e2e/acceptance/chat-12.spec.ts
+pepla-web/src/app/ds/agent/panel.ts
+pepla-web/src/styles/design-system/components.css
+pepla-web/src/styles/design-system/sync.json

@@ -1,0 +1,34 @@
+44734190271	fix/chat-15-apply-order-b	fix(chat): put the CHAT-15 role back in the PII key read list (2 of 2)
+44719460966	fix/chat-15-apply-order-a	fix(chat): let the CHAT-15 role be created before the PII key names it (1 of 2)
+44699554047	fix/onb-11-e2e-person-name	test(onb-11): dev AC-11 registers its person as Starter, not Risk (child lock onb-11.9)
+44698606189	feat/chat-15-leaver-chats	feat(chat): delete a leaver's Ask Batsi chats with their account (CHAT-15)
+44697980532	feat/chat-14-past-chats	feat(chat-14): Ask Batsi past chats screens
+44687632631	fix/sfn-onboarding-pii-key	fix(infra): onboarding state machine reads the PII key through DynamoDB
+44675505584	feat/chat-08-answer-formats	feat(chat-08): Batsi's answers read as text, lists, tables and charts
+44656133485	test/onb-14-3-dev-signin	test(onb-14.3): AC-12 on pepla-dev waits for the sign-in form before signing in
+44649301145	feat/chat-09-person-facts-3	feat(chat-09): Ask Batsi gets the facts the person page shows
+44634581153	test/onb-10-2-lock	test(onb-10.2): reading the HR home table survives a page change mid-read
+44633122065	fix/dev-cleanup-agent-actions	fix(ci): dev E2E clears proposals an earlier run left on the ONB-22 test documents
+44632464857	feat/onb-14-show-logged-2	feat(onb-14): every Show is logged (NH-182)
+44626958899	fix/create-employee-owner-link-2	fix(onb-11): invited people can upload (createEmployee may record their sign-in)
+44624689586	fix/create-employee-owner-link	fix(onb-11): invited people can upload (createEmployee may record their sign-in)
+44623873256	feat/chat-09-person-facts-3	feat(chat-09): Ask Batsi gets the facts the person page shows
+44607889080	feat/chat-05-answer-shape	feat(chat-05): Ask Batsi answers carry check rows
+44605194954	fix/dev-walk-ask-batsi-switch	fix(ci): dev company walk: Ask Batsi switch on, and walk rows for the ONB-22 agent routes
+44600748753	fix/create-employee-owner-link	fix(onb-11): invited people can upload (createEmployee may record their sign-in)
+44599050645	feat/onb-14-show-logged-2	feat(onb-14): every Show is logged (NH-182)
+44596116375	test/marketplace-dev-relock-2	test(ten-03,mod-01): judge the dev-only Ask Batsi Marketplace policy exactly (child locks ten-03.9, mod-01.9)
+44595029776	test/onb-22-6-lock	test(onb-22.6): AC-7 on pepla-dev accepts 401 or 403 for the agent key at approve
+44582190893	feat/onb-14-show-logged-2	feat(onb-14): every Show is logged (NH-182)
+44580510903	fix/chat-13-composer-hint-2	fix(chat-13): Ask Batsi message box shows its words in full
+44577216902	feat/chat-03-admin-switch	feat(chat-03): admin screen to turn Ask Batsi on or off
+44568640059	feat/onb-22-agent-api	feat(onb-22): agent proposals, HR approve and decline, key-checked MCP server
+44567280781	fix/chat-12-pinned-box	fix(chat-12): pin the Ask Batsi message box; only the conversation scrolls
+44545572619	feat/chat-02-stored-chats-v2	feat(chat-02): stored Ask Batsi chats and per-company switch
+44544023209	feat/chat-02-stored-chats	feat(chat-02): stored Ask Batsi chats and per-company switch
+44509056552	feat/chat-01-ask-batsi	feat(chat-01): Ask Batsi in the top bar, side panel and full page chat
+44487190346	fix/site-sync-ds-54	feat(site): sync design system to 03df8e2 and hide the claims DS #54 hides
+44478746423	ci/acceptance-timeout-90	ci(acceptance): raise the shard time limit from 60 to 90 minutes
+44462261280	test/ten-04-7-lock	test(ten-04.7): the company walk does not count the order of a row's fields
+44422607484	test/site-11-1-lock	test(site-11): read the kit at 03df8e2 (lock site-11.1)
+44410278409	fix/onb-19-test-races	test(onb-19): fix two test races (locks onb-19.1, onb-19.2)

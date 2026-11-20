@@ -1,0 +1,13 @@
+pepla-web/e2e/acceptance/cards/chat-03.md
+pepla-web/e2e/acceptance/chat-03.spec.ts
+pepla-web/e2e/acceptance/mod-02.spec.ts
+pepla-web/e2e/acceptance/support/chat-03/admin-fake.ts
+pepla-web/src/app/app.routes.ts
+pepla-web/src/app/core/admin/company-switch.service.ts
+pepla-web/src/app/core/auth/auth.guard.ts
+pepla-web/src/app/core/auth/auth.service.ts
+pepla-web/src/app/core/modules.service.ts
+pepla-web/src/app/core/nav.ts
+pepla-web/src/app/features/admin/admin-shell.ts
+pepla-web/src/app/features/admin/company-switch.page.ts
+pepla-web/src/app/features/sign-in/sign-in.page.ts
