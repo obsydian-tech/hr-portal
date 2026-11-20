@@ -518,19 +518,15 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     expect([unquote(pa.get('principal')), unquote(pa.get('action')), pa.get('source_arn')], 'events.amazonaws.com may invoke it, from this rule only').toEqual(['events.amazonaws.com', 'lambda:InvokeFunction', `aws_cloudwatch_event_rule.${rule.labels[1]}.arn`]);
   });
 
-  test('AC-12 The role is in the PII key\'s read list at most once (re-lock chat-15.1: it may be missing for one merge) and not in its encrypt list; nothing else in either list moves', () => {
-    // chat-15.1: the pipeline applies infra/ before talent-flow-infra/, so the key policy cannot name the role in the
-    // same merge that creates it. One merge adds the role without the line; the next adds the line (chat-15.2 puts
-    // the strict test back: exactly once).
+  test('AC-12 The role is added once to the PII key\'s read list and not to its encrypt list; nothing else in either list moves', () => {
     const base = JSON.parse(readFileSync(join(BASELINE, 'kms-lists.ccc2beb-419.json'), 'utf8')) as { allowed: string[]; readers: string[] };
     const now = kmsLists();
     const arn = squash(`"${ROLE_ARN}"`);
-    const times = now.readers.filter((e) => e === arn).length;
-    expect(times, 'the role\'s ARN is in dynamodb_read_role_arns once, or not yet').toBeLessThanOrEqual(1);
+    expect(now.readers.filter((e) => e === arn), 'the role\'s ARN is in dynamodb_read_role_arns once').toHaveLength(1);
     expect(now.allowed.filter((e) => e.includes('deleteLeaverChats')), 'and not in allowed_role_arns').toEqual([]);
-    expect([...now.readers].sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, ...(times === 1 ? [arn] : [])].sort());
+    expect([...now.readers].sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
     expect(now.allowed, 'the encrypt list is as on develop').toEqual(base.allowed);
-    expect(squash(read('infra/kms.tf')).split(arn).length - 1, 'the ARN appears at most once in kms.tf').toBe(times);
+    expect(squash(read('infra/kms.tf')).split(arn).length - 1, 'the ARN appears once in kms.tf').toBe(1);
   });
 
   test('AC-12 Add only: no resource removed or renamed, only the new ones added, no moved or removed block, no table data, adminDeactivateUser untouched byte for byte', () => {
