@@ -70,6 +70,9 @@ module "kms_pii" {
     aws_iam_role.send_document_reminders.arn,
     # Walk fix: queryAuditLog Queries/Scans the onboarding-events table, which this key encrypts (AccessDeniedException in its log).
     aws_iam_role.query_audit_log.arn,
+    # Dev E2E (ONB-11 AC-11): the onboarding state machine's WaitForDocumentUpload state stores a task token on the
+    # employees row with UpdateItem. Without this it gets AccessDenied on the PII key, and the invite then fails.
+    aws_iam_role.sfn_onboarding.arn,
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getCandidate",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-updateCandidate",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-advanceCandidateStage",

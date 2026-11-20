@@ -43,3 +43,6 @@ Only `onb-22.spec.ts` AC-8 changes, in three lines, so that ONB-22 and CHAT-02 (
 
 ## Child lock onb-22.6 (first dev run of AC-7, 19 Nov)
 Only the one line of `onb-22.spec.ts` AC-7 (pepla-dev) that checks the agent key cannot approve its own proposal changes. It expected 403. On pepla-dev the approve and decline routes use the HR sign-in check at the API gateway (`infra/agent_api.tf`, authorization_type JWT), so an agent key with no sign-in is turned away there with 401, before any code runs. The line now accepts 401 or 403. Any other answer (200, 404, 500) still fails, and the next lines still need HR's own call to approve (200) and the action to run once. Nothing else changes. Locks: acceptance-lock/onb-22.6.
+
+## Child lock onb-22.7 (ONB-11 AC-11 on dev)
+Only `onb-22.spec.ts` AC-8 changes, in one list and its message: `dynamodb_read_role_arns` may also hold `sfn_onboarding`, the onboarding state machine's role, besides the four roles of this card and the three of CHAT-02 and ONB-21. The state machine stores a task token on the employees row, and without this entry the invite fails with AccessDenied on the PII key. Any other role still fails.
