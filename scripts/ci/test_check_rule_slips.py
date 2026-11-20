@@ -345,6 +345,48 @@ class RulesComeFromTheTargetBranch(Base):
         self.assertNotRegex(text, r":\s*write\b")  # no write permission anywhere
 
 
+class ReviewLeftovers(Base):
+    def event(self, head_ref):
+        f = Path(self.tmp.name, "event-%s.json" % head_ref.replace("/", "-"))
+        f.write_text(json.dumps({"pull_request": {
+            "body": "Release.", "head": {"ref": head_ref, "sha": self.repo.git("rev-parse", "HEAD")},
+            "base": {"ref": "main", "sha": self.base}}}))
+        return str(f)
+
+    def test_release_pull_request_allows_github_merge_button_commits(self):
+        self.repo.commit("feat: one (#1)", who=IGGIE, committer=GITHUB)
+        self.repo.commit("feat: two (#2)", who=IGGIE, committer=GITHUB)
+        self.assertClean(run_check(self.repo, "--event", self.event("develop"), mode="enforce"))
+
+    def test_release_allowance_does_not_cover_other_branches_or_other_authors(self):
+        self.repo.commit("feat: one (#1)", who=IGGIE, committer=GITHUB)
+        self.assertFlagged(run_check(self.repo, "--event", self.event("feat/thing"), mode="enforce"), 1, "committed by GitHub")
+        self.repo.commit("feat: two (#2)", who=TOOL_ID, committer=GITHUB)
+        self.assertFlagged(run_check(self.repo, "--event", self.event("develop"), mode="enforce"), 1, "authored by")
+
+    def test_notes_file_brought_in_inside_a_merge_commit_is_seen(self):
+        self.repo.git("checkout", "-q", "-b", "side")
+        self.repo.commit("side", files={"x/" + TOOL_NOTES: "n\n"})
+        self.repo.git("checkout", "-q", "feat/thing")
+        self.repo.commit("feat: work")
+        self.repo.git("merge", "-q", "--no-ff", "-m", "Merge branch 'side'", "side")
+        self.assertFlagged(self.judge(), 4, "x/" + TOOL_NOTES)
+
+    def test_notes_file_is_reported_once_when_a_commit_already_shows_it(self):
+        self.repo.commit("docs", files={TOOL_NOTES: "n\n"})
+        r = self.judge()
+        self.assertEqual(r.stdout.count("Rule 4"), 1)
+
+    def test_more_text_shapes_are_flagged(self):
+        self.repo.commit("feat: x\n\n- Co-authored-by: A <a@example.com>\nRequested-by: Someone")
+        r = self.judge(body="Adds a thing.\n<!-- %s notes, never closed" % TOOL)
+        self.assertFlagged(r, 2, "co-author line", "Requested-by", "hidden comment")
+
+    def test_a_code_name_that_starts_with_session_is_not_a_session_link(self):
+        self.repo.commit("fix: rename session_expiresAtTimestampMs")
+        self.assertClean(self.judge(body="Renames session_expiresAtTimestampMs."))
+
+
 class Replay(Base):
     def test_bot_commits_are_flagged_and_github_merge_button_commits_are_not(self):
         self.repo.git("checkout", "-q", "develop")

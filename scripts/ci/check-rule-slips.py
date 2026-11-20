@@ -76,16 +76,17 @@ def is_github(name, email):
 # ---- the word list (rule 2) -------------------------------------------------
 
 TEXT_RULES = [
-    ("a co-author line", re.compile(r"^[ \t]*co-authored-by[ \t]*:", re.I | re.M)),
+    ("a co-author line", re.compile(r"^[ \t>*-]*co-authored-by[ \t]*:", re.I | re.M)),
     ("a \"Generated with/by\" footer naming the tool",
      re.compile(r"^.*\bgenerated\s+(?:with|by)\b.*(?:%s|%s).*$" % (TOOL, "anth" + "ropic"), re.I | re.M)),
     ("a session link",
-     re.compile(r"%s\.ai/code\b|%s\.com/%s-code|\bsession_[0-9A-Za-z]{16,}" % (TOOL, TOOL, TOOL), re.I)),
+     re.compile(r"%s\.ai/code\b|%s\.com/%s-code|\bsession_01[0-9A-Za-z]{14,}" % (TOOL, TOOL, TOOL), re.I)),
+    ("a \"Requested-by\" trailer", re.compile(r"^[ \t>*-]*requested-by[ \t]*:", re.I | re.M)),
     # The attribution line is "Requested by **Name** ..." with a bold name or a link; a sentence such as
     # "Requested by the security review." is ordinary prose and is not flagged.
     ("a \"Requested by\" line", re.compile(r"^[ \t_*>]*requested\s+by\b(?=[^\n]*(?:\*\*|\]\(|project thread))", re.I | re.M)),
 ]
-HIDDEN_COMMENT = re.compile(r"<!--(.*?)-->", re.S)
+HIDDEN_COMMENT = re.compile(r"<!--(.*?)(?:-->|\Z)", re.S)  # an unclosed comment hides text too
 TOOL_NAMES = re.compile("%s|%s" % (TOOL, "anth" + "ropic"), re.I)
 
 
@@ -147,6 +148,8 @@ def short(c):
 # ---- the rules --------------------------------------------------------------
 
 def check_commits(repo, commits, replay):
+    # `replay` also covers a release pull request (develop into main): its commits are
+    # the merge-button commits already on develop, so GitHub as committer is allowed.
     findings = []
     for c in commits:
         who = short(c)
@@ -168,6 +171,21 @@ def check_commits(repo, commits, replay):
                          c["msg"].strip().splitlines()[0] if c["msg"].strip() else "")
             if m and m.group(1).lower().startswith(TOOL + "/"):
                 findings.append((3, "commit " + who, "merges a branch named " + m.group(1)))
+    return findings
+
+
+def check_overall_change(repo, base, head, commits):
+    """Rule 4 on the pull request's whole change, so a file brought in inside a merge commit is seen."""
+    seen = set()
+    for c in commits:
+        if len(c["parents"]) <= 1:
+            seen.update(files_added_or_changed(repo, c["sha"]))
+    out = git(repo, "diff", "--name-status", "--no-renames", git(repo, "merge-base", base, head).strip(), head)
+    findings = []
+    for line in out.splitlines():
+        status, _, path = line.partition("\t")
+        if status and status[0] != "D" and path not in seen and os.path.basename(path).lower() == TOOL_NOTES:
+            findings.append((4, "the pull request's overall change", "adds or changes the file " + path))
     return findings
 
 
@@ -249,10 +267,13 @@ def main(argv):
     if base:
         excludes.append(base)
 
+    release = bool(a.event) and not a.replay and (branch or "").lower() == "develop"
     commits = commit_info(a.repo, list_commits(a.repo, head, excludes, a.since))
-    findings = check_commits(a.repo, commits, a.replay)
+    findings = check_commits(a.repo, commits, a.replay or release)
     if not a.replay:
         findings += check_pr_text(branch, body)
+        if base:
+            findings += check_overall_change(a.repo, base, head, commits)
     examined = "%d commit(s)%s" % (len(commits), "" if a.replay else " and the pull request text")
     write_outputs(findings, a.mode, examined, os.environ.get("GITHUB_STEP_SUMMARY"))
     return 1 if (findings and a.mode == "enforce") else 0
