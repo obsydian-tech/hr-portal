@@ -102,10 +102,10 @@ test.describe('Full page chat', () => {
     await longConversation(page, chat!);
     const back = page.getByRole('link', { name: 'Back to Today' });
     expect(await log(page).evaluate((e) => e.scrollTop), 'the conversation was down at the newest message').toBeGreaterThan(100);
-    const before = { back: await rect(back), box: await rect(box(page)), title: await rect(page.getByRole('heading', { level: 1, name: 'Batsi' })) };
+    const before = { back: await rect(back), box: await rect(box(page)), title: await rect(page.getByRole('heading', { level: 1 })) };
     await scrollLog(page, 'top');
     expect(await log(page).evaluate((e) => e.scrollTop), 'the conversation moved to the start').toBe(0);
-    const after = { back: await rect(back), box: await rect(box(page)), title: await rect(page.getByRole('heading', { level: 1, name: 'Batsi' })) };
+    const after = { back: await rect(back), box: await rect(box(page)), title: await rect(page.getByRole('heading', { level: 1 })) };
     expect(after, 'the header and the box did not move').toEqual(before);
     await expectOnScreen(page, back, 'Back to Today');
     await expectOnScreen(page, box(page), 'the message box');
