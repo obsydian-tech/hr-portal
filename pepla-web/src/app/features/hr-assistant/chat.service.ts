@@ -128,6 +128,10 @@ export class ChatService {
   private listGen = 0;
   private view = 0;
   private lastOpen: { id: string; title?: string } | null = null;
+  /** CHAT-17: the full page, loaded in the browser, opens the person's last chat once the first list read answers. */
+  private lastChatPending = true;
+  /** CHAT-17 (Iggie, 20 Nov 18:50 SAST, "Match full page"): the side panel, opened first on a visit, starts on the last chat too. */
+  private panelPending = false;
 
   private readonly url = toSignal(this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects)), { initialValue: this.router.url });
   readonly onPage = computed(() => this.url().split('?')[0] === CHAT_PAGE);
@@ -236,11 +240,23 @@ export class ChatService {
     this.waiting.set(0);
     this.focus.set(null);
     this.returnTo.set('/hr');
+    this.lastChatPending = true;
+    this.panelPending = false;
+  }
+
+  /** The panel's Open as a full page: the same conversation, never switched to the last chat. */
+  fromPanel(): void { this.lastChatPending = false; this.panelPending = false; }
+  /** The side panel opened: on a fresh visit with a blank conversation, read the list and open the last chat. */
+  panelOpened(): void {
+    if (!this.lastChatPending || this.onPage() || this.chatId() || this.entries().length || this.working()) return;
+    this.panelPending = true;
+    void this.loadList();
   }
 
   async ask(text: string): Promise<void> {
     const question = text.trim();
     if (!question || this.working() || !this.online() || this.notOn()) return;
+    this.lastChatPending = false;
     this.entries.update((e) => [...e, { kind: 'person', text: question, at: time(new Date()) }]);
     await this.run(question);
   }
@@ -324,12 +340,14 @@ export class ChatService {
         this.chats.set(all);
         if (all.length) this.allDeleted.set(false);
         this.listState.set('ok');
+        if (pages === 0) this.openLastChat(all);
         next = typeof res.nextToken === 'string' && res.nextToken ? res.nextToken : undefined;
         pages++;
       } while (next && pages < 20);
       this.listComplete.set(!next);
     } catch (err) {
       if (gen !== this.listGen) return;
+      this.lastChatPending = false;
       if (err instanceof HttpErrorResponse && err.status === 403) {
         this.chats.set([]);
         this.listState.set('off');
@@ -341,8 +359,19 @@ export class ChatService {
     }
   }
 
+  private openLastChat(all: ChatHead[]): void {
+    const armed = this.lastChatPending;
+    this.lastChatPending = false;
+    const panel = this.panelPending;
+    this.panelPending = false;
+    if (!armed || !(this.onPage() || panel) || this.chatId() || this.entries().length || this.openState() !== 'idle' || this.working()) return;
+    const last = [...all].sort((a, b) => (a.updated < b.updated ? 1 : a.updated > b.updated ? -1 : 0))[0];
+    if (last) void this.openChat(last.chatId, last.title, true);
+  }
+
   /** An old chat, read from the server and shown like a live one. */
-  async openChat(id: string, title?: string): Promise<void> {
+  async openChat(id: string, title?: string, auto = false): Promise<void> {
+    this.lastChatPending = false;
     const view = ++this.view;
     this.generation++;
     this.inFlight?.unsubscribe();
@@ -362,11 +391,11 @@ export class ChatService {
       this.title.set(typeof chat?.title === 'string' && chat.title ? chat.title : this.title());
       this.entries.set(messages.map((m): Entry => (m.role === 'person' ? { kind: 'person', text: String(m.text ?? ''), at: stamp(m.at) } : { kind: 'batsi', text: String(m.text ?? ''), at: stamp(m.at), ...(Array.isArray(m.blocks) ? { blocks: m.blocks } : {}) })));
       this.openState.set('idle');
-      this.focusHeading();
+      if (!auto) this.focusHeading();
     } catch (err) {
       if (view !== this.view) return;
       const status = err instanceof HttpErrorResponse ? err.status : 0;
-      if (status === 404) { this.startNew(); void this.loadList(); return; }
+      if (status === 404) { this.startNew(!auto); void this.loadList(); return; }
       if (status === 403) { this.chatId.set(null); this.title.set(null); this.reopened.set(false); this.openState.set('idle'); this.entries.set([{ kind: 'not-on' }]); return; }
       this.openState.set('failed');
       this.entries.set([{ kind: 'open-failed' }, { kind: 'retry', question: OPEN_RETRY }]);
@@ -376,7 +405,7 @@ export class ChatService {
   /** Try again, after an old chat could not be opened. */
   reopen(): void { if (this.lastOpen) void this.openChat(this.lastOpen.id, this.lastOpen.title); }
 
-  private startNew(): void {
+  private startNew(focus = true): void {
     this.view++;
     this.generation++;
     this.inFlight?.unsubscribe();
@@ -387,9 +416,9 @@ export class ChatService {
     this.openState.set('idle');
     this.lastOpen = null;
     this.entries.set(this.listState() === 'off' ? [{ kind: 'not-on' }] : []);
-    this.focusBox();
+    if (focus) this.focusBox();
   }
-  newChat(): void { this.startNew(); }
+  newChat(): void { this.lastChatPending = false; this.startNew(); }
 
   /** The visible "Back to Today" link (the list column on desktop, the chat header on phone). */
   private focusBackLink(): void {

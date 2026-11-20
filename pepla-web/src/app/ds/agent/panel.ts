@@ -66,6 +66,7 @@ const CHECK_OTHER = { status: 'warning' as Status, icon: 'triangle-alert' as Ico
             <span #titleEl class="pp-agent-panel__title" role="heading" tabindex="-1" [attr.aria-level]="level()" [id]="id + '-t'">{{ heading() }}</span>
             @if (context()) { <span class="pp-agent-panel__context">{{ context() }}</span> }
           </div>
+          @if (newChatLabel() && !page()) { <button ppButton appearance="subtle" size="small" icon="plus" type="button" (click)="newChat.emit()">{{ newChatLabel() }}</button> }
           @if (actionLabel()) { <button ppButton appearance="subtle" size="small" icon="trash-2" type="button" (click)="action.emit()">{{ actionLabel() }}</button> }
           @if (expandable() && !page()) {
             <button ppButton appearance="subtle" icon="maximize-2" [iconOnly]="true" type="button" [attr.aria-label]="expandLabel()" (click)="expand.emit()"></button>
@@ -224,6 +225,9 @@ export class PpAgentPanel extends PpLayer {
   /** A button on the right of the header, for the page: "Delete chat". */
   readonly actionLabel = input<string>();
   readonly action = output<void>();
+  /** The side panel's "New chat" button (CHAT-17): a blank chat, like the full page's. Not on the page itself. */
+  readonly newChatLabel = input<string>();
+  readonly newChat = output<void>();
   private readonly titleEl = viewChild<ElementRef<HTMLElement>>('titleEl');
   focusTitle(): void { this.titleEl()?.nativeElement.focus(); }
   focusBox(): void { this.box()?.nativeElement.focus(); }

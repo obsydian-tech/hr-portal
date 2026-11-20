@@ -90,10 +90,10 @@ export interface ChatGroup { name: string; items: ChatItem[]; }
       @if (phone()) { <h2 class="pp-heading pp-heading--large">Chats</h2> }
       @if (state() !== 'off') {
         <ul class="pp-side-navigation__section">
-          <li><button class="pp-side-navigation__item" type="button" (click)="newChat.emit(); open.set(false)"><svg ppIcon="plus" /><span class="pp-side-navigation__label">New chat</span></button></li>
+          <li><button class="pp-side-navigation__item pp-side-navigation__item--entry" type="button" (click)="newChat.emit(); open.set(false)"><svg ppIcon="plus" /><span class="pp-side-navigation__label">New chat</span></button></li>
           <li>
             @if (!searching()) {
-              <button #searchButton class="pp-side-navigation__item" type="button" (click)="startSearch()"><svg ppIcon="search" /><span class="pp-side-navigation__label">Search chats</span></button>
+              <button #searchButton class="pp-side-navigation__item pp-side-navigation__item--entry" type="button" (click)="startSearch()"><svg ppIcon="search" /><span class="pp-side-navigation__label">Search chats</span></button>
             } @else {
               <input #searchBox ppTextField type="search" size="small" aria-label="Search chats" [value]="query()" (input)="query.set($any($event.target).value)" (keydown.escape)="stopSearch()" (blur)="leaveSearch()" />
             }
@@ -111,11 +111,12 @@ export interface ChatGroup { name: string; items: ChatItem[]; }
           </div>
         }
         @case ('ok') {
+          @if (!groups().length) { <p class="pp-text pp-text--small pp-text--subtle pp-side-navigation__heading" role="status">No chats yet.</p> }
           @for (g of shown(); track g.name; let i = $index) {
             <ul class="pp-side-navigation__section" [attr.aria-labelledby]="id + '-g' + i">
               <li><span class="pp-side-navigation__heading" [id]="id + '-g' + i">{{ g.name }}</span></li>
               @for (c of g.items; track c.id) {
-                <li><button class="pp-side-navigation__item" type="button" [attr.aria-current]="c.current ? 'page' : null" [attr.aria-label]="c.title" (click)="openChat.emit(c.id); open.set(false)"><svg ppIcon="messages-square" /><span class="pp-side-navigation__label">{{ c.title }}</span></button></li>
+                <li><button class="pp-side-navigation__item" type="button" [attr.aria-current]="c.current ? 'page' : null" [attr.aria-label]="c.title" (click)="openChat.emit(c.id); open.set(false)"><span class="pp-side-navigation__label">{{ c.title }}</span></button></li>
               }
             </ul>
           }
@@ -124,13 +125,13 @@ export interface ChatGroup { name: string; items: ChatItem[]; }
       }
       @if (canDeleteAll()) {
         <ul class="pp-side-navigation__section">
-          <li><button class="pp-side-navigation__item" type="button" (click)="deleteAll.emit()"><svg ppIcon="trash-2" /><span class="pp-side-navigation__label">Delete all my chats</span></button></li>
+          <li><button class="pp-side-navigation__item pp-side-navigation__item--entry" type="button" (click)="deleteAll.emit()"><svg ppIcon="trash-2" /><span class="pp-side-navigation__label">Delete all my chats</span></button></li>
         </ul>
       }
     </div>
   `,
   host: {
-    class: 'pp-side-navigation', role: 'navigation', 'aria-label': 'Chats', id: 'pp-side-navigation',
+    class: 'pp-side-navigation pp-side-navigation--chats', role: 'navigation', 'aria-label': 'Chats', id: 'pp-side-navigation',
     '[attr.data-open]': 'open() ? "true" : null',
     '[style.top]': 'phone() ? "var(--layout-topbar-height)" : null',
     '[style.height]': 'phone() ? "calc(100% - var(--layout-topbar-height))" : null',
