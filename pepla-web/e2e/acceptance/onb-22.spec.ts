@@ -1292,9 +1292,10 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     expect(sq(/allowed_role_arns\s*=\s*\[([\s\S]*?)\]/.exec(kms)?.[1] ?? ''), 'allowed_role_arns gains nothing').toBe(baseline['kmsAllowed']);
     const reads = (/dynamodb_read_role_arns\s*=\s*\[([\s\S]*?)\n\s*\]/.exec(kms)?.[1] ?? '').split('\n').map((l) => l.trim().replace(/,$/, '')).filter(Boolean);
     // Child lock onb-22.3: the roles of other cards that read tables behind the PII key may also be listed: CHAT-02's two (ask_batsi_chats, admin_set_ask_batsi) and ONB-21's reminder sender.
-    const OTHER_CARDS = ['aws_iam_role.ask_batsi_chats.arn', 'aws_iam_role.admin_set_ask_batsi.arn', 'aws_iam_role.send_document_reminders.arn'];
+    // Child lock onb-22.7: and the onboarding state machine's role (ONB-11 AC-11), which stores a task token on the employees row through DynamoDB and so needs to decrypt through it.
+    const OTHER_CARDS = ['aws_iam_role.ask_batsi_chats.arn', 'aws_iam_role.admin_set_ask_batsi.arn', 'aws_iam_role.send_document_reminders.arn', 'aws_iam_role.sfn_onboarding.arn'];
     const addedRoles = reads.filter((l) => !(baseline['kmsReadRoles'] as string[]).includes(l) && !OTHER_CARDS.includes(l)).sort();
-    expect(addedRoles, 'dynamodb_read_role_arns gains exactly the four roles (and, apart from them, only the three roles of CHAT-02 and ONB-21)').toEqual(['createProposal', 'approveAgentAction', 'queryAuditLog', 'summariseVerification'].map((f) => `aws_iam_role.${roleOf(lambdaNamed(f))}.arn`).sort());
+    expect(addedRoles, 'dynamodb_read_role_arns gains exactly the four roles (and, apart from them, only the four roles of CHAT-02, ONB-21 and ONB-11)').toEqual(['createProposal', 'approveAgentAction', 'queryAuditLog', 'summariseVerification'].map((f) => `aws_iam_role.${roleOf(lambdaNamed(f))}.arn`).sort());
     expect((baseline['kmsReadRoles'] as string[]).filter((l) => !reads.includes(l)), 'and takes none away').toEqual([]);
     // summariseVerification reads the employee for the email.
     const sumRole = roleOf(lambdaNamed('summariseVerification'));
