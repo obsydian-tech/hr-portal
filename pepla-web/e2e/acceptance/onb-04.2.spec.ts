@@ -4,6 +4,7 @@ import { ON_DEV, expect, test } from './support/fixtures';
 import { blocks, tfFiles } from './support/infra-harness';
 import { policyOf, resourcesNamed } from './support/onb-15/tf-policy';
 import { tablesIn, tenancyGrant } from './support/ten-02/relock';
+import { ownerLinkGrant } from './support/onb-11/owner-link';
 import type { Statement } from './support/ops-05/iam-eval';
 import {
   GOOD_PASSWORD, HR, INVITES, OTHER_PASSWORD, T0, at, cognitoCalls, create, current, dynamoCalls, employees, existingUser, invites, issue, issueArgs, logLines,
@@ -328,7 +329,7 @@ test.describe('ONB-04.2 An invite never takes over an existing sign-in', () => {
     const GAIN = [['cognito-idp:AdminGetUser', isPool], ['cognito-idp:AdminListGroupsForUser', isPool]] as const;
     for (const [action, on] of GAIN) expect(added.some((r) => r.action === action && on(r.resource)), `createEmployee gains ${action} on the pool`).toBe(true);
     // TEN-02 (re-lock): the company grants (Member rows, the employees tenant-index) are TEN-02's, not this card's.
-    expect(added.filter((r) => !GAIN.some(([action, on]) => r.action === action && on(r.resource)) && !tenancyGrant(r.action, r.resource, tablesIn(before.map((b) => b.split(' ')[2]!)), true)).map(show), 'createEmployee gains nothing else').toEqual([]);
+    expect(added.filter((r) => !GAIN.some(([action, on]) => r.action === action && on(r.resource)) && !tenancyGrant(r.action, r.resource, tablesIn(before.map((b) => b.split(' ')[2]!)), true) && !(r.effect === 'Allow' && ownerLinkGrant(r.action, r.resource, 'create_employee'))).map(show), 'createEmployee gains nothing else').toEqual([]);
     expect(now.filter((r) => r.action === 'cognito-idp:AdminSetUserPassword').map(show), 'createEmployee still holds no AdminSetUserPassword').toEqual([]);
     noWildcards('createEmployee', now);
   });

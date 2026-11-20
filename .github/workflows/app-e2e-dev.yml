@@ -241,6 +241,10 @@ jobs:
           npx ng serve --host 127.0.0.1 --port 4300 > /tmp/ng-serve-pepla-web.log 2>&1 &
           npx wait-on http://127.0.0.1:4300 --timeout 180000
 
+      # ONB-22 AC-7 proposes Accept document for a seeded document. A proposal an earlier run left open answers 409.
+      - name: Clear proposals an earlier run left on the ONB-22 test documents
+        run: python3 scripts/ci/cleanup-dev-e2e.py --agent-actions
+
       # MOD-01 AC-10 runs scripts/tenancy/set-modules.mjs as a child process. It needs the script's own packages and
       # the ones lambda/shared/modules.mjs (which it imports) needs.
       - name: Install the packages set-modules needs
