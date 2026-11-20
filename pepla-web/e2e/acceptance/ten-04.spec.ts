@@ -6,7 +6,7 @@ import { devEnv } from './support/ten-02/dev';
 import { REPO, SCRIPT, drop, hasId, planter, plantRoot, readSpec, runScript, type Op, type Result } from './support/ten-04/files';
 import { handlerSource, terraformRoutes, type ApiName, type TfRoute } from './support/ten-04/tf';
 import { ROWS, type Kind, type Row } from './support/ten-04/rows';
-import { LOGIN_ENV, walk, type LoginName, type OpInfo, type Req, type Res, type World } from './support/ten-04/walk';
+import { LOGIN_ENV, SELF_CHANGING, firstDifference, walk, type LoginName, type OpInfo, type Req, type Res, type World } from './support/ten-04/walk';
 import { makeModel, type Leak } from './support/ten-04/model';
 
 /**
@@ -244,7 +244,9 @@ test.describe('TEN-04 · every route is described, and a company B walk proves n
       const [m, p] = key.split(' ') as [string, string];
       contains(op, strip(raw.paths[p]?.[m.toLowerCase()]), key, changed);
     }
-    expect.soft(changed, 'every earlier operation keeps its paths, fields and wording (add-only)').toEqual([]);
+    // ONB-14 (re-lock ten-04.N): the GET answer of one verification no longer holds the two full numbers, and its description says so.
+    const onb14 = new Set(['GET /v1/verifications/{id}.description', 'GET /v1/verifications/{id}.responses.200.content.application/json.schema.properties.verification.properties.extracted_data.properties.id_number', 'GET /v1/verifications/{id}.responses.200.content.application/json.schema.properties.verification.properties.extracted_data.properties.account_number']);
+    expect.soft(changed.filter((c) => !onb14.has(c)), 'every earlier operation keeps its paths, fields and wording (add-only)').toEqual([]);
     expect.soft(Object.keys(baseline).length, 'the baseline holds the 23 operations on develop 6122df1').toBe(23);
   });
 
@@ -324,6 +326,32 @@ test.describe('TEN-04 · every route is described, and a company B walk proves n
       const res = await walk(ops, send, world);
       expect.soft(res.problems.some((p) => re.test(p)), `the walk catches "${leak}" (${res.problems.length} problems; first: ${res.problems[0] ?? 'none'})`).toBe(true);
     }
+  });
+
+  test('AC-7 A change the platform makes by itself is not counted, and a real change prints what changed', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    expect.soft(SELF_CHANGING, 'exactly the four keys the SLA monitor and the orchestrator write on company A\'s own candidates').toEqual(['slaStatus', 'slaBreachedAt', 'slaBreachedStage', 'configVersion']);
+    const shown = firstDifference('{"a":1,"data":{"x":1}}', '{"a":1,"data":{"x":2}}');
+    expect.soft(shown, 'the line says what it was').toContain('"x":1');
+    expect.soft(shown, 'the line says what it is now').toContain('"x":2');
+    // The walk on a small API of its own: company A's candidate list is read before and after company B's create.
+    const ops = opsOf(readSpec(), routes()).filter((o) => o.key === 'POST /v1/candidates' || o.key === 'GET /v1/candidates');
+    const walkWith = async (after: Record<string, unknown>) => {
+      const world = modelWorld();
+      let aReads = 0;
+      const send = async (req: Req): Promise<Res> => {
+        if (req.method === 'POST') return { status: 201, body: { candidateId: 'CAND-ten04-b' } };
+        const isA = ['hrA', 'tfA', 'itA', 'empA'].includes(req.login);
+        const row = { id: 'CAND-ten04-a', firstName: 'Kept', slaStatus: 'ON_TRACK', ...(isA && aReads++ > 0 ? after : {}) };
+        return { status: 200, body: { candidates: [row], total: 1 } };
+      };
+      return (await walk(ops, send, world)).problems.filter((p) => /not as it was/.test(p));
+    };
+    for (const key of SELF_CHANGING) expect.soft(await walkWith({ [key]: 'changed-by-the-platform' }), `only ${key} changes on company A: not counted`).toEqual([]);
+    const real = await walkWith({ firstName: 'Changed' });
+    expect.soft(real.length, 'another field changes on company A: counted').toBe(1);
+    expect.soft(real[0] ?? '', 'the line says what it was').toContain('"firstName":"Kept"');
+    expect.soft(real[0] ?? '', 'the line says what it is now').toContain('"firstName":"Changed"');
   });
 
   test('AC-7 The walk needs the seed and the logins to exist', async ({}, testInfo) => {

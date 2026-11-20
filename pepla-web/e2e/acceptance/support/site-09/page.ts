@@ -7,7 +7,7 @@ import { normId, type Env, type LearnPageSpec, type Plant } from '../site-08/lea
 /**
  * SITE-09 helpers: the Recruitment Learn more page (`/product/recruitment`) against the kit screen "Recruitment page" of the design system.
  * Everything that a whole Learn more page shares is the SITE-08 helper's (`support/site-08/learn-page.ts`, imported, never edited). What is here is
- * what only this page has: its route, its five demos, its hero card, the board flight under reduced motion, a pixel check for a whole page that is
+ * what only this page has: its route, its four demos, its hero card, the board flight under reduced motion, a pixel check for a whole page that is
  * not in a `.pp-site-stage`, the page-wide words, the prerendered output and the file rule.
  *
  * The kit is the oracle: its markup and its preview scripts (`site-pages.js`, `site-demos.js`, `site-recruitment.js`, `site-page-heroes.js`) at KIT_REF.
@@ -15,28 +15,27 @@ import { normId, type Env, type LearnPageSpec, type Plant } from '../site-08/lea
 
 /**
  * The design system ref the kit is read at. At or after 8dc3091 (DS #47: no closing band note, which SITE-08 removes from the app) and at or after
- * c3788a5 (DS #49: demos keep playing under reduced motion). This is dc593c4, the design system main head on 17 Nov. The SITE-08 helper's own default,
+ * c3788a5 (DS #49: demos keep playing under reduced motion). This is 03df8e2, the ref in `sync.json` after the 18 Nov design system sync. It holds DS #54 (dee75b0, 18 Nov: the two Recruitment claims are removed from the kit; the scripts are the same as at dc593c4); after dee75b0 no site kit file changed. The SITE-08 helper's own default,
  * the ref in `sync.json` (e9a352f), has the closing band note and the older reduced motion scripts, so SITE-09 sets `SITE_KIT_REF` for its own tests
  * (`useKitRef`, put back afterwards so no other spec in the run sees it). `SITE_09_KIT_REF` overrides this one.
  */
-export const KIT_REF = process.env['SITE_09_KIT_REF'] || 'dc593c47c7d8fb79c7ccf29311392ad166506114';
+export const KIT_REF = process.env['SITE_09_KIT_REF'] || '03df8e2aa41ed09dc7a1571f074b3d8c82ffde9a';
 let savedRef: string | undefined;
 export function useKitRef(): void { savedRef = process.env['SITE_KIT_REF']; process.env['SITE_KIT_REF'] = KIT_REF; }
 export function restoreKitRef(): void { if (savedRef === undefined) delete process.env['SITE_KIT_REF']; else process.env['SITE_KIT_REF'] = savedRef; }
 
 export const ROUTE = '/product/recruitment';
-export const TABS = ['Hiring board', 'Interview panels', 'Reminders and follow-ups', 'Candidate risk', 'Offer to onboarding', 'Questions'] as const;
-export const TAB_IDS = ['hiring-board', 'panels', 'follow-ups', 'risk', 'offer', 'questions'] as const;
+export const TABS = ['Hiring board', 'Interview panels', 'Reminders and follow-ups', 'Candidate risk', 'Questions'] as const;
+export const TAB_IDS = ['hiring-board', 'panels', 'follow-ups', 'risk', 'questions'] as const;
 export const OMIT = '.pp-site-footer';
 const KIT_SCRIPTS = ['site-pages.js', 'site-demos.js', 'site-recruitment.js', 'site-page-heroes.js'];
 
-/** The five demos in page order. `run` is how long each takes to finish (the kit script's last timer, plus 1.5s), `cream` the ground. */
+/** The four demos in page order (the Offer demo is no longer in the kit: DS #54). `run` is how long each takes to finish (the kit script's last timer, plus 1.5s), `cream` the ground. */
 export const DEMOS = [
   { ac: 6, id: 'hiring-board', key: 'board', run: 5_600, cream: false },
   { ac: 7, id: 'panels', key: 'score', run: 9_800, cream: true },
   { ac: 8, id: 'follow-ups', key: 'follow', run: 7_800, cream: false },
   { ac: 9, id: 'risk', key: 'risk', run: 7_600, cream: true },
-  { ac: 10, id: 'offer', key: 'offer', run: 6_000, cream: false },
 ] as const;
 export type Demo = (typeof DEMOS)[number];
 
@@ -459,7 +458,7 @@ export async function boardFlight(env: Env, spec: LearnPageSpec, reduce: boolean
 }
 /**
  * Under prefers-reduced-motion every demo keeps playing at the kit's timings: the design system (DS #49, c3788a5) stops only the board's flying card, not the steps
- * (lock check T3: the board alone was judged, so four of the five demos could skip their steps under reduced motion). All five run together, on both pages.
+ * (lock check T3: the board alone was judged, so three of the four demos could skip their steps under reduced motion). All four run together, on both pages.
  */
 export async function reducedDemos(env: Env, spec: LearnPageSpec): Promise<void> {
   await using(openPair(env, spec, 'gated', { ctx: { reducedMotion: 'reduce' } }), async ({ app, kit }) => {
@@ -537,6 +536,82 @@ export async function axeStates(env: Env, spec: LearnPageSpec): Promise<{ first:
     return run(app);
   });
   return { first, last, open };
+}
+
+// ------------------------------------------------------------------------------------------------ the two claims that are removed (DS #54)
+
+/**
+ * Iggie, 18 Nov, approved hiding two Recruitment claims until the code behind them is built. The design system removed them from the kit (PR #54, dee75b0), so the kit
+ * is the oracle for their absence, and these checks also name each removed piece: a page that still holds one fails with its name, not as a word difference.
+ * No new wording was written: the hero lead is the kit's, shorter.
+ */
+export const NEW_LEAD = 'Naleko People keeps one hiring board per role. Panels score candidates against the same criteria, and Batsi watches each stage for candidates who go quiet.';
+/** Each removed sentence on its own, as the words stood in the kit at dc593c4. Matched without regard to case, white space or comments between words. */
+export const REMOVED = {
+  'hero lead clause': ', and a signed offer starts onboarding with no retyping',
+  'offer demo title': 'A signed offer starts onboarding with no retyping.',
+  'offer demo lead': 'When an offer is signed, the candidate moves to Hired and an employee record is created with the details already captured.',
+  'offer demo eyebrow or sub-menu link': 'Offer to onboarding',
+  'link under the offer demo': 'Learn more about Onboarding and Offboarding',
+  'offer demo panel line': 'Onboarding opened for John Doe. Jane Smith notified.',
+  'trust strip item': 'A person makes every hiring decision',
+} as const;
+const flat = (s: string): string => s.replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').toLowerCase();
+const noCode = (s: string): string => s.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, '');
+/** Which removed sentences are in this markup (the live page's outerHTML or the prerendered file): in its text, or in an attribute such as aria-label. Empty when none is. */
+export function removedIn(markup: string): string[] {
+  const raw = flat(noCode(markup));
+  const text = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  return Object.entries(REMOVED).filter(([, w]) => { const k = flat(w); return text.includes(k) || raw.includes(k); }).map(([name]) => name);
+}
+/** What only the Offer demo leaves in markup: its `data-demo`, its id, a link to it, its panel classes. */
+export function offerMarkupIn(markup: string): string[] {
+  const m = noCode(markup);
+  const out: string[] = [];
+  if (/data-demo=["']offer["']/.test(m)) out.push('a section with data-demo="offer"');
+  if (/\sid=["']offer(-[a-z0-9]+)?["']/.test(m)) out.push('an element with the id "offer"');
+  if (/href=["']#offer/.test(m)) out.push('a link to #offer');
+  if (/pp-site-offer__/.test(m)) out.push('the offer panel (pp-site-offer__ classes)');
+  return out;
+}
+export type RemovalFacts = { markup: string; lead: string; tabs: string[]; strip: string[]; demos: string[]; offerSections: number; offerLinks: number };
+/** What a page holds that the removal is about (`root` is 'body' on the app and '.pp-site-stage' on the kit screen): the lead, the sub-menu pills, the trust strip, the demo list. */
+export function removalFacts(root: string): RemovalFacts {
+  const r = document.querySelector(root)!;
+  const txt = (e: Element | null) => (e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+  const strip = r.querySelector('section.pp-site-strip');
+  return {
+    markup: r.outerHTML,
+    lead: txt(r.querySelector('.pp-site-form-page__lead')),
+    tabs: Array.from(r.querySelectorAll('nav[aria-label="On this page"] .pp-site-subnav__link')).map((a) => `${txt(a)}>${(a.getAttribute('href') ?? '').replace(/-[a-z0-9]{4}$/, '')}`),
+    strip: Array.from(strip?.querySelectorAll('.pp-site-strip__item') ?? []).map((e) => txt(e)),
+    demos: Array.from(r.querySelectorAll('section.pp-site-demo')).map((s) => s.id.replace(/-[a-z0-9]{4}$/, '')),
+    offerSections: r.querySelectorAll('[data-demo="offer"], section[id^="offer"]').length,
+    offerLinks: Array.from(r.querySelectorAll('a')).filter((a) => /^#offer/.test(a.getAttribute('href') ?? '') || /offer to onboarding/i.test(txt(a)) || /learn more about onboarding and offboarding/i.test(txt(a))).length,
+  };
+}
+/**
+ * The removal read on a page against the kit: every problem as a sentence, empty when the page is as the kit is. The kit's own words are read too (a kit ref from before
+ * DS #54 would hold the claims and fails loudly), then the page's: no removed sentence, no Offer demo, no link to it or under it, and the hero lead, sub-menu pills,
+ * trust strip items and demo list equal the kit's.
+ */
+export function removalProblems(app: RemovalFacts, kit: RemovalFacts): string[] {
+  const p: string[] = [];
+  for (const k of removedIn(kit.markup)) p.push(`the kit screen still holds "${k}" (the kit ref is from before DS #54)`);
+  if (kit.lead !== NEW_LEAD) p.push(`the kit's hero lead is not the one without the offer clause: "${kit.lead}"`);
+  for (const k of removedIn(app.markup)) p.push(`the page holds the removed ${k}`);
+  for (const k of offerMarkupIn(app.markup)) p.push(`the page holds ${k}`);
+  if (app.lead !== NEW_LEAD) p.push(`the hero lead is "${app.lead}", not "${NEW_LEAD}"`);
+  if (app.offerSections) p.push(`the page holds ${app.offerSections} Offer demo section(s)`);
+  if (app.offerLinks) p.push(`the page holds ${app.offerLinks} link(s) to the Offer demo or under it`);
+  if (JSON.stringify(app.tabs) !== JSON.stringify(kit.tabs)) p.push(`the sub-menu pills are ${JSON.stringify(app.tabs)}, the kit's are ${JSON.stringify(kit.tabs)}`);
+  if (JSON.stringify(app.strip) !== JSON.stringify(kit.strip)) p.push(`the trust strip items are ${JSON.stringify(app.strip)}, the kit's are ${JSON.stringify(kit.strip)}`);
+  if (JSON.stringify(app.demos) !== JSON.stringify(kit.demos)) p.push(`the demo sections are ${JSON.stringify(app.demos)}, the kit's are ${JSON.stringify(kit.demos)}`);
+  return p;
+}
+/** Both pages' removal facts, read once the pair is open. */
+export async function removalOf(p: Pair): Promise<{ app: RemovalFacts; kit: RemovalFacts }> {
+  return { app: await p.app.evaluate(removalFacts, 'body'), kit: await p.kit.evaluate(removalFacts, '.pp-site-stage') };
 }
 
 export { deviceOf };

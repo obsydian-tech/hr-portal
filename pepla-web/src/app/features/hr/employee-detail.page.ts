@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -13,6 +13,7 @@ import { CHECK_WORD, DECISION_WORD, type Check, type EmployeeDetail, type Employ
 import { RISK_HEADING, RISK_NONE, RISK_WORD } from '../../core/employees/risk-words';
 import type { Step } from '../../core/employees/employee';
 import { InviteService, type InviteInfo } from '../../core/employees/invite.service';
+import { ScreenContext } from '../../core/screen-context';
 
 const SOUTH_AFRICA = 'Africa/Johannesburg';
 const TITLE = 'Naleko People';
@@ -183,6 +184,10 @@ export class EmployeeDetailPage {
       this.id();
       void this.load();
     });
+    // The assistant panel says who this page is about, from what the page has read, and forgets them when the page goes.
+    const context = inject(ScreenContext);
+    effect(() => { const p = this.person(); context.person.set(p ? { id: p.id, name: p.name } : null); });
+    inject(DestroyRef).onDestroy(() => context.person.set(null));
   }
 
   protected async load(): Promise<void> {
@@ -258,7 +263,7 @@ export class EmployeeDetailPage {
   /** The ID number on a National ID card: its last four digits, with Show when the full number is there. */
   protected idItems(p: EmployeeDetail, d: EmployeeDocument): DlItem[] | null {
     if (d.type !== 'NATIONAL_ID') return null;
-    if (d.idNumber) return [{ term: 'ID number', value: null, reveal: { record: p.name, value: d.idNumber, masked: mask(d.idNumber), maskedLabel: 'ID number' } }];
+    if (d.idAvailable && d.idLast4) return [{ term: 'ID number', value: null, reveal: { record: p.name, ref: { documentId: d.id, employeeId: p.id, field: 'id_number' }, masked: mask(`xxxxxxxxx${d.idLast4}`), maskedLabel: 'ID number', notice: true } }];
     if (d.idLast4) return [{ term: 'ID number', value: `${'•'.repeat(9)}${d.idLast4}` }];
     return null;
   }

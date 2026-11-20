@@ -295,6 +295,13 @@ def reset_employee_documents(ddb, employee_id: str) -> int:
     return removed
 
 
+# ONB-14: made-up numbers so Show has something to show on dev. They fail the SA ID check digit and are zeros: never real.
+# Nothing prints them.
+MADE_UP_NUMBERS = {
+    "NATIONAL_ID": {"idNumber": {"S": "9801010000001"}, "idNumber_last4": {"S": "0001"}},
+    "BANK_CONFIRMATION": {"accountNumber": {"S": "0000000000"}},
+}
+
 # Naledi Dlamini's documents (ONB-13). (document_id, type, uploaded, ocr_status, confidence or None, decided)
 NALEDI_DOCUMENTS = [
     ("doc_1762156800000", "NATIONAL_ID", "2026-11-03T08:00:00Z", "MANUAL_REVIEW", 96, False),
@@ -334,7 +341,7 @@ def sample_pdf(title: str) -> bytes:
 
 
 def seed_documents(ddb, ns: uuid.UUID, employee_id: str, tenant_id: str = "") -> int:
-    """Replace the person's documents with the fixed set. Verification rows carry no extracted data."""
+    """Replace the person's documents with the fixed set. The ID and bank rows carry one made-up number each (ONB-14); never printed."""
     reset_employee_documents(ddb, employee_id)
     for doc_id, doc_type, uploaded, status, confidence, decided in NALEDI_DOCUMENTS:
         s3_key = sample_key(employee_id, doc_id)
@@ -366,6 +373,7 @@ def seed_documents(ddb, ns: uuid.UUID, employee_id: str, tenant_id: str = "") ->
                 "check": {"S": "MATCHES" if confidence >= 90 else "NEEDS_A_LOOK"},
                 "createdAt": {"S": uploaded},
                 "seed": {"S": SEED_TAG},
+                **MADE_UP_NUMBERS.get(doc_type, {}),
                 **({"tenant_id": {"S": tenant_id}} if tenant_id else {}),
             })
         if decided:
@@ -628,6 +636,48 @@ def remove_foreign_bundles(ddb, founding_tenant: str) -> int:
         kwargs["ExclusiveStartKey"] = res["LastEvaluatedKey"]
 
 
+def reset_persona(ddb, tenant_id: str, employee_sub: str) -> tuple[int, int]:
+    """The employee test login's own row, back to a clean start: stage INVITED, no documents, no accepted notice.
+    The seed runs it once; the dev E2E workflow runs it again before the one test that needs the clean start
+    (ONB-10 AC-8), because ONB-07 and ONB-08 upload and accept the persona's required documents earlier in the run."""
+    ddb.put_item(TableName="employees", Item=employee_item(
+        EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
+        "Operations", "New Starter", "INVITED", tenant_id=tenant_id, owner_sub=employee_sub))
+    return reset_employee_documents(ddb, EMPLOYEE_ID), reset_employee_consents(ddb, EMPLOYEE_ID)
+
+
+# ONB-22: the person and the documents the agent walk reads. The test person is a robot (test-domain email), so the
+# summary and the risk check never reach the model. Company B has one waiting document of its own, for the 404 check.
+ONB22_EMAIL = "onb22.agent.test@blackhole.postmarkapp.com"
+ONB22_EMPLOYEE_ID = str(uuid.uuid5(NS, ONB22_EMAIL))
+ONB22_DOCUMENT = "doc-onb22-0001"
+ONB22_DOCUMENT_B = "doc-onb22-b-0001"
+
+
+def seed_onb22(ddb, tenant_id: str) -> int:
+    """A new person with one bank letter waiting for HR whose check is Matches, and company B's own waiting document."""
+    written = 0
+    for tid, eid, email, doc_id, first in ((tenant_id, ONB22_EMPLOYEE_ID, ONB22_EMAIL, ONB22_DOCUMENT, "Agent"),
+                                           (SECOND_TENANT_ID, str(uuid.uuid5(NS, "onb22.b.test@blackhole.postmarkapp.com")),
+                                            "onb22.b.test@blackhole.postmarkapp.com", ONB22_DOCUMENT_B, "Other")):
+        ddb.put_item(TableName="employees", Item=employee_item(eid, first, "Walk-Test", email, "Operations", "New Starter", "ACTIVE", tenant_id=tid))
+        reset_employee_documents(ddb, eid)
+        vid = str(uuid.uuid5(NS, f"verification:{doc_id}"))
+        ddb.put_item(TableName="document-verification", Item={
+            "verificationId": {"S": vid}, "employeeId": {"S": eid}, "documentId": {"S": doc_id},
+            "documentType": {"S": "BANK_CONFIRMATION"}, "confidence": {"N": "96"}, "decision": {"S": "MANUAL_REVIEW"},
+            "check": {"S": "MATCHES"}, "createdAt": {"S": "2026-11-17T08:00:00Z"}, "seed": {"S": SEED_TAG}, "tenant_id": {"S": tid},
+        })
+        ddb.put_item(TableName="documents", Item={
+            "employee_id": {"S": eid}, "document_id": {"S": doc_id}, "document_type": {"S": "BANK_CONFIRMATION"},
+            "file_name": {"S": "bank_confirmation.pdf"}, "s3_key": {"S": sample_key(eid, doc_id)},
+            "upload_timestamp": {"S": "2026-11-17T08:00:00Z"}, "ocr_status": {"S": "MANUAL_REVIEW"},
+            "verification_id": {"S": vid}, "seed": {"S": SEED_TAG}, "tenant_id": {"S": tid},
+        })
+        written += 2
+    return written
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -683,17 +733,15 @@ def main() -> None:
         if (first, last) == ("Naledi", "Dlamini"):
             seeded_documents = seed_documents(ddb, ns, eid, tid)
 
+    onb22_written = seed_onb22(ddb, tid)
+
     try:
         seeded_candidates = seed_candidates(ddb, tid, user_sub(cognito, naleko, "manager"), employee_sub)
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the seeded candidates were not written")
         seeded_candidates = 0
 
-    ddb.put_item(TableName="employees", Item=employee_item(
-        EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
-        "Operations", "New Starter", "INVITED", tenant_id=tid, owner_sub=employee_sub))
-    docs_removed = reset_employee_documents(ddb, EMPLOYEE_ID)
-    consents_removed = reset_employee_consents(ddb, EMPLOYEE_ID)
+    docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
     print(f"seed-dev: groups created {made_groups}; "
           f"logins {len(NALEKO_PERSONAS) + len(TF_GROUPS)}; "
@@ -702,6 +750,7 @@ def main() -> None:
           f"demo documents {seeded_documents}; founding company row written {founding_written}; "
           f"second company rows written {second_written}; company modules set {modules_set}; "
           f"walk company rows written {walk_written}; TEN-04 walk rows written {ten04_written}; "
+          f"agent walk rows written {onb22_written}; "
           f"stale bundles of another company removed {foreign_bundles_removed}; "
           f"recruitment rows seeded {seeded_candidates}")
 

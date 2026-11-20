@@ -11,15 +11,53 @@
  *
  * Response format: text/event-stream (SSE) — expected by MCP Inspector + Claude Desktop.
  *
+ * ONB-22: every call must carry the agent key in x-api-key, and the handler checks it before anything else. The key is
+ * read from its secret (naleko/agent/api-key), never from a setting: the current and the pending versions are accepted,
+ * a key that is neither is refused with 401 after one fresh read, so a rotation works at once and the old key stops
+ * working. The tools call the agent API with the secret's current key. Nothing here logs a key.
+ *
  * Environment variables (set in infra/lambdas.tf):
- *   NALEKO_AGENT_KEY   — resolved from Secrets Manager at deploy time
- *   AGENT_API_BASE     — e.g. https://api.naleko.co.za
- *   REST_API_BASE      — e.g. https://api.naleko.co.za
- *   NALEKO_HR_API_KEY  — if separate from agent key; defaults to NALEKO_AGENT_KEY
+ *   AGENT_API_BASE              — e.g. https://api.naleko.co.za
+ *   AGENT_API_KEY_SECRET_NAME   — the secret's name (naleko/agent/api-key)
  */
 
-import { server } from './server.mjs';
+import { createHash, timingSafeEqual } from 'node:crypto';
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import { server, setKeyProvider } from './server.mjs';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+
+const sm = new SecretsManagerClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+const SECRET_NAME = process.env.AGENT_API_KEY_SECRET_NAME ?? 'naleko/agent/api-key';
+
+let keys = null; // { current, pending } as last read
+let readAt = 0;
+const KEY_CACHE_MS = 4 * 60_000; // decision 10: a key read is used for 4 minutes at most
+const fresh = async () => (keys && Date.now() - readAt < KEY_CACHE_MS ? keys : readKeys());
+async function readKeys() {
+  const one = async (stage) => {
+    try {
+      return (await sm.send(new GetSecretValueCommand({ SecretId: SECRET_NAME, VersionStage: stage }))).SecretString || null;
+    } catch (err) {
+      if (err?.name === 'ResourceNotFoundException') return null; // no such version right now
+      throw err;
+    }
+  };
+  keys = { current: await one('AWSCURRENT'), pending: await one('AWSPENDING') };
+  readAt = Date.now();
+  return keys;
+}
+
+setKeyProvider(async () => (await fresh()).current ?? '');
+
+const same = (a, b) => timingSafeEqual(createHash('sha256').update(String(a)).digest(), createHash('sha256').update(String(b)).digest());
+const accepts = (k, presented) => [k?.current, k?.pending].some((v) => v && same(v, presented));
+
+/** True when the caller presented the current or pending key. A refusal reads the secret again before it stands. */
+async function authorised(presented) {
+  if (typeof presented !== 'string' || presented === '') return false;
+  if (accepts(await fresh(), presented)) return true;
+  return accepts(await readKeys(), presented);
+}
 
 // Stable session ID for this Lambda execution environment (reused on warm invocations).
 const SESSION_ID = crypto.randomUUID();
@@ -82,7 +120,7 @@ async function dispatch(msg) {
         });
         return rpcOk(id, result);
       } catch (err) {
-        console.error(`Tool "${toolName}" error:`, err);
+        console.error(JSON.stringify({ event: 'tool_error', tool: toolName, errorName: err?.name ?? 'Error' }));
         return rpcOk(id, {
           content: [{ type: 'text', text: `Tool error: ${err.message}` }],
           isError: true,
@@ -113,7 +151,25 @@ export const handler = awslambda.streamifyResponse(async (event, responseStream)
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-    out.write(JSON.stringify({ status: 'ok', server: 'naleko-mcp', version: '1.0.0' }));
+    out.write(JSON.stringify({ status: 'ok' }));
+    out.end();
+    return;
+  }
+
+  // ── The key, before anything else ────────────────────────────────────────
+  const headers = Object.fromEntries(Object.entries(event.headers ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+  let allowed = false;
+  try {
+    allowed = await authorised(headers['x-api-key']);
+  } catch (err) {
+    console.error(JSON.stringify({ event: 'key_read_failed', errorName: err?.name ?? 'Error' }));
+  }
+  if (!allowed) {
+    const out = awslambda.HttpResponseStream.from(responseStream, {
+      statusCode: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    out.write(JSON.stringify({ error: 'Unauthorized' }));
     out.end();
     return;
   }

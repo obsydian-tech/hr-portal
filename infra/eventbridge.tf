@@ -33,6 +33,69 @@ resource "aws_cloudwatch_event_target" "audit_log_consumer" {
   event_bus_name = aws_cloudwatch_event_bus.naleko_onboarding.name
   target_id      = "auditLogConsumer"
   arn            = aws_lambda_function.audit_log_consumer.arn
+
+  # ONB-14 S-2: an event the consumer could not take is kept, not dropped.
+  dead_letter_config {
+    arn = aws_sqs_queue.audit_dead_letter.arn
+  }
+}
+
+# ONB-14: SQS-managed encryption. EventBridge cannot use the PII key (its key policy does not name events.amazonaws.com) and ONB-14 leaves that policy alone.
+resource "aws_sqs_queue" "audit_dead_letter" {
+  name                      = "naleko-audit-dead-letter"
+  sqs_managed_sse_enabled   = true
+  message_retention_seconds = 1209600
+}
+
+resource "aws_sqs_queue_policy" "audit_dead_letter" {
+  queue_url = aws_sqs_queue.audit_dead_letter.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "EventBridgeSendsFailedEvents"
+      Effect    = "Allow"
+      Principal = { Service = "events.amazonaws.com" }
+      Action    = "sqs:SendMessage"
+      Resource  = aws_sqs_queue.audit_dead_letter.arn
+      Condition = { ArnEquals = { "aws:SourceArn" = aws_cloudwatch_event_rule.audit_log_all_events.arn } }
+    }]
+  })
+}
+
+resource "aws_cloudwatch_metric_alarm" "audit_dead_letter_depth" {
+  alarm_name          = "naleko-audit-dead-letter-not-empty"
+  alarm_description   = "An audit event was not delivered to auditLogConsumer (ONB-14)"
+  namespace           = "AWS/SQS"
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  dimensions          = { QueueName = aws_sqs_queue.audit_dead_letter.name }
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  # The ops topic exists only where prod monitoring is on, so this is empty elsewhere.
+  alarm_actions = module.alarms[*].sns_topic_arn
+  ok_actions    = module.alarms[*].sns_topic_arn
+}
+
+resource "aws_cloudwatch_metric_alarm" "audit_log_consumer_errors" {
+  alarm_name          = "naleko-auditLogConsumer-errors"
+  alarm_description   = "auditLogConsumer failed to write audit rows (ONB-14)"
+  namespace           = "AWS/Lambda"
+  metric_name         = "Errors"
+  dimensions          = { FunctionName = "auditLogConsumer" }
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  # The ops topic exists only where prod monitoring is on, so this is empty elsewhere.
+  alarm_actions = module.alarms[*].sns_topic_arn
+  ok_actions    = module.alarms[*].sns_topic_arn
 }
 
 resource "aws_lambda_permission" "audit_log_consumer_eventbridge" {

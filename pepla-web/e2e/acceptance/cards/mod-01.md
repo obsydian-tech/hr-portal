@@ -12,6 +12,7 @@ AC-2, `be-18.spec.ts` AC-3 and AC-4, `be-19.spec.ts` AC-1 (through `support/be-1
 `fake-aws/world.mjs`), `ten-02.spec.ts` AC-13, `ten-03.spec.ts` AC-10 and, through `support/ten-03/world.ts`, ten-03 Control, AC-1,
 AC-3 (both), AC-4, AC-5, AC-6 and ten-05 Control, AC-3 (both), and `ten-05.spec.ts` AC-6. These files are re-locked by
 acceptance-lock/mod-01 itself.)
+Locks (re-lock): acceptance-lock/mod-01.4 (ONB-21, 18 Nov 2026): AC-7 lets `lambda/sendDocumentReminders/index.mjs` name `modules` (it reads it; it writes only claim rows), AC-8 skips the new role `send_document_reminders`. See `cards/onb-21.md`.
 
 Written against develop 6122df1 (TEN-03, TEN-05 and MOD-02 in). The IAM baseline `iam-6122df1/policies.json` is taken from
 that commit (107 role policies; TEN-05 changed none, so it holds the same policies as 91fef10).
@@ -86,3 +87,4 @@ what the module check and rule 8 force is changed; every changed test still pass
    hold its log group and X-Ray.
 4. `ten-05.spec.ts` AC-6: the pickers may make the module check's one GetItem of the caller's own Company row; any other read of
    the tenants table still fails (R5, the Member narrowing, is still owed).
+Locks (re-lock): acceptance-lock/mod-01.9 with acceptance-lock/ten-03.9 (same change as .8, rebuilt on develop after ONB-22) (Ask Batsi dev Marketplace grant, 19 Nov 2026, PR 437, CHAT-02): AC-8 (and ten-03 AC-10) allow one new role policy, `aws_iam_role_policy.naleko_ai_chat_ask_batsi_marketplace` on the chat role, created in dev only (`count = var.environment == "dev" ? 1 : 0`), holding exactly Allow `aws-marketplace:ViewSubscriptions` and `aws-marketplace:Subscribe` on `*` with no condition. See `support/marketplace-dev/grant.ts`.

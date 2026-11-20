@@ -136,9 +136,9 @@ export interface DlItem {
   link?: string;
   /**
    * Personal data, hidden until someone shows it (a Masked field): `{ masked: '•••••••••0876', value, record: 'Thandeka Dlamini' }`.
-   * Showing is recorded first. `notice` on the first one on a page says "Revealing is recorded".
+   * Showing is recorded first. `notice` on the first one on a page says "Showing this is recorded".
    */
-  reveal?: { masked: string; value: string; record: string; notice?: boolean; maskedLabel?: string };
+  reveal?: { masked: string; value?: string; ref?: unknown; record: string; notice?: boolean; maskedLabel?: string };
 }
 
 /**
@@ -156,7 +156,7 @@ export interface DlItem {
       @for (i of items(); track i.term) {
         <dt>{{ i.term }}</dt>
         <dd>
-          @if (i.reveal; as r) { <pp-masked-field [field]="i.term" [record]="r.record" [value]="r.value" [masked]="r.masked" [notice]="!!r.notice" [maskedLabel]="r.maskedLabel" /> }
+          @if (i.reveal; as r) { <pp-masked-field [field]="i.term" [record]="r.record" [value]="r.value ?? ''" [ref]="r.ref" [masked]="r.masked" [notice]="!!r.notice" [maskedLabel]="r.maskedLabel" /> }
           @else if (i.value === null || i.value === undefined || i.value === '') { <span class="pp-dl__notset">Not set</span> }
           @else if (i.link) { <a [routerLink]="i.link">{{ i.value }}</a> }
           @else {{{ i.value }}}

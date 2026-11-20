@@ -373,6 +373,19 @@ components:
         verification_id:
           type: string
           example: ver_1774086781234
+        id_number_last4:
+          type: string
+          nullable: true
+          description: The last four digits of the ID number. The full number is never in this answer (ONB-14).
+        account_number_last4:
+          type: string
+          nullable: true
+        id_number_available:
+          type: boolean
+          description: True when the document holds an ID number that Show can return.
+        account_number_available:
+          type: boolean
+          description: True when the document holds an account number that Show can return.
         employee_id:
           type: string
           example: EMP-0000014
@@ -411,8 +424,6 @@ components:
         reasoning:
           type: string
           description: OCR model explanation for why the document passed, failed, or needs review.
-        id_number:
-          type: string
         name:
           type: string
         surname:
@@ -427,8 +438,6 @@ components:
         account_holder:
           type: string
         bank_name:
-          type: string
-        account_number:
           type: string
         branch_code:
           type: string
@@ -1747,9 +1756,12 @@ paths:
 
         Fields by document type:
 
-        - NATIONAL_ID: id_number, id_number_last4, name, surname, date_of_birth, gender, citizenship
+        - NATIONAL_ID: id_number_last4, id_number_available, name, surname, date_of_birth, gender, citizenship
 
-        - BANK_CONFIRMATION: account_holder, bank_name, account_number, branch_code, account_type
+        - BANK_CONFIRMATION: account_holder, bank_name, account_number_last4, account_number_available, branch_code, account_type
+
+        The full ID number and account number are not in this answer (ONB-14). They come only from
+        `POST /v1/verifications/{id}/reveal`, which records who showed them.
 
         - MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION: no fields beyond the document
 
@@ -1810,13 +1822,18 @@ paths:
                       extracted_data:
                         type: object
                         properties:
-                          id_number:
-                            type: string
-                            nullable: true
-                            description: Decrypted for HR.
                           id_number_last4:
                             type: string
                             nullable: true
+                          id_number_available:
+                            type: boolean
+                            description: True when the document holds an ID number that Show can return.
+                          account_number_last4:
+                            type: string
+                            nullable: true
+                          account_number_available:
+                            type: boolean
+                            description: True when the document holds an account number that Show can return.
                           name:
                             type: string
                           surname:
@@ -1830,8 +1847,6 @@ paths:
                           account_holder:
                             type: string
                           bank_name:
-                            type: string
-                          account_number:
                             type: string
                           branch_code:
                             type: string
@@ -2047,6 +2062,89 @@ paths:
       x-tenant: token
       x-roles:
       - hr_staff
+  /v1/verifications/{id}/reveal:
+    post:
+      tags:
+      - Verifications
+      operationId: revealDocumentField
+      summary: Show one full number, recorded
+      description: 'HR only. Returns the full ID number or account number of one document, and only after the audit event
+
+        `document.field_shown` (who, which number, whose document, when) was accepted by the audit bus. If the event cannot
+
+        be recorded no number is returned. Two calls make two events. The event never holds the number.
+
+        '
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: The document id.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - field
+              - employee_id
+              properties:
+                field:
+                  type: string
+                  enum:
+                  - id_number
+                  - account_number
+                employee_id:
+                  type: string
+                  description: The document's person (only a key; the company comes from the token).
+      responses:
+        '200':
+          description: The number, recorded as shown. Cache-Control is no-store.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: string
+        '400':
+          description: Unknown field, or employee_id missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Only HR can show a number.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '404':
+          description: No such document in the company, or it holds no number to show. Nothing is recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Not found
+        '500':
+          description: The Show could not be recorded, so no number is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/verifications/{id}/summary:
     get:
       tags:
@@ -2067,7 +2165,7 @@ paths:
         - Future mobile app views
 
 
-        No PII is sent to the model. Response time is typically 2-5 s.
+        Numbers of six or more digits are removed from the text before it is sent to the model. Response time is typically 2-5 s.
 
         '
       parameters:
@@ -2476,6 +2574,107 @@ paths:
       - AgentKey: []
       x-tenant: agent
       x-roles: []
+  /agent/v1/proposals:
+    post:
+      summary: POST /agent/v1/proposals
+      description: An agent proposes Accept document for one document waiting for HR whose check is Matches. Nothing is decided.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - type
+              - document_id
+              additionalProperties: false
+              properties:
+                type:
+                  type: string
+                  enum:
+                  - ACCEPT_DOCUMENT
+                document_id:
+                  type: string
+      responses:
+        '201':
+          description: Proposed. Waiting for HR.
+        '400':
+          description: Not a valid proposal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Unknown proposal
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Not found
+        '409':
+          description: Not waiting, not a match, or already proposed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: There is already a proposal for this document
+      operationId: POST_agent_v1_proposals
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/v1/actions:
+    get:
+      summary: GET /agent/v1/actions
+      description: HR's list of proposals, open first, then the last 20 answered.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden. Only HR can answer a proposal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Only HR can answer a proposal
+      operationId: GET_agent_v1_actions
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /agent/v1/actions/{actionId}:
     get:
       summary: GET /agent/v1/actions/{actionId}
@@ -2524,9 +2723,11 @@ paths:
       summary: POST /agent/v1/actions/{actionId}/approve
       responses:
         '200':
-          description: OK
+          description: Answered. A run that was refused or failed still answers 200 with run_status and error_code.
+        '409':
+          description: Already answered or expired
         '403':
-          description: Forbidden
+          description: Forbidden. Only HR can answer a proposal
           content:
             application/json:
               schema:
@@ -2559,17 +2760,20 @@ paths:
       servers:
       - url: https://agent-api.example.com
       security:
-      - AgentKey: []
-      x-tenant: agent
-      x-roles: []
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /agent/v1/actions/{actionId}/reject:
     post:
       summary: POST /agent/v1/actions/{actionId}/reject
       responses:
         '200':
-          description: OK
+          description: Answered. A run that was refused or failed still answers 200 with run_status and error_code.
+        '409':
+          description: Already answered or expired
         '403':
-          description: Forbidden
+          description: Forbidden. Only HR can answer a proposal
           content:
             application/json:
               schema:
@@ -2602,9 +2806,10 @@ paths:
       servers:
       - url: https://agent-api.example.com
       security:
-      - AgentKey: []
-      x-tenant: agent
-      x-roles: []
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /agent/v1/actions/pending:
     get:
       summary: GET /agent/v1/actions/pending
@@ -2680,6 +2885,11 @@ paths:
                     type: string
                     format: date
                     description: 'The date the required documents are due: 7 days before the start date. Left out when there is no start date.'
+                  step:
+                    type: string
+                    nullable: true
+                    enum: [INVITED, DOCUMENTS, IN_REVIEW, VERIFIED]
+                    description: 'Where the signed-in person is in onboarding, the same step HR sees (ONB-09). null for an archived or unknown record.'
                   notice:
                     type: object
                   consent:
@@ -2731,6 +2941,169 @@ paths:
       - CognitoJWT: []
       x-tenant: token
       x-roles: []
+  /v1/chats:
+    get:
+      summary: GET /v1/chats
+      description: The caller's own stored Ask Batsi chats, newest first, 50 to a page. 403 while the company's Ask Batsi switch is off.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_chats
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+    delete:
+      summary: DELETE /v1/chats
+      description: Deletes every chat of the caller, for real. Works with the switch off.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: DELETE_v1_chats
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /v1/chats/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: GET /v1/chats/{id}
+      description: One of the caller's chats with every message. Another person's chat is 404.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_chats_id
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+    delete:
+      summary: DELETE /v1/chats/{id}
+      description: Deletes one of the caller's chats, for real. Works with the switch off.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: DELETE_v1_chats_id
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /v1/admin/company/ask-batsi:
+    put:
+      summary: PUT /v1/admin/company/ask-batsi
+      description: A company admin turns the company's Ask Batsi switch on or off. The body names enabled, true or false.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: PUT_v1_admin_company_ask_batsi
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
   /v1/me/consent:
     post:
       summary: POST /v1/me/consent

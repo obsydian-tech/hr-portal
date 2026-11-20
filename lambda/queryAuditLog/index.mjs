@@ -34,7 +34,7 @@ function marshalEvent(item) {
     eventId:    item.eventId?.S,
     timestamp:  item.timestamp?.S,
     employeeId: item.employeeId?.S,
-    eventType:  item.eventType?.S,
+    eventType:  item.detailType?.S ?? item.eventType?.S,
     actor:      item.actor?.S,
     detail:     item.detail?.S ? (() => { try { return JSON.parse(item.detail.S); } catch { return item.detail.S; } })() : undefined,
   };

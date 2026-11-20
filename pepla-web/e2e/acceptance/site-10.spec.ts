@@ -6,7 +6,7 @@ import { expect, test } from './support/fixtures';
 import { COGNITO, SIGNED_IN_MARKERS, apiPatterns, logIn, pathOf } from './support/site-01/public-site';
 import { deviceOf, sleep } from './support/site-08/kit';
 import { checkMotion, checkPageParity, checkPageWords, checkSections, checkSubmenu, checkTop, type Env } from './support/site-08/learn-page';
-import { BANNED, DEMOS, KIT_REF, ROUTE, TABS, TAB_IDS, animationParity, axeStates, bannedIn, checkDemo, checkHeroCard, compareRegion, headingTexts, kitHeadings, openPair, openOnboarding, orderFacts, onboardingSpec, reducedDemos, restoreKitRef, sectionFacts, sidewaysScroll, stillDemos, tapInNormalMotion, useKitRef, using, visibleUnderBars, wholePageWords, OMIT } from './support/site-10/page';
+import { BANNED, DEMOS, KIT_REF, REMOVED_LINE, ROUTE, TABS, TAB_IDS, animationParity, axeStates, bannedIn, checkDemo, checkHeroCard, compareRegion, endingFacts, endingOf, endingProblems, headingTexts, kitHeadings, openPair, openOnboarding, orderFacts, onboardingSpec, reducedDemos, removedLineIn, restoreKitRef, sectionFacts, sidewaysScroll, stillDemos, tapInNormalMotion, useKitRef, using, visibleUnderBars, wholePageWords, OMIT } from './support/site-10/page';
 import { builtSite, htmlText, prerenderedFile, readText, serveStatic, stop } from './support/site-10/build';
 import { allowed, changedFiles, isThisCard, outside, refused, stripComments } from './support/site-10/files';
 
@@ -20,7 +20,8 @@ import { allowed, changedFiles, isThisCard, outside, refused, stripComments } fr
  */
 
 const once = (why: string) => test.skip(test.info().project.name === 'phone-390', `Runs once, in desktop-1280: ${why}`);
-const TITLE = 'Naleko People';
+/** Iggie, 18 Nov: the tab title is the page name from the kit's breadcrumb, then a middle dot, then the brand. */
+const TITLE = 'Onboarding and Offboarding · Naleko People';
 
 // Both pages are drawn the same way on every machine: no sub-pixel (LCD) text and no font hinting (SITE-02 AC-2).
 test.use({ launchOptions: { args: ['--disable-lcd-text', '--font-render-hinting=none'] } });
@@ -85,7 +86,7 @@ test.describe('SITE-10 Learn more page: Onboarding and Offboarding', () => {
     const file = prerenderedFile(out.dir);
     expect(file, 'the build output holds product/onboarding/index.html (or product/onboarding.html)').toBeTruthy();
     const html = readText(file!);
-    expect(html, 'the prerendered page has the tab title').toMatch(/<title>\s*Naleko People\s*<\/title>/);
+    expect(html, 'the prerendered page has the tab title').toMatch(new RegExp('<title>\\s*' + TITLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*</title>'));
     expect(html, 'the prerendered page holds the header').toMatch(/<header[\s>]/);
     expect((html.match(/<main[\s>]/g) ?? []).length, 'the prerendered page holds one main').toBe(1);
     const words = htmlText(html);
@@ -108,7 +109,7 @@ test.describe('SITE-10 Learn more page: Onboarding and Offboarding', () => {
   });
 
   // ---------------------------------------------------------------- AC-2
-  test('AC-2 every word is the kit\'s, both ways: the page and the kit screen have the same text nodes and accessible names; no lorem, placeholder, Masked, Claude or pepla anywhere', async ({ page, browser, baseURL }) => {
+  test('AC-2 every word is the kit\'s, both ways: the page and the kit screen have the same text nodes and accessible names; the removed tile line "Accepted offers start onboarding with no retyping." is not on the page or in the prerendered file; no lorem, placeholder, Masked, Claude or pepla anywhere', async ({ page, browser, baseURL }) => {
     test.setTimeout(8 * 60_000);
     const env = envOf(page, browser, baseURL);
     const spec = onboardingSpec(deviceOf(page));
@@ -122,6 +123,10 @@ test.describe('SITE-10 Learn more page: Onboarding and Offboarding', () => {
       expect(w.kit.names.filter((t) => !w.app.names.includes(t)), 'accessible names on the kit screen that are not on the page').toEqual([]);
       expect(await bannedIn(p.app), 'no lorem, placeholder, "Masked", "Claude" or "pepla" in text, attribute, class, href or the title').toEqual([]);
       expect(await p.app.title(), 'the tab title').toBe(TITLE);
+      // The hidden claim (DS #54): the tile line "Accepted offers start onboarding with no retyping." is not on the page, and the kit does not hold it either.
+      const end = await endingOf(p);
+      expect(removedLineIn(end.kit.markup), 'control: the kit screen does not hold the removed tile line (a kit ref from before DS #54 does)').toBe(false);
+      expect(removedLineIn(end.app.markup), `the page does not hold "${REMOVED_LINE}"`).toBe(false);
     });
     // The prerendered file too: title, attributes and text.
     if (deviceOf(page) === 'desktop') {
@@ -129,6 +134,7 @@ test.describe('SITE-10 Learn more page: Onboarding and Offboarding', () => {
       expect(file, 'the build holds the prerendered page').toBeTruthy();
       const html = readText(file!).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, '');
       expect(html.match(BANNED) ?? [], 'no lorem, placeholder, "Masked", "Claude" or "pepla" in the prerendered page').toEqual([]);
+      expect(removedLineIn(html), `the prerendered page does not hold "${REMOVED_LINE}"`).toBe(false);
     }
   });
 
@@ -161,7 +167,7 @@ test.describe('SITE-10 Learn more page: Onboarding and Offboarding', () => {
   });
 
   // ---------------------------------------------------------------- AC-5
-  test('AC-5 sub-menu and sections: seven tabs in order, each scrolls to its section, scrolling sets the current tab; the ids are as listed; the ending, closing band and footer follow in the kit\'s order', async ({ page, browser, baseURL }) => {
+  test('AC-5 sub-menu and sections: seven tabs in order, each scrolls to its section, scrolling sets the current tab; the ids are as listed; the "Works together with" tiles are the kit\'s (the Recruitment tile has no line of text); the ending, closing band and footer follow in the kit\'s order', async ({ page, browser, baseURL }) => {
     test.setTimeout(10 * 60_000);
     const env = envOf(page, browser, baseURL);
     const spec = onboardingSpec(deviceOf(page));
@@ -182,10 +188,44 @@ test.describe('SITE-10 Learn more page: Onboarding and Offboarding', () => {
       expect(facts.filter((f) => !f.named || !f.name), 'each section is named by a heading inside it').toEqual([]);
       expect(facts.map((f) => f.id), 'the section ids').toEqual([...TAB_IDS, 'demo']);
       expect(facts.at(-1)!.tag, 'the closing band #demo is a section').toBe('section');
+      // The Recruitment tile's line is removed from the kit (DS #54): the tiles, their titles and lines, are the kit's, and nothing of the line is left.
+      const end = { app: await app.evaluate(endingFacts, 'body'), kit: await kit.evaluate(endingFacts, '.pp-site-stage') };
+      expect(end.kit.tiles.find((x) => x.title === 'Recruitment'), 'control: the kit\'s Recruitment tile has a title and no line of text').toEqual({ title: 'Recruitment', text: null });
+      expect(end.app.tiles.find((x) => x.title === 'Recruitment'), 'the Recruitment tile on the page has a title and no line of text').toEqual({ title: 'Recruitment', text: null });
+      expect(endingProblems(end.app, end.kit), 'the "Works together with" tiles are the kit\'s and the removed line is not on the page').toEqual([]);
       const appOrder = await app.evaluate(orderFacts), kitOrder = await kit.evaluate(orderFacts);
       expect(appOrder.map((o) => o.replace(/#.*$/, '')), 'page top, sub-menu, six demos, Ask Batsi, strip, related, questions, closing band, footer follow in the kit\'s order').toEqual(kitOrder.map((o) => o.replace(/#.*$/, '')));
       expect(appOrder.filter((o) => /#/.test(o) && o.split('#')[1]).map((o) => o.split('#')[1]), 'the ids of the sections in that order').toEqual(kitOrder.filter((o) => o.split('#')[1]).map((o) => o.split('#')[1]));
     });
+  });
+
+  // ---------------------------------------------------------------- Plants: the removal check fails when the removed tile line is put back
+  // The check of AC-2 and AC-5 is run on the page after the removed line is put back into the Recruitment tile (edited in after the page loads), and must name it. The control finds nothing.
+  test('Plants: the removal check fails, and names the line, when "Accepted offers start onboarding with no retyping." is put back; the unplanted page passes', async ({ page, browser, baseURL }) => {
+    test.setTimeout(6 * 60_000);
+    const env = envOf(page, browser, baseURL);
+    const spec = onboardingSpec(deviceOf(page));
+    const read = async (plant?: (p: Page) => Promise<void>) => using(openPair(env, spec, 'frozen', { keepOmit: true, plant }), async (p) => { const f = await endingOf(p); return endingProblems(f.app, f.kit); });
+    expect(await read(), 'control: the page as it is has no removed tile line').toEqual([]);
+    const tile = (p: Page, html: string) => p.evaluate((h) => {
+      const t = Array.from(document.querySelectorAll('.pp-site-related .pp-site-tile')).find((x) => x.querySelector('.pp-site-tile__title')?.textContent?.trim() === 'Recruitment')!;
+      t.querySelector('.pp-site-tile__title')!.insertAdjacentHTML('afterend', h);
+    }, html);
+    const back = await read((p) => tile(p, `<p class="pp-site-tile__text">${REMOVED_LINE}</p>`));
+    expect(back.length, 'the line put back into the Recruitment tile: the check fails').toBeGreaterThan(0);
+    expect(back.join('\n'), 'and says which line').toContain('the page holds the removed tile line');
+    expect(back.join('\n'), 'and that the tile has text the kit\'s has not').toContain('the Recruitment tile on the page has a line of text');
+    expect(back.join('\n'), 'and that the tiles are not the kit\'s').toContain('tiles are');
+    // Other words in that place are not the removed line, but are not the kit's either: the tile check still fails.
+    const other = await read((p) => tile(p, '<p class="pp-site-tile__text">Accepted offers start onboarding.</p>'));
+    expect(other.join('\n'), 'another line in the Recruitment tile fails the kit equality').toContain('the Recruitment tile on the page has a line of text');
+    // The prerendered file is read by the same words: a stand-in file, the line added (also split by a comment between its words, as the framework can leave one).
+    const file = '<html><head><title>Onboarding and Offboarding · Naleko People</title></head><body><main><h1>Every new hire</h1><ul class="pp-site-related__list"><li><a class="pp-site-tile" href="#"><h3 class="pp-site-tile__title">Recruitment</h3></a></li></ul></main></body></html>';
+    expect(removedLineIn(file), 'control: the stand-in file does not hold the line').toBe(false);
+    expect(removedLineIn(file.replace('</h3>', `</h3><p class="pp-site-tile__text">${REMOVED_LINE}</p>`)), 'the line added to the file is found').toBe(true);
+    expect(removedLineIn(file.replace('</h3>', `</h3><p class="pp-site-tile__text">${REMOVED_LINE.replace('start ', 'start <!---->')}</p>`)), 'the line with a comment between words is found').toBe(true);
+    expect(removedLineIn(file.replace('</h3>', `</h3><p class="pp-site-tile__text">accepted   OFFERS start onboarding with no retyping.</p>`)), 'the line in other case and spacing is found').toBe(true);
+    expect(removedLineIn(file.replace('</h3>', '</h3><p>Details filled from the record, no retyping</p>')), 'the other "no retyping" on this page (the follow-ups demo) is not the removed line').toBe(false);
   });
 
   // ---------------------------------------------------------------- AC-6 to AC-11

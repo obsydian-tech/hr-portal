@@ -35,6 +35,7 @@ on:
     branches: [develop, main]
     paths:
       - "lambda/**"
+      - "mcp/**"
       - "scripts/ci/build-lambdas.py"
       - "scripts/ci/check-ai-guard.py"
       - "scripts/ci/deploy-lambdas.sh"
@@ -99,7 +100,7 @@ jobs:
             has() { grep -qE "$1" <<<"$files" && echo true || echo false; }
             {
               echo "infra=$(has '^(infra|talent-flow-infra)/|^scripts/ci/tf-gate\.py$|^\.github/workflows/(deploy-lambdas|terraform-apply)\.yml$')"
-              echo "lambda=$(has '^lambda/|^scripts/ci/(build-lambdas\.py|check-ai-guard\.py|deploy-lambdas\.sh)$|^\.github/workflows/deploy-lambdas\.yml$')"
+              echo "lambda=$(has '^lambda/|^mcp/|^scripts/ci/(build-lambdas\.py|check-ai-guard\.py|deploy-lambdas\.sh)$|^\.github/workflows/deploy-lambdas\.yml$')"
             } >> "$GITHUB_OUTPUT"
           fi
           grep -E '^(infra|lambda)=' "$GITHUB_OUTPUT"

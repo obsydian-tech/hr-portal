@@ -2,7 +2,7 @@ import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { groupsOf, checkOf } from '../shared/document-check.mjs';
+import { groupsOf, checkOf, hrDecisionOf } from '../shared/document-check.mjs';
 import { isIdToken } from '../shared/hr-group.mjs';
 import { requireTenant, ownsItem } from '../shared/tenant.mjs';
 import { companyRows } from '../shared/company-rows.mjs';
@@ -90,6 +90,63 @@ async function waitingDocuments(tenantId) {
   return { items, count: items.length, counts };
 }
 
+/**
+ * CHAT-05: one person's documents with their check. Every page of the company's rows is read (a filter on the person is applied after a page
+ * is read, so one page can miss them). `documents` holds the read documents (an upload link with no file is not one): no number, no file.
+ */
+async function onePerson(tenantId, employeeId, { status, decision }) {
+  const verRows = (await companyRows('document-verification', tenantId, {
+    FilterExpression: 'employeeId = :person',
+    ExpressionAttributeValues: { ':person': { S: employeeId } },
+  })).map((item) => unmarshall(item));
+  const docRows = (await companyRows('documents', tenantId, {
+    FilterExpression: 'employee_id = :person',
+    ExpressionAttributeValues: { ':person': { S: employeeId } },
+  })).map((item) => unmarshall(item));
+
+  let items = verRows;
+  if (status) {
+    const ids = new Set(docRows.filter((d) => d.ocr_status === status).map((d) => d.document_id));
+    items = items.filter((v) => ids.has(v.documentId));
+  }
+  if (decision) items = items.filter((v) => v.decision === decision);
+
+  const res = await dynamodb.send(new QueryCommand({
+    TableName: 'employees',
+    KeyConditionExpression: 'employee_id = :id',
+    ExpressionAttributeValues: { ':id': { S: employeeId } },
+  }));
+  const employee = ownsItem(res.Items?.[0], tenantId) ? unmarshall(res.Items[0]) : null;
+  const name = employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown';
+
+  const byId = new Map(verRows.map((v) => [v.verificationId, v]));
+  const documents = docRows
+    .filter((d) => d.ocr_status !== 'PENDING')
+    .map((d) => ({
+      document_id: d.document_id,
+      document_type: d.document_type,
+      check: checkOf(d, d.verification_id ? (byId.get(d.verification_id) ?? null) : null),
+      arrived_at: d.upload_timestamp ?? d.uploaded_at ?? null,
+      hr_decision: hrDecisionOf(d),
+      hr_decided_at: d.hr_reviewed_at ?? null,
+    }));
+
+  return {
+    items: items.map((item) => ({
+      verification_id: item.verificationId,
+      employee_id: item.employeeId,
+      employee_name: name,
+      document_type: item.documentType,
+      document_id: item.documentId,
+      confidence: item.confidence,
+      decision: item.decision,
+      created_at: item.createdAt,
+    })),
+    count: items.length,
+    documents,
+  };
+}
+
 const handlerFn = async (event) => {
   logger.info('Handler invoked', { path: event.path, httpMethod: event.requestContext?.http?.method });
   tracer.putAnnotation('operation', 'getDocumentVerifications');
@@ -109,11 +166,15 @@ const handlerFn = async (event) => {
     const employeeId = queryParams.employee_id;
     const limit = parseInt(queryParams.limit || '50');
 
-    if (caller === 'HR' && queryParams.waiting === 'true') {
+    if (queryParams.waiting === 'true') {
       return json(200, await waitingDocuments(tenantId));
     }
 
     logger.info('Query params', { status, decision, employeeId, limit, caller });
+
+    if (employeeId) {
+      return json(200, await onePerson(tenantId, employeeId, { status, decision }));
+    }
 
     // TEN-02: the company's verifications only (at most `limit`, as before).
     // TEN-02: the company's verifications, one page of at most `limit` (paging as before).

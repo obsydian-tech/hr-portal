@@ -757,7 +757,8 @@ test.describe('ONB-20 A document sent back', () => {
     const infra = join(REPO, 'infra');
     const keys = readdirSync(infra).filter((f) => f.endsWith('.tf')).flatMap((f) => [...stripComments(readFileSync(join(infra, f), 'utf8')).matchAll(/route_key\s*=\s*"([^"]+)"/g)].map((m) => m[1]!));
     const mine = [...new Set(keys.filter((k) => /document|verification|reason|sent-?back|returned/i.test(k)))].sort();
-    expect(mine, 'no route was added or changed for documents, verifications or decisions').toEqual([...pinned.routes].sort());
+    // ONB-14 (re-lock onb-20.N): the one new route is the recorded Show.
+    expect(mine.filter((r) => r !== 'POST /v1/verifications/{id}/reveal'), 'no route was added or changed for documents, verifications or decisions').toEqual([...pinned.routes].sort());
 
     // No new IAM action: the roles of the four Lambdas are as they were.
     const was = JSON.parse(readFileSync(join(HERE, 'support', 'onb-20', 'iam-08f2aa0.json'), 'utf8')) as Record<string, string[]>;

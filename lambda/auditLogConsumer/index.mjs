@@ -110,7 +110,7 @@ export const handler = async (event) => {
 
   const failed = results.filter(r => r.status === 'rejected');
   if (failed.length > 0) {
-    failed.forEach(r => logger.error('Failed to write audit record', { reason: r.reason?.message }));
+    failed.forEach(r => logger.error("Failed to write audit record", { reason: r.reason?.name }));
     // Re-throw so EventBridge retries (up to 185 retry attempts by default)
     throw new Error(`${failed.length} audit record(s) failed to write`);
   }

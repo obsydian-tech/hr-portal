@@ -1,4 +1,5 @@
 import { policyOf, type TfResource } from '../onb-15/tf-policy';
+import { ownerLinkGrant } from '../onb-11/owner-link';
 
 /**
  * TEN-02 re-locks: what TEN-02 may add to an onboarding role, and nothing more (spec section E).
@@ -24,6 +25,19 @@ export function tenancyGrant(action: string, resource: string, reaches: readonly
 export function ten06Grant(action: string, resource: string): boolean {
   if (action === 'dynamodb:PutItem' || action === 'dynamodb:DeleteItem') return /^(\$\{)?aws_dynamodb_table\.tenants\.arn\}?$/.test(resource);
   if (action === 'cognito-idp:AdminAddUserToGroup') return /^(\$\{)?aws_cognito_user_pool\.naleko_dev\.arn\}?$/.test(resource);
+  return false;
+}
+
+/**
+ * CHAT-02: what the two Ask Batsi chat Lambdas (nalekoAiChat's role naleko_ai_chat, talentFlowAiChat's role ai_chat) gain to keep
+ * each person's chats and read the company switch: GetItem/Query/PutItem/UpdateItem on the ask-batsi-chats table and GetItem on the
+ * tenants table. chat-02.spec.ts AC-31 pins the two new Lambdas' own roles.
+ */
+export function chat02Grant(action: string, resource: string): boolean {
+  const chats = /^(\$\{)?aws_dynamodb_table\.ask_batsi_chats\.arn\}?$|:table\/ask-batsi-chats$/.test(resource);
+  const tenants = /^(\$\{)?aws_dynamodb_table\.tenants\.arn\}?$|:table\/[\w-]*tenants$/.test(resource);
+  if (chats) return /^dynamodb:(GetItem|Query|PutItem|UpdateItem)$/.test(action);
+  if (tenants) return action === 'dynamodb:GetItem';
   return false;
 }
 
@@ -71,6 +85,10 @@ export function onlyTenancyAdded(before: TfResource, after: TfResource): string[
     // TEN-04.2 re-lock (ten-03.3): createProvisioningBundle Queries the TalentFlow state table to check the candidate is the company's (table ARN only).
     if (p.effect === 'Allow' && p.condition === 'null' && after.name === 'create_provisioning_bundle' && p.action === 'dynamodb:Query'
       && /^(aws_dynamodb_table\.talent_flow_state\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-state|\$\{local\.tf_state_table\}))$/.test(p.resource)) continue;
+    // ONB-11 re-lock (ten-02.9): createEmployee links the new person's sign-in to their employees row (one UpdateItem on that table).
+    if (p.effect === 'Allow' && ownerLinkGrant(p.action, p.resource, after.name ?? '', p.condition)) continue;
+    // CHAT-02 re-lock: the chat Lambdas keep chats and read the company switch.
+    if (p.effect === 'Allow' && p.condition === 'null' && /^(naleko_ai_chat|ai_chat)$/.test(after.name ?? '') && chat02Grant(p.action, p.resource)) continue;
     wrong.push(`added beyond TEN-02: ${key(p)}`);
   }
   return wrong;

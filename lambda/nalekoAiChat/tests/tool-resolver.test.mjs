@@ -47,18 +47,18 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('URL construction', () => {
-  test('list_employees — with limit, always includes created_by', async () => {
+  test('list_employees — reads the company list with limit only (CHAT-09)', async () => {
     mockOkJson([]);
     await resolveToolCall('list_employees', { limit: 10 }, CONTEXT);
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${BASE}/employees?limit=10&created_by=AS00004`);
+    expect(url).toBe(`${BASE}/employees?limit=200`);
   });
 
-  test('list_employees — no limit defaults to 20', async () => {
+  test('list_employees — no limit reads the same way (CHAT-09)', async () => {
     mockOkJson([]);
     await resolveToolCall('list_employees', {}, CONTEXT);
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe(`${BASE}/employees?limit=20&created_by=AS00004`);
+    expect(url).toBe(`${BASE}/employees?limit=200`);
   });
 
   test('get_employee — builds correct path', async () => {
@@ -102,13 +102,13 @@ describe('URL construction', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('NH-53: staff_id scoping', () => {
-  test('list_employees URL always contains created_by from context, not from args', async () => {
+  test('list_employees URL never carries a person or company from the model args', async () => {
     mockOkJson([]);
     // Simulate Claude trying to inject a different staffId via args — must be ignored
     await resolveToolCall('list_employees', { limit: 5, created_by: 'EVIL-INJECT' }, CONTEXT);
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toContain('created_by=AS00004');
     expect(url).not.toContain('EVIL-INJECT');
+    expect(url).not.toContain('created_by');
   });
 
   test('query_audit_log URL always contains staffId from context', async () => {

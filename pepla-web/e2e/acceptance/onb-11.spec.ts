@@ -760,7 +760,7 @@ test.describe('ONB-11 Risk check on the full set', () => {
     expect(agent.status, `getEmployee answers 200 (${agent.raw.slice(0, 200)})`).toBe(200);
     const a = agent.body.employee as Record<string, unknown>;
     expect([a['risk_band'], a['risk_reason']], 'getEmployee answers the stored band and reason').toEqual([risk.band, risk.reason]);
-    expect(Object.keys(a).sort(), 'getEmployee keeps its keys').toEqual(['created_at', 'department', 'email', 'employee_id', 'first_name', 'last_name', 'risk_band', 'risk_reason', 'stage', 'updated_at'].sort());
+    expect(Object.keys(a).sort(), 'getEmployee keeps its keys, plus the step ONB-22 adds (onb-11.6) and the five more CHAT-09 adds (onb-11.8)').toEqual(['created_at', 'department', 'email', 'employee_id', 'first_name', 'last_name', 'risk_band', 'risk_reason', 'stage', 'step', 'updated_at', 'job_title', 'planned_start_date', 'documents_due', 'hr_staff_name', 'risk_assessed_at'].sort());
     const agentOther = ran(runHandler(GET_EMPLOYEE, withRisk(), agentEmployeeEvent(P.id, { kind: 'agent', tenant: COMPANY_B })), 'getEmployee');
     expect(agentOther.status, "another company's agent gets 404").toBe(404);
   });
@@ -882,7 +882,7 @@ test.describe('ONB-11 Risk check on the full set', () => {
       expect(pendingText, 'with the block heading').toContain(RISK_WORDS.heading);
     }
 
-    // One heading level one; axe finds nothing serious; no "Ask Batsi"; only the one answer is read.
+    // One heading level one; axe finds nothing serious; no "Ask Batsi" or risk-check button in the page content; only the one answer is read.
     await expect(heading1(page), 'one level-one heading').toHaveCount(1);
     const high = riskPerson({ band: 'HIGH', reason: REASON, at });
     docs!.add(high);
@@ -893,7 +893,13 @@ test.describe('ONB-11 Risk check on the full set', () => {
       .map((v) => `${v.impact}: ${v.id} (${v.nodes.length}) ${v.help} :: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`);
     expect(bad, 'axe on the employee page with a risk block').toEqual([]);
     await expect(heading1(page), 'one level-one heading with the block').toHaveCount(1);
-    await expect(page.getByRole('button', { name: /Ask Batsi|assess risk/i }), 'no button to run the check').toHaveCount(0);
+    // Child lock onb-11.3: the page content, not the HR top bar. CHAT-01 puts "Ask Batsi" in the top bar of every HR page;
+    // ONB-11 means there is no button in the page itself that runs the check. Same words, looked for inside <main> only.
+    await expect(page.locator('main'), 'the page content is one <main>, so the button check below cannot pass by looking at nothing').toHaveCount(1);
+    await expect(page.locator('main').getByRole('button', { name: /Ask Batsi|assess risk/i }), 'no button to run the check in the page content').toHaveCount(0);
+    // Outside <main> the only change CHAT-01 needs is its one Ask Batsi button; a risk-check button is still wrong anywhere.
+    await expect(page.getByRole('button', { name: /assess risk/i }), 'no button to run the check anywhere on the page').toHaveCount(0);
+    expect(await page.getByRole('button', { name: /Ask Batsi/i }).count(), 'at most the top bar\'s one Ask Batsi button').toBeLessThanOrEqual(1);
 
     await page.waitForLoadState('networkidle');
     const app = new URL(baseURL!).origin;
@@ -980,7 +986,8 @@ test.describe('ONB-11 Risk check on the full set', () => {
         if (m && /risk|verifications/.test(m[1]!)) routes.add(m[1]!);
       }
     }
-    expect([...routes].sort(), 'the risk and verification routes are unchanged').toEqual(base.routes);
+    // ONB-14 (re-lock onb-11.N): the one new verification route is the recorded Show.
+    expect([...routes].filter((r) => r !== 'POST /v1/verifications/{id}/reveal').sort(), 'the risk and verification routes are unchanged').toEqual(base.routes);
     const stepFn = readFileSync(join(REPO, 'infra', 'stepfunctions.tf'), 'utf8');
     expect(stepFn, 'stepfunctions.tf still reads the definition from the file').toMatch(/file\(\s*"\$\{path\.module\}\/step-functions\/naleko-onboarding-flow\.asl\.json"\s*\)|naleko-onboarding-flow\.asl\.json/);
   });

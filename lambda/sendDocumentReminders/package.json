@@ -1,0 +1,12 @@
+{
+  "name": "send-document-reminders-lambda",
+  "version": "1.0.0",
+  "description": "Lambda: every morning, one reminder email to a new employee who still owes a required document",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.18.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "postmark": "^4.0.5"
+  }
+}

@@ -33,6 +33,10 @@ module "kms_pii" {
   # Decrypt/DescribeKey only, and only via DynamoDB.
   dynamodb_read_role_arns = [
     aws_iam_role.check_employee_email.arn,
+    # ONB-22: the proposal Lambdas and the two agent reads open the encrypted rows through DynamoDB.
+    aws_iam_role.create_proposal.arn,
+    aws_iam_role.approve_agent_action.arn,
+    aws_iam_role.summarise_verification.arn,
     aws_iam_role.lookup_invite.arn,
     aws_iam_role.redeem_invite.arn,
     aws_iam_role.get_invite.arn,
@@ -57,8 +61,13 @@ module "kms_pii" {
     # MOD-01: getCompanyModules and every Lambda that asks modules.mjs read the company row in the tenants table.
     # The TalentFlow roles live in talent-flow-infra, named by ARN (their path /talent-flow/ is part of it).
     aws_iam_role.get_company_modules.arn,
+    # CHAT-02: both read the encrypted tenants table (the company switch) and the chats table; writes need no key right (BE-18).
+    aws_iam_role.ask_batsi_chats.arn,
+    aws_iam_role.admin_set_ask_batsi.arn,
     aws_iam_role.get_candidate_events.arn,
     aws_iam_role.get_hiring_managers.arn,
+    # ONB-21: the daily reminder reads the tenants and employees tables (decrypt only, through DynamoDB).
+    aws_iam_role.send_document_reminders.arn,
     # Walk fix: queryAuditLog Queries/Scans the onboarding-events table, which this key encrypts (AccessDeniedException in its log).
     aws_iam_role.query_audit_log.arn,
     # Dev E2E (ONB-11 AC-11): the onboarding state machine's WaitForDocumentUpload state stores a task token on the

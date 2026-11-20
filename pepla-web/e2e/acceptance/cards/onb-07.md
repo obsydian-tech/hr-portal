@@ -6,7 +6,7 @@ Test files: `onb-07.spec.ts`, `support/onb-07/`
 
 Spec: [NH-163](https://obsydian.atlassian.net/browse/NH-163)
 
-Locks: acceptance-lock/onb-07
+Locks: acceptance-lock/onb-07, acceptance-lock/onb-07.2
 
 AC-1 to AC-7 and AC-9 run the real `lambda/processDocumentOCR`, `lambda/sendNotificationEmail`,
 `lambda/reviewDocumentVerification`, `lambda/getDocumentVerifications` and
@@ -29,3 +29,11 @@ PyYAML). AC-7 runs `scripts/ci/check-ai-guard.py`.
 AC-8 runs on pepla-dev (desktop only, once): the employee test login uploads a small PDF through
 the upload link and HR's routes are polled for 90 seconds. Its no-backend half runs the same upload
 through the Lambdas on the fake AWS.
+
+ONB-07.2 (19 Nov 2026, for ONB-14 S-2): AC-9 still holds every resource that was in
+`eventbridge.tf` at 6b7f95b exactly as it was, with one exception. The audit consumer's target
+(`aws_cloudwatch_event_target.audit_log_consumer`) may carry one `dead_letter_config` block whose
+only line is `arn = aws_sqs_queue.<name>.arn`, naming a queue declared once in `infra/`. Any other
+change to that target (rule, bus, target id, arn, input, retry policy, a second block, another
+attribute in the block, a non-SQS arn) still fails, and no other resource may gain a dead-letter
+queue. Without the block the target is checked exactly as before.

@@ -613,10 +613,45 @@ test.describe('ONB-07 Batsi checks, HR decides', () => {
     // Nothing that was in eventbridge.tf changes or goes (so the plan destroys or replaces nothing there).
     const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
     const before = blocks([join(__dirname, 'support', 'onb-07', 'eventbridge.6b7f95b.tf.txt')], 'resource');
+    // ONB-07.2 (re-lock for ONB-14 S-2): the audit consumer's target may gain one dead_letter_config
+    // block whose only line is `arn = aws_sqs_queue.<name>.arn` for a queue declared in infra/.
+    // Without that one block, the target must still be exactly as it was.
+    const DLQ_TARGET = 'aws_cloudwatch_event_target.audit_log_consumer';
+    const withoutDeadLetter = (body: string): string => {
+      const found: Array<{ start: number; end: number }> = [];
+      const re = /(^|\n)[ \t]*dead_letter_config[ \t]*\{/g;
+      for (let m = re.exec(body); m; m = re.exec(body)) {
+        const open = m.index + m[0].length - 1;
+        let depth = 0;
+        let end = -1;
+        for (let i = open; i < body.length && end < 0; i++) {
+          if (body[i] === '"') {
+            i++;
+            while (i < body.length && body[i] !== '"') i += body[i] === '\\' ? 2 : 1;
+          } else if (body[i] === '{') depth++;
+          else if (body[i] === '}' && --depth === 0) end = i + 1;
+        }
+        expect(end, `${DLQ_TARGET}: its dead_letter_config block is closed`).toBeGreaterThan(open);
+        found.push({ start: m.index + (m[1] ?? '').length, end });
+        re.lastIndex = end;
+      }
+      expect(found.length, `${DLQ_TARGET}: at most one dead_letter_config block`).toBeLessThanOrEqual(1);
+      if (found.length === 0) return body;
+      const { start, end } = found[0]!;
+      const inner = body.slice(body.indexOf('{', start) + 1, end - 1);
+      expect(/[{}[\]]/.test(inner), `${DLQ_TARGET}: dead_letter_config holds no nested block, list or map`).toBe(false);
+      const da = attributes(inner);
+      expect([...da.keys()], `${DLQ_TARGET}: dead_letter_config sets arn and nothing else`).toEqual(['arn']);
+      const q = /^aws_sqs_queue\.([A-Za-z_][A-Za-z0-9_-]*)\.arn$/.exec(da.get('arn') ?? '');
+      expect(q, `${DLQ_TARGET}: dead_letter_config arn is aws_sqs_queue.<name>.arn (got ${da.get('arn')})`).not.toBeNull();
+      expect(named('aws_sqs_queue').filter((r) => r.labels[1] === q![1]).length, `${DLQ_TARGET}: aws_sqs_queue.${q![1]} is declared once in infra/`).toBe(1);
+      return body.slice(0, start) + body.slice(end);
+    };
     for (const b of before) {
       const now = resources.filter((r) => r.labels[0] === b.labels[0] && r.labels[1] === b.labels[1]);
       expect(now.length, `${b.labels.join('.')} is still declared once`).toBe(1);
-      expect(norm(now[0]!.body), `${b.labels.join('.')} is unchanged`).toBe(norm(b.body));
+      const body = b.labels.join('.') === DLQ_TARGET ? withoutDeadLetter(now[0]!.body) : now[0]!.body;
+      expect(norm(body), `${b.labels.join('.')} is unchanged`).toBe(norm(b.body));
     }
     // ...and no moved or removed block takes one of them away.
     const leaving = [...blocks(files, 'moved'), ...blocks(files, 'removed')].map((b) => attributes(b.body).get('from') ?? '');

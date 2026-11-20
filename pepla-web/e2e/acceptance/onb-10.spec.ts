@@ -175,22 +175,35 @@ const statValue = (page: Page, label: string) => stat(page, label).locator('.pp-
 const attentionLines = (page: Page) => page.locator('.pp-stat__meta--attention');
 
 type HomeRow = { name: string; step: string; note: string[]; chips: ChipInfo[]; start: string };
+// Child lock onb-10.2: reading the table while it changes page (page 1 to a one-row page 2) hung on a row that was gone. A read that
+// finds the table changed under it, or a row missing, is made again from the start; the same rows are read and nothing else is accepted.
 async function readHome(page: Page): Promise<HomeRow[]> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await readHomeOnce(page);
+    } catch (err) {
+      if (attempt >= 4) throw err;
+      await page.waitForTimeout(250);
+    }
+  }
+}
+async function readHomeOnce(page: Page): Promise<HomeRow[]> {
   const rows = personRows(page);
   const n = await rows.count();
   const out: HomeRow[] = [];
   for (let i = 0; i < n; i++) {
     const tr = rows.nth(i);
     const cell = tr.locator('td').nth(1);
-    const lines = (await cell.innerText()).split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const lines = (await cell.innerText({ timeout: 2000 })).split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
     out.push({
-      name: (await tr.locator('a[href*="/hr/employees/"]').innerText()).replace(/\s+/g, ' ').trim(),
+      name: (await tr.locator('a[href*="/hr/employees/"]').innerText({ timeout: 2000 })).replace(/\s+/g, ' ').trim(),
       step: lines[0] ?? '',
       note: lines.slice(1),
       chips: await chipsIn(cell),
-      start: (await tr.locator('td').nth(2).innerText()).replace(/\s+/g, ' ').trim(),
+      start: (await tr.locator('td').nth(2).innerText({ timeout: 2000 })).replace(/\s+/g, ' ').trim(),
     });
   }
+  if ((await rows.count()) !== n) throw new Error('the table changed while it was read');
   return out;
 }
 
@@ -408,7 +421,8 @@ test.describe('ONB-10 Due dates and Overdue', () => {
     const a = bodyOf(meA) as Record<string, unknown>;
     expect(a['startDate'], 'startDate is as it was').toBe(START.a1);
     expect(a['documentsDue'], 'documentsDue is the date HR sees for the same row').toBe(listA[EMP.a1]!['documents_due']);
-    expect(Object.keys(a).sort(), 'one new field, nothing else changed').toEqual(['company', 'consent', 'department', 'documentsDue', 'firstName', 'notice', 'startDate'].sort());
+    // ONB-19 (child lock acceptance-lock/onb-10.1): `step` is the one other field GET /v1/me answers.
+    expect(Object.keys(a).sort(), 'one new field, nothing else changed (and ONB-19\'s step)').toEqual(['company', 'consent', 'department', 'documentsDue', 'firstName', 'notice', 'startDate', 'step'].sort());
     const meB = ask('getMyStart', 'empB', {}, { tables: seeded() });
     expect((bodyOf(meB) as Record<string, unknown>)['documentsDue'], 'B\'s employee gets B\'s date').toBe('2026-02-24');
     expect(JSON.stringify(bodyOf(meB)), 'and never A\'s').not.toContain('2026-11-24');

@@ -25,6 +25,13 @@ import { classifyIntent, selectModel } from './intent-classifier.mjs';
 import { buildCacheKey, getCached, setCached } from './cache.mjs';
 import { hrOnly } from '../shared/hr-group.mjs';
 import { requireTenant } from '../shared/tenant.mjs';
+import { checksOf } from './answer-shape.mjs';
+import { agentGet } from './tool-resolver.mjs';
+import { personFacts } from './person.mjs';
+import { todayWritten } from '../shared/due-date.mjs';
+import { requireModule } from '../shared/modules.mjs';
+import { redactNumbers } from '../shared/pii-redact.mjs';
+import { appendExchange, ChatNotFound, historyOf, getHeader, isChatId, redactToolOutputs } from '../shared/ask-batsi-chats.mjs';
 
 // TEN-02: Batsi calls the Agent API with the server's key, which carries AGENT_TENANT_ID. Only that company may use it.
 let TENANT = null;
@@ -119,7 +126,7 @@ async function checkRateLimit(staffId) {
       return retryAfter;
     }
     // Any other error (network, IAM) — fail open so legit users aren't blocked
-    logger.error('Rate limit check failed — failing open', { err: err.message });
+    logger.error('Rate limit check failed — failing open', { error: err?.name ?? 'Error' });
     return null;
   }
 }
@@ -152,13 +159,14 @@ async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
     conversation_id:     conversationId,
     bedrock_request_id:  bedrockRequestId,
     guardrail_action:    guardrailAction ?? 'NONE',
-    employees_accessed:  JSON.stringify(employeesAccessed ?? []),
+    // CHAT-02: no ID, phone or bank number is kept, however it is spaced (the shared PII-01 redactor).
+    employees_accessed:  JSON.stringify((employeesAccessed ?? []).map((e) => redactNumbers(String(e)))),
     // Content fields (truncated — full content stored in S3 archive)
-    promptSummary:       truncate(promptSummary),
-    responseSummary:     truncate(responseSummary),
+    promptSummary:       truncate(redactNumbers(promptSummary)),
+    responseSummary:     truncate(redactNumbers(responseSummary)),
     toolCallsMade:       JSON.stringify(toolCallsMade),
     // NH-58: per-tool raw output for POPIA hallucination defence (truncated to 2KB per entry at capture time)
-    tool_outputs_raw:    toolOutputsRaw ? JSON.stringify(toolOutputsRaw) : '{}',
+    tool_outputs_raw:    toolOutputsRaw ? JSON.stringify(redactToolOutputs(toolOutputsRaw)) : '{}',
     // Performance + cost fields
     latencyMs,
     inputTokens,
@@ -175,7 +183,7 @@ async function writeAuditRecord({ staffId, templateId, intentClass, modelId,
     }));
   } catch (err) {
     // Non-fatal — log and continue
-    logger.error('Audit write failed', { event: 'audit_write_error', error: err.message });
+    logger.error('Audit write failed', { event: 'audit_write_error', error: err?.name ?? 'Error' });
   }
 }
 
@@ -201,16 +209,24 @@ function truncateToolResponse(content) {
 
 // ─── System prompt (cached per warm container) ────────────────────────────────
 
-const SYSTEM_PROMPT = `You are Naleko AI, an HR onboarding assistant for South African companies.
+const SYSTEM_PROMPT = `You are Batsi, an HR onboarding assistant for South African companies.
 You help HR clerks with onboarding tasks: checking employee status, risk assessments, document verifications, and audit logs.
 
 Rules:
 - Only assist with HR onboarding tasks. Politely decline all other requests.
 - Never reveal salary benchmarks, employment law advice, or individual performance ratings.
-- Never expose raw PII in your responses — refer to employees by ID or first name only.
+- You may show what the HR person sees on the person page: name, email, job title, department, start date, step and HR partner. Never show ID numbers, phone numbers or bank account numbers.
 - When onboarding a new employee, always return a draft for human review (the onboard_new_employee tool handles this automatically).
 - Be concise and factual. Prefer bullet lists for data-heavy responses.
-- If a tool call fails, explain what went wrong and suggest next steps.
+- When you looked up one person's documents, the screen shows each check as a row, so answer in one short sentence and do not list the checks again.
+- If a lookup fails, say so in plain words and use its say sentence when it gives one. Never show tool names, record ids or error codes.
+- Today's date is given in <today>. Use it for words like today, Monday, this week and soonest. A week runs from Monday to Sunday.
+- When the question is about the person in <employee_in_focus> (he, she, they or this person), call get_employee with that id first.
+- A person is ready to start only when get_employee says ready_to_start yes. Otherwise say no and give its reasons.
+- Use the step words Invited, Documents, In review and Verified. Never use stage words such as ACTIVE.
+- The start date is the start field. Never give the date a person was added as their start date.
+- If a lookup has no answer for something, say plainly that you could not find it. Do not guess and do not send HR to another system.
+- Write dates as the lookups write them, for example 10 Nov 2026.
 - Always operate on behalf of the authenticated HR clerk. Never impersonate another user.`;
 
 // ─── Template → message synthesiser (NH-58) ─────────────────────────────────
@@ -251,7 +267,8 @@ function buildUserMessage(templateId, slots, screenContext, staffId, userMessage
     .map(([k, v]) => `  <${k}>${v}</${k}>`)
     .join('\n');
 
-  return `<context>
+  return `<today>${todayWritten()}</today>
+<context>
   <staff_id>${staffId}</staff_id>
   <current_view>${screenContext?.view ?? 'unknown'}</current_view>
   <employee_in_focus>${screenContext?.employeeId ?? 'none'}</employee_in_focus>
@@ -328,7 +345,7 @@ async function maybeSummariseHistory(messages, modelId) {
     ];
   } catch (err) {
     // Non-fatal — fall back to full history silently
-    logger.warn(JSON.stringify({ event: 'history_summarise_failed', error: err.message }));
+    logger.warn(JSON.stringify({ event: 'history_summarise_failed', error: err?.name ?? 'Error' }));
     return messages;
   }
 }
@@ -408,6 +425,21 @@ async function invokeClaude(messages, modelId) {
  * @param {string}  modelId       - resolved Bedrock model ID (NH-69)
  * @returns {{ finalText: string, toolCallsMade: Array, structuredData: object }}
  */
+const SAY = {
+  NOTHING_TO_CHECK: "None of this person's documents has been checked yet, so there is nothing to assess.",
+  NOT_FOUND: 'I could not find that person in this company.',
+  NOT_ALLOWED: 'I could not get this information just now.',
+  UNAVAILABLE: 'I could not get this information just now. Try again in a minute.',
+};
+/** CHAT-09: what a failed lookup means, in a fixed sentence. Never the error text. */
+function failedLookup(err) {
+  const outcome = err?.status === 404 && err?.apiText === 'No verifications found for employee' ? 'NOTHING_TO_CHECK'
+    : err?.status === 404 ? 'NOT_FOUND'
+    : err?.status === 401 || err?.status === 403 ? 'NOT_ALLOWED'
+    : 'UNAVAILABLE';
+  return { outcome, say: SAY[outcome] };
+}
+
 async function runAgenticLoop(messages, context, modelId) {
   const toolCallsMade  = [];
   let   structuredData = {};
@@ -480,7 +512,7 @@ async function runAgenticLoop(messages, context, modelId) {
 
       for (const block of toolUseBlocks) {
         const { id: toolUseId, name: toolName, input: toolArgs } = block;
-        logger.info('Tool call', { toolName, toolArgs });
+        logger.info('Tool call', { toolName });
         // NH-57: track employee IDs accessed for audit schema
         const _empId = toolArgs?.id ?? toolArgs?.employee_id ?? null;
         if (_empId) employeesAccessed.add(_empId);
@@ -499,9 +531,13 @@ async function runAgenticLoop(messages, context, modelId) {
           if (toolName === 'get_employee')            structuredData.employee        = result;
           if (toolName === 'list_verifications')      structuredData.verifications   = result;
           if (toolName === 'onboard_new_employee')    structuredData.hitlDraft       = result;
+          // CHAT-09: the model gets the person page's facts, not the raw record.
+          if (toolName === 'get_employee') {
+            result = await personFacts(result, (id) => agentGet(`/agent/v1/verifications?employee_id=${encodeURIComponent(id)}`));
+          }
         } catch (err) {
-          logger.warn('Tool call failed', { toolName, error: err.message });
-          result   = { error: err.message };
+          logger.warn('Tool call failed', { toolName, error: err?.name ?? 'Error' });
+          result   = failedLookup(err);
           isError  = true;
         }
 
@@ -593,6 +629,15 @@ async function runAgenticLoop(messages, context, modelId) {
 
 // ─── Lambda handler ───────────────────────────────────────────────────────────
 
+/** CHAT-02: a chat that could not be stored. Only the error name is logged, never the text. */
+function storeFailure(err, headers) {
+  if (err instanceof ChatNotFound) {
+    return { statusCode: 404, headers, body: JSON.stringify({ error: 'Not found' }) };
+  }
+  logger.error('Chat store error', { error: err?.name ?? 'Error' });
+  return { statusCode: 500, headers, body: JSON.stringify({ error: 'Something went wrong' }) };
+}
+
 export const handler = async (event) => {
   const refused = hrOnly(event, 'Only HR can use Batsi chat');
   if (refused) return refused;
@@ -640,6 +685,10 @@ export const handler = async (event) => {
     };
   }
 
+  // CHAT-02: after the robot and AI-off answers, Ask Batsi is a per-company switch, OFF until an admin turns it on.
+  const switchedOff = await requireModule(event, 'ask_batsi');
+  if (switchedOff) return switchedOff;
+
   // ── 1b. NH-80: Hourly rate limit check ─────────────────────────────────
   const retryAfter = await checkRateLimit(staffId);
   if (retryAfter !== null) {
@@ -673,7 +722,7 @@ export const handler = async (event) => {
     templateId           = 'freeform',
     slots                = {},
     screenContext        = {},
-    conversationHistory  = [],   // prior turns [{ role, content }]
+    chatId: requestedChatId,     // CHAT-02: history comes from the stored chat, never from the caller
     followUpText         = '',   // only present for templateId 'follow_up'
   } = body;
 
@@ -689,8 +738,25 @@ export const handler = async (event) => {
   // ── 3. Build messages array ───────────────────────────────────────────────
   const userXml = buildUserMessage(templateId, slots, screenContext, staffId, effectiveMessage);
 
-  // Replay prior turns then append this turn
-  const rawHistory = [...conversationHistory];
+  // CHAT-02: a follow-up loads its own stored chat. A chat that is not this person's is a 404.
+  const jsonHeaders = { 'Content-Type': 'application/json' };
+  let chatId = null;
+  let rawHistory = [];
+  if (requestedChatId !== undefined && requestedChatId !== null) {
+    if (!isChatId(requestedChatId)) {
+      return { statusCode: 404, headers: jsonHeaders, body: JSON.stringify({ error: 'Not found' }) };
+    }
+    try {
+      const header = await getHeader(tenantId, staffId, requestedChatId);
+      if (!header) {
+        return { statusCode: 404, headers: jsonHeaders, body: JSON.stringify({ error: 'Not found' }) };
+      }
+      chatId = requestedChatId;
+      rawHistory = await historyOf(tenantId, staffId, chatId);
+    } catch (err) {
+      return storeFailure(err, jsonHeaders);
+    }
+  }
 
   // ── 3a. NH-79: Maybe summarise history (every 8 user turns, Haiku only) ──
   // Pass MODEL_FAST placeholder — maybeSummariseHistory always uses MODEL_FAST regardless.
@@ -723,8 +789,9 @@ export const handler = async (event) => {
   // data changes) and must never be served stale.
   // cacheKey computed once — reused for lookup and store.
   let cacheHitResponse = null;
-  const cacheKey = intentClass === 'SIMPLE'
-    ? buildCacheKey(SYSTEM_PROMPT, effectiveMessage, selectedModelId)
+  // CHAT-02: only a chat's first question may use the cache, and the key carries the company.
+  const cacheKey = intentClass === 'SIMPLE' && !chatId
+    ? buildCacheKey(SYSTEM_PROMPT, effectiveMessage, selectedModelId, tenantId)
     : null;
   if (cacheKey) {
     cacheHitResponse = await getCached(cacheKey);
@@ -736,13 +803,24 @@ export const handler = async (event) => {
         model_id: selectedModelId,
       }));
       const pii = sanitisePii(cacheHitResponse);
+      let savedId;
+      try {
+        savedId = await appendExchange({
+          tenantId, staffId, chatId,
+          question: redactNumbers(effectiveMessage),
+          answer:   redactNumbers(pii.sanitised),
+        });
+      } catch (err) {
+        return storeFailure(err, jsonHeaders);
+      }
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message:         pii.sanitised,
           toolCallsMade:   [],
-          conversationId:  `${staffId}-${Date.now()}`,
+          chatId:          savedId,
+          conversationId:  savedId,
           structuredData:  {},
           latencyMs:       Date.now() - start,
           guardrailAction: pii.fired ? 'MASKED' : 'NONE',
@@ -755,16 +833,16 @@ export const handler = async (event) => {
   }
 
   // ── 6. Agentic loop ───────────────────────────────────────────────────────
-  const context = { staffId, tenantId };
+  const context = { staffId, tenantId, sub: claims['sub'], username: claims['cognito:username'], staffIdClaim: claims['custom:staff_id'] };
   let loopResult;
   try {
     loopResult = await runAgenticLoop(messages, context, selectedModelId);
   } catch (err) {
-    logger.error('Bedrock pipeline error', { error: err.message, stack: err.stack });
+    logger.error('Bedrock pipeline error', { error: err?.name ?? 'Error' });
     return {
       statusCode: 502,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'AI service error', detail: err.message }),
+      body: JSON.stringify({ error: 'AI service error' }),
     };
   }
 
@@ -790,11 +868,33 @@ export const handler = async (event) => {
     logger.warn('PII sanitiser fired', { matchedPatterns: pii.matchedPatterns, staffId });
   }
 
+  // CHAT-05: the check rows, worked out from this turn's own tool results.
+  const checks = checksOf(loopResult.toolCallsMade);
+
+  // CHAT-02: store the exchange (masked) before answering.
+  const toolNames = [...new Set(loopResult.toolCallsMade.map(t => t.toolName))];
+  const proposalIds = loopResult.toolCallsMade
+    .map(t => t.result?.actionId)
+    .filter(id => typeof id === 'string');
+  let savedChatId;
+  try {
+    savedChatId = await appendExchange({
+      tenantId, staffId, chatId,
+      question: redactNumbers(effectiveMessage),
+      answer:   redactNumbers(pii.sanitised),
+      tools:    toolNames,
+      proposalIds,
+    });
+  } catch (err) {
+    return storeFailure(err, jsonHeaders);
+  }
+
   const response = {
     message:         pii.sanitised,
     toolCallsMade:   loopResult.toolCallsMade.map(t => ({ tool: t.toolName, isError: t.isError })),
-    conversationId:  `${staffId}-${Date.now()}`,
-    structuredData:  loopResult.structuredData,
+    chatId:          savedChatId,
+    conversationId:  savedChatId,
+    structuredData:  checks ? { ...loopResult.structuredData, checks } : loopResult.structuredData,
     latencyMs,
     guardrailAction: pii.fired ? 'MASKED' : 'NONE',
     // NH-58: status + pendingAction shape aligns with Angular AiChatResponse model.
