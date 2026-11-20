@@ -1,0 +1,28 @@
+# Byte for byte copies of files of obsydian-tech/hr-portal at commit aa46604 (after the fix of PR #407).
+# Each copy carries an extra .txt suffix so repo-wide tests that read code files do not see it.
+# The sha256 is of the original bytes (the suffix does not change them).
+# commit | original path | sha256
+aa46604 | infra/dynamodb.tf | 855db038aa12468aa15d9445af9fad104db99f6232f56d6e712a608ad0d36dc5
+aa46604 | infra/env/dev.tfvars | ffe96007c94cd2b8f432128f84112df06b4fd54e86103e61fda95789962220c2
+aa46604 | infra/iam_per_lambda.tf | 36a7f45cdbd2bbb637d3725aa43b7505896c6f34c176a6a8850e1abc62a1bd79
+aa46604 | infra/kms.tf | aadfe09e7740a2ba9ffc6963effefa3a804698e965656be9fa1f13b070ab53f6
+aa46604 | infra/lambdas.tf | 197b270da627ea77031275c3e56a7862e6ecc79b8f3f00ae4d5c9af44654e17c
+aa46604 | infra/modules/kms/main.tf | 08c94fb9f51cb2e5a4ca394411c4ef516ba062ec29fe99211c8195d898acf797
+aa46604 | infra/modules/kms/outputs.tf | c2b905415fa51c1839159fa55cddc8487798e3a9b1f12e3263c7f3dcef0f7c4f
+aa46604 | infra/modules/kms/variables.tf | 7c3473165bf4c34d9da109d0a719515856342b147ff86028c5dd63db0a563386
+aa46604 | infra/talentflow-audit-stream.tf | a67f6237d792f661acf61e6293fe10d287cc0bfd223343ad1e6b53c2f3709680
+aa46604 | infra/talentflow-hiring-managers.tf | d594671542a5653c565882930fdadf8f3c34b86e22e8ca1439a7f34156f08513
+aa46604 | lambda/acknowledgeTile/index.js | 85720812f2d4c5ebc67302275a04465113a34ebee50abd8d9940df973ec1ba00
+aa46604 | lambda/captureSentiment/index.js | a6f66465408be9435dc20f37942c084d354c486c6d08d787ad13c0d92b3bec62
+aa46604 | lambda/getCandidateEvents/index.js | c5f07cc7e13b5b51cdbedd51951f82ee5cc80c3cb3ee89b8a968b1ab1b3dcad0
+aa46604 | lambda/markNotificationRead/index.js | 6cb6271fd385f96430e8e1c0a710fb5c2c9621315109e8c012e20b9efa8e7aad
+aa46604 | lambda/queryAuditLog/index.mjs | cf30549e09dc5a64e80ed551d2908bb3f731cc108134438e1299b15649f33f3e
+aa46604 | lambda/shared/tf-tenant.js | bc7af8fa40c590ad9fb9548d2f443880f0a8a173b66ecf4ac4bab7b3a9b6dbf6
+aa46604 | lambda/snoozeTile/index.js | 534dfa0bb727ec33cb4c3aeaf825c774abed995c3fe909d10c5d0a71008656a4
+aa46604 | talent-flow-infra/env/dev.tfvars | f3e814cacd7a650b9beaa66471310902bdf530ac8f6863d2998fb055fd33732d
+aa46604 | talent-flow-infra/locals.tf | 62b0fe9f9497965f093d2d7bac9b10d596f8e489167d4ab8f23e1247c6366984
+aa46604 | talent-flow-infra/talent-flow-acknowledge-tile.tf | 49eb33193ffd4876e99ff33f9505ab0aaaf32c8506ef08d55c1881abfc5f2150
+aa46604 | talent-flow-infra/talent-flow-dynamodb.tf | 9703d9bc79e90b989a32bd83e747e1f15bc9efa9b117e30ada47538256d3667c
+aa46604 | talent-flow-infra/talent-flow-iam.tf | fabe76bd64b88a3a3d627db598aaee77f78737b10811d4ced3cc7d8360f42946
+aa46604 | talent-flow-infra/talent-flow-lambdas.tf | d753334ae5fe7329b23b1c07d9504a8e55e3cefbf126706d4b7ea75cbdfcadcf
+aa46604 | talent-flow-infra/talent-flow-snooze-tile.tf | cf1e97904d04a604ae3b23eab279f727d6484063dfbfd5ad21a8d0ee6b976367

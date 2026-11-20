@@ -1,0 +1,14 @@
+# Byte for byte copies of files of obsydian-tech/hr-portal at commit 1db8992 (before the fix of PR #376).
+# Each copy carries an extra .txt suffix so repo-wide tests that read code files do not see it.
+# The sha256 is of the original bytes (the suffix does not change them).
+# commit | original path | sha256
+1db8992 | infra/iam_per_lambda.tf | 63d9adc59aeeebdbb1f4308b5c2abd0ca600757a167efaa387094ff49d3c89d1
+1db8992 | infra/kms.tf | 40f35e192a153654750f77090299326ce17cf38e8aaccd13c1606c71d170b5aa
+1db8992 | infra/lambdas.tf | 7dd548c38f6df05a348f493189e46d190eec31459d380a59f69dd4eac2b37ad9
+1db8992 | infra/modules/kms/main.tf | 08c94fb9f51cb2e5a4ca394411c4ef516ba062ec29fe99211c8195d898acf797
+1db8992 | infra/modules/kms/outputs.tf | c2b905415fa51c1839159fa55cddc8487798e3a9b1f12e3263c7f3dcef0f7c4f
+1db8992 | infra/modules/kms/variables.tf | 7c3473165bf4c34d9da109d0a719515856342b147ff86028c5dd63db0a563386
+1db8992 | infra/s3.tf | b53547182c3de6b4c7607e19b7dc68d231933f27bf3866b8493263250d3c6a0e
+1db8992 | infra/variables.tf | eac9f7ee378c7b490ab92f59e6f7c8f2e7390c702505b6f781309a35b70d6ea9
+1db8992 | lambda/createMyUploadLink/index.mjs | 08c217c30fbdc8b6eaa1c72ad8b1c4b43b416410ec83806a487dce9a22277320
+1db8992 | talent-flow-infra/locals.tf | 2803bc1e9a90e77892141c0ef12c8281e6dd347724dfd94930ae9c650038f92d

@@ -1,0 +1,19 @@
+# Byte for byte copies of files of obsydian-tech/hr-portal at commit fd8b92d (after the fix of PR #419).
+# Each copy carries an extra .txt suffix so repo-wide tests that read code files do not see it.
+# The sha256 is of the original bytes (the suffix does not change them).
+# commit | original path | sha256
+fd8b92d | infra/ask_batsi_chats.tf | 06ac57548bc94406844b1bfcf76910a91f0f5b94a3572741ee4dde494ca0ca9b
+fd8b92d | infra/dynamodb.tf | 362f85062b4e1f59a35b8fde0c734ad1071c151397bf05ab617c1154e6f7294c
+fd8b92d | infra/iam_per_lambda.tf | f07c2a9fa81b9bb12ba0e988216d9adf836c76fdc89afebc37fab7afb1b8406f
+fd8b92d | infra/kms.tf | 7ff71ae3d9d88228510c4157fc32a51e2d1c8e4c161f3e54ffcd5dc1967fcbf4
+fd8b92d | infra/modules/kms/main.tf | 08c94fb9f51cb2e5a4ca394411c4ef516ba062ec29fe99211c8195d898acf797
+fd8b92d | infra/modules/kms/outputs.tf | c2b905415fa51c1839159fa55cddc8487798e3a9b1f12e3263c7f3dcef0f7c4f
+fd8b92d | infra/modules/kms/variables.tf | 7c3473165bf4c34d9da109d0a719515856342b147ff86028c5dd63db0a563386
+fd8b92d | infra/reminders.tf | dbc1eb3b0e3cfb9602ace607c672652cc14474852039bd87b66ab3aa7ff7cf1f
+fd8b92d | infra/step-functions/naleko-onboarding-flow.asl.json | 834f1028aa0a27ed4cc02861e2746e4c87ee26e5ece595af2cd38c06a10449c9
+fd8b92d | infra/stepfunctions.tf | d3d460fbef5b193d24610bf3f77d9f290d944c2ce1082093ead35a02665fd5a0
+fd8b92d | infra/talentflow-audit-stream.tf | a67f6237d792f661acf61e6293fe10d287cc0bfd223343ad1e6b53c2f3709680
+fd8b92d | infra/talentflow-hiring-managers.tf | d594671542a5653c565882930fdadf8f3c34b86e22e8ca1439a7f34156f08513
+fd8b92d | infra/variables.tf | 00683b90029673af160c61391ccdeee347560eebf0c7086ca5a89605ab4781d9
+fd8b92d | talent-flow-infra/locals.tf | 62b0fe9f9497965f093d2d7bac9b10d596f8e489167d4ab8f23e1247c6366984
+fd8b92d | talent-flow-infra/talent-flow-iam.tf | 9985660d353cbd2688d686ce1f5ea493314826b3b7456e4c4d1eac2ff4294e4a
