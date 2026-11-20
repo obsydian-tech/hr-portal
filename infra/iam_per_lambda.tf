@@ -66,6 +66,14 @@ resource "aws_iam_role_policy" "create_employee" {
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
       },
       {
+        # TEN-02: createEmployee records the invited person's sign-in (user_sub) on their own employees row, so they own it.
+        # UpdateItem on the employees table only; no index, no other table.
+        Sid      = "EmployeesOwnerLink"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
         # ONB-04: invite links
         Sid      = "InviteWrite"
         Effect   = "Allow"

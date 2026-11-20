@@ -5,10 +5,11 @@
 import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 const cognitoCalls = [];
+const dynamoCalls = [];
 
 
 jest.unstable_mockModule('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient: jest.fn(() => ({ send: jest.fn(async (c) => (c._type === 'Query' ? { Count: 0, Items: [] } : {})) })),
+  DynamoDBClient: jest.fn(() => ({ send: jest.fn(async (c) => { dynamoCalls.push(c); return c._type === 'Query' ? { Count: 0, Items: [] } : {}; }) })),
   PutItemCommand: jest.fn((a) => ({ _type: 'Put', ...a })),
   UpdateItemCommand: jest.fn((a) => ({ _type: 'Update', ...a })),
   QueryCommand: jest.fn((a) => ({ _type: 'Query', ...a })),
@@ -73,6 +74,7 @@ function applySettings(overrides = {}) {
 
 beforeEach(() => {
   cognitoCalls.length = 0;
+  dynamoCalls.length = 0;
   jest.resetModules();
 });
 afterEach(() => {
@@ -127,5 +129,51 @@ describe('AC-3 createEmployee uses its own pool', () => {
     for (const c of cognitoCalls) expect(c.UserPoolId).toBe('test-pool-1');
     expect(cognitoCalls[1].GroupName).toBe('employee');
     expect(JSON.stringify(cognitoCalls)).not.toContain('af-south-1_2LdAGFnw2');
+  });
+});
+
+describe('ONB-11 the owner link (user_sub) is written only on the caller\'s own company row', () => {
+  const COMPANY_A = 'ten_aaaaaaaaaaaaaaaaaaaaaaaaaa';
+  const COMPANY_B = 'ten_bbbbbbbbbbbbbbbbbbbbbbbbbb';
+  const add = async (tenant, extraBody = {}) => {
+    applySettings();
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.spyOn(console, 'info').mockImplementation(() => {});
+    const { handler } = await import('./index.mjs');
+    const res = await handler({
+      headers: {},
+      requestContext: { authorizer: { jwt: { claims: { 'cognito:groups': '[hr_staff]', 'custom:staff_id': 'HR1', tenant_id: tenant } } } },
+      body: JSON.stringify({ first_name: 'Thandi', last_name: 'Dube', email: `e2e.owner-${tenant}@example.test`, phone: '0820000000', department: 'Bakery', ...extraBody }),
+    });
+    expect(res.statusCode).toBe(201);
+    const put = dynamoCalls.find((c) => c._type === 'Put' && c.Item?.employee_id && c.Item?.tenant_id);
+    const links = dynamoCalls.filter((c) => c._type === 'Update' && c.TableName === 'employees' && /user_sub/.test(c.UpdateExpression ?? ''));
+    return { put, links };
+  };
+
+  test('company B\'s HR: one update, on the new row only, and it must be company B\'s row', async () => {
+    const { put, links } = await add(COMPANY_B);
+    expect(links).toHaveLength(1);
+    expect(links[0].Key).toEqual({ employee_id: put.Item.employee_id });
+    expect(links[0].ConditionExpression).toBe('#tenant_id = :tenant_id');
+    expect(links[0].ExpressionAttributeValues[':tenant_id']).toEqual({ S: COMPANY_B });
+    expect(JSON.stringify(links[0])).not.toContain(COMPANY_A);
+    expect(links[0].ExpressionAttributeValues[':sub']).toEqual({ S: 'sub-user-1' });
+  });
+
+  test('the company comes from the sign-in, never from the request body', async () => {
+    const { links } = await add(COMPANY_B, { tenant_id: COMPANY_A, tenantId: COMPANY_A, company: COMPANY_A });
+    expect(links).toHaveLength(1);
+    expect(links[0].ExpressionAttributeValues[':tenant_id']).toEqual({ S: COMPANY_B });
+  });
+
+  test('company A and company B each link only their own new row', async () => {
+    const a = await add(COMPANY_A);
+    dynamoCalls.length = 0;
+    jest.resetModules();
+    const b = await add(COMPANY_B);
+    expect(a.links[0].ExpressionAttributeValues[':tenant_id']).toEqual({ S: COMPANY_A });
+    expect(b.links[0].ExpressionAttributeValues[':tenant_id']).toEqual({ S: COMPANY_B });
+    expect(a.links[0].Key.employee_id).not.toEqual(b.links[0].Key.employee_id);
   });
 });
