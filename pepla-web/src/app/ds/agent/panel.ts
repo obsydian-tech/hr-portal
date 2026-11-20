@@ -25,7 +25,8 @@ export type PanelMessage =
   | { from: 'card'; card: PanelCard; day?: string }
   | { from: 'retry'; question: string; day?: string }
   | { from: 'empty'; heading: string; body?: string; icon?: IconName; day?: string }
-  | { from: 'warning'; heading: string; day?: string };
+  | { from: 'warning'; heading: string; day?: string }
+  | { from: 'alert'; heading: string; day?: string };
 /** One check Batsi found, drawn as a row: "ID document" and its result, "Matches". */
 export interface PanelCheck { label: string; result: string; }
 /** A drafted message Batsi proposes in the chat: Approve, Edit, Decline. `blockedBy` names who may approve when the asker may not. */
@@ -58,13 +59,14 @@ const CHECK_OTHER = { status: 'warning' as Status, icon: 'triangle-alert' as Ico
         <div class="pp-agent-panel__header">
           @if (page()) {
             <!-- The full page has no Close: it has the way back to where the person was. -->
-            <a ppButton appearance="subtle" size="small" icon="arrow-left" [routerLink]="backLink()">{{ backLabel() }}</a>
+            @if (showBack()) { <a ppButton appearance="subtle" size="small" icon="arrow-left" [routerLink]="backLink()">{{ backLabel() }}</a> }
             <ng-container [ngTemplateOutlet]="avatar" />
           } @else if (phone()) { <ng-container [ngTemplateOutlet]="closeButton" /> } @else { <ng-container [ngTemplateOutlet]="avatar" /> }
           <div class="pp-agent-panel__heading">
-            <span class="pp-agent-panel__title" role="heading" [attr.aria-level]="level()" [id]="id + '-t'">Batsi</span>
+            <span #titleEl class="pp-agent-panel__title" role="heading" tabindex="-1" [attr.aria-level]="level()" [id]="id + '-t'">{{ heading() }}</span>
             @if (context()) { <span class="pp-agent-panel__context">{{ context() }}</span> }
           </div>
+          @if (actionLabel()) { <button ppButton appearance="subtle" size="small" icon="trash-2" type="button" (click)="action.emit()">{{ actionLabel() }}</button> }
           @if (expandable() && !page()) {
             <button ppButton appearance="subtle" icon="maximize-2" [iconOnly]="true" type="button" [attr.aria-label]="expandLabel()" (click)="expand.emit()"></button>
           }
@@ -92,6 +94,7 @@ const CHECK_OTHER = { status: 'warning' as Status, icon: 'triangle-alert' as Ico
               }
               @case ('empty') { <pp-empty-state [compact]="true" [icon]="$any(m).icon" [heading]="$any(m).heading" [body]="$any(m).body" /> }
               @case ('warning') { <pp-section-message tone="warning" [heading]="$any(m).heading" /> }
+              @case ('alert') { <pp-section-message tone="danger" [heading]="$any(m).heading" /> }
               @default {
                 <div class="pp-agent-panel__message" [class]="'pp-agent-panel__message--' + m.from">
                   <span class="pp-visually-hidden">{{ m.from === 'person' ? 'You said:' : 'Batsi said:' }}</span>
@@ -215,6 +218,15 @@ export class PpAgentPanel extends PpLayer {
   /** The way back from the page: "Back to Today" (the route the person came from). */
   readonly backLink = input<string>('/');
   readonly backLabel = input('Back to Today');
+  /** The chat's title (the page) or "Batsi" (the side panel). */
+  readonly heading = input('Batsi');
+  readonly showBack = input(true);
+  /** A button on the right of the header, for the page: "Delete chat". */
+  readonly actionLabel = input<string>();
+  readonly action = output<void>();
+  private readonly titleEl = viewChild<ElementRef<HTMLElement>>('titleEl');
+  focusTitle(): void { this.titleEl()?.nativeElement.focus(); }
+  focusBox(): void { this.box()?.nativeElement.focus(); }
   /** Shows the button that opens this same conversation as a page (`expand`). Not on the page itself. */
   readonly expandable = input(false);
   readonly expandLabel = input('Open as a full page');
