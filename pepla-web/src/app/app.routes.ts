@@ -3,6 +3,8 @@ import { Routes } from '@angular/router';
 import { siteStyles } from './ds/site/site-styles';
 import { ModulesService } from './core/modules.service';
 import { installTestHook, testRoutes } from './core/test-hook';
+import { PpRevealLog } from './ds';
+import { ApiRevealLog } from './core/documents/reveal-log.service';
 import { adminGuard, employeeGuard, hrGuard, signedOutGuard } from './core/auth/auth.guard';
 import { documentTitle, knownDocumentGuard } from './features/start/document-types';
 
@@ -29,6 +31,7 @@ const appRoutes: Routes = [
   {
     path: 'hr',
     canActivate: [hrGuard],
+    providers: [{ provide: PpRevealLog, useClass: ApiRevealLog }],
     loadComponent: () => import('./features/hr/hr-shell').then((m) => m.HrShell),
     children: [
       { path: '', loadComponent: () => import('./features/hr/hr-home.page').then((m) => m.HrHomePage), title: 'Today · Naleko People' },

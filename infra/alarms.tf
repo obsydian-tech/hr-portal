@@ -26,6 +26,7 @@ module "alarms" {
     "redeemInvite",
     "getMyStart",
     "getMyDocuments",
+    "revealDocumentField",
     "createMyUploadLink",
     "recordConsent",
     "getEmployees",

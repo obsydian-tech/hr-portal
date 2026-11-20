@@ -263,7 +263,7 @@ export class EmployeeDetailPage {
   /** The ID number on a National ID card: its last four digits, with Show when the full number is there. */
   protected idItems(p: EmployeeDetail, d: EmployeeDocument): DlItem[] | null {
     if (d.type !== 'NATIONAL_ID') return null;
-    if (d.idNumber) return [{ term: 'ID number', value: null, reveal: { record: p.name, value: d.idNumber, masked: mask(d.idNumber), maskedLabel: 'ID number' } }];
+    if (d.idAvailable && d.idLast4) return [{ term: 'ID number', value: null, reveal: { record: p.name, ref: { documentId: d.id, employeeId: p.id, field: 'id_number' }, masked: mask(`xxxxxxxxx${d.idLast4}`), maskedLabel: 'ID number', notice: true } }];
     if (d.idLast4) return [{ term: 'ID number', value: `${'•'.repeat(9)}${d.idLast4}` }];
     return null;
   }
