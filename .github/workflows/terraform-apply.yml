@@ -375,6 +375,7 @@ jobs:
       issues: read
     steps:
       - name: Pass only when nothing is left to wait for or fix
+        shell: bash # with pipefail, so a failing `gh` below makes the pipe fail instead of reading as "no issue"
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

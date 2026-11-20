@@ -32,8 +32,10 @@ def step_script(job, name_part):
     raise AssertionError(f"no step with {name_part!r}")
 
 
-def run_bash(script, env, gh_body):
-    """Runs a step's script with a fake `gh`. Returns (exit code, output, gh calls)."""
+def run_bash(script, env, gh_body, shell=None):
+    """Runs a step's script with a fake `gh`, the way GitHub runs it: `shell: bash` gets
+    `bash -e -o pipefail`, a step with no shell gets `bash -e` (no pipefail).
+    Returns (exit code, output, gh calls)."""
     with tempfile.TemporaryDirectory() as d:
         gh = Path(d) / "gh"
         gh.write_text("#!/bin/bash\necho \"$@\" >> \"$GH_CALLS\"\n" + gh_body + "\n")
@@ -41,17 +43,18 @@ def run_bash(script, env, gh_body):
         calls = Path(d) / "calls.txt"
         calls.write_text("")
         e = {"PATH": f"{d}:{os.environ['PATH']}", "GH_CALLS": str(calls), "HOME": d, **env}
-        r = subprocess.run(["bash", "--noprofile", "--norc", "-e", "-o", "pipefail", "-c", script], capture_output=True, text=True, env=e)
+        flags = ["-e", "-o", "pipefail"] if shell == "bash" else ["-e"]
+        r = subprocess.run(["bash", "--noprofile", "--norc", *flags, "-c", script], capture_output=True, text=True, env=e)
         return r.returncode, r.stdout + r.stderr, calls.read_text()
 
 
 class DevResult(unittest.TestCase):
-    script, _ = step_script(TF["jobs"]["dev-result"], "Pass only when")
+    script, step = step_script(TF["jobs"]["dev-result"], "Pass only when")
 
     def result(self, *, infra, tf_dev, issue, auto="true", destroys="", gh_fails=False):
         body = "exit 1" if gh_fails else (f'echo {issue}' if issue else "true")
         env = {"INFRA": infra, "AUTO_APPLY": auto, "TF_DEV": tf_dev, "DESTROYS": destroys, "GATE": "skipped", "AFTER": "skipped"}
-        return run_bash(self.script, env, body)
+        return run_bash(self.script, env, body, self.step.get("shell"))
 
     # The 20 Nov case: run 122 failed its apply, run 123 started 17 seconds later with no Terraform change.
     def test_no_terraform_change_but_last_apply_failed_is_red(self):
@@ -72,6 +75,9 @@ class DevResult(unittest.TestCase):
     def test_first_run_ever_no_issue_is_green(self):
         code, out, _ = self.result(infra="false", tf_dev="skipped", issue="")
         self.assertEqual(code, 0, out)
+
+    def test_the_step_runs_with_pipefail(self):
+        self.assertEqual(self.step.get("shell"), "bash")
 
     def test_cannot_read_issues_is_red_not_green(self):
         code, out, _ = self.result(infra="false", tf_dev="skipped", issue="", gh_fails=True)
