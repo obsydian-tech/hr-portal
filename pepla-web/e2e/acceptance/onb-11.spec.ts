@@ -1036,7 +1036,7 @@ test.describe('ONB-11 Risk check on the full set', () => {
     const email = `e2e.run-${stamp}@blackhole.postmarkapp.com`;
     const res = await page.request.post(`${employeesApi}/v1/employees`, {
       headers: { Authorization: `Bearer ${hrToken}`, 'content-type': 'application/json', 'Idempotency-Key': randomUUID() },
-      data: { first_name: 'Zanele', last_name: `Risk${Math.floor(Math.random() * 1e4)}`, email, phone: '081 234 5678', department: 'Operations', job_title: 'Test starter', planned_start_date: '2026-12-01' },
+      data: { first_name: 'Zanele', last_name: `Starter${Math.floor(Math.random() * 1e4)}`, email, phone: '081 234 5678', department: 'Operations', job_title: 'Test starter', planned_start_date: '2026-12-01' },
     });
     expect(res.status(), `register ${email}: ${await res.text()}`).toBe(201);
     const created = (await res.json()) as { employee?: { employee_id?: string }; invite?: { link?: string } };

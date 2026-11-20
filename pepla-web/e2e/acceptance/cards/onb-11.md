@@ -73,3 +73,6 @@ source and the no-repeat rule (AC-1, AC-4), the OCR signal rule (AC-5), the stat
 keys for HR (AC-7), the page (AC-8, AC-9), the openapi fields (AC-10), pepla-dev (AC-11).
 Hold today (and must keep holding): the web route unchanged and the marker refused from body, query, header
 and event (AC-2), the AI guard half of AC-4, and the no-new-permissions half of AC-10.
+
+## Child lock onb-11.9 (AC-11 on dev: the test person's name no longer holds the word the check looks for)
+Only `onb-11.spec.ts` AC-11 changes, one word. The test registered its person with the last name `Risk<number>`, then checked that the employee's own answer holds no `risk` anywhere, so the check failed on the person's own name once the flow ran (dev run 44695061187: band UNKNOWN, step IN_REVIEW and the test-data label all passed, then "and no risk anywhere in the answer" failed on `"last_name":"Risk1823"`). The last name is now `Starter<number>`. The check itself is not weakened: the answer must still hold no `risk` anywhere and none of the three `risk_` keys.
