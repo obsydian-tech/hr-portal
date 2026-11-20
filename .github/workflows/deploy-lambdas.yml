@@ -216,6 +216,7 @@ jobs:
       contents: read
       id-token: write
       pull-requests: write
+      actions: write # only the called workflow's "Should this run start" job asks for it, and it never cancels this call
     uses: ./.github/workflows/app-e2e-dev.yml
     with:
       full: true
