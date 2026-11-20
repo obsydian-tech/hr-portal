@@ -14,10 +14,13 @@ import { PpChecklistRow } from '../records/records';
 import { PpLozenge, Status } from '../status/lozenge';
 import { PpEmptyState, PpSectionMessage } from '../messages/messages';
 import { uid } from '../util';
+import { PpDescriptionList, PpTableDirective, PpTableWrap, PpCell, DlItem } from '../data/data';
+import { PpBarChart } from '../data/bar-chart';
+import { AnswerBlock, PERSON_ID, knownBlocks, parseAnswerText } from './answer-text';
 
 /** One entry in the conversation. `day` puts a day line ("Today") before it. */
 export type PanelMessage =
-  | { from: 'person' | 'pepla'; text: string; at?: string; day?: string; checks?: PanelCheck[]; checksLabel?: string }
+  | { from: 'person' | 'pepla'; text: string; at?: string; day?: string; checks?: PanelCheck[]; checksLabel?: string; blocks?: AnswerBlock[] }
   | { from: 'proposal'; proposal: Proposal; outcome?: string; day?: string }
   | { from: 'card'; card: PanelCard; day?: string }
   | { from: 'retry'; question: string; day?: string }
@@ -47,7 +50,7 @@ const CHECK_OTHER = { status: 'warning' as Status, icon: 'triangle-alert' as Ico
  */
 @Component({
   selector: 'pp-agent-panel',
-  imports: [A11yModule, NgTemplateOutlet, RouterLink, PpIcon, PpButton, PpProposalRow, PpProposalCard, PpChecklistRow, PpLozenge, PpEmptyState, PpSectionMessage],
+  imports: [A11yModule, NgTemplateOutlet, RouterLink, PpIcon, PpButton, PpProposalRow, PpProposalCard, PpChecklistRow, PpLozenge, PpEmptyState, PpSectionMessage, PpDescriptionList, PpTableDirective, PpTableWrap, PpCell, PpBarChart],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-template #layer>
@@ -92,7 +95,9 @@ const CHECK_OTHER = { status: 'warning' as Status, icon: 'triangle-alert' as Ico
               @default {
                 <div class="pp-agent-panel__message" [class]="'pp-agent-panel__message--' + m.from">
                   <span class="pp-visually-hidden">{{ m.from === 'person' ? 'You said:' : 'Batsi said:' }}</span>
-                  <div class="pp-agent-panel__bubble"><span>{{ $any(m).text }}</span>
+                  <div class="pp-agent-panel__bubble">
+                    @if (m.from === 'person') { <span>{{ $any(m).text }}</span> }
+                    @else { <ng-container [ngTemplateOutlet]="answer" [ngTemplateOutletContext]="{ $implicit: blocksOf(m) }" /> }
                     @if ($any(m).checks?.length) {
                       <div class="pp-checklist">
                         <ul class="pp-checklist__list" [attr.aria-label]="$any(m).checksLabel ?? null">
@@ -137,6 +142,49 @@ const CHECK_OTHER = { status: 'warning' as Status, icon: 'triangle-alert' as Ico
         </form>
       </aside>
     </ng-template>
+    <ng-template #answer let-blocks>
+      @for (b of $any(blocks); track $index) {
+        @switch (b.kind) {
+          @case ('text') { <p class="pp-agent-panel__p">{{ b.text }}</p> }
+          @case ('list') {
+            @if (b.ordered) { <ol class="pp-agent-panel__list">@for (i of b.items; track $index) { <li>{{ i }}</li> }</ol> }
+            @else { <ul class="pp-agent-panel__list">@for (i of b.items; track $index) { <li>{{ i }}</li> }</ul> }
+          }
+          @case ('facts') {
+            @if (b.title) { <p class="pp-agent-panel__block-title">{{ b.title }}</p> }
+            <pp-description-list layout="stacked" [items]="factItems(b)" />
+          }
+          @case ('checks') {
+            <div class="pp-checklist">
+              <ul class="pp-checklist__list">
+                @for (c of b.items; track $index) {
+                  <li ppChecklistRow [flat]="true" [label]="c.label" [state]="tone(c.result).row"><pp-lozenge [status]="tone(c.result).status" [icon]="tone(c.result).icon">{{ c.result }}</pp-lozenge></li>
+                }
+              </ul>
+            </div>
+          }
+          @case ('table') {
+            @if (b.title) { <p class="pp-agent-panel__block-title">{{ b.title }}</p> }
+            <pp-table-wrap>
+              <table ppTable [compact]="true" [stack]="true" class="pp-agent-panel__table">
+                <thead><tr>@for (c of b.columns; track $index) { <th scope="col">{{ c.label }}</th> }</tr></thead>
+                <tbody>
+                  @for (r of b.rows; track $index) {
+                    <tr>
+                      @for (c of b.columns; track $index; let first = $first) {
+                        <td ppCell [label]="c.label">@if (first && isPerson(r.personId)) { <a [routerLink]="['/hr/employees', r.personId]">{{ r.cells?.[c.key] ?? '' }}</a> } @else { {{ r.cells?.[c.key] ?? '' }} }</td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </pp-table-wrap>
+            @if (b.more) { <p class="pp-agent-panel__more">{{ b.more }}</p> }
+          }
+          @case ('chart') { <pp-bar-chart [title]="b.title" [bars]="b.bars ?? []" /> }
+        }
+      }
+    </ng-template>
     <ng-template #avatar><span class="pp-avatar pp-avatar--agent" aria-hidden="true"><svg ppIcon="sparkles" /></span></ng-template>
     <ng-template #closeButton><button ppButton appearance="subtle" icon="x" [iconOnly]="true" type="button" aria-label="Close Batsi" (click)="close()"></button></ng-template>
     @if (open() && inPlace()) { <ng-container [ngTemplateOutlet]="layer" /> }
@@ -145,6 +193,13 @@ const CHECK_OTHER = { status: 'warning' as Status, icon: 'triangle-alert' as Ico
   styles: ':host { display: block; }',
 })
 export class PpAgentPanel extends PpLayer {
+  /** CHAT-08: a Batsi answer's blocks; an answer without them is split from its text (no Markdown mark is shown). */
+  protected blocksOf(m: PanelMessage): AnswerBlock[] {
+    const x = m as { text?: string; blocks?: unknown };
+    return Array.isArray(x.blocks) ? knownBlocks(x.blocks) : parseAnswerText(x.text ?? '');
+  }
+  protected factItems(b: { items?: { label: string; value: string }[] }): DlItem[] { return (b.items ?? []).map((i) => ({ term: i.label, value: i.value })); }
+  protected isPerson(id: unknown): boolean { return typeof id === 'string' && PERSON_ID.test(id); }
   /** What Batsi is looking at, in words: "Looking at Kagiso Molefe", "Getting started". */
   readonly context = input<string>();
   readonly placeholder = input('Ask Batsi');
