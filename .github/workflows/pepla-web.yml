@@ -90,8 +90,14 @@ jobs:
     # release pull requests run every spec; a push runs none (the pull request did).
     # scripts/ci/pick-acceptance-specs.py says why, in the job summary. Unsure = all.
     if: github.event_name != 'push'
+    # Rule A (step 5): public site specs are left out of a pull request into develop that
+    # touches nothing the site tests read. The nightly run and release pull requests run all.
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # actions: read lets the job download the nightly timing file (read-only, falls back if refused)
+    permissions:
+      contents: read
+      actions: read
     outputs:
       mode: ${{ steps.pick.outputs.mode }}
       matrix: ${{ steps.pick.outputs.matrix }}
@@ -100,9 +106,26 @@ jobs:
         with:
           fetch-depth: 0
       - name: Picker tests
-        run: python3 -B scripts/ci/test_pick_acceptance_specs.py
+        run: |
+          python3 -B scripts/ci/test_pick_acceptance_specs.py
+          python3 -B scripts/ci/test_spec_seconds_from_results.py
+      # The timing list only shares specs between the six groups, it never chooses which run.
+      # The latest successful nightly run on develop keeps a fresh copy as an artifact. Any
+      # failure here is ignored and the picker uses the committed list (it says so in the summary).
+      - name: Fetch the nightly timing file
+        id: timing
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir="$RUNNER_TEMP/timing"; mkdir -p "$dir"
+          id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow pepla-web.yml --branch develop --event schedule --status success --limit 1 --json databaseId --jq '.[0].databaseId') || { echo "No nightly run found."; exit 0; }
+          [ -n "$id" ] || { echo "No nightly run found."; exit 0; }
+          gh run download "$id" --repo "$GITHUB_REPOSITORY" -n acceptance-spec-seconds -D "$dir" || { echo "No timing file on run $id."; exit 0; }
+          if [ -f "$dir/acceptance-spec-seconds.json" ]; then echo "file=$dir/acceptance-spec-seconds.json" >> "$GITHUB_OUTPUT"; fi
       - id: pick
         env:
+          TIMING_FILE: ${{ steps.timing.outputs.file }}
           EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -186,6 +209,18 @@ jobs:
                   print(f"- `{project}` {title}: {err}")
                   print(f"::warning::Flaky, passed on retry: [{project}] {title}", file=__import__('sys').stderr)
           PY
+      # Nightly only: this shard's seconds per spec, joined by the `timing` job below.
+      - name: Add up this shard's seconds per spec
+        if: always() && github.event_name == 'schedule'
+        run: python3 ../scripts/ci/spec-seconds-from-results.py shard e2e/acceptance/.output/results.json spec-seconds-shard.json
+      - name: Keep this shard's seconds
+        if: always() && github.event_name == 'schedule'
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-seconds-shard-${{ matrix.shard }}
+          path: pepla-web/spec-seconds-shard.json
+          retention-days: 2
+          if-no-files-found: ignore
       # Failure pictures show fake people only. Short-lived. include-hidden-files:
       # the output folder is .output, which the upload skipped before, so a failed run kept nothing.
       - name: Upload failure evidence
@@ -196,6 +231,31 @@ jobs:
           path: pepla-web/e2e/acceptance/.output/
           retention-days: 7
           include-hidden-files: true
+          if-no-files-found: ignore
+
+  timing:
+    # Nightly only: join the shards' seconds into one file that pull request runs read
+    # (14 days). Nothing is committed; a failure here never fails the nightly run's result.
+    name: Timing list from the nightly run
+    needs: acceptance-shard
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: spec-seconds-shard-*
+          path: shards
+          merge-multiple: true
+      - run: python3 scripts/ci/spec-seconds-from-results.py merge shards acceptance-spec-seconds.json
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-spec-seconds
+          path: acceptance-spec-seconds.json
+          retention-days: 14
           if-no-files-found: ignore
 
   acceptance:

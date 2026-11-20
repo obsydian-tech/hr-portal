@@ -1,0 +1,4 @@
+pepla-web/e2e/acceptance/cards/mod-01.md
+pepla-web/e2e/acceptance/mod-01.spec.ts
+pepla-web/e2e/acceptance/support/marketplace-dev/grant.ts
+pepla-web/e2e/acceptance/ten-03.spec.ts

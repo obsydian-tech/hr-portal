@@ -1,0 +1,2 @@
+pepla-web/e2e/acceptance/support/ten-04/walk.ts
+pepla-web/e2e/acceptance/ten-04.7.spec.ts

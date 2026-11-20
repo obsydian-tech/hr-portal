@@ -23,6 +23,14 @@ Rules (anything unsure runs everything):
 - Everything else (lambda/, api/, infra/, scripts/ci/, workflows, a path nobody
   planned for): full. Specs read all of them, so only a known-safe list is skipped.
 
+- Rule A (step 5): on a pull request into develop that touches nothing the public site
+  tests read (SITE list below, checked by touches_site), no site-NN spec runs, whatever
+  else was chosen. The card's own site spec still runs. If such a change edits a file
+  under pepla-web/src/, site-01 and site-07 still run as light site checks.
+- Timing list: the nightly run uploads fresh per-spec seconds as an artifact; a pull
+  request run downloads it (TIMING_FILE) and uses it when it is under 7 days old, else
+  the committed acceptance-spec-seconds.json. It only shares work between groups.
+
 Standard library only. Test: python3 -B scripts/ci/test_pick_acceptance_specs.py
 """
 from __future__ import annotations
@@ -32,15 +40,19 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Callable
 
 ACC = "pepla-web/e2e/acceptance/"
 SPEC_DIR = "e2e/acceptance/"  # relative to pepla-web/
 MAX_SHARDS = 6
-# Measured seconds per spec file (both widths), refreshed by hand from a full run's
-# Playwright "list" lines. A spec missing from the file gets a guess (below).
+# Measured seconds per spec file (both widths). Fallback copy, refreshed by hand; a fresh
+# one comes from the nightly run (TIMING_FILE). A spec missing from both gets a guess (below).
 SECONDS_FILE = Path(__file__).with_name("acceptance-spec-seconds.json")
-DEFAULT_SECONDS = 60
+# 26 specs were missing from the list on 20 Nov and took about 2.7 minutes each.
+DEFAULT_SECONDS = 180
+TIMING_MAX_AGE = timedelta(days=7)
 DEFAULT_JOURNEY_SECONDS = 600
 
 # Any "<prefix>-<number>" token; which prefixes are cards comes from the spec files
@@ -106,8 +118,26 @@ def pick(
     own: set[str],  # cards this PR is for
     event: str = "pull_request",
     base_ref: str = "develop",
+    site: tuple[set[str], Callable[[str], str | None]] | None = None,  # (site chain, file reader); None = rule A off
 ) -> tuple[str, set[str], str]:
-    """Return (mode, card keys, reason). mode is full, selected or none."""
+    """Return (mode, card keys, reason). mode is full, selected or none. With `site` given,
+    rule A then leaves the site specs out of a pull request into develop that does not touch
+    the site (a reduced "everything" is reported as selected, the judge treats both alike)."""
+    mode, cards, reason = pick_base(changed, specs, touched_by, own, event, base_ref)
+    if site is None or event != "pull_request" or base_ref != "develop":
+        return mode, cards, reason
+    return apply_site_rule(mode, cards, reason, changed, specs, own, site[0], site[1])
+
+
+def pick_base(
+    changed: list[str],
+    specs: dict[str, str],
+    touched_by: dict[str, set[str]],
+    own: set[str],
+    event: str = "pull_request",
+    base_ref: str = "develop",
+) -> tuple[str, set[str], str]:
+    """Today's rules, before rule A."""
     if event != "pull_request":
         return "full", set(), f"{event or 'this trigger'} runs every spec"
     if base_ref != "develop":
@@ -166,16 +196,182 @@ def pick(
     return "selected", cards, ", ".join(dict.fromkeys(why)) or "the cards this change is for"
 
 
+# ---------------------------------------------------------------- rule A: the public site
+
+SITE_CARD_RE = re.compile(r"site-\d+$")
+APP = "pepla-web/src/"
+SITE_START = (
+    "pepla-web/src/app/ds/site/gallery.page.ts",
+    "pepla-web/src/app/ds/site/landing.gallery.ts",
+    "pepla-web/src/app/ds/site/learn/learn.gallery.ts",
+    "pepla-web/src/app/ds/site/landing.page.ts",
+    "pepla-web/src/app/features/public/public-page.ts",
+)
+SITE_PREFIXES = (  # S1, S3, S5, S6
+    "pepla-web/src/app/ds/site/",
+    "pepla-web/src/app/features/public/",
+    "pepla-web/src/styles/",
+    "pepla-web/scripts/",
+    "pepla-web/public/",
+    "pepla-web/e2e/parity/",
+    "pepla-web/src/environments/",  # S4
+)
+SITE_FILES = (  # S3, S5, S9
+    "pepla-web/src/styles.css",
+    "pepla-web/package.json",
+    "pepla-web/package-lock.json",
+    "pepla-web/angular.json",
+    "pepla-web/src/index.html",
+    "pepla-web/src/polyfills.ts",
+    ACC + "playwright.config.ts",
+    ".github/workflows/pepla-web.yml",
+    ".github/workflows/acceptance-lock.yml",
+    "scripts/ci/pick-acceptance-specs.py",
+    "scripts/ci/test_pick_acceptance_specs.py",
+)
+SITE_WORDS = re.compile(r"ds/site|pp-site|PpSite|DemoClock|site\.css")  # S10
+# Known to be read by no site test (spec section 3, "not on the list"). Anything else is S11.
+NOT_SITE = (
+    "lambda/", "api/", "infra/", "talent-flow-infra/", "bootstrap/", "mcp/", "scripts/", ".github/", "docs/",
+    "pepla-web/src/app/features/", "pepla-web/src/app/core/", "pepla-web/src/app/dev/", "pepla-web/src/app/ds/",
+    "pepla-web/e2e/journeys/", "pepla-web/e2e/support/", "pepla-web/e2e/fixtures/", "pepla-web/help/",
+    ACC,
+)
+IMPORT_RE = re.compile(
+    r"""(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\(\s*|\b(?:templateUrl|styleUrls?)\s*:\s*\[?\s*)['"](\.{1,2}/[^'"]*)['"]"""
+)
+
+
+def follow_imports(start: list[str], read: Callable[[str], str | None], exists: Callable[[str], bool]) -> set[str]:
+    """Every file reachable from `start` by relative imports (./ and ../ only; path aliases
+    are not followed, a test fails if tsconfig gains one). Paths are repo-relative."""
+    seen: set[str] = set()
+    todo = [p for p in start if exists(p)]
+    while todo:
+        path = todo.pop()
+        if path in seen:
+            continue
+        seen.add(path)
+        if not path.endswith((".ts", ".js", ".mjs", ".mts")):
+            continue
+        text = read(path) or ""
+        for rel in IMPORT_RE.findall(text):
+            base = os.path.normpath(os.path.join(os.path.dirname(path), rel)).replace(os.sep, "/")
+            for cand in (base, base + ".ts", base + "/index.ts", base + ".js", base + ".mjs"):
+                if exists(cand):
+                    todo.append(cand)
+                    break
+    return seen
+
+
+def site_chain(site_specs: list[str], read, exists) -> set[str]:
+    """S2 and S8: the app files the site pages import, and the test files the site specs import."""
+    app = follow_imports(list(SITE_START), read, exists)
+    tests = follow_imports([f"{ACC}{c}.spec.ts" for c in site_specs], read, exists)
+    return app | tests
+
+
+def touches_site(changed: list[str], chain: set[str], read: Callable[[str], str | None], specs: dict[str, str]) -> str | None:
+    """None when no changed file is one a site test reads, else a plain reason naming the file.
+    When unsure, it touches the site (S11)."""
+    for path in (p.strip() for p in changed):
+        if not path:
+            continue
+        if path in chain or path in SITE_FILES or path.startswith(SITE_PREFIXES):
+            return f"{path} is read by the site tests"
+        if path.startswith(ACC):
+            rest = path[len(ACC):]
+            m = re.match(r"(?:cards/)?(?:support/)?(site-\d+)", rest)
+            if m:
+                return f"{path} is a site test file"
+        if re.fullmatch(r"pepla-web/src/[^/]+\.ts", path) or re.fullmatch(r"pepla-web/src/app/[^/]+\.ts", path):
+            return f"{path} is app set-up or routes, read by the site tests"  # S4
+        if path.endswith(DOC_SUFFIXES) and not path.startswith(APP):
+            continue
+        if path.startswith(APP):
+            text = read(path)
+            if text is None:
+                return f"{path} was deleted or cannot be read"
+            if SITE_WORDS.search(text):
+                return f"{path} now mentions the public site code"
+            if path.startswith(NOT_SITE):
+                continue
+            return f"{path} is a path nobody placed"  # S11
+        if path.startswith(NOT_SITE):
+            continue
+        if path.startswith("pepla-web/") and path.endswith(".md"):
+            continue
+        return f"{path} is a path nobody placed"
+    return None
+
+
+def apply_site_rule(
+    mode: str, cards: set[str], reason: str, changed: list[str], specs: dict[str, str], own: set[str],
+    chain: set[str], read: Callable[[str], str | None],
+) -> tuple[str, set[str], str]:
+    """Rule A: leave the site specs out when nothing the site reads changed."""
+    if mode == "none":
+        return mode, cards, reason
+    site = {c for c in specs if SITE_CARD_RE.fullmatch(c)}
+    if not site or touches_site(changed, chain, read, specs):
+        return mode, cards, reason
+    light = {"site-01", "site-07"} & site if any(p.strip().startswith(APP) for p in changed) else set()
+    drop = site - {c for c in own if c in site} - light
+    base = set(specs) if mode == "full" else set(cards)
+    kept = (base - drop) | light
+    if kept == base:
+        return mode, cards, reason
+    note = "site tests left out: this change touches no file the site tests read"
+    if light:
+        note += " (site-01 and site-07 still run as light checks)"
+    if not kept:
+        return "none", set(), f"{reason}; {note}"
+    return "selected", kept, f"{reason}; {note}"
+
+
 # ---------------------------------------------------------------- git side
 
 
-def load_seconds() -> dict[str, float]:
-    """Measured seconds per spec, keyed by card (site-08), from acceptance-spec-seconds.json."""
+def read_seconds(path: Path) -> dict[str, float]:
+    """{card: seconds} from a timing file; raises on a missing or broken file."""
+    raw = json.loads(path.read_text())["seconds"]
+    return {k[: -len(".spec.ts")]: float(v) for k, v in raw.items() if k.endswith(".spec.ts")}
+
+
+def load_timing(
+    fresh: Path | None = None, now: datetime | None = None, committed: Path | None = None
+) -> tuple[dict[str, float], str]:
+    """Seconds per spec, keyed by card (site-08), and a plain sentence on where they came from.
+    The nightly run's file (fresh) replaces the committed list file by file when it is under
+    7 days old. Missing, old or broken: the committed list, and the sentence says so."""
     try:
-        raw = json.loads(SECONDS_FILE.read_text())["seconds"]
+        base = read_seconds(committed or SECONDS_FILE)
+    except (OSError, ValueError, KeyError):
+        base = {}
+    if fresh is None:
+        return base, "Timing list: the committed file (no nightly file was offered)."
+    now = now or datetime.now(timezone.utc)
+    try:
+        data = json.loads(fresh.read_text())
+        made = datetime.fromisoformat(str(data["generated"]).replace("Z", "+00:00"))
+        if made.tzinfo is None:
+            made = made.replace(tzinfo=timezone.utc)
+        new = read_seconds(fresh)
+        if not new:
+            raise ValueError("empty")
+    except (OSError, ValueError, KeyError, TypeError):
+        return base, "Timing list: the committed file (the nightly file was missing or could not be read)."
+    if now - made > TIMING_MAX_AGE:
+        return base, "Timing list: the committed file (the nightly file is more than 7 days old)."
+    return {**base, **new}, f"Timing list: the nightly file of {made:%d %b %Y}, {len(new)} specs."
+
+
+def load_seconds() -> dict[str, float]:
+    """The committed list only, keyed by card."""
+    try:
+        return read_seconds(SECONDS_FILE)
     except (OSError, ValueError, KeyError):
         return {}
-    return {k[: -len(".spec.ts")]: float(v) for k, v in raw.items() if k.endswith(".spec.ts")}
 
 
 def weight(card: str, text: str, seconds: dict[str, float]) -> float:
@@ -246,11 +442,22 @@ def main() -> None:
             subjects = git("log", "--no-merges", "--format=%s", f"{os.environ['BASE_SHA']}..HEAD")
         own = card_of(os.environ.get("PR_TITLE", "") + "\n" + os.environ.get("HEAD_REF", "") + "\n" + subjects)
         touched = history_map()
-    mode, cards, reason = pick(changed, specs, touched, own, event, base_ref)
+    site = None
+    if event == "pull_request":
+        def read(path: str) -> str | None:
+            try:
+                return Path(path).read_text(errors="replace")
+            except OSError:
+                return None
+
+        site_specs = sorted(c for c in specs if SITE_CARD_RE.fullmatch(c))
+        site = (site_chain(site_specs, read, lambda p: Path(p).is_file()), read)
+    mode, cards, reason = pick(changed, specs, touched, own, event, base_ref, site)
 
     chosen = sorted(cards) if mode == "selected" else sorted(specs)
     n = 0 if mode == "none" else min(MAX_SHARDS, len(chosen))
-    seconds = load_seconds()
+    fresh = os.environ.get("TIMING_FILE")
+    seconds, timing_note = load_timing(Path(fresh) if fresh else None)
     groups = balance(chosen, specs, n, seconds)
     matrix = {
         "include": [
@@ -275,8 +482,12 @@ def main() -> None:
         print(f"{k}={v}")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
-        names = ", ".join(sorted(cards)) if mode == "selected" else mode
-        Path(summary).open("a").write(f"Acceptance specs: **{mode}** ({names}). Why: {reason}.\n")
+        left = sorted(set(specs) - set(chosen)) if mode != "none" else []
+        names = mode if len(cards) > 20 else (", ".join(sorted(cards)) if mode == "selected" else mode)
+        text = f"Acceptance specs: **{mode}** ({names}). Why: {reason}.\n"
+        if left and mode == "selected" and len(cards) > 20:
+            text += f"Left out: {', '.join(left)}.\n"
+        Path(summary).open("a").write(text + timing_note + "\n")
 
 
 if __name__ == "__main__":

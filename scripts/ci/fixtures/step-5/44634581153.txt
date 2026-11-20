@@ -1,0 +1,1 @@
+pepla-web/e2e/acceptance/onb-10.spec.ts
