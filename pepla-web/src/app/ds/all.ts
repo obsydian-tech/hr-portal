@@ -10,6 +10,7 @@ import { PpAvatar, PpAvatarGroup, PpPerson } from './core/avatar';
 import { PpIcon } from './core/icon';
 import { PpLogo, PpAppIcon, PpIconTile } from './core/logo';
 import { PpMark } from './core/mark';
+import { PpBarChart } from './data/bar-chart';
 import { PpCard, PpCardBody, PpCardAside, PpCardFooter, PpCardGrid, PpStat, PpStatRow, PpDl, PpDescriptionList, PpTableDirective, PpTableWrap, PpCell, PpSortHeader, PpRestrictedCell, PpAccordionItem, PpAccordion, PpTimeline } from './data/data';
 import { PpOverflowRegion } from './data/overflow-region';
 import { PpLongTable } from './data/table/table';
@@ -25,7 +26,7 @@ import { PpSlider } from './forms/slider';
 import { PpSectionMessage, PpSectionMessageActions, PpInlineMessage, PpBanner, PpEmptyState, PpEmptyStateActions, PpEmptyStateNote, PpFlagGroup } from './messages/messages';
 import { PpNotification, PpNotificationsPanel } from './messages/notifications';
 import { PpBreadcrumbs, PpPageHeader, PpPageHeaderActions, PpTabs, PpPagination } from './navigation/navigation';
-import { PpAppShell, PpAppShellActions, PpSideNavigation, PpTopNavigation } from './navigation/shell';
+import { PpAppShell, PpAppShellActions, PpChatList, PpSideNavigation, PpTopNavigation } from './navigation/shell';
 import { PpSignInPage, PpSignInActions } from './navigation/sign-in-page';
 import { PpModalDialog, PpModalFooter, PpDrawer, PpDrawerFooter, PpMenuItem, PpMenuSection, PpDropdownMenu, PpPopup, PpPopupFooter, PpInlineDialog, PpInlineDialogActions, PpTooltip } from './overlays/overlays';
 import { PpApprovalChain, PpOffer, PpOfferApprovals } from './records/approvals';
@@ -59,6 +60,7 @@ export const PP_ALL = [
   PpAppIcon,
   PpIconTile,
   PpMark,
+  PpBarChart,
   PpCard,
   PpCardBody,
   PpCardAside,
@@ -123,6 +125,7 @@ export const PP_ALL = [
   PpPagination,
   PpAppShell,
   PpAppShellActions,
+  PpChatList,
   PpSideNavigation,
   PpTopNavigation,
   PpSignInPage,

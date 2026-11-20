@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, signal } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
-import { NavSection, PpAppShell, PpDropdownMenu, PpMenuItem, PpMenuSection, PpSideNavigation, PpTopNavigation } from '../../ds';
+import { NavSection, PpAppShell, PpChatList, PpDropdownMenu, PpMenuItem, PpMenuSection, PpSideNavigation, PpTopNavigation } from '../../ds';
 import { AuthService } from '../../core/auth/auth.service';
 import { DocumentsService } from '../../core/documents/documents.service';
 import { RegistrationService } from '../../core/employees/registration.service';
@@ -9,6 +9,7 @@ import { ModulesService } from '../../core/modules.service';
 import { rolesOf } from '../../core/roles';
 import { CHAT_PAGE, ChatService } from '../hr-assistant/chat.service';
 import { HrChat } from '../hr-assistant/assistant-panel';
+import { ChatDialogs } from '../hr-assistant/chat-dialogs';
 
 /**
  * The frame for every HR page: sidebar, top bar with the account menu, and the page. ONB-01 gives it
@@ -16,11 +17,15 @@ import { HrChat } from '../hr-assistant/assistant-panel';
  */
 @Component({
   selector: 'app-hr-shell',
-  imports: [RouterOutlet, PpAppShell, PpSideNavigation, PpTopNavigation, PpDropdownMenu, PpMenuSection, PpMenuItem, HrChat],
+  imports: [RouterOutlet, PpAppShell, PpChatList, PpChatList, PpSideNavigation, PpTopNavigation, PpDropdownMenu, PpMenuSection, PpMenuItem, HrChat, ChatDialogs],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <pp-app-shell>
-      <pp-side-navigation company="HR" [sections]="sections()" [(open)]="menuOpen" />
+      @if (chat.onPage()) {
+        <pp-chat-list [groups]="chat.groups()" [state]="chat.listState()" [canDeleteAll]="chat.canDeleteAll()" [backLink]="chat.returnTo()" [(open)]="menuOpen"
+          (newChat)="chat.newChat()" (openChat)="chat.openChat($event)" (retry)="chat.loadList()" (deleteAll)="chat.confirmAll.set(true)" />
+      }
+      @else { <pp-side-navigation company="HR" [sections]="sections()" [(open)]="menuOpen" /> }
       <pp-top-navigation home="/hr" [userName]="userName()" [menuOpen]="menuOpen()" [accountOpen]="accountOpen()" [showAsk]="true" [waiting]="chat.waiting()" [askOpen]="askOpen()" (ask)="openAsk()" (menu)="menuOpen.set(!menuOpen())" (account)="accountOpen.set(!accountOpen())" />
       <pp-dropdown-menu [trigger]="false" [(open)]="accountOpen" [origin]="avatar()" [returnTo]="avatar()" label="Your account">
         <pp-menu-section [heading]="userName()">
@@ -29,6 +34,7 @@ import { HrChat } from '../hr-assistant/assistant-panel';
       </pp-dropdown-menu>
       <router-outlet />
     </pp-app-shell>
+    <app-chat-dialogs />
     <app-hr-chat [(open)]="askOpen" (expand)="expand()" />
   `,
 })
