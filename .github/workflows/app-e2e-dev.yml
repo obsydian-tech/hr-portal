@@ -76,6 +76,10 @@ jobs:
   gate:
     name: Should this run start
     runs-on: ubuntu-latest
+    # actions: write only so a run that tests nothing can end as cancelled, not green.
+    permissions:
+      contents: read
+      actions: write
     outputs:
       run: ${{ steps.decide.outputs.run }}
     steps:
@@ -97,7 +101,17 @@ jobs:
             [ "$covered" = "true" ] && run=false
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
-          [ "$run" = "true" ] || echo "Deploy Lambdas tests this commit after deploying, so this run steps aside."
+      # A run that tested nothing must not end with a green tick. Only the stand-alone push
+      # run can step aside (the call from Deploy Lambdas is "full"), so this never cancels a
+      # run that tests something. The tests job below is skipped because run=false.
+      - name: Step aside, shown as cancelled
+        if: steps.decide.outputs.run == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          echo "Deploy Lambdas tests this commit after deploying, so this run steps aside."
+          gh run cancel "$GITHUB_RUN_ID" || echo "::warning::Could not mark this run as cancelled."
 
   e2e-dev:
     name: App E2E on pepla-dev
