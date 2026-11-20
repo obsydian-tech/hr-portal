@@ -6,7 +6,6 @@ import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import { KMSClient, DecryptCommand } from '@aws-sdk/client-kms';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
-import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { requireTenant, ownsItem, notFound } from '../shared/tenant.mjs';
 import { groupsOf } from '../shared/document-check.mjs';
 import { isIdToken } from '../shared/hr-group.mjs';
@@ -14,7 +13,9 @@ import { isIdToken } from '../shared/hr-group.mjs';
 const dynamodb = new DynamoDBClient();
 const kms = new KMSClient();
 // A hung bus gives a 500 after about 3 seconds, not a long wait with the number in memory.
-const bus = new EventBridgeClient({ region: 'af-south-1', maxAttempts: 3, requestHandler: new NodeHttpHandler({ requestTimeout: 3000, connectionTimeout: 3000 }) });
+// Plain options, not new NodeHttpHandler(): the zip carries no node_modules, and the runtime's built-in SDK does not let
+// index.mjs import @smithy/node-http-handler (ERR_MODULE_NOT_FOUND on pepla-dev, 20 Nov). The SDK builds its own handler from these.
+const bus = new EventBridgeClient({ region: 'af-south-1', maxAttempts: 3, requestHandler: { requestTimeout: 3000, connectionTimeout: 3000 } });
 
 const HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Cache-Control': 'no-store' };
 const json = (statusCode, body) => ({ statusCode, headers: HEADERS, body: JSON.stringify(body) });
