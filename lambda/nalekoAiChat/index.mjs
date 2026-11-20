@@ -26,6 +26,7 @@ import { buildCacheKey, getCached, setCached } from './cache.mjs';
 import { hrOnly } from '../shared/hr-group.mjs';
 import { requireTenant } from '../shared/tenant.mjs';
 import { checksOf } from './answer-shape.mjs';
+import { SHOW_RECORDS_TOOL, checkShow, answerBlocks, withoutPrivate } from './answer-format.mjs';
 import { agentGet } from './tool-resolver.mjs';
 import { personFacts } from './person.mjs';
 import { todayWritten } from '../shared/due-date.mjs';
@@ -217,7 +218,8 @@ Rules:
 - Never reveal salary benchmarks, employment law advice, or individual performance ratings.
 - You may show what the HR person sees on the person page: name, email, job title, department, start date, step and HR partner. Never show ID numbers, phone numbers or bank account numbers.
 - When onboarding a new employee, always return a draft for human review (the onboard_new_employee tool handles this automatically).
-- Be concise and factual. Prefer bullet lists for data-heavy responses.
+- Be concise and factual. Write plain sentences. Do not use Markdown or tables.
+- When the answer is about people or records, call show_records once, last, and say in one short sentence what it shows. The screen draws the table, facts or chart from the lookup.
 - When you looked up one person's documents, the screen shows each check as a row, so answer in one short sentence and do not list the checks again.
 - If a lookup fails, say so in plain words and use its say sentence when it gives one. Never show tool names, record ids or error codes.
 - Today's date is given in <today>. Use it for words like today, Monday, this week and soonest. A week runs from Monday to Sunday.
@@ -395,7 +397,7 @@ async function invokeClaude(messages, modelId) {
         cache_control: { type: 'ephemeral' },  // prompt caching — reused across turns
       },
     ],
-    tools:    TOOL_DEFINITIONS,
+    tools:    [...TOOL_DEFINITIONS, SHOW_RECORDS_TOOL],
     messages,
   };
 
@@ -444,6 +446,7 @@ async function runAgenticLoop(messages, context, modelId) {
   const toolCallsMade  = [];
   let   structuredData = {};
   let   round          = 0;
+  let   show           = null; // CHAT-08: the last valid show_records call
 
   // NH-75: accumulate token usage across all loop rounds
   let totalInputTokens    = 0;
@@ -503,7 +506,7 @@ async function runAgenticLoop(messages, context, modelId) {
       return { finalText: textBlock?.text ?? '', toolCallsMade, structuredData,
                totalInputTokens, totalOutputTokens, cacheHit,
                lastBedrockRequestId, employeesAccessed: [...employeesAccessed],
-               toolOutputsRaw }; // NH-58
+               toolOutputsRaw, show }; // NH-58
     }
 
     if (response.stop_reason === 'tool_use') {
@@ -512,6 +515,13 @@ async function runAgenticLoop(messages, context, modelId) {
 
       for (const block of toolUseBlocks) {
         const { id: toolUseId, name: toolName, input: toolArgs } = block;
+        // CHAT-08: show_records is answered here; it never reaches the Agent API, AWS or Bedrock.
+        if (toolName === 'show_records') {
+          const checked = checkShow(toolArgs);
+          if (checked.ok) show = { view: checked.view, limit: checked.limit };
+          toolResultContent.push({ type: 'tool_result', tool_use_id: toolUseId, ...(checked.ok ? {} : { is_error: true }), content: checked.ok ? JSON.stringify({ shown: true }) : checked.reason });
+          continue;
+        }
         logger.info('Tool call', { toolName });
         // NH-57: track employee IDs accessed for audit schema
         const _empId = toolArgs?.id ?? toolArgs?.employee_id ?? null;
@@ -598,6 +608,15 @@ async function runAgenticLoop(messages, context, modelId) {
           ...(isError ? { is_error: true } : {}),
           content:      truncatedContent,
         });
+      }
+
+      // CHAT-08: a sentence with only show_records calls ends the turn here (no extra model call).
+      const said = response.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
+      if (said && toolUseBlocks.every(b => b.name === 'show_records')) {
+        return { finalText: said, toolCallsMade, structuredData,
+                 totalInputTokens, totalOutputTokens, cacheHit,
+                 lastBedrockRequestId, employeesAccessed: [...employeesAccessed],
+                 toolOutputsRaw, show };
       }
 
       // Feed all tool results back to Claude for synthesis
@@ -876,6 +895,10 @@ export const handler = async (event) => {
   const proposalIds = loopResult.toolCallsMade
     .map(t => t.result?.actionId)
     .filter(id => typeof id === 'string');
+
+  // CHAT-08: the answer's blocks, built by code from the model's text and this turn's lookups (none on a draft).
+  const blocks = proposalIds.length || loopResult.hitl ? undefined
+    : answerBlocks(pii.sanitised, loopResult.toolCallsMade, loopResult.show, { hasChecks: !!checks });
   let savedChatId;
   try {
     savedChatId = await appendExchange({
@@ -884,6 +907,8 @@ export const handler = async (event) => {
       answer:   redactNumbers(pii.sanitised),
       tools:    toolNames,
       proposalIds,
+      blocks,
+      checks,
     });
   } catch (err) {
     return storeFailure(err, jsonHeaders);
@@ -894,7 +919,8 @@ export const handler = async (event) => {
     toolCallsMade:   loopResult.toolCallsMade.map(t => ({ tool: t.toolName, isError: t.isError })),
     chatId:          savedChatId,
     conversationId:  savedChatId,
-    structuredData:  checks ? { ...loopResult.structuredData, checks } : loopResult.structuredData,
+    structuredData:  withoutPrivate(checks ? { ...loopResult.structuredData, checks } : loopResult.structuredData),
+    ...(blocks ? { blocks } : {}),
     latencyMs,
     guardrailAction: pii.fired ? 'MASKED' : 'NONE',
     // NH-58: status + pendingAction shape aligns with Angular AiChatResponse model.

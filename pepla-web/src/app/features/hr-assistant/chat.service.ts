@@ -7,6 +7,7 @@ import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/auth/auth.service';
 import { ScreenContext } from '../../core/screen-context';
 import type { PanelCard, PanelCheck, PanelDecision, PanelMessage } from '../../ds';
+import type { AnswerBlock } from '../../ds/agent/answer-text';
 
 /** The full page route. The panel's Expand button goes here; "Back to Today" comes back from it. */
 export const CHAT_PAGE = '/hr/ask-batsi';
@@ -31,7 +32,7 @@ export const SAID = {
 
 type Entry =
   | { kind: 'person'; text: string; at: string }
-  | { kind: 'batsi'; text: string; at: string; checks?: PanelCheck[] }
+  | { kind: 'batsi'; text: string; at: string; checks?: PanelCheck[]; blocks?: AnswerBlock[] }
   | { kind: 'card'; card: PanelCard; canApprove: boolean; last?: 'approve' | 'decline' }
   | { kind: 'retry'; question: string }
   | { kind: 'not-on' }
@@ -40,6 +41,7 @@ type Entry =
 interface ChatAnswer {
   message?: string;
   structuredData?: { checks?: PanelCheck[] };
+  blocks?: AnswerBlock[];
   proposals?: Array<{ actionId: string; title: string; draft: string; canApprove: boolean; approver?: { name: string } }>;
 }
 
@@ -112,7 +114,7 @@ export class ChatService {
   readonly messages = computed<PanelMessage[]>(() => this.entries().map((e): PanelMessage => {
     switch (e.kind) {
       case 'person': return { from: 'person', text: e.text, at: e.at };
-      case 'batsi': return { from: 'pepla', text: e.text, at: e.at, ...(e.checks?.length ? { checks: e.checks, checksLabel: 'Checks' } : {}) };
+      case 'batsi': return { from: 'pepla', text: e.text, at: e.at, ...(e.checks?.length ? { checks: e.checks, checksLabel: 'Checks' } : {}), ...(e.blocks ? { blocks: e.blocks } : {}) };
       case 'card': return { from: 'card', card: e.card };
       case 'retry': return { from: 'retry', question: e.question };
       case 'not-on': return { from: 'empty', icon: 'lock', heading: SAID.notOn, body: SAID.notOnNext };
@@ -198,7 +200,7 @@ export class ChatService {
       return;
     }
     const a = answer!;
-    const added: Entry[] = [{ kind: 'batsi', text: String(a.message ?? ''), at: now, ...(Array.isArray(a.structuredData?.checks) ? { checks: a.structuredData!.checks } : {}) }];
+    const added: Entry[] = [{ kind: 'batsi', text: String(a.message ?? ''), at: now, ...(Array.isArray(a.structuredData?.checks) ? { checks: a.structuredData!.checks } : {}), ...(Array.isArray(a.blocks) ? { blocks: a.blocks } : {}) }];
     for (const p of a.proposals ?? []) {
       added.push({ kind: 'card', canApprove: p.canApprove, card: { id: p.actionId, title: p.title, quote: p.draft, state: 'waiting', ...(!p.canApprove && p.approver ? { blockedBy: p.approver.name } : {}) } });
     }

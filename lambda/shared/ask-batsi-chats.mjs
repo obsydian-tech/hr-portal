@@ -19,6 +19,7 @@
 import { randomBytes } from 'node:crypto';
 import { BatchWriteItemCommand, DynamoDBClient, GetItemCommand, QueryCommand, TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
 import { redactNumbers } from './pii-redact.mjs';
+import { limitBlocks, storedBlocks } from './answer-blocks.mjs';
 import { ownsRow } from './tenant.mjs';
 
 export const CHAT_ID_PATTERN = /^[0-9A-Z]{26}$/;
@@ -155,7 +156,24 @@ function messageOf(item) {
     at: item.at?.S,
     ...(tools.length ? { tools } : {}),
     ...(proposals.length ? { proposalIds: proposals } : {}),
+    ...storedExtras(item),
   };
+}
+
+/** CHAT-08: the stored blocks and check rows, through the same limits as a fresh answer; anything unreadable is dropped. */
+function storedExtras(item) {
+  if (item.role?.S !== 'batsi') return {};
+  const out = {};
+  if (item.blocks?.S) {
+    try { out.blocks = limitBlocks(JSON.parse(item.blocks.S)); } catch { /* unreadable: no blocks */ }
+  }
+  if (item.checks?.S) {
+    try {
+      const rows = JSON.parse(item.checks.S);
+      if (Array.isArray(rows)) out.checks = rows;
+    } catch { /* unreadable: no checks */ }
+  }
+  return out;
 }
 
 /** One chat with every message in order, or null (not this person's, not this company's, or not there). */
@@ -201,6 +219,8 @@ function messageItem(base, chatId, number, role, text, at, extra = {}) {
     tenant_id: s(base.tenantId),
     ...(extra.tools?.length ? { tools: list(extra.tools) } : {}),
     ...(extra.proposalIds?.length ? { proposal_ids: list(extra.proposalIds) } : {}),
+    ...(Array.isArray(extra.blocks) ? { blocks: s(storedBlocks(extra.blocks)) } : {}),
+    ...(Array.isArray(extra.checks) ? { checks: s(redactNumbers(JSON.stringify(extra.checks))) } : {}),
   };
 }
 
@@ -208,7 +228,7 @@ function messageItem(base, chatId, number, role, text, at, extra = {}) {
  * Keeps one question and its answer. `chatId` undefined or null starts a new chat. Returns the chat's id.
  * Throws ChatNotFound when the chat is gone (deleted while the model was answering), or the AWS error.
  */
-export async function appendExchange({ tenantId, staffId, chatId, question, answer, tools = [], proposalIds = [] }) {
+export async function appendExchange({ tenantId, staffId, chatId, question, answer, tools = [], proposalIds = [], blocks, checks }) {
   const base = { pk: ownerKey(tenantId, staffId), tenantId };
   const at = new Date().toISOString();
   const put = (item, condition) => ({ Put: { TableName: table(), Item: item, ConditionExpression: condition } });
@@ -224,7 +244,7 @@ export async function appendExchange({ tenantId, staffId, chatId, question, answ
       TransactItems: [
         put(header, notThere),
         put(messageItem(base, id, 1, 'person', question, at), notThere),
-        put(messageItem(base, id, 2, 'batsi', answer, at, { tools, proposalIds }), notThere),
+        put(messageItem(base, id, 2, 'batsi', answer, at, { tools, proposalIds, blocks, checks }), notThere),
       ],
     }));
     return id;
@@ -247,7 +267,7 @@ export async function appendExchange({ tenantId, staffId, chatId, question, answ
             },
           },
           put(messageItem(base, chatId, next + 1, 'person', question, at), notThere),
-          put(messageItem(base, chatId, next + 2, 'batsi', answer, at, { tools, proposalIds }), notThere),
+          put(messageItem(base, chatId, next + 2, 'batsi', answer, at, { tools, proposalIds, blocks, checks }), notThere),
         ],
       }));
       return chatId;

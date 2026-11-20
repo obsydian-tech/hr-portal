@@ -2791,6 +2791,18 @@ a.pp-tag:hover { text-decoration: underline; }
 .pp-accordion__item[open] > .pp-accordion__header .pp-accordion__chevron { transform: rotate(180deg); }
 .pp-accordion__panel { padding: 0 var(--space-200) var(--space-200); font: var(--font-body); color: var(--color-text-subtle); }
 
+/* ---- data/bar-chart ---- */
+/* Bar chart: words and number on every bar, one colour, nothing moves. */
+.pp-bar-chart { margin: 0; display: grid; gap: var(--space-100); }
+.pp-bar-chart__title { font-weight: var(--font-weight-semibold); }
+.pp-bar-chart__bars { display: grid; gap: var(--space-075); }
+.pp-bar-chart__row { display: grid; grid-template-columns: minmax(0, 8rem) minmax(0, 1fr) auto; align-items: center; gap: var(--space-100); }
+.pp-bar-chart__label { overflow-wrap: anywhere; }
+.pp-bar-chart__track { display: block; height: var(--space-150); background: var(--color-background-neutral); border-radius: var(--radius-xsmall); }
+.pp-bar-chart__bar { display: block; width: var(--_share, 0%); height: 100%; background: var(--color-background-brand-bold); border-radius: var(--radius-xsmall); }
+.pp-bar-chart__value { font-variant-numeric: tabular-nums; }
+.pp-bar-chart, .pp-bar-chart * { transition: none; animation: none; }
+
 /* ---- data/card ---- */
 /* Card. Spec: card.md */
 .pp-card { display: flex; flex-direction: column; gap: var(--space-200); min-width: 0; padding: var(--space-300); background: var(--elevation-surface-raised); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-large); color: var(--color-text); }
@@ -3109,6 +3121,15 @@ body:has(.pp-app-shell:not(.pp-app-shell--inline) .pp-agent-panel--page) { overf
 
 /* Phone: a list of chats fills the width */
 .pp-app-shell--phone .pp-side-navigation--inline { width: 100%; border: 0; height: auto; }
+
+/* Batsi's answer blocks (CHAT-08): paragraphs, lists, facts, checks, a table and a chart inside Batsi's bubble. */
+.pp-agent-panel__p { margin: 0 0 var(--space-100); white-space: pre-line; overflow-wrap: anywhere; }
+.pp-agent-panel__p:last-child { margin-bottom: 0; }
+.pp-agent-panel__list { margin: 0 0 var(--space-100); padding-inline-start: var(--space-250); overflow-wrap: anywhere; }
+.pp-agent-panel__block-title { margin: var(--space-100) 0 var(--space-050); font-weight: var(--font-weight-semibold); }
+.pp-agent-panel__more { margin: var(--space-050) 0 0; }
+.pp-agent-panel__table { width: 100%; }
+@media (max-width: 599.98px) { .pp-agent-panel__table.pp-table--stack tr { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- agent/agent-proposal-card ---- */
 /* Agent proposal card. Spec: agent-proposal-card.md. Rule 2: the agent proposes, a person approves.
