@@ -346,7 +346,7 @@ test.describe('CHAT-05 · Ask Batsi answers carry the check rows', () => {
     expect(noChecksKey(onboard), 'and no checks').toBe(true);
   });
 
-  test('AC-7 The system prompt names Batsi and adds one line; the limit lines are byte for byte (chat-05.2: CHAT-09\'s fact lines)', async () => {
+  test('AC-7 The system prompt names Batsi and adds one line; the limit lines are byte for byte (chat-05.2: CHAT-09\'s fact lines; chat-05.3: CHAT-08\'s format lines)', async () => {
     test.setTimeout(120_000);
     const a = askAbout(NOMSA, [doc('d-id', ID, 'MATCHES', AT(1)), doc('d-bank', BANK, 'MATCHES', AT(2))]);
     expect(a.status, `200 (${WHAT(a)})`).toBe(200);
@@ -375,6 +375,13 @@ test.describe('CHAT-05 · Ask Batsi answers carry the check rows', () => {
       '- Write dates as the lookups write them, for example 10 Nov 2026.',
     ];
     for (const l of FACTS) expect.soft(lines, `the fact line is there byte for byte: ${l.slice(0, 40)}…`).toContain(l);
+    // chat-05.3: CHAT-08's two format lines, byte for byte; they replace "Prefer bullet lists for data-heavy responses."
+    const FORMAT = [
+      '- Be concise and factual. Write plain sentences. Do not use Markdown or tables.',
+      '- When the answer is about people or records, call show_records once, last, and say in one short sentence what it shows. The screen draws the table, facts or chart from the lookup.',
+    ];
+    for (const l of FORMAT) expect.soft(lines, `the format line is there byte for byte: ${l.slice(0, 40)}…`).toContain(l);
+    expect.soft(lines, 'the bullet-list line is gone').not.toContain('- Be concise and factual. Prefer bullet lists for data-heavy responses.');
     for (const l of LIMITS) expect.soft(lines, `the limit line is kept byte for byte: ${l.slice(0, 40)}…`).toContain(l);
     // Everything else is as it was, and exactly one line is added.
     const OLD = [
@@ -383,12 +390,11 @@ test.describe('CHAT-05 · Ask Batsi answers carry the check rows', () => {
       'Rules:',
       ...LIMITS,
       '- When onboarding a new employee, always return a draft for human review (the onboard_new_employee tool handles this automatically).',
-      '- Be concise and factual. Prefer bullet lists for data-heavy responses.',
       '- If a lookup fails, say so in plain words and use its say sentence when it gives one. Never show tool names, record ids or error codes.',
       '- Always operate on behalf of the authenticated HR clerk. Never impersonate another user.',
     ];
     for (const l of OLD) expect.soft(lines, `the old line is kept: ${l.slice(0, 40)}…`).toContain(l);
-    const added = lines.slice(1).filter((l) => !OLD.includes(l) && !FACTS.includes(l));
+    const added = lines.slice(1).filter((l) => !OLD.includes(l) && !FACTS.includes(l) && !FORMAT.includes(l));
     expect(added.length, `exactly one line is added: ${JSON.stringify(added)}`).toBe(1);
     expect(added[0], 'it says the screen shows each check as a row, so one short sentence').toMatch(/row/i);
     expect(added[0], 'about the checks').toMatch(/check/i);
