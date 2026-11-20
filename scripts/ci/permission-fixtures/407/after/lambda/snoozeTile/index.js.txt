@@ -1,0 +1,166 @@
+/**
+ * snoozeTile Lambda — INTEL-002 EPIC 1 Task 1.1
+ *
+ * POST /v1/intelligence/tiles/{id}/snooze
+ * Body: { "hours": number }
+ *
+ * Records a user's snooze of an intelligence tile with a wake-up time.
+ * Governance: All tiles can be snoozed (including CRITICAL).
+ *
+ * EPIC 1 Task 1.1
+ */
+
+const { DynamoDBClient, PutItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
+const { marshall } = require('@aws-sdk/util-dynamodb');
+const { tenantHelper, candidateIsOurs } = require('../shared/tf-tenant.js');
+
+const dynamoDB = new DynamoDBClient({});
+const DISMISSALS_TABLE = process.env.DISMISSALS_TABLE_NAME || 'talent-flow-intelligence-dismissals';
+
+// TTL: 90 days (POPIA retention for user preferences)
+const TTL_DAYS = 90;
+
+/**
+ * Lambda handler
+ */
+exports.handler = async (event) => {
+  // REC-01: only a Recruiter (HR with the Recruitment tick) may do this. The role answer comes first, before any AWS call.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notRecruiter = RA.requireRecruiter(event);
+  if (notRecruiter) return notRecruiter;
+  // TEN-03: the company comes from the sign-in only.
+  const T = await tenantHelper();
+  const { tenantId, refusal } = T.requireTenant(event);
+  if (refusal) return refusal;
+  // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
+  const { requireModule } = await import('../shared/modules.mjs');
+  const moduleOff = await requireModule(event, 'recruitment');
+  if (moduleOff) return moduleOff;
+
+  console.info('[snoozeTile] Invoked', {
+    path: event.path,
+    pathParameters: event.pathParameters,
+    body: event.body,
+  });
+
+  try {
+    // Extract path parameter
+    const tileId = event.pathParameters?.id;
+    if (!tileId) {
+      return errorResponse(400, 'Missing tile ID in path');
+    }
+
+    // Extract userId from JWT claims
+    const userId = T.userIdOf(event);
+    if (!userId) {
+      return errorResponse(401, 'Unauthorized: missing user ID in token');
+    }
+
+    // Parse request body
+    const body = JSON.parse(event.body || '{}');
+    const hours = parseInt(body.hours, 10);
+
+    if (!hours || hours < 1 || hours > 8760) { // Max 1 year
+      return errorResponse(400, 'Invalid snooze duration. Must be between 1 and 8760 hours.');
+    }
+
+    // Parse tileId to extract entityId and ruleId
+    const parsed = parseTileId(tileId);
+    if (!parsed) {
+      return errorResponse(400, 'Invalid tile ID format');
+    }
+    const { entityId, ruleId } = parsed;
+
+    // A tile is judged through the candidate it names: another company's candidate is not found.
+    if (entityId !== 'aggregate' && !(await candidateIsOurs((c) => dynamoDB.send(c), QueryCommand, process.env.STATE_TABLE_NAME || 'talent-flow-state', entityId, tenantId))) {
+      return T.notFound();
+    }
+
+    // Compute tileKey
+    const tileKey = `${entityId}#${ruleId}`;
+
+    // Compute snapshotSignature (for now, use tileKey)
+    const snapshotSignature = tileKey;
+
+    // Compute snoozeUntil timestamp
+    const now = new Date();
+    const snoozeUntil = new Date(now.getTime() + (hours * 60 * 60 * 1000)).toISOString();
+    const ttl = Math.floor(Date.now() / 1000) + (TTL_DAYS * 24 * 60 * 60);
+
+    // Write snooze record
+    await dynamoDB.send(new PutItemCommand({
+      TableName: DISMISSALS_TABLE,
+      Item: marshall(T.stampTenant({
+        PK: `USER#${userId}`,
+        SK: `TILEDISMISS#${tileKey}`,
+        action: 'SNOOZE',
+        snoozeUntil,
+        snapshotSignature,
+        tileId,
+        entityId,
+        ruleId,
+        at: now.toISOString(),
+        ttl,
+      }, tenantId)),
+    }));
+
+    console.info('[snoozeTile] Snooze recorded', { userId, tileKey, snoozeUntil });
+
+    return {
+      statusCode: 200,
+      headers: corsHeaders(),
+      body: JSON.stringify({
+        message: 'Tile snoozed successfully',
+        tileId,
+        snoozeUntil
+      }),
+    };
+
+  } catch (error) {
+    console.error('[snoozeTile] Error:', error);
+    return errorResponse(500, 'Internal server error');
+  }
+};
+
+/**
+ * Parse tileId into entityId and ruleId
+ * Format: "tile-{entityId}-{ruleId}" or "{entityId}#{ruleId}"
+ */
+function parseTileId(tileId) {
+  // Try format: "tile-CAND-123-RULE-SLA-001"
+  const match1 = tileId.match(/^tile-(.+)-(RULE-[A-Z0-9-]+)$/);
+  if (match1) {
+    return { entityId: match1[1], ruleId: match1[2] };
+  }
+
+  // Try format: "CAND-123#RULE-SLA-001"
+  const match2 = tileId.match(/^(.+)#(RULE-[A-Z0-9-]+)$/);
+  if (match2) {
+    return { entityId: match2[1], ruleId: match2[2] };
+  }
+
+  return null;
+}
+
+/**
+ * CORS headers
+ */
+function corsHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
+/**
+ * Error response helper
+ */
+function errorResponse(statusCode, message) {
+  return {
+    statusCode,
+    headers: corsHeaders(),
+    body: JSON.stringify({ error: message }),
+  };
+}

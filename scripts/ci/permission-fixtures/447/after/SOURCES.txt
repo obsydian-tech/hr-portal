@@ -1,0 +1,11 @@
+# Byte for byte copies of files of obsydian-tech/hr-portal at commit c86f06d (after the fix of PR #447).
+# Each copy carries an extra .txt suffix so repo-wide tests that read code files do not see it.
+# The sha256 is of the original bytes (the suffix does not change them).
+# commit | original path | sha256
+c86f06d | infra/dynamodb.tf | 362f85062b4e1f59a35b8fde0c734ad1071c151397bf05ab617c1154e6f7294c
+c86f06d | infra/iam_per_lambda.tf | f07c2a9fa81b9bb12ba0e988216d9adf836c76fdc89afebc37fab7afb1b8406f
+c86f06d | infra/lambdas.tf | dd39c734cd79a1a422068f1887617eb855c201e3b65630812afc4bd3aa8c96f5
+c86f06d | infra/variables.tf | 00683b90029673af160c61391ccdeee347560eebf0c7086ca5a89605ab4781d9
+c86f06d | lambda/createEmployee/index.mjs | 0e588a5b13346b43082e53838c46b6739a28f6f8a19b7c1ca0487b6a80c94ec1
+c86f06d | talent-flow-infra/locals.tf | 62b0fe9f9497965f093d2d7bac9b10d596f8e489167d4ab8f23e1247c6366984
+c86f06d | talent-flow-infra/talent-flow-iam.tf | 9985660d353cbd2688d686ce1f5ea493314826b3b7456e4c4d1eac2ff4294e4a
