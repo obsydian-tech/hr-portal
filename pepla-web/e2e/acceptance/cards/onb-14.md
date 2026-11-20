@@ -44,3 +44,7 @@ Run on the throwaway correct build (`ONB-14-throwaway.patch.txt`, not committed)
 ## `lambda/` grep for the two numbers (AC-4's list)
 
 Files that name `id_number`, `account_number`, `idNumber` or `accountNumber`: `createEmployee` (registration input), `getEmployeeDocumentVerifications`, `getSingleDocumentVerification` (both: last four and flags only after this card), `processDocumentOCR` (writes the row), `revealDocumentField` (the new route), `shared/document-check.mjs` (the check and the comparison words), `shared/employee-input.mjs` (registration input). `summariseVerification` no longer names either number (PII-01 removed it). `getEmployees` returns only `id_number_last4`. The test lists the files exactly: a new file that names either number fails it until it is looked at.
+
+## Child lock onb-14.3 (20 Nov)
+
+AC-12 on pepla-dev took a one-off look for the sign-in form straight after opening Naledi's page, before the form had drawn. The look said "not there", the sign-in was skipped, and the page stayed on "Sign in" (dev E2E after #429 merged). The test now waits for the sign-in form and signs in, as ONB-13 AC-8 does. Nothing else changes.

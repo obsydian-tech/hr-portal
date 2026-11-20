@@ -1110,7 +1110,10 @@ test.describe('ONB-14 on pepla-dev', () => {
 
     // HR opens Naledi's page, presses Show, sees the seeded number, presses Hide.
     await page.goto(`/hr/employees/${encodeURIComponent(NALEDI_DEV_ID)}`);
-    if (await signIn.email.isVisible().catch(() => false)) await signIn.signInAs(hr);
+    // onb-14.3: a fresh browser always meets the sign-in page; wait for it (as ONB-13 AC-8 does) instead of a one-off look
+    // taken before it has drawn, which skipped the sign-in and left the page on "Sign in" (dev E2E, 20 Nov).
+    await expect(signIn.email).toBeVisible({ timeout: 20_000 });
+    await signIn.signInAs(hr);
     await expect(heading1(page)).toHaveText('Naledi Dlamini', { timeout: 30_000 });
     const before = Date.now();
     await showButton(page).first().click();
