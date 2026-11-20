@@ -8,6 +8,8 @@ Source: `/mnt/project-files/ask-batsi-chat/CHAT-14-past-chats-screens.md`. Words
 
 Locks: acceptance-lock/chat-14, and the child lock chat-12.1 (changes only the two heading lookups in `chat-12.spec.ts` AC-2, after PR 438 merges).
 
+Child lock chat-14.1 (CHAT-17, 20 Nov 2026): loading the full page now opens the person's last chat once the list answers (Iggie's choice "My last chat"; CHAT-17 replaces section 3's "A reload opens a new chat"). The helper `onFullPage` changes: when chats are stored, the switch is on and the list answers, it waits for that opening, presses New chat, and leaves the one opening read out of the fake's `calls`. Iggie's later choice the same day ("Match full page", 18:50 SAST) makes the side panel start on the last chat too and gives it a New chat button, so four test bodies change, each only where that rule touches it: AC-8 no longer says the panel has no "New chat" (still no list, no delete, no search); AC-23 "a list answer/failure for A after B signed in" waits for A's held list reads (now two: the panel's and the page's) instead of exactly one; the two AC-23 tests about B's first question and B's chat staying New chat seed B with no chats, so B's panel stays on a new chat as those tests need. No word changes. Tests that load the page another way (AC-3 with 120 chats, AC-13, AC-25) are unchanged and pass: see the table in CHAT-17-chat-list-look-and-reload.md.
+
 These tests add files only. They use the shared fakes (`DocumentsFake`, `EmployeesFake`, the Cognito fake) and the new `ChatsFake`; they do not change `support/chat-01/chat-fake.ts` or any other locked file. AC-25 imports the CHAT-01 fake as it is.
 
 ## How the tests run

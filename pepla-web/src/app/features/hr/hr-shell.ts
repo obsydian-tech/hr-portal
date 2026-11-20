@@ -69,12 +69,14 @@ export class HrShell {
   protected openAsk(): void {
     if (this.router.url.split('?')[0] === CHAT_PAGE) return; // the full page is already the chat
     this.askOpen.set(true);
+    this.chat.panelOpened();
     void this.chat.loadWaiting();
   }
 
   /** The panel's Expand button: the same conversation, as a page. */
   protected expand(): void {
     this.askOpen.set(false);
+    this.chat.fromPanel();
     void this.router.navigateByUrl(CHAT_PAGE);
   }
 

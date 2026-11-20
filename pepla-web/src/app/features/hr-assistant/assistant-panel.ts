@@ -18,6 +18,7 @@ import { ChatService, OPEN_RETRY, SAID } from './chat.service';
     <pp-agent-panel
       [open]="page() || open()" (openChange)="open.set($event)" [page]="page()" [level]="page() ? 1 : 2" [expandable]="true" [backLink]="chat.returnTo()"
       [heading]="page() ? chat.heading() : 'Batsi'" [showBack]="!page() || phone()" [actionLabel]="page() && chat.chatId() && chat.openState() === 'idle' ? 'Delete chat' : undefined" (action)="chat.confirmOne.set(true)"
+      [newChatLabel]="!page() && !chat.notOn() ? words.newChat : undefined" (newChat)="newChat()"
       [context]="chat.contextLine()" [placeholder]="chat.placeholder()" [messages]="messages()" [suggestions]="suggestions()"
       [working]="chat.working() ? words.working : undefined" [disabled]="!chat.online() || chat.notOn()" [notice]="chat.online() ? undefined : words.offline"
       (send)="chat.ask($event)" (stop)="chat.stop()" (retry)="retry($event)" (decide)="chat.decide($event)" (expand)="expand.emit()" />
@@ -41,6 +42,8 @@ export class HrChat {
       untracked(() => setTimeout(() => (f.what === 'heading' ? this.panelRef()?.focusTitle() : this.panelRef()?.focusBox()), 40));
     });
   }
+  /** The panel's New chat: a blank chat, focus in the message box. */
+  protected newChat(): void { this.chat.newChat(); setTimeout(() => this.panelRef()?.focusBox(), 40); }
   protected retry(question: string): void { if (question === OPEN_RETRY) this.chat.reopen(); else void this.chat.retry(question); }
 
   protected readonly messages = computed<PanelMessage[]>(() => [

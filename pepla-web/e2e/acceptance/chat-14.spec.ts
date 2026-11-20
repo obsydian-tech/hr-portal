@@ -108,13 +108,35 @@ async function signedIn(s: Who): Promise<void> {
   await expect(s.page.locator('main h1').first()).toBeVisible();
 }
 
-/** Seeds the person's chats, sets the clock, signs in and opens the full page. */
+/**
+ * Seeds the person's chats, sets the clock, signs in and opens the full page.
+ *
+ * Child lock chat-14.1 (CHAT-17, 20 Nov 2026): loading the full page now opens the person's last chat by itself once the
+ * list answers with chats (Iggie's choice "My last chat"). The tests in this file were written for a page that starts on
+ * New chat, so when that opening is due (chats stored, the switch on, the list answering) this waits for it, presses New
+ * chat, and leaves out of `calls` the one read the opening made. Each test then starts where it always did. The opening
+ * itself is CHAT-17's to test (chat-17.spec.ts).
+ */
 async function onFullPage(s: Setup, stored: StoredChat[] = FOUR(), now: Date = NOW): Promise<void> {
   s.chats.seed(s.hr.email, stored);
   await clockAt(s, now);
   await signedIn(s);
   await s.page.goto(FULL_PAGE);
   await expect(composer(s.page)).toBeVisible();
+  if (stored.length && s.chats.on && s.chats.mode.list === 'ok') await fromNewChat(s);
+}
+
+/** CHAT-17: wait for the last chat to open by itself, then press New chat; that one read is not counted. */
+async function fromNewChat(s: Setup): Promise<void> {
+  const last = s.chats.stored(s.hr.email)[0]!;
+  await expect(heading(s.page), 'CHAT-17: the last chat opened by itself').toHaveText(last.title);
+  await expect.poll(() => s.chats.of('open').map((x) => x.chatId), { message: 'CHAT-17: the one read of the last chat' }).toEqual([last.chatId]);
+  await expect(log(s.page).getByText(last.messages[0]!.text.slice(0, 12)).first(), 'CHAT-17: its messages show').toBeVisible();
+  await ensureList(s.page);
+  await entry(s.page, W.newChat).click();
+  await expect(heading(s.page)).toHaveText(W.newChat);
+  await expect(composer(s.page)).toBeFocused();
+  for (let i = s.chats.calls.length - 1; i >= 0; i--) if (s.chats.calls[i]!.route === 'open') s.chats.calls.splice(i, 1);
 }
 
 // ---------------------------------------------------------------- things found by their words
@@ -627,7 +649,8 @@ test.describe('Opening an old chat, asking in it, a new chat', () => {
     await expect(panel(page)).toBeVisible();
     await expect(said(panel(page).getByRole('log'), `Answer to: ${T.docs}`), 'the panel shows that chat').toBeVisible();
     await expect(nav(page), 'the panel has no list').toHaveCount(0);
-    for (const n of [W.deleteChat, W.deleteAll, W.newChat, W.search]) await expect(panel(page).getByRole('button', { name: n, exact: true }), `the panel has no "${n}"`).toHaveCount(0);
+    // Child lock chat-14.1 (CHAT-17, Iggie 20 Nov "Match full page"): the panel now has New chat; still no list, no delete, no search.
+    for (const n of [W.deleteChat, W.deleteAll, W.search]) await expect(panel(page).getByRole('button', { name: n, exact: true }), `the panel has no "${n}"`).toHaveCount(0);
     await composer(page).fill('One more thing');
     await sendButton(page).click();
     await expect(said(panel(page).getByRole('log'), 'Answered in the panel.')).toBeVisible();
@@ -1440,7 +1463,8 @@ test.describe('Private data', () => {
     await page.getByRole('button', { name: /^Ask Batsi/ }).click();
     await panel(page).getByRole('button', { name: 'Open as a full page', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${FULL_PAGE}$`));
-    await expect.poll(() => c.of('list').filter((x) => x.email === hr.email.toLowerCase()).length).toBe(1);
+    // Child lock chat-14.1 (CHAT-17): the panel reads A's list when it opens, and the full page reads it again: both are held.
+    await expect.poll(() => c.of('list').filter((x) => x.email === hr.email.toLowerCase()).length).toBeGreaterThan(0);
     await avatarButton(page).click();
     await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
     await expect(page).toHaveURL(/\/sign-in/);
@@ -1467,7 +1491,8 @@ test.describe('Private data', () => {
     const c = chats!;
     cognito!.addAccount(bPerson);
     const bLogin: Login = { email: bPerson.email, password: hr.password, givenName: bPerson.givenName } as Login;
-    c.seed(bPerson.email, [chat(51, 'Zulu Foods payroll run', sast('2026-11-19', '14:00'))]);
+    // Child lock chat-14.1 (CHAT-17): B has no chats here, so B's panel stays on a new chat (with chats it would open B's own last chat).
+    c.seed(bPerson.email, []);
     c.reply = () => 'An answer for B.';
     await onFullPage({ page, signIn, hr, chats: c }, A_CHATS());
     await open(page, A.salary);
@@ -1494,7 +1519,8 @@ test.describe('Private data', () => {
     const c = chats!;
     cognito!.addAccount(bPerson);
     const bLogin: Login = { email: bPerson.email, password: hr.password, givenName: bPerson.givenName } as Login;
-    c.seed(bPerson.email, [chat(51, 'Zulu Foods payroll run', sast('2026-11-19', '14:00'))]);
+    // Child lock chat-14.1 (CHAT-17): B has no chats here, so B's panel stays on a new chat (with chats it would open B's own last chat).
+    c.seed(bPerson.email, []);
     c.reply = () => 'ALPHA SECRET ANSWER for A only.';
     await onFullPage({ page, signIn, hr, chats: c }, A_CHATS());
     c.hold('ask');

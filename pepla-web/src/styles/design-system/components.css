@@ -2529,6 +2529,19 @@ a.pp-tag:hover { text-decoration: underline; }
 .pp-side-navigation__item[aria-current="page"] > svg { color: var(--color-icon-selected); }
 .pp-side-navigation__item[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: var(--space-100); bottom: var(--space-100); width: var(--space-050); margin-left: calc(-1 * var(--space-100)); border-radius: 0 var(--radius-full) var(--radius-full) 0; background: var(--color-border-selected); }
 .pp-side-navigation__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* An item that is a button (the chat list's New chat, Search chats, chats and Delete all my chats) is a plain full-width row:
+   no border, no fill, the column's width, a long title ends in an ellipsis inside it. */
+button.pp-side-navigation__item { width: 100%; border: 0; background: transparent; font-family: inherit; text-align: left; cursor: pointer; }
+button.pp-side-navigation__item:hover { background: var(--color-background-neutral-subtle-hovered); }
+/* The chat list: words only. The open chat has a soft fill and no accent bar; titles carry no icon of their own. */
+.pp-side-navigation--chats .pp-side-navigation__item[aria-current="page"] { background: var(--color-background-neutral-subtle-pressed); color: var(--color-text); font-weight: var(--font-weight-regular); }
+.pp-side-navigation--chats .pp-side-navigation__item[aria-current="page"]::before { display: none; }
+.pp-side-navigation--chats .pp-side-navigation__item[aria-current="page"] > svg { color: var(--color-icon-subtle); }
+.pp-side-navigation--chats .pp-side-navigation__item { color: var(--color-text); }
+.pp-side-navigation--chats .pp-side-navigation__item--entry { color: var(--color-text-subtle); }
+.pp-side-navigation--chats .pp-side-navigation__item--entry + .pp-side-navigation__item--entry { margin-top: 0; }
+.pp-side-navigation--chats .pp-side-navigation__heading { padding-top: var(--space-100); }
 .pp-side-navigation__count {
   min-width: var(--size-icon-medium); padding: 0 var(--space-075);
   border-radius: var(--radius-full);
