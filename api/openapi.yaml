@@ -373,6 +373,19 @@ components:
         verification_id:
           type: string
           example: ver_1774086781234
+        id_number_last4:
+          type: string
+          nullable: true
+          description: The last four digits of the ID number. The full number is never in this answer (ONB-14).
+        account_number_last4:
+          type: string
+          nullable: true
+        id_number_available:
+          type: boolean
+          description: True when the document holds an ID number that Show can return.
+        account_number_available:
+          type: boolean
+          description: True when the document holds an account number that Show can return.
         employee_id:
           type: string
           example: EMP-0000014
@@ -411,8 +424,6 @@ components:
         reasoning:
           type: string
           description: OCR model explanation for why the document passed, failed, or needs review.
-        id_number:
-          type: string
         name:
           type: string
         surname:
@@ -427,8 +438,6 @@ components:
         account_holder:
           type: string
         bank_name:
-          type: string
-        account_number:
           type: string
         branch_code:
           type: string
@@ -1747,9 +1756,12 @@ paths:
 
         Fields by document type:
 
-        - NATIONAL_ID: id_number, id_number_last4, name, surname, date_of_birth, gender, citizenship
+        - NATIONAL_ID: id_number_last4, id_number_available, name, surname, date_of_birth, gender, citizenship
 
-        - BANK_CONFIRMATION: account_holder, bank_name, account_number, branch_code, account_type
+        - BANK_CONFIRMATION: account_holder, bank_name, account_number_last4, account_number_available, branch_code, account_type
+
+        The full ID number and account number are not in this answer (ONB-14). They come only from
+        `POST /v1/verifications/{id}/reveal`, which records who showed them.
 
         - MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION: no fields beyond the document
 
@@ -1810,13 +1822,18 @@ paths:
                       extracted_data:
                         type: object
                         properties:
-                          id_number:
-                            type: string
-                            nullable: true
-                            description: Decrypted for HR.
                           id_number_last4:
                             type: string
                             nullable: true
+                          id_number_available:
+                            type: boolean
+                            description: True when the document holds an ID number that Show can return.
+                          account_number_last4:
+                            type: string
+                            nullable: true
+                          account_number_available:
+                            type: boolean
+                            description: True when the document holds an account number that Show can return.
                           name:
                             type: string
                           surname:
@@ -1830,8 +1847,6 @@ paths:
                           account_holder:
                             type: string
                           bank_name:
-                            type: string
-                          account_number:
                             type: string
                           branch_code:
                             type: string
@@ -2036,6 +2051,89 @@ paths:
                 error: Not found
         '409':
           description: This document was already decided or is still being read. Nothing was written.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /v1/verifications/{id}/reveal:
+    post:
+      tags:
+      - Verifications
+      operationId: revealDocumentField
+      summary: Show one full number, recorded
+      description: 'HR only. Returns the full ID number or account number of one document, and only after the audit event
+
+        `document.field_shown` (who, which number, whose document, when) was accepted by the audit bus. If the event cannot
+
+        be recorded no number is returned. Two calls make two events. The event never holds the number.
+
+        '
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: The document id.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - field
+              - employee_id
+              properties:
+                field:
+                  type: string
+                  enum:
+                  - id_number
+                  - account_number
+                employee_id:
+                  type: string
+                  description: The document's person (only a key; the company comes from the token).
+      responses:
+        '200':
+          description: The number, recorded as shown. Cache-Control is no-store.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: string
+        '400':
+          description: Unknown field, or employee_id missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Only HR can show a number.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '404':
+          description: No such document in the company, or it holds no number to show. Nothing is recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Not found
+        '500':
+          description: The Show could not be recorded, so no number is returned.
           content:
             application/json:
               schema:

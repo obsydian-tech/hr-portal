@@ -605,9 +605,9 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
     const own = call.ownList(withId, HR(), { fail: kmsFail });
     noThrow(own, 'getEmployeeDocumentVerifications, KMS failing');
     const ownLogs = logText(own);
-    expect(own.calls.some((c) => c.service === 'kms'), 'the own list tried to decrypt').toBe(true);
+    // ONB-14: the list no longer decrypts anything (the full ID number only comes from a recorded Show), so a failing KMS changes nothing here.
+    expect(own.calls.some((c) => c.service === 'kms'), 'the own list asks KMS for nothing').toBe(false);
     expect(ownLogs, 'own list, KMS failing: no error text').not.toContain(MARKER);
-    expect(ownLogs, 'own list, KMS failing: the error name').toMatch(/"errorname":"accessdeniedexception"/);
 
     // The inner error logs: one failing table or step at a time, so each inner catch is reached.
     const eventsFail: Failure = { service: 'events', name: 'InternalServerError', message: `${MARKER}: item {"email":"${LEAKED}"} could not be read` };
@@ -704,7 +704,8 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
       const r = call.ownList(withId, HR(), { fail: { service: 'kms', name: 'AccessDeniedException', message: `${MARKER}: ${LEAKED}` } });
       expect(r.status, `${r.raw.slice(0, 200)}`).toBe(200);
       expect(r.raw).not.toContain(ID_NUMBER);
-      expect(logText(r)).toMatch(/"errorname":"accessdeniedexception"/);
+      // ONB-14: the list asks KMS for nothing now, so there is no failure to log.
+      expect(r.calls.some((c) => c.service === 'kms')).toBe(false);
       expect(logText(r)).not.toContain(MARKER);
     }
     // Added 17 Nov (lock check 4): post sign-in: no address and no error text on any error path, with the sign-in name set to the address.

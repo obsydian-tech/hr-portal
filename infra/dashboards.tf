@@ -24,6 +24,7 @@ module "dashboards" {
     "resendInvite",
     "getMyStart",
     "getMyDocuments",
+    "revealDocumentField",
     "createMyUploadLink",
     "recordConsent",
     "getEmployees",

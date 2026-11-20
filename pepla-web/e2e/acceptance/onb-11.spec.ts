@@ -986,7 +986,8 @@ test.describe('ONB-11 Risk check on the full set', () => {
         if (m && /risk|verifications/.test(m[1]!)) routes.add(m[1]!);
       }
     }
-    expect([...routes].sort(), 'the risk and verification routes are unchanged').toEqual(base.routes);
+    // ONB-14 (re-lock onb-11.N): the one new verification route is the recorded Show.
+    expect([...routes].filter((r) => r !== 'POST /v1/verifications/{id}/reveal').sort(), 'the risk and verification routes are unchanged').toEqual(base.routes);
     const stepFn = readFileSync(join(REPO, 'infra', 'stepfunctions.tf'), 'utf8');
     expect(stepFn, 'stepfunctions.tf still reads the definition from the file').toMatch(/file\(\s*"\$\{path\.module\}\/step-functions\/naleko-onboarding-flow\.asl\.json"\s*\)|naleko-onboarding-flow\.asl\.json/);
   });

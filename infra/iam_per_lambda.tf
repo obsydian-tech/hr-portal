@@ -2677,3 +2677,66 @@ resource "aws_iam_role_policy" "user_migration" {
     ]
   })
 }
+
+# ─── ONB-14: revealDocumentField ──────────────────────────────────────────────
+# Reads two rows by key, decrypts one value, puts one event. It is in no kms_pii list: the key policy delegates to IAM in this
+# account, so the role's own kms:Decrypt is enough and it holds no Encrypt or data-key right.
+
+resource "aws_iam_role" "reveal_document_field" {
+  name        = "naleko-revealDocumentField-role"
+  description = "Execution role for revealDocumentField Lambda"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "reveal_document_field" {
+  name = "naleko-revealDocumentField-policy"
+  role = aws_iam_role.reveal_document_field.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/revealDocumentField:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDBGetItem"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem"]
+        Resource = [
+          aws_dynamodb_table.documents.arn,
+          aws_dynamodb_table.document_verification.arn,
+        ]
+      },
+      {
+        Sid      = "KMSPIIKeyDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      }
+    ]
+  })
+}

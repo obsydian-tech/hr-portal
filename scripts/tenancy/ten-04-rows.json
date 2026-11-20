@@ -58,5 +58,21 @@
     "read": {
       "op": "GET /v1/company/modules"
     }
+  },
+  "POST /v1/verifications/{id}/reveal": {
+    "kind": "byId",
+    "ids": {
+      "id": "document"
+    },
+    "body": {
+      "field": "id_number",
+      "employee_id": "EMP-1"
+    },
+    "read": {
+      "op": "GET /v1/verifications/{id}",
+      "ids": {
+        "id": "document"
+      }
+    }
   }
 }

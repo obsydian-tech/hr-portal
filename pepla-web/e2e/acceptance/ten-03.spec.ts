@@ -676,6 +676,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       // Ask Batsi dev Marketplace grant (re-lock ten-03.9): judged before the ask_batsi skip below, and it must be exactly this.
       if (key === MARKETPLACE_DEV_KEY || cur.role === 'naleko_ai_chat') { expect.soft(marketplaceDev(key, cur.role, cur.pairs), `${key}: only on the chat role, dev only, exactly the two Marketplace actions on *`).toBe(true); continue; }
       if (/ask_batsi|stored_chats/.test(key) || /ask_batsi/.test(cur.role)) continue; // CHAT-02 (re-lock ten-03.N): locked in chat-02.spec.ts AC-31.
+      if (/reveal_document_field/.test(key) || /reveal_document_field/.test(cur.role)) continue; // ONB-14 (re-lock ten-03.N): its own role, locked in onb-14.spec.ts AC-9 (HR only, GetItem on two tables, no tenants table, no KMS list).
       // ONB-22.1 (re-lock ten-03.6): the agent proposal and approval rights are new role policies of their own (a new role, and second policies on three roles ten-02 pins); onb-22.spec.ts AC-8 pins exactly these.
       if (ONB22_POLICIES.has(key)) continue;
       // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.

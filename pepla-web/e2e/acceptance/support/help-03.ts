@@ -88,7 +88,7 @@ export const LOCKED_JOHAN_DETAIL = {
   documents: [
     {
       document_id: 'sunbird-johan-id', document_type: 'NATIONAL_ID', file_name: 'johan-id.pdf', uploaded_at: '2026-02-26T08:00:00Z',
-      check: 'MATCHES', hr_decision: null, hr_decided_at: null, verification: { id_number: '8500015009087', id_number_last4: '9087' },
+      check: 'MATCHES', hr_decision: null, hr_decided_at: null, verification: { id_number_last4: '9087', id_number_available: true },
     },
     {
       document_id: 'sunbird-johan-bank', document_type: 'BANK_CONFIRMATION', file_name: 'johan-bank-letter.pdf', uploaded_at: '2026-02-26T08:00:00Z',
@@ -195,7 +195,7 @@ const json = (route: Route, status: number, body: unknown, cors: Record<string, 
 function pageAnswer(d: CardDoc, idNumber: string, decided: Record<string, unknown> | undefined): unknown {
   const read =
     d.type === 'NATIONAL_ID'
-      ? { name: CARD.employee.first, surname: CARD.employee.last, id_number: idNumber, id_number_last4: idNumber.slice(-4) }
+      ? { name: CARD.employee.first, surname: CARD.employee.last, id_number_last4: idNumber.slice(-4), id_number_available: true }
       : { account_holder: CARD.bank.accountHolder, bank_name: null, account_number: null, branch_code: null, account_type: null };
   return {
     document: { document_id: d.id, employee_id: CARD.employee.id, document_type: d.type, file_name: d.file, uploaded_at: CARD.uploaded, ocr_completed_at: CARD.checked },

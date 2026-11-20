@@ -51,7 +51,7 @@ export interface ApiEmployeeDetail {
     check?: Check;
     hr_decision?: HrDecision | null;
     hr_decided_at?: string | null;
-    verification?: { id_number?: string | null; id_number_last4?: string | null } | null;
+    verification?: { id_number_last4?: string | null; id_number_available?: boolean } | null;
   }>;
   /** The document types this company needs accepted before Verified (ONB-08). Missing means no marks. */
   required_documents?: string[];
@@ -65,8 +65,8 @@ export interface EmployeeDocument {
   check: Check;
   decision: HrDecision | null;
   decidedAt: string;
-  /** The full ID number, for the masked field. Empty when there is none. */
-  idNumber: string;
+  /** Whether the stored ID number can be shown (the full number is not in the answer). */
+  idAvailable: boolean;
   idLast4: string;
 }
 
@@ -106,7 +106,7 @@ export function toEmployeeDetail(a: ApiEmployeeDetail): EmployeeDetail {
       check: d.check ?? 'READING',
       decision: d.hr_decision ?? null,
       decidedAt: d.hr_decided_at ?? '',
-      idNumber: d.verification?.id_number ?? '',
+      idAvailable: d.verification?.id_number_available === true,
       idLast4: d.verification?.id_number_last4 ?? '',
     }));
   const required = new Set<string>(Array.isArray(a.required_documents) ? a.required_documents : []);

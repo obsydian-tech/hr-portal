@@ -295,6 +295,13 @@ def reset_employee_documents(ddb, employee_id: str) -> int:
     return removed
 
 
+# ONB-14: made-up numbers so Show has something to show on dev. They fail the SA ID check digit and are zeros: never real.
+# Nothing prints them.
+MADE_UP_NUMBERS = {
+    "NATIONAL_ID": {"idNumber": {"S": "9801010000001"}, "idNumber_last4": {"S": "0001"}},
+    "BANK_CONFIRMATION": {"accountNumber": {"S": "0000000000"}},
+}
+
 # Naledi Dlamini's documents (ONB-13). (document_id, type, uploaded, ocr_status, confidence or None, decided)
 NALEDI_DOCUMENTS = [
     ("doc_1762156800000", "NATIONAL_ID", "2026-11-03T08:00:00Z", "MANUAL_REVIEW", 96, False),
@@ -334,7 +341,7 @@ def sample_pdf(title: str) -> bytes:
 
 
 def seed_documents(ddb, ns: uuid.UUID, employee_id: str, tenant_id: str = "") -> int:
-    """Replace the person's documents with the fixed set. Verification rows carry no extracted data."""
+    """Replace the person's documents with the fixed set. The ID and bank rows carry one made-up number each (ONB-14); never printed."""
     reset_employee_documents(ddb, employee_id)
     for doc_id, doc_type, uploaded, status, confidence, decided in NALEDI_DOCUMENTS:
         s3_key = sample_key(employee_id, doc_id)
@@ -366,6 +373,7 @@ def seed_documents(ddb, ns: uuid.UUID, employee_id: str, tenant_id: str = "") ->
                 "check": {"S": "MATCHES" if confidence >= 90 else "NEEDS_A_LOOK"},
                 "createdAt": {"S": uploaded},
                 "seed": {"S": SEED_TAG},
+                **MADE_UP_NUMBERS.get(doc_type, {}),
                 **({"tenant_id": {"S": tenant_id}} if tenant_id else {}),
             })
         if decided:

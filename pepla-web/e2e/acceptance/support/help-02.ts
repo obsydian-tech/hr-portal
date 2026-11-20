@@ -166,7 +166,7 @@ function johanAnswer(idNumber: string): unknown {
       hr_staff_name: e.hr_staff_name,
     },
     documents: [
-      { document_id: 'ref-id', document_type: 'NATIONAL_ID', file_name: JOHAN.documents[0].file, uploaded_at: '2026-02-26T08:00:00Z', check: 'MATCHES', hr_decision: null, hr_decided_at: null, verification: { id_number: idNumber, id_number_last4: idNumber.slice(-4) } },
+      { document_id: 'ref-id', document_type: 'NATIONAL_ID', file_name: JOHAN.documents[0].file, uploaded_at: '2026-02-26T08:00:00Z', check: 'MATCHES', hr_decision: null, hr_decided_at: null, verification: { id_number_last4: idNumber.slice(-4), id_number_available: true } },
       { document_id: 'ref-bank', document_type: 'BANK_CONFIRMATION', file_name: JOHAN.documents[1].file, uploaded_at: '2026-02-26T08:00:00Z', check: 'NEEDS_A_LOOK', hr_decision: null, hr_decided_at: null, verification: null },
     ],
   };
