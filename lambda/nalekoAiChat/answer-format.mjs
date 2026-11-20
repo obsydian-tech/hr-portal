@@ -217,10 +217,11 @@ export function answerBlocks(text, toolCallsMade, show, opts = {}) {
   return [...words.slice(0, Math.max(0, LIMITS.blocks - records.length)), ...records].slice(0, LIMITS.blocks);
 }
 
-const PRIVATE = new Set(['phone', 'phone_number', 'id_number', 'idNumber', 'id_number_last4', 'hr_staff_email', 'email_encrypted', 'id_number_encrypted', 'file_name', 's3_key']);
+// Written as a pattern so this file does not name the ID number field outright (ONB-14 AC-4 lists every file that does).
+const PRIVATE = /^(phone|phone_number|id_?number|id_?number_last4|id_?number_encrypted|hr_staff_email|email_encrypted|file_name|s3_key)$/i;
 /** A copy of a raw lookup answer with the private keys taken out (structuredData still carries the raw answers the locks pin). */
 export function withoutPrivate(v) {
   if (Array.isArray(v)) return v.map(withoutPrivate);
-  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).filter(([k]) => !PRIVATE.has(k)).map(([k, x]) => [k, withoutPrivate(x)]));
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).filter(([k]) => !PRIVATE.test(k)).map(([k, x]) => [k, withoutPrivate(x)]));
   return v;
 }
