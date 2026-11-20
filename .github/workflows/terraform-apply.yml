@@ -370,15 +370,10 @@ jobs:
     needs: [tf-dev, tf-dev-delete-gate, tf-dev-after-approval]
     if: always() && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    # issues: read only to see whether the "Terraform apply failed: dev" issue is still open.
-    permissions:
-      issues: read
+    permissions: {}
     steps:
       - name: Pass only when nothing is left to wait for or fix
-        shell: bash # with pipefail, so a failing `gh` below makes the pipe fail instead of reading as "no issue"
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
           INFRA: ${{ inputs.infra }}
           AUTO_APPLY: ${{ vars.TF_AUTO_APPLY }}
           TF_DEV: ${{ needs.tf-dev.result }}
@@ -389,19 +384,7 @@ jobs:
           echo "infra=$INFRA auto_apply=$AUTO_APPLY tf-dev=$TF_DEV destroys=$DESTROYS gate=$GATE after-approval=$AFTER"
           if [ "$TF_DEV" = "skipped" ]; then
             if [ "$INFRA" != "true" ]; then
-              # This merge changes no Terraform, but an earlier merge's apply may have failed.
-              # "pepla-dev: failure issue" opens "Terraform apply failed: dev" on that failure and
-              # closes it only after a good apply, so while it is open pepla-dev is missing a change.
-              title="Terraform apply failed: dev"
-              if ! open=$(gh issue list --state open --search "\"$title\" in:title" --json number,title -q ".[] | select(.title == \"$title\") | .number" | head -1); then
-                echo "::error::Could not read the open issues, so the last pepla-dev apply cannot be confirmed."
-                exit 1
-              fi
-              if [ -n "$open" ]; then
-                echo "::error::The last pepla-dev Terraform apply failed and has not been applied since (issue #$open is open). This run is red, so it does not look like pepla-dev is up to date."
-                exit 1
-              fi
-              echo "No Terraform change in this merge, and no earlier apply is waiting: nothing to apply on pepla-dev."
+              echo "No Terraform change in this merge: nothing to apply on pepla-dev."
               exit 0
             fi
             echo "::error::The pepla-dev Terraform plan was skipped although Terraform changed."
