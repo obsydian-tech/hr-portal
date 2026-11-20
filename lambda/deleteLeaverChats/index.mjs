@@ -83,7 +83,8 @@ async function signInOf(config, row) {
 async function clearOne(config, row) {
   const who = await signInOf(config, row);
   if (who.skip) return who.skip;
-  const tenantId = row.tenant_id?.S || config.legacyTenantId;
+  // The founding company only for a row with no tenant_id at all (the ownsRow rule); a tenant_id that is there must be a valid one.
+  const tenantId = row.tenant_id === undefined ? config.legacyTenantId : row.tenant_id.S;
   if (!tenantId || !TENANT_ID_PATTERN.test(tenantId)) return 'LeaverCompanyUnknown';
 
   const keys = [...(who.staffId ? [['staff_id', who.staffId]] : []), ['sub', who.sub]];
@@ -121,9 +122,11 @@ async function clearOne(config, row) {
   await dynamo().send(new UpdateItemCommand({
     TableName: config.usersTable,
     Key: { PK: row.PK, SK: row.SK },
-    ConditionExpression: 'attribute_exists(PK)',
+    // Only the row that was read, still INACTIVE and not yet marked; never a new row.
+    ConditionExpression: 'attribute_exists(PK) AND #status = :inactive AND attribute_not_exists(chats_deleted_at)',
     UpdateExpression: 'SET chats_deleted_at = :at',
-    ExpressionAttributeValues: { ':at': s(at.toISOString()) },
+    ExpressionAttributeNames: { '#status': 'status' },
+    ExpressionAttributeValues: { ':at': s(at.toISOString()), ':inactive': s('INACTIVE') },
   }));
   return 'done';
 }
