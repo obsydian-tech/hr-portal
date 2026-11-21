@@ -834,19 +834,21 @@ test.describe('REC-12 · Settings that are only names become real settings, with
     const feed = deepFind(changed, 'feedbackDueHours')[0];
     expect(typeof feed === 'number', 'Time limits hold feedbackDueHours').toBe(true);
     setDeep(changed, 'feedbackDueHours', (feed as number) === 31 ? 32 : 31);
-    const saved = await call(adminToken, 'PUT', '/v1/config', { configType: 'SLA_THRESHOLDS', data: changed, expected_version: before.version });
+    const saved = await call(adminToken, 'PUT', '/v1/config/SLA_THRESHOLDS', { configType: 'SLA_THRESHOLDS', data: changed, expected_version: before.version });
     expect(saved.status(), `the Admin saves a Time limits change (${await saved.text()})`).toBe(200);
+    // The active version is read through an index that can lag a moment behind the save.
+    await expect.poll(async () => (await active(adminToken, 'SLA_THRESHOLDS')).version, { message: 'the Admin reads the next version', timeout: 30_000, intervals: [1_000, 2_000, 3_000] }).toBe((before.version as number) + 1);
     const after = await active(adminToken, 'SLA_THRESHOLDS');
     expect(after.version, 'the Admin reads the next version').toBe((before.version as number) + 1);
     expect(deepFind(after.data, 'feedbackDueHours'), 'holding the change').toEqual(deepFind(changed, 'feedbackDueHours'));
     expect((await lockOf())?.['SLA_THRESHOLDS'], 'the candidate made before the save keeps the version it had').toBe(before.version);
-    const stale = await call(adminToken, 'PUT', '/v1/config', { configType: 'SLA_THRESHOLDS', data: changed, expected_version: before.version });
+    const stale = await call(adminToken, 'PUT', '/v1/config/SLA_THRESHOLDS', { configType: 'SLA_THRESHOLDS', data: changed, expected_version: before.version });
     expect([stale.status(), await stale.json()], 'a save with the old expected_version is 409 STALE_VERSION').toEqual([409, STALE]);
-    const bad = await call(adminToken, 'PUT', '/v1/config', { configType: 'RETENTION', data: { notHiredMonths: 0 } });
+    const bad = await call(adminToken, 'PUT', '/v1/config/RETENTION', { configType: 'RETENTION', data: { notHiredMonths: 0 } });
     expect([bad.status(), await bad.json()], 'an invalid save is 400 INVALID_SETTING').toEqual([400, INVALID]);
     // The Recruiter reads and is refused a save.
     expect((await active(recruiterToken, 'SLA_THRESHOLDS')).version, 'the Recruiter reads Time limits').toBe(after.version);
-    const refused = await call(recruiterToken, 'PUT', '/v1/config', { configType: 'SLA_THRESHOLDS', data: changed });
+    const refused = await call(recruiterToken, 'PUT', '/v1/config/SLA_THRESHOLDS', { configType: 'SLA_THRESHOLDS', data: changed });
     expect([refused.status(), await refused.json()], 'the Recruiter\'s save is 403').toEqual([403, FORBIDDEN]);
     // The other readers work with the real roles and the key: a sentiment, and the gate leaving the interview stage.
     const sentiment = await call(recruiterToken, 'POST', `/v1/candidates/${candidateId}/sentiment`, { interviewSentiment: 'INTERESTED' });
@@ -855,12 +857,21 @@ test.describe('REC-12 · Settings that are only names become real settings, with
     expect(toInterview.status(), 'the candidate moves to the interview stage').toBe(200);
     const gate = await call(recruiterToken, 'PUT', `/v1/candidates/${candidateId}/stage`, { newStage: 'EVALUATION' });
     expect(gate.status(), 'the gate reads INTERVIEW_TYPES on dev and refuses a SENIOR candidate with no interview done (409, not 500)').toBe(409);
-    // Company B, switched on through the MOD-01 script, holds the pack.
+    // Company B starts with Onboarding only (MOD-01 AC-10 expects that). Switch Recruitment on for it with the MOD-01 script, which also
+    // writes the Standard pack, wait out the 60 second module cache, read RETENTION, and always put B back.
     const bToken = await signIn(logins.companyB);
-    const bRet = await call(bToken, 'GET', '/v1/config?configType=RETENTION&active=true');
-    expect(bRet.status(), 'company B reads its settings (the dev run switches Recruitment on for B through set-modules before this test)').toBe(200);
-    const b = (await bRet.json()) as { version: number | null; data: any };
-    expect([b.version, b.data], 'company B received the Standard pack: RETENTION version 1, 6 months').toEqual([1, { notHiredMonths: 6 }]);
-    void spawnSync;
+    const companyB = String(JSON.parse(Buffer.from(bToken.split('.')[1]!, 'base64url').toString('utf8'))['tenant_id'] ?? '');
+    expect(companyB, 'company B\'s login carries its company').toMatch(/^ten_[0-9a-z]{26}$/);
+    const script = (args: string[]) => spawnSync(process.execPath, [join(REPO, 'scripts', 'tenancy', 'set-modules.mjs'), '--env', 'dev', '--tenant', companyB, ...args], { cwd: REPO, encoding: 'utf8', timeout: 120_000, env: process.env });
+    try {
+      const on = script(['--on', 'recruitment', '--reason', 'REC-12 AC-9 pepla-dev check', '--apply']);
+      expect(on.status, `set-modules --apply turns Recruitment on for B (${(on.stdout + on.stderr).slice(-300)})`).toBe(0);
+      await expect.poll(async () => (await call(bToken, 'GET', '/v1/config?configType=RETENTION&active=true')).status(), { message: 'company B reads its settings within the module cache time', timeout: 120_000, intervals: [5_000] }).toBe(200);
+      const b = (await (await call(bToken, 'GET', '/v1/config?configType=RETENTION&active=true')).json()) as { version: number | null; data: any };
+      expect([b.version, b.data], 'company B received the Standard pack: RETENTION version 1, 6 months').toEqual([1, { notHiredMonths: 6 }]);
+    } finally {
+      const off = script(['--off', 'recruitment', '--reason', 'REC-12 AC-9 put back', '--apply']);
+      expect(off.status, `set-modules --apply puts B back to onboarding only (${(off.stdout + off.stderr).slice(-300)})`).toBe(0);
+    }
   });
 });
