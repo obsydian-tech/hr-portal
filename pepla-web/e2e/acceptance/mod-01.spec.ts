@@ -49,7 +49,9 @@ const FORBIDDEN = { error: 'Forbidden' };
 const ROLE_CHECKED = ['PATCH /v1/candidates/{id}', 'PUT /v1/candidates/{id}/stage', 'PATCH /v1/candidates/{id}/interviews/{interviewId}', 'POST /v1/candidates/{id}/interviews', 'POST /v1/candidates/{id}/sentiment', 'POST /v1/candidates/{id}/scoring-links', 'POST /v1/candidates/{id}/offer', 'PUT /v1/candidates/{id}/offer', 'POST /v1/intelligence/tiles/{id}/dismiss', 'POST /v1/intelligence/tiles/{id}/snooze', 'POST /v1/intelligence/tiles/{id}/acknowledge', 'GET /v1/candidates', 'POST /v1/candidates', 'GET /v1/intelligence/tiles', 'GET /v1/config', 'POST /v1/config', 'PUT /v1/config', 'GET /v1/actions/pending (HR)', 'POST /v1/actions/{id}/approve (HR)', 'POST /v1/actions/{id}/reject (HR)'];
 const READ_FAILED = 'Modules read failed';
 const MODULE_OFF = 'Module off, skipped';
-const STANDARD_PACK_LINE = 'Recruitment Standard pack: not available yet (REC-12)';
+// Child lock rec-12.1: REC-12 fills the seed. It no longer prints "not available yet"; it prints how many settings it wrote.
+const NOT_AVAILABLE_LINE = 'Recruitment Standard pack: not available yet (REC-12)';
+const STANDARD_PACK_LINE = /^Recruitment Standard pack: \d+ setting\(s\) written$/;
 const BOTH = ['onboarding', 'recruitment'];
 const PEOPLE = /John|Doe\b|Jane|Smith|Bongi|Mahlangu|Bea\b|Ndlovu|Sipho|Khumalo|Pia\b|Pule\b|Paul\b|@example\.test/;
 const NAMES = new RegExp(Object.values(COMPANY_NAME).join('|'));
@@ -438,13 +440,13 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       expect(existsSync(join(REPO, 'scripts', 'tenancy', f)), `scripts/tenancy/${f} exists`).toBe(true);
     }
     const company = () => [...companyRows(), av({ pk: `USER#${SUB.hmB}`, sk: `TENANT#${B}`, tenant_id: B })];
-    const world0 = (): Tables => ({ [TENANTS]: company(), [TENANTS_PROD]: company() });
+    const world0 = (): Tables => ({ [TENANTS]: company(), [TENANTS_PROD]: company(), [TABLE.config]: [] });
     const run = (args: string[], t: Tables = world0(), sts: Sts = DEV_STS, script = SCRIPT) => runScript(script, args, { tables: t, sts });
     const onB = ['--env', 'dev', '--tenant', B, '--on', 'recruitment', '--reason', 'MOD-01 AC-6'];
     const out = (r: { stdout: string; stderr: string }) => r.stdout + r.stderr;
     const audits = (t: Tables, c: string, table = TENANTS) => rowsOf(t, table).filter((r) => r['pk'] === `TENANT#${c}` && String(r['sk']).startsWith('MODULES#'));
     const list = (v: unknown) => (Array.isArray(v) ? [...v].map(String).sort() : typeof v === 'string' ? (() => { try { const p = JSON.parse(v); return Array.isArray(p) ? p.map(String).sort() : v; } catch { return v; } })() : v);
-    const others = (t: Tables, c: string) => JSON.stringify(sortKeys(Object.fromEntries(Object.entries(t).map(([k, rows]) => [k, rows.filter((r) => !(plain(r)['pk'] === `TENANT#${c}` && (plain(r)['sk'] === 'PROFILE' || String(plain(r)['sk']).startsWith('MODULES#'))))]))));
+    const others = (t: Tables, c: string) => JSON.stringify(sortKeys(Object.fromEntries(Object.entries(t).filter(([k]) => k !== TABLE.config).map(([k, rows]) => [k, rows.filter((r) => !(plain(r)['pk'] === `TENANT#${c}` && (plain(r)['sk'] === 'PROFILE' || String(plain(r)['sk']).startsWith('MODULES#'))))]))));
     const clean = (what: string, r: { stdout: string; stderr: string }) => {
       expect.soft(out(r), `${what}: the output names no company and no person`).not.toMatch(NAMES);
       expect.soft(out(r), `${what}: and no address`).not.toMatch(/@/);
@@ -473,9 +475,10 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
     expect.soft(audit['env'], 'env: dev').toBe('dev');
     expect.soft(others(applied.tables, B), 'nothing else in the company list changed').toBe(others(world0(), B));
     expect.soft(applied.writes.filter((w: any) => /Delete/.test(w.op) || JSON.stringify(w.input ?? {}).includes('DeleteRequest') || JSON.stringify(w.input ?? {}).includes('"Delete"')).length, 'no delete').toBe(0);
-    const seedAt = (applied.calls as any[]).findIndex((c) => c.service === 'log' && String(c.message).includes(STANDARD_PACK_LINE));
-    const firstWrite = (applied.calls as any[]).findIndex((c) => c.service === 'dynamodb' && /PutItem|UpdateItem|TransactWriteItems|BatchWriteItem/.test(c.op));
-    expect.soft(seedAt, `the Recruitment seed runs (it prints "${STANDARD_PACK_LINE}" until REC-12)`).toBeGreaterThanOrEqual(0);
+    const seedAt = (applied.calls as any[]).findIndex((c) => c.service === 'log' && STANDARD_PACK_LINE.test(String(c.message)));
+    // rec-12.1: the pack now writes (the config table) before the key is set, so the flip is the LAST write, and the seed's line comes before it.
+    const firstWrite = (applied.calls as any[]).findLastIndex((c) => c.service === 'dynamodb' && /PutItem|UpdateItem|TransactWriteItems|BatchWriteItem/.test(c.op));
+    expect.soft(seedAt, 'the Recruitment seed runs (it prints how many settings it wrote)').toBeGreaterThanOrEqual(0);
     expect.soft(seedAt >= 0 && firstWrite >= 0 && seedAt < firstWrite, 'the seed runs before the key is set (seed before flip)').toBe(true);
     clean('--apply', applied);
 
@@ -525,11 +528,11 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       expect.soft(r.writes.map((w: any) => `${w.op} ${w.table}`), `${what}: nothing written`).toEqual([]);
     }
 
-    // Prod: Recruitment is not turned on while the Standard pack line prints; other changes run.
+    // Prod: with the Standard pack available (REC-12), Recruitment can be turned on; the pack is written, then the key.
     const prodRec = run(['--env', 'prod', '--tenant', B, '--on', 'recruitment', '--reason', 'r', '--apply'], world0(), PROD_STS);
-    expect.soft(prodRec.code, 'prod --apply turning Recruitment on is refused before REC-12').not.toBe(0);
-    expect.soft(prodRec.writes.map((w: any) => `${w.op} ${w.table}`), 'and writes nothing').toEqual([]);
-    expect.soft(out(prodRec), `and says "${STANDARD_PACK_LINE}"`).toContain(STANDARD_PACK_LINE);
+    expect.soft(prodRec.code, `prod --apply turning Recruitment on runs now the Standard pack exists (${out(prodRec).slice(-300)})`).toBe(0);
+    expect.soft(out(prodRec), 'and no longer says "not available yet"').not.toContain(NOT_AVAILABLE_LINE);
+    expect.soft(profileOf(prodRec.tables, B, TENANTS_PROD)?.['modules'], 'prod B has onboarding and recruitment').toEqual(BOTH);
     const prodOnb = run(['--env', 'prod', '--tenant', C, '--on', 'onboarding', '--reason', 'r', '--apply'], world0(), PROD_STS);
     expect.soft(prodOnb.code, `control: prod --apply turning Onboarding on for C runs (${out(prodOnb).slice(-300)})`).toBe(0);
     expect.soft(profileOf(prodOnb.tables, C, TENANTS_PROD)?.['modules'], 'on the prod company list').toEqual(BOTH);

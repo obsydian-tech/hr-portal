@@ -1,0 +1,1 @@
+export const STAGE_CODES = ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER', 'HIRED', 'NOT_HIRED'];

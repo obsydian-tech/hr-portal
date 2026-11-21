@@ -390,7 +390,11 @@ exports.handler = async (event) => {
     return serverError('Failed to read panel configuration');
   }
 
-  const votesRequired = panelConfig?.rules?.votesRequired?.[positionLevel];
+  // REC-12: the Standard pack holds the panel size per level (PANEL_CONFIG.panelSize), which is the votes asked of the panel;
+  // a company that still holds the older rules.votesRequired shape keeps it.
+  // A company the Standard pack has not reached yet keeps today's panel sizes (the pack's own) until it has its own.
+  const packDefaults = (await import('../shared/recruitment-settings.mjs')).DEFAULTS.PANEL_CONFIG.panelSize;
+  const votesRequired = panelConfig?.rules?.votesRequired?.[positionLevel] ?? panelConfig?.panelSize?.[positionLevel] ?? packDefaults[positionLevel];
   if (votesRequired == null) {
     console.error('votesRequired not found for positionLevel', { positionLevel, panelConfig });
     return serverError(`votesRequired not configured for positionLevel: ${positionLevel}`);

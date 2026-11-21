@@ -92,6 +92,28 @@ async function getAllVersions(tenantId, configType) {
   return (result.Items || []).map(item => unmarshall(item));
 }
 
+// REC-12: shape check (lambda/shared/recruitment-settings.mjs) and the audit row of every save.
+async function invalidSetting(tenantId, configType, data) {
+  const S = await import('../shared/recruitment-settings.mjs');
+  if (typeof configType !== 'string' || !/^[A-Za-z0-9_]{1,64}$/.test(configType)) return true;
+  if (!S.isCovered(configType)) return false;
+  const ctx = {};
+  if (configType !== 'SENIORITY_PROFILES') {
+    const profiles = await getActiveItem(tenantId, 'SENIORITY_PROFILES');
+    const levels = profiles?.data?.levels?.map((l) => l.key);
+    if (levels) ctx.levels = levels;
+  }
+  return !S.validate(configType, data, ctx);
+}
+async function writeAudit(T, event, tenantId, configType, from, to, now) {
+  await client.send(new PutItemCommand({
+    TableName: TABLE,
+    Item: marshall(T.stampTenant({
+      PK: `TENANT#${tenantId}`, SK: `AUDIT#${configType}#${now}#v${to}`, type: configType, from_version: from, to_version: to, by: T.userIdOf(event) || 'unknown', at: now,
+    }, tenantId)),
+  }));
+}
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 // TEN-03: the company is the sign-in's. tenantId in the query or body is not read.
@@ -160,6 +182,8 @@ async function handlePost(event) {
     return respond(400, { error: 'configType and data are required' });
   }
 
+  if (await invalidSetting(tenantId, configType, data)) return respond(400, { error: 'Bad request', code: 'INVALID_SETTING' });
+
   // Guard: reject if an active version already exists — use PUT to update
   const existing = await getActiveItem(tenantId, configType);
   if (existing) {
@@ -189,6 +213,7 @@ async function handlePost(event) {
     ConditionExpression: 'attribute_not_exists(PK)' // safety — prevent overwrite
   }));
 
+  await writeAudit(T, event, tenantId, configType, 0, version, now);
   console.info(`CONFIG_CREATED configType=${configType} version=${version}`);
   return respond(201, { configType, version });
 }
@@ -213,8 +238,13 @@ async function handlePut(event) {
     return respond(400, { error: 'configType and data are required' });
   }
 
+  if (await invalidSetting(tenantId, configType, data)) return respond(400, { error: 'Bad request', code: 'INVALID_SETTING' });
+
   // Get current active version N — if none exists, bootstrap v1 (upsert semantics)
   const activeItem = await getActiveItem(tenantId, configType);
+  if (body.expected_version !== undefined && body.expected_version !== (activeItem ? activeItem.version : 0)) {
+    return respond(409, { error: 'Conflict', code: 'STALE_VERSION' });
+  }
   if (!activeItem) {
     const now = new Date().toISOString();
     await client.send(new PutItemCommand({
@@ -233,6 +263,7 @@ async function handlePut(event) {
       }),
       ConditionExpression: 'attribute_not_exists(PK)',
     }));
+    await writeAudit(T, event, tenantId, configType, 0, 1, now);
     console.info(`CONFIG_CREATED_VIA_PUT configType=${configType} version=1`);
     return respond(200, { configType, version: 1, data, updatedAt: now });
   }
@@ -268,13 +299,13 @@ async function handlePut(event) {
       PK: `TENANT#${tenantId}`,
       SK: `CONFIG#${configType}#v${oldVersion}`
     }),
-    UpdateExpression: 'SET isActive = :false, expiresAt = :ttl REMOVE GSI1PK, GSI1SK',
+    UpdateExpression: 'SET isActive = :false REMOVE GSI1PK, GSI1SK',
     ExpressionAttributeValues: marshall({
-      ':false': false,
-      ':ttl': nowEpochS + TTL_365_DAYS_S
+      ':false': false
     })
   }));
 
+  await writeAudit(T, event, tenantId, configType, oldVersion, newVersion, now);
   console.info(`CONFIG_VERSION_PUBLISHED configType=${configType} oldVersion=${oldVersion} newVersion=${newVersion}`);
   return respond(200, { configType, version: newVersion, previousVersion: oldVersion });
 }

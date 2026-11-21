@@ -156,21 +156,22 @@ test('POST: creates v1, returns 201 with version=1', async () => {
   mockSend.mockResolvedValueOnce({ Items: [] });
   // PutItem → success
   mockSend.mockResolvedValueOnce({});
+  mockSend.mockResolvedValueOnce({}); // audit row
 
   const event = adminEvent('POST', {
-    body: JSON.stringify({ configType: 'SCORING_WEIGHTS', data: { technical: 30 } })
+    body: JSON.stringify({ configType: 'WORKFLOW_TEMPLATES', data: { technical: 30 } })
   });
   const res = await handler(event);
 
   expect(res.statusCode).toBe(201);
   const body = JSON.parse(res.body);
   expect(body.version).toBe(1);
-  expect(mockSend).toHaveBeenCalledTimes(2);
+  expect(mockSend).toHaveBeenCalledTimes(3); // Query + PutItem + audit row
 });
 
 test('POST: 403 when non-admin', async () => {
   const event = nonAdminEvent('POST', {
-    body: JSON.stringify({ configType: 'SCORING_WEIGHTS', data: {} })
+    body: JSON.stringify({ configType: 'WORKFLOW_TEMPLATES', data: {} })
   });
   const res = await handler(event);
 
@@ -191,7 +192,7 @@ test('POST: 409 when active version already exists', async () => {
   mockSend.mockResolvedValueOnce({ Items: [activeItem] });
 
   const event = adminEvent('POST', {
-    body: JSON.stringify({ configType: 'SCORING_WEIGHTS', data: { technical: 30 } })
+    body: JSON.stringify({ configType: 'WORKFLOW_TEMPLATES', data: { technical: 30 } })
   });
   const res = await handler(event);
 
@@ -209,9 +210,11 @@ test('PUT: writes N+1 via PutItem AND deactivates N via UpdateItem', async () =>
   mockSend.mockResolvedValueOnce({});
   // UpdateItem old version
   mockSend.mockResolvedValueOnce({});
+  // audit row
+  mockSend.mockResolvedValueOnce({});
 
   const event = adminEvent('PUT', {
-    body: JSON.stringify({ configType: 'SCORING_WEIGHTS', data: { technical: 40 } })
+    body: JSON.stringify({ configType: 'WORKFLOW_TEMPLATES', data: { technical: 40 } })
   });
   const res = await handler(event);
 
@@ -219,12 +222,12 @@ test('PUT: writes N+1 via PutItem AND deactivates N via UpdateItem', async () =>
   const body = JSON.parse(res.body);
   expect(body.version).toBe(3);
   expect(body.previousVersion).toBe(2);
-  expect(mockSend).toHaveBeenCalledTimes(3); // Query + PutItem + UpdateItem
+  expect(mockSend).toHaveBeenCalledTimes(4); // Query + PutItem + UpdateItem + audit row
 });
 
 test('PUT: 403 when non-admin', async () => {
   const event = nonAdminEvent('PUT', {
-    body: JSON.stringify({ configType: 'SCORING_WEIGHTS', data: {} })
+    body: JSON.stringify({ configType: 'WORKFLOW_TEMPLATES', data: {} })
   });
   const res = await handler(event);
 
@@ -235,49 +238,46 @@ test('PUT: 403 when non-admin', async () => {
 test('PUT: creates v1 when no active version exists (upsert)', async () => {
   mockSend
     .mockResolvedValueOnce({ Items: [] }) // getActiveItem Query
-    .mockResolvedValueOnce({});           // PutItem v1
+    .mockResolvedValueOnce({})            // PutItem v1
+    .mockResolvedValueOnce({});           // audit row
 
   const event = adminEvent('PUT', {
-    body: JSON.stringify({ configType: 'SCORING_WEIGHTS', data: { technical: 40 } })
+    body: JSON.stringify({ configType: 'WORKFLOW_TEMPLATES', data: { technical: 40 } })
   });
   const res = await handler(event);
 
   expect(res.statusCode).toBe(200);
-  expect(JSON.parse(res.body)).toMatchObject({ configType: 'SCORING_WEIGHTS', version: 1, data: { technical: 40 } });
-  expect(mockSend).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(res.body)).toMatchObject({ configType: 'WORKFLOW_TEMPLATES', version: 1, data: { technical: 40 } });
+  expect(mockSend).toHaveBeenCalledTimes(3);
   const put = mockSend.mock.calls[1][0];
   expect(put.ConditionExpression).toBe('attribute_not_exists(PK)');
 });
 
 test('PUT: 400 when data missing', async () => {
-  const event = adminEvent('PUT', { body: JSON.stringify({ configType: 'SCORING_WEIGHTS' }) });
+  const event = adminEvent('PUT', { body: JSON.stringify({ configType: 'WORKFLOW_TEMPLATES' }) });
   const res = await handler(event);
 
   expect(res.statusCode).toBe(400);
   expect(mockSend).not.toHaveBeenCalled();
 });
 
-test('PUT: old version UpdateItem sets expiresAt TTL and isActive=false — never deletes', async () => {
+test('PUT: old version UpdateItem sets isActive=false, keeps the version for good (no expiry) and never deletes', async () => {
   mockSend.mockResolvedValueOnce({ Items: [activeItem] });
   mockSend.mockResolvedValueOnce({});
   mockSend.mockResolvedValueOnce({});
+  mockSend.mockResolvedValueOnce({}); // audit row
 
   const event = adminEvent('PUT', {
-    body: JSON.stringify({ configType: 'SCORING_WEIGHTS', data: { technical: 40 } })
+    body: JSON.stringify({ configType: 'WORKFLOW_TEMPLATES', data: { technical: 40 } })
   });
   await handler(event);
 
   // Third call (index 2) is the UpdateItem for the old version
   const updateCall = mockSend.mock.calls[2][0];
   expect(updateCall._cmd).toBe('UpdateItem');
-  expect(updateCall.UpdateExpression).toContain('expiresAt');
+  expect(updateCall.UpdateExpression).not.toContain('expiresAt'); // REC-12 D-T-10: a candidate may be locked to this version
   expect(updateCall.UpdateExpression).toContain('isActive');
   expect(updateCall.UpdateExpression).toContain('REMOVE GSI1PK');
-  // Verify expiresAt is a future epoch (roughly 365 days from now)
-  const ttl = updateCall.ExpressionAttributeValues[':ttl'];
-  const nowS = Math.floor(Date.now() / 1000);
-  expect(ttl).toBeGreaterThan(nowS + 364 * 24 * 3600);
-  expect(ttl).toBeLessThan(nowS + 366 * 24 * 3600);
 });
 
 // ── Method routing ────────────────────────────────────────────────────────────

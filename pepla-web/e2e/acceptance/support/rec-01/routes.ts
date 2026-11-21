@@ -49,8 +49,8 @@ export const ROUTES: Route[] = [
   { name: 'GET /v1/candidates/{id}/interviews', handler: 'scheduleInterview', kind: 'relation', panel: true, ok: [200], own: { path: { id: ID.c1 } } },
   { name: 'GET /v1/candidates/{id}/offer', handler: 'getOffer', kind: 'relation', ok: [200], own: { path: { id: ID.c1 } } },
   { name: 'GET /v1/config', handler: 'manageTalentFlowConfig', kind: 'settings', ok: [200], own: { query: { configType: 'SCORING_WEIGHTS', active: 'true' } } },
-  { name: 'POST /v1/config', handler: 'manageTalentFlowConfig', kind: 'settings', write: true, ok: [200, 201], own: { method: 'POST', body: { configType: 'SLA_THRESHOLDS', data: { x: 1 } } } },
-  { name: 'PUT /v1/config', handler: 'manageTalentFlowConfig', kind: 'settings', write: true, ok: [200], own: { method: 'PUT', body: { configType: 'SCORING_WEIGHTS', data: { technical: 40, communication: 20, culturalFit: 20, problemSolving: 20 } } } },
+  { name: 'POST /v1/config', handler: 'manageTalentFlowConfig', kind: 'settings', write: true, ok: [200, 201], own: { method: 'POST', body: { configType: 'RETENTION', data: { notHiredMonths: 6 } } } },
+  { name: 'PUT /v1/config', handler: 'manageTalentFlowConfig', kind: 'settings', write: true, ok: [200], own: { method: 'PUT', body: { configType: 'SCORING_WEIGHTS', data: { scale: { min: 1, max: 5 }, defaultCriteria: [{ key: 'technical', label: 'Technical' }], weights: null } } } },
   { name: 'POST /v1/candidates/{id}/votes', handler: 'submitVote', kind: 'vote', ok: [200], own: { method: 'POST', path: { id: ID.c2 }, body: { candidateId: ID.c2, interviewId: ID.i2, voterId: SUB.panel2A, rating: 'YES', scores: { technical: 4, communication: 4, culturalFit: 4, problemSolving: 4 } } } },
 ];
 

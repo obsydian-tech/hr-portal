@@ -111,16 +111,10 @@ function getDefaults(configType) {
       OFFER_DELIVERY: 24
     },
     APPROVAL_RULES: {
-      minimumPassScore: 6.0,
       requireFinanceApprovalAbove: 600000,
       escalationThresholdDays: 3
     },
-    PANEL_CONFIG: {
-      rules: {
-        strongNoVeto: true,
-        votesRequired: { JUNIOR: 2, MID: 3, SENIOR: 4, DIRECTOR: 5 }
-      }
-    },
+    PANEL_CONFIG: {},
     EMAIL_TEMPLATES: {},
     STAGE_CONFIG: {
       enabled: [

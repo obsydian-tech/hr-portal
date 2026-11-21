@@ -746,6 +746,7 @@ resource "aws_lambda_function" "capture_sentiment" {
     variables = {
       TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
+      CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
       ENVIRONMENT          = var.environment
     }
