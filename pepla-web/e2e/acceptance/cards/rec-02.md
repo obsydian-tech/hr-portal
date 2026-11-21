@@ -59,3 +59,17 @@ role gained a write. AC-12 runs on pepla-dev only (`@pepla-dev`). Nothing calls 
 - Red card: an extra Opus security review before merge, then `red-approved`.
 - A throwaway build that passes every no-backend test is at `/mnt/project-files/onboarding-cards/rec-02/REC-02-throwaway-build.patch`.
   It is not for merge.
+
+## Child lock rec-02.1 (the moved assertions, found by running the older locked tests on the build)
+
+Locks: rec-02.1 (this section and the test files below)
+
+- `support/ten-04.2/grants.ts` (read by ten-03 AC-10, mod-01 AC-8, rec-01 AC-8, ten-02 AC-13): three more grants. submitVote, submitVoteByToken
+  and completeEvaluation Query the config table's active-configs index (they now read REJECTION_RULES).
+- `mod-01.spec.ts` AC-8 and `ten-03.spec.ts` AC-10: the new `record_not_hired` role is left out, as each earlier card's own role is; rec-02
+  AC-11 judges it.
+- `chat-02.spec.ts` AC-31: the TalentFlow API may add exactly one allowed header, `idempotency-key` (Not hired replays by key); every other
+  API's list must still be as on develop.
+- `chat-15.spec.ts` AC-12: Terraform addresses named `record_not_hired*` are left out of the "only the job's function is added" count.
+- Not moved, and not REC-02's: on this machine ten-02 AC-12 fails because `lambda/shared` has no Jest installed, and the screen tests
+  (onb-05, onb-06, onb-11 AC-8, onb-14 pages, onb-19) need the app running (they stop at "unsafe port" before any check). Neither reaches anything REC-02 changes.

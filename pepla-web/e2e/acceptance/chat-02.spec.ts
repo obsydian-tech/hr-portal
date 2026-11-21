@@ -750,7 +750,13 @@ test.describe('CHAT-02 · Ask Batsi stored chats and the company switch', () => 
       expect.soft(apiOfRoute(adm[0]!.stack, adm[0]!.block)?.cors, 'content-type').toMatch(/allow_headers=\[[^\]]*"content-type"/);
     }
     // No request header is added to any API (LESSONS NH-187): the lists are the ones on develop.
-    expect(allowHeaders(), 'every API\'s allow_headers is as it was on develop (c859f0f)').toEqual(JSON.parse(readFileSync(join(__dirname, 'support', 'chat-02', 'baseline', 'allow_headers.c859f0f.json'), 'utf8')));
+    // REC-02 (re-lock rec-02.1): the TalentFlow API also allows the idempotency-key header (Not hired replays by key, rec-02.spec.ts AC-11);
+    // that one addition only, and every other list stays as on develop.
+    const headersNow = allowHeaders();
+    const headersWas = JSON.parse(readFileSync(join(__dirname, 'support', 'chat-02', 'baseline', 'allow_headers.c859f0f.json'), 'utf8')) as Record<string, string>;
+    const TF_API = 'talent-flow-infra/talent_flow_api';
+    expect(headersNow[TF_API], 'the TalentFlow API allows exactly its develop headers plus idempotency-key').toBe(JSON.stringify([...JSON.parse(headersWas[TF_API]!), 'idempotency-key']));
+    expect({ ...headersNow, [TF_API]: headersWas[TF_API] }, 'every other API\'s allow_headers is as it was on develop (c859f0f)').toEqual(headersWas);
 
     // The roles: logs, X-Ray and this table (askBatsiChats); logs, X-Ray and the company list (adminSetAskBatsi). No AI, no secrets, no wildcard.
     const CHAT_ACTIONS = /^dynamodb:(GetItem|PutItem|Query|DeleteItem|BatchWriteItem|UpdateItem)$/;
