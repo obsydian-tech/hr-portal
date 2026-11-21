@@ -95,6 +95,7 @@ async function getAllVersions(tenantId, configType) {
 // REC-12: shape check (lambda/shared/recruitment-settings.mjs) and the audit row of every save.
 async function invalidSetting(tenantId, configType, data) {
   const S = await import('../shared/recruitment-settings.mjs');
+  if (typeof configType !== 'string' || !/^[A-Za-z0-9_]{1,64}$/.test(configType)) return true;
   if (!S.isCovered(configType)) return false;
   const ctx = {};
   if (configType !== 'SENIORITY_PROFILES') {

@@ -186,10 +186,10 @@ export async function getRecruitmentSettings(tenantId, candidate) {
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-const fill = (text, values, escape) => String(text ?? '').replace(/\{([a-z_]+)\}/g, (_m, k) => { const v = values?.[k]; return v === undefined || v === null ? '' : escape ? esc(v) : String(v); });
+const fill = (text, values, escape) => String(text ?? '').replace(/\{([a-z_]+)\}/g, (_m, k) => { const v = values && Object.prototype.hasOwnProperty.call(values, k) ? values[k] : undefined; return v === undefined || v === null ? '' : escape ? esc(v) : String(v); });
 export function renderTemplate(template, values = {}) {
   const out = { body: fill(template.body, values, true) };
-  if (template.subject !== undefined) out.subject = fill(template.subject, values, false);
+  if (template.subject !== undefined) out.subject = fill(template.subject, values, false).replace(/[\r\n]+/g, ' ');
   return out;
 }
 export { STAGE_CODES };
