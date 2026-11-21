@@ -295,6 +295,13 @@ resource "aws_iam_role_policy" "submit_vote" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
+        # REC-02: the handler reads REJECTION_RULES (shared/recruitment-settings.mjs) through the active-configs index.
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
         Sid      = "EventBridgePublish"
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
@@ -353,6 +360,13 @@ resource "aws_iam_role_policy" "complete_evaluation" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
+      },
+      {
+        # REC-02: the handler reads REJECTION_RULES (shared/recruitment-settings.mjs) through the active-configs index.
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
       },
       {
         Sid      = "EventBridgePublish"
@@ -1521,6 +1535,13 @@ resource "aws_iam_role_policy" "submit_vote_by_token" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
+      },
+      {
+        # REC-02: the handler reads REJECTION_RULES (shared/recruitment-settings.mjs) through the active-configs index.
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
       },
       {
         Sid      = "EventBridgePutEvents"

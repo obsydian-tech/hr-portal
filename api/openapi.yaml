@@ -3823,6 +3823,314 @@ paths:
       - admin
       - manager
       - perm-recruitment
+  /v1/candidates/{id}/not-hired:
+    post:
+      summary: "POST /v1/candidates/{id}/not-hired: a person records Not hired with a reason (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_candidates_id_not_hired
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/not-hired/confirm:
+    post:
+      summary: "POST /v1/candidates/{id}/not-hired/confirm: a different person confirms (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_candidates_id_not_hired_confirm
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/not-hired/cancel:
+    post:
+      summary: "POST /v1/candidates/{id}/not-hired/cancel: let a pending decision go (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_candidates_id_not_hired_cancel
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/reopen:
+    post:
+      summary: "POST /v1/candidates/{id}/reopen: move a Not hired candidate back (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_candidates_id_reopen
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/old-system:
+    get:
+      summary: "GET /v1/candidates/old-system: what the old system rejected, for HR (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_candidates_old_system
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
   /agent/v1/talentflow/chat:
     post:
       summary: POST /agent/v1/talentflow/chat

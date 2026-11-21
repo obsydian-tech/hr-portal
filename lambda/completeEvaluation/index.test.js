@@ -1,8 +1,13 @@
 'use strict';
 
+// REC-02: a score decides nothing. completeEvaluation records the final score as data and raises score_under_review_level when
+// the company's REJECTION_RULES set reviewBelowScore and the score is under it. It writes no status and no outcome.
+
 // ── Mock declarations (must be at top — no out-of-scope refs in factory) ──────
 const mockDynamoSend = jest.fn();
 const mockEbSend     = jest.fn();
+let mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null };
+let mockSettingsError = null;
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient:    jest.fn(() => ({ send: mockDynamoSend })),
@@ -20,13 +25,17 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand:  jest.fn((p) => ({ _cmd: 'PutEvents', ...p })),
 }));
 
-jest.mock('../shared/config-reader', () => ({
-  getConfig: jest.fn(),
+// The shared settings reader is tested in the acceptance suite; here the company's rules are set per test.
+jest.unstable_mockModule('../shared/recruitment-settings.mjs', () => ({
+  DEFAULTS: { REJECTION_RULES: { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null } },
+  getRecruitmentSettings: async () => {
+    if (mockSettingsError) throw mockSettingsError;
+    return { REJECTION_RULES: mockRejectionRules };
+  },
 }));
 
 // ── Module under test ─────────────────────────────────────────────────────────
 const { handler } = require('./index');
-const { getConfig } = require('../shared/config-reader');
 
 // ── Environment ───────────────────────────────────────────────────────────────
 process.env.STATE_TABLE_NAME     = 'talent-flow-state';
@@ -35,321 +44,177 @@ process.env.ENVIRONMENT          = 'test';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 const TEN = 'ten_0123456789abcdefghijklmnop';
-const SAGA = {
-  PK: 'CANDIDATE#cand1', SK: 'SAGA', tenant_id: TEN,
-  configVersion: 'v1', status: 'TECHNICAL_INTERVIEW',
-};
+const SAGA = { PK: 'CANDIDATE#cand1', SK: 'SAGA', tenant_id: TEN, configVersion: 'v1', status: 'ACTIVE' };
 
-const APPROVAL_RULES_V1 = { minimumPassScore: 6.0 };
-const APPROVAL_RULES_V2 = { minimumPassScore: 8.0 };
+const eventWith = (averageScore) => ({
+  detail: { candidateId: 'cand1', tenant_id: TEN, ...(averageScore === undefined ? {} : { averageScore }), result: 'COMPLETED' },
+});
+const sagaUpdate = () => mockDynamoSend.mock.calls.map((c) => c[0]).find((c) => c._cmd === 'UpdateItem' && c.Key.SK === 'SAGA');
 
-const passingEvent = {
-  detail: { candidateId: 'cand1', tenant_id: TEN, averageScore: 7.5, result: 'COMPLETED' },
-};
-const failingEvent = {
-  detail: { candidateId: 'cand1', tenant_id: TEN, averageScore: 4.0, result: 'COMPLETED' },
-};
-const vetoEvent = {
-  detail: { candidateId: 'cand1', tenant_id: TEN, result: 'STRONG_NO_VETO' },
-};
-
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockDynamoSend.mockReset();
+  mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null };
+  mockSettingsError = null;
+});
 
 // =============================================================================
-// 1.  averageScore >= minimumPassScore → outcome = PASSED
+// 1.  The score is stored as data and nothing else moves
 // =============================================================================
-describe('handler – PASSED outcome', () => {
-  // Option B: PASSED records the result only. The stage stays at EVALUATION and
-  // EvaluationCompleted is published later by advanceCandidateStage.
-  it('records PASSED on the SAGA without changing stage or publishing', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })   // GetItem
-      .mockResolvedValueOnce({});              // UpdateItem
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
+describe('handler – the score is data', () => {
+  it('stores the final score and writes no status, stage or result, whatever the score', async () => {
+    for (const score of [9.5, 4.0, 1.0]) {
+      mockDynamoSend.mockReset();
+      mockDynamoSend.mockResolvedValueOnce({ Item: SAGA }).mockResolvedValueOnce({});
+      const res = await handler(eventWith(score));
 
-    const res = await handler(passingEvent);
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body).toMatchObject({ candidateId: 'cand1', finalScore: score, configVersion: 'v1', flagged: false });
+      const update = sagaUpdate();
+      expect(update.UpdateExpression).toBe('SET finalScore = :fs, evaluationCompletedAt = :at, configVersionUsedForEval = :cv');
+      expect(update.ExpressionAttributeValues).toMatchObject({ ':fs': score, ':cv': 'v1' });
+      expect(JSON.stringify(update)).not.toMatch(/status|#st|currentStage|evaluationResult/);
+      expect(mockEbSend).not.toHaveBeenCalled();
+    }
+  });
+
+  it('records an event with no score (nobody scored) as an empty final score', async () => {
+    mockDynamoSend.mockResolvedValueOnce({ Item: SAGA }).mockResolvedValueOnce({});
+    const res = await handler(eventWith(undefined));
 
     expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body);
-    expect(body.outcome).toBe('PASSED');
-    expect(body.finalScore).toBe(7.5);
-    expect(body.configVersion).toBe('v1');
+    expect(JSON.parse(res.body)).toMatchObject({ finalScore: null, flagged: false });
+    expect(sagaUpdate().ExpressionAttributeValues[':fs']).toBeNull();
+  });
 
-    const updateCall = mockDynamoSend.mock.calls[1][0];
-    expect(updateCall.UpdateExpression).not.toMatch(/currentStage|#st/);
-    expect(updateCall.ExpressionAttributeValues).toEqual({
-      ':res': 'PASSED', ':fs': 7.5, ':at': expect.any(String), ':cv': 'v1', ':tf_tenant': { S: TEN },
-    });
+  it('treats an old veto event like any other: no outcome, no score, nothing moves', async () => {
+    mockDynamoSend.mockResolvedValueOnce({ Item: SAGA }).mockResolvedValueOnce({});
+    const res = await handler({ detail: { candidateId: 'cand1', tenant_id: TEN, result: 'STRONG_NO_VETO' } });
 
+    expect(res.statusCode).toBe(200);
+    expect(sagaUpdate().UpdateExpression).not.toMatch(/status|#st/);
     expect(mockEbSend).not.toHaveBeenCalled();
   });
 });
 
 // =============================================================================
-// 2.  averageScore < minimumPassScore → outcome = FAILED + status = REJECTED
+// 2.  The review flag: reviewBelowScore from the company's own setting
 // =============================================================================
-describe('handler – FAILED outcome', () => {
-  it('sets status=REJECTED on the SAGA without changing stage', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({});
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
+describe('handler – score_under_review_level', () => {
+  it('is set when the final score is under reviewBelowScore', async () => {
+    mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: 3 };
+    mockDynamoSend.mockResolvedValueOnce({ Item: SAGA }).mockResolvedValueOnce({});
+    const res = await handler(eventWith(2.5));
 
-    const res = await handler(failingEvent);
+    expect(JSON.parse(res.body).flagged).toBe(true);
+    const update = sagaUpdate();
+    expect(update.UpdateExpression).toMatch(/score_under_review_level = :flag/);
+    expect(update.ExpressionAttributeValues[':flag']).toBe(true);
+    expect(JSON.stringify(update)).not.toMatch(/status|currentStage/);
+  });
 
-    expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body);
-    expect(body.outcome).toBe('FAILED');
+  it('is not set when the score equals reviewBelowScore or is above it', async () => {
+    mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: 3 };
+    for (const score of [3, 3.1]) {
+      mockDynamoSend.mockReset();
+      mockDynamoSend.mockResolvedValueOnce({ Item: SAGA }).mockResolvedValueOnce({});
+      await handler(eventWith(score));
+      expect(sagaUpdate().UpdateExpression).not.toMatch(/score_under_review_level/);
+    }
+  });
 
-    const updateCall = mockDynamoSend.mock.calls[1][0];
-    expect(updateCall.ExpressionAttributeValues[':rejected']).toBe('REJECTED');
-    expect(updateCall.ExpressionAttributeNames).toEqual({ '#st': 'status', '#tf_tenant': 'tenant_id' });
-    expect(updateCall.UpdateExpression).not.toMatch(/currentStage/);
-    expect(mockEbSend).not.toHaveBeenCalled();
+  it('is never set when the company leaves reviewBelowScore empty (no built-in default)', async () => {
+    mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null };
+    mockDynamoSend.mockResolvedValueOnce({ Item: SAGA }).mockResolvedValueOnce({});
+    await handler(eventWith(1.0));
+    expect(sagaUpdate().UpdateExpression).not.toMatch(/score_under_review_level/);
+  });
+
+  it('is not set when there is no score', async () => {
+    mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: 3 };
+    mockDynamoSend.mockResolvedValueOnce({ Item: SAGA }).mockResolvedValueOnce({});
+    await handler(eventWith(undefined));
+    expect(sagaUpdate().UpdateExpression).not.toMatch(/score_under_review_level/);
   });
 });
 
 // =============================================================================
-// 3.  STRONG_NO_VETO → outcome = FAILED without score comparison
+// 3.  Input and company checks
 // =============================================================================
-describe('handler – STRONG_NO_VETO', () => {
-  it('skips getConfig and sets outcome=FAILED', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({});
-
-    const res = await handler(vetoEvent);
-
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body).outcome).toBe('FAILED');
-
-    // getConfig must NOT be called on veto path
-    expect(getConfig).not.toHaveBeenCalled();
-
-    // SAGA still updated
-    expect(mockDynamoSend).toHaveBeenCalledTimes(2);
-  });
-});
-
-// =============================================================================
-// 4.  Config version isolation — v2 threshold used only for v2 candidates
-// =============================================================================
-describe('handler – config version isolation', () => {
-  it('uses v2 minimumPassScore=8.0 for a candidate on v2', async () => {
-    const sagaV2 = { ...SAGA, configVersion: 'v2' };
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: sagaV2 })
-      .mockResolvedValueOnce({});
-    // averageScore=7.5 passes v1 (≥6.0) but FAILS v2 (≥8.0)
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V2);
-
-    const res = await handler(passingEvent); // averageScore=7.5
-
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body).outcome).toBe('FAILED');
-    expect(getConfig).toHaveBeenCalledWith(TEN, 'APPROVAL_RULES', 'v2');
-  });
-
-  it('uses v1 minimumPassScore=6.0 for a candidate on v1 even if v2 is active', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })  // SAGA has configVersion = 'v1'
-      .mockResolvedValueOnce({});
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
-
-    const res = await handler(passingEvent); // averageScore=7.5
-
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body).outcome).toBe('PASSED');
-    expect(getConfig).toHaveBeenCalledWith(TEN, 'APPROVAL_RULES', 'v1');
-  });
-});
-
-// =============================================================================
-// 5.  configVersionUsedForEval stored on SAGA for audit trail
-// =============================================================================
-describe('handler – POPIA audit', () => {
-  it('stores configVersionUsedForEval on the SAGA update', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({});
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
-
-    await handler(passingEvent);
-
-    const updateCall = mockDynamoSend.mock.calls[1][0];
-    expect(updateCall.ExpressionAttributeValues[':cv']).toBe('v1');
-  });
-});
-
-// =============================================================================
-// 6.  Response body carries the configVersion used
-// =============================================================================
-describe('handler – response body', () => {
-  it('returns candidateId and the configVersion used', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({});
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
-
-    const res = await handler(passingEvent);
-
-    expect(JSON.parse(res.body)).toEqual({
-      candidateId: 'cand1', outcome: 'PASSED', finalScore: 7.5, configVersion: 'v1',
-    });
-  });
-});
-
-// =============================================================================
-// 7.  Default minimumPassScore = 6.0 when config field is absent
-// =============================================================================
-describe('handler – default pass score', () => {
-  it('applies default 6.0 threshold when minimumPassScore missing from config', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({});
-    // Config without minimumPassScore
-    getConfig.mockResolvedValueOnce({});
-
-    // 7.5 >= 6.0 default → PASSED
-    const res = await handler(passingEvent);
-    expect(JSON.parse(res.body).outcome).toBe('PASSED');
-  });
-
-  it('FAILS when score=4.0 below default 6.0', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({});
-    getConfig.mockResolvedValueOnce({});
-
-    const res = await handler(failingEvent);
-    expect(JSON.parse(res.body).outcome).toBe('FAILED');
-  });
-});
-
-// =============================================================================
-// 8.  Validation — missing fields
-// =============================================================================
-describe('handler – validation', () => {
-  it('returns 400 when candidateId missing', async () => {
-    const res = await handler({ detail: { tenant_id: TEN, result: 'COMPLETED', averageScore: 7 } });
+describe('handler – input and company', () => {
+  it('returns 400 when candidateId is missing', async () => {
+    const res = await handler({ detail: { tenant_id: TEN, result: 'COMPLETED' } });
     expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toMatch(/candidateId/);
+    expect(mockDynamoSend).not.toHaveBeenCalled();
   });
 
-  it('skips an event without a company: nothing read, written or sent', async () => {
-    const res = await handler({ detail: { candidateId: 'c1', result: 'COMPLETED', averageScore: 7 } });
-    expect(res.statusCode).toBe(200);
+  it('skips an event that names no company, reading and writing nothing', async () => {
+    const res = await handler({ detail: { candidateId: 'cand1', averageScore: 7, result: 'COMPLETED' } });
     expect(JSON.parse(res.body)).toEqual({ skipped: true });
     expect(mockDynamoSend).not.toHaveBeenCalled();
-    expect(mockEbSend).not.toHaveBeenCalled();
   });
 
-  it('returns 400 when result missing', async () => {
-    const res = await handler({ detail: { candidateId: 'c1', tenant_id: TEN, averageScore: 7 } });
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toMatch(/result/);
-  });
-
-  it('returns 400 when averageScore missing on non-veto result', async () => {
-    mockDynamoSend.mockResolvedValueOnce({ Item: SAGA });
-    // getConfig is NOT called — handler returns 400 before reaching it
-
-    const res = await handler({ detail: { candidateId: 'cand1', tenant_id: TEN, result: 'COMPLETED' } });
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).error).toMatch(/averageScore/);
-  });
-});
-
-// =============================================================================
-// 9.  SAGA not found (or another company's) → 404
-// =============================================================================
-describe('handler – SAGA not found', () => {
-  it('returns 404 when SAGA Item is missing', async () => {
+  it('returns 404 when the candidate is missing', async () => {
     mockDynamoSend.mockResolvedValueOnce({ Item: undefined });
-
-    const res = await handler(passingEvent);
+    const res = await handler(eventWith(7));
     expect(res.statusCode).toBe(404);
     expect(JSON.parse(res.body)).toEqual({ error: 'Not found' });
   });
 
-  it('returns the same 404 for another company\'s candidate', async () => {
+  it('returns the same 404 for another company\'s candidate and writes nothing', async () => {
     mockDynamoSend.mockResolvedValueOnce({ Item: { ...SAGA, tenant_id: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' } });
-
-    const res = await handler(passingEvent);
+    const res = await handler(eventWith(7));
     expect(res.statusCode).toBe(404);
-    expect(JSON.parse(res.body)).toEqual({ error: 'Not found' });
     expect(mockDynamoSend).toHaveBeenCalledTimes(1);
   });
-});
 
-// =============================================================================
-// 10.  SAGA missing configVersion → 400
-// =============================================================================
-describe('handler – SAGA missing configVersion', () => {
-  it('returns 400 when configVersion absent', async () => {
+  it('returns 400 when the candidate has no configVersion', async () => {
     mockDynamoSend.mockResolvedValueOnce({ Item: { ...SAGA, configVersion: undefined } });
-
-    const res = await handler(passingEvent);
+    const res = await handler(eventWith(7));
     expect(res.statusCode).toBe(400);
     expect(JSON.parse(res.body).error).toMatch(/configVersion/);
   });
 });
 
 // =============================================================================
-// 11.  GetItem DynamoDB failure → 500
+// 4.  Failures
 // =============================================================================
-describe('handler – DynamoDB GetItem failure', () => {
-  it('returns 500 when GetItem throws', async () => {
+describe('handler – failures', () => {
+  it('returns 500 when the candidate cannot be read', async () => {
     mockDynamoSend.mockRejectedValueOnce(new Error('DynamoDB unavailable'));
-
-    const res = await handler(passingEvent);
+    const res = await handler(eventWith(7));
     expect(res.statusCode).toBe(500);
     expect(JSON.parse(res.body).error).toMatch(/read candidate/);
   });
-});
 
-// =============================================================================
-// 12.  getConfig throws → 500
-// =============================================================================
-describe('handler – getConfig failure', () => {
-  it('returns 500 when APPROVAL_RULES getConfig throws', async () => {
+  it('returns 500 when the settings cannot be read, and writes nothing', async () => {
     mockDynamoSend.mockResolvedValueOnce({ Item: SAGA });
-    getConfig.mockRejectedValueOnce(new Error('Config table timeout'));
-
-    const res = await handler(passingEvent);
+    mockSettingsError = Object.assign(new Error('Config table timeout'), { name: 'TimeoutError' });
+    const res = await handler(eventWith(7));
     expect(res.statusCode).toBe(500);
-    expect(JSON.parse(res.body).error).toMatch(/approval configuration/);
+    expect(JSON.parse(res.body).error).toMatch(/rejection settings/);
+    expect(mockDynamoSend).toHaveBeenCalledTimes(1);
   });
-});
 
-// =============================================================================
-// 13.  UpdateItem failure → 500
-// =============================================================================
-describe('handler – UpdateItem failure', () => {
-  it('returns 500 when SAGA UpdateItem throws', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockRejectedValueOnce(new Error('UpdateItem failed'));
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
-
-    const res = await handler(passingEvent);
+  it('returns 500 when the candidate update fails', async () => {
+    mockDynamoSend.mockResolvedValueOnce({ Item: SAGA }).mockRejectedValueOnce(new Error('UpdateItem failed'));
+    const res = await handler(eventWith(7));
     expect(res.statusCode).toBe(500);
     expect(JSON.parse(res.body).error).toMatch(/evaluation record/);
   });
 });
 
 // =============================================================================
-// 14.  Current INTERVIEW record is marked COMPLETED
+// 5.  The current interview is marked COMPLETED
 // =============================================================================
 describe('handler – current interview', () => {
   it('marks the current INTERVIEW record COMPLETED', async () => {
     mockDynamoSend
       .mockResolvedValueOnce({ Item: { ...SAGA, currentInterviewId: 'iv-1' } })
-      .mockResolvedValueOnce({})   // SAGA UpdateItem
+      .mockResolvedValueOnce({})   // candidate UpdateItem
       .mockResolvedValueOnce({});  // INTERVIEW UpdateItem
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
-
-    const res = await handler(passingEvent);
+    const res = await handler(eventWith(7));
 
     expect(res.statusCode).toBe(200);
     const interviewUpdate = mockDynamoSend.mock.calls[2][0];
@@ -362,46 +227,7 @@ describe('handler – current interview', () => {
       .mockResolvedValueOnce({ Item: { ...SAGA, currentInterviewId: 'iv-1' } })
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error('throttled'));
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1);
-
-    const res = await handler(passingEvent);
+    const res = await handler(eventWith(7));
     expect(res.statusCode).toBe(200);
-  });
-});
-
-// =============================================================================
-// 15.  Boundary — score exactly equal to minimumPassScore → PASSED
-// =============================================================================
-describe('handler – boundary score', () => {
-  it('treats score exactly equal to minimumPassScore as PASSED', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({});
-    getConfig.mockResolvedValueOnce(APPROVAL_RULES_V1); // minimumPassScore=6.0
-
-    const boundaryEvent = {
-      detail: { candidateId: 'cand1', tenant_id: TEN, averageScore: 6.0, result: 'COMPLETED' },
-    };
-    const res = await handler(boundaryEvent);
-    expect(JSON.parse(res.body).outcome).toBe('PASSED');
-  });
-});
-
-// =============================================================================
-// 16.  STRONG_NO_VETO — rejection recorded, nothing published
-// =============================================================================
-describe('handler – STRONG_NO_VETO records rejection', () => {
-  it('sets REJECTED with a null finalScore and publishes nothing', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({});
-
-    const res = await handler(vetoEvent);
-
-    expect(JSON.parse(res.body)).toMatchObject({ outcome: 'FAILED', finalScore: null });
-    const updateCall = mockDynamoSend.mock.calls[1][0];
-    expect(updateCall.ExpressionAttributeValues[':rejected']).toBe('REJECTED');
-    expect(updateCall.ExpressionAttributeValues[':fs']).toBeNull();
-    expect(mockEbSend).not.toHaveBeenCalled();
   });
 });

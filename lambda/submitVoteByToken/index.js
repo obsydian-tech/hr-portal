@@ -164,44 +164,26 @@ exports.handler = async (event) => {
   }
 
   // ── Steps 3 & 4: Versioned config reads (POPIA invariant — same as submitVote) ─
-  let scoringWeights, panelConfig;
+  let scoringWeights;
   try {
     scoringWeights = await getConfig(tenantId, 'SCORING_WEIGHTS', configVersion);
   } catch (err) {
     console.error('Failed to read SCORING_WEIGHTS', { tenantId, configVersion, error: err.message });
     return serverError('Failed to read scoring configuration');
   }
-  try {
-    panelConfig = await getConfig(tenantId, 'PANEL_CONFIG', configVersion);
-  } catch (err) {
-    console.error('Failed to read PANEL_CONFIG', { tenantId, configVersion, error: err.message });
-    return serverError('Failed to read panel configuration');
-  }
-
-  // ── Step 5: STRONG_NO veto check ─────────────────────────────────────────
-  const strongNoVeto = panelConfig && panelConfig.rules && panelConfig.rules.strongNoVeto === true;
-  if (rating === 'STRONG_NO' && strongNoVeto) {
-    try {
-      await dynamo.send(new UpdateItemCommand(scopeWrite({
-        TableName:                 STATE_TABLE,
-        Key:                       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-        UpdateExpression:          'SET votingResult = :vr, #s = :sf',
-        ExpressionAttributeNames:  { '#s': 'status' },
-        ExpressionAttributeValues: marshall({ ':vr': 'STRONG_NO_VETO', ':sf': 'EVALUATION_FAILED' }),
-      }, tenantId)));
-    } catch (err) {
-      console.error('Failed to update SAGA for STRONG_NO veto', { candidateId, error: err.message });
-      return serverError('Failed to record veto decision');
-    }
-
-    await markTokenUsed(token);
-    await publishVotingCompleted({ candidateId, tenantId, result: 'STRONG_NO_VETO', voterId });
-    console.info('STRONG_NO veto applied via scoring link', { candidateId, voterId: panelMemberId });
-    return ok({ candidateId, voterId, result: 'STRONG_NO_VETO' });
+  // ── Step 5: a Strong No raises a flag, never an outcome (REC-02) ──────────
+  // REJECTION_RULES is the candidate's locked version. null in the company's settings means nothing is flagged.
+  let strongNoFlag = false;
+  if (rating === 'STRONG_NO') {
+    const { getRecruitmentSettings, DEFAULTS } = await import('../shared/recruitment-settings.mjs');
+    const settings = await getRecruitmentSettings(tenantId, saga);
+    strongNoFlag = (settings.REJECTION_RULES ?? DEFAULTS.REJECTION_RULES).reviewVoteLevel === 'STRONG_NO';
   }
 
   // ── Step 6: Calculate weighted score ─────────────────────────────────────
-  const weightedScore = calculateWeightedScore(scores, scoringWeights);
+  // REC-02: a score that is not a number is stored empty (DynamoDB refuses NaN); REC-07 rebuilds the maths.
+  const rawScore = calculateWeightedScore(scores, scoringWeights);
+  const weightedScore = Number.isFinite(rawScore) ? rawScore : null;
 
   // ── Step 7: Write vote record ─────────────────────────────────────────────
   const timestamp = new Date().toISOString();
@@ -240,7 +222,7 @@ exports.handler = async (event) => {
     const updateResult = await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName:                 STATE_TABLE,
       Key:                       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-      UpdateExpression:          'ADD votesSubmitted :inc',
+      UpdateExpression:          strongNoFlag ? 'ADD votesSubmitted :inc, strong_no_count :inc' : 'ADD votesSubmitted :inc',
       ExpressionAttributeValues: marshall({ ':inc': 1 }),
       ReturnValues:              'UPDATED_NEW',
     }, tenantId)));
@@ -282,8 +264,9 @@ exports.handler = async (event) => {
         ProjectionExpression:      'weightedScore',
       }));
       if (voteQuery.Items && voteQuery.Items.length > 0) {
-        const allScores = voteQuery.Items.map((i) => unmarshall(i).weightedScore);
-        averageScore = allScores.reduce((sum, s) => sum + s, 0) / allScores.length;
+        // A vote stored with no score (REC-02) is left out of the average.
+        const allScores = voteQuery.Items.map((i) => unmarshall(i).weightedScore).filter((x) => Number.isFinite(x));
+        averageScore = allScores.length > 0 ? allScores.reduce((sum, s) => sum + s, 0) / allScores.length : null;
       }
     } catch (err) {
       console.error('Failed to aggregate vote scores', { candidateId, error: err.message });
