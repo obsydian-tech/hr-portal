@@ -1,0 +1,533 @@
+import type { BrowserContext, Page, Route } from '@playwright/test';
+import { icons as LUCIDE } from 'lucide';
+import type { CognitoFake, FakeAccount } from '../cognito-fake';
+import { EmployeesFake } from '../employees-fake';
+import { FAKE, ON_DEV, expect, test as base, type SignInPage } from '../fixtures';
+import { ModulesFake, isModulesCall, type Company } from '../mod-02/modules-fake';
+
+/**
+ * The shared harness of the Recruitment screen cards (REC-UI-01 to REC-UI-06; Jira NH-227, epic NH-223).
+ * Spec: onboarding-cards/specs/REC-UI-00.md (rules) and REC-UI-01.md (this card owns the file).
+ * Later cards import it and never edit it; a change is a child lock on REC-UI-01 (rec-ui-01.N).
+ *
+ * What it holds:
+ *   - the people of every card: a Recruiter, a second Recruiter, HR without the tick, the tick without HR, a hiring
+ *     manager, an Admin, an Employee, in companies A (onboarding + recruitment), B (onboarding) and C (nothing);
+ *   - the fake API of this card, generated from the contract table of REC-UI-01.md (D-API-1): roles, candidates,
+ *     the stage move, Not hired (and confirm / cancel), old-system rows, hiring managers and the company settings.
+ *     It answers any host whose path matches; it needs a sign-in token; it records every call it gets;
+ *   - small helpers: sign in as a person, the console-error watcher, the "no company id" text check.
+ *
+ * Nothing here calls Bedrock or any paid AI. Nothing here knows a screen: screens are found by their words.
+ */
+
+// ---------------------------------------------------------------- the people
+
+export type Co = Company;
+export const PASSWORD = 'winter-protea-2026';
+const SUNBIRD = 'sunbird-bakery.co.za';
+
+export type Who = FakeAccount & {
+  password: string;
+  company: Co;
+  /** Where the app sends this person after sign-in today; null when sign-in is refused (ONB-23: not hr_staff or employee). */
+  lands: '/hr' | '/start' | '/admin/ask-batsi' | null;
+  /** The person's own name as the board and the "must confirm" line write it. */
+  full: string;
+};
+const person = (email: string, given: string, family: string, groups: string[], company: Co, lands: Who['lands']): Who => ({
+  email: `${email}@${SUNBIRD}`, givenName: given, familyName: family, groups, password: PASSWORD, company, lands, full: `${given} ${family}`,
+});
+
+export const WHO = {
+  /** A Recruiter: hr_staff AND the Recruitment tick (C-1). The one the happy paths use. */
+  recruiterA: person('thandi.dube', 'Thandi', 'Dube', ['hr_staff', 'perm-recruitment'], 'A', '/hr'),
+  /** A second Recruiter of A: the person who confirms a Not hired that someone else recorded. */
+  recruiter2A: person('naledi.zungu', 'Naledi', 'Zungu', ['hr_staff', 'perm-recruitment'], 'A', '/hr'),
+  recruiterB: person('sipho.zulu', 'Sipho', 'Zulu', ['hr_staff', 'perm-recruitment'], 'B', '/hr'),
+  recruiterC: person('lerato.molefe', 'Lerato', 'Molefe', ['hr_staff', 'perm-recruitment'], 'C', '/hr'),
+  /** HR without the tick (Jane Smith of the other cards, company A). */
+  hrNoTickA: { ...FAKE.hr, password: PASSWORD, company: 'A' as Co, lands: '/hr' as const, full: 'Jane Smith' },
+  /** The tick without HR: an employee who holds perm-recruitment. */
+  tickOnlyA: person('kabelo.nkosi', 'Kabelo', 'Nkosi', ['employee', 'perm-recruitment'], 'A', '/start'),
+  /** A hiring manager (group manager). Today ONB-23 refuses this group at sign-in; see cards/rec-ui-01.md. */
+  managerA: person('refilwe.sithole', 'Refilwe', 'Sithole', ['manager', 'perm-recruitment'], 'A', null),
+  adminA: person('anele.khoza', 'Anele', 'Khoza', ['admin'], 'A', '/admin/ask-batsi'),
+  employeeA: { ...FAKE.employee, password: PASSWORD, company: 'A' as Co, lands: '/start' as const, full: 'John Doe' },
+} satisfies Record<string, Who>;
+
+/** Values that must never travel in a request: each company's own identifier (tenancy: the company is the token's). */
+export const COMPANY_ID: Record<Co, string> = { A: 'tnt-a-4c1e9b27', B: 'tnt-b-9d27f0c3', C: 'tnt-c-61b0a8e5' };
+
+// ---------------------------------------------------------------- the data
+
+export const STAGES = ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER', 'HIRED'] as const;
+export type Stage = (typeof STAGES)[number] | 'NOT_HIRED';
+export const STAGE_WORDS: Record<(typeof STAGES)[number], string> = { APPLIED: 'Applied', SCREENING: 'Screening', INTERVIEW: 'Interview', OFFER: 'Offer', HIRED: 'Hired' };
+export type Sla = 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE';
+
+/** The eight approved reasons, in the approved order: [code, words]. */
+export const REASONS: ReadonlyArray<[string, string]> = [
+  ['NOT_RIGHT_SKILLS', 'Not the right skills'], ['NOT_RIGHT_EXPERIENCE', 'Not the right experience'], ['CHOSE_ANOTHER', 'Chose another candidate'],
+  ['WITHDREW', 'Candidate withdrew'], ['SALARY_MISMATCH', 'Salary did not match'], ['DID_NOT_ATTEND', 'Did not attend'], ['ROLE_CLOSED', 'Role closed'], ['OTHER', 'Other'],
+];
+
+type Pending = { by: string; reason: string; awaiting: { kind: 'HIRING_MANAGER' | 'HR'; personId?: string; name?: string } };
+export type Cand = {
+  id: string; name: string; stage: Stage; source?: string; level: string; role_id: string; email: string;
+  stage_entered_at: string; due_at: string; sla_status: Sla; interviews_done?: number; interviews_required?: number; offer_state?: string;
+  mine?: boolean; not_hired_reason?: string; pending?: Pending; old_system?: boolean; applied_at?: string;
+};
+export type Role = {
+  role_id: string; job_title: string; department: string; level: string; hiring_manager_id: string; hiring_manager_name: string;
+  opened_at: string; status: 'OPEN' | 'CLOSED'; criteria: string[]; panel_size: number; company: Co;
+};
+export type Manager = { id: string; name: string };
+
+/** The company settings answer this card decided (the table says only "levels, criteria, screening switch"; cards/rec-ui-01.md). */
+export type Config = {
+  seniority_levels: Array<{ key: string; label: string; order: number }>;
+  criteria: Array<{ key: string; label: string }>;
+  departments: string[];
+  screening: boolean;
+};
+
+const DAY = 86_400_000;
+export const iso = (ms: number) => new Date(ms).toISOString();
+
+export type World = { now: number; roles: Role[]; cands: Cand[]; managers: Record<Co, Manager[]>; config: Record<Co, Config> };
+
+/** The kit's data (recruitment.html at the pinned design system ref), with times counted from `now`. Company A has three roles. */
+export function seed(now: number): World {
+  const cfg = (screening: boolean): Config => ({
+    seniority_levels: [{ key: 'JUNIOR', label: 'Junior', order: 1 }, { key: 'MID', label: 'Mid', order: 2 }, { key: 'SENIOR', label: 'Senior', order: 3 }],
+    criteria: [{ key: 'TECHNICAL', label: 'Technical ability' }, { key: 'COMMUNICATION', label: 'Communication' }, { key: 'CULTURAL_FIT', label: 'Cultural fit' }, { key: 'PROBLEM_SOLVING', label: 'Problem solving' }],
+    departments: ['Operations', 'Finance', 'Sales', 'Human resources'],
+    screening,
+  });
+  const role = (company: Co, id: string, title: string, dept: string, level: string, hm: Manager, opened: string): Role => ({
+    role_id: id, job_title: title, department: dept, level, hiring_manager_id: hm.id, hiring_manager_name: hm.name, opened_at: opened, status: 'OPEN',
+    criteria: ['TECHNICAL', 'COMMUNICATION', 'CULTURAL_FIT', 'PROBLEM_SOLVING'], panel_size: 3, company,
+  });
+  const managers: Record<Co, Manager[]> = {
+    A: [{ id: 'hm-sipho', name: 'Sipho Ndlovu' }, { id: 'hm-farai', name: 'Farai Chikwanha' }, { id: 'hm-precious', name: 'Precious Mwale' }],
+    B: [{ id: 'hm-b-lindiwe', name: 'Lindiwe Peters' }],
+    C: [{ id: 'hm-c-themba', name: 'Themba Radebe' }],
+  };
+  const [sipho, farai, precious] = managers.A as [Manager, Manager, Manager];
+  const roles: Role[] = [
+    role('A', 'role-fleet', 'Fleet controller', 'Operations', 'MID', sipho, '2026-10-12T08:00:00.000Z'),
+    role('A', 'role-warehouse', 'Warehouse supervisor', 'Operations', 'SENIOR', farai, '2026-10-20T08:00:00.000Z'),
+    role('A', 'role-accountant', 'Senior accountant', 'Finance', 'SENIOR', precious, '2026-10-28T08:00:00.000Z'),
+    role('B', 'role-b-dispatch', 'Dispatch lead', 'Operations', 'MID', managers.B[0]!, '2026-10-14T08:00:00.000Z'),
+    role('C', 'role-c-baker', 'Head baker', 'Operations', 'MID', managers.C[0]!, '2026-10-16T08:00:00.000Z'),
+  ];
+  const c = (id: string, name: string, stage: Stage, role_id: string, extra: Partial<Cand> = {}): Cand => ({
+    id, name, stage, role_id, level: 'MID', email: `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@example.org`,
+    stage_entered_at: iso(now - DAY), due_at: iso(now + 4 * DAY), sla_status: 'ON_TRACK', ...extra,
+  });
+  const cands: Cand[] = [
+    // The six of the kit's board for Fleet controller (company A).
+    c('cand-amahle', 'Amahle Dlamini', 'APPLIED', 'role-fleet', { source: 'Referral', mine: true }),
+    c('cand-tariro', 'Tariro Moyo', 'SCREENING', 'role-fleet', { mine: true }),
+    c('cand-ayanda', 'Ayanda Mkhize', 'SCREENING', 'role-fleet', { stage_entered_at: iso(now - 2 * DAY) }),
+    c('cand-bongani', 'Bongani Mthembu', 'INTERVIEW', 'role-fleet', { interviews_done: 2, interviews_required: 3, sla_status: 'OVERDUE', due_at: iso(now - 2 * DAY), mine: true }),
+    c('cand-tendai', 'Tendai Ncube', 'INTERVIEW', 'role-fleet', { interviews_done: 1, interviews_required: 2, sla_status: 'DUE_SOON', due_at: iso(now + 3 * 3_600_000) }),
+    c('cand-kagiso', 'Kagiso Molefe', 'OFFER', 'role-fleet', { offer_state: 'SENT' }),
+    // Not hired, and old-system rows (company A).
+    c('cand-nomvula', 'Nomvula Zulu', 'NOT_HIRED', 'role-fleet', { not_hired_reason: 'NOT_RIGHT_SKILLS' }),
+    c('cand-farai-m', 'Farai Moyo', 'NOT_HIRED', 'role-fleet', { not_hired_reason: 'WITHDREW' }),
+    c('cand-os-1', 'Mpho Sithole', 'NOT_HIRED', 'role-warehouse', { old_system: true, applied_at: '2026-10-12T08:00:00.000Z' }),
+    // Warehouse supervisor: four open candidates; Senior accountant: three (one due soon).
+    c('cand-w1', 'Lwazi Buthelezi', 'APPLIED', 'role-warehouse'), c('cand-w2', 'Zanele Pillay', 'SCREENING', 'role-warehouse'),
+    c('cand-w3', 'Pule Maseko', 'INTERVIEW', 'role-warehouse', { interviews_done: 1, interviews_required: 2 }), c('cand-w4', 'Dineo Kruger', 'OFFER', 'role-warehouse', { offer_state: 'DRAFT' }),
+    c('cand-s1', 'Karabo Jacobs', 'APPLIED', 'role-accountant'), c('cand-s2', 'Ntombi Dlamini', 'SCREENING', 'role-accountant'),
+    c('cand-s3', 'Vusi Naidoo', 'INTERVIEW', 'role-accountant', { interviews_done: 0, interviews_required: 2, sla_status: 'DUE_SOON', due_at: iso(now + DAY) }),
+    // Another company's people: nobody of A may ever read them.
+    c('cand-b1', 'Hlengiwe Sibiya', 'APPLIED', 'role-b-dispatch'), c('cand-b2', 'Mandla Cele', 'INTERVIEW', 'role-b-dispatch', { interviews_done: 1, interviews_required: 2 }),
+    c('cand-c1', 'Palesa Mofokeng', 'APPLIED', 'role-c-baker'),
+  ];
+  return { now, roles, cands, managers, config: { A: cfg(true), B: cfg(true), C: cfg(true) } };
+}
+
+/** An empty company: no roles at all (the empty state of the Roles page). */
+export function withoutRoles(w: World, co: Co): void {
+  w.roles = w.roles.filter((r) => r.company !== co);
+  w.cands = w.cands.filter((c) => w.roles.some((r) => r.role_id === c.role_id));
+}
+
+// ---------------------------------------------------------------- the fake API
+
+export type Call = {
+  seq: number; method: string; path: string; query: Record<string, string>; idempotencyKey: string | null; body: unknown;
+  authorization: string | null; email: string | null; company: Co | null; raw: string; status: number;
+};
+
+/** How a request is answered instead of the table's answer (a failure test sets one). */
+export type Refusal = { method: string; path: RegExp; status?: number; body?: unknown; abort?: boolean; once?: boolean; hold?: boolean; skipTimes?: number };
+
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization, content-type, idempotency-key',
+  'access-control-allow-methods': 'GET, POST, PUT, OPTIONS',
+};
+const JWT = /^Bearer eyJ[\w-]+\.eyJ[\w-]+\.[\w-]*$/;
+const ROUTES = /\/v1\/(roles|candidates|hiring-managers|config)(\/|$)/;
+export const isHireCall = (url: URL): boolean => ROUTES.test(url.pathname);
+
+export class HireFake {
+  readonly calls: Call[] = [];
+  world: World;
+  /** A test shows that the tab numbers come from the answer, not from the cards the page holds. */
+  countsOverride: Partial<Record<'all' | 'mine' | 'overdue' | 'due_soon' | 'not_hired', number>> | null = null;
+  private readonly emails = new Map<string, Who>();
+  private readonly refusals: Refusal[] = [];
+  private readonly held: Array<() => void> = [];
+  private readonly keyed = new Map<string, { status: number; body: unknown }>();
+  private seq = 0;
+  private nextRole = 1;
+
+  constructor(private readonly subOf: (email: string) => string | undefined, now: number) {
+    this.world = seed(now);
+  }
+
+  assign(who: Who): void {
+    this.emails.set(who.email.toLowerCase(), who);
+  }
+
+  /** Answers the next matching calls with this instead (once by default). */
+  refuse(r: Refusal): void {
+    this.refusals.push({ once: true, ...r });
+  }
+
+  /** Lets every held call answer. */
+  release(): void {
+    for (const go of this.held.splice(0)) go();
+  }
+
+  async install(context: BrowserContext): Promise<void> {
+    await context.route((url) => isHireCall(url), (route) => this.handle(route));
+  }
+
+  /** The calls to one route (method and path pattern), in order. */
+  to(method: string, path: RegExp): Call[] {
+    return this.calls.filter((c) => c.method === method && path.test(c.path));
+  }
+
+  /** Calls that reached a Recruitment route at all (for the people who must make none). */
+  get recruitmentCalls(): Call[] {
+    return this.calls.filter((c) => c.method !== 'OPTIONS');
+  }
+
+  private who(sub: string | null): Who | null {
+    if (!sub) return null;
+    for (const [email, who] of this.emails) if (this.subOf(email) === sub) return who;
+    return null;
+  }
+
+  private async handle(route: Route): Promise<void> {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+    const authorization = request.headers()['authorization'] ?? null;
+    const who = authorization && JWT.test(authorization) ? this.who(subOfBearer(authorization)) : null;
+    const raw = `${request.method()} ${url.pathname}${url.search}\n${JSON.stringify(request.headers())}\n${request.postData() ?? ''}`;
+    let body: unknown = null;
+    try { body = request.postData() ? JSON.parse(request.postData()!) : null; } catch { body = request.postData(); }
+    const call: Call = {
+      seq: ++this.seq, method: request.method(), path: url.pathname, query: Object.fromEntries(url.searchParams), idempotencyKey: request.headers()['idempotency-key'] ?? null,
+      body, authorization, email: who?.email ?? null, company: who?.company ?? null, raw, status: 0,
+    };
+    this.calls.push(call);
+
+    const refusal = this.refusals.find((r) => r.method === call.method && r.path.test(call.path) && !(r.skipTimes && r.skipTimes-- > 0));
+    if (refusal) {
+      if (refusal.once) this.refusals.splice(this.refusals.indexOf(refusal), 1);
+      if (refusal.hold) await new Promise<void>((go) => this.held.push(go));
+      if (refusal.abort) { call.status = -1; return route.abort('internetdisconnected'); }
+      if (!refusal.hold || refusal.status) return this.send(route, call, refusal.status ?? 500, refusal.body ?? { error: 'Internal Server Error' });
+    }
+    if (!authorization || !JWT.test(authorization)) return this.send(route, call, 401, { message: 'Unauthorized' });
+    if (!who) return this.send(route, call, 403, { error: 'Forbidden' });
+    const [status, answer] = this.route(call, who);
+    return this.send(route, call, status, answer);
+  }
+
+  private send(route: Route, call: Call, status: number, body: unknown): Promise<void> {
+    call.status = status;
+    return route.fulfill({ status, headers: { ...CORS, 'cache-control': 'private, no-store', 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  }
+
+  // ---- the contract table of REC-UI-01.md, one branch per row
+  private route(call: Call, who: Who): [number, unknown] {
+    const recruiter = who.groups.includes('hr_staff') && who.groups.includes('perm-recruitment');
+    const w = this.world;
+    const mine = (r: Role) => r.company === who.company;
+    const forbidden: [number, unknown] = [403, { error: 'Forbidden', code: 'FORBIDDEN' }];
+    const notFound: [number, unknown] = [404, { error: 'Not found', code: 'NOT_FOUND' }];
+    const { method, path, query } = call;
+    let m: RegExpExecArray | null;
+
+    if (path.endsWith('/v1/roles') && method === 'GET') {
+      if (!recruiter) return forbidden;
+      return [200, { roles: w.roles.filter((r) => mine(r) && r.status === (query['status'] ?? 'OPEN')).map((r) => this.roleRow(r)) }];
+    }
+    if (path.endsWith('/v1/roles') && method === 'POST') {
+      if (!recruiter) return forbidden;
+      if (!call.idempotencyKey) return [400, { error: 'Idempotency-Key required', code: 'IDEMPOTENCY_KEY_REQUIRED' }];
+      // A re-sent key returns the first answer and never writes again; another caller's key is a different key.
+      const memo = `${who.company}|${who.email}|POST roles|${call.idempotencyKey}`;
+      const seen = this.keyed.get(memo);
+      if (seen) return [seen.status, seen.body];
+      const b = (call.body ?? {}) as Record<string, unknown>;
+      const hm = w.managers[who.company].find((x) => x.id === b['hiring_manager_id']);
+      if (typeof b['job_title'] !== 'string' || !b['job_title'].trim() || typeof b['department'] !== 'string' || typeof b['level'] !== 'string') return [400, { error: 'Invalid', code: 'INVALID_FIELD' }];
+      if (!hm) return [400, { error: 'Invalid', code: 'INVALID_HIRING_MANAGER' }];
+      const cfg = w.config[who.company];
+      const role: Role = {
+        role_id: `role-new-${this.nextRole++}`, job_title: b['job_title'].trim(), department: b['department'] as string, level: b['level'] as string,
+        hiring_manager_id: hm.id, hiring_manager_name: hm.name, opened_at: iso(w.now), status: 'OPEN',
+        criteria: Array.isArray(b['criteria']) ? (b['criteria'] as string[]) : cfg.criteria.map((x) => x.key), panel_size: typeof b['panel_size'] === 'number' ? b['panel_size'] : 3, company: who.company,
+      };
+      w.roles.push(role);
+      this.keyed.set(memo, { status: 201, body: { ...this.roleRow(role), criteria: role.criteria, panel_size: role.panel_size } });
+      return [201, { ...this.roleRow(role), criteria: role.criteria, panel_size: role.panel_size }];
+    }
+    if ((m = /\/v1\/roles\/([^/]+)$/.exec(path)) && method === 'GET') {
+      if (!recruiter) return forbidden;
+      const r = w.roles.find((x) => x.role_id === decodeURIComponent(m![1]!));
+      if (!r || !mine(r)) return notFound;
+      return [200, { ...this.roleRow(r), criteria: r.criteria, panel_size: r.panel_size }];
+    }
+    if ((m = /\/v1\/roles\/([^/]+)\/close$/.exec(path)) && method === 'POST') {
+      if (!recruiter) return forbidden;
+      const r = w.roles.find((x) => x.role_id === decodeURIComponent(m![1]!));
+      if (!r || !mine(r)) return notFound;
+      const open = w.cands.filter((c) => c.role_id === r.role_id && STAGES.includes(c.stage as never) && c.stage !== 'HIRED').length;
+      if (open > 0) return [409, { error: 'Open candidates', code: 'OPEN_CANDIDATES', open_candidates: open }];
+      r.status = 'CLOSED';
+      return [200, { ...this.roleRow(r), criteria: r.criteria, panel_size: r.panel_size }];
+    }
+    if (path.endsWith('/v1/candidates/old-system') && method === 'GET') {
+      if (!recruiter) return forbidden;
+      return [200, { candidates: w.cands.filter((c) => c.old_system && this.roleCompany(c.role_id) === who.company).map((c) => ({ candidate_id: c.id, name: c.name, role_id: c.role_id, role_title: this.title(c.role_id), rejected_at: c.applied_at })) }];
+    }
+    if (path.endsWith('/v1/candidates') && method === 'GET') {
+      if (!recruiter) return forbidden;
+      const roleId = query['role_id'];
+      const inCompany = w.cands.filter((c) => this.roleCompany(c.role_id) === who.company && !c.old_system);
+      let list = roleId ? inCompany.filter((c) => c.role_id === roleId) : inCompany;
+      const open = list.filter((c) => c.stage !== 'NOT_HIRED');
+      const counts = { all: open.length, mine: open.filter((c) => c.mine).length, overdue: open.filter((c) => c.sla_status === 'OVERDUE').length, due_soon: open.filter((c) => c.sla_status === 'DUE_SOON').length, not_hired: list.filter((c) => c.stage === 'NOT_HIRED').length };
+      const shown = { ...counts, ...(this.countsOverride ?? {}) };
+      if (query['stage']) list = list.filter((c) => c.stage === query['stage']);
+      else list = open;
+      if (query['sla_status']) list = list.filter((c) => c.sla_status === query['sla_status']);
+      if (query['mine'] === 'true') list = list.filter((c) => c.mine);
+      if (query['search']) { const s = query['search'].toLowerCase(); list = list.filter((c) => c.name.toLowerCase().includes(s) || c.email.includes(s)); }
+      return [200, { candidates: list.map((c) => this.candRow(c)), counts: shown }];
+    }
+    if ((m = /\/v1\/candidates\/([^/]+)\/stage$/.exec(path)) && method === 'PUT') {
+      if (!recruiter) return forbidden;
+      const c = this.cand(m[1]!, who);
+      if (!c) return notFound;
+      if (!call.idempotencyKey) return [400, { error: 'Idempotency-Key required', code: 'IDEMPOTENCY_KEY_REQUIRED' }];
+      const memo = `${who.company}|${who.email}|PUT stage ${c.id}|${call.idempotencyKey}`;
+      const seen = this.keyed.get(memo);
+      if (seen) return [seen.status, seen.body];
+      const b = (call.body ?? {}) as { to?: string; reason?: string };
+      const reply = (status: number, body: unknown): [number, unknown] => { this.keyed.set(memo, { status, body }); return [status, body]; };
+      if (!b.reason || !b.reason.trim()) return reply(400, { error: 'Reason required', code: 'REASON_REQUIRED' });
+      if (c.stage === 'NOT_HIRED' || c.stage === 'HIRED') return reply(409, { error: 'Not open', code: 'NOT_OPEN' });
+      if (b.to === 'HIRED' || b.to === 'NOT_HIRED') return reply(400, { error: 'Use the action', code: 'USE_ACTION' });
+      if (!b.to || !STAGES.includes(b.to as never) || b.to === c.stage) return reply(400, { error: 'Not the next stage', code: 'NOT_NEXT_STAGE' });
+      if (c.stage === 'INTERVIEW' && b.to === 'OFFER' && (c.interviews_done ?? 0) < (c.interviews_required ?? 0)) return reply(409, { error: 'Interviews incomplete', code: 'INTERVIEWS_INCOMPLETE' });
+      if (c.offer_state === 'SENT' && b.to !== 'OFFER') return reply(409, { error: 'Offer live', code: 'OFFER_LIVE' });
+      c.stage = b.to as Stage;
+      c.stage_entered_at = iso(w.now);
+      return reply(200, this.candRow(c));
+    }
+    if ((m = /\/v1\/candidates\/([^/]+)\/not-hired(\/confirm|\/cancel)?$/.exec(path)) && method === 'POST') {
+      if (!recruiter) return forbidden;
+      const c = this.cand(m[1]!, who);
+      if (!c) return notFound;
+      const b = (call.body ?? {}) as { reason?: string; note?: string };
+      if (m[2] === '/confirm') {
+        if (!c.pending) return [409, { error: 'Not open', code: 'NOT_OPEN' }];
+        if (c.pending.by === who.email) return [409, { error: 'Same person', code: 'SAME_PERSON' }];
+        c.stage = 'NOT_HIRED'; c.not_hired_reason = c.pending.reason; delete c.pending;
+        return [200, this.candRow(c)];
+      }
+      if (m[2] === '/cancel') {
+        if (!c.pending) return [409, { error: 'Not open', code: 'NOT_OPEN' }];
+        delete c.pending;
+        return [200, this.candRow(c)];
+      }
+      if (!b.reason) return [400, { error: 'Reason required', code: 'REASON_REQUIRED' }];
+      if (!REASONS.some(([code]) => code === b.reason)) return [400, { error: 'Invalid reason', code: 'INVALID_REASON' }];
+      if (c.stage === 'NOT_HIRED' || c.stage === 'HIRED') return [409, { error: 'Not open', code: 'NOT_OPEN' }];
+      if (c.offer_state === 'SENT') return [409, { error: 'Offer live', code: 'OFFER_LIVE' }];
+      if (this.secondConfirmation.has(c.id)) {
+        const hm = w.roles.find((r) => r.role_id === c.role_id)!;
+        c.pending = { by: who.email, reason: b.reason, awaiting: { kind: 'HIRING_MANAGER', personId: hm.hiring_manager_id, name: hm.hiring_manager_name } };
+        return [200, { pending: { awaiting: c.pending.awaiting } }];
+      }
+      c.stage = 'NOT_HIRED'; c.not_hired_reason = b.reason;
+      return [200, this.candRow(c)];
+    }
+    if (path.endsWith('/v1/hiring-managers') && method === 'GET') {
+      if (!recruiter) return forbidden;
+      return [200, { hiring_managers: w.managers[who.company].map((x) => ({ id: x.id, name: x.name })) }];
+    }
+    if (path.endsWith('/v1/config') && method === 'GET') {
+      if (!recruiter) return forbidden;
+      return [200, w.config[who.company]];
+    }
+    return [404, { message: 'Not Found' }];
+  }
+
+  /** Candidates whose Not hired needs a second confirmation (the answer says `pending`). */
+  readonly secondConfirmation = new Set<string>();
+
+  private roleCompany(roleId: string): Co | null { return this.world.roles.find((r) => r.role_id === roleId)?.company ?? null; }
+  private title(roleId: string): string { return this.world.roles.find((r) => r.role_id === roleId)?.job_title ?? ''; }
+  private cand(id: string, who: Who): Cand | null {
+    const c = this.world.cands.find((x) => x.id === decodeURIComponent(id));
+    return c && this.roleCompany(c.role_id) === who.company ? c : null;
+  }
+  private roleRow(r: Role) {
+    const open = this.world.cands.filter((c) => c.role_id === r.role_id && c.stage !== 'NOT_HIRED' && !c.old_system);
+    return {
+      role_id: r.role_id, job_title: r.job_title, department: r.department, level: r.level, hiring_manager_id: r.hiring_manager_id, hiring_manager_name: r.hiring_manager_name,
+      candidate_count: open.length, overdue_count: open.filter((c) => c.sla_status === 'OVERDUE').length, due_soon_count: open.filter((c) => c.sla_status === 'DUE_SOON').length,
+      opened_at: r.opened_at, status: r.status,
+    };
+  }
+  private candRow(c: Cand) {
+    return {
+      id: c.id, name: c.name, stage: c.stage, stage_entered_at: c.stage_entered_at, due_at: c.due_at, sla_status: c.sla_status, source: c.source,
+      interviews_done: c.interviews_done, interviews_required: c.interviews_required, offer_state: c.offer_state, level: c.level,
+      ...(c.pending ? { pending: { awaiting: c.pending.awaiting } } : {}),
+    };
+  }
+}
+
+function subOfBearer(authorization: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(authorization.split('.')[1] ?? '', 'base64url').toString('utf8'));
+    return typeof payload.sub === 'string' ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------- fixtures
+
+type Fixtures = { modules: ModulesFake | null; list: EmployeesFake | null; hire: HireFake | null; now: number };
+
+/** Every test's page time is fixed, so "Overdue by 2 days" and "Due today" are the same on every run. */
+const NOW = Date.UTC(2026, 10, 19, 8, 0, 0); // 19 Nov 2026 10:00 in Johannesburg
+
+export const test = base.extend<Fixtures>({
+  now: [async ({}, use) => use(NOW), { option: false }],
+  // HR home reads the employees list; answering it keeps every page quiet. Add-only.
+  list: [
+    async ({ context, baseURL }, use) => {
+      if (ON_DEV) return use(null);
+      const fake = new EmployeesFake(new URL(baseURL!).origin);
+      await fake.install(context);
+      await use(fake);
+    },
+    { auto: true },
+  ],
+  modules: [
+    async ({ context, cognito }, use) => {
+      if (ON_DEV) return use(null);
+      const fake = new ModulesFake((email) => cognito!.subOf(email));
+      await fake.install(context);
+      await use(fake);
+    },
+    { auto: true },
+  ],
+  hire: [
+    async ({ context, cognito, page }, use) => {
+      if (ON_DEV) return use(null);
+      await page.clock.setFixedTime(NOW);
+      const fake = new HireFake((email) => cognito!.subOf(email), NOW);
+      await fake.install(context);
+      await use(fake);
+    },
+    { auto: true },
+  ],
+});
+export { expect };
+
+// ---------------------------------------------------------------- signing in
+
+/** Adds the person to the fake Cognito, the fake modules answer and the fake API, once, and signs them in. */
+export async function signInAs(signIn: SignInPage, cognito: CognitoFake | null, modules: ModulesFake | null, hire: HireFake | null, who: Who): Promise<void> {
+  if (cognito && cognito.subOf(who.email) === undefined) cognito.addAccount(who);
+  modules?.assign(who.email, who.company);
+  hire?.assign(who);
+  await signIn.open();
+  await signIn.signInAs(who);
+}
+
+/** Signs in and waits for the first page the app sends that person to. */
+export async function enter(page: Page, signIn: SignInPage, cognito: CognitoFake | null, modules: ModulesFake | null, hire: HireFake | null, who: Who): Promise<void> {
+  await signInAs(signIn, cognito, modules, hire, who);
+  expect(who.lands, `${who.full} can sign in`).not.toBeNull();
+  await expect(page).toHaveURL(who.lands!);
+  await expect(page.locator('main h1').first()).toBeVisible();
+}
+
+// ---------------------------------------------------------------- small helpers
+
+/** Console errors and uncaught errors the app causes (the fakes' own failing answers and the fonts are not the app). */
+export function watchErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  page.on('console', (m) => {
+    if (m.type() !== 'error') return;
+    const where = m.location().url;
+    if (isModulesCall(new URL(where || 'http://x/')) || isHireCall(new URL(where || 'http://x/'))) return;
+    if (/fonts\.(googleapis|gstatic)\.com/.test(where)) return;
+    if (/Failed to load resource/.test(m.text())) return; // the fake's refusals
+    errors.push(`console: ${m.text()}`);
+  });
+  return errors;
+}
+
+/** The page has had time to make the calls it makes on load (a slow font host does not hold the test). */
+export async function quiet(page: Page): Promise<void> {
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
+  await page.waitForTimeout(400);
+}
+
+/** The expected markup of a Lucide icon, to compare with what a sidebar item draws (the app draws it from the same nodes). */
+export async function drawsIcon(link: import('@playwright/test').Locator, name: string): Promise<boolean> {
+  const pascal = name.split('-').map((w) => w[0]!.toUpperCase() + w.slice(1)).join('').replace(/(\D)(\d)/, '$1$2');
+  const node = (LUCIDE as Record<string, Array<[string, Record<string, string>]>>)[pascal];
+  if (!node) throw new Error(`harness: no Lucide icon "${name}"`);
+  return link.locator('svg').first().evaluate((svg, nodes) => {
+    const expected = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    for (const [tag, attrs] of nodes as Array<[string, Record<string, string>]>) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [k, v] of Object.entries(attrs)) if (v !== undefined) el.setAttribute(k, String(v));
+      expected.appendChild(el);
+    }
+    return svg.innerHTML === expected.innerHTML;
+  }, node);
+}
+
+/** A company id, or the word "company" or "tenant" as a key, anywhere in a request the app made (url, query, headers except the token, body). */
+export function companyIdIn(call: Call): string[] {
+  const found: string[] = [];
+  const body = JSON.stringify(call.body ?? {});
+  const withoutToken = call.raw.replace(/"authorization":"[^"]*"/i, '"authorization":"<token>"');
+  for (const id of Object.values(COMPANY_ID)) if (withoutToken.includes(id)) found.push(`the company id ${id}`);
+  if (/"(company|company_id|companyId|tenant|tenant_id|tenantId|organisation|organization)"\s*:/i.test(body)) found.push('a company key in the body');
+  if (/[?&](company|company_id|companyId|tenant|tenant_id|tenantId)=/i.test(call.path + '?' + new URLSearchParams(call.query).toString().replace(/^/, '&'))) found.push('a company key in the query');
+  if (/"(x-company[\w-]*|x-tenant[\w-]*|company[\w-]*|tenant[\w-]*)":/i.test(withoutToken.split('\n')[1] ?? '')) found.push('a company header');
+  return found;
+}
