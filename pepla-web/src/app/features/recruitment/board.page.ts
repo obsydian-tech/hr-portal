@@ -174,6 +174,9 @@ export class BoardPage implements OnInit {
     this.failedSave.set(false);
     const r = await this.api.call('PUT', `/v1/candidates/${e.card.id}/stage`, { to: e.to, reason: e.reason }, newKey());
     if (r?.status !== 200) { this.failedSave.set(true); return; }
+    // Keep the page's own list in step, so a later redraw from it (Not hired pending, Cancel) never puts the card back.
+    const row = this.rows.find((x) => x.id === e.card.id);
+    if (row) row.stage = e.to;
     this.stages.update((all) => all.map((s) => {
       let cards = s.cards.filter((c) => c.id !== e.card.id);
       if (s.id === e.to) cards = [...cards.slice(0, e.index), e.card, ...cards.slice(e.index)];
