@@ -593,6 +593,13 @@ resource "aws_iam_role_policy" "ai_chat" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
+        # tool-resolver.mjs reads the active config through this one index
+        Sid      = "ConfigActiveIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
         Sid      = "AgentAuditTableWrite"
         Effect   = "Allow"
         Action   = ["dynamodb:PutItem"]
@@ -868,7 +875,7 @@ resource "aws_iam_role_policy" "get_candidates" {
 
 # ── 15. getCandidate ─────────────────────────────────────────────────────────
 # Triggered by: API GW GET /v1/candidates/{id}
-# Needs: DynamoDB state table GetItem, Logs, XRay
+# Needs: DynamoDB state table GetItem + Query (interviews of the candidate), Logs, XRay
 
 resource "aws_iam_role" "get_candidate" {
   name               = "${local.tf_iam_role_prefix}${local.tf_lambda_get_candidate}"
@@ -898,9 +905,9 @@ resource "aws_iam_role_policy" "get_candidate" {
         Resource = "*"
       },
       {
-        Sid      = "DynamoDBGetItem"
+        Sid      = "DynamoDBRead"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem"]
+        Action   = ["dynamodb:GetItem", "dynamodb:Query"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
