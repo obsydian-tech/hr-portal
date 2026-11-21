@@ -524,7 +524,10 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     const arn = squash(`"${ROLE_ARN}"`);
     expect(now.readers.filter((e) => e === arn), 'the role\'s ARN is in dynamodb_read_role_arns once').toHaveLength(1);
     expect(now.allowed.filter((e) => e.includes('deleteLeaverChats')), 'and not in allowed_role_arns').toEqual([]);
-    expect([...now.readers].sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
+    // Child lock chat-15.3 (REC-02): the recordNotHired role (TalentFlow stack) may also be on the read list, at most once. Nothing else may be added.
+    const rec02 = squash('"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-recordNotHired"');
+    expect(now.readers.filter((e) => e === rec02).length, 'the REC-02 role is on the read list at most once').toBeLessThanOrEqual(1);
+    expect([...now.readers].filter((e) => e !== rec02).sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
     expect(now.allowed, 'the encrypt list is as on develop').toEqual(base.allowed);
     expect(squash(read('infra/kms.tf')).split(arn).length - 1, 'the ARN appears once in kms.tf').toBe(1);
   });
