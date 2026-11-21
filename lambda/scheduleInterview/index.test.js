@@ -320,13 +320,14 @@ describe('POST guards', () => {
     expect(res.statusCode).toBe(500);
   });
 
-  test('PANEL_CONFIG has no votesRequired for the level → 500', async () => {
-    mockDynamoSend.mockResolvedValueOnce(saga()).mockResolvedValueOnce({ Items: [] });
-    getConfig.mockResolvedValueOnce({ rules: { votesRequired: { JUNIOR: 2 } } });
+  test('a company with no panel setting is asked the Standard pack panel size for the level (REC-12)', async () => {
+    mockDynamoSend.mockResolvedValueOnce(saga()).mockResolvedValueOnce({ Items: [] }).mockResolvedValue({});
+    getConfig.mockResolvedValueOnce({});
 
     const res = await handler(postEvent());
 
-    expect(res.statusCode).toBe(500);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).votesRequired).toBe(4);
   });
 });
 

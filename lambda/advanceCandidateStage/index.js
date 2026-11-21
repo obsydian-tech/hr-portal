@@ -26,7 +26,6 @@
 const { DynamoDBClient, GetItemCommand, UpdateItemCommand, QueryCommand, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
-const { getConfig } = require('./config-reader');
 const { tenantHelper, scopeWrite } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
@@ -68,27 +67,16 @@ function serverError(msg)  { return { statusCode: 500, body: JSON.stringify({ er
  *
  * Returns null if the gate passes, or a 409 response if it does not.
  */
-async function checkInterviewLoopComplete(candidateId, tenantId, positionLevel) {
-  // Read active PANEL_CONFIG — always use active version for gate checks (Invariant #3)
-  let panelConfig;
+async function checkInterviewLoopComplete(candidateId, tenantId, positionLevel, saga) {
+  let requiredTypes;
   try {
-    panelConfig = await getConfig(tenantId, 'PANEL_CONFIG');
+    const S = await import('../shared/recruitment-settings.mjs');
+    const settings = await S.getRecruitmentSettings(tenantId, saga);
+    requiredTypes = settings.INTERVIEW_TYPES?.requiredByLevel?.[positionLevel] ?? [];
   } catch (err) {
-    console.error('interviewLoopGate: failed to read PANEL_CONFIG', { tenantId, error: err.message });
-    return serverError('Failed to read panel configuration');
+    console.error('interviewLoopGate: failed to read INTERVIEW_TYPES', { tenantId, error: err.message });
+    return serverError('Failed to read interview settings');
   }
-
-  const requirements = panelConfig && panelConfig.interviewRequirements && panelConfig.interviewRequirements[positionLevel];
-  if (!requirements || requirements.length === 0) {
-    // No requirements configured — gate passes (graceful degradation)
-    console.warn('interviewLoopGate: no interviewRequirements for positionLevel — gate skipped', { positionLevel });
-    return null;
-  }
-
-  const requiredTypes = requirements
-    .filter((r) => r.required !== false)
-    .map((r) => r.type);
-
   if (requiredTypes.length === 0) return null;
 
   // Query all INTERVIEW# records for this candidate
@@ -238,7 +226,7 @@ exports.handler = async (event) => {
 
   // ── Step 4: Interview loop gate (only when leaving INTERVIEWING) ───────────
   if (currentStage === 'INTERVIEWING') {
-    const gateError = await checkInterviewLoopComplete(candidateId, tenantId, positionLevel);
+    const gateError = await checkInterviewLoopComplete(candidateId, tenantId, positionLevel, saga);
     if (gateError) return gateError;
   }
 

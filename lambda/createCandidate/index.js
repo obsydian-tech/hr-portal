@@ -178,6 +178,14 @@ exports.handler = async (event) => {
   // via attribute_not_exists(configVersion) condition. Writing null would create a
   // DynamoDB NULL-type attribute that satisfies attribute_exists, causing orchestrate
   // to skip with "already locked" on every invocation.
+  let settingVersions;
+  try {
+    const S = await import('../shared/recruitment-settings.mjs');
+    settingVersions = await S.activeVersions(tenantId);
+  } catch (err) {
+    console.error('Failed to read the settings versions', { error: err.name });
+    return internalError('Failed to create candidate record');
+  }
   const now = new Date().toISOString();
   const sagaRecord = T.stampTenant({
     PK: `CANDIDATE#${candidateId}`,
@@ -201,6 +209,7 @@ exports.handler = async (event) => {
     stageEnteredAt: now,
     status: 'ACTIVE',
     slaStatus: 'ON_TRACK',
+    settingVersions: Object.keys(settingVersions).length ? settingVersions : undefined,
     configVersion: undefined,  // omitted — orchestrateTalentFlowWorkflow sets it via attribute_not_exists condition
     createdAt: now,
     updatedBy: userId,  // INTEL-001: Track who created the candidate for action tracking

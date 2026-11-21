@@ -48,6 +48,12 @@ jest.unstable_mockModule('../shared/modules.mjs', () => ({
   requireModule: async () => null,
 }));
 
+// REC-12: a new candidate is locked to the active version of every setting; the reader is tested in REC-12's own tests.
+const VERSIONS = { SLA_THRESHOLDS: 2, SENTIMENT_SCALE: 1 };
+jest.unstable_mockModule('../shared/recruitment-settings.mjs', () => ({
+  activeVersions: async () => VERSIONS,
+}));
+
 // Deterministic ulid
 jest.mock('ulid', () => ({ ulid: jest.fn(() => '01HTEST00000000000000000') }));
 
@@ -121,6 +127,8 @@ describe('createCandidate', () => {
       expect(sagaPutCall.Item).not.toHaveProperty('configVersion');
       expect(sagaPutCall.Item.PK).toBe('CANDIDATE#CAND-01HTEST00000000000000000');
       expect(sagaPutCall.Item.tenant_id).toBe(TEN);
+      // REC-12: locked to the active version of every setting at creation
+      expect(sagaPutCall.Item.settingVersions).toEqual({ SLA_THRESHOLDS: 2, SENTIMENT_SCALE: 1 });
     });
 
     test('EventBridge event published with source talent-flow.candidates and detail-type CandidateCreated', async () => {

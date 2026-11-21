@@ -86,6 +86,19 @@ resource "aws_iam_role_policy" "create_candidate" {
         Resource = aws_cloudwatch_event_bus.talent_flow.arn
       },
       {
+        # REC-12: a new candidate is locked to the active version of every setting (one Query per type on the active-configs index).
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
+        Sid      = "ConfigVersionRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
+      },
+      {
         Sid      = "KMSStateKey"
         Effect   = "Allow"
         Action   = local.tf_kms_actions
@@ -199,6 +212,14 @@ resource "aws_iam_role_policy" "schedule_interview" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
+      },
+      {
+        # REC-12: the active setting is read through the active-configs index. The Query was missing, so the read failed and the
+        # built-in defaults were used without anyone seeing it.
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
       },
       {
         Sid      = "EventBridgePublish"
@@ -1010,6 +1031,19 @@ resource "aws_iam_role_policy" "capture_sentiment" {
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
         Resource = "arn:aws:events:af-south-1:${var.aws_account_id}:event-bus/${local.tf_event_bus_name}"
+      },
+      {
+        # REC-12: captureSentiment reads SENTIMENT_SCALE at the version the candidate is locked to (the active-configs index, then the version row).
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
+        Sid      = "ConfigVersionRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
         Sid      = "KMSStateKey"
