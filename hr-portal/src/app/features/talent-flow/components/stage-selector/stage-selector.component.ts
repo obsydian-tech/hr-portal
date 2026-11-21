@@ -17,6 +17,12 @@ import { HiringStage } from '../../models/talent-flow.models';
 
 /** Human-readable labels for HiringStage values (plan §2.5) */
 export const STAGE_LABELS: Record<HiringStage, string> = {
+  APPLIED:            'Applied',
+  SCREENING:          'Screening',
+  INTERVIEW:          'Interview',
+  OFFER:              'Offer',
+  HIRED:              'Hired',
+  NOT_HIRED:          'Not hired',
   APPLICATION_REVIEW: 'Application Review',
   INTERVIEWING:       'Interviewing',
   EVALUATION:         'Evaluation',

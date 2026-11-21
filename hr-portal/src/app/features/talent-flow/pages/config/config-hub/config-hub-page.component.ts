@@ -41,6 +41,12 @@ const CRITERIA: WeightCriterion[] = [
 // ─── SLA Thresholds ──────────────────────────────────────────────────────────
 
 const DEFAULT_THRESHOLDS: Record<HiringStage, number> = {
+  APPLIED:            24,
+  SCREENING:          48,
+  INTERVIEW:          96,
+  OFFER:              72,
+  HIRED:              0,
+  NOT_HIRED:          0,
   APPLICATION_REVIEW: 48,
   INTERVIEWING:       240,
   EVALUATION:         48,

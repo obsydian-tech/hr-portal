@@ -336,11 +336,7 @@ export class TalentFlowApiService {
   // Stage Advancement
 
   /** Ordered stages used for forward-only validation (mirrors Lambda STAGE_ORDER) */
-  static readonly STAGE_ORDER: HiringStage[] = [
-    'APPLICATION_REVIEW', 'INTERVIEWING', 'EVALUATION', 'BACKGROUND_CHECK',
-    'OFFER_PREPARATION', 'OFFER_APPROVAL', 'OFFER_DELIVERY',
-    'CONTRACT_SIGNING', 'PRE_BOARDING', 'ONBOARDING',
-  ];
+  static readonly STAGE_ORDER: HiringStage[] = ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER'];
 
   static nextStage(current: HiringStage): HiringStage | null {
     const idx = TalentFlowApiService.STAGE_ORDER.indexOf(current);
@@ -352,16 +348,18 @@ export class TalentFlowApiService {
   advanceStage(
     candidateId: string,
     newStage: HiringStage,
+    reason: string,
   ): Observable<{ candidateId: string; previousStage: HiringStage; newStage: HiringStage; stageEnteredAt: string }> {
-    const body = { newStage };
+    const body = { to: newStage, reason };
     return this.authHeaders().pipe(
       switchMap((headers) =>
-        this.http.put<{ candidateId: string; previousStage: HiringStage; newStage: HiringStage; stageEnteredAt: string }>(
+        this.http.put<{ candidateId: string; from: HiringStage; to: HiringStage; at: string }>(
           `${this.baseUrl}/candidates/${candidateId}/stage`,
           body,
           { headers },
         ),
       ),
+      map((res) => ({ candidateId: res.candidateId, previousStage: res.from, newStage: res.to, stageEnteredAt: res.at })),
       timeout(API_TIMEOUT_MS),
       catchError(this.handleError),
     );

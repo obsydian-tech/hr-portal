@@ -321,6 +321,8 @@ export class CandidateWorkspacePageComponent implements OnInit {
   // ── Advance Stage ─────────────────────────────────────────────────────────
   protected readonly advancingStage  = signal<boolean>(false);
   protected readonly advanceError    = signal<string | null>(null);
+  /** The reason typed for the next stage move; every move needs one (REC-03). */
+  protected readonly advanceReason   = signal<string>('');
   protected readonly advanceSuccess  = signal<string | null>(null);
 
   protected readonly stageLabels = STAGE_LABELS;
@@ -338,9 +340,10 @@ export class CandidateWorkspacePageComponent implements OnInit {
     this.advanceError.set(null);
     this.advanceSuccess.set(null);
 
-    this.api.advanceStage(candidateId, newStage).subscribe({
+    this.api.advanceStage(candidateId, newStage, this.advanceReason().trim()).subscribe({
       next: (res) => {
         this.advancingStage.set(false);
+        this.advanceReason.set('');
         this.advanceSuccess.set(res.newStage);
         // Refresh candidate to update stage stepper + SLA display
         this.api.getCandidate(candidateId).subscribe({

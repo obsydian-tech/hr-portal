@@ -139,14 +139,16 @@
     ════════════════════════════════════════════════════════════════════════════ -->
     @if (isTA()) {
       <div class="tf-ws-actions-bar">
-        @if (c.currentStage === 'INTERVIEWING') {
+        @if ((c.currentStage === 'INTERVIEWING' || c.currentStage === 'INTERVIEW')) {
           <button class="tf-ws-ghost-btn" (click)="setTab('interviews')">
             <i class="pi pi-calendar-plus"></i> Schedule Interview
           </button>
         }
         @if (nextStageFor(c.currentStage); as next) {
+          <input class="tf-ws-reason" type="text" maxlength="1000" aria-label="Reason" placeholder="Reason"
+            [value]="advanceReason()" (input)="advanceReason.set($any($event.target).value)" />
           <button class="tf-ws-ghost-btn tf-ws-ghost-btn--primary"
-            [disabled]="advancingStage()"
+            [disabled]="advancingStage() || advanceReason().trim() === ''"
             (click)="advanceStage(c.id, next)">
             <i class="pi pi-forward"></i> Advance to {{ stageLabels[next] }}
           </button>
@@ -255,7 +257,7 @@
                     <div>
                       <strong>Cannot advance yet</strong>
                       <p>{{ advanceError() }}</p>
-                      @if (c.currentStage === 'INTERVIEWING') {
+                      @if ((c.currentStage === 'INTERVIEWING' || c.currentStage === 'INTERVIEW')) {
                         <span class="tf-ws-gate-link" (click)="advanceError.set(null); setTab('interviews')">
                           Go to Interviews tab →
                         </span>
@@ -274,9 +276,11 @@
                     <span class="tf-ws-advance-label">Next Stage</span>
                     <span class="tf-ws-advance-stage tf-ws-advance-stage--next">{{ stageLabels[next] }}</span>
                   </div>
+                  <input class="tf-ws-reason" type="text" maxlength="1000" aria-label="Reason" placeholder="Reason"
+                    [value]="advanceReason()" (input)="advanceReason.set($any($event.target).value)" />
                   <button pButton class="p-button-sm" icon="pi pi-forward"
                     [label]="'Advance to ' + stageLabels[next]"
-                    [disabled]="advancingStage()" [loading]="advancingStage()"
+                    [disabled]="advancingStage() || advanceReason().trim() === ''" [loading]="advancingStage()"
                     (click)="advanceStage(c.id, next)">
                   </button>
                 </div>
@@ -304,7 +308,7 @@
             </div>
 
             <!-- ── Interview Loop Progress Tracker ──────────────────────── -->
-            @if (c.currentStage === 'INTERVIEWING' && requiredTypes().length > 0) {
+            @if ((c.currentStage === 'INTERVIEWING' || c.currentStage === 'INTERVIEW') && requiredTypes().length > 0) {
               <div class="tf-loop-tracker">
                 <div class="tf-loop-summary">
                   <strong>Interview Loop Progress</strong>
@@ -867,7 +871,7 @@
             }
 
             <!-- ── Schedule New Interview trigger — TA only ─────────────── -->
-            @if (isTA() && c.currentStage === 'INTERVIEWING') {
+            @if (isTA() && (c.currentStage === 'INTERVIEWING' || c.currentStage === 'INTERVIEW')) {
               @if (hasScheduledInterview()) {
                 <div class="tf-ws-sequential-gate">
                   <i class="pi pi-info-circle"></i>
