@@ -39,7 +39,16 @@ exports.handler = async () => {
     if (!thresholdsOf.has(tenantId)) {
       const slaConfig = await getConfig(tenantId, 'SLA_THRESHOLDS');
       // config-reader returns the DynamoDB item's `data` field as the payload
-      thresholdsOf.set(tenantId, slaConfig.data ?? slaConfig ?? {});
+      // REC-03: a company's stored limits may still be keyed by the old stage names. Each key is read through the one stage list;
+      // where several old stages became one, the longest limit counts. Keys that are not stages (stageLimitHours ...) stay as they are.
+      const { normaliseStage } = await import('../shared/recruitment-stages.mjs');
+      const stored = slaConfig.data ?? slaConfig ?? {};
+      const byStage = { ...stored };
+      for (const [key, hours] of Object.entries(stored)) {
+        const code = normaliseStage(key);
+        if (code && typeof hours === 'number') byStage[code] = Math.max(byStage[code] ?? 0, hours);
+      }
+      thresholdsOf.set(tenantId, byStage);
     }
     return thresholdsOf.get(tenantId);
   }
@@ -57,13 +66,14 @@ exports.handler = async () => {
   // Step 3: Per-candidate SLA evaluation
   for (const saga of openSagas) {
     try {
-      const stage = saga.currentStage;
       const tenantId = await eventTenant({ tenant_id: saga.tenant_id });
       if (!tenantId) {
         console.warn(JSON.stringify({ event: 'sla_no_company', pk: saga.PK }));
         continue;
       }
       const slaThresholds = await thresholdsFor(tenantId);
+      const { normaliseStage } = await import('../shared/recruitment-stages.mjs');
+      const stage = normaliseStage(saga) ?? saga.currentStage;
 
       // Skip if no threshold configured for this stage
       if (slaThresholds[stage] === undefined || slaThresholds[stage] === null) {

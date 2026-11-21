@@ -235,7 +235,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
   test('AC-5 Events and jobs keep the company', async ({}, testInfo) => {
     once(testInfo.project.name);
     const JOBS: { name: string; handler: string; detail: (c: string, cand: string) => Record<string, unknown>; cand: Record<string, string>; unversioned?: boolean }[] = [
-      { name: 'createOffer', handler: 'createOffer', detail: (c, cand) => ({ candidateId: cand, tenant_id: c, outcome: 'PASSED', configVersion: '1' }), cand: { [A]: ID.a2, [B]: ID.b2 } },
+      // REC-03 (child lock rec-03.1, D-T-11): createOffer has no event entry point any more; rec-03 AC-6 checks an event writes nothing.
       { name: 'orchestrateTalentFlowWorkflow', handler: 'orchestrateTalentFlowWorkflow', detail: (c, cand) => ({ candidateId: cand, tenant_id: c, positionLevel: 'MID' }), cand: { [A]: ID.a2, [B]: ID.b2 }, unversioned: true },
       { name: 'completeEvaluation', handler: 'completeEvaluation', detail: (c, cand) => ({ candidateId: cand, tenant_id: c, averageScore: 7.5, result: 'PASS' }), cand: { [A]: ID.a1, [B]: ID.b1 } },
       { name: 'createItTask', handler: 'createItTask', detail: (c, cand) => itDetail(c, cand), cand: { [A]: ID.a1, [B]: ID.b1 } },

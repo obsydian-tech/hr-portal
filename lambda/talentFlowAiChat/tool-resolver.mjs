@@ -33,6 +33,7 @@ import { DynamoDBClient, GetItemCommand, QueryCommand, PutItemCommand } from '@a
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { randomUUID } from 'crypto';
 import { stampTenant, ownsRow, tenantKey } from '../shared/tenant.mjs';
+import { normaliseStage } from '../shared/recruitment-stages.mjs';
 
 const ddb = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 
@@ -159,7 +160,7 @@ export const TOOL_DEFINITIONS = [
     input_schema: {
       type: 'object',
       properties: {
-        stage: { type: 'string', description: 'Optional pipeline stage filter (SCREENING, INTERVIEW, OFFER, HIRED, REJECTED)' },
+        stage: { type: 'string', description: 'Optional pipeline stage filter (APPLIED, SCREENING, INTERVIEW, OFFER, HIRED, NOT_HIRED)' },
         limit: { type: 'number', description: 'Max results (default 20)' },
       },
     },
@@ -255,30 +256,39 @@ export const TOOL_MAP = {
   },
 
   get_pipeline_overview: async (args, ctx) => {
-    // Candidates are stored with GSI1PK = the company's key and GSI1SK = 'SAGA#...'
+    // Candidates are stored with GSI1PK = the company's key and GSI1SK = 'SAGA#...'.
+    // REC-03: stages are read through the one list, so a row still stored under an old name counts as its new code, and the filter
+    // and the summary use the six codes only. Pages are read until enough candidates match.
     const limit = args.limit ?? 50;
-    const res = await ddb.send(new QueryCommand({
-      TableName:                 STATE_TABLE,
-      IndexName:                 'GSI1',
-      KeyConditionExpression:    'GSI1PK = :pk AND begins_with(GSI1SK, :skp)',
-      ExpressionAttributeValues: marshall({
-        ':pk':  tenantKey(ctx.tenantId),
-        ':skp': 'SAGA#',
-      }),
-      Limit: limit,
-    }));
-    let items = (res.Items ?? []).map(item => unmarshall(item)).filter(i => ownsRow(i, ctx.tenantId));
-    // Filter by stage if requested
-    if (args.stage) {
-      items = items.filter(i => i.currentStage === args.stage);
-    }
+    const items = [];
+    let start;
+    do {
+      const res = await ddb.send(new QueryCommand({
+        TableName:                 STATE_TABLE,
+        IndexName:                 'GSI1',
+        KeyConditionExpression:    'GSI1PK = :pk AND begins_with(GSI1SK, :skp)',
+        ExpressionAttributeValues: marshall({
+          ':pk':  tenantKey(ctx.tenantId),
+          ':skp': 'SAGA#',
+        }),
+        ExclusiveStartKey:         start,
+      }));
+      for (const raw of (res.Items ?? []).map(item => unmarshall(item))) {
+        if (!ownsRow(raw, ctx.tenantId)) continue;
+        const stage = normaliseStage(raw);
+        if (args.stage && stage !== args.stage) continue;
+        items.push({ ...raw, currentStage: stage });
+      }
+      start = res.LastEvaluatedKey;
+    } while (start && items.length < limit);
+    const shown = items.slice(0, limit);
     // Summarise by stage
     const summary = {};
-    for (const item of items) {
+    for (const item of shown) {
       const s = item.currentStage ?? 'UNKNOWN';
       summary[s] = (summary[s] ?? 0) + 1;
     }
-    return { candidates: items, count: items.length, stageSummary: summary };
+    return { candidates: shown, count: shown.length, stageSummary: summary };
   },
 
   get_vote_summary: async (args, ctx) => {

@@ -16,7 +16,9 @@ export const TEMPLATE_TEXTS = {
 };
 
 const LEVELS = ['JUNIOR', 'MID', 'SENIOR'];
-const LEGACY_SLA = { APPLICATION_REVIEW: 24, PHONE_SCREENING: 48, TECHNICAL_INTERVIEW: 72, PANEL_INTERVIEW: 96, EVALUATION: 48, OFFER_PREPARATION: 24, OFFER_APPROVAL: 72, OFFER_DELIVERY: 24 };
+// Hours a candidate may sit in each open stage (the longest of the old stages that now make up each one).
+const [S_FIRST, S_SECOND, S_THIRD, S_FOURTH] = STAGE_CODES;
+const LEGACY_SLA = { [S_FIRST]: 24, [S_SECOND]: 48, [S_THIRD]: 96, [S_FOURTH]: 72 };
 const byLevel = (v) => Object.fromEntries(LEVELS.map((l) => [l, v]));
 export const DEFAULTS = {
   STAGE_CONFIG: { screening: true },

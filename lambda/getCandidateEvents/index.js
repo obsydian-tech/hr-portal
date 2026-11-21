@@ -48,6 +48,46 @@ function respond(statusCode, body) {
   };
 }
 
+/** The stage moves of one candidate (this company's rows only), oldest first, as events. Reads every page of the history. */
+async function stageMoves(candidateId, tenantId, T, withReason, since) {
+  // Rows written before REC-03 use the old field names (fromStage, toStage, actor, timestamp) and the old stage names.
+  const { normaliseStage } = await import('../shared/recruitment-stages.mjs');
+  const moves = [];
+  let start;
+  do {
+    const page = await dynamo.send(new QueryCommand({
+      TableName: STATE_TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: { ':pk': { S: `CANDIDATE#${candidateId}` }, ':sk': { S: 'STAGE#' } },
+      ExclusiveStartKey: start,
+    }));
+    for (const raw of page.Items ?? []) {
+      const row = unmarshall(raw);
+      if (!T.ownsRow(row, tenantId)) continue;
+      const at = row.at ?? row.timestamp;
+      const by = row.by ?? row.actor;
+      if (since && String(at ?? '') < since) continue;
+      moves.push({
+        eventId:     row.SK,
+        eventType:   'CandidateMoved',
+        source:      'talent-flow.stage-history',
+        candidateId,
+        tenant_id:   row.tenant_id,
+        actor:       by ?? 'SYSTEM',
+        timestamp:   at,
+        from:        normaliseStage(row.from ?? row.fromStage),
+        to:          normaliseStage(row.to ?? row.toStage),
+        by,
+        by_kind:     row.by_kind,
+        ...(row.reason_code !== undefined ? { reason_code: row.reason_code } : {}),
+        ...(withReason && row.reason !== undefined ? { reason: row.reason } : {}),
+      });
+    }
+    start = page.LastEvaluatedKey;
+  } while (start);
+  return moves;
+}
+
 exports.handler = async (event) => {
   // REC-01: who may read one candidate's history is judged after the company and module checks. Anyone who may not gets
   // 404, as for a candidate that does not exist.
@@ -170,6 +210,13 @@ exports.handler = async (event) => {
         detail,
       };
     });
+    // REC-03: a stage move is a history row on the candidate (SK STAGE#..., state table). The moves join the list in time order, on
+    // the first page only (there are few of them, and the events table pages by its own cursor). A Recruiter and the hiring manager
+    // see the reason; a panel member sees who moved the candidate and between which stages, never the reason.
+    if (stateReadable && !exclusiveStartKey) {
+      events = events.concat(await stageMoves(candidateId, tenantId, T, relation !== 'panel', since))
+        .sort((a, b) => String(a.timestamp ?? '').localeCompare(String(b.timestamp ?? '')));
+    }
     // REC-01: the hiring manager's history has no salary; a panel member's has no offer event and no offer or salary field.
     if (relation === 'hiringManager') events = RA.forHiringManager(events);
     if (relation === 'panel') events = RA.forPanelMember(events.filter((e) => !RA.aboutOffer(e)));

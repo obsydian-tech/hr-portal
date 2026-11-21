@@ -205,7 +205,7 @@ exports.handler = async (event) => {
     source,
     hiringManagerId,
     appliedDate: now,  // date the candidate was added to the system
-    currentStage: 'APPLICATION_REVIEW',
+    currentStage: 'APPLIED',
     stageEnteredAt: now,
     status: 'ACTIVE',
     slaStatus: 'ON_TRACK',

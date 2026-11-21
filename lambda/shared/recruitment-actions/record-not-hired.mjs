@@ -19,6 +19,7 @@ import { json } from '../hr-group.mjs';
 import { ownsRow, stampTenant, tenantKey } from '../tenant.mjs';
 import { canDecide, isManager, isRecruiter, hiringManagerOf } from '../recruitment-access.mjs';
 import { DEFAULTS, REASONS, getRecruitmentSettings } from '../recruitment-settings.mjs';
+import { normaliseStage } from '../recruitment-stages.mjs';
 
 const db = new DynamoDBClient({});
 const bus = new EventBridgeClient({});
@@ -30,20 +31,7 @@ const KEY_TTL_SECONDS = 48 * 60 * 60;
 const MAX_TEXT = 1000;
 
 const OPEN_STAGES = ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER'];
-// Until REC-03 moves the rows, a stored old stage name counts as the open stage REC-03's table maps it to.
-const OLD_STAGE = {
-  APPLICATION_REVIEW: 'APPLIED',
-  PHONE_SCREENING: 'SCREENING',
-  TECHNICAL_INTERVIEW: 'INTERVIEW',
-  PANEL_INTERVIEW: 'INTERVIEW',
-  INTERVIEWING: 'INTERVIEW',
-  EVALUATION: 'INTERVIEW',
-  BACKGROUND_CHECK: 'OFFER',
-  OFFER_PREPARATION: 'OFFER',
-  OFFER_APPROVAL: 'OFFER',
-  OFFER_DELIVERY: 'OFFER',
-};
-const LIVE_OFFER_STATES = ['WAITING_APPROVAL', 'APPROVED', 'SENT'];
+const LIVE_OFFER_STATES = ['IN_APPROVAL', 'OFFER_SENT', 'WAITING_APPROVAL', 'APPROVED', 'SENT'];
 const OLD_OUTCOMES = ['REJECTED', 'EVALUATION_FAILED'];
 
 const notFound = () => json(404, { error: 'Not found' });
@@ -57,9 +45,8 @@ const present = (v) => v !== undefined && v !== null && v !== '';
 /** The open stage a stored row is in, or null when it is not open (Hired, Not hired, or an old outcome). */
 export function openStageOf(row) {
   if (OLD_OUTCOMES.includes(row.status)) return null;
-  const stage = row.currentStage;
-  if (OPEN_STAGES.includes(stage)) return stage;
-  return OLD_STAGE[stage] ?? null;
+  const stage = normaliseStage(row.currentStage);
+  return OPEN_STAGES.includes(stage) ? stage : null;
 }
 
 async function loadCandidate(tenantId, candidateId) {

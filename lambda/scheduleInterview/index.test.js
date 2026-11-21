@@ -92,7 +92,7 @@ function saga(overrides = {}) {
   return {
     Item: {
       PK: 'CANDIDATE#cand-123', SK: 'SAGA', tenant_id: TEN,
-      currentStage: 'INTERVIEWING', positionLevel: 'SENIOR',
+      currentStage: 'INTERVIEW', positionLevel: 'SENIOR',
       ...overrides,
     },
   };
@@ -283,11 +283,11 @@ describe('POST guards', () => {
     expect(res.statusCode).toBe(404);
   });
 
-  test('candidate not in INTERVIEWING → 409', async () => {
+  test('candidate not in Interview → 409', async () => {
     mockDynamoSend.mockResolvedValueOnce(saga({ currentStage: 'SCREENING' }));
     const res = await handler(postEvent());
     expect(res.statusCode).toBe(409);
-    expect(JSON.parse(res.body).error).toMatch(/INTERVIEWING/);
+    expect(JSON.parse(res.body).error).toMatch(/Interview/);
   });
 
   test('another interview still SCHEDULED → 409 (interviews run one at a time)', async () => {

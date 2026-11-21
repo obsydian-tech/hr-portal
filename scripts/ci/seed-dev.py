@@ -509,7 +509,7 @@ def seed_candidates(ddb, tenant_id: str, manager_sub: str, employee_sub: str) ->
             "firstName": {"S": first}, "lastName": {"S": last},
             "email": {"S": f"pepla-demo-{first.lower()}.{last.lower()}@{MAIL_DOMAIN}"},
             "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
-            "currentStage": {"S": "APPLICATION_REVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+            "currentStage": {"S": "APPLIED"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
             "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
             "hiringManagerId": {"S": manager_sub if who == "MANAGER" else OTHER_HIRING_MANAGER},
             "seed": {"S": SEED_TAG},
@@ -575,6 +575,58 @@ def seed_rec02(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
         "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
     })
     return 2
+
+
+# REC-03: three candidates the dev test reads after the stage move. They are written again on every run in the OLD form (the stage
+# move, scripts/recruitment/migrate-stages.mjs, runs right after the seed and changes them), and anything an earlier move left on
+# them (history rows) is removed first, so every run starts from the same three rows. Company A, MID level.
+#   1 Applied with one interview: the level lock (LEVEL_LOCKED)
+#   2 stored as INTERVIEWING: reads as INTERVIEW after the move, the old name kept as legacy_stage
+#   3 stored as EVALUATION with status REJECTED and a rejection time: Not hired by the old system, on REC-02's list
+REC03_CANDIDATES = [
+    ("CAND-SEEDREC030000000000001", "Applied-One", "APPLIED", {}),
+    ("CAND-SEEDREC030000000000002", "Old-Interview", "INTERVIEWING", {}),
+    ("CAND-SEEDREC030000000000003", "Old-Rejected", "EVALUATION", {"status": "REJECTED", "evaluationCompletedAt": "2026-09-14T10:00:00.000Z"}),
+]
+REC03_INTERVIEW = "iv-seed-rec03-0001"
+
+
+def seed_rec03(ddb, tenant_id: str, manager_sub: str) -> int:
+    """Write the three REC-03 candidates fresh (and the one interview). Idempotent."""
+    if not manager_sub:
+        print("warning: the manager login has no sub; the REC-03 candidates were not written")
+        return 0
+    now = "2026-11-10T08:00:00.000Z"
+    written = 0
+    for cid, last, stage, extra in REC03_CANDIDATES:
+        pk = f"CANDIDATE#{cid}"
+        stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                          ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "STAGE#"}}, ProjectionExpression="PK, SK")
+        for item in stale.get("Items", []):
+            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+        item = {
+            "PK": {"S": pk}, "SK": {"S": "SAGA"},
+            "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+            "firstName": {"S": "Rec"}, "lastName": {"S": last},
+            "email": {"S": f"pepla-demo-rec.{last.lower()}@{MAIL_DOMAIN}"},
+            "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": stage}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+            "hiringManagerId": {"S": manager_sub}, "seed": {"S": SEED_TAG},
+        }
+        for k, v in extra.items():
+            item[k] = {"S": v}
+        ddb.put_item(TableName=STATE_TABLE, Item=item)
+        written += 1
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"CANDIDATE#{REC03_CANDIDATES[0][0]}"}, "SK": {"S": f"INTERVIEW#{REC03_INTERVIEW}"},
+        "interviewId": {"S": REC03_INTERVIEW}, "candidateId": {"S": REC03_CANDIDATES[0][0]}, "tenant_id": {"S": tenant_id},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "votesRequired": {"N": "0"}, "votesSubmitted": {"N": "0"}, "panelMemberIds": {"L": []},
+        "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+    })
+    return written + 1
 
 
 # TEN-04: the rows company A owns that the company B walk aims at. The ids are the ones in
@@ -799,6 +851,12 @@ def main() -> None:
         print("warning: the TalentFlow state table is not there; the REC-02 candidate was not written")
         rec02_written = 0
 
+    try:
+        rec03_written = seed_rec03(ddb, tid, user_sub(cognito, naleko, "manager"))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-03 candidates were not written")
+        rec03_written = 0
+
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
     print(f"seed-dev: groups created {made_groups}; "
@@ -810,7 +868,7 @@ def main() -> None:
           f"walk company rows written {walk_written}; TEN-04 walk rows written {ten04_written}; "
           f"agent walk rows written {onb22_written}; "
           f"stale bundles of another company removed {foreign_bundles_removed}; "
-          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}")
+          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}; REC-03 rows seeded {rec03_written}")
 
 
 if __name__ == "__main__":

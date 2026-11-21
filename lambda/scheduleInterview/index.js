@@ -6,9 +6,9 @@
  * Trigger: POST /candidates/{id}/interviews  (schedule a new interview)
  *          PATCH /candidates/{id}/interviews/{interviewId}  (update: add panel members OR complete)
  *
- * POST — Schedule a new interview within the INTERVIEWING stage:
+ * POST — Schedule a new interview while the candidate is in Interview:
  *   1. Parse and validate body fields
- *   2. GetItem SAGA — verify currentStage === 'INTERVIEWING'
+ *   2. GetItem SAGA — verify the candidate is in Interview (an old stored name is read through normaliseStage)
  *   3. Read active PANEL_CONFIG → votesRequired for positionLevel (Invariant #3)
  *   4. PutItem INTERVIEW# record (status=SCHEDULED)
  *   5. UpdateItem SAGA: currentInterviewId = interviewId (tracks most recent interview)
@@ -20,9 +20,9 @@
  *
  * PATCH (no action field) — Add panel members to an existing interview.
  *
- * DO NOT update SAGA currentStage from this Lambda — the stage stays INTERVIEWING
- * for all interview types. advanceCandidateStage gates the INTERVIEWING→EVALUATION
- * transition by checking all required interview types are COMPLETED.
+ * DO NOT update SAGA currentStage from this Lambda — the stage stays Interview
+ * for all interview types. The move from Interview to Offer (moveCandidate) is gated on all required interview types
+ * being COMPLETED.
  *
  * DO NOT read panelConfig using candidate's configVersion for new interviews —
  * always use active (Invariant #3).
@@ -331,10 +331,11 @@ exports.handler = async (event) => {
     return serverError('Failed to read candidate record');
   }
 
-  if (saga.currentStage !== 'INTERVIEWING') {
+  const { normaliseStage } = await import('../shared/recruitment-stages.mjs');
+  if (normaliseStage(saga) !== 'INTERVIEW') {
     return conflict(
-      `Interviews can only be scheduled when the candidate is in INTERVIEWING stage. ` +
-      `Current stage: ${saga.currentStage}. Advance the candidate to INTERVIEWING first.`
+      `Interviews can only be scheduled when the candidate is in Interview. ` +
+      `Current stage: ${normaliseStage(saga) ?? 'unknown'}. Move the candidate to Interview first.`
     );
   }
 

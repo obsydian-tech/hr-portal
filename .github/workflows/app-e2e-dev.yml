@@ -200,6 +200,14 @@ jobs:
           [ -n "$tenant" ] || { echo "::error::infra/env/dev.tfvars has no founding_tenant_id"; exit 1; }
           node scripts/tenancy/seed-recruitment-pack.mjs --tenant "$tenant" --apply
 
+      # REC-03: the seed writes three candidates in the old stage form; the stage move turns them (and any other old row of company A)
+      # into the six stages. It checks the account first, writes a history row for each move, and changes nothing on a second run.
+      - name: Move the first company's candidates to the six stages
+        run: |
+          tenant=$(sed -n 's/^[[:space:]]*founding_tenant_id[[:space:]]*=[[:space:]]*"\(ten_[0-9a-z]\{26\}\)".*/\1/p' infra/env/dev.tfvars | head -1)
+          [ -n "$tenant" ] || { echo "::error::infra/env/dev.tfvars has no founding_tenant_id"; exit 1; }
+          node scripts/recruitment/migrate-stages.mjs --env dev --tenant "$tenant" --apply
+
       - name: Point the app at pepla-dev
         run: scripts/ci/dev-frontend-env.sh
 

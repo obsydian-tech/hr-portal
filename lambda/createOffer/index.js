@@ -4,13 +4,13 @@
  * createOffer Lambda
  * Phase D — NH-130
  *
- * Two invocation paths:
- *   A. EventBridge EvaluationCompleted (outcome=PASSED) — automatic
- *   B. POST /v1/candidates/{id}/offer (JWT-secured HTTP API) — manual TA fallback
+ * One invocation path (REC-03): POST /v1/candidates/{id}/offer (JWT-secured HTTP API), a person makes the offer.
+ * No event makes an offer any more: an EvaluationCompleted event (or anything else that is not a person's request) writes,
+ * starts and sends nothing.
  *
  * Implementation spec (6 steps):
- *   1.  Detect invocation source (HTTP vs EventBridge)
- *   2.  Guard: EventBridge path requires outcome=PASSED; HTTP path bypasses (manual)
+ *   1.  Refuse anything that is not a person's HTTP request
+ *   2.  Guard: role, company and module come first
  *   3.  GetItem SAGA → read positionLevel, role, department, location, configVersion
  *   4.  getConfig(tenantId, 'APPROVAL_RULES', configVersion) — VERSIONED
  *   5.  Derive seniority-driven approval chain from config
@@ -40,7 +40,7 @@ const {
   StartExecutionCommand,
 } = require('@aws-sdk/client-sfn');
 const { getConfig } = require('./shared/config-reader');
-const { tenantHelper, eventTenant } = require('../shared/tf-tenant.js');
+const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const eb     = new EventBridgeClient({});
@@ -71,54 +71,33 @@ function buildApprovalChain(positionLevel, approvalRules) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
-  // Step 1: Detect invocation source
-  // HTTP API sets pathParameters; EventBridge sets detail.
+  // Step 1: only a person's HTTP request makes an offer. HTTP API sets pathParameters; an event does not.
   const isHttp = !!(event.pathParameters || event.requestContext);
-
-  // TEN-03: a person gets the company from the sign-in (tenantId in the body is not read). The EventBridge event
-  // names it in tenant_id; an event without one is skipped (nothing read, written or sent).
-  const T = await tenantHelper();
-  let candidateId, tenantId, outcome, inputConfigVersion;
-
-  if (isHttp) {
-    // REC-01: only a Recruiter (HR with the Recruitment tick) may make an offer by hand. The role answer comes first.
-    const RA = await import('../shared/recruitment-access.mjs');
-    const notRecruiter = RA.requireRecruiter(event);
-    if (notRecruiter) return notRecruiter;
-    // Manual creation — TA-initiated fallback from the Offer tab
-    candidateId        = event.pathParameters?.id ?? event.pathParameters?.candidateId;
-    const body         = event.body
-      ? (typeof event.body === 'string' ? JSON.parse(event.body) : event.body)
-      : {};
-    const t = T.requireTenant(event);
-    if (t.refusal) return t.refusal;
-    // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
-    const { requireModule } = await import('../shared/modules.mjs');
-    const moduleOff = await requireModule(event, 'recruitment');
-    if (moduleOff) return moduleOff;
-    tenantId           = t.tenantId;
-    outcome            = 'PASSED';  // manual creation bypasses evaluation guard
-    inputConfigVersion = null;      // read from SAGA below
-  } else {
-    // Automatic trigger from EventBridge EvaluationCompleted
-    const detail       = event.detail ?? event;
-    candidateId        = detail.candidateId;
-    tenantId           = await eventTenant(detail);
-    if (!tenantId) {
-      console.warn('createOffer: event skipped, it names no company');
-      return ok({ skipped: true, reason: 'no_company' });
-    }
-    outcome            = detail.outcome;
-    inputConfigVersion = detail.configVersion ?? null;
+  if (!isHttp) {
+    console.warn('createOffer: skipped, not a request from a person');
+    return ok({ skipped: true, reason: 'not_http' });
   }
+
+  // TEN-03: the company comes from the sign-in (tenantId in the body is not read).
+  const T = await tenantHelper();
+
+  // REC-01: only a Recruiter (HR with the Recruitment tick) may make an offer. The role answer comes first.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notRecruiter = RA.requireRecruiter(event);
+  if (notRecruiter) return notRecruiter;
+  const candidateId = event.pathParameters?.id ?? event.pathParameters?.candidateId;
+  const body        = event.body
+    ? (typeof event.body === 'string' ? JSON.parse(event.body) : event.body)
+    : {};
+  const t = T.requireTenant(event);
+  if (t.refusal) return t.refusal;
+  // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
+  const { requireModule } = await import('../shared/modules.mjs');
+  const moduleOff = await requireModule(event, 'recruitment');
+  if (moduleOff) return moduleOff;
+  const tenantId = t.tenantId;
 
   if (!candidateId) return badRequest('Missing required field: candidateId');
-
-  // Step 2: Guard — only EventBridge path enforces PASSED outcome
-  if (!isHttp && outcome !== 'PASSED') {
-    console.info('Skipping offer creation for non-PASSED evaluation', { candidateId, outcome });
-    return ok({ candidateId, skipped: true, reason: 'outcome_not_passed' });
-  }
 
   // Step 3: Read SAGA — candidate details + configVersion
   let saga;
@@ -142,7 +121,7 @@ exports.handler = async (event) => {
   if (!positionLevel) return badRequest(`SAGA for candidate ${candidateId} has no positionLevel`);
 
   // configVersion: prefer EventBridge-supplied value, fall back to SAGA
-  const configVersion = inputConfigVersion ?? saga.configVersion;
+  const configVersion = saga.configVersion;
   if (!configVersion) return badRequest(`No configVersion available for candidate ${candidateId}`);
 
   // Step 4: Versioned config read — POPIA invariant #2

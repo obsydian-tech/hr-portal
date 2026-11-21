@@ -25,7 +25,7 @@ const ivBody = { tenantId: A, candidateId: ID.a1, interviewId: 'iv-new-0001', in
 export const ROUTES: Route[] = [
   { name: 'GET /v1/candidates/{id}', handler: 'getCandidate', own: { path: { id: ID.a1 } }, byId: true },
   { name: 'PATCH /v1/candidates/{id}', handler: 'updateCandidate', own: { method: 'PATCH', path: { id: ID.a1 }, body: { firstName: 'Jon' } }, byId: true, writes: true },
-  { name: 'PUT /v1/candidates/{id}/stage', handler: 'advanceCandidateStage', own: { method: 'PUT', path: { id: ID.a1 }, body: { newStage: 'INTERVIEWING', tenantId: A } }, byId: true, writes: true },
+  { name: 'PUT /v1/candidates/{id}/stage', handler: 'advanceCandidateStage', own: { method: 'PUT', path: { id: ID.a1 }, body: { to: 'SCREENING', reason: 'Moved on after the CV read', tenantId: A } }, byId: true, writes: true },
   { name: 'GET /v1/candidates/{id}/interviews', handler: 'scheduleInterview', own: { path: { id: ID.a1 } }, byId: true },
   { name: 'PATCH /v1/candidates/{id}/interviews/{interviewId}', handler: 'scheduleInterview', own: { method: 'PATCH', path: { id: ID.a1, interviewId: ID.ivA }, body: { action: 'complete', outcome: 'PASS' } }, byId: true, writes: true },
   { name: 'POST /v1/candidates/{id}/interviews', handler: 'scheduleInterview', own: { method: 'POST', path: { id: ID.a2 }, body: { ...ivBody, candidateId: ID.a2 } }, byId: true, writes: true },

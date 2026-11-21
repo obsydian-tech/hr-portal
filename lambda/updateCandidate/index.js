@@ -10,9 +10,9 @@
  *   firstName, lastName, phone, role, department, location,
  *   experienceYears, source, hiringManagerId, positionLevel (guarded)
  *
- * positionLevel guard: locked once the candidate reaches PANEL_INTERVIEW or later.
- * Changing level after evaluation scores have been submitted would invalidate
- * the approval chain and scoring weights — the field is immutable from that point.
+ * positionLevel guard (REC-03): locked once the candidate is in Interview or later, and in Applied or Screening once any
+ * interview has been scheduled. Changing level after scores have been cast would invalidate the approval chain and the
+ * scoring weights, so the field is immutable from that point.
  *
  * Permanently locked (never accepted in body):
  *   id, email, currentStage, workflowTemplateId, configVersion,
@@ -26,6 +26,7 @@
 const {
   DynamoDBClient,
   GetItemCommand,
+  QueryCommand,
   UpdateItemCommand,
 } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
@@ -60,12 +61,24 @@ const EDITABLE_FIELDS = new Set([
   'source', 'hiringManagerId', 'positionLevel',
 ]);
 
-// positionLevel is locked once evaluation has started (scores were cast against it)
-const EVALUATION_LOCK_STAGES = new Set([
-  'PANEL_INTERVIEW', 'EVALUATION', 'BACKGROUND_CHECK',
-  'OFFER_PREPARATION', 'OFFER_APPROVAL', 'OFFER_DELIVERY',
-  'CONTRACT_SIGNING', 'PRE_BOARDING', 'ONBOARDING',
-]);
+// positionLevel is open to change only while the candidate is in one of these stages and has no interview yet.
+const LEVEL_OPEN_STAGES = ['APPLIED', 'SCREENING'];
+
+/** True when any interview row of the candidate (this company's) exists. Reads every page. */
+async function hasInterview(candidateId, tenantId, T) {
+  let start;
+  do {
+    const page = await dynamo.send(new QueryCommand({
+      TableName: STATE_TABLE,
+      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+      ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${candidateId}`, ':sk': 'INTERVIEW#' }),
+      ExclusiveStartKey: start,
+    }));
+    if ((page.Items ?? []).some((i) => T.ownsRow(unmarshall(i), tenantId))) return true;
+    start = page.LastEvaluatedKey;
+  } while (start);
+  return false;
+}
 
 exports.handler = async (event) => {
   // REC-01: only a Recruiter (HR with the Recruitment tick) may do this. The role answer comes first, before any AWS call.
@@ -119,11 +132,20 @@ exports.handler = async (event) => {
     return respond(500, { error: 'Failed to read candidate record' });
   }
 
-  // Guard: positionLevel is locked once evaluation has started
-  if (patch.positionLevel && EVALUATION_LOCK_STAGES.has(saga.currentStage)) {
-    return respond(409, {
-      error: `positionLevel cannot be changed after evaluation has started (current stage: ${saga.currentStage})`,
-    });
+  // Guard (REC-03): the level is locked in Interview and later (a stored old stage name counts through normaliseStage), and in
+  // Applied or Screening once any interview exists.
+  if (patch.positionLevel !== undefined) {
+    const { normaliseStage } = await import('../shared/recruitment-stages.mjs');
+    let locked = !LEVEL_OPEN_STAGES.includes(normaliseStage(saga));
+    if (!locked) {
+      try {
+        locked = await hasInterview(candidateId, tenantId, T);
+      } catch (err) {
+        console.error('Failed to read interviews', { candidateId, error: err.name });
+        return respond(500, { error: 'Failed to read candidate record' });
+      }
+    }
+    if (locked) return respond(409, { error: 'Conflict', code: 'LEVEL_LOCKED' });
   }
 
   // Build UpdateExpression dynamically
