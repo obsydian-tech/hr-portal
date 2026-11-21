@@ -32,6 +32,11 @@ export const GRANTS: { role: string; action: string; resource: RegExp }[] = [
   { role: 'talent-flow-infra/capture_sentiment', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
   { role: 'talent-flow-infra/capture_sentiment', action: 'dynamodb:GetItem', resource: CONFIG_TABLE_ARN },
   { role: 'talent-flow-infra/schedule_interview', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
+  // Child lock rec-02.1 (REC-02): submitVote, submitVoteByToken and completeEvaluation read REJECTION_RULES (the Strong No and score flags) through
+  // the active-configs index; their roles had GetItem on the config table only.
+  { role: 'talent-flow-infra/submit_vote', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
+  { role: 'talent-flow-infra/submit_vote_by_token', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
+  { role: 'talent-flow-infra/complete_evaluation', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
   { role: 'talent-flow-infra/mark_notif_read', action: 'dynamodb:GetItem', resource: NOTIFICATIONS_ARN },
 ];
 
