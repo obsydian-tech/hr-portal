@@ -1370,7 +1370,7 @@ resource "aws_iam_role_policy" "update_candidate" {
       {
         Sid      = "StateTableReadWrite"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"] # Query: the level lock reads the candidate's interview rows (REC-03)
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {

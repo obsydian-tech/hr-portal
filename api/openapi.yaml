@@ -3779,10 +3779,60 @@ paths:
       - perm-recruitment
   /v1/candidates/{id}/stage:
     put:
-      summary: PUT /v1/candidates/{id}/stage
+      summary: "PUT /v1/candidates/{id}/stage: a person moves a candidate one step, with a reason (REC-03)"
+      description: Moves a candidate one step along Applied, Screening (when the company has it on), Interview and Offer, forward or back. A reason is required. Hired and Not hired are never reached here. Interview to Offer is the gate. The hiring manager may make that one move only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - to
+              - reason
+              properties:
+                to:
+                  type: string
+                  enum:
+                  - APPLIED
+                  - SCREENING
+                  - INTERVIEW
+                  - OFFER
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidateId:
+                    type: string
+                  from:
+                    type: string
+                  to:
+                    type: string
+                  at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Bad request (REASON_REQUIRED, UNKNOWN_STAGE, USE_ACTION, NOT_NEXT_STAGE)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+                  code:
+                    type: string
+              example:
+                error: Bad request
         '403':
           description: Forbidden
           content:
@@ -3793,6 +3843,8 @@ paths:
                   error:
                     type: string
                     example: Forbidden
+                  code:
+                    type: string
               example:
                 error: Forbidden
         '404':
@@ -3805,8 +3857,24 @@ paths:
                   error:
                     type: string
                     example: Not found
+                  code:
+                    type: string
               example:
                 error: Not found
+        '409':
+          description: Conflict (NOT_OPEN, INTERVIEWS_INCOMPLETE, OFFER_LIVE, STAGE_CHANGED)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+                  code:
+                    type: string
+              example:
+                error: Conflict
       operationId: PUT_v1_candidates_id_stage
       parameters:
       - name: id

@@ -71,22 +71,24 @@ function isRuleVisibleToRole(ruleId, role) {
 
 // Stage labels for human-readable display
 const STAGE_LABELS = {
-  APPLICATION_REVIEW: 'Application Review',
-  INTERVIEWING: 'Interviewing',
-  EVALUATION: 'Evaluation',
-  BACKGROUND_CHECK: 'Background Check',
-  OFFER_PREPARATION: 'Offer Preparation',
-  OFFER_APPROVAL: 'Offer Approval',
-  OFFER_DELIVERY: 'Offer Delivery',
-  CONTRACT_SIGNING: 'Contract Signing',
-  PRE_BOARDING: 'Pre-Boarding',
-  ONBOARDING: 'Onboarding',
+  APPLIED: 'Applied',
+  SCREENING: 'Screening',
+  INTERVIEW: 'Interview',
+  OFFER: 'Offer',
+  HIRED: 'Hired',
+  NOT_HIRED: 'Not hired',
 };
+
+// REC-03: a snapshot may still hold an old stage name until its company's stage move has run, so stages are read through the one
+// list. The shared file is an ES module: it is loaded once per run, before any tile is made. Until then a stage reads as stored.
+let normaliseStage = (value) => (value && typeof value === 'object' ? value.currentStage : value);
+const stageOf = (snapshot) => normaliseStage(snapshot);
 
 /**
  * Lambda handler
  */
 exports.handler = async (event) => {
+  ({ normaliseStage } = await import('../shared/recruitment-stages.mjs'));
   // REC-01: a Recruiter reads every tile of the company; a manager only the tiles of the candidates they are hiring for;
   // everyone else gets 403. The role answer comes first, before any AWS call.
   const RA = await import('../shared/recruitment-access.mjs');
@@ -568,7 +570,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
       tiles.push(createTile(snapshot, {
         priority: 'HIGH',
         title: 'Stalled in Stage',
-        description: `${entityName} has been in ${snapshot.currentStage?.replace(/_/g, ' ') || 'current stage'} for ${daysInStage} days`,
+        description: `${entityName} has been in ${STAGE_LABELS[stageOf(snapshot)] || 'current stage'} for ${daysInStage} days`,
         ruleId: 'RULE-STALE-001',
       }));
     }
@@ -577,7 +579,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     const onboardingReadiness = signals.ONBOARDING_READINESS;
     if (onboardingReadiness !== null && onboardingReadiness !== undefined &&
         onboardingReadiness < 75 &&
-        ['PRE_BOARDING', 'ONBOARDING'].includes(snapshot.currentStage)) {
+        stageOf(snapshot) === 'HIRED') {
       tiles.push(createTile(snapshot, {
         priority: onboardingReadiness < 50 ? 'HIGH' : 'MEDIUM',
         title: 'Onboarding Preparation Needed',
@@ -591,7 +593,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     // ══════════════════════════════════════════════════════════════════════════
 
     // Rule 10: Decision Needed - candidate in HM_REVIEW stage
-    if (snapshot.currentStage === 'HM_REVIEW' || snapshot.currentStage === 'EVALUATION') {
+    if (snapshot.currentStage === 'HM_REVIEW' || stageOf(snapshot) === 'INTERVIEW') {
       const daysInStage = signals.DAYS_IN_CURRENT_STAGE || 0;
       if (daysInStage >= 3) {
         tiles.push(createTile(snapshot, {
@@ -620,7 +622,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     // Rule 12: Provisioning at risk - start date approaching
     const daysToStart = signals.DAYS_TO_START_DATE;
     if (daysToStart !== null && daysToStart !== undefined && daysToStart <= 10 &&
-        ['PRE_BOARDING', 'ONBOARDING'].includes(snapshot.currentStage)) {
+        stageOf(snapshot) === 'HIRED') {
       tiles.push(createTile(snapshot, {
         priority: daysToStart <= 5 ? 'CRITICAL' : 'HIGH',
         title: 'Provisioning At Risk',
@@ -632,7 +634,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     // Rule 13: Equipment not ordered
     const equipmentStatus = signals.EQUIPMENT_REQUEST_STATUS;
     if (equipmentStatus === 'NOT_ORDERED' || equipmentStatus === 'PENDING') {
-      if (['PRE_BOARDING', 'ONBOARDING', 'CONTRACT_SIGNING'].includes(snapshot.currentStage)) {
+      if (stageOf(snapshot) === 'HIRED') {
         tiles.push(createTile(snapshot, {
           priority: 'HIGH',
           title: 'Equipment Not Ordered',
@@ -645,7 +647,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     // Rule 14: Access not provisioned
     const accessProvisioned = signals.ACCESS_PROVISIONED;
     if (accessProvisioned === false &&
-        ['PRE_BOARDING', 'ONBOARDING'].includes(snapshot.currentStage)) {
+        stageOf(snapshot) === 'HIRED') {
       tiles.push(createTile(snapshot, {
         priority: 'HIGH',
         title: 'Access Not Provisioned',
@@ -743,7 +745,7 @@ function createTile(snapshot, opts) {
     entityType: snapshot.entityType,
     entityId: snapshot.entityId,
     entityName: snapshot.entityName || 'Unknown',
-    currentStage: snapshot.currentStage,
+    currentStage: stageOf(snapshot),
     signals: extractDisplaySignals(snapshot),
     actions: getDefaultActions(snapshot),
     createdAt: snapshot.computedAt,
@@ -768,7 +770,7 @@ function extractDisplaySignals(snapshot) {
   if (snapshot.currentStage) {
     signals.push({
       label: 'Stage',
-      value: STAGE_LABELS[snapshot.currentStage] || snapshot.currentStage,
+      value: STAGE_LABELS[stageOf(snapshot)] || snapshot.currentStage,
       type: 'info',
     });
   }

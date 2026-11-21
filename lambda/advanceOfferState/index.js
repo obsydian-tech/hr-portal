@@ -304,14 +304,14 @@ exports.handler = async (event) => {
         console.error('Failed to publish OfferAccepted event', { candidateId, error: err.message });
       }
 
-      // Also update SAGA to reflect acceptance and move candidate to CONTRACT_SIGNING
+      // Also update SAGA to reflect acceptance and move candidate to Hired
       try {
         const sagaUpdateExpr = userId
           ? 'SET currentStage = :stage, acceptanceSentiment = :sentiment, updatedAt = :now, updatedBy = :uid'
           : 'SET currentStage = :stage, acceptanceSentiment = :sentiment, updatedAt = :now';
         const sagaAttrValues = userId
-          ? { ':stage': 'CONTRACT_SIGNING', ':sentiment': acceptanceSentiment, ':now': now, ':uid': userId }
-          : { ':stage': 'CONTRACT_SIGNING', ':sentiment': acceptanceSentiment, ':now': now };
+          ? { ':stage': 'HIRED', ':sentiment': acceptanceSentiment, ':now': now, ':uid': userId }
+          : { ':stage': 'HIRED', ':sentiment': acceptanceSentiment, ':now': now };
 
         await dynamo.send(new UpdateItemCommand(scopeWrite({
           TableName: STATE_TABLE,
