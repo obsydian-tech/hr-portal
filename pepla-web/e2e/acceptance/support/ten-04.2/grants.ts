@@ -6,10 +6,12 @@
  * TEN-04.2: createProvisioningBundle Queries the state table (the candidate's company check); getPanelMembers and getHiringManagers Query the tenants
  * table (Member rows). PR 407: getCandidateEvents, acknowledgeTile, snoozeTile Query the state table; captureSentiment GetItems it; markNotificationRead
  * GetItems the notifications table.
+ * Child lock ten-03.17: getCandidate Queries the state table for the candidate's interviews (lambda/getCandidate/index.js, the interviews lookup); its role had GetItem only; talent-flow-iam.tf names the table local.tf_table_state, so the table pattern accepts that name too. talentFlowAiChat Queries the config table's one active-configs index (lambda/talentFlowAiChat/tool-resolver.mjs), so that single index is allowed for the ai_chat role and nothing broader.
  */
 const arn = (table: string, label: string) => new RegExp(`^(aws_dynamodb_table\\.${label}\\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\\/${table})$`);
-export const STATE_ARN = new RegExp(`^(aws_dynamodb_table\\.talent_flow_state\\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\\/(talent-flow-state|\\$\\{local\\.tf_state_table\\}))$`);
+export const STATE_ARN = new RegExp(`^(aws_dynamodb_table\\.talent_flow_state\\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\\/(talent-flow-state|\\$\\{local\\.(tf_state_table|tf_table_state)\\}))$`);
 export const NOTIFICATIONS_ARN = arn('talent-flow-notifications', 'talent_flow_notifications');
+export const CONFIG_ACTIVE_INDEX_ARN = /^arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-config|\$\{local\.tf_table_config\})\/index\/GSI1-active-configs$/;
 export const TENANTS_ARN = /^(aws_dynamodb_table\.tenants\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(\$\{local\.tf_tenants_table\}|naleko-people-\$\{var\.environment\}-tenants))$/;
 
 export const GRANTS: { role: string; action: string; resource: RegExp }[] = [
@@ -19,6 +21,8 @@ export const GRANTS: { role: string; action: string; resource: RegExp }[] = [
   { role: 'infra/get_candidate_events', action: 'dynamodb:Query', resource: STATE_ARN },
   { role: 'talent-flow-infra/acknowledge_tile', action: 'dynamodb:Query', resource: STATE_ARN },
   { role: 'talent-flow-infra/snooze_tile', action: 'dynamodb:Query', resource: STATE_ARN },
+  { role: 'talent-flow-infra/get_candidate', action: 'dynamodb:Query', resource: STATE_ARN },
+  { role: 'talent-flow-infra/ai_chat', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
   { role: 'talent-flow-infra/capture_sentiment', action: 'dynamodb:GetItem', resource: STATE_ARN },
   { role: 'talent-flow-infra/mark_notif_read', action: 'dynamodb:GetItem', resource: NOTIFICATIONS_ARN },
 ];
