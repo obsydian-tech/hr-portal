@@ -897,7 +897,7 @@ test.describe('REC-02 · A person decides: no automatic Not hired, and a Not hir
     const active = (await rules.json()) as { version: number; data: any };
     if (active.data?.decider?.JUNIOR !== 'HR_ONLY') {
       const data = { ...active.data, decider: { ...active.data.decider, JUNIOR: 'HR_ONLY' } };
-      const saved = await call2(admin, 'PUT', '/v1/config', { configType: 'REJECTION_RULES', data, expected_version: active.version });
+      const saved = await call2(admin, 'PUT', '/v1/config/REJECTION_RULES', { configType: 'REJECTION_RULES', data, expected_version: active.version });
       expect(saved.status(), `the Admin sets JUNIOR to HR_ONLY (${await saved.text()})`).toBe(200);
     }
     const y = await make('JUNIOR');
