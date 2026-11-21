@@ -160,11 +160,16 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
       if (JSON.stringify(bodyOf(got)) !== JSON.stringify(want === 403 ? FORBIDDEN : NOT_FOUND)) wrong.push(`${tag}: the answer is ${JSON.stringify(want === 403 ? FORBIDDEN : NOT_FOUND)} (got ${JSON.stringify(bodyOf(got))})`);
       if (writes(got).length) wrong.push(`${tag}: a refusal writes nothing (${writes(got).map((x: any) => `${x.service} ${x.op}`).join(', ')})`);
       // A role refusal comes before any AWS call; a "not yours" answer reads only the rows it needs.
-      if (want === 403 && r.kind !== 'vote' && calls(got).length) wrong.push(`${tag}: no AWS call before the role refusal (got ${calls(got).map((x: any) => `${x.service} ${x.op}`).join(', ')})`);
+      if (want === 403 && r.kind !== 'vote' && !(r.kind === 'move' && MANAGERS.includes(c)) && calls(got).length) wrong.push(`${tag}: no AWS call before the role refusal (got ${calls(got).map((x: any) => `${x.service} ${x.op}`).join(', ')})`);
     };
     const everyoneElse = (except: Caller[]) => NOT_RECRUITERS.filter((c) => !except.includes(c));
     switch (r.kind) {
       case 'recruiter':
+        RECRUITERS.forEach((c) => check(c, 'pass'));
+        NOT_RECRUITERS.forEach((c) => check(c, 403));
+        break;
+      case 'move':
+        // REC-03 (child lock rec-03.1): the fixture is a move out of Applied, which no manager may make.
         RECRUITERS.forEach((c) => check(c, 'pass'));
         NOT_RECRUITERS.forEach((c) => check(c, 403));
         break;
@@ -202,7 +207,7 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
       const wrong = ROUTES.filter(pick).flatMap(judgeRoute);
       expect(wrong, 'allowed callers reach the handler; every other caller gets 403 {"error":"Forbidden"} (404 {"error":"Not found"} where the table says so), with no AWS call before a role refusal and no write on any refusal').toEqual([]);
     });
-  group('AC-2 Every route, every caller: Recruiter-only actions', (r) => r.kind === 'recruiter');
+  group('AC-2 Every route, every caller: Recruiter-only actions', (r) => r.kind === 'recruiter' || r.kind === 'move');
   group('AC-2 Every route, every caller: lists and tiles', (r) => r.kind === 'list');
   group('AC-2 Every route, every caller: one candidate, its history, its interviews and its offer', (r) => r.kind === 'relation');
   group('AC-2 Every route, every caller: settings and the vote', (r) => r.kind === 'settings' || r.kind === 'vote');
@@ -407,7 +412,7 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
         const got = run(r, c, {}, { tables: before });
         const ghost = run(r, c, { path: { ...r.own.path, id: 'CAND-01REC01GHOSTGHOSTGHOST9' } });
         // A Recruiter of B is allowed through the role check on a recruiter route, so the row decides: 404.
-        const roleOk = r.kind === 'recruiter' || r.kind === 'relation' ? c === C.recruiterB : false;
+        const roleOk = r.kind === 'recruiter' || r.kind === 'move' || r.kind === 'relation' ? c === C.recruiterB : false;
         if (!roleOk) continue;
         if (statusOf(got) !== want || JSON.stringify(bodyOf(got)) !== JSON.stringify(NOT_FOUND)) wrong.push(`${r.name} | ${c.name} on A's candidate: want 404 Not found, got ${describe(got)}`);
         if (JSON.stringify(bodyOf(got)) !== JSON.stringify(bodyOf(ghost)) || statusOf(got) !== statusOf(ghost)) wrong.push(`${r.name} | ${c.name}: answers like a candidate that does not exist`);

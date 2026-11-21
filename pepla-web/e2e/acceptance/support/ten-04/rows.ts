@@ -97,7 +97,7 @@ export const ROWS: Record<string, Row> = {
   'POST /v1/candidates': create({ idempotencyKey: 'ten04-b-0001', firstName: 'Ten04', lastName: 'Walk', email: `${MARK}-b-cand@example.com`, positionTitle: 'Baker', positionLevel: 'JUNIOR', tenantId: A_BODY }, { op: 'GET /v1/candidates' }),
   'GET /v1/candidates/{id}': byId(cand),
   'PATCH /v1/candidates/{id}': write(cand, { firstName: 'Changed', tenantId: A_BODY }, readCand),
-  'PUT /v1/candidates/{id}/stage': write(cand, { newStage: 'INTERVIEWING', tenantId: A_BODY }, readCand),
+  'PUT /v1/candidates/{id}/stage': write(cand, { to: 'SCREENING', reason: 'Moved on after the CV read', tenantId: A_BODY }, readCand),
   'GET /v1/candidates/{id}/interviews': byId(cand),
   'POST /v1/candidates/{id}/interviews': write(cand, iv, { op: 'GET /v1/candidates/{id}/interviews', ids: cand }),
   'PATCH /v1/candidates/{id}/interviews/{interviewId}': write({ id: 'candidate', interviewId: 'interview' }, { action: 'complete', outcome: 'PASS' }, { op: 'GET /v1/candidates/{id}/interviews', ids: cand }),

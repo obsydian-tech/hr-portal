@@ -38,6 +38,8 @@ export const GRANTS: { role: string; action: string; resource: RegExp }[] = [
   { role: 'talent-flow-infra/submit_vote_by_token', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
   { role: 'talent-flow-infra/complete_evaluation', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
   { role: 'talent-flow-infra/mark_notif_read', action: 'dynamodb:GetItem', resource: NOTIFICATIONS_ARN },
+  // Child lock rec-03.1 (REC-03): the level lock in updateCandidate reads the candidate's interview rows; its role had GetItem and UpdateItem only.
+  { role: 'talent-flow-infra/update_candidate', action: 'dynamodb:Query', resource: STATE_ARN },
 ];
 
 /** True when `pair` ("Allow <action> <resource> <condition>") on role `stack/role` is one of the grants above. */

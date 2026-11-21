@@ -4,6 +4,8 @@ import { A, ID, SUB, type Ask } from './world';
  * REC-01 rule 2: every Recruitment route a person calls that the table names, with one valid request for company A's own
  * record. `kind` says which row of the table the route sits in:
  *   recruiter  Recruiter only; everyone else 403 before any AWS call.
+ *   move       REC-03 (child lock rec-03.1): the stage move. Recruiter; a manager passes the role check and is refused (403, nothing
+ *              written) unless it is the hiring manager's gate move; everyone else 403 before any AWS call.
  *   list       Recruiter: all of the company. Manager: only their own candidates. Everyone else 403.
  *   relation   Recruiter; the hiring manager of that candidate; (where `panel`) a panel member of an interview of it. Anyone else 404.
  *   settings   Read: Recruiter or Admin. Save: Admin. Everyone else 403.
@@ -11,7 +13,7 @@ import { A, ID, SUB, type Ask } from './world';
  * Routes left out on purpose: the pickers (hiring managers, panel members), a person's own notifications, the approver routes
  * of talentFlowApproveAction (BE-19, REC-10), the AI chat (REC-10), the public vote by token and the event handlers.
  */
-export type Kind = 'recruiter' | 'list' | 'relation' | 'settings' | 'vote';
+export type Kind = 'recruiter' | 'move' | 'list' | 'relation' | 'settings' | 'vote';
 export type Route = {
   name: string;
   handler: string;
@@ -31,7 +33,7 @@ const tile = `tile-${ID.c1}-RULE-SLA-002`;
 export const ROUTES: Route[] = [
   { name: 'POST /v1/candidates', handler: 'createCandidate', kind: 'recruiter', ok: [200, 201], own: { method: 'POST', body: { idempotencyKey: 'idem-a-0001', firstName: 'Lerato', lastName: 'Mokoena', email: 'lerato@example.test', positionTitle: 'Baker', positionLevel: 'JUNIOR' } } },
   { name: 'PATCH /v1/candidates/{id}', handler: 'updateCandidate', kind: 'recruiter', ok: [200], own: { method: 'PATCH', path: { id: ID.c1 }, body: { firstName: 'Jon' } } },
-  { name: 'PUT /v1/candidates/{id}/stage', handler: 'advanceCandidateStage', kind: 'recruiter', ok: [200], own: { method: 'PUT', path: { id: ID.c1 }, body: { newStage: 'INTERVIEWING' } } },
+  { name: 'PUT /v1/candidates/{id}/stage', handler: 'advanceCandidateStage', kind: 'move', ok: [200], own: { method: 'PUT', path: { id: ID.c1 }, body: { to: 'SCREENING', reason: 'Moved on after the CV read' } } },
   { name: 'POST /v1/candidates/{id}/interviews', handler: 'scheduleInterview', kind: 'recruiter', ok: [200, 201], own: { method: 'POST', path: { id: ID.c2 }, body: ivBody } },
   { name: 'PATCH /v1/candidates/{id}/interviews/{interviewId} (complete)', handler: 'scheduleInterview', kind: 'recruiter', ok: [200], own: { method: 'PATCH', path: { id: ID.c1, interviewId: ID.i1 }, body: { action: 'complete', outcome: 'PASS' } } },
   { name: 'PATCH /v1/candidates/{id}/interviews/{interviewId} (add panel)', handler: 'scheduleInterview', kind: 'recruiter', ok: [200], own: { method: 'PATCH', path: { id: ID.c1, interviewId: ID.i1 }, body: { panelMemberIds: [SUB.panelA, SUB.panelX, 'sub-panel-new'] } } },
