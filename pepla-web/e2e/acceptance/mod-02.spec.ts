@@ -766,9 +766,15 @@ test.describe('MOD-02 The module-aware shell and guards', () => {
     });
 
     // Today's shell, whoever's it is: everything but the person's own words.
-    const sameAsToday = async (name: string, expected: ShellSnapshot) => {
+    // REC-UI-01 adds the "Hire" group (Roles, Pipeline at /hire/...) for a login that has Recruitment. Those entries are
+    // new on purpose, so for the founding company's HR login they are set aside; everything else must still be today's.
+    // The employee and a company with Recruitment off get no allowance: they must show no Hire entry at all.
+    const sameAsToday = async (name: string, expected: ShellSnapshot, hireAllowed = false) => {
       await quiet(page);
-      const got = await snapshot(page);
+      const raw = await snapshot(page);
+      const got = hireAllowed
+        ? { ...raw, headings: raw.headings.filter((h) => h !== 'Hire'), items: raw.items.filter((i) => !i.href.startsWith('/hire/')) }
+        : raw;
       const bare = (s: ShellSnapshot) => ({ ...s, h1: '', topBar: { ...s.topBar, account: null, buttons: s.topBar.buttons.filter((b) => !/^Your account/.test(b.label)) }, product: { ...s.product, area: s.product.area === 'HR' ? 'HR' : '' } });
       expect(bare(got), `${name}: the sidebar, top bar and first page are today's`).toEqual(bare(expected));
     };
@@ -781,7 +787,7 @@ test.describe('MOD-02 The module-aware shell and guards', () => {
     await expect.poll(() => asked.length, { message: 'the modules route is asked for on the page load' }).toBeGreaterThanOrEqual(1);
     await quiet(page);
     expect(asked, 'the modules route is asked once per page load').toHaveLength(1);
-    await sameAsToday('HR', base.hr.snap);
+    await sameAsToday('HR', base.hr.snap, true);
     expect(answer, 'the founding company has both modules').toEqual(expect.arrayContaining(['onboarding', 'recruitment']));
     await forgetSignIn(page);
 
