@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page, Request, Response } from '@playwright/test';
 import { expect, test } from './support/fixtures';
+import { settleFonts } from './support/fonts';
 import { forgetSignIn } from './support/sign-in-again';
 import { BROWSER_OUT, DS, PEPLA_WEB, changedFiles, dsFile, imports, isSiteCss, linkedStyles, plant, productionBuild, read, rel, run, siteStyleState, stripComments, walk } from './support/site-07/css-split';
 
@@ -33,6 +34,34 @@ function watch(page: Page): { requests: string[]; sheets: Array<{ url: string; t
   return { requests, sheets, reset: () => { requests.length = 0; sheets.length = 0; pending.length = 0; } };
 }
 const siteRequests = (urls: string[]) => urls.filter((u) => isSiteCss(new URL(u).pathname));
+
+/**
+ * Site-07.6: waits until every web font the page's text uses has loaded, on a page that has JavaScript off. settleFonts (support/fonts.ts) cannot be used there:
+ * it awaits a promise inside the page, and a page with scripts off never runs one, so the call hangs. This asks for each font and polls with plain reads.
+ * It fails with the names of any font that did not arrive, so a missing font file is reported as that and not as a box that moved.
+ */
+async function fontsLoadedWithScriptOff(p: Page): Promise<void> {
+  const until = Date.now() + 20_000;
+  let missing: string[] = [];
+  for (;;) {
+    missing = await p.evaluate(() => {
+      const specs = new Set<string>();
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.textContent?.trim() || !n.parentElement) continue;
+        const s = getComputedStyle(n.parentElement);
+        specs.add(`${s.fontStyle} ${s.fontWeight} 16px ${s.fontFamily}`);
+      }
+      const out: string[] = [];
+      specs.forEach((spec) => { void document.fonts.load(spec).catch(() => []); if (!document.fonts.check(spec)) out.push(spec); });
+      return out;
+    });
+    if (!missing.length) break;
+    if (Date.now() > until) throw new Error(`fontsLoadedWithScriptOff: these fonts did not load: ${missing.join(' | ')}`);
+    await p.waitForTimeout(100);
+  }
+  await p.waitForTimeout(150);
+}
 
 async function settle(page: Page): Promise<void> {
   await page.waitForLoadState('load');
@@ -148,6 +177,8 @@ test.describe('SITE-07 Site styles split out and loaded only on public routes', 
     }, SITE_HEADER_BOX);
     await page.goto('/');
     await settle(page);
+    // Site-07.6: both pages are measured in the web fonts. Without this a slow font download (a busy CI runner) left one page in the fallback font and its text wrapped differently (22px apart).
+    await settleFonts(page);
     const withJs = await boxes(page);
     const noJs = await browser.newContext({ javaScriptEnabled: false, baseURL, viewport: page.viewportSize() });
     try {
@@ -155,6 +186,7 @@ test.describe('SITE-07 Site styles split out and loaded only on public routes', 
       await p.goto('/');
       await p.waitForLoadState('load');
       await p.waitForTimeout(800);
+      await fontsLoadedWithScriptOff(p);
       const without = await boxes(p);
       expect(without.header, 'JavaScript off: the header is there').not.toBeNull();
       expect(without.login, 'JavaScript off: "Log in" is there').not.toBeNull();

@@ -6,7 +6,7 @@ Test files: `site-07.spec.ts`, `support/site-07/css-split.ts`; also edits `site-
 
 Spec: [NH-209](https://obsydian.atlassian.net/browse/NH-209)
 
-Locks: acceptance-lock/site-07
+Locks: acceptance-lock/site-07, acceptance-lock/site-07.6 (fonts before the JavaScript-off compare)
 
 ## How the tests run
 
@@ -48,3 +48,7 @@ The file rule of `site-03.spec.ts` and `site-04.spec.ts` AC-12 runs on every sit
 ## SITE-07.2 (AC-6 allow-list)
 
 The card's own test commit re-locks `site-03.spec.ts` and `site-04.spec.ts` (the AC-12 widening above), so the pull request's diff holds both files. AC-6's allow-list names them, whole file names only, next to `site-01.spec.ts`.
+
+## Child lock .6: fonts before the JavaScript-off compare
+
+AC-4 compares the header and "Log in" boxes with JavaScript on and off. The page with JavaScript on waited for the network to go quiet; the page with it off only waited a fixed 800ms, so on a busy CI runner it was measured while the web font was still downloading and its text wrapped differently (CI, 21 Nov: 22px apart; reproduced here with the font files delayed 2.5 seconds: 34.6px). Both pages now wait until every web font their text uses has loaded. With JavaScript on that is `settleFonts` (support/fonts.ts). With it off a page never runs a promise, so `settleFonts` would hang there, and a small poll with plain reads does the same job and fails with the names of any font that did not arrive. No tolerance changed, no check removed.
