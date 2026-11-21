@@ -24,6 +24,12 @@ import { IntelligenceTileComponent } from '../../components/intelligence-tile/in
  */
 
 const STAGE_CONTEXT: Record<HiringStage, string> = {
+  APPLIED:            'Application received',
+  SCREENING:          'Screening in progress',
+  INTERVIEW:          'Interview loop in progress',
+  OFFER:              'Offer stage',
+  HIRED:              'Hired',
+  NOT_HIRED:          'Not hired',
   APPLICATION_REVIEW: 'Application under review',
   INTERVIEWING:       'Interview loop in progress',
   EVALUATION:         'Evaluation in progress',

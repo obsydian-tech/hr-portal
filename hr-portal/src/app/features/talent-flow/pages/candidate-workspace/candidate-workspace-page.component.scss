@@ -2008,3 +2008,11 @@
   }
 }
 
+
+.tf-ws-reason {
+  min-width: 12rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--naleko-border, #ced4da);
+  border-radius: 6px;
+  font: inherit;
+}
