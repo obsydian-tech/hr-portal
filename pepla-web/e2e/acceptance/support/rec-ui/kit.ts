@@ -6,7 +6,7 @@
  * changes, so a design system bump is a child lock that captures this again. Nothing here is typed by hand.
  */
 export const KIT = {
- "ref": "1d56228572641cf714e674ad765cbb7650c9e5f9",
+ "ref": "449bc5bce60d77099c4d539ea36f3b2440ab094b",
  "screens": {
   "Roles": {
    "main": [
