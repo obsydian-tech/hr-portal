@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PpIcon } from './icon';
+import { PpLozenge, Status } from '../status/lozenge';
+import { IconName } from './icon.registry';
 
 export type AvatarSize = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge' | 'xxlarge';
 export type AvatarColour = 'blue' | 'green' | 'amber' | 'magenta' | 'violet' | 'sky';
@@ -90,13 +92,14 @@ export class PpAvatarGroup {
  */
 @Component({
   selector: 'pp-person',
-  imports: [PpAvatar, RouterLink],
+  imports: [PpAvatar, PpLozenge, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <pp-avatar [name]="name()" [size]="size()" [kind]="kind()" [colour]="colour()" [decorative]="true" />
     <span class="pp-person__text">
       @if (link()) { <a class="pp-person__name" [routerLink]="link()">{{ name() }}</a> } @else { <span class="pp-person__name">{{ name() }}</span> }
-      @if (meta()) { <span class="pp-person__meta">{{ meta() }}</span> }
+      @if (state(); as st) { <span class="pp-person__meta"><pp-lozenge [status]="st.status" [icon]="st.icon">{{ st.text }}</pp-lozenge></span> }
+      @else if (meta()) { <span class="pp-person__meta">{{ meta() }}</span> }
     </span>
   `,
   host: { class: 'pp-person' },
@@ -109,4 +112,6 @@ export class PpPerson {
   readonly colour = input<AvatarColour>();
   /** Their record: the name becomes the link (a table's first column). */
   readonly link = input<string>();
+  /** A lozenge on the meta line, in place of meta text: `{ status: 'neutral', icon: 'circle-x', text: 'Not hired' }`. */
+  readonly state = input<{ status: Status; icon: IconName; text: string }>();
 }
