@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { extname, join, normalize, sep } from 'node:path';
 import { icons as LUCIDE } from 'lucide';
 import type { Page } from '@playwright/test';
+import { settleFonts } from '../fonts';
 
 /**
  * SITE-08 helpers, part 1: the design system kit as the oracle (its fragments, its preview scripts) and the page-side functions that
@@ -288,6 +289,10 @@ export function measure([scope, skip]: [string, string]): { items: Item[]; box: 
 
 export async function settle(p: Page): Promise<void> {
   await p.addStyleTag({ content: STILL });
+  // Site-08.4: ask for every web font the text uses and wait for it (settleFonts, the help pictures' wait). document.fonts.ready alone resolves at once when the browser has not yet
+  // asked for a font, so a page measured in that moment wrapped a line one way and the other page another (CI, 21 Nov: "in one record." 40.8 tall in the kit, 81.6 on the page).
+  // A font that never arrives now fails by name here instead of as a moved box.
+  await settleFonts(p);
   await p.evaluate(async () => { await document.fonts.ready; await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); });
 }
 
