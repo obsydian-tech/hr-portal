@@ -60,7 +60,8 @@ if (env === 'dev' && account === PROD_ACCOUNT) usage('--env dev, but this sign-i
 const ddb = new DynamoDBClient({ region });
 
 /** A row of this company that still has to move: no decision recorded yet, and an old stage name or an old outcome. */
-const needsMove = (row) => row.tenant_id === tenant && row.decided_by_kind === undefined
+// A row with no stage, or a stage this script does not know, is left alone (counted, never an error).
+const needsMove = (row) => row.tenant_id === tenant && row.decided_by_kind === undefined && normaliseStage(row.currentStage) !== undefined
   && (!STAGE_CODES.includes(row.currentStage) || OLD_OUTCOMES.includes(row.status));
 
 // Every page of the table, candidate rows only.
@@ -91,10 +92,10 @@ if (mode === 'dry') {
 
 let moved = 0;
 let skipped = 0;
+
 for (const row of rows) {
   const old = row.currentStage;
   const mapped = normaliseStage(old);
-  if (!mapped) { skipped += 1; console.error('Skipped one candidate row: its stage is not a stage this script knows.'); continue; }
   const rejected = OLD_OUTCOMES.includes(row.status);
   const to = rejected ? 'NOT_HIRED' : mapped;
   const at = new Date().toISOString();

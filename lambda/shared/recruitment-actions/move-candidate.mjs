@@ -32,7 +32,9 @@ const STATE = () => process.env.STATE_TABLE_NAME ?? 'talent-flow-state';
 const BUS = () => process.env.EVENTBRIDGE_BUS_NAME ?? 'talent-flow-bus';
 
 const MAX_REASON = 1000;
-const LIVE_OFFER_STATES = ['WAITING_APPROVAL', 'APPROVED', 'SENT'];
+// An offer that is in approval or already sent: the states the offer routes write today (a draft, OFFER_CREATED, is not live), and
+// the names REC-05 will use.
+const LIVE_OFFER_STATES = ['IN_APPROVAL', 'OFFER_SENT', 'WAITING_APPROVAL', 'APPROVED', 'SENT'];
 
 const notFound = () => json(404, { error: 'Not found' });
 const forbidden = () => json(403, { error: 'Forbidden' });
