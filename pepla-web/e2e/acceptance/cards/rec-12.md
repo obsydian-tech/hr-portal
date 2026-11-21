@@ -40,3 +40,11 @@ make the same candidate id). AC-8 reads code and Terraform as text. AC-9 runs on
 ## Existing locked tests that must change (listed for rec-12.1, to be found by running them on the build)
 
 mod-01 AC-6 (the "not available yet" line), and the unit tests of advanceCandidateStage, captureSentiment and submitVote that read the old defaults.
+
+## Child lock rec-12.1 (the moved assertions, found by running the older locked tests on the build)
+
+Locks: rec-12.1 (this section and the test files below)
+
+- `support/rec-01/routes.ts`, `support/mod-01/routes.ts`, `support/ten-03/routes.ts`, `support/ten-05/access.ts`: the POST and PUT `/v1/config` fixtures sent old-shape bodies (`{ x: 1 }`, `{ weights: ... }`). REC-12 refuses a body that is not the setting's shape (400 INVALID_SETTING), so each fixture now sends a valid RETENTION setting. Nothing else about those tests changes (who may call, which answer, what is written).
+- `support/ten-04.2/grants.ts` (read by ten-03 AC-10, mod-01 AC-8, rec-01 AC-8): five more table-level grants the REC-12 readers need: createCandidate and captureSentiment Query the config table's active index and GetItem a version row; scheduleInterview Queries the active index (its role had GetItem only, so its read failed and the built-in defaults were used).
+- `mod-01.spec.ts` AC-6: the Standard pack is no longer "not available yet". The seed prints how many settings it wrote; its writes go to the config table, which the "nothing else changed" comparison leaves out; the flip is now the last write and the seed's line comes before it; prod `--apply` turning Recruitment on now runs instead of being refused.

@@ -12,6 +12,7 @@ const arn = (table: string, label: string) => new RegExp(`^(aws_dynamodb_table\\
 export const STATE_ARN = new RegExp(`^(aws_dynamodb_table\\.talent_flow_state\\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\\/(talent-flow-state|\\$\\{local\\.(tf_state_table|tf_table_state)\\}))$`);
 export const NOTIFICATIONS_ARN = arn('talent-flow-notifications', 'talent_flow_notifications');
 export const CONFIG_ACTIVE_INDEX_ARN = /^arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-config|\$\{local\.tf_table_config\})\/index\/GSI1-active-configs$/;
+export const CONFIG_TABLE_ARN = /^arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-config|\$\{local\.tf_table_config\})$/;
 export const TENANTS_ARN = /^(aws_dynamodb_table\.tenants\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(\$\{local\.tf_tenants_table\}|naleko-people-\$\{var\.environment\}-tenants))$/;
 
 export const GRANTS: { role: string; action: string; resource: RegExp }[] = [
@@ -24,6 +25,13 @@ export const GRANTS: { role: string; action: string; resource: RegExp }[] = [
   { role: 'talent-flow-infra/get_candidate', action: 'dynamodb:Query', resource: STATE_ARN },
   { role: 'talent-flow-infra/ai_chat', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
   { role: 'talent-flow-infra/capture_sentiment', action: 'dynamodb:GetItem', resource: STATE_ARN },
+  // Child lock rec-12.1 (REC-12): the settings readers. createCandidate and captureSentiment lock a candidate to the active version of every
+  // setting (Query on the active-configs index, GetItem of a version row); scheduleInterview's Query on that index was missing.
+  { role: 'talent-flow-infra/create_candidate', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
+  { role: 'talent-flow-infra/create_candidate', action: 'dynamodb:GetItem', resource: CONFIG_TABLE_ARN },
+  { role: 'talent-flow-infra/capture_sentiment', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
+  { role: 'talent-flow-infra/capture_sentiment', action: 'dynamodb:GetItem', resource: CONFIG_TABLE_ARN },
+  { role: 'talent-flow-infra/schedule_interview', action: 'dynamodb:Query', resource: CONFIG_ACTIVE_INDEX_ARN },
   { role: 'talent-flow-infra/mark_notif_read', action: 'dynamodb:GetItem', resource: NOTIFICATIONS_ARN },
 ];
 
