@@ -181,6 +181,7 @@ export const PARITY_BARS: Record<'desktop-1280' | 'phone-390', Record<string, st
 export const HR_BAR: Record<'desktop-1280' | 'phone-390', string[]> = {
   "desktop-1280": [
     "button:Open menu:hidden",
+    "button:Modules:shown",
     "a:Naleko People home:hidden",
     "input:Search people and documents:shown",
     "button:Ask Batsi:shown",
@@ -190,6 +191,7 @@ export const HR_BAR: Record<'desktop-1280' | 'phone-390', string[]> = {
   ],
   "phone-390": [
     "button:Open menu:shown",
+    "button:Modules:shown",
     "a:Naleko People home:shown",
     "input:Search people and documents:hidden",
     "button:Ask Batsi:shown",
@@ -202,6 +204,7 @@ export const HR_BAR: Record<'desktop-1280' | 'phone-390', string[]> = {
 export const EMPLOYEE_BAR: Record<'desktop-1280' | 'phone-390', string[]> = {
   "desktop-1280": [
     "button:Open menu:hidden",
+    "button:Modules:shown",
     "a:Naleko People home:hidden",
     "input:Search people and documents:shown",
     "button:Search:hidden",
@@ -210,6 +213,7 @@ export const EMPLOYEE_BAR: Record<'desktop-1280' | 'phone-390', string[]> = {
   ],
   "phone-390": [
     "button:Open menu:shown",
+    "button:Modules:shown",
     "a:Naleko People home:shown",
     "input:Search people and documents:hidden",
     "button:Search:shown",
