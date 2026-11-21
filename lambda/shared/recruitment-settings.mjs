@@ -1,8 +1,6 @@
 // REC-12: the shape, defaults and validator of every Recruitment setting, the one reader (getRecruitmentSettings) that gives
 // a candidate the versions it is locked to, and the template renderer. Pure data in, plain objects out; no company ever
 // comes from a request here, only from the caller's own sign-in (TEN-03).
-import { DynamoDBClient, GetItemCommand, QueryCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { STAGE_CODES } from './recruitment-stages.mjs';
 
 export const TYPES = ['STAGE_CONFIG', 'SENIORITY_PROFILES', 'INTERVIEW_TYPES', 'PANEL_CONFIG', 'SCORING_WEIGHTS', 'REJECTION_RULES', 'APPROVAL_RULES', 'SLA_THRESHOLDS', 'SENTIMENT_SCALE', 'EMAIL_TEMPLATES', 'INTELLIGENCE_RULES', 'RETENTION'];
@@ -96,11 +94,21 @@ export function validate(type, d, ctx = {}) {
 }
 export const isCovered = (type) => TYPES.includes(type);
 
-const client = new DynamoDBClient({});
+// The AWS packages load on the first read or write, so the shapes, defaults, validator and renderer above work (and are tested)
+// with no AWS package installed, as in the CI job of a Lambda that only checks a save.
+let aws;
+async function load() {
+  if (!aws) {
+    const [db, util] = await Promise.all([import('@aws-sdk/client-dynamodb'), import('@aws-sdk/util-dynamodb')]);
+    aws = { ...db, ...util, client: new db.DynamoDBClient({}) };
+  }
+  return aws;
+}
 const CONFIG = () => process.env.CONFIG_TABLE_NAME ?? 'talent-flow-config';
 const STATE = () => process.env.STATE_TABLE_NAME ?? 'talent-flow-state';
 
 async function activeItems(tenantId) {
+  const { client, QueryCommand, GetItemCommand, UpdateItemCommand, marshall, unmarshall } = await load();
   const out = {};
   const answers = await Promise.all(TYPES.map((type) => client.send(new QueryCommand({
     TableName: CONFIG(), IndexName: 'GSI1-active-configs', KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
@@ -113,6 +121,7 @@ async function activeItems(tenantId) {
   return out;
 }
 async function versionItem(tenantId, type, version) {
+  const { client, QueryCommand, GetItemCommand, UpdateItemCommand, marshall, unmarshall } = await load();
   const r = await client.send(new GetItemCommand({ TableName: CONFIG(), Key: marshall({ PK: `TENANT#${tenantId}`, SK: `CONFIG#${type}#v${version}` }) }));
   return r.Item ? { version, data: unmarshall(r.Item).data } : undefined;
 }
@@ -129,6 +138,7 @@ export async function activeSettings(tenantId) {
 
 /** With a candidate: the versions it is locked to (locking any that are missing, once). Without: the active versions. */
 export async function getRecruitmentSettings(tenantId, candidate) {
+  const { client, QueryCommand, GetItemCommand, UpdateItemCommand, marshall, unmarshall } = await load();
   const active = await activeItems(tenantId);
   if (!candidate || (candidate.tenant_id && candidate.tenant_id !== tenantId)) return Object.fromEntries(Object.entries(active).map(([t, i]) => [t, i.data]));
   const lock = { ...(candidate.settingVersions ?? {}) };
