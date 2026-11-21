@@ -29,7 +29,7 @@ import { packTables } from './support/rec-12/world';
  *  - D-T-2 The pack and the lock hold twelve types; WORKFLOW_TEMPLATES stays a name and is written nowhere.
  *  - D-T-3 RETENTION is judged either way on a candidate's row (the card says it is read at Not hired time).
  *  - D-T-4 The render function is renderTemplate(template, values) in lambda/shared/recruitment-settings.mjs, answering { subject?, body }.
- *  - D-T-5 The gate that reads INTERVIEW_TYPES is the one today's code has (leaving INTERVIEWING for EVALUATION); REC-03 moves it with its own lock.
+ *  - D-T-5 The gate that reads INTERVIEW_TYPES is the one today's code has (leaving INTERVIEWING for EVALUATION); REC-03 moves it with its own lock (child lock rec-03.1: the gate is now Interview to Offer, `{ to, reason }`).
  *  - D-T-6 {first_name} (underscore) in the stored check-in and follow-up texts: the card's placeholder spelling for the approved "{first name}".
  *  - D-T-7 The Standard pack switches Screening on, and its starting interview lists are the Interview Requirements page's own (support/rec-12/standard.ts).
  *  - D-T-8 The text check on old defaults covers every config-reader.js copy and the two handlers that held fixed lists; the stored-config reads in
@@ -434,7 +434,7 @@ test.describe('REC-12 · Settings that are only names become real settings, with
       t[TABLE.state]!.push(saga(id, 'Pia', 'Alpha', A, SUB.hmA, { positionLevel: level, currentStage: 'INTERVIEWING' }), ...done.map((x) => iv(id, x, 'COMPLETED')), ...pending.map((x) => iv(id, x, 'SCHEDULED')));
       return t;
     };
-    const move = (t: Tables, id: string) => ask('advanceCandidateStage', C.recruiter, { method: 'PUT', path: { id }, body: { newStage: 'EVALUATION' } }, { tables: t });
+    const move = (t: Tables, id: string) => ask('advanceCandidateStage', C.recruiter, { method: 'PUT', path: { id }, body: { to: 'OFFER', reason: 'REC-12 gate check' } }, { tables: t });
     const stageOf = (r: { tables: Tables }, id: string) => sagaOf(r.tables, id)?.['currentStage'];
 
     // Per level, as the company's INTERVIEW_TYPES says.
@@ -454,7 +454,7 @@ test.describe('REC-12 · Settings that are only names become real settings, with
       if (want === 409) {
         expect.soft(stageOf(r, id), `${what}: the candidate stays where it is`).toBe('INTERVIEWING');
         expect.soft(stateWrites(r).filter((c) => /SAGA/.test(JSON.stringify(c.input?.Key ?? '')) && /currentStage/.test(JSON.stringify(c.input))).length, `${what}: the stage is not written`).toBe(0);
-      } else expect.soft(stageOf(r, id), `${what}: the candidate moves on`).toBe('EVALUATION');
+      } else expect.soft(stageOf(r, id), `${what}: the candidate moves on`).toBe('OFFER');
     }
     // The company's own list decides: this one also wants FINAL for MID.
     const fin = clone(defaultOf('INTERVIEW_TYPES')); fin.requiredByLevel.MID = [...fin.requiredByLevel.MID, 'FINAL'];
@@ -477,7 +477,7 @@ test.describe('REC-12 · Settings that are only names become real settings, with
     tB[TABLE.state]!.splice(tB[TABLE.state]!.length - 2, 2,
       saga(idB, 'Bea', 'Bravo', B, SUB.hmB, { positionLevel: 'MID', currentStage: 'INTERVIEWING' }),
       av({ PK: `CANDIDATE#${idB}`, SK: 'INTERVIEW#iv-PHONE_SCREEN', interviewId: 'iv-PHONE_SCREEN', candidateId: idB, tenant_id: B, tenantId: B, interviewType: 'PHONE_SCREEN', status: 'COMPLETED', scheduledAt: '2026-12-01T09:00:00.000Z', createdAt: '2026-11-10T08:00:00.000Z' }));
-    const lightB = ask('advanceCandidateStage', C.recruiterB, { method: 'PUT', path: { id: idB }, body: { newStage: 'EVALUATION' } }, { tables: tB });
+    const lightB = ask('advanceCandidateStage', C.recruiterB, { method: 'PUT', path: { id: idB }, body: { to: 'OFFER', reason: 'REC-12 gate check' } }, { tables: tB });
     expect.soft(statusOf(lightB), `company B's own lighter list lets its MID candidate move (${describe(lightB)})`).toBe(200);
 
     // The moods are the company's own.
@@ -498,7 +498,8 @@ test.describe('REC-12 · Settings that are only names become real settings, with
     // Text checks: the fixed lists and the old defaults are gone from the code.
     const sentimentCode = code(join(LAMBDA, 'captureSentiment', 'index.js'));
     for (const m of MOOD_KEYS) expect.soft(sentimentCode.includes(m), `captureSentiment/index.js no longer holds the mood ${m}`).toBe(false);
-    const advanceCode = code(join(LAMBDA, 'advanceCandidateStage', 'index.js'));
+    // REC-03 (child lock rec-03.1): the move lives in a shared core the handler calls; both are read.
+    const advanceCode = code(join(LAMBDA, 'advanceCandidateStage', 'index.js')) + code(join(LAMBDA, 'shared', 'recruitment-actions', 'move-candidate.mjs'));
     expect.soft(advanceCode.includes('interviewRequirements'), 'advanceCandidateStage/index.js no longer reads PANEL_CONFIG interviewRequirements').toBe(false);
     expect.soft(/recruitment-settings/.test(advanceCode), 'advanceCandidateStage reads the settings through recruitment-settings.mjs').toBe(true);
     expect.soft(/recruitment-settings/.test(sentimentCode), 'captureSentiment reads the settings through recruitment-settings.mjs').toBe(true);
@@ -582,7 +583,7 @@ test.describe('REC-12 · Settings that are only names become real settings, with
       readActive('RETENTION', one, C.recruiterB), bRead, history,
       make(one, 'idem-rec12-default-1', C.recruiterB), make(one, 'idem-rec12-default-2'),
       ask('captureSentiment', C.recruiterB, { method: 'POST', path: { id: ID.cb1 }, body: { interviewSentiment: 'INTERESTED' } }, { tables: one }),
-      ask('advanceCandidateStage', C.recruiterB, { method: 'PUT', path: { id: ID.cb1 }, body: { newStage: 'INTERVIEWING' } }, { tables: one }),
+      ask('advanceCandidateStage', C.recruiterB, { method: 'PUT', path: { id: ID.cb1 }, body: { to: 'SCREENING', reason: 'REC-12 default check' } }, { tables: one }),
     ];
     for (const r of runs) expect.soft(JSON.stringify(calls(r)).includes('DEFAULT'), 'no call names a DEFAULT company').toBe(false);
     for (const f of [join(LAMBDA, 'shared', 'recruitment-settings.mjs'), join(LAMBDA, 'shared', 'config-reader.js')]) {
@@ -776,7 +777,10 @@ test.describe('REC-12 · Settings that are only names become real settings, with
     expect.soft(manageGrants.filter((p) => /dynamodb:\*|dynamodb:Delete|dynamodb:Scan/.test(p) || (/dynamodb:/.test(p) && / \*( |$)/.test(p.replace(/^(\S+) (\S+) /, '$1 $2 ') ) && /^Allow dynamodb:\S+ \*/.test(p))), 'no wildcard action and no delete or scan on any table').toEqual([]);
     const importers = readdirSync(LAMBDA, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).filter((name) => ['index.js', 'index.mjs'].some((f) => { const p = join(LAMBDA, name, f); return existsSync(p) && /recruitment-settings/.test(code(p)); }));
     const readers = [...new Set(['createCandidate', 'captureSentiment', 'advanceCandidateStage', ...importers])];
-    for (const name of ['createCandidate', 'captureSentiment', 'advanceCandidateStage']) expect.soft(importers.includes(name), `${name} reads settings through recruitment-settings.mjs`).toBe(true);
+    // REC-03 (child lock rec-03.1): advanceCandidateStage reads them through its core, lambda/shared/recruitment-actions/move-candidate.mjs.
+    const coreFile = join(LAMBDA, 'shared', 'recruitment-actions', 'move-candidate.mjs');
+    const viaCore = (name: string) => name === 'advanceCandidateStage' && existsSync(coreFile) && /recruitment-settings/.test(code(coreFile)) && /move-candidate/.test(code(join(LAMBDA, name, 'index.js')));
+    for (const name of ['createCandidate', 'captureSentiment', 'advanceCandidateStage']) expect.soft(importers.includes(name) || viaCore(name), `${name} reads settings through recruitment-settings.mjs`).toBe(true);
     for (const name of readers) {
       const pairs = grantsOf(name);
       const cfg = actions(onConfig(pairs).filter((p) => p.startsWith('Allow')));
@@ -853,9 +857,13 @@ test.describe('REC-12 · Settings that are only names become real settings, with
     // The other readers work with the real roles and the key: a sentiment, and the gate leaving the interview stage.
     const sentiment = await call(recruiterToken, 'POST', `/v1/candidates/${candidateId}/sentiment`, { interviewSentiment: 'INTERESTED' });
     expect(sentiment.status(), 'captureSentiment reads SENTIMENT_SCALE on dev').toBe(200);
-    const toInterview = await call(recruiterToken, 'PUT', `/v1/candidates/${candidateId}/stage`, { newStage: 'INTERVIEWING' });
+    // REC-03 (child lock rec-03.1): one step at a time with a reason; Screening may be off for the company, then Applied goes to Interview.
+    const toScreening = await call(recruiterToken, 'PUT', `/v1/candidates/${candidateId}/stage`, { to: 'SCREENING', reason: 'REC-12 AC-9 pepla-dev check' });
+    const screeningOff = toScreening.status() === 400 && ((await toScreening.json()) as any)?.code === 'NOT_NEXT_STAGE';
+    if (!screeningOff) expect(toScreening.status(), 'the candidate moves to Screening').toBe(200);
+    const toInterview = await call(recruiterToken, 'PUT', `/v1/candidates/${candidateId}/stage`, { to: 'INTERVIEW', reason: 'REC-12 AC-9 pepla-dev check' });
     expect(toInterview.status(), 'the candidate moves to the interview stage').toBe(200);
-    const gate = await call(recruiterToken, 'PUT', `/v1/candidates/${candidateId}/stage`, { newStage: 'EVALUATION' });
+    const gate = await call(recruiterToken, 'PUT', `/v1/candidates/${candidateId}/stage`, { to: 'OFFER', reason: 'REC-12 AC-9 pepla-dev check' });
     expect(gate.status(), 'the gate reads INTERVIEW_TYPES on dev and refuses a SENIOR candidate with no interview done (409, not 500)').toBe(409);
     // Company B starts with Onboarding only (MOD-01 AC-10 expects that). Switch Recruitment on for it with the MOD-01 script, which also
     // writes the Standard pack, wait out the 60 second module cache, read RETENTION, and always put B back.

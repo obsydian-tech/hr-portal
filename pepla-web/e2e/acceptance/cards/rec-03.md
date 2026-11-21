@@ -7,7 +7,7 @@ Test files: `rec-03.spec.ts` and `support/rec-03/` (`lambda-harness.ts`, `world.
 
 Spec: `onboarding-cards/specs/REC-03.md`, read with REC-00. Review page: `onboarding-cards/specs/REC-03-tests-for-review.md`.
 
-Locks: rec-03 (the first tests)
+Locks: rec-03 (the first tests), rec-03.1 (older locked tests make room)
 
 ## How the tests run
 
@@ -81,3 +81,20 @@ Nothing calls AWS or any AI.
 - Prod: the migration on prod is Iggie's ("run the REC-03 stage move in prod 937137806477"), with `--prod-account`.
 - A throwaway build that passes every no-backend test is at `/mnt/project-files/onboarding-cards/rec-03/REC-03-throwaway-build.patch`.
   It is not for merge.
+
+## Child lock rec-03.1: older locked tests make room for REC-03
+
+Each change is what REC-03 asks for; nothing else in those tests moves.
+
+- `support/rec-01/routes.ts`, `support/ten-03/routes.ts`, `support/mod-01/routes.ts`, `support/ten-04/rows.ts`: the stage route's
+  request is `{ to: 'SCREENING', reason }` (was `{ newStage: 'INTERVIEWING' }`, which is now 400). The candidate is in Applied.
+- `support/rec-01/routes.ts` and `rec-01.spec.ts`: the stage route is its own kind, `move`. A Recruiter passes; a manager passes the role
+  check (the hiring manager's gate move needs it) and is refused 403 with nothing written, so the "no AWS call before the role refusal"
+  rule does not apply to managers on this route only; everyone else is 403 before any AWS call, as before. Company B's Recruiter still
+  gets 404.
+- `rec-12.spec.ts`: the gate test moves Interview to Offer with `{ to: 'OFFER', reason }` (was INTERVIEWING to EVALUATION); the stored
+  stage stays INTERVIEWING on a refusal and is OFFER on a pass. The pepla-dev check moves one step at a time with a reason (Screening first
+  when it is on). The text checks read advanceCandidateStage's core (`lambda/shared/recruitment-actions/move-candidate.mjs`) as well as
+  its index.js.
+- `ten-03.spec.ts` AC-5: createOffer is no longer one of the event jobs (D-T-11); rec-03 AC-6 checks that an event writes nothing.
+- `support/ten-04.2/grants.ts`: updateCandidate's role may Query the state table (the level lock reads interviews).
