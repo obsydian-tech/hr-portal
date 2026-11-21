@@ -545,15 +545,19 @@ def active_config_version(ddb, tenant_id: str, config_type: str) -> str:
 
 
 def clear_rec02_test_candidates(ddb, tenant_id: str) -> int:
-    """Delete the candidates the REC-02 dev test (AC-12) creates each run (first name Rec, last name Zero-Two, email
-    rec02.*) with every row they hold, so the manager test login is hiring manager for one candidate again (REC-01 AC-9).
-    Only this company's rows, only those three markers together."""
+    """Delete the candidates the REC-02 (AC-12) and REC-03 (AC-11) dev tests create each run (first name Rec, last name
+    Zero-Two or Zero-Three, email rec02.* or rec03.*) with every row they hold, so the manager test login is hiring manager
+    for one candidate again (REC-01 AC-9). Only this company's rows, only those three markers together."""
+    return sum(_clear_marked_candidates(ddb, tenant_id, last, prefix) for last, prefix in (("Zero-Two", "rec02."), ("Zero-Three", "rec03.")))
+
+
+def _clear_marked_candidates(ddb, tenant_id: str, last: str, prefix: str) -> int:
     removed = 0
     kwargs = {"TableName": STATE_TABLE, "IndexName": "GSI1",
               "KeyConditionExpression": "GSI1PK = :pk AND begins_with(GSI1SK, :p)",
               "FilterExpression": "firstName = :f AND lastName = :l AND begins_with(email, :e) AND tenant_id = :t",
               "ExpressionAttributeValues": {":pk": {"S": f"TENANT#{tenant_id}"}, ":p": {"S": "SAGA#"}, ":f": {"S": "Rec"},
-                                            ":l": {"S": "Zero-Two"}, ":e": {"S": "rec02."}, ":t": {"S": tenant_id}},
+                                            ":l": {"S": last}, ":e": {"S": prefix}, ":t": {"S": tenant_id}},
               "ProjectionExpression": "PK"}
     while True:
         page = ddb.query(**kwargs)
@@ -576,7 +580,7 @@ def seed_rec02(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
         return 0
     removed = clear_rec02_test_candidates(ddb, tenant_id)
     if removed:
-        print(f"cleared {removed} candidate(s) an earlier REC-02 dev test left behind")
+        print(f"cleared {removed} candidate(s) an earlier REC-02 or REC-03 dev test left behind")
     now = "2026-11-10T08:00:00.000Z"
     pk = f"CANDIDATE#{REC02_CANDIDATE}"
     stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
