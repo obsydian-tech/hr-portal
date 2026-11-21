@@ -74,5 +74,62 @@
         "id": "document"
       }
     }
+  },
+  "POST /v1/candidates/{id}/not-hired": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "body": {
+      "reason": "OTHER"
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "POST /v1/candidates/{id}/not-hired/confirm": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "POST /v1/candidates/{id}/not-hired/cancel": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "POST /v1/candidates/{id}/reopen": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "body": {
+      "reason": "Looked again."
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "GET /v1/candidates/old-system": {
+    "kind": "list"
   }
 }
