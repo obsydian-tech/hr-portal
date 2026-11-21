@@ -611,7 +611,8 @@ def seed_rec02(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
 
 # REC-03: three candidates the dev test reads after the stage move. They are written again on every run in the OLD form (the stage
 # move, scripts/recruitment/migrate-stages.mjs, runs right after the seed and changes them), and anything an earlier move left on
-# them (history rows) is removed first, so every run starts from the same three rows. Company A, MID level.
+# them (history rows) is removed first, so every run starts from the same three rows. Company A, MID level. Their hiring manager is
+# the other manager, not the manager test login, so that login still lists exactly one candidate (REC-01 AC-9).
 #   1 Applied with one interview: the level lock (LEVEL_LOCKED)
 #   2 stored as INTERVIEWING: reads as INTERVIEW after the move, the old name kept as legacy_stage
 #   3 stored as EVALUATION with status REJECTED and a rejection time: Not hired by the old system, on REC-02's list
@@ -645,7 +646,7 @@ def seed_rec03(ddb, tenant_id: str, manager_sub: str) -> int:
             "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
             "currentStage": {"S": stage}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
             "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
-            "hiringManagerId": {"S": manager_sub}, "seed": {"S": SEED_TAG},
+            "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
         }
         for k, v in extra.items():
             item[k] = {"S": v}
