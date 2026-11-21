@@ -485,8 +485,9 @@ test.describe('Opening an old chat, asking in it, a new chat', () => {
     await ensureList(page);
     await entry(page, LONG_TITLE).click();
     await expect(heading(page)).toHaveText(LONG_TITLE);
+    // The title shows before the read is sent, so wait for the read instead of counting once (child lock chat-14.2).
+    await expect.poll(() => c.of('open').length, { message: 'one read of that chat' }).toBe(1);
     const reads = c.of('open');
-    expect(reads, 'one read of that chat').toHaveLength(1);
     expect(reads[0]!.path).toMatch(new RegExp(`/v1/chats/${chatId(5)}$`));
     expect(reads[0]!.method).toBe('GET');
     await expect(page, 'the address stays the same').toHaveURL(new RegExp(`${FULL_PAGE}$`));
@@ -516,6 +517,7 @@ test.describe('Opening an old chat, asking in it, a new chat', () => {
     await expect(entry(page, T.kagiso)).not.toHaveAttribute('aria-current', 'page');
     await closeList(page);
     await expect(headerDelete(page)).toBeVisible();
+    expect(c.of('open'), 'still one read after everything showed').toHaveLength(1);
   });
 
   test('AC-5 A chat that is not stored yet has no Delete chat; opening one chat after another shows each its own messages', async ({ page, signIn, hr, chats }) => {
