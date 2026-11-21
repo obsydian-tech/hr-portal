@@ -101,6 +101,8 @@ module "kms_pii" {
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-evaluateIntelligenceRules",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-sendTalentFlowNotification",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-orchestrateTalentFlowWorkflow",
+    # REC-02: recordNotHired asks lambda/shared/modules.mjs whether Recruitment is on (one GetItem on the tenants table; decrypt only, through DynamoDB). Its role is created in talent-flow-infra, so it is named here one merge later.
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-recordNotHired",
   ]
 
   # ONB-24: Cognito encrypts reset codes under a grant the deploy role makes (RootFullAdmin covers it).
