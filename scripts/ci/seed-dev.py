@@ -544,11 +544,39 @@ def active_config_version(ddb, tenant_id: str, config_type: str) -> str:
     return items[0].get("version", {}).get("N", "1") if items else "1"
 
 
+def clear_rec02_test_candidates(ddb, tenant_id: str) -> int:
+    """Delete the candidates the REC-02 dev test (AC-12) creates each run (first name Rec, last name Zero-Two, email
+    rec02.*) with every row they hold, so the manager test login is hiring manager for one candidate again (REC-01 AC-9).
+    Only this company's rows, only those three markers together."""
+    removed = 0
+    kwargs = {"TableName": STATE_TABLE, "IndexName": "GSI1",
+              "KeyConditionExpression": "GSI1PK = :pk AND begins_with(GSI1SK, :p)",
+              "FilterExpression": "firstName = :f AND lastName = :l AND begins_with(email, :e) AND tenant_id = :t",
+              "ExpressionAttributeValues": {":pk": {"S": f"TENANT#{tenant_id}"}, ":p": {"S": "SAGA#"}, ":f": {"S": "Rec"},
+                                            ":l": {"S": "Zero-Two"}, ":e": {"S": "rec02."}, ":t": {"S": tenant_id}},
+              "ProjectionExpression": "PK"}
+    while True:
+        page = ddb.query(**kwargs)
+        for item in page.get("Items", []):
+            pk = item["PK"]
+            rows = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk",
+                             ExpressionAttributeValues={":pk": pk}, ProjectionExpression="PK, SK")
+            for row in rows.get("Items", []):
+                ddb.delete_item(TableName=STATE_TABLE, Key={"PK": row["PK"], "SK": row["SK"]})
+            removed += 1
+        if "LastEvaluatedKey" not in page:
+            return removed
+        kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+
 def seed_rec02(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
     """Write the REC-02 vote candidate fresh: no votes, no flags, no decision. Idempotent."""
     if not manager_sub or not employee_sub:
         print("warning: the manager or employee login has no sub; the REC-02 candidate was not written")
         return 0
+    removed = clear_rec02_test_candidates(ddb, tenant_id)
+    if removed:
+        print(f"cleared {removed} candidate(s) an earlier REC-02 dev test left behind")
     now = "2026-11-10T08:00:00.000Z"
     pk = f"CANDIDATE#{REC02_CANDIDATE}"
     stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
