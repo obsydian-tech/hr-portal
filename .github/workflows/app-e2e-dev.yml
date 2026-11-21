@@ -192,8 +192,8 @@ jobs:
           python3 scripts/ci/seed-dev-files.py
 
       # REC-12: company A's Recruitment settings are the Standard pack, written by the same seed MOD-01's switch-on runs, never by
-      # Terraform. It creates only what is missing, so a second run changes nothing. Company B gets none here: the REC-12 test
-      # switches it on through set-modules.
+      # Terraform. It creates only what is missing, so a second run changes nothing. Company B gets none here: REC-12 AC-9 itself
+      # switches B's Recruitment on through set-modules (which writes the pack), reads it, and switches B back off.
       - name: Give the first company the Recruitment Standard pack
         run: |
           tenant=$(sed -n 's/^[[:space:]]*founding_tenant_id[[:space:]]*=[[:space:]]*"\(ten_[0-9a-z]\{26\}\)".*/\1/p' infra/env/dev.tfvars | head -1)
@@ -275,7 +275,7 @@ jobs:
       - name: Clear proposals an earlier run left on the ONB-22 test documents
         run: python3 scripts/ci/cleanup-dev-e2e.py --agent-actions
 
-      # MOD-01 AC-10 runs scripts/tenancy/set-modules.mjs as a child process. It needs the script's own packages and
+      # MOD-01 AC-10 and REC-12 AC-9 run scripts/tenancy/set-modules.mjs as a child process (each switches company B's Recruitment on, then back off in a finally block). It needs the script's own packages and
       # the ones lambda/shared/modules.mjs (which it imports) needs.
       - name: Install the packages set-modules needs
         if: ${{ !cancelled() }}
