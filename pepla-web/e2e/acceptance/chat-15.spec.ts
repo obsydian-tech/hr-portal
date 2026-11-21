@@ -533,7 +533,9 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     const base = JSON.parse(readFileSync(join(BASELINE, 'terraform.ccc2beb-419.json'), 'utf8')) as { resources: string[]; moved: string[]; adminDeactivateUser: { role: string; policy: string; lambda: string; files: Record<string, string> } };
     const now = allAddresses();
     expect(base.resources.filter((x) => !now.includes(x)), 'every resource of develop is still there under its own name').toEqual([]);
-    const added = now.filter((x) => !base.resources.includes(x));
+    // REC-02 (re-lock rec-02.1): the Not hired Lambda and its role, routes and permission are added later under the name record_not_hired*;
+    // rec-02.spec.ts AC-11 judges them, so they are left out here.
+    const added = now.filter((x) => !base.resources.includes(x) && !/\.record_not_hired(_[a-z_]+)?$/.test(x));
     expect(added.filter((x) => x.startsWith(`${TF}/aws_lambda_function.`)).length, 'the job\'s function is added (a branch that adds nothing is not add-only, it is missing)').toBe(1);
     expect(added.filter((x) => x.startsWith(`${TF}/aws_iam_role.`)).length, 'the job\'s role is added').toBe(1);
     const ALLOWED = ['aws_lambda_function', 'aws_iam_role', 'aws_iam_role_policy', 'aws_cloudwatch_event_rule', 'aws_cloudwatch_event_target', 'aws_lambda_permission', 'aws_cloudwatch_log_group'];

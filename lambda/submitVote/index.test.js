@@ -29,6 +29,13 @@ jest.unstable_mockModule('../shared/modules.mjs', () => ({
   requireModule: async () => null,
 }));
 
+// REC-02: the company's REJECTION_RULES come from the shared settings reader (tested in the acceptance suite); here they are set per test.
+let mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null };
+jest.unstable_mockModule('../shared/recruitment-settings.mjs', () => ({
+  DEFAULTS: { REJECTION_RULES: { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null } },
+  getRecruitmentSettings: async () => ({ REJECTION_RULES: mockRejectionRules }),
+}));
+
 jest.mock('./config-reader', () => ({
   getConfig: jest.fn(),
 }));
@@ -173,56 +180,44 @@ describe('handler – quorum met', () => {
 });
 
 // =============================================================================
-// 4.  STRONG_NO + strongNoVeto=true → veto applied, early return
+// 4.  REC-02: a Strong No decides nothing; it adds to strong_no_count when REJECTION_RULES ask for it
 // =============================================================================
-describe('handler – STRONG_NO veto', () => {
-  it('updates SAGA to EVALUATION_FAILED and publishes VotingCompleted result=STRONG_NO_VETO', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })  // GetItem SAGA
-      .mockResolvedValueOnce({});             // UpdateItem SAGA EVALUATION_FAILED
+describe('handler – STRONG_NO raises a flag, never an outcome', () => {
+  const strongNo = () => ({ detail: { ...validEvent.detail, rating: 'STRONG_NO' } });
+  const writes = () => mockDynamoSend.mock.calls.map((c) => c[0]).filter((c) => c._cmd === 'UpdateItem' || c._cmd === 'PutItem');
 
-    getConfig
-      .mockResolvedValueOnce(WEIGHTS)
-      .mockResolvedValueOnce(PANEL_CONFIG);
+  beforeEach(() => { mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null }; });
 
-    const vetoEvent = { detail: { ...validEvent.detail, rating: 'STRONG_NO' } };
-    const res = await handler(vetoEvent);
+  it('records the vote, adds one to strong_no_count and writes no status or veto result', async () => {
+    setupHappyPath({ votesSubmitted: 1, votesRequired: 3 });
+    const res = await handler(strongNo());
 
     expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body);
-    expect(body.result).toBe('STRONG_NO_VETO');
-
-    // SAGA UpdateItem called with EVALUATION_FAILED in ExpressionAttributeValues
-    const updateCall = mockDynamoSend.mock.calls[1][0];
-    expect(updateCall.ExpressionAttributeValues[':sf']).toBe('EVALUATION_FAILED');
-
-    // VotingCompleted published
-    expect(mockEbSend).toHaveBeenCalledTimes(1);
-    const detail = JSON.parse(mockEbSend.mock.calls[0][0].Entries[0].Detail);
-    expect(detail.result).toBe('STRONG_NO_VETO');
+    expect(JSON.parse(res.body).result).toBeUndefined();
+    const flag = writes().find((c) => c.UpdateExpression === 'ADD strong_no_count :one');
+    expect(flag).toBeDefined();
+    expect(JSON.stringify(writes())).not.toMatch(/votingResult|STRONG_NO_VETO|#s = :|status/);
+    expect(mockEbSend).not.toHaveBeenCalled(); // quorum not met, and no veto event
   });
-});
 
-// =============================================================================
-// 5.  STRONG_NO + strongNoVeto=false → vote counted normally
-// =============================================================================
-describe('handler – STRONG_NO, veto disabled', () => {
-  it('counts STRONG_NO as a normal vote when strongNoVeto=false', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ Attributes: { votesSubmitted: 1 } })
-      .mockResolvedValueOnce({ Items: [{ votesRequired: 3 }] });
-
-    getConfig
-      .mockResolvedValueOnce(WEIGHTS)
-      .mockResolvedValueOnce(PANEL_CONFIG_NO_VETO);
-
-    const noVetoEvent = { detail: { ...validEvent.detail, rating: 'STRONG_NO' } };
-    const res = await handler(noVetoEvent);
+  it('writes no flag when the company sets reviewVoteLevel to null', async () => {
+    mockRejectionRules = { reviewVoteLevel: null, reviewBelowScore: null };
+    setupHappyPath({ votesSubmitted: 1, votesRequired: 3 });
+    const res = await handler(strongNo());
 
     expect(res.statusCode).toBe(200);
-    expect(mockEbSend).not.toHaveBeenCalled(); // quorum not met
+    expect(writes().some((c) => /strong_no_count/.test(c.UpdateExpression ?? ''))).toBe(false);
+  });
+
+  it('stores an empty score, not NaN, when the scoring weights carry no numbers', async () => {
+    getConfig.mockReset();
+    getConfig.mockResolvedValueOnce({ weights: null }).mockResolvedValueOnce(PANEL_CONFIG);
+    mockDynamoSend.mockResolvedValue({ Item: SAGA, Items: [], Attributes: { votesSubmitted: 1 } });
+    const res = await handler({ detail: { ...validEvent.detail, rating: 'YES' } });
+
+    expect(res.statusCode).toBe(200);
+    const vote = mockDynamoSend.mock.calls.map((c) => c[0]).find((c) => c._cmd === 'PutItem');
+    expect(vote.Item.weightedScore).toBeNull();
   });
 });
 

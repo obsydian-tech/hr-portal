@@ -525,6 +525,58 @@ def seed_candidates(ddb, tenant_id: str, manager_sub: str, employee_sub: str) ->
     return written + 1
 
 
+# REC-02: the candidate the dev test casts a Strong No on. The row, its interview and its votes are written again on every run,
+# so the panel login can vote once each time and the Strong No count starts at nothing (D-T-12). Company A, MID level, in Interview;
+# the employee login is on the panel and has not voted; the manager login is the hiring manager.
+REC02_CANDIDATE = "CAND-SEEDREC020000000000001"
+REC02_INTERVIEW = "iv-seed-rec02-0001"
+
+
+def active_config_version(ddb, tenant_id: str, config_type: str) -> str:
+    """The version of one setting the company has active (the candidate is locked to it); "1" when the company has none yet."""
+    try:
+        r = ddb.query(TableName="talent-flow-config", IndexName="GSI1-active-configs",
+                      KeyConditionExpression="GSI1PK = :pk AND GSI1SK = :sk",
+                      ExpressionAttributeValues={":pk": {"S": f"TENANT#{tenant_id}#ACTIVE"}, ":sk": {"S": f"CONFIG#{config_type}"}}, Limit=1)
+    except ddb.exceptions.ResourceNotFoundException:
+        return "1"
+    items = r.get("Items", [])
+    return items[0].get("version", {}).get("N", "1") if items else "1"
+
+
+def seed_rec02(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
+    """Write the REC-02 vote candidate fresh: no votes, no flags, no decision. Idempotent."""
+    if not manager_sub or not employee_sub:
+        print("warning: the manager or employee login has no sub; the REC-02 candidate was not written")
+        return 0
+    now = "2026-11-10T08:00:00.000Z"
+    pk = f"CANDIDATE#{REC02_CANDIDATE}"
+    stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                      ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "VOTE#"}}, ProjectionExpression="PK, SK")
+    for item in stale.get("Items", []):
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": "SAGA"},
+        "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{REC02_CANDIDATE}"},
+        "candidateId": {"S": REC02_CANDIDATE}, "tenant_id": {"S": tenant_id},
+        "firstName": {"S": "Rec"}, "lastName": {"S": "Seed-Vote"},
+        "email": {"S": f"pepla-demo-rec.seed-vote@{MAIL_DOMAIN}"},
+        "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+        "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+        "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+        "configVersion": {"S": active_config_version(ddb, tenant_id, "SCORING_WEIGHTS")},
+        "hiringManagerId": {"S": manager_sub}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{REC02_INTERVIEW}"},
+        "interviewId": {"S": REC02_INTERVIEW}, "candidateId": {"S": REC02_CANDIDATE}, "tenant_id": {"S": tenant_id},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "votesRequired": {"N": "2"}, "votesSubmitted": {"N": "0"}, "panelMemberIds": {"L": [{"S": employee_sub}]},
+        "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+    })
+    return 2
+
+
 # TEN-04: the rows company A owns that the company B walk aims at. The ids are the ones in
 # pepla-web/e2e/acceptance/support/ten-04/dev-ids.json; the word TEN04A is what the walk looks for in an answer.
 # Written with put_item on every run, with A's company on each (Terraform never manages table data, and the seed must
@@ -741,6 +793,12 @@ def main() -> None:
         print("warning: the TalentFlow state table is not there; the seeded candidates were not written")
         seeded_candidates = 0
 
+    try:
+        rec02_written = seed_rec02(ddb, tid, user_sub(cognito, naleko, "manager"), employee_sub)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-02 candidate was not written")
+        rec02_written = 0
+
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
     print(f"seed-dev: groups created {made_groups}; "
@@ -752,7 +810,7 @@ def main() -> None:
           f"walk company rows written {walk_written}; TEN-04 walk rows written {ten04_written}; "
           f"agent walk rows written {onb22_written}; "
           f"stale bundles of another company removed {foreign_bundles_removed}; "
-          f"recruitment rows seeded {seeded_candidates}")
+          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}")
 
 
 if __name__ == "__main__":
