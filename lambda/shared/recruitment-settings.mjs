@@ -1,7 +1,7 @@
 // REC-12: the shape, defaults and validator of every Recruitment setting, the one reader (getRecruitmentSettings) that gives
 // a candidate the versions it is locked to, and the template renderer. Pure data in, plain objects out; no company ever
 // comes from a request here, only from the caller's own sign-in (TEN-03).
-import { STAGE_CODES } from './recruitment-stages.mjs';
+import { STAGE_CODES, normaliseStage } from './recruitment-stages.mjs';
 
 export const TYPES = ['STAGE_CONFIG', 'SENIORITY_PROFILES', 'INTERVIEW_TYPES', 'PANEL_CONFIG', 'SCORING_WEIGHTS', 'REJECTION_RULES', 'APPROVAL_RULES', 'SLA_THRESHOLDS', 'SENTIMENT_SCALE', 'EMAIL_TEMPLATES', 'INTELLIGENCE_RULES', 'RETENTION'];
 export const LOCK_TYPES = TYPES.filter((t) => t !== 'RETENTION');
@@ -79,8 +79,10 @@ export function validate(type, d, ctx = {}) {
         && (d.reviewBelowScore === null || (num(d.reviewBelowScore) && d.reviewBelowScore >= 1 && d.reviewBelowScore <= 5));
     case 'APPROVAL_RULES': return sameKeys(d, ['mode']) && d.mode === 'ONE_APPROVER';
     case 'SLA_THRESHOLDS':
-      return only(d, Object.keys(DEFAULTS.SLA_THRESHOLDS))
-        && [...Object.keys(LEGACY_SLA), 'feedbackDueHours', 'interviewMissedAfterHours', 'offerExpiryWarningDays', 'engagementLimitDays'].every((k) => d[k] === undefined || (num(d[k]) && d[k] >= 0))
+      // A company's saved limits may still hold the stage names it was saved with: any name the stage file knows is allowed, so a
+      // save of those limits is not refused. Each is a number of hours.
+      return isObj(d) && Object.keys(d).every((k) => Object.keys(DEFAULTS.SLA_THRESHOLDS).includes(k) || normaliseStage(k) !== undefined)
+        && [...Object.keys(d).filter((k) => normaliseStage(k) !== undefined), 'feedbackDueHours', 'interviewMissedAfterHours', 'offerExpiryWarningDays', 'engagementLimitDays'].every((k) => d[k] === undefined || (num(d[k]) && d[k] >= 0))
         && (d.stageLimitHours === undefined || (sameKeys(d.stageLimitHours, levels) && levels.every((l) => num(d.stageLimitHours[l]) && d.stageLimitHours[l] >= 0)))
         && (d.riskPoints === undefined || (Array.isArray(d.riskPoints) && d.riskPoints.length === 3 && d.riskPoints.every((n) => num(n) && n > 0 && n <= 100) && d.riskPoints[0] < d.riskPoints[1] && d.riskPoints[1] < d.riskPoints[2]));
     case 'SENTIMENT_SCALE':
