@@ -50,4 +50,25 @@ describe('ChatService and who is signed in', () => {
     TestBed.tick();
     expect(chat.waiting()).toBe(2);
   });
+  it('forgets which chat to try again when the session ends', async () => {
+    const user = signal<SignedInUser | null>(person('a', 'Alice'));
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting(), { provide: AuthService, useValue: { user, idToken: async () => 'token' } }],
+    });
+    const chat = TestBed.inject(ChatService);
+    const http = TestBed.inject(HttpTestingController);
+    TestBed.tick();
+
+    const opening = chat.openChat('chat-a-1', 'Leave');
+    await Promise.resolve();
+    await Promise.resolve();
+    http.expectOne((r) => r.url.endsWith('/v1/chats/chat-a-1')).flush({ title: 'Leave', messages: [] });
+    await opening;
+
+    chat.clear();
+    chat.reopen();
+    await Promise.resolve();
+    await Promise.resolve();
+    http.expectNone((r) => r.url.includes('/v1/chats/'));
+  });
 });

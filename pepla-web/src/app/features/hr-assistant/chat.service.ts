@@ -240,6 +240,7 @@ export class ChatService {
     this.waiting.set(0);
     this.focus.set(null);
     this.returnTo.set('/hr');
+    this.lastOpen = null;
     this.lastChatPending = true;
     this.panelPending = false;
   }
