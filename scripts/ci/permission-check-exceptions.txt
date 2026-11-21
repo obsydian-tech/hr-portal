@@ -9,3 +9,5 @@
 
 [exceptions]
 # function or workflow | action | resource | reason | card or PR that fixes it (or "never: <why>") | date
+submitVoteByToken | dynamodb:Query | table/talent-flow-config/index/GSI1-active-configs | the active-config read in lambda/shared/config-reader.js only runs when no version is given; this function refuses any candidate without a configVersion (index.js line 160) and always passes one, so the index is never queried here | never: unreachable from this function | 2026-11-21
+uploadDocumentToS3 | dynamodb:GetItem | table/employees | old upload route, replaced by the signed-link route; no API route in any Terraform file reaches it (checked 21 Nov), and the employee lookup fails closed if it were called | never: no route reaches it, to be removed | 2026-11-21
