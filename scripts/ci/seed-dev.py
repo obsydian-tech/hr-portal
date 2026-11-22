@@ -527,7 +527,8 @@ def seed_candidates(ddb, tenant_id: str, manager_sub: str, employee_sub: str) ->
 
 # REC-02: the candidate the dev test casts a Strong No on. The row, its interview and its votes are written again on every run,
 # so the panel login can vote once each time and the Strong No count starts at nothing (D-T-12). Company A, MID level, in Interview;
-# the employee login is on the panel and has not voted; the manager login is the hiring manager.
+# the employee login is on the panel and has not voted. The other manager is the hiring manager, so the manager test login
+# still lists exactly one candidate (REC-01 AC-9); the test reads this candidate as HR and votes as the panel login.
 REC02_CANDIDATE = "CAND-SEEDREC020000000000001"
 REC02_INTERVIEW = "iv-seed-rec02-0001"
 
@@ -597,7 +598,7 @@ def seed_rec02(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
         "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
         "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
         "configVersion": {"S": active_config_version(ddb, tenant_id, "SCORING_WEIGHTS")},
-        "hiringManagerId": {"S": manager_sub}, "seed": {"S": SEED_TAG},
+        "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
     })
     ddb.put_item(TableName=STATE_TABLE, Item={
         "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{REC02_INTERVIEW}"},
