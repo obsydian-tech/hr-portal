@@ -527,7 +527,10 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     // Child lock chat-15.3 (REC-02): the recordNotHired role (TalentFlow stack) may also be on the read list, at most once. Nothing else may be added.
     const rec02 = squash('"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-recordNotHired"');
     expect(now.readers.filter((e) => e === rec02).length, 'the REC-02 role is on the read list at most once').toBeLessThanOrEqual(1);
-    expect([...now.readers].filter((e) => e !== rec02).sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
+    // Child lock rec-04.1 (REC-04): the manageRoles role likewise, at most once (it is added one merge after the role exists).
+    const rec04 = squash('"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-manageRoles"');
+    expect(now.readers.filter((e) => e === rec04).length, 'the REC-04 role is on the read list at most once').toBeLessThanOrEqual(1);
+    expect([...now.readers].filter((e) => e !== rec02 && e !== rec04).sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
     expect(now.allowed, 'the encrypt list is as on develop').toEqual(base.allowed);
     expect(squash(read('infra/kms.tf')).split(arn).length - 1, 'the ARN appears once in kms.tf').toBe(1);
   });
@@ -538,7 +541,8 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     expect(base.resources.filter((x) => !now.includes(x)), 'every resource of develop is still there under its own name').toEqual([]);
     // REC-02 (re-lock rec-02.1): the Not hired Lambda and its role, routes and permission are added later under the name record_not_hired*;
     // rec-02.spec.ts AC-11 judges them, so they are left out here.
-    const added = now.filter((x) => !base.resources.includes(x) && !/\.record_not_hired(_[a-z_]+)?$/.test(x));
+    // REC-04 (re-lock rec-04.1): the roles Lambda (manage_roles*) and the roles table (talent_flow_roles) likewise, judged in rec-04.spec.ts AC-8.
+    const added = now.filter((x) => !base.resources.includes(x) && !/\.record_not_hired(_[a-z_]+)?$/.test(x) && !/\.manage_roles(_[a-z_]+)?$/.test(x) && !/\/aws_dynamodb_table\.talent_flow_roles$/.test(x));
     expect(added.filter((x) => x.startsWith(`${TF}/aws_lambda_function.`)).length, 'the job\'s function is added (a branch that adds nothing is not add-only, it is missing)').toBe(1);
     expect(added.filter((x) => x.startsWith(`${TF}/aws_iam_role.`)).length, 'the job\'s role is added').toBe(1);
     const ALLOWED = ['aws_lambda_function', 'aws_iam_role', 'aws_iam_role_policy', 'aws_cloudwatch_event_rule', 'aws_cloudwatch_event_target', 'aws_lambda_permission', 'aws_cloudwatch_log_group'];

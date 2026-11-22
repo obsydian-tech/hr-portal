@@ -13,6 +13,8 @@ export const STATE_ARN = new RegExp(`^(aws_dynamodb_table\\.talent_flow_state\\.
 export const NOTIFICATIONS_ARN = arn('talent-flow-notifications', 'talent_flow_notifications');
 export const CONFIG_ACTIVE_INDEX_ARN = /^arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-config|\$\{local\.tf_table_config\})\/index\/GSI1-active-configs$/;
 export const CONFIG_TABLE_ARN = /^arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-config|\$\{local\.tf_table_config\})$/;
+export const ROLE_ID_INDEX_ARN = /^arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-state|\$\{local\.(tf_state_table|tf_table_state)\})\/index\/role-id-index$/;
+export const ROLES_TABLE_ARN = /^(aws_dynamodb_table\.talent_flow_roles\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(talent-flow-roles|\$\{local\.tf_table_roles\}))$/;
 export const TENANTS_ARN = /^(aws_dynamodb_table\.tenants\.arn|arn:aws:dynamodb:[^:]+:[^:]+:table\/(\$\{local\.tf_tenants_table\}|naleko-people-\$\{var\.environment\}-tenants))$/;
 
 export const GRANTS: { role: string; action: string; resource: RegExp }[] = [
@@ -40,6 +42,10 @@ export const GRANTS: { role: string; action: string; resource: RegExp }[] = [
   { role: 'talent-flow-infra/mark_notif_read', action: 'dynamodb:GetItem', resource: NOTIFICATIONS_ARN },
   // Child lock rec-03.1 (REC-03): the level lock in updateCandidate reads the candidate's interview rows; its role had GetItem and UpdateItem only.
   { role: 'talent-flow-infra/update_candidate', action: 'dynamodb:Query', resource: STATE_ARN },
+  // Child lock rec-04.1 (REC-04): GET /v1/candidates?role_id= reads the role's candidates through the one role-id-index and reads the one role row
+  // (is the role the caller's company's); rec-04.spec.ts AC-8 pins exactly these two lines.
+  { role: 'talent-flow-infra/get_candidates', action: 'dynamodb:Query', resource: ROLE_ID_INDEX_ARN },
+  { role: 'talent-flow-infra/get_candidates', action: 'dynamodb:GetItem', resource: ROLES_TABLE_ARN },
 ];
 
 /** True when `pair` ("Allow <action> <resource> <condition>") on role `stack/role` is one of the grants above. */

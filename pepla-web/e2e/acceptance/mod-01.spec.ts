@@ -708,6 +708,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       // ONB-22.1 (re-lock mod-01.6): the agent proposal and approval rights are new role policies of their own (a new role, and second policies on three roles ten-02 pins); onb-22.spec.ts AC-8 pins exactly these.
       if (ONB22_POLICIES.has(key)) continue;
       if (/record_not_hired|recordNotHired/.test(key) || /record_not_hired|recordNotHired/.test(cur.role)) continue; // REC-02 (re-lock rec-02.1): its own role, judged in rec-02.spec.ts AC-11.
+      if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): its own role, judged in rec-04.spec.ts AC-8.
       if (/leaver_chats|deleteLeaverChats/.test(key) || /leaver_chats|deleteLeaverChats/.test(cur.role)) continue; // CHAT-15 (re-lock mod-01.16): its own role, judged in chat-15.spec.ts AC-12.
       if ((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => ten042(p, cur.stack, cur.role))) continue; // TEN-04.2: one of the three table Queries
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);

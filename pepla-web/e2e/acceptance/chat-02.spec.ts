@@ -709,7 +709,8 @@ test.describe('CHAT-02 · Ask Batsi stored chats and the company switch', () => 
     const writes = [...cog.matchAll(/write_attributes\s*=\s*\[([^\]]*)\]/g)].map((m) => m[1]!);
     expect.soft(writes.length, 'the web clients list their write_attributes').toBeGreaterThan(0);
     expect.soft(writes.filter((w) => /staff_id|custom:/.test(w)), 'no client can write custom:staff_id (or any custom attribute)').toEqual([]);
-    expect(allTables().length, 'both stacks now have 30 tables (29 and this one), the number ops-05 AC-7 pins').toBe(30);
+    // REC-04 (re-lock rec-04.1): talent-flow-roles is the 31st; rec-04.spec.ts AC-8 judges it.
+    expect(allTables().length, 'both stacks now have 31 tables (29, this one and REC-04\'s roles table), the number ops-05 AC-7 pins').toBe(31);
 
     // The Lambdas and their settings.
     const askFn = lambdaNamed('askBatsiChats');
