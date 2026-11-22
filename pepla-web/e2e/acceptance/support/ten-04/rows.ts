@@ -12,7 +12,7 @@
  *   covered  an agent-key route that the one agent check stands for (it is still a row, so the file cannot grow a route unwalked).
  *   none     docs and the tool manifest: served to anyone, hold no company data.
  */
-export type Kind = 'employee' | 'document' | 'candidate' | 'interview' | 'tile' | 'config' | 'itTask' | 'bundle' | 'notification' | 'action' | 'user';
+export type Kind = 'employee' | 'document' | 'candidate' | 'interview' | 'tile' | 'config' | 'itTask' | 'bundle' | 'notification' | 'action' | 'department' | 'user';
 export type Row = {
   kind: 'byId' | 'list' | 'create' | 'stored' | 'agent' | 'covered' | 'none';
   /** path parameter -> what it names in company A */

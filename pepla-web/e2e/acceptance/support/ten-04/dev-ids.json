@@ -10,5 +10,6 @@
   "bundle": "bundle-ten04-a-0001",
   "notification": "NOTIF#2026-11-10T08:00:00.000Z#notif-ten04-a-0001",
   "action": "act-ten04-a-0001",
+  "department": "dep_01TEN04A000000000000000001",
   "names": ["Naledi", "Dlamini", "pepla-demo-", "Demo-HR", "Demo-IT", "Demo-Starter", "TEN04A"]
 }
