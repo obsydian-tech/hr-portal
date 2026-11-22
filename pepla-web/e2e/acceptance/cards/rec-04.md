@@ -94,3 +94,9 @@ Lands with the build, in the same PR as REC-04's code. Each line makes room for 
 - `chat-15.spec.ts` AC-12: manageRoles and the roles table are not "added" by CHAT-15; the PII key's read list may hold manageRoles once.
 - `onb-22.spec.ts` AC-8, `ten-02.spec.ts` AC-13: manageRoles' role ARN is another card's line on the PII key's read list (the second
   merge, D-T-13).
+
+## Child lock rec-04.2 (REC-14 step B)
+
+`rec-04.spec.ts` and `support/rec-04/roles.ts`: a role is opened with `department_id` (an active department of the company), no longer
+the `department` text. The fake world holds each company's departments list (from `support/rec-14/world.ts`); the three department text
+cases are gone (rec-14.2 AC-6 holds the new refusals); the dev AC-10 sends the seeded department's id (`support/ten-04/dev-ids.json`).
