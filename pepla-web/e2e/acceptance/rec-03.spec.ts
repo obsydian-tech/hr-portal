@@ -687,7 +687,7 @@ test.describe('REC-03 · Six stages, a reason on every move, and the old rows mo
     expect(sc.status(), 'the Admin reads STAGE_CONFIG').toBe(200);
     const active = (await sc.json()) as { version: number; data: any };
     if (active.data?.screening !== true) {
-      const saved = await call2(admin, 'PUT', '/v1/config', { configType: 'STAGE_CONFIG', data: { ...active.data, screening: true }, expected_version: active.version });
+      const saved = await call2(admin, 'PUT', '/v1/config/STAGE_CONFIG', { configType: 'STAGE_CONFIG', data: { ...active.data, screening: true }, expected_version: active.version });
       expect(saved.status(), `the Admin turns Screening on (${await saved.text()})`).toBe(200);
     }
     // HR adds a candidate: it starts in Applied (the new code).
