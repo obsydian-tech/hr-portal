@@ -530,7 +530,10 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     // Child lock rec-04.1 (REC-04): the manageRoles role likewise, at most once (it is added one merge after the role exists).
     const rec04 = squash('"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-manageRoles"');
     expect(now.readers.filter((e) => e === rec04).length, 'the REC-04 role is on the read list at most once').toBeLessThanOrEqual(1);
-    expect([...now.readers].filter((e) => e !== rec02 && e !== rec04).sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
+    // Child lock rec-14.1 (REC-14): the manageDepartments role likewise, at most once (rec-14.spec.ts AC-3 pins it exactly once).
+    const rec14 = squash('aws_iam_role.manage_departments.arn');
+    expect(now.readers.filter((e) => e === rec14).length, 'the REC-14 role is on the read list at most once').toBeLessThanOrEqual(1);
+    expect([...now.readers].filter((e) => e !== rec02 && e !== rec04 && e !== rec14).sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
     expect(now.allowed, 'the encrypt list is as on develop').toEqual(base.allowed);
     expect(squash(read('infra/kms.tf')).split(arn).length - 1, 'the ARN appears once in kms.tf').toBe(1);
   });
@@ -542,7 +545,9 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     // REC-02 (re-lock rec-02.1): the Not hired Lambda and its role, routes and permission are added later under the name record_not_hired*;
     // rec-02.spec.ts AC-11 judges them, so they are left out here.
     // REC-04 (re-lock rec-04.1): the roles Lambda (manage_roles*) and the roles table (talent_flow_roles) likewise, judged in rec-04.spec.ts AC-8.
-    const added = now.filter((x) => !base.resources.includes(x) && !/\.record_not_hired(_[a-z_]+)?$/.test(x) && !/\.manage_roles(_[a-z_]+)?$/.test(x) && !/\/aws_dynamodb_table\.talent_flow_roles$/.test(x));
+    const added = now.filter((x) => !base.resources.includes(x) && !/\.record_not_hired(_[a-z_]+)?$/.test(x) && !/\.manage_roles(_[a-z_]+)?$/.test(x) && !/\/aws_dynamodb_table\.talent_flow_roles$/.test(x)
+      // REC-14 (child lock rec-14.1): the departments Lambda (manage_departments*) and its three routes, judged in rec-14.spec.ts AC-3.
+      && !/\.(manage_departments(_[a-z_]+)?|list_departments|add_department|change_department)$/.test(x));
     expect(added.filter((x) => x.startsWith(`${TF}/aws_lambda_function.`)).length, 'the job\'s function is added (a branch that adds nothing is not add-only, it is missing)').toBe(1);
     expect(added.filter((x) => x.startsWith(`${TF}/aws_iam_role.`)).length, 'the job\'s role is added').toBe(1);
     const ALLOWED = ['aws_lambda_function', 'aws_iam_role', 'aws_iam_role_policy', 'aws_cloudwatch_event_rule', 'aws_cloudwatch_event_target', 'aws_lambda_permission', 'aws_cloudwatch_log_group'];
@@ -562,7 +567,8 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     const names = [...(/lambda_names\s*=\s*\[([\s\S]*?)\]/.exec(m.body)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map((x) => x[1]);
     expect(names, 'alarms.tf lists deleteLeaverChats in lambda_names (as ONB-21 listed sendDocumentReminders)').toContain(FUNCTION_NAME);
     const before = JSON.parse(readFileSync(join(BASELINE, 'alarm-lambda-names.ccc2beb-419.json'), 'utf8')) as string[];
-    expect(names.filter((n) => !before.includes(n!)), 'it is the only name added').toEqual([FUNCTION_NAME]);
+    // REC-14 (child lock rec-14.1): manageDepartments joins the same list; rec-14.spec.ts AC-3 judges it.
+    expect(names.filter((n) => !before.includes(n!) && n !== 'manageDepartments'), 'it is the only name added').toEqual([FUNCTION_NAME]);
     expect(before.filter((n) => !names.includes(n)), 'and none is dropped').toEqual([]);
   });
 

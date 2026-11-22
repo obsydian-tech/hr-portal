@@ -685,6 +685,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       if (/record_not_hired|recordNotHired/.test(key) || /record_not_hired|recordNotHired/.test(cur.role)) continue; // REC-02 (re-lock rec-02.1): its own role, judged in rec-02.spec.ts AC-11.
       if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): its own role, judged in rec-04.spec.ts AC-8.
       if (/leaver_chats|deleteLeaverChats/.test(key) || /leaver_chats|deleteLeaverChats/.test(cur.role)) continue; // CHAT-15 (re-lock ten-03.16): its own role, judged in chat-15.spec.ts AC-12.
+      if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): its own role, judged in rec-14.spec.ts AC-3.
       // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.
       const mod01 = (cur.pairs ?? []).length > 0 && MOD01_ROLE(key, cur.role) && (cur.pairs ?? []).every((p) => MOD01_GET(p) || (key === 'infra/get_company_modules' && MOD01_OWN(p)));
       // TEN-04.2: or it is one of the three table Queries of that card, on its role, and nothing else.

@@ -446,7 +446,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
     const out = (r: { stdout: string; stderr: string }) => r.stdout + r.stderr;
     const audits = (t: Tables, c: string, table = TENANTS) => rowsOf(t, table).filter((r) => r['pk'] === `TENANT#${c}` && String(r['sk']).startsWith('MODULES#'));
     const list = (v: unknown) => (Array.isArray(v) ? [...v].map(String).sort() : typeof v === 'string' ? (() => { try { const p = JSON.parse(v); return Array.isArray(p) ? p.map(String).sort() : v; } catch { return v; } })() : v);
-    const others = (t: Tables, c: string) => JSON.stringify(sortKeys(Object.fromEntries(Object.entries(t).filter(([k]) => k !== TABLE.config).map(([k, rows]) => [k, rows.filter((r) => !(plain(r)['pk'] === `TENANT#${c}` && (plain(r)['sk'] === 'PROFILE' || String(plain(r)['sk']).startsWith('MODULES#'))))]))));
+    const others = (t: Tables, c: string) => JSON.stringify(sortKeys(Object.fromEntries(Object.entries(t).filter(([k]) => k !== TABLE.config).map(([k, rows]) => [k, rows.filter((r) => !(plain(r)['pk'] === `TENANT#${c}` && (plain(r)['sk'] === 'PROFILE' || String(plain(r)['sk']).startsWith('MODULES#') || /^DEPARTMENTS(#|$)/.test(String(plain(r)['sk'])))))]))));
+    // child lock rec-14.1, REC-14: switching Recruitment on also gives the company its department list (sk DEPARTMENTS), judged in rec-14.spec.ts AC-4.
     const clean = (what: string, r: { stdout: string; stderr: string }) => {
       expect.soft(out(r), `${what}: the output names no company and no person`).not.toMatch(NAMES);
       expect.soft(out(r), `${what}: and no address`).not.toMatch(/@/);
@@ -710,6 +711,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       if (/record_not_hired|recordNotHired/.test(key) || /record_not_hired|recordNotHired/.test(cur.role)) continue; // REC-02 (re-lock rec-02.1): its own role, judged in rec-02.spec.ts AC-11.
       if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): its own role, judged in rec-04.spec.ts AC-8.
       if (/leaver_chats|deleteLeaverChats/.test(key) || /leaver_chats|deleteLeaverChats/.test(cur.role)) continue; // CHAT-15 (re-lock mod-01.16): its own role, judged in chat-15.spec.ts AC-12.
+      if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): company-wide, no module gate; its own role, judged in rec-14.spec.ts AC-3.
       if ((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => ten042(p, cur.stack, cur.role))) continue; // TEN-04.2: one of the three table Queries
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);
       for (const p of cur.pairs ?? [`unreadable ${cur.squash}`]) {
