@@ -36,3 +36,31 @@ See the header of rec-14.spec.ts. The ones a builder is most likely to trip on:
 - `npm install -D ajv@8.20.0` in pepla-web (updates the lock file too); the throwaway only touched package.json.
 - The employees API CORS gains PATCH (apigateway.tf).
 - No tests type-check here (the repo has no @types/node for the acceptance folder); Playwright runs them.
+
+## Step B: options and the role rule (tests)
+
+Spec rules 10 to 15 (AC-5, AC-6, the Lambda half of AC-7). Tests: `rec-14.2.spec.ts`, `support/rec-14.2/` (world on REC-04's and
+REC-14's, and `world-patch.mjs`, a preload that lets a test fail Cognito calls). Review page: onboarding-cards/specs/REC-14-step-B-tests-for-review.md.
+
+### Locks
+
+- `acceptance-lock/rec-14.2`: rec-14.2.spec.ts, support/rec-14.2, this note. Steps C and D get rec-14.3 and on.
+- `acceptance-lock/rec-04.2` (child): rec-04 opens a role with `department_id`.
+- `acceptance-lock/ten-04.9` (child): ten-04.2 AC-5 and AC-8 follow the shared hiring manager function; scripts/tenancy is the builder's (the walk row for the options route is data, in `scripts/tenancy/ten-04-rows.json`).
+- `acceptance-lock/ten-05.5` (child): ten-05 AC-4 for getHiringManagers.
+- The builder merges all four lock branches, never copies them.
+
+### Decisions the tests pin where the spec is silent (D-T-B1 to D-T-B9, for the BA to confirm)
+
+See the header of rec-14.2.spec.ts. The ones a builder is most likely to trip on:
+- D-T-B1 the options answer has exactly six keys; `panel_size_by_level` is the company's map, `screening` its switch, each falling back on the REC-12 default.
+- D-T-B4 any failed read (departments, settings, Member rows, sign-in pool) is 500 `{error:'Something went wrong'}`, never a shorter list.
+- D-T-B5 the hiring manager rule: CONFIRMED, enabled, one Member row that is this company's; no legacy fallback; every page of every group; name order ignoring case.
+- D-T-B6 any department that is not offered (archived, another company's, made up, missing) is 400 INVALID_DEPARTMENT, nothing written.
+- D-T-B7 `department` in an answer is the current name of `department_id`; an old role keeps its text and has no `department_id`.
+- D-T-B8 `RoleOptions` and `Role` are closed schemas in api/openapi.yaml; `GET /v1/config` has `configType` required.
+
+### Notes for the builder
+
+- The throwaway build that passes every test: /mnt/project-files/onboarding-cards/rec-14/throwaway-build-B.patch. A guide, not the answer.
+- The new route needs its Terraform resource (talent-flow-roles.tf) and a company-walk row (ten-04-rows.json).
