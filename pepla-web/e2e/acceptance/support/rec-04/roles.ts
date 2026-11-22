@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { LAMBDA, REPO, httpEvent, runHandler, runPack, type PoolUser, type Row, type Run, type Tables } from './lambda-harness';
 import { A, AGENT_SECRET, B, D, SUB, TABLE, TENANTS, authorizerOf, av, fileOf, packTables, plain, rowsOf, saga, settings, type Caller } from './world';
+import { LIST_A, LIST_B, VERSION, listRow } from '../rec-14/world';
 
 /**
  * REC-04: the card's own world and helpers. Nothing here is application code: rows in the shape the card's rule 1 gives a role
@@ -158,7 +159,8 @@ export function world(): Tables {
   const t = structuredClone(packedB);
   t[TABLE.state] = [...(t[TABLE.state] ?? []), ...rec04Rows()];
   t[ROLES_TABLE] = roleRows();
-  t[TENANTS] = [...(t[TENANTS] ?? []), ...memberRows()];
+  // REC-14 step B (child lock rec-04.2): the companies' department lists (REC-14's rows), so a role is opened with a department id.
+  t[TENANTS] = [...(t[TENANTS] ?? []), ...memberRows(), listRow(A, VERSION.A, LIST_A), listRow(B, VERSION.B, LIST_B)];
   return t;
 }
 

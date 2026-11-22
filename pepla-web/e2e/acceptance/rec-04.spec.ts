@@ -8,6 +8,7 @@ import { STACKS, filesOf, kmsList, lambdaNamed, policyLines, resourcesOf, roleIn
 import { attributes, blocks } from './support/infra-harness';
 import { ask, av, bodyOf, describe, isModulesRead, plain, rowsOf, statusOf } from './support/rec-04/world';
 import { C } from './support/rec-04/callers';
+import { DEP } from './support/rec-14/world';
 import {
   A, B, CORE, FLEET_OPEN, FLEET_SLA, FLEET_STAGE, HANDLER, INDEX, K, OPEN, P, R, ROLES_TABLE, ROLE_ROUTES, ROUTE, SEED, SEED_RUN, SUB, TABLE, TITLE,
   anyWrite, awsOf, call, candidates, changedRows, close, fullName, handlerFolderFiles, list, logsOf, newKey, one, open, roleOf, rolesIn, sagaOf, withMany, world,
@@ -80,7 +81,8 @@ const NO_ROLE_WRITE = (label: string, before: Tables, r: any) => {
 };
 /** The pack's settings of a company, plain. */
 const pack = (t: Tables, c: string, type: string) => rowsOf(t, TABLE.config).find((x) => x['PK'] === `TENANT#${c}` && String(x['SK']).startsWith(`CONFIG#${type}#`) && x['isActive'] !== false)?.['data'];
-const GOOD = { job_title: 'Night dispatcher', department: 'Operations', level: 'MID', hiring_manager_id: SUB.hmA };
+// REC-14 step B (child lock rec-04.2): a role is opened with the id of one of the company's departments (support/rec-14/world.ts DEP), not free text.
+const GOOD = { job_title: 'Night dispatcher', department_id: DEP.opsA.id, level: 'MID', hiring_manager_id: SUB.hmA };
 
 /** JavaScript with comments blanked out; strings kept (as rec-03.spec.ts). */
 function stripJs(src: string): string {
@@ -154,8 +156,8 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
     expect.soft(b['role_id'], 'the answer carries the new role_id').toBe(row['role_id']);
     expect.soft(String(row['role_id'] ?? ''), 'the role id is not empty').toMatch(/\S{6,}/);
     expect.soft([row['pk'], row['sk'], row['tenant_id']], 'keyed and stamped with the caller\'s company, never the body\'s').toEqual([`TENANT#${A}`, `ROLE#${row['role_id']}`, A]);
-    expect.soft([row['job_title'], row['department'], row['level'], row['hiring_manager_id'], row['panel_size'], row['status']], 'the fields as sent; status OPEN whatever the body says')
-      .toEqual(['Night dispatcher', 'Operations', 'MID', SUB.hmA, 4, 'OPEN']);
+    expect.soft([row['job_title'], row['department_id'], row['department'], row['level'], row['hiring_manager_id'], row['panel_size'], row['status']], 'the fields as sent (the department as its id and its name); status OPEN whatever the body says')
+      .toEqual(['Night dispatcher', DEP.opsA.id, 'Operations', 'MID', SUB.hmA, 4, 'OPEN']);
     expect.soft(row['criteria'], 'the criteria as sent').toEqual(crit);
     expect.soft([String(row['opened_at'] ?? ''), row['opened_by']], 'opened when and by the sign-in\'s person').toEqual([expect.stringMatching(ISO), SUB.recA]);
     expect.soft(row['legacy'] === true, 'a new role is not legacy').toBe(false);
@@ -182,7 +184,7 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
     // The edges that are allowed.
     const ten = Array.from({ length: 10 }, (_, i) => ({ key: `c${i}`, label: `Criterion ${i}` }));
     for (const [what, body] of [
-      ['a 120-character title', { ...GOOD, job_title: 'T'.repeat(120) }], ['an 80-character department', { ...GOOD, department: 'D'.repeat(80) }],
+      ['a 120-character title', { ...GOOD, job_title: 'T'.repeat(120) }],
       ['ten criteria', { ...GOOD, criteria: ten }], ['a 60-character label', { ...GOOD, criteria: [{ key: 'x', label: 'L'.repeat(60) }] }],
       ['panel size 1', { ...GOOD, panel_size: 1 }], ['panel size 12', { ...GOOD, panel_size: 12 }], ['a hiring manager with the Recruitment tick', { ...GOOD, hiring_manager_id: P.tickA }],
     ] as const) {
@@ -192,11 +194,11 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
 
     // Each invalid field: 400 with the field's code, nothing written (D-T-5).
     const eleven = Array.from({ length: 11 }, (_, i) => ({ key: `c${i}`, label: `Criterion ${i}` }));
-    const { job_title: _jt, ...noTitle } = GOOD; const { department: _d, ...noDept } = GOOD; const { level: _l, ...noLevel } = GOOD;
+    const { job_title: _jt, ...noTitle } = GOOD; const { level: _l, ...noLevel } = GOOD;
     const cases: [string, unknown, string][] = [
       ['no title', noTitle, 'job_title'], ['a blank title', { ...GOOD, job_title: '' }, 'job_title'], ['a title of spaces', { ...GOOD, job_title: '   ' }, 'job_title'],
       ['a 121-character title', { ...GOOD, job_title: 'T'.repeat(121) }, 'job_title'], ['a title that is a number', { ...GOOD, job_title: 42 }, 'job_title'],
-      ['no department', noDept, 'department'], ['a blank department', { ...GOOD, department: ' ' }, 'department'], ['an 81-character department', { ...GOOD, department: 'D'.repeat(81) }, 'department'],
+      // REC-14 step B (rec-04.2): the department is an id now; every bad one is INVALID_DEPARTMENT, judged in rec-14.2.spec.ts AC-6.
       ['no level', noLevel, 'level'], ['a level not in the company\'s list', { ...GOOD, level: 'LEAD' }, 'level'], ['a level in lower case', { ...GOOD, level: 'mid' }, 'level'],
       ['11 criteria', { ...GOOD, criteria: eleven }, 'criteria'], ['no criteria at all (an empty list)', { ...GOOD, criteria: [] }, 'criteria'],
       ['two criteria with one key', { ...GOOD, criteria: [{ key: 'a', label: 'One' }, { key: 'a', label: 'Two' }] }, 'criteria'],
@@ -227,10 +229,10 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
     }
     expect.soft(new Set(hmBodies).size, 'every hiring manager refusal has the same words').toBe(1);
     // B's Recruiter can open B's role with B's manager; A's manager is refused for B.
-    const bRole = open(C.recruiterB, { ...GOOD, hiring_manager_id: SUB.hmB }, t);
+    const bRole = open(C.recruiterB, { ...GOOD, department_id: DEP.dispatchB.id, hiring_manager_id: SUB.hmB }, t);
     expect.soft(statusOf(bRole), `B's Recruiter opens a role with B's manager (${describe(bRole)})`).toBe(201);
     expect.soft(roleOf(bRole.tables, bodyOf(bRole)?.role_id)?.['pk'], 'it is company B\'s').toBe(`TENANT#${B}`);
-    expect.soft(answer(open(C.recruiterB, { ...GOOD, hiring_manager_id: SUB.hmA }, t)), 'B\'s Recruiter with A\'s manager: 400').toEqual([400, BAD_HM]);
+    expect.soft(answer(open(C.recruiterB, { ...GOOD, department_id: DEP.dispatchB.id, hiring_manager_id: SUB.hmA }, t)), 'B\'s Recruiter with A\'s manager: 400').toEqual([400, BAD_HM]);
 
     // Who may open: a Recruiter only. Everyone else 403 before any AWS call.
     for (const who of [C.hmC1, C.oldHm, C.employee, C.adminOnly, C.hrNoTick, C.tickNoHr, C.approver, C.guest, C.taClaim, C.noGroups]) {
@@ -247,7 +249,7 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
     const again = open(C.recruiter, GOOD, first.tables, key);
     expect.soft(answer(again), 'the same key again gives back the first answer').toEqual(answer(first));
     expect.soft(rolesIn(again.tables).length, 'and writes no second role').toBe(rolesIn(first.tables).length);
-    const stranger = open(C.recruiterB, { ...GOOD, hiring_manager_id: SUB.hmB }, first.tables, key);
+    const stranger = open(C.recruiterB, { ...GOOD, department_id: DEP.dispatchB.id, hiring_manager_id: SUB.hmB }, first.tables, key);
     expect.soft(JSON.stringify(bodyOf(stranger) ?? {}), 'company B re-sending A\'s key never gets A\'s role').not.toContain(String(bodyOf(first)?.role_id ?? 'none'));
     expect.soft(roleOf(stranger.tables, bodyOf(first)?.role_id), 'and A\'s role row is unchanged').toEqual(roleOf(first.tables, bodyOf(first)?.role_id));
     expect.soft(rolesIn(stranger.tables).filter((x) => x['tenant_id'] === A).length, 'and no role of A is added').toBe(rolesIn(first.tables).filter((x) => x['tenant_id'] === A).length);
@@ -750,7 +752,9 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
     expect([refused.status(), ((await refused.json()) as any).code], 'closing Fleet controller is refused while candidates are open').toEqual([409, 'OPEN_CANDIDATES']);
 
     // HR opens a role (with an Idempotency-Key, as the page sends it), reads it, and closes it (no candidates).
-    const made = await api(hr, 'POST', '/v1/roles', { job_title: `REC-04 dev check ${Date.now()}`, department: 'Operations', level: fleet.level, hiring_manager_id: managerId }, { 'Idempotency-Key': `rec04-${Date.now()}` });
+    // REC-14 step B (rec-04.2): the department is company A's seeded one (support/ten-04/dev-ids.json, put back by seed-dev.py on every run).
+    const devDepartmentId = String((JSON.parse(readFileSync(join(__dirname, 'support', 'ten-04', 'dev-ids.json'), 'utf8')) as Record<string, unknown>)['department']);
+    const made = await api(hr, 'POST', '/v1/roles', { job_title: `REC-04 dev check ${Date.now()}`, department_id: devDepartmentId, level: fleet.level, hiring_manager_id: managerId }, { 'Idempotency-Key': `rec04-${Date.now()}` });
     expect(made.status(), `HR opens a role (${await made.text()})`).toBe(201);
     const newId = ((await made.json()) as any).role_id as string;
     try {
