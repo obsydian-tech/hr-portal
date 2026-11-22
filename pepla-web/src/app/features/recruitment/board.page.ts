@@ -123,9 +123,10 @@ export class BoardPage implements OnInit {
     ]);
     if (role?.status === 404) return this.status.set('notfound');
     if (!role || role.status !== 200) return this.status.set('failed');
-    this.role.set(role.body);
     this.screening = cfg?.body?.screening !== false;
     await this.reload();
+    // The header and the board appear together: the role is shown only once its candidates are in.
+    if (this.status() === 'ready') this.role.set(role.body);
   }
 
   private async reload() {
