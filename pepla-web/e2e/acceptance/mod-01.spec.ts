@@ -14,6 +14,9 @@ import {
 } from './support/mod-01/iam';
 import { attributes } from './support/infra-harness';
 import { devEnv } from './support/ten-02/dev';
+import { isCardGrant } from './support/ten-04.2/grants';
+import { MARKETPLACE_DEV_KEY, marketplaceDev } from './support/marketplace-dev/grant';
+import { ownerLinkGrant } from './support/onb-11/owner-link';
 
 /**
  * MOD-01 · A company has modules switched on, and the server refuses a module that is off (epic Modules).
@@ -42,10 +45,13 @@ const once = (projectName: string) => {
 };
 const FORBIDDEN = { error: 'Forbidden' };
 /** The rule 4 routes whose role check refuses a person in no group before any AWS call (develop 6122df1, TEN-05). */
-const ROLE_CHECKED = ['POST /v1/config', 'PUT /v1/config', 'GET /v1/actions/pending (HR)', 'POST /v1/actions/{id}/approve (HR)', 'POST /v1/actions/{id}/reject (HR)'];
+// REC-01 adds a role answer to the Recruitment routes below (the first fifteen); TEN-05's admin-only and HR routes follow.
+const ROLE_CHECKED = ['PATCH /v1/candidates/{id}', 'PUT /v1/candidates/{id}/stage', 'PATCH /v1/candidates/{id}/interviews/{interviewId}', 'POST /v1/candidates/{id}/interviews', 'POST /v1/candidates/{id}/sentiment', 'POST /v1/candidates/{id}/scoring-links', 'POST /v1/candidates/{id}/offer', 'PUT /v1/candidates/{id}/offer', 'POST /v1/intelligence/tiles/{id}/dismiss', 'POST /v1/intelligence/tiles/{id}/snooze', 'POST /v1/intelligence/tiles/{id}/acknowledge', 'GET /v1/candidates', 'POST /v1/candidates', 'GET /v1/intelligence/tiles', 'GET /v1/config', 'POST /v1/config', 'PUT /v1/config', 'GET /v1/actions/pending (HR)', 'POST /v1/actions/{id}/approve (HR)', 'POST /v1/actions/{id}/reject (HR)'];
 const READ_FAILED = 'Modules read failed';
 const MODULE_OFF = 'Module off, skipped';
-const STANDARD_PACK_LINE = 'Recruitment Standard pack: not available yet (REC-12)';
+// Child lock rec-12.1: REC-12 fills the seed. It no longer prints "not available yet"; it prints how many settings it wrote.
+const NOT_AVAILABLE_LINE = 'Recruitment Standard pack: not available yet (REC-12)';
+const STANDARD_PACK_LINE = /^Recruitment Standard pack: \d+ setting\(s\) written$/;
 const BOTH = ['onboarding', 'recruitment'];
 const PEOPLE = /John|Doe\b|Jane|Smith|Bongi|Mahlangu|Bea\b|Ndlovu|Sipho|Khumalo|Pia\b|Pule\b|Paul\b|@example\.test/;
 const NAMES = new RegExp(Object.values(COMPANY_NAME).join('|'));
@@ -94,7 +100,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
 
     const keys = runModule([{ get: 'MODULE_KEYS' }, { get: 'modulesOf' }, { get: 'requireModule' }], { tables: world, env });
     expect(keys.importError, `modules.mjs imports (${keys.importError?.message})`).toBeUndefined();
-    expect(keys.results[0]?.value, 'MODULE_KEYS is the one list: onboarding, recruitment').toEqual(BOTH);
+    // CHAT-02 (re-lock mod-01.N): Ask Batsi is the third key; the founding default below still holds the first two.
+    expect(keys.results[0]?.value, 'MODULE_KEYS is the one list: onboarding, recruitment, ask_batsi').toEqual([...BOTH, 'ask_batsi']);
     expect(keys.results[1]?.type, 'modulesOf is exported').toBe('function');
     expect(keys.results[2]?.type, 'requireModule is exported').toBe('function');
     expect(callLines(keys), 'importing the helper makes no AWS call').toEqual([]);
@@ -433,13 +440,13 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       expect(existsSync(join(REPO, 'scripts', 'tenancy', f)), `scripts/tenancy/${f} exists`).toBe(true);
     }
     const company = () => [...companyRows(), av({ pk: `USER#${SUB.hmB}`, sk: `TENANT#${B}`, tenant_id: B })];
-    const world0 = (): Tables => ({ [TENANTS]: company(), [TENANTS_PROD]: company() });
+    const world0 = (): Tables => ({ [TENANTS]: company(), [TENANTS_PROD]: company(), [TABLE.config]: [] });
     const run = (args: string[], t: Tables = world0(), sts: Sts = DEV_STS, script = SCRIPT) => runScript(script, args, { tables: t, sts });
     const onB = ['--env', 'dev', '--tenant', B, '--on', 'recruitment', '--reason', 'MOD-01 AC-6'];
     const out = (r: { stdout: string; stderr: string }) => r.stdout + r.stderr;
     const audits = (t: Tables, c: string, table = TENANTS) => rowsOf(t, table).filter((r) => r['pk'] === `TENANT#${c}` && String(r['sk']).startsWith('MODULES#'));
     const list = (v: unknown) => (Array.isArray(v) ? [...v].map(String).sort() : typeof v === 'string' ? (() => { try { const p = JSON.parse(v); return Array.isArray(p) ? p.map(String).sort() : v; } catch { return v; } })() : v);
-    const others = (t: Tables, c: string) => JSON.stringify(sortKeys(Object.fromEntries(Object.entries(t).map(([k, rows]) => [k, rows.filter((r) => !(plain(r)['pk'] === `TENANT#${c}` && (plain(r)['sk'] === 'PROFILE' || String(plain(r)['sk']).startsWith('MODULES#'))))]))));
+    const others = (t: Tables, c: string) => JSON.stringify(sortKeys(Object.fromEntries(Object.entries(t).filter(([k]) => k !== TABLE.config).map(([k, rows]) => [k, rows.filter((r) => !(plain(r)['pk'] === `TENANT#${c}` && (plain(r)['sk'] === 'PROFILE' || String(plain(r)['sk']).startsWith('MODULES#'))))]))));
     const clean = (what: string, r: { stdout: string; stderr: string }) => {
       expect.soft(out(r), `${what}: the output names no company and no person`).not.toMatch(NAMES);
       expect.soft(out(r), `${what}: and no address`).not.toMatch(/@/);
@@ -468,9 +475,10 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
     expect.soft(audit['env'], 'env: dev').toBe('dev');
     expect.soft(others(applied.tables, B), 'nothing else in the company list changed').toBe(others(world0(), B));
     expect.soft(applied.writes.filter((w: any) => /Delete/.test(w.op) || JSON.stringify(w.input ?? {}).includes('DeleteRequest') || JSON.stringify(w.input ?? {}).includes('"Delete"')).length, 'no delete').toBe(0);
-    const seedAt = (applied.calls as any[]).findIndex((c) => c.service === 'log' && String(c.message).includes(STANDARD_PACK_LINE));
-    const firstWrite = (applied.calls as any[]).findIndex((c) => c.service === 'dynamodb' && /PutItem|UpdateItem|TransactWriteItems|BatchWriteItem/.test(c.op));
-    expect.soft(seedAt, `the Recruitment seed runs (it prints "${STANDARD_PACK_LINE}" until REC-12)`).toBeGreaterThanOrEqual(0);
+    const seedAt = (applied.calls as any[]).findIndex((c) => c.service === 'log' && STANDARD_PACK_LINE.test(String(c.message)));
+    // rec-12.1: the pack now writes (the config table) before the key is set, so the flip is the LAST write, and the seed's line comes before it.
+    const firstWrite = (applied.calls as any[]).findLastIndex((c) => c.service === 'dynamodb' && /PutItem|UpdateItem|TransactWriteItems|BatchWriteItem/.test(c.op));
+    expect.soft(seedAt, 'the Recruitment seed runs (it prints how many settings it wrote)').toBeGreaterThanOrEqual(0);
     expect.soft(seedAt >= 0 && firstWrite >= 0 && seedAt < firstWrite, 'the seed runs before the key is set (seed before flip)').toBe(true);
     clean('--apply', applied);
 
@@ -520,11 +528,11 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       expect.soft(r.writes.map((w: any) => `${w.op} ${w.table}`), `${what}: nothing written`).toEqual([]);
     }
 
-    // Prod: Recruitment is not turned on while the Standard pack line prints; other changes run.
+    // Prod: with the Standard pack available (REC-12), Recruitment can be turned on; the pack is written, then the key.
     const prodRec = run(['--env', 'prod', '--tenant', B, '--on', 'recruitment', '--reason', 'r', '--apply'], world0(), PROD_STS);
-    expect.soft(prodRec.code, 'prod --apply turning Recruitment on is refused before REC-12').not.toBe(0);
-    expect.soft(prodRec.writes.map((w: any) => `${w.op} ${w.table}`), 'and writes nothing').toEqual([]);
-    expect.soft(out(prodRec), `and says "${STANDARD_PACK_LINE}"`).toContain(STANDARD_PACK_LINE);
+    expect.soft(prodRec.code, `prod --apply turning Recruitment on runs now the Standard pack exists (${out(prodRec).slice(-300)})`).toBe(0);
+    expect.soft(out(prodRec), 'and no longer says "not available yet"').not.toContain(NOT_AVAILABLE_LINE);
+    expect.soft(profileOf(prodRec.tables, B, TENANTS_PROD)?.['modules'], 'prod B has onboarding and recruitment').toEqual(BOTH);
     const prodOnb = run(['--env', 'prod', '--tenant', C, '--on', 'onboarding', '--reason', 'r', '--apply'], world0(), PROD_STS);
     expect.soft(prodOnb.code, `control: prod --apply turning Onboarding on for C runs (${out(prodOnb).slice(-300)})`).toBe(0);
     expect.soft(profileOf(prodOnb.tables, C, TENANTS_PROD)?.['modules'], 'on the prod company list').toEqual(BOTH);
@@ -544,7 +552,11 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
   test('AC-7 No other way to write modules', async ({}, testInfo) => {
     once(testInfo.project.name);
     const WRITE = /\b(PutItem|UpdateItem|TransactWriteItems|BatchWriteItem|Put|Update|TransactWrite|BatchWrite)Command\b|\b(PutItem|UpdateItem|TransactWriteItems|BatchWriteItem|put_item|update_item|batch_write_item|transact_write_items|batch_writer)\b/;
-    const ALLOWED = ['scripts/tenancy/lib/set-modules.mjs', 'scripts/ci/seed-dev.py'];
+    // ONB-21 (re-lock mod-01.4): sendDocumentReminders names the modules attribute to READ it and PutItem-writes its own claim rows in another table; it never writes a modules attribute (onb-21.spec.ts AC-7).
+    const ALLOWED = ['scripts/tenancy/lib/set-modules.mjs', 'scripts/ci/seed-dev.py', 'lambda/sendDocumentReminders/index.mjs', 'lambda/adminSetAskBatsi/index.mjs',
+      // Dev E2E (re-lock mod-01.11): the company walk needs Ask Batsi on for its two dev companies, and set-modules.mjs has no ask_batsi seed. This script only ADDS the key ask_batsi to a company row that exists, and refuses to run outside pepla-dev.
+      'scripts/ci/dev-ask-batsi-on.py'];
+    // CHAT-02 (re-lock mod-01.5): the Ask Batsi switch has its own admin route; chat-02.spec.ts AC-22 pins what it writes.
     const writers: string[] = [];
     for (const f of [...sources(LAMBDA), ...sources(join(REPO, 'scripts'))]) {
       const rel = relative(REPO, f);
@@ -660,8 +672,11 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
 
     // Add only: against develop 6122df1 (TEN-05 merged), nothing is taken away and every new grant is GetItem on the tenants table.
     const baseline = JSON.parse(readFileSync(join(__dirname, 'support', 'mod-01', 'iam-6122df1', 'policies.json'), 'utf8')) as Record<string, { role: string; pairs?: string[]; squash?: string }>;
+    const ONB22_POLICIES = new Set(['infra/create_proposal', 'infra/approve_agent_action_onb22', 'infra/summarise_verification_employees', 'infra/naleko_mcp_server_agent_key']);
     const gatedRoles = new Set<string>();
     for (const name of GATED_LAMBDAS) for (const { stack, block } of lambdaNamed(name)) { const r = roleResourceOf(block); const info = r ? roleInfo(stack, r) : undefined; if (r) gatedRoles.add(`${stack}:${r}`); if (info) gatedRoles.add(`name:${info.name}`); }
+    // TEN-04.2 (re-locked by acceptance-lock/ten-03.3): more table-level grants, one (role, action, table) each (support/ten-04.2/grants.ts); ten-03.spec.ts AC-10 pins exactly these.
+    const ten042 = (p: string, stack: string, role: string) => isCardGrant(p, stack, role);
     const isGated = (key: string, role: string) => { const stack = key.split('/')[0] as Stack; return gatedRoles.has(`${stack}:${role}`) || gatedRoles.has(`name:${valueOf(stack, role)}`); };
     for (const [key, was] of Object.entries(baseline)) {
       const cur = all[key];
@@ -671,14 +686,34 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       const lost = (was.pairs ?? []).filter((p) => !(cur.pairs ?? []).includes(p));
       expect.soft(lost, `role policy ${key}: nothing it had is taken away`).toEqual([]);
       for (const p of (cur.pairs ?? []).filter((x) => !(was.pairs ?? []).includes(x))) {
+        // CHAT-02 (re-lock mod-01.N): the two chat Lambdas keep and read the person's chats and read the company switch; chat-02.spec.ts AC-31 pins it.
+        if (/naleko_ai_chat|ai_chat/.test(key) && /^Allow dynamodb:(GetItem|Query|PutItem|UpdateItem) (aws_dynamodb_table\.ask_batsi_chats\.arn|aws_dynamodb_table\.tenants\.arn|\$?\{?arn:aws:dynamodb:[^ ]*table\/ask-batsi-chats\}?|arn:aws:dynamodb:[^ ]*table\/ask-batsi-chats) null$/.test(p)) continue;
+        // TEN-06 (re-lock mod-01.1): the sign-in trigger moves a TalentFlow person in; ten-06.spec.ts AC-7 pins exactly this.
+        if (/cognito_post_auth/.test(key) && /^Allow (dynamodb:(PutItem|DeleteItem) \$?\{?aws_dynamodb_table\.tenants\.arn\}? null|cognito-idp:AdminAddUserToGroup \$?\{?aws_cognito_user_pool\.naleko_dev\.arn\}? null)$/.test(p)) continue;
+        if (ten042(p, cur.stack, cur.role)) continue;
+        // ONB-11 (re-lock mod-01.13): createEmployee links the new person's sign-in to their employees row (one UpdateItem; onb-11.spec.ts AC-11 needs it).
+        { const [e, a, r, ...c] = p.split(' '); if (e === 'Allow' && ownerLinkGrant(a!, r!, cur.role, c.join(' '))) continue; }
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null') && isGated(key, cur.role), `role policy ${key}: new grant "${p}" is only GetItem on the tenants table, on a gated Lambda's role`).toBe(true);
       }
     }
     for (const [key, cur] of Object.entries(all)) {
       if (baseline[key]) continue;
       if (cur.stack === 'infra' && cur.role === role) continue; // getCompanyModules' own, judged above
+      if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock mod-01.4): its own role, locked in onb-21.spec.ts AC-8.
+      // Ask Batsi dev Marketplace grant (re-lock mod-01.9): judged before the ask_batsi skip below, and it must be exactly this.
+      if (key === MARKETPLACE_DEV_KEY || cur.role === 'naleko_ai_chat') { expect.soft(marketplaceDev(key, cur.role, cur.pairs), `${key}: only on the chat role, dev only, exactly the two Marketplace actions on *`).toBe(true); continue; }
+      if (/ask_batsi|stored_chats/.test(key) || /ask_batsi/.test(cur.role)) continue; // CHAT-02 (re-lock mod-01.N): their own roles, judged in chat-02.spec.ts AC-31.
+      if (/reveal_document_field/.test(key) || /reveal_document_field/.test(cur.role)) continue; // ONB-14 (re-lock mod-01.N): its own role, locked in onb-14.spec.ts AC-9 (HR only, no tenants table, no KMS list).
+      if (/user_migration/.test(key) || /user_migration/.test(cur.role)) continue; // TEN-06 (re-lock mod-01.1): its own role, locked in ten-06.spec.ts AC-7.
+      // ONB-22.1 (re-lock mod-01.6): the agent proposal and approval rights are new role policies of their own (a new role, and second policies on three roles ten-02 pins); onb-22.spec.ts AC-8 pins exactly these.
+      if (ONB22_POLICIES.has(key)) continue;
+      if (/record_not_hired|recordNotHired/.test(key) || /record_not_hired|recordNotHired/.test(cur.role)) continue; // REC-02 (re-lock rec-02.1): its own role, judged in rec-02.spec.ts AC-11.
+      if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): its own role, judged in rec-04.spec.ts AC-8.
+      if (/leaver_chats|deleteLeaverChats/.test(key) || /leaver_chats|deleteLeaverChats/.test(cur.role)) continue; // CHAT-15 (re-lock mod-01.16): its own role, judged in chat-15.spec.ts AC-12.
+      if ((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => ten042(p, cur.stack, cur.role))) continue; // TEN-04.2: one of the three table Queries
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);
       for (const p of cur.pairs ?? [`unreadable ${cur.squash}`]) {
+        if (ten042(p, cur.stack, cur.role)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null'), `new role policy ${key}: "${p}" is only GetItem on the tenants table`).toBe(true);
       }
     }
@@ -773,7 +808,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
     expect(hrB.email, 'the HR test login of company B is set (E2E_HR_B_EMAIL, from load-e2e-logins.py)').toBeTruthy();
     const { api, clientId, region } = devEnv();
     const oldEnv = join(REPO, 'hr-portal', 'src', 'environments', 'environment.ts');
-    const tfApi = (/talentFlow\s*:\s*\{[^}]*?apiUrl\s*:\s*['"`]([^'"`]+)['"`]/s.exec(existsSync(oldEnv) ? readFileSync(oldEnv, 'utf8') : '')?.[1] ?? '').replace(/\/+$/, '');
+    const tfApi = (/talentFlow\s*:\s*\{[^}]*?apiUrl\s*:\s*['"`]([^'"`]+)['"`]/s.exec(existsSync(oldEnv) ? readFileSync(oldEnv, 'utf8') : '')?.[1] ?? '').replace(/\/+$/, '').replace(/\/v1$/, ''); // the dev E2E writes talentFlow.apiUrl with a trailing /v1; the routes below add it
     expect(tfApi, 'the TalentFlow API address is written for pepla-dev (hr-portal environment.ts, talentFlow.apiUrl)').toMatch(/^https:\/\/[^/]+\.execute-api\./);
     const signIn = async (login: { email: string; password: string }) => {
       const r = await page.request.post(`https://cognito-idp.${region}.amazonaws.com/`, {

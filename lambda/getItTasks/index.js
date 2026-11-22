@@ -64,7 +64,7 @@ function parseGroups(rawGroups) {
 exports.handler = async (event) => {
   if (!isIdToken(event?.requestContext?.authorizer?.jwt?.claims ?? {})) return respond(403, {"message": "Forbidden: IT Admin or IT Specialist group required."});
   const claims   = extractClaims(event);
-  const userSub  = claims.sub;
+  let userSub  = claims.sub;
   const R = await rolesHelper();
   const denied = R.requireRole(event, { roles: ['admin'], perms: ['perm-it'] });
   if (denied) return denied;
@@ -73,6 +73,7 @@ exports.handler = async (event) => {
 
   // TEN-03: after the group check, the company check. The company is the sign-in's; tenantId in the query or body is not read.
   const T = await tenantHelper();
+  userSub = T.userIdOf(event) || userSub; // TEN-06: a moved person's old id, as stored records know it
   const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;
 

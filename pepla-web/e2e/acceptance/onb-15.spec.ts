@@ -56,7 +56,7 @@ const WORDS = {
   askNew: 'Ask for a new one',
   cancel: 'Cancel',
   reason: 'Reason',
-  reasonHint: 'Kept with the decision.',
+  reasonHint: 'Naledi sees this reason.',
   enterReason: 'Enter a reason.',
   notFound: 'This document could not be found.',
   backToList: 'Back to Documents to check',
@@ -929,11 +929,18 @@ test.describe('ONB-15 HR accepts a document or asks for a new one', () => {
         // A row from before NH-11: the plain idNumber, no ciphertext.
         { id: 'doc_1763600000002', type: 'NATIONAL_ID', status: 'MANUAL_REVIEW', upload_timestamp: '2026-11-04T08:00:00Z', v: idRow({ idNumber_encrypted: undefined, idNumber_last4: undefined, idNumber: '8001015009087' }) },
       ]);
+      // ONB-14: the GET no longer carries the full ID number (it comes only from a recorded Show); it says one can be shown.
       const enc = getOne(t, 'doc_1763600000001', HR_CALLER, E);
-      expect(ok(enc, 'encrypted row').verification?.extracted_data?.id_number, 'the KMS-decrypted ID number').toBe(ID_NUMBER);
-      expect(enc.calls.flatMap((c) => (c.service === 'kms' ? [c.op] : [])), 'decrypted with KMS').toContain('Decrypt');
+      const encData = ok(enc, 'encrypted row').verification?.extracted_data;
+      expect(Object.keys(encData), 'no id_number key in the answer').not.toContain('id_number');
+      // (The model's own reasoning stays in the answer as stored, as in AC-12; it can quote the document. ONB-14 review: a separate finding.)
+      expect(JSON.stringify({ ...JSON.parse(enc.raw), verification: { ...JSON.parse(enc.raw).verification, reasoning: undefined } }), 'the full ID number is nowhere else in the answer').not.toContain(ID_NUMBER);
+      expect(encData.id_number_available, 'a number can be shown').toBe(true);
       const legacy = getOne(t, 'doc_1763600000002', HR_CALLER);
-      expect(ok(legacy, 'legacy row').verification?.extracted_data?.id_number, 'the plain legacy ID number').toBe('8001015009087');
+      const legacyData = ok(legacy, 'legacy row').verification?.extracted_data;
+      expect(Object.keys(legacyData), 'a legacy row: no id_number key').not.toContain('id_number');
+      expect(legacy.raw, 'a legacy row: the plain ID number is nowhere in the answer').not.toContain('8001015009087');
+      expect(legacyData.id_number_available, 'a legacy row: a number can be shown').toBe(true);
     }
 
     const id = doc({ document_type: 'NATIONAL_ID', verification: verified(95, ID_READ, 'MATCHES') });
@@ -959,13 +966,18 @@ test.describe('ONB-15 HR accepts a document or asks for a new one', () => {
         await expectHidden(page, full, `${noun}, ${why}`);
       };
       const shown = () => expect(main(page).getByText(new RegExp(full.split('').join('\\s?'))), `${noun}: Show shows the full number`).toBeVisible();
-      const noRecordingLine = async () => expect(await bodyText(page), `${noun}: the page does not say showing is recorded`).not.toMatch(/(Showing|Revealing) (this )?is recorded/i);
+      // ONB-14: the page says "Showing this is recorded" beside Show, and never the old words.
+      const recordingLine = async () => {
+        const text = await bodyText(page);
+        expect(text, `${noun}: the page says "Showing this is recorded"`).toContain('Showing this is recorded');
+        expect(text, `${noun}: never "Revealing is recorded"`).not.toMatch(/Revealing is recorded/i);
+      };
 
       await hidden('before Show');
-      await noRecordingLine();
+      await recordingLine();
       await showButton(page).click();
       await shown();
-      await noRecordingLine();
+      await expect(main(page), `${noun}: the page says when it was shown`).toContainText(/Shown to you, .+\. Hides again in 2 minutes\./);
       await main(page).getByRole('button', { name: /^Hide\b/ }).click();
       await hidden('after Hide');
 
@@ -1352,17 +1364,22 @@ test.describe('ONB-15 HR accepts a document or asks for a new one', () => {
     expect(idAnswer.document.uploaded_at, 'uploaded_at falls back to upload_timestamp').toBe('2026-11-04T08:00:00Z');
     expect(idAnswer.document.s3_key, 's3_key stays').toBe(`uploads/${E}/NATIONAL_ID/doc_1763120000001_national_id.pdf`);
     expect(Object.keys(idAnswer.verification), 'verification keeps today\'s fields').toEqual(expect.arrayContaining(['verification_id', 'confidence', 'decision', 'reasoning', 'extracted_data', 'checks', 'created_at']));
-    expect(idAnswer.verification.extracted_data, 'extracted_data: the ID fields').toMatchObject({
-      id_number: ID_NUMBER, id_number_last4: ID_NUMBER.slice(-4), name: 'NALEDI THANDO', surname: 'DLAMINI', date_of_birth: '1998-03-14', gender: 'FEMALE', citizenship: 'SA CITIZEN BY BIRTH',
+    expect(idAnswer.verification.extracted_data, 'extracted_data: the ID fields (ONB-14: no full id_number; the last four and a flag)').toMatchObject({
+      id_number_last4: ID_NUMBER.slice(-4), id_number_available: true, name: 'NALEDI THANDO', surname: 'DLAMINI', date_of_birth: '1998-03-14', gender: 'FEMALE', citizenship: 'SA CITIZEN BY BIRTH',
     });
     expect(idAnswer.verification.checks, 'checks parsed as today').toEqual(MODEL_CHECKS);
     expect(idAnswer.can_reupload, 'can_reupload as today').toBe(true);
     expect(idAnswer, 'not decided').toMatchObject({ hr_decision: null, hr_decided_at: null, hr_decided_by_name: null, hr_decision_reason: null });
     const bankAnswer = ok(getOne(t, 'doc_1763120000004', HR_CALLER, E), 'bank');
-    expect(bankAnswer.verification.extracted_data, 'extracted_data: the bank fields').toMatchObject({
-      account_holder: 'MS N DLAMINI', bank_name: 'Ubuntu Mutual Bank', account_number: ACCOUNT_NUMBER, branch_code: '250655', account_type: 'Cheque',
+    expect(bankAnswer.verification.extracted_data, 'extracted_data: the bank fields (ONB-14: no full account_number; the last four and a flag)').toMatchObject({
+      account_holder: 'MS N DLAMINI', bank_name: 'Ubuntu Mutual Bank', account_number_last4: ACCOUNT_NUMBER.slice(-4), account_number_available: true, branch_code: '250655', account_type: 'Cheque',
     });
     expect(bankAnswer.document.uploaded_at, 'uploaded_at as stored').toBe('2026-11-04T09:00:00Z');
+    for (const [what, a, full] of [['ID', idAnswer, ID_NUMBER], ['bank', bankAnswer, ACCOUNT_NUMBER]] as const) {
+      expect(Object.keys(a.verification.extracted_data), `${what}: no id_number or account_number key`).not.toContain('id_number');
+      expect(Object.keys(a.verification.extracted_data), `${what}: no account_number key`).not.toContain('account_number');
+      expect(JSON.stringify({ ...a, verification: { ...a.verification, reasoning: undefined } }), `${what}: the full number is nowhere in the answer (the model's reasoning apart)`).not.toContain(full);
+    }
     expect(ok(getOne(t, 'doc_1763120000008', HR_CALLER, E), 'accepted'), 'accepted').toMatchObject({
       hr_decision: 'ACCEPTED', hr_decided_at: '2026-11-05T09:00:00.000Z', hr_decided_by_name: 'Thandi Demo-HR', hr_decision_reason: null,
     });
@@ -1420,9 +1437,10 @@ test.describe('ONB-15 HR accepts a document or asks for a new one', () => {
     expect(get.found, 'GET /v1/verifications/{id} is in api/openapi.yaml').toBe(true);
     expect(get.responses, 'GET lists 403').toContain('403');
     for (const f of ['employee', 'check', 'hr_decision', 'hr_decided_at', 'hr_decided_by_name', 'hr_decision_reason', 'comparisons', 'field', 'result',
-      'account_holder', 'bank_name', 'account_number', 'branch_code', 'account_type', 'id_number_last4', 'uploaded_at']) {
+      'account_holder', 'bank_name', 'account_number_last4', 'id_number_available', 'account_number_available', 'branch_code', 'account_type', 'id_number_last4', 'uploaded_at']) {
       expect(get.fields['200'] ?? [], `GET 200 lists "${f}"`).toContain(f);
     }
+    for (const f of ['id_number', 'account_number']) expect(get.fields['200'] ?? [], `GET 200 no longer lists "${f}" (ONB-14)`).not.toContain(f);
     const url = openapiRoute('/v1/documents/{id}/url', 'get');
     expect(url.responses, 'GET /v1/documents/{id}/url lists 403').toContain('403');
     const patch = openapiRoute('/v1/verifications/{id}/review', 'patch');

@@ -32,7 +32,6 @@ const eb     = new EventBridgeClient({});
 const STATE_TABLE = process.env.STATE_TABLE_NAME    || 'talent-flow-state';
 const EB_BUS      = process.env.EVENTBRIDGE_BUS_NAME || 'talent-flow-bus';
 
-const VALID_SENTIMENTS = ['VERY_INTERESTED', 'INTERESTED', 'NEUTRAL', 'HESITANT', 'DISENGAGED'];
 
 function ok(body)        { return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }; }
 function badRequest(msg) { return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: msg }) }; }
@@ -40,6 +39,10 @@ function notFound(msg)   { return { statusCode: 404, headers: { 'Content-Type': 
 function serverError(msg){ return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: msg }) }; }
 
 exports.handler = async (event) => {
+  // REC-01: only a Recruiter (HR with the Recruitment tick) may do this. The role answer comes first, before any AWS call.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notRecruiter = RA.requireRecruiter(event);
+  if (notRecruiter) return notRecruiter;
   // TEN-03: the company comes from the sign-in only. tenantId in the body is not read.
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
@@ -52,7 +55,7 @@ exports.handler = async (event) => {
   const candidateId = event.pathParameters?.id;
   if (!candidateId) return badRequest('Missing candidateId');
 
-  const capturedBy = event.requestContext?.authorizer?.jwt?.claims?.sub || 'unknown';
+  const capturedBy = T.userIdOf(event) || 'unknown';
 
   let body;
   try {
@@ -64,9 +67,6 @@ exports.handler = async (event) => {
   const { interviewSentiment } = body;
 
   if (!interviewSentiment) return badRequest('Missing interviewSentiment');
-  if (!VALID_SENTIMENTS.includes(interviewSentiment)) {
-    return badRequest(`Invalid interviewSentiment. Must be one of: ${VALID_SENTIMENTS.join(', ')}`);
-  }
 
   const capturedAt = new Date().toISOString();
 
@@ -77,6 +77,11 @@ exports.handler = async (event) => {
       Key:       marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
     }));
     if (!found.Item || !T.ownsRow(unmarshall(found.Item), tenantId)) return T.notFound();
+    const S = await import('../shared/recruitment-settings.mjs');
+    const scale = (await S.getRecruitmentSettings(tenantId, unmarshall(found.Item))).SENTIMENT_SCALE;
+    // A company the Standard pack has not reached yet keeps today's five moods (the pack's own list) until it has its own.
+    const keys = (scale?.moods ?? S.DEFAULTS.SENTIMENT_SCALE.moods).map((m) => m.key);
+    if (typeof interviewSentiment !== 'string' || !keys.includes(interviewSentiment)) return badRequest('Invalid interviewSentiment');
   } catch (err) {
     console.error('DynamoDB read failed', { candidateId, error: err.message });
     return serverError('Failed to capture sentiment');

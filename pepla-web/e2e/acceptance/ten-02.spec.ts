@@ -947,6 +947,9 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
     let touching = 0;
     for (const role of roles) {
       if (role === 'tenant_pre_token') continue; // TEN-01, locked there.
+      if (role === 'send_document_reminders') continue; // ONB-21 (re-lock ten-02.5): its own role, locked in onb-21.spec.ts AC-8.
+      if (role === 'user_migration') continue; // TEN-06 (re-lock ten-02.4): its own role, locked in ten-06.spec.ts AC-7.
+      if (/^(naleko_ai_chat|ask_batsi_chats|admin_set_ask_batsi)$/.test(role)) continue; // CHAT-02 (re-lock ten-02.N): the chat Lambda reads the switch and keeps chats; the two new roles are locked in chat-02.spec.ts AC-31.
       const policies = resources('aws_iam_role_policy').filter((b) => new RegExp(`^aws_iam_role\\.${role}\\.(name|id)$`).test(attributes(b.body).get('role') ?? ''));
       if (!policies.some((b) => /aws_dynamodb_table\.tenants\.|-tenants\b/.test(stripComments(b.body)))) continue;
       const { statements } = grants(role);
@@ -957,7 +960,8 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
       const fnName = (fn ? attributes(fn.body).get('function_name') ?? '' : '').replace(/"/g, '');
       for (const s of mine) {
         // MOD-01 rule 8 (re-locked by acceptance-lock/mod-01): the modules read adds GetItem for the Recruitment Lambdas of this stack.
-        const allowed = [...(MEMBER_WRITERS.includes(fnName) ? ['dynamodb:Query', 'dynamodb:PutItem'] : ['dynamodb:Query']), ...(MOD01_READERS.includes(role) ? ['dynamodb:GetItem'] : [])];
+        // TEN-06 (re-lock ten-02.4): cognitoPostAuth moves a person in, so it also holds PutItem and DeleteItem on the tenants table.
+        const allowed = [...(MEMBER_WRITERS.includes(fnName) ? ['dynamodb:Query', 'dynamodb:PutItem'] : fnName === 'cognitoPostAuth' ? ['dynamodb:Query', 'dynamodb:PutItem', 'dynamodb:DeleteItem'] : ['dynamodb:Query']), ...(MOD01_READERS.includes(role) ? ['dynamodb:GetItem'] : [])];
         expect.soft(list(s.Action).filter((a) => !allowed.includes(a)), `${role}: on the tenants table only ${allowed.join(' and ')}`).toEqual([]);
         expect.soft(list(s.Resource).filter((r) => !(isTenants(r) && (!indexOf(r) || indexOf(r) === 'tenant-index'))), `${role}: tenants statement names only the table and its tenant-index`).toEqual([]);
         expect.soft(s.Condition, `${role}: tenants statement has no condition to widen it`).toBeUndefined();
@@ -1003,7 +1007,9 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
     // Re-locked by TEN-03: the TalentFlow pre-token trigger's role lives in the other Terraform stack (talent-flow-infra), so it
     // cannot be written as aws_iam_role.<name>.arn. It may appear as one quoted role ARN naming talentFlowPreTokenTrigger, nothing else quoted.
     // Re-locked by MOD-01 (rule 8): the TalentFlow Lambdas that read the modules join as quoted role ARNs with the role path, named one by one.
-    const MOD01_TF = 'getCandidate|updateCandidate|advanceCandidateStage|scheduleInterview|submitVote|captureSentiment|generateScoringLink|getOffer|createOffer|advanceOfferState|dismissTile|snoozeTile|acknowledgeTile|getCandidates|createCandidate|getIntelligenceTiles|manageTalentFlowConfig|getUserNotifications|markNotificationRead|getPanelMembers|talentFlowApproveAction|talentFlowAiChat|submitVoteByToken|evaluateIntelligenceRules|sendTalentFlowNotification|orchestrateTalentFlowWorkflow';
+    const MOD01_TF = 'getCandidate|updateCandidate|advanceCandidateStage|scheduleInterview|submitVote|captureSentiment|generateScoringLink|getOffer|createOffer|advanceOfferState|dismissTile|snoozeTile|acknowledgeTile|getCandidates|createCandidate|getIntelligenceTiles|manageTalentFlowConfig|getUserNotifications|markNotificationRead|getPanelMembers|talentFlowApproveAction|talentFlowAiChat|submitVoteByToken|evaluateIntelligenceRules|sendTalentFlowNotification|orchestrateTalentFlowWorkflow|deleteLeaverChats|recordNotHired|manageRoles'; // re-lock ten-02.N (CHAT-15): the hourly leaver-chats job reads the encrypted chats table
+    // child lock ten-02.11, REC-02: recordNotHired reads the company's module setting (one GetItem on the tenants table).
+    // child lock rec-04.1, REC-04: manageRoles reads the company's module setting and the hiring manager's Member rows.
     expect(squash(kmsRead), 'dynamodb_read_role_arns is a list of aws_iam_role.<name>.arn (and, since TEN-03, one quoted ARN of the TalentFlow pre-token trigger role; since MOD-01, the quoted ARNs of the TalentFlow Lambdas that read the modules)').toMatch(new RegExp(`^\\[(?:(?:aws_iam_role\\.\\w+\\.arn|"arn:aws:iam::[^":,\\]]*:role\\/[^":,\\]]*talentFlowPreTokenTrigger[^":,\\]]*"|"arn:aws:iam::\\$\\{var\\.aws_account_id\\}:role\\/talent-flow\\/talent-flow-role-(?:${MOD01_TF})"),?)+\\]$`));
   });
 
@@ -1244,7 +1250,9 @@ test.describe('TEN-02 Records seen from company B\'s side', () => {
     const before = mod(readFileSync(join(__dirname, 'support', 'ten-02', 'iam-48fe4c6', 'kms.tf.txt'), 'utf8'));
     const now = mod(readFileSync(join(INFRA, 'kms.tf'), 'utf8'));
     for (const k of ['allowed_role_arns', 'cognito_sender_decrypt_role_arns']) {
-      expect.soft(rolesIn(now.get(k)).sort(), `kms_pii ${k} unchanged since develop 48fe4c6`).toEqual(rolesIn(before.get(k)).sort());
+      // CHAT-02 (re-lock ten-02.N): allowed_role_arns gains the two new Ask Batsi roles (they keep chats and read the company list); chat-02.spec.ts AC-31 pins them.
+      const ask = (r: string) => !/ask_batsi_chats|admin_set_ask_batsi/.test(r);
+      expect.soft(rolesIn(now.get(k)).filter(ask).sort(), `kms_pii ${k} unchanged since develop 48fe4c6`).toEqual(rolesIn(before.get(k)).sort());
     }
     expect.soft(rolesIn(before.get('allowed_role_arns')).length, 'the baseline holds the list').toBeGreaterThan(0);
   });

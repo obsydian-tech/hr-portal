@@ -98,6 +98,8 @@ export const HELP_NEW_EMPLOYEE_STEPS: Readonly<Record<string, 'INVITED' | 'DOCUM
  * fails the ID check digit.
  */
 const JOHAN_ID_NUMBER = '8500015009087';
+/** ONB-14: no answer holds the full number now; the made-up one stays here so the checks on it (help-02) can still look at it. */
+export const HELP_MADE_UP_ID_NUMBERS = { johan: JOHAN_ID_NUMBER } as const;
 const JOHAN_UPLOADED = '2026-02-26T08:00:00Z';
 
 export const HELP_JOHAN_DETAIL = (() => {
@@ -114,7 +116,7 @@ export const HELP_JOHAN_DETAIL = (() => {
         check: 'MATCHES',
         hr_decision: null,
         hr_decided_at: null,
-        verification: { id_number: JOHAN_ID_NUMBER, id_number_last4: JOHAN_ID_NUMBER.slice(-4) },
+        verification: { id_number_last4: JOHAN_ID_NUMBER.slice(-4), id_number_available: true },
       },
       {
         document_id: 'sunbird-johan-bank',
@@ -168,7 +170,7 @@ export const HELP_DOCUMENT_PAGES = (() => {
   return {
     [id!.document_id]: {
       ...base(id),
-      verification: { confidence: 96, extracted_data: { name: e.first_name, surname: e.last_name, id_number: id!.verification!.id_number, id_number_last4: id!.verification!.id_number_last4 } },
+      verification: { confidence: 96, extracted_data: { name: e.first_name, surname: e.last_name, id_number_last4: id!.verification!.id_number_last4, id_number_available: true } },
       comparisons: [{ field: 'SURNAME', result: 'AGREES' }, { field: 'ID_NUMBER', result: 'AGREES' }],
     },
     [bank!.document_id]: {
@@ -178,3 +180,49 @@ export const HELP_DOCUMENT_PAGES = (() => {
     },
   } as Record<string, unknown>;
 })();
+
+/**
+ * HELP-04 · HR adds a new employee. Pieter van Wyk registers Thandi Mahlangu, opens her page and
+ * resends her invite link. Built from HELP_PEOPLE and HELP_NEW_EMPLOYEES, nothing typed twice.
+ * Phone, department, job title and staff ID are the card's sample values. The phone
+ * number cannot be anyone's. Values that hold it are functions, so the fixture's exported strings
+ * still hold no phone number (HELP-02 and HELP-03 AC-5).
+ */
+const THANDI_PERSON = HELP_PEOPLE.find((p) => p.key === 'new')!;
+const THANDI_ROW = HELP_NEW_EMPLOYEES.find((e) => e.email === THANDI_PERSON.email)!;
+const HELP_HR_PERSON = HELP_PEOPLE.find((p) => p.key === 'hr')!;
+const DUMMY_PHONE = '000 000 0000';
+
+export const HELP_HR_PARTNERS = [{ id: 'sunbird-pieter-van-wyk', name: HELP_HR_PERSON.name, staffId: 'HR-001', email: HELP_HR_PERSON.email }] as const;
+
+/** What HR types and chooses on the four steps. */
+export const helpNewEmployeeForm = () => ({
+  firstName: THANDI_ROW.first_name,
+  lastName: THANDI_ROW.last_name,
+  email: THANDI_ROW.email,
+  phone: DUMMY_PHONE,
+  department: 'Operations',
+  jobTitle: 'Junior baker',
+  startDate: THANDI_ROW.planned_start_date,
+});
+
+/** POST /v1/employees answers 201 with this; the welcome email is sent. */
+export const HELP_REGISTERED = { employee: { employee_id: THANDI_ROW.employee_id }, email: { sent: true } } as const;
+
+/** Thandi's page (GET /v1/employees/{id}/verifications): Invited, nothing uploaded yet. */
+export const helpThandiDetail = () => {
+  const f = helpNewEmployeeForm();
+  return {
+    employee: {
+      employee_id: THANDI_ROW.employee_id, first_name: f.firstName, last_name: f.lastName, email: f.email, phone: f.phone,
+      department: f.department, job_title: f.jobTitle, step: 'INVITED', planned_start_date: f.startDate, hr_staff_name: HELP_HR_PERSON.name,
+    },
+    documents: [] as unknown[],
+  };
+};
+
+/** Her invite link before and after Resend link. Fixed times, never the clock. */
+export const HELP_INVITE = {
+  sent: { status: 'ok', sentAt: '2026-03-02T09:00:00+02:00', expiresAt: '2026-03-09T09:00:00+02:00', sentTo: THANDI_ROW.email },
+  resent: { status: 'ok', sentAt: '2026-03-02T09:05:00+02:00', expiresAt: '2026-03-09T09:05:00+02:00', sentTo: THANDI_ROW.email, email: { sent: true } },
+} as const;

@@ -1,4 +1,5 @@
 import { stepOfCode, type Step } from './employee';
+import type { RiskBand } from './risk-words';
 
 export type DocumentType = 'NATIONAL_ID' | 'BANK_CONFIRMATION' | 'MATRIC_CERTIFICATE' | 'TERTIARY_QUALIFICATION';
 export type Check = 'READING' | 'MATCHES' | 'NEEDS_A_LOOK' | 'DOESNT_MATCH';
@@ -37,6 +38,10 @@ export interface ApiEmployeeDetail {
     step?: string | null;
     planned_start_date?: string;
     hr_staff_name?: string;
+    /** HR only. Left out of the answer for the employee's own view. */
+    risk_band?: string | null;
+    risk_reason?: string | null;
+    risk_assessed_at?: string | null;
   };
   documents?: Array<{
     document_id: string;
@@ -46,7 +51,7 @@ export interface ApiEmployeeDetail {
     check?: Check;
     hr_decision?: HrDecision | null;
     hr_decided_at?: string | null;
-    verification?: { id_number?: string | null; id_number_last4?: string | null } | null;
+    verification?: { id_number_last4?: string | null; id_number_available?: boolean } | null;
   }>;
   /** The document types this company needs accepted before Verified (ONB-08). Missing means no marks. */
   required_documents?: string[];
@@ -60,8 +65,8 @@ export interface EmployeeDocument {
   check: Check;
   decision: HrDecision | null;
   decidedAt: string;
-  /** The full ID number, for the masked field. Empty when there is none. */
-  idNumber: string;
+  /** Whether the stored ID number can be shown (the full number is not in the answer). */
+  idAvailable: boolean;
   idLast4: string;
 }
 
@@ -76,8 +81,15 @@ export interface EmployeeDetail {
   /** YYYY-MM-DD, or empty when not set. */
   startDate: string;
   hrPartner: string;
+  /** The risk check, or null when the answer carries no risk keys (the employee's view). */
+  risk: { band: RiskBand | null; reason: string; assessedAt: string } | null;
   /** One entry per document type, in the page's order: its uploads newest first, empty when none. */
   byType: Array<{ type: DocumentType; name: string; required: boolean; documents: EmployeeDocument[] }>;
+}
+
+const BANDS = new Set<string>(['LOW', 'MEDIUM', 'HIGH', 'UNKNOWN']);
+function toBand(v: string | null | undefined): RiskBand | null {
+  return v && BANDS.has(v) ? (v as RiskBand) : null;
 }
 
 const KNOWN = new Set<string>(DOCUMENT_TYPES.map((t) => t.type));
@@ -94,7 +106,7 @@ export function toEmployeeDetail(a: ApiEmployeeDetail): EmployeeDetail {
       check: d.check ?? 'READING',
       decision: d.hr_decision ?? null,
       decidedAt: d.hr_decided_at ?? '',
-      idNumber: d.verification?.id_number ?? '',
+      idAvailable: d.verification?.id_number_available === true,
       idLast4: d.verification?.id_number_last4 ?? '',
     }));
   const required = new Set<string>(Array.isArray(a.required_documents) ? a.required_documents : []);
@@ -108,6 +120,9 @@ export function toEmployeeDetail(a: ApiEmployeeDetail): EmployeeDetail {
     step: stepOfCode(e.step),
     startDate: e.planned_start_date ?? '',
     hrPartner: e.hr_staff_name ?? '',
+    risk: 'risk_band' in e || 'risk_reason' in e || 'risk_assessed_at' in e
+      ? { band: toBand(e.risk_band), reason: e.risk_reason ?? '', assessedAt: e.risk_assessed_at ?? '' }
+      : null,
     byType: DOCUMENT_TYPES.map(({ type, name }) => ({
       type,
       name,

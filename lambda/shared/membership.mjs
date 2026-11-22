@@ -38,12 +38,18 @@ export async function companyOfSignIn(sub) {
   return null;
 }
 
-/** One Member row for a new sign-in; never overwrites one. */
-export async function addMember(sub, tenantId) {
+/** One Member row for a new sign-in; never overwrites one. TEN-06: a moved TalentFlow person's row keeps their old id (legacy_user_id). */
+export async function addMember(sub, tenantId, legacyUserId) {
   if (!TENANT_ID_PATTERN.test(tenantId ?? '') || !sub) throw new Error('Not a company id');
   await db.send(new PutItemCommand({
     TableName: table(),
-    Item: { pk: { S: `USER#${sub}` }, sk: { S: `TENANT#${tenantId}` }, tenant_id: { S: tenantId }, created_at: { S: new Date().toISOString() } },
+    Item: {
+      pk: { S: `USER#${sub}` },
+      sk: { S: `TENANT#${tenantId}` },
+      tenant_id: { S: tenantId },
+      ...(legacyUserId ? { legacy_user_id: { S: legacyUserId } } : {}),
+      created_at: { S: new Date().toISOString() },
+    },
     ConditionExpression: 'attribute_not_exists(pk)',
   }));
 }

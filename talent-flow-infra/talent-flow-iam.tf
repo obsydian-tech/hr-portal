@@ -86,6 +86,19 @@ resource "aws_iam_role_policy" "create_candidate" {
         Resource = aws_cloudwatch_event_bus.talent_flow.arn
       },
       {
+        # REC-12: a new candidate is locked to the active version of every setting (one Query per type on the active-configs index).
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
+        Sid      = "ConfigVersionRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
+      },
+      {
         Sid      = "KMSStateKey"
         Effect   = "Allow"
         Action   = local.tf_kms_actions
@@ -201,6 +214,14 @@ resource "aws_iam_role_policy" "schedule_interview" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
+        # REC-12: the active setting is read through the active-configs index. The Query was missing, so the read failed and the
+        # built-in defaults were used without anyone seeing it.
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
         Sid      = "EventBridgePublish"
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
@@ -274,6 +295,13 @@ resource "aws_iam_role_policy" "submit_vote" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
+        # REC-02: the handler reads REJECTION_RULES (shared/recruitment-settings.mjs) through the active-configs index.
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
         Sid      = "EventBridgePublish"
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
@@ -332,6 +360,13 @@ resource "aws_iam_role_policy" "complete_evaluation" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
+      },
+      {
+        # REC-02: the handler reads REJECTION_RULES (shared/recruitment-settings.mjs) through the active-configs index.
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
       },
       {
         Sid      = "EventBridgePublish"
@@ -593,6 +628,13 @@ resource "aws_iam_role_policy" "ai_chat" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
+        # tool-resolver.mjs reads the active config through this one index
+        Sid      = "ConfigActiveIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
         Sid      = "AgentAuditTableWrite"
         Effect   = "Allow"
         Action   = ["dynamodb:PutItem"]
@@ -625,6 +667,13 @@ resource "aws_iam_role_policy" "ai_chat" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_prompt_cache}"
+      },
+      {
+        # CHAT-02: stored Ask Batsi chats (table in the infra/ stack). KMS decrypt comes through kms_pii dynamodb_read_role_arns.
+        Sid      = "ChatsTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/ask-batsi-chats"
       },
       {
         Sid      = "KMSStateKey"
@@ -861,7 +910,7 @@ resource "aws_iam_role_policy" "get_candidates" {
 
 # ── 15. getCandidate ─────────────────────────────────────────────────────────
 # Triggered by: API GW GET /v1/candidates/{id}
-# Needs: DynamoDB state table GetItem, Logs, XRay
+# Needs: DynamoDB state table GetItem + Query (interviews of the candidate), Logs, XRay
 
 resource "aws_iam_role" "get_candidate" {
   name               = "${local.tf_iam_role_prefix}${local.tf_lambda_get_candidate}"
@@ -891,9 +940,9 @@ resource "aws_iam_role_policy" "get_candidate" {
         Resource = "*"
       },
       {
-        Sid      = "DynamoDBGetItem"
+        Sid      = "DynamoDBRead"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem"]
+        Action   = ["dynamodb:GetItem", "dynamodb:Query"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
@@ -996,6 +1045,19 @@ resource "aws_iam_role_policy" "capture_sentiment" {
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
         Resource = "arn:aws:events:af-south-1:${var.aws_account_id}:event-bus/${local.tf_event_bus_name}"
+      },
+      {
+        # REC-12: captureSentiment reads SENTIMENT_SCALE at the version the candidate is locked to (the active-configs index, then the version row).
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
+        Sid      = "ConfigVersionRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
         Sid      = "KMSStateKey"
@@ -1308,7 +1370,7 @@ resource "aws_iam_role_policy" "update_candidate" {
       {
         Sid      = "StateTableReadWrite"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Action   = ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"] # Query: the level lock reads the candidate's interview rows (REC-03)
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
@@ -1473,6 +1535,13 @@ resource "aws_iam_role_policy" "submit_vote_by_token" {
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
+      },
+      {
+        # REC-02: the handler reads REJECTION_RULES (shared/recruitment-settings.mjs) through the active-configs index.
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
       },
       {
         Sid      = "EventBridgePutEvents"

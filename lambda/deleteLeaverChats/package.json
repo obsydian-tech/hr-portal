@@ -1,0 +1,7 @@
+{
+  "name": "delete-leaver-chats-lambda",
+  "version": "1.0.0",
+  "description": "CHAT-15: hourly job that deletes the Ask Batsi chats of people deactivated more than 65 minutes ago",
+  "private": true,
+  "type": "module"
+}

@@ -12,11 +12,8 @@
  *   2.  GetItem SAGA record → extract configVersion
  *   3.  getConfig(tenantId, 'SCORING_WEIGHTS', configVersion) — VERSIONED
  *   4.  getConfig(tenantId, 'PANEL_CONFIG',    configVersion) — VERSIONED
- *   5.  STRONG_NO veto check (before scoring):
- *         if rating === 'STRONG_NO' && panelConfig.rules.strongNoVeto === true
- *           → UpdateItem SAGA: votingResult=STRONG_NO_VETO, status=EVALUATION_FAILED
- *           → Publish VotingCompleted with result=STRONG_NO_VETO
- *           → Return early
+ *   5.  REC-02: a Strong No decides nothing. When the candidate's REJECTION_RULES say reviewVoteLevel is STRONG_NO,
+ *         it adds one to strong_no_count on the candidate row (a flag for a person); no status or stage is written.
  *   6.  Calculate weightedScore = Σ(score[dim] * weight[dim]) / 100
  *   7.  PutItem vote record PK=CANDIDATE#{id}, SK=VOTE#{voterId}#{timestamp}
  *         Fields: score, weightedScore, rating, scores, voterId, configVersionUsed
@@ -82,6 +79,10 @@ exports.handler = async (event) => {
   // TEN-03: a person calling the API gets the company from the sign-in. The VoteSubmitted event has none: it names
   // its company in tenant_id. The company is never read from the body, query, path or headers.
   const T = await tenantHelper();
+  // REC-01: a person votes as themselves (the voter is the sign-in, never the body) and only on an interview whose panel
+  // they are on. The VoteSubmitted event is the system, not a person: it keeps naming its voter.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const byPerson = !!event.requestContext;
   let tenantId;
   if (event.requestContext) {
     const t = T.requireTenant(event);
@@ -101,16 +102,23 @@ exports.handler = async (event) => {
 
   // Extract userId from JWT claims for action tracking (INTEL-001)
   // Only available when called via API Gateway (not EventBridge)
-  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+  const userId = T.userIdOf(event);
 
-  const detail = event.detail || event.body
+  const message = event.detail || event.body
     ? (event.detail || (typeof event.body === 'string' ? JSON.parse(event.body) : event.body))
     : event;
 
-  const { candidateId, voterId, scores, rating, interviewId, submittedByTA } = detail || {};
+  const { scores, rating, interviewId, submittedByTA } = message || {};
+  // A person's vote is made on the candidate's own route (/v1/candidates/{id}/votes): the path names the candidate when the body does not.
+  const candidateId = (byPerson ? event.pathParameters?.id : undefined) ?? message?.candidateId;
+  // The voter: the signed-in person (a person never names one), or, for the VoteSubmitted event, the voter it names.
+  const voterId = byPerson ? RA.callerId(event) : message?.voterId;
+  if (byPerson && !voterId) return RA.forbidden();
 
   // ── Step 1: Validate required fields ─────────────────────────────────────
   if (!candidateId) return badRequest('Missing required field: candidateId');
+  // A person's vote on a candidate is made on that candidate's own route.
+  if (byPerson && event.pathParameters?.id && message?.candidateId && event.pathParameters.id !== message.candidateId) return badRequest('candidateId does not match the route');
   if (!voterId)     return badRequest('Missing required field: voterId');
   if (!rating)      return badRequest('Missing required field: rating');
   if (!VALID_RATINGS.includes(rating)) {
@@ -137,6 +145,25 @@ exports.handler = async (event) => {
     return serverError('Failed to read candidate record');
   }
 
+  // ── REC-01: a person must be on the panel of the interview they vote on ──────────────────────────────────────
+  // The interview must be named and must be this candidate's. Not on its panel (a Recruiter included) is 403, and
+  // nothing is written. The row is read before anything else is written.
+  if (byPerson) {
+    if (!interviewId) return RA.forbidden();
+    let interviewRow;
+    try {
+      const res = await dynamo.send(new GetItemCommand({
+        TableName: STATE_TABLE,
+        Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
+      }));
+      interviewRow = res.Item ? unmarshall(res.Item) : null;
+    } catch (err) {
+      console.error('Failed to read interview record', { candidateId, interviewId, error: err.name });
+      return serverError('Failed to read interview record');
+    }
+    if (!interviewRow || !T.ownsRow(interviewRow, tenantId) || !RA.panelMemberOf(interviewRow, voterId)) return RA.forbidden();
+  }
+
   const configVersion = saga.configVersion;
   if (!configVersion) {
     return badRequest(`SAGA record for candidate ${candidateId} has no configVersion — workflow not started`);
@@ -157,38 +184,16 @@ exports.handler = async (event) => {
     return serverError('Failed to read panel configuration');
   }
 
-  // ── Step 5: STRONG_NO veto check (runs BEFORE score calculation) ──────────
-  const strongNoVeto = panelConfig && panelConfig.rules && panelConfig.rules.strongNoVeto === true;
-  if (rating === 'STRONG_NO' && strongNoVeto) {
-    try {
-      const updateExpr = userId
-        ? 'SET votingResult = :vr, #s = :sf, updatedBy = :uid'
-        : 'SET votingResult = :vr, #s = :sf';
-      const attrValues = userId
-        ? marshall({ ':vr': 'STRONG_NO_VETO', ':sf': 'EVALUATION_FAILED', ':uid': userId })
-        : marshall({ ':vr': 'STRONG_NO_VETO', ':sf': 'EVALUATION_FAILED' });
-
-      await dynamo.send(new UpdateItemCommand(scopeWrite({
-        TableName: STATE_TABLE,
-        Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-        UpdateExpression: updateExpr,
-        ExpressionAttributeNames: { '#s': 'status' },
-        ExpressionAttributeValues: attrValues,
-      }, tenantId)));
-    } catch (err) {
-      if (err.name === 'ConditionalCheckFailedException') return T.notFound();
-      console.error('Failed to update SAGA for STRONG_NO_VETO', { candidateId, error: err.message });
-      return serverError('Failed to record veto decision');
-    }
-
-    await publishVotingCompleted({ candidateId, tenantId, result: 'STRONG_NO_VETO', voterId });
-    console.info('STRONG_NO veto applied', { candidateId, voterId });
-    return ok({ candidateId, voterId, result: 'STRONG_NO_VETO' });
-  }
+  // ── Step 5: a Strong No raises a flag, never an outcome (REC-02) ──────────
+  // REJECTION_RULES is the candidate's locked version. null in the company's settings means nothing is flagged.
+  const strongNoFlag = rating === 'STRONG_NO' && (await strongNoReview(tenantId, saga));
 
   // ── Step 6: Calculate weighted score ─────────────────────────────────────
   const weights = scoringWeights;
-  const weightedScore = calculateWeightedScore(scores, weights);
+  // REC-02: a score that is not a number (the Standard pack carries no weights yet; REC-07 rebuilds the maths) is stored empty,
+  // because DynamoDB refuses NaN and the vote must still be recorded.
+  const rawScore = calculateWeightedScore(scores, weights);
+  const weightedScore = Number.isFinite(rawScore) ? rawScore : null;
 
   // ── Duplicate vote check (per voter per interview) ────────────────────────
   // Prevents the same panelist from submitting multiple votes on the same interview.
@@ -235,7 +240,7 @@ exports.handler = async (event) => {
         weightedScore,
         configVersionUsed: configVersion,
         createdAt:        timestamp,
-        submittedByTA:    submittedByTA || null,
+        submittedByTA:    byPerson ? null : (submittedByTA || null), // a person votes as themselves: nobody else entered it (REC-07 adds HR entering for a member)
         updatedBy:        userId || undefined,  // INTEL-001: Track who submitted the vote for action tracking
       }, tenantId), { removeUndefinedValues: true }),
       ConditionExpression: 'attribute_not_exists(SK)',
@@ -246,6 +251,22 @@ exports.handler = async (event) => {
     } else {
       console.error('Failed to write vote record', { voteSK, error: err.message });
       return serverError('Failed to write vote record');
+    }
+  }
+
+  // ── Step 7b: the Strong No flag (REC-02): a number for a person to look at, never a decision ──────────
+  if (strongNoFlag) {
+    try {
+      await dynamo.send(new UpdateItemCommand(scopeWrite({
+        TableName: STATE_TABLE,
+        Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
+        UpdateExpression: 'ADD strong_no_count :one',
+        ExpressionAttributeValues: marshall({ ':one': 1 }),
+      }, tenantId)));
+    } catch (err) {
+      if (err.name === 'ConditionalCheckFailedException') return T.notFound();
+      console.error('Failed to record the Strong No flag', { candidateId, error: err.name });
+      return serverError('Failed to record the vote flag');
     }
   }
 
@@ -311,8 +332,9 @@ exports.handler = async (event) => {
         ProjectionExpression: 'weightedScore',
       }));
       if (voteQuery.Items && voteQuery.Items.length > 0) {
-        const allScores = voteQuery.Items.map((i) => unmarshall(i).weightedScore);
-        averageScore = allScores.reduce((sum, s) => sum + s, 0) / allScores.length;
+        // A vote stored with no score (REC-02) is left out of the average.
+        const allScores = voteQuery.Items.map((i) => unmarshall(i).weightedScore).filter((x) => Number.isFinite(x));
+        averageScore = allScores.length > 0 ? allScores.reduce((sum, s) => sum + s, 0) / allScores.length : null;
       }
     } catch (err) {
       console.error('Failed to aggregate vote scores', { candidateId, error: err.message });
@@ -334,6 +356,14 @@ exports.handler = async (event) => {
 
   return ok({ candidateId, voterId, weightedScore, configVersionUsed: configVersion });
 };
+
+// REC-02: does this candidate's REJECTION_RULES (the version locked to the candidate) ask for a Strong No to be flagged?
+async function strongNoReview(tenantId, saga) {
+  const { getRecruitmentSettings, DEFAULTS } = await import('../shared/recruitment-settings.mjs');
+  const settings = await getRecruitmentSettings(tenantId, saga);
+  const rules = settings.REJECTION_RULES ?? DEFAULTS.REJECTION_RULES;
+  return rules.reviewVoteLevel === 'STRONG_NO';
+}
 
 // ── EventBridge publish helper ────────────────────────────────────────────────
 async function publishVotingCompleted({ candidateId, tenantId, result, averageScore, votesSubmitted, voterId }) {

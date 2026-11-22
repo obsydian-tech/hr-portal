@@ -69,6 +69,10 @@ const ALLOWED_TRANSITIONS = {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  // REC-01: only a Recruiter (HR with the Recruitment tick) may do this. The role answer comes first, before any AWS call.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notRecruiter = RA.requireRecruiter(event);
+  if (notRecruiter) return notRecruiter;
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
   if (refusal) return refusal;
@@ -78,7 +82,7 @@ exports.handler = async (event) => {
   if (moduleOff) return moduleOff;
 
   // Extract userId from JWT claims for action tracking (INTEL-001)
-  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+  const userId = T.userIdOf(event);
 
   const candidateId =
     event.pathParameters?.id ??
@@ -300,14 +304,14 @@ exports.handler = async (event) => {
         console.error('Failed to publish OfferAccepted event', { candidateId, error: err.message });
       }
 
-      // Also update SAGA to reflect acceptance and move candidate to CONTRACT_SIGNING
+      // Also update SAGA to reflect acceptance and move candidate to Hired
       try {
         const sagaUpdateExpr = userId
           ? 'SET currentStage = :stage, acceptanceSentiment = :sentiment, updatedAt = :now, updatedBy = :uid'
           : 'SET currentStage = :stage, acceptanceSentiment = :sentiment, updatedAt = :now';
         const sagaAttrValues = userId
-          ? { ':stage': 'CONTRACT_SIGNING', ':sentiment': acceptanceSentiment, ':now': now, ':uid': userId }
-          : { ':stage': 'CONTRACT_SIGNING', ':sentiment': acceptanceSentiment, ':now': now };
+          ? { ':stage': 'HIRED', ':sentiment': acceptanceSentiment, ':now': now, ':uid': userId }
+          : { ':stage': 'HIRED', ':sentiment': acceptanceSentiment, ':now': now };
 
         await dynamo.send(new UpdateItemCommand(scopeWrite({
           TableName: STATE_TABLE,

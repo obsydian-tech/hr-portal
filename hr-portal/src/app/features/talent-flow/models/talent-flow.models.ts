@@ -8,6 +8,13 @@
 // replaced by a single INTERVIEWING stage with a configurable sub-loop.
 // MVP 1 = Phases 1–2. MVP 2 = Phases 3–4.
 export type HiringStage =
+  // The six stages a candidate is in now (REC-03)
+  | 'APPLIED'
+  | 'SCREENING'
+  | 'INTERVIEW'
+  | 'OFFER'
+  | 'HIRED'
+  | 'NOT_HIRED'
   // Phase 1 — Interview & Evaluation (MVP 1)
   | 'APPLICATION_REVIEW'
   | 'INTERVIEWING'
@@ -25,6 +32,12 @@ export type HiringStage =
 
 /** Maps each stage to its phase (1–4). Drives the phase indicator on Candidate Record. */
 export const PHASE_MAP: Record<HiringStage, 1 | 2 | 3 | 4> = {
+  APPLIED:            1,
+  SCREENING:          1,
+  INTERVIEW:          1,
+  OFFER:              2,
+  HIRED:              2,
+  NOT_HIRED:          2,
   APPLICATION_REVIEW: 1,
   INTERVIEWING:       1,
   EVALUATION:         1,

@@ -2424,7 +2424,7 @@ a.pp-tag:hover { text-decoration: underline; }
   .pp-page-header__title { font: var(--font-heading-large); letter-spacing: var(--font-heading-large-tracking); }
   .pp-page-header__description { font: var(--font-body); }
   .pp-page-header__actions { width: 100%; }
-  .pp-page-header__actions > .pp-button--primary { flex: 1; min-height: var(--size-control-large); }
+  .pp-page-header__actions > .pp-button--primary { flex: 1 1 auto; min-width: max-content; min-height: var(--size-control-large); }
 }
 
 /* ---- navigation/pagination ---- */
@@ -2529,6 +2529,19 @@ a.pp-tag:hover { text-decoration: underline; }
 .pp-side-navigation__item[aria-current="page"] > svg { color: var(--color-icon-selected); }
 .pp-side-navigation__item[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: var(--space-100); bottom: var(--space-100); width: var(--space-050); margin-left: calc(-1 * var(--space-100)); border-radius: 0 var(--radius-full) var(--radius-full) 0; background: var(--color-border-selected); }
 .pp-side-navigation__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* An item that is a button (the chat list's New chat, Search chats, chats and Delete all my chats) is a plain full-width row:
+   no border, no fill, the column's width, a long title ends in an ellipsis inside it. */
+button.pp-side-navigation__item { width: 100%; border: 0; background: transparent; font-family: inherit; text-align: left; cursor: pointer; }
+button.pp-side-navigation__item:hover { background: var(--color-background-neutral-subtle-hovered); }
+/* The chat list: words only. The open chat has a soft fill and no accent bar; titles carry no icon of their own. */
+.pp-side-navigation--chats .pp-side-navigation__item[aria-current="page"] { background: var(--color-background-neutral-subtle-pressed); color: var(--color-text); font-weight: var(--font-weight-regular); }
+.pp-side-navigation--chats .pp-side-navigation__item[aria-current="page"]::before { display: none; }
+.pp-side-navigation--chats .pp-side-navigation__item[aria-current="page"] > svg { color: var(--color-icon-subtle); }
+.pp-side-navigation--chats .pp-side-navigation__item { color: var(--color-text); }
+.pp-side-navigation--chats .pp-side-navigation__item--entry { color: var(--color-text-subtle); }
+.pp-side-navigation--chats .pp-side-navigation__item--entry + .pp-side-navigation__item--entry { margin-top: 0; }
+.pp-side-navigation--chats .pp-side-navigation__heading { padding-top: var(--space-100); }
 .pp-side-navigation__count {
   min-width: var(--size-icon-medium); padding: 0 var(--space-075);
   border-radius: var(--radius-full);
@@ -2666,7 +2679,12 @@ a.pp-tag:hover { text-decoration: underline; }
 .pp-tabs__panel:focus-visible { outline-offset: var(--focus-ring-offset); border-radius: var(--radius-small); }
 
 @media (pointer: coarse) { .pp-tabs__tab { min-height: var(--size-touch-target); } }
-@media (max-width: 767px) { .pp-tabs__tab { min-height: var(--size-control-large); } }
+@media (max-width: 767px) {
+  .pp-tabs__tab { min-height: var(--size-control-large); padding: 0 var(--space-100); }
+  .pp-tabs__tab::after { left: var(--space-100); right: var(--space-100); }
+  .pp-tabs__tab > svg { display: none; }
+  .pp-tabs__list { -webkit-mask-image: linear-gradient(to right, var(--color-text) calc(100% - var(--space-300)), transparent); mask-image: linear-gradient(to right, var(--color-text) calc(100% - var(--space-300)), transparent); }
+}
 @media (prefers-reduced-motion: reduce) { .pp-tabs__tab, .pp-tabs__tab::after { transition: none; } }
 
 /* ---- navigation/top-navigation ---- */
@@ -2786,6 +2804,18 @@ a.pp-tag:hover { text-decoration: underline; }
 .pp-accordion__item[open] > .pp-accordion__header .pp-accordion__chevron { transform: rotate(180deg); }
 .pp-accordion__panel { padding: 0 var(--space-200) var(--space-200); font: var(--font-body); color: var(--color-text-subtle); }
 
+/* ---- data/bar-chart ---- */
+/* Bar chart: words and number on every bar, one colour, nothing moves. */
+.pp-bar-chart { margin: 0; display: grid; gap: var(--space-100); }
+.pp-bar-chart__title { font-weight: var(--font-weight-semibold); }
+.pp-bar-chart__bars { display: grid; gap: var(--space-075); }
+.pp-bar-chart__row { display: grid; grid-template-columns: minmax(0, 8rem) minmax(0, 1fr) auto; align-items: center; gap: var(--space-100); }
+.pp-bar-chart__label { overflow-wrap: anywhere; }
+.pp-bar-chart__track { display: block; height: var(--space-150); background: var(--color-background-neutral); border-radius: var(--radius-xsmall); }
+.pp-bar-chart__bar { display: block; width: var(--_share, 0%); height: 100%; background: var(--color-background-brand-bold); border-radius: var(--radius-xsmall); }
+.pp-bar-chart__value { font-variant-numeric: tabular-nums; }
+.pp-bar-chart, .pp-bar-chart * { transition: none; animation: none; }
+
 /* ---- data/card ---- */
 /* Card. Spec: card.md */
 .pp-card { display: flex; flex-direction: column; gap: var(--space-200); min-width: 0; padding: var(--space-300); background: var(--elevation-surface-raised); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-large); color: var(--color-text); }
@@ -2873,11 +2903,20 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
   .pp-table--stack, .pp-table--stack tbody { display: block; width: 100%; }
   .pp-table--stack tr { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-100) var(--space-200); box-sizing: border-box; padding: var(--space-150) var(--space-200); border-bottom: var(--border-width) solid var(--color-border); }
   .pp-table--stack td { display: block; box-sizing: border-box; min-width: 0; border: 0; padding: 0; text-align: left; overflow-wrap: anywhere; }
-  .pp-table--stack td:first-child { grid-column: 1 / -1; padding-inline-end: var(--space-500); }
+  .pp-table--stack th[scope="row"] { display: block; box-sizing: border-box; min-width: 0; border: 0; padding: 0; text-align: left; overflow-wrap: anywhere; }
+  .pp-table--stack td:first-child, .pp-table--stack th[scope="row"] { grid-column: 1 / -1; padding-inline-end: calc(var(--space-500) + var(--space-100)); }
+  /* Two row actions need twice the room, so a title or an email never runs under them. */
+  .pp-table--stack tr:has(.pp-table__actions button + button) > :first-child { padding-inline-end: calc(var(--space-500) * 2 + var(--space-100)); }
   .pp-table--stack td[data-label]::before { content: attr(data-label); display: block; font: var(--font-heading-xxsmall); color: var(--color-text-subtlest); }
   .pp-table--stack td:first-child::before { display: none; }
   .pp-table--stack td.pp-table__num { text-align: left; }
-  .pp-table--stack td:has(.pp-confidence) { grid-column: 1 / -1; }
+  /* A person in a row fits the line and the email wraps, so it never runs under the row actions. */
+  .pp-table--stack .pp-person { display: flex; max-width: 100%; }
+  .pp-table--stack .pp-person__meta { white-space: normal; overflow-wrap: anywhere; }
+  /* Roles, fields and menus need the whole line, so they are never squeezed into half of it. */
+  /* A text action such as View is too wide to sit beside the title, so it takes its own line. */
+  .pp-table--stack td.pp-table__actions:has(.pp-button--link) { position: static; grid-column: 1 / -1; }
+  .pp-table--stack td:has(.pp-confidence, .pp-role-group, .pp-text-field, .pp-textarea, .pp-select) { grid-column: 1 / -1; }
   .pp-table--stack td.pp-table__actions { position: absolute; top: var(--space-150); right: var(--space-150); width: auto; }
 }
 
@@ -3020,13 +3059,13 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-agent-panel--inline { position: relative; inset: auto; z-index: auto; height: var(--_height, 640px); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-large); box-shadow: none; overflow: hidden; }
 .pp-agent-panel--sheet { width: 100%; max-width: 390px; border-radius: 0; }
 
-.pp-agent-panel__header { display: flex; align-items: center; gap: var(--space-150); padding: var(--space-200) var(--space-250); border-bottom: var(--border-width) solid var(--color-border); }
+.pp-agent-panel__header { flex: none; display: flex; align-items: center; gap: var(--space-150); padding: var(--space-200) var(--space-250); border-bottom: var(--border-width) solid var(--color-border); }
 .pp-agent-panel__heading { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-025); }
 .pp-agent-panel__title { margin: 0; font: var(--font-heading-small); letter-spacing: var(--font-heading-small-tracking); color: var(--color-text); }
 .pp-agent-panel__context { font: var(--font-body-small); color: var(--color-text-subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Conversation */
-.pp-agent-panel__log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-200); padding: var(--space-250); background: var(--elevation-surface); }
+.pp-agent-panel__log { position: relative; /* holds the hidden "You said:" labels inside the scroll area */ flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: var(--space-200); padding: var(--space-250); background: var(--elevation-surface); }
 .pp-agent-panel__day { align-self: center; font: var(--font-body-small); color: var(--color-text-subtlest); }
 .pp-agent-panel__message { display: flex; flex-direction: column; gap: var(--space-050); max-width: 85%; }
 .pp-agent-panel__bubble { padding: var(--space-150) var(--space-200); border-radius: var(--radius-large); overflow-wrap: anywhere; }
@@ -3042,14 +3081,15 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-agent-panel__working .pp-button { margin-left: var(--space-050); }
 
 /* Composer */
-.pp-agent-panel__composer { display: flex; flex-direction: column; gap: var(--space-100); padding: var(--space-150) var(--space-250) var(--space-200); border-top: var(--border-width) solid var(--color-border); background: var(--elevation-surface-raised); }
+.pp-agent-panel__composer { flex: none; display: flex; flex-direction: column; gap: var(--space-100); padding: var(--space-150) var(--space-250) var(--space-200); border-top: var(--border-width) solid var(--color-border); background: var(--elevation-surface-raised); }
 .pp-agent-panel__input-row { display: flex; align-items: flex-end; gap: var(--space-100); }
-.pp-agent-panel__input-row .pp-textarea { flex: 1; min-height: var(--size-control-large); resize: none; }
-.pp-agent-panel__hint { margin: 0; font: var(--font-body-small); color: var(--color-text-subtlest); }
+.pp-agent-panel__input-row .pp-textarea { flex: 1; min-width: 0; min-height: var(--size-control-large); resize: none; /* grows with what is typed, and with a long placeholder that wraps, up to four lines; then it scrolls */ field-sizing: content; max-height: calc(4lh + 2 * var(--space-100) + 2 * var(--border-width)); }
+.pp-agent-panel__hint { flex: none; margin: 0; font: var(--font-body-small); color: var(--color-text-subtlest); overflow-wrap: anywhere; }
 
 /* Phone: a full-screen sheet */
 @media (max-width: 767px) {
-  .pp-agent-panel:not(.pp-agent-panel--inline) { inset: 0; width: 100%; border: 0; box-shadow: none; }
+  /* The sheet is as tall as the screen the person can see (not behind a browser toolbar), so the line under the box is never cut off */
+  .pp-agent-panel:not(.pp-agent-panel--inline) { inset: 0; width: 100%; height: 100dvh; border: 0; box-shadow: none; }
   .pp-agent-panel:not(.pp-agent-panel--inline) .pp-agent-panel__header { padding: var(--space-150) var(--layout-gutter-phone); }
   .pp-agent-panel:not(.pp-agent-panel--inline) .pp-agent-panel__log { padding: var(--space-200) var(--layout-gutter-phone); }
   .pp-agent-panel:not(.pp-agent-panel--inline) .pp-agent-panel__composer { padding: var(--space-150) var(--layout-gutter-phone) calc(var(--space-150) + env(safe-area-inset-bottom)); }
@@ -3062,9 +3102,47 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-agent-panel__suggestions { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; background: var(--elevation-surface-raised); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-large); overflow: hidden; }
 .pp-agent-panel__suggestions > li + li { border-top: var(--border-width) solid var(--color-border); }
 .pp-agent-panel__suggestion { display: flex; align-items: center; gap: var(--space-150); min-height: 44px; padding: var(--space-100) var(--space-200); color: var(--color-text); font: var(--font-body); text-decoration: none; }
+/* A row drawn as a button (picking it asks the question) drops the browser's button look and fills its row like the link row */
+button.pp-agent-panel__suggestion { box-sizing: border-box; width: 100%; margin: 0; border: 0; border-radius: 0; background: transparent; text-align: start; cursor: pointer; appearance: none; }
+button.pp-agent-panel__suggestion:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+button.pp-agent-panel__suggestion:disabled > svg { color: var(--color-text-disabled); }
 .pp-agent-panel__suggestion > svg { width: var(--size-icon-medium); height: var(--size-icon-medium); flex: none; color: var(--color-icon-subtle); }
-.pp-agent-panel__suggestion:hover { background: var(--color-background-neutral-subtle-hovered); }
+.pp-agent-panel__suggestion:not(:disabled):hover { background: var(--color-background-neutral-subtle-hovered); }
 .pp-agent-panel__suggestion:focus-visible { outline: var(--border-width-focused) solid var(--color-border-focused); outline-offset: calc(var(--border-width-focused) * -1); }
+
+/* Panel as a full page (AI chat mode): a centred reading column, no frame. */
+.pp-agent-panel--page { position: relative; inset: auto; z-index: auto; width: 100%; height: var(--_height, 100%); border: 0; border-radius: 0; box-shadow: none; background: var(--elevation-surface); }
+.pp-agent-panel--page .pp-agent-panel__header { background: var(--elevation-surface); }
+.pp-agent-panel--page .pp-agent-panel__log,
+.pp-agent-panel--page .pp-agent-panel__composer { padding-inline: max(var(--layout-gutter-phone), calc((100% - var(--layout-reading-max)) / 2)); background: var(--elevation-surface); }
+.pp-agent-panel--page .pp-agent-panel__composer { border-top: 0; }
+.pp-agent-panel--page .pp-agent-panel__input-row { padding: var(--space-100); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-xlarge); background: var(--elevation-surface-raised); }
+.pp-agent-panel--page .pp-agent-panel__input-row .pp-textarea { border: 0; box-shadow: none; background: transparent; }
+.pp-agent-panel--page .pp-agent-panel__hint { text-align: center; }
+
+/* The chat page does not scroll: the header and the message box stay where they are and only the conversation scrolls between them,
+   on desktop and on phone. The panel fills the page area exactly (no height sum to keep right), so a long answer never pushes the box off screen. */
+.pp-app-shell:not(.pp-app-shell--inline) > .pp-app-shell__main:has(.pp-agent-panel--page) { position: relative; padding: 0; overflow: hidden; }
+.pp-app-shell:not(.pp-app-shell--inline) > .pp-app-shell__main:has(.pp-agent-panel--page) .pp-agent-panel--page { position: absolute; inset: 0; height: auto; }
+/* The page margin of the browser (8px a side) is still there, so the shell is that much shorter and the window itself never scrolls. */
+body:has(.pp-app-shell:not(.pp-app-shell--inline) .pp-agent-panel--page) { overflow: hidden; }
+.pp-app-shell:not(.pp-app-shell--inline):has(.pp-agent-panel--page) { height: calc(100dvh - 2 * var(--space-100)); }
+@media (max-width: 767px) {
+  .pp-app-shell:not(.pp-app-shell--inline):has(.pp-agent-panel--page) { height: calc(100dvh - 2 * var(--space-100)); min-height: 0; overflow: hidden; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  .pp-app-shell:not(.pp-app-shell--inline) > .pp-app-shell__main:has(.pp-agent-panel--page) { overflow: hidden; padding: 0; }
+}
+
+/* Phone: a list of chats fills the width */
+.pp-app-shell--phone .pp-side-navigation--inline { width: 100%; border: 0; height: auto; }
+
+/* Batsi's answer blocks (CHAT-08): paragraphs, lists, facts, checks, a table and a chart inside Batsi's bubble. */
+.pp-agent-panel__p { margin: 0 0 var(--space-100); white-space: pre-line; overflow-wrap: anywhere; }
+.pp-agent-panel__p:last-child { margin-bottom: 0; }
+.pp-agent-panel__list { margin: 0 0 var(--space-100); padding-inline-start: var(--space-250); overflow-wrap: anywhere; }
+.pp-agent-panel__block-title { margin: var(--space-100) 0 var(--space-050); font-weight: var(--font-weight-semibold); }
+.pp-agent-panel__more { margin: var(--space-050) 0 0; }
+.pp-agent-panel__table { width: 100%; }
+@media (max-width: 599.98px) { .pp-agent-panel__table.pp-table--stack tr { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- agent/agent-proposal-card ---- */
 /* Agent proposal card. Spec: agent-proposal-card.md. Rule 2: the agent proposes, a person approves.
@@ -3650,6 +3728,9 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
 .pp-pipeline__card-body > .pp-person { grid-column: 2; grid-row: 1; max-width: 100%; }
 .pp-pipeline__card-body > .pp-lozenge { grid-column: 1 / -1; margin-left: var(--space-100); grid-row: 2; justify-self: start; white-space: normal; padding-top: var(--space-025); padding-bottom: var(--space-025); }
 .pp-pipeline__card > .pp-button { grid-column: 3; grid-row: 1; }
+/* Move and More actions side by side */
+.pp-pipeline__card-actions { grid-column: 3; grid-row: 1; display: inline-flex; align-items: center; gap: var(--space-050); }
+.pp-pipeline__card-actions > .pp-button { margin-left: 0; }
 /* Dragging: the card lifts (cdkDragPreviewClass); the gap it left is a dashed placeholder */
 .pp-pipeline__card--dragging { border-color: var(--color-border-selected); box-shadow: var(--elevation-shadow-overlay); cursor: grabbing; }
 .pp-pipeline__placeholder { min-height: var(--size-control-large); border: var(--border-width-selected) dashed var(--color-border-bold); border-radius: var(--radius-medium); background: var(--elevation-surface); }
@@ -3664,7 +3745,7 @@ th[aria-sort="ascending"] .pp-table__sort, th[aria-sort="descending"] .pp-table_
   .pp-pipeline__column-name { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .pp-pipeline__column-header > .pp-badge { display: none; }
   .pp-pipeline__cards > .pp-pipeline__card { grid-template-columns: 0 minmax(0, 1fr) auto; column-gap: 0; padding: var(--space-150); cursor: default; }
-  .pp-pipeline__card > .pp-button { margin-left: var(--space-100); }
+  .pp-pipeline__card > .pp-button, .pp-pipeline__card-actions { margin-left: var(--space-100); }
   .pp-pipeline__handle { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .pp-pipeline__board > .pp-pipeline__column { transition: none; } }

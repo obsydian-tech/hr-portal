@@ -26,6 +26,12 @@ const ALL_STAGES: HiringStage[] = [
 ];
 
 const STAGE_LABELS: Record<HiringStage, string> = {
+  APPLIED:            'Applied',
+  SCREENING:          'Screening',
+  INTERVIEW:          'Interview',
+  OFFER:              'Offer',
+  HIRED:              'Hired',
+  NOT_HIRED:          'Not hired',
   APPLICATION_REVIEW: 'Application Review',
   INTERVIEWING:       'Interviewing',
   EVALUATION:         'Evaluation',
@@ -39,6 +45,12 @@ const STAGE_LABELS: Record<HiringStage, string> = {
 };
 
 const STAGE_PHASE: Record<HiringStage, string> = {
+  APPLIED:            'Phase 1 — Interview & Evaluation',
+  SCREENING:          'Phase 1 — Interview & Evaluation',
+  INTERVIEW:          'Phase 1 — Interview & Evaluation',
+  OFFER:              'Phase 2 — Offer & Acceptance',
+  HIRED:              'Phase 2 — Offer & Acceptance',
+  NOT_HIRED:          'Phase 2 — Offer & Acceptance',
   APPLICATION_REVIEW: 'Phase 1 — Interview & Evaluation',
   INTERVIEWING:       'Phase 1 — Interview & Evaluation',
   EVALUATION:         'Phase 1 — Interview & Evaluation',

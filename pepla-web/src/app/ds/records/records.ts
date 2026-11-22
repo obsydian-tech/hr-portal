@@ -178,17 +178,18 @@ export class PpRestricted {
 
 // ------------------------------------------------------------------ masked field (POPIA)
 
-export interface Reveal { field: string; record: string; at: Date; }
+export interface Reveal { field: string; record: string; at: Date; /** Which value, for a log that fetches it: the page hands over what it needs (the document and the field). */ ref?: unknown; }
 
 /**
  * Where reveals of personal data are logged. Provide your own in the app config to send them to the
  * audit API: `{ provide: PpRevealLog, useClass: ApiRevealLog }`. The default keeps them in memory.
- * `log` resolves once the reveal is recorded; if it rejects, the value stays hidden.
+ * `log` resolves once the reveal is recorded; if it rejects, the value stays hidden. It may resolve with the value to show
+ * (ONB-14: the full number never reaches the page before a recorded Show); the field holds it only while shown.
  */
 @Injectable({ providedIn: 'root' })
 export class PpRevealLog {
   readonly reveals = signal<Reveal[]>([]);
-  log(r: Reveal): Promise<void> { this.reveals.update((all) => [...all, r]); return Promise.resolve(); }
+  log(r: Reveal): Promise<string | void> { this.reveals.update((all) => [...all, r]); return Promise.resolve(); }
 }
 
 export type RevealState = 'hidden' | 'revealing' | 'revealed' | 'failed';
@@ -200,7 +201,10 @@ abstract class PpRevealable implements OnDestroy {
   readonly field = input.required<string>();
   /** Whose it is, for the log: "Kagiso Molefe". */
   readonly record = input.required<string>();
-  readonly value = input.required<string>();
+  /** The value, when the page already holds it. Leave it out when the log hands it back (ONB-14). */
+  readonly value = input<string>('');
+  /** Which value, for a log that fetches it. Opaque here. */
+  readonly ref = input<unknown>();
   readonly masked = input.required<string>();
   /** The state. Screens leave it alone; the gallery sets it to show each state. */
   readonly state = model<RevealState>('hidden');
@@ -208,6 +212,9 @@ abstract class PpRevealable implements OnDestroy {
   readonly shownAt = model<Date>();
   readonly revealedChange = output<boolean>();
   protected readonly id = uid('pp-masked');
+  /** What the log handed back: held only while shown, cleared on Hide, after 2 minutes and on destroy. */
+  private readonly held = signal<string | undefined>(undefined);
+  protected readonly shown = computed(() => this.held() ?? this.value());
   private readonly log = inject(PpRevealLog);
   private timer?: ReturnType<typeof setTimeout>;
   protected readonly when = computed(() => (this.shownAt() ? formatDate(this.shownAt()!, { year: true, time: true }) : ''));
@@ -218,8 +225,11 @@ abstract class PpRevealable implements OnDestroy {
     this.state.set('revealing');
     const at = new Date();
     try {
-      await this.log.log({ field: this.field(), record: this.record(), at });
+      const got = await this.log.log({ field: this.field(), record: this.record(), at, ref: this.ref() });
+      if (typeof got === 'string') this.held.set(got);
+      else if (!this.value()) throw new Error('nothing to show');
     } catch {
+      this.held.set(undefined);
       this.state.set('failed');
       return;
     }
@@ -228,8 +238,8 @@ abstract class PpRevealable implements OnDestroy {
     this.revealedChange.emit(true);
     this.timer = setTimeout(() => this.hide(), 120_000);
   }
-  protected hide() { clearTimeout(this.timer); this.state.set('hidden'); this.revealedChange.emit(false); }
-  ngOnDestroy() { clearTimeout(this.timer); }
+  protected hide() { clearTimeout(this.timer); this.held.set(undefined); this.state.set('hidden'); this.revealedChange.emit(false); }
+  ngOnDestroy() { clearTimeout(this.timer); this.held.set(undefined); }
 }
 
 /**
@@ -245,7 +255,7 @@ abstract class PpRevealable implements OnDestroy {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (state() === 'revealed') {
-      <span class="pp-masked__value">{{ value() }}</span>
+      <span class="pp-masked__value">{{ shown() }}</span>
     } @else if (hiddenText()) {
       <span class="pp-masked__value pp-masked__value--hidden" [id]="id + '-v'"><svg ppIcon="eye-off" />{{ hiddenText() }}</span>
     } @else {
@@ -257,13 +267,14 @@ abstract class PpRevealable implements OnDestroy {
     } @else if (state() === 'failed') {
       <span class="pp-masked__notice pp-masked__notice--error" role="alert"><svg ppIcon="octagon-alert" /><span>Batsi could not record the reveal, so the {{ noun() }} stays hidden.</span></span>
     } @else if (notice() && state() === 'hidden') {
-      <span class="pp-masked__notice" [id]="id + '-n'"><svg ppIcon="history" /><span>Revealing is recorded</span></span>
+      <span class="pp-masked__notice" [id]="id + '-n'"><svg ppIcon="history" /><span>Showing this is recorded</span></span>
     }
   `,
+  styles: '@media (max-width: 640px) { :host > button { min-height: 44px; } }',
   host: { class: 'pp-masked', '[class.pp-masked--revealed]': 'state() === "revealed"' },
 })
 export class PpMaskedField extends PpRevealable {
-  /** Says "Revealing is recorded" beside the first masked value on a page. */
+  /** Says "Showing this is recorded" beside Show. */
   readonly notice = input(false);
   /** Words in place of the masked value, for things with no shape: "1 medical note, hidden". */
   readonly hiddenText = input<string>();
@@ -280,7 +291,7 @@ export class PpMaskedField extends PpRevealable {
 
 /**
  * Personal data in a form: hidden, with an eye button to show it. Showing is recorded first.
- * `<pp-field label="Bank account number"><pp-masked-text-field field="bank account number" record="Kagiso Molefe" [value]="acc" masked="•••• •••• 4821" hint="Hidden to protect Kagiso's privacy. Revealing is recorded." /></pp-field>`
+ * `<pp-field label="Bank account number"><pp-masked-text-field field="bank account number" record="Kagiso Molefe" [value]="acc" masked="•••• •••• 4821" hint="Hidden to protect Kagiso's privacy. Showing this is recorded." /></pp-field>`
  * Put the hint here, not on the field: once shown, it becomes the record of who saw it.
  * Spec: forms/text-field.md (masked)
  */
@@ -291,7 +302,7 @@ export class PpMaskedField extends PpRevealable {
   template: `
     <div class="pp-text-field pp-text-field--masked">
       @if (state() !== 'revealed') { <span class="pp-text-field__prefix"><svg ppIcon="eye-off" /></span> }
-      <input class="pp-text-field__input" [id]="fieldRef?.controlId" type="text" readonly [value]="state() === 'revealed' ? value() : masked()" [attr.aria-describedby]="state() === 'hidden' && !hint() ? null : id + '-h'" />
+      <input class="pp-text-field__input" [id]="fieldRef?.controlId" type="text" readonly [value]="state() === 'revealed' ? shown() : masked()" [attr.aria-describedby]="state() === 'hidden' && !hint() ? null : id + '-h'" />
       <button class="pp-text-field__action" type="button" [attr.aria-pressed]="state() === 'revealed' ? 'true' : 'false'" [attr.aria-busy]="state() === 'revealing' ? 'true' : null"
               [attr.aria-label]="(state() === 'revealed' ? 'Hide ' : 'Show ') + field()" (click)="toggle()"><svg [ppIcon]="state() === 'revealed' ? 'eye-off' : 'eye'" /></button>
     </div>
@@ -486,7 +497,9 @@ export class PpChecklist {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <span class="pp-checklist-row__mark" aria-hidden="true"><svg [ppIcon]="mark()" /></span>
-    <span class="pp-checklist-row__body"><span class="pp-checklist-row__label">{{ label() }}</span>@if (owner()) {<span class="pp-checklist-row__owner">{{ owner() }}</span>}</span>
+    @if (flat()) { <span class="pp-checklist-row__label">{{ label() }}</span> } @else {
+      <span class="pp-checklist-row__body"><span class="pp-checklist-row__label">{{ label() }}</span>@if (owner()) {<span class="pp-checklist-row__owner">{{ owner() }}</span>}</span>
+    }
     <ng-content />
   `,
   host: { '[class]': '"pp-checklist-row" + (state() !== "open" ? " pp-checklist-row--" + state() : "")' },
@@ -496,6 +509,8 @@ export class PpChecklistRow {
   /** Who does it: "Kagiso", "IT, Sipho Ndlovu". Leave out when it is all one person's list. */
   readonly owner = input<string>();
   readonly state = input<'open' | 'done' | 'agent' | 'overdue'>('open');
+  /** The label sits straight in the row (no one to name under it), so the row's text, label and result, is one piece. Used in the chat. */
+  readonly flat = input(false);
   protected readonly mark = computed<IconName>(() => ({ open: 'circle-dashed', done: 'circle-check', agent: 'sparkles', overdue: 'circle-dashed' } as const)[this.state()]);
 }
 

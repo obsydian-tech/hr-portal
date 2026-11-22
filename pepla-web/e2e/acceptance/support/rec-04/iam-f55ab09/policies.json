@@ -1,0 +1,2235 @@
+{
+ "infra/rotate_api_key": {
+  "role": "rotate_api_key",
+  "stack": "infra",
+  "pairs": [
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/rotateApiKey:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/rotateApiKey:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/rotateApiKey:* null",
+   "Allow secretsmanager:DescribeSecret aws_secretsmanager_secret.agent_api_key.arn null",
+   "Allow secretsmanager:GetSecretValue aws_secretsmanager_secret.agent_api_key.arn null",
+   "Allow secretsmanager:PutSecretValue aws_secretsmanager_secret.agent_api_key.arn null",
+   "Allow secretsmanager:UpdateSecretVersionStage aws_secretsmanager_secret.agent_api_key.arn null"
+  ]
+ },
+ "infra/naleko_ai_chat": {
+  "role": "naleko_ai_chat",
+  "stack": "infra",
+  "pairs": [
+   "Allow bedrock:InvokeModel * null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/NalekoAiRateLimit null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.ask_batsi_chats.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.prompt_cache.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/onboarding-events null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.agent_audit.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.ask_batsi_chats.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.pending_actions.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.prompt_cache.arn null",
+   "Allow dynamodb:Query aws_dynamodb_table.ask_batsi_chats.arn null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/NalekoAiRateLimit null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.ask_batsi_chats.arn null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/nalekoAiChat:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/nalekoAiChat:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/nalekoAiChat:* null",
+   "Allow secretsmanager:GetSecretValue arn:aws:secretsmanager:af-south-1:000000000000:secret:naleko/agent/api-key* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/naleko_ai_chat_ask_batsi_marketplace": {
+  "role": "naleko_ai_chat",
+  "stack": "infra",
+  "pairs": [
+   "Allow aws-marketplace:Subscribe * null",
+   "Allow aws-marketplace:ViewSubscriptions * null"
+  ]
+ },
+ "infra/ai_brake_budgets": {
+  "role": "ai_brake_budgets",
+  "stack": "infra",
+  "squash": "name=\"attach-ai-brake-only\"role=aws_iam_role.ai_brake_budgets.idpolicy=jsonencode({Version=\"2012-10-17\"Statement=[{Effect=\"Allow\"Action=[\"iam:AttachRolePolicy\",\"iam:DetachRolePolicy\"]Resource=[forrinlocal.ai_lambda_role_names:\"arn:aws:iam::${var.aws_account_id}:role/${r}\"]Condition={ArnEquals={\"iam:PolicyARN\"=aws_iam_policy.ai_brake.arn}}}]})"
+ },
+ "infra/ask_batsi_chats": {
+  "role": "ask_batsi_chats",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:BatchWriteItem aws_dynamodb_table.ask_batsi_chats.arn null",
+   "Allow dynamodb:DeleteItem aws_dynamodb_table.ask_batsi_chats.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.ask_batsi_chats.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.agent_audit.arn null",
+   "Allow dynamodb:Query aws_dynamodb_table.ask_batsi_chats.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/askBatsiChats:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/askBatsiChats:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/askBatsiChats:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/admin_set_ask_batsi": {
+  "role": "admin_set_ask_batsi",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.tenants.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/adminSetAskBatsi:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/adminSetAskBatsi:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/adminSetAskBatsi:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/glue_audit_crawler_s3": {
+  "role": "glue_audit_crawler",
+  "stack": "infra",
+  "pairs": [
+   "Allow s3:GetObject ${aws_s3_bucket.audit_archive.arn}/* null",
+   "Allow s3:GetObject aws_s3_bucket.audit_archive.arn null",
+   "Allow s3:ListBucket ${aws_s3_bucket.audit_archive.arn}/* null",
+   "Allow s3:ListBucket aws_s3_bucket.audit_archive.arn null"
+  ]
+ },
+ "infra/orchestrate_config_query": {
+  "role": "\"talent-flow-role-orchestrateTalentFlowWorkflow\"",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-config null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-config/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-config null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-config/index/* null"
+  ]
+ },
+ "infra/config_table_query": {
+  "role": "\"talent-flow-role-${each.key}\"",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-config null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-config/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-config null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-config/index/* null"
+  ]
+ },
+ "infra/advance_stage_state_query": {
+  "role": "\"talent-flow-role-advanceCandidateStage\"",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state/index/* null"
+  ]
+ },
+ "infra/schedule_interview_state_write": {
+  "role": "\"talent-flow-role-scheduleInterview\"",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state/index/* null"
+  ]
+ },
+ "infra/create_candidate_idempotency_update": {
+  "role": "\"talent-flow-role-createCandidate\"",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-idempotency-keys null"
+  ]
+ },
+ "infra/lambda_cloudwatch_metrics": {
+  "role": "lambda_execution",
+  "stack": "infra",
+  "pairs": [
+   "Allow cloudwatch:PutMetricData * {\"StringEquals\":{\"cloudwatch:namespace\":\"Naleko/Onboarding\"}}"
+  ]
+ },
+ "infra/create_employee": {
+  "role": "create_employee",
+  "stack": "infra",
+  "pairs": [
+   "Allow cognito-idp:AdminAddUserToGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow cognito-idp:AdminCreateUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow cognito-idp:AdminGetUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow cognito-idp:AdminListGroupsForUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow cognito-idp:ListUsersInGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.idempotency_keys.arn null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.employee_invites.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.idempotency_keys.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.employee_invites.arn}/index/employee-index null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.employees.arn}/index/tenant-index null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.tenants.arn}/index/tenant-index null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow dynamodb:Query aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.employee_invites.arn null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.naleko_onboarding.arn null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createEmployee:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createEmployee:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createEmployee:* null",
+   "Allow states:StartExecution aws_sfn_state_machine.onboarding.arn null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/cognito_post_auth": {
+  "role": "cognito_post_auth",
+  "stack": "infra",
+  "pairs": [
+   "Allow cognito-idp:AdminAddUserToGroup aws_cognito_user_pool.naleko_dev.arn null",
+   "Allow dynamodb:DeleteItem aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.tenants.arn}/index/tenant-index null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-users/index/EmailIndex null",
+   "Allow dynamodb:Query aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-users null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.employees.arn null",
+   "Allow kms:Decrypt arn:aws:kms:af-south-1:000000000000:key/${var.talent_flow_kms_key_id} null",
+   "Allow kms:DescribeKey arn:aws:kms:af-south-1:000000000000:key/${var.talent_flow_kms_key_id} null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/cognitoPostAuth:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/cognitoPostAuth:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/cognitoPostAuth:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_employees": {
+  "role": "get_employees",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query ${aws_dynamodb_table.employees.arn}/index/tenant-index null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/created_by-index null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/created_by-index null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployees:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployees:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployees:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/upload_document_to_s3": {
+  "role": "upload_document_to_s3",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.idempotency_keys.arn null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.idempotency_keys.arn null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/uploadDocumentToS3:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/uploadDocumentToS3:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/uploadDocumentToS3:* null",
+   "Allow s3:PutObject arn:aws:s3:::${local.document_uploads_bucket}/* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/process_document_ocr": {
+  "role": "process_document_ocr",
+  "stack": "infra",
+  "pairs": [
+   "Allow bedrock:InvokeModel * null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.employees.arn null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.employees.arn null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.naleko_onboarding.arn null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/processDocumentOCR:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/processDocumentOCR:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/processDocumentOCR:* null",
+   "Allow s3:GetObject arn:aws:s3:::${local.document_uploads_bucket}/* null",
+   "Allow states:SendTaskSuccess * null",
+   "Allow textract:AnalyzeDocument * null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_document_verifications": {
+  "role": "get_document_verifications",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query ${aws_dynamodb_table.document_verification.arn}/index/tenant-index null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.documents.arn}/index/tenant-index null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getDocumentVerifications:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getDocumentVerifications:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getDocumentVerifications:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_single_document_verification": {
+  "role": "get_single_document_verification",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.documents.arn}/index/tenant-index null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getSingleDocumentVerification:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getSingleDocumentVerification:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getSingleDocumentVerification:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_employee_document_verifications": {
+  "role": "get_employee_document_verifications",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployeeDocumentVerifications:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployeeDocumentVerifications:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployeeDocumentVerifications:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/review_document_verification": {
+  "role": "review_document_verification",
+  "stack": "infra",
+  "pairs": [
+   "Allow cloudwatch:PutMetricData * {\"StringEquals\":{\"cloudwatch:namespace\":\"Naleko/Onboarding\"}}",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.idempotency_keys.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.idempotency_keys.arn null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.documents.arn}/index/tenant-index null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.naleko_onboarding.arn null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/reviewDocumentVerification:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/reviewDocumentVerification:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/reviewDocumentVerification:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/lookup_employee_email": {
+  "role": "lookup_employee_email",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/lookupEmployeeEmail:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/lookupEmployeeEmail:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/lookupEmployeeEmail:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_document_presigned_url": {
+  "role": "get_document_presigned_url",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.documents.arn}/index/tenant-index null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getDocumentPresignedUrl:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getDocumentPresignedUrl:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getDocumentPresignedUrl:* null",
+   "Allow s3:GetObject arn:aws:s3:::${local.document_uploads_bucket}/* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/generate_document_upload_url": {
+  "role": "generate_document_upload_url",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/generateDocumentUploadUrl:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/generateDocumentUploadUrl:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/generateDocumentUploadUrl:* null",
+   "Allow s3:PutObject arn:aws:s3:::${local.document_uploads_bucket}/uploads/* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_employee_by_email": {
+  "role": "get_employee_by_email",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployeeByEmail:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployeeByEmail:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployeeByEmail:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_hr_partners": {
+  "role": "get_hr_partners",
+  "stack": "infra",
+  "pairs": [
+   "Allow cognito-idp:ListUsersInGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.tenants.arn}/index/tenant-index null",
+   "Allow dynamodb:Query aws_dynamodb_table.tenants.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getHrPartners:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getHrPartners:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getHrPartners:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/check_employee_email": {
+  "role": "check_employee_email",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/checkEmployeeEmail:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/checkEmployeeEmail:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/checkEmployeeEmail:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/trigger_external_verification": {
+  "role": "trigger_external_verification",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/external-verification-requests null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.documents.arn}/index/tenant-index null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/external-verification-requests null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/triggerExternalVerification:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/triggerExternalVerification:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/triggerExternalVerification:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/serve_docs": {
+  "role": "serve_docs",
+  "stack": "infra",
+  "pairs": [
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/serveDocs:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/serveDocs:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/serveDocs:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/summarise_verification": {
+  "role": "summarise_verification",
+  "stack": "infra",
+  "pairs": [
+   "Allow bedrock:InvokeModel arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0 null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/summariseVerification:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/summariseVerification:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/summariseVerification:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/summarise_verification_employees": {
+  "role": "summarise_verification",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.employees.arn null"
+  ]
+ },
+ "infra/classify_onboarding_risk": {
+  "role": "classify_onboarding_risk",
+  "stack": "infra",
+  "pairs": [
+   "Allow bedrock:InvokeModel * null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification/index/employeeId-index null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/classifyOnboardingRisk:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/classifyOnboardingRisk:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/classifyOnboardingRisk:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/audit_log_consumer": {
+  "role": "audit_log_consumer",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/onboarding-events null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/onboarding-events/index/* null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/auditLogConsumer:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/auditLogConsumer:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/auditLogConsumer:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/send_notification_email": {
+  "role": "send_notification_email",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents/index/* null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/sendNotificationEmail:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/sendNotificationEmail:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/sendNotificationEmail:* null",
+   "Allow ssm:GetParameter arn:aws:ssm:af-south-1:000000000000:parameter/naleko/postmark/api_token null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/agent_api_authorizer": {
+  "role": "agent_api_authorizer",
+  "stack": "infra",
+  "pairs": [
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/agentAuthorizer:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/agentAuthorizer:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/agentAuthorizer:* null",
+   "Allow secretsmanager:GetSecretValue aws_secretsmanager_secret.agent_api_key.arn null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_employee": {
+  "role": "get_employee",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.employees.arn null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployee:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployee:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployee:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/query_audit_log": {
+  "role": "query_audit_log",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query ${aws_dynamodb_table.onboarding_events.arn}/index/* null",
+   "Allow dynamodb:Query aws_dynamodb_table.onboarding_events.arn null",
+   "Allow dynamodb:Scan ${aws_dynamodb_table.onboarding_events.arn}/index/* null",
+   "Allow dynamodb:Scan aws_dynamodb_table.onboarding_events.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/queryAuditLog:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/queryAuditLog:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/queryAuditLog:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/serve_agent_manifest": {
+  "role": "serve_agent_manifest",
+  "stack": "infra",
+  "pairs": [
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/serveAgentManifest:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/serveAgentManifest:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/serveAgentManifest:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/naleko_mcp_server": {
+  "role": "naleko_mcp_server",
+  "stack": "infra",
+  "pairs": [
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/nalekoMcpServer:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/nalekoMcpServer:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/nalekoMcpServer:* null",
+   "Allow secretsmanager:GetSecretValue arn:aws:secretsmanager:af-south-1:000000000000:secret:naleko/agent-api-key* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/naleko_mcp_server_agent_key": {
+  "role": "naleko_mcp_server",
+  "stack": "infra",
+  "pairs": [
+   "Allow secretsmanager:GetSecretValue arn:aws:secretsmanager:af-south-1:000000000000:secret:naleko/agent/api-key* null"
+  ]
+ },
+ "infra/get_batch_risk_report": {
+  "role": "get_batch_risk_report",
+  "stack": "infra",
+  "pairs": [
+   "Allow bedrock:InvokeModel * null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.document_verification.arn}/index/tenant-index null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.employees.arn}/index/tenant-index null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/document-verification/index/employeeId-index null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getBatchRiskReport:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getBatchRiskReport:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getBatchRiskReport:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/approve_agent_action": {
+  "role": "approve_agent_action",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.pending_actions.arn null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.pending_actions.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/approveAgentAction:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/approveAgentAction:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/approveAgentAction:* null",
+   "Allow secretsmanager:GetSecretValue arn:aws:secretsmanager:af-south-1:000000000000:secret:naleko/agent/api-key* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/approve_agent_action_onb22": {
+  "role": "approve_agent_action",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem ${aws_dynamodb_table.pending_actions.arn}/index/* null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.document_verification.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.documents.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.pending_actions.arn null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.pending_actions.arn}/index/* null",
+   "Allow dynamodb:Query aws_dynamodb_table.pending_actions.arn null",
+   "Allow dynamodb:UpdateItem ${aws_dynamodb_table.pending_actions.arn}/index/* null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.pending_actions.arn null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.naleko_onboarding.arn null",
+   "Allow lambda:InvokeFunction aws_lambda_function.review_document_verification.arn null"
+  ]
+ },
+ "infra/create_proposal": {
+  "role": "create_proposal",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.document_verification.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.documents.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.employees.arn null",
+   "Allow dynamodb:PutItem ${aws_dynamodb_table.pending_actions.arn}/index/* null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.pending_actions.arn null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.documents.arn}/index/tenant-index null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.pending_actions.arn}/index/* null",
+   "Allow dynamodb:Query aws_dynamodb_table.documents.arn null",
+   "Allow dynamodb:Query aws_dynamodb_table.pending_actions.arn null",
+   "Allow dynamodb:Scan aws_dynamodb_table.documents.arn null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.naleko_onboarding.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createProposal:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createProposal:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createProposal:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/archive_audit_log": {
+  "role": "archive_audit_log",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:DescribeStream aws_dynamodb_table.agent_audit.stream_arn null",
+   "Allow dynamodb:GetRecords aws_dynamodb_table.agent_audit.stream_arn null",
+   "Allow dynamodb:GetShardIterator aws_dynamodb_table.agent_audit.stream_arn null",
+   "Allow dynamodb:ListStreams aws_dynamodb_table.agent_audit.stream_arn null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/archiveAuditLog:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/archiveAuditLog:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/archiveAuditLog:* null",
+   "Allow s3:PutObject ${aws_s3_bucket.audit_archive.arn}/* null",
+   "Allow sqs:SendMessage aws_sqs_queue.archive_audit_log_dlq.arn null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/lookup_invite": {
+  "role": "lookup_invite",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.employee_invites.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/lookupInvite:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/lookupInvite:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/lookupInvite:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/redeem_invite": {
+  "role": "redeem_invite",
+  "stack": "infra",
+  "pairs": [
+   "Allow cognito-idp:AdminGetUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow cognito-idp:AdminListGroupsForUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow cognito-idp:AdminSetUserPassword arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.employee_invites.arn null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.employee_invites.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/redeemInvite:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/redeemInvite:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/redeemInvite:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_my_start": {
+  "role": "get_my_start",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.employee_consents.arn null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyStart:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyStart:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyStart:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/record_consent": {
+  "role": "record_consent",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.employee_consents.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.employee_consents.arn null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/recordConsent:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/recordConsent:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/recordConsent:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_my_documents": {
+  "role": "get_my_documents",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyDocuments:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyDocuments:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyDocuments:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/create_my_upload_link": {
+  "role": "create_my_upload_link",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.employee_consents.arn null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createMyUploadLink:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createMyUploadLink:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createMyUploadLink:* null",
+   "Allow s3:PutObject arn:aws:s3:::${local.document_uploads_bucket}/uploads/* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_invite": {
+  "role": "get_invite",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.employee_invites.arn}/index/employee-index null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getInvite:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getInvite:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getInvite:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/resend_invite": {
+  "role": "resend_invite",
+  "stack": "infra",
+  "pairs": [
+   "Allow cognito-idp:AdminAddUserToGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow cognito-idp:AdminCreateUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow cognito-idp:AdminGetUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow cognito-idp:AdminListGroupsForUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.employee_invites.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.employee_invites.arn}/index/employee-index null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.tenants.arn}/index/tenant-index null",
+   "Allow dynamodb:Query aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.employee_invites.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/resendInvite:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/resendInvite:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/resendInvite:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/cognito_email_sender": {
+  "role": "cognito_email_sender",
+  "stack": "infra",
+  "pairs": [
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/cognitoEmailSender:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/cognitoEmailSender:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/cognitoEmailSender:* null",
+   "Allow ssm:GetParameter arn:aws:ssm:af-south-1:000000000000:parameter/naleko/postmark/api_token null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/cognito_email_sender_sink": {
+  "role": "cognito_email_sender",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:PutItem aws_dynamodb_table.reset_test_sink[0].arn null"
+  ]
+ },
+ "infra/cognito_post_confirmation": {
+  "role": "cognito_post_confirmation",
+  "stack": "infra",
+  "pairs": [
+   "Allow cognito-idp:AdminUserGlobalSignOut aws_cognito_user_pool.naleko_dev.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/cognitoPostConfirmation:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/cognitoPostConfirmation:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/cognitoPostConfirmation:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/tenant_pre_token": {
+  "role": "tenant_pre_token",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query aws_dynamodb_table.tenants.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/tenantPreToken:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/tenantPreToken:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/tenantPreToken:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_company_modules": {
+  "role": "get_company_modules",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.tenants.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getCompanyModules:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getCompanyModules:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getCompanyModules:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/user_migration": {
+  "role": "user_migration",
+  "stack": "infra",
+  "pairs": [
+   "Allow cognito-idp:AdminGetUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${var.talent_flow_user_pool_id} null",
+   "Allow cognito-idp:AdminInitiateAuth arn:aws:cognito-idp:af-south-1:000000000000:userpool/${var.talent_flow_user_pool_id} null",
+   "Allow cognito-idp:AdminListGroupsForUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${var.talent_flow_user_pool_id} null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.tenants.arn {\"ForAllValues:StringLike\":{\"dynamodb:LeadingKeys\":[\"MIGRATE#*\"]}}",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/userMigration:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/userMigration:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/userMigration:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/reveal_document_field": {
+  "role": "reveal_document_field",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.document_verification.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.documents.arn null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.naleko_onboarding.arn null",
+   "Allow kms:Decrypt module.kms_pii.key_arn null",
+   "Allow kms:DescribeKey module.kms_pii.key_arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/revealDocumentField:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/revealDocumentField:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/revealDocumentField:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_it_tasks": {
+  "role": "get_it_tasks",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem ${local.tf_config_table_arn}/index/* null",
+   "Allow dynamodb:GetItem local.tf_config_table_arn null",
+   "Allow dynamodb:Query ${local.it_tasks_table_arn}/index/byTenantStatus null",
+   "Allow dynamodb:Query ${local.tf_config_table_arn}/index/* null",
+   "Allow dynamodb:Query local.tf_config_table_arn null",
+   "Allow kms:Decrypt data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:DescribeKey data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:GenerateDataKey data.aws_kms_key.talent_flow.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getItTasks:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getItTasks:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getItTasks:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_it_task": {
+  "role": "get_it_task",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem local.it_tasks_table_arn null",
+   "Allow kms:Decrypt data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:DescribeKey data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:GenerateDataKey data.aws_kms_key.talent_flow.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getItTask:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getItTask:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getItTask:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/claim_it_task": {
+  "role": "claim_it_task",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem local.it_tasks_table_arn null",
+   "Allow dynamodb:UpdateItem local.it_tasks_table_arn null",
+   "Allow kms:Decrypt data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:DescribeKey data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:GenerateDataKey data.aws_kms_key.talent_flow.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/claimItTask:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/claimItTask:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/claimItTask:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/release_it_task": {
+  "role": "release_it_task",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem local.it_tasks_table_arn null",
+   "Allow dynamodb:UpdateItem local.it_tasks_table_arn null",
+   "Allow kms:Decrypt data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:DescribeKey data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:GenerateDataKey data.aws_kms_key.talent_flow.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/releaseItTask:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/releaseItTask:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/releaseItTask:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/complete_it_task": {
+  "role": "complete_it_task",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem local.it_tasks_table_arn null",
+   "Allow dynamodb:UpdateItem local.it_tasks_table_arn null",
+   "Allow kms:Decrypt data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:DescribeKey data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:GenerateDataKey data.aws_kms_key.talent_flow.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/completeItTask:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/completeItTask:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/completeItTask:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/create_it_task": {
+  "role": "create_it_task",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem ${local.tf_config_table_arn}/index/* null",
+   "Allow dynamodb:GetItem local.it_tasks_table_arn null",
+   "Allow dynamodb:GetItem local.tf_config_table_arn null",
+   "Allow dynamodb:PutItem local.it_tasks_table_arn null",
+   "Allow dynamodb:Query ${local.tf_config_table_arn}/index/* null",
+   "Allow dynamodb:Query local.tf_config_table_arn null",
+   "Allow kms:Decrypt data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:DescribeKey data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:GenerateDataKey data.aws_kms_key.talent_flow.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createItTask:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createItTask:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/createItTask:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/orchestrate_can_create_it_task": {
+  "role": "\"talent-flow-role-orchestrateTalentFlowWorkflow\"",
+  "stack": "infra",
+  "pairs": [
+   "Allow lambda:InvokeFunction aws_lambda_function.create_it_task.arn null"
+  ]
+ },
+ "infra/create_provisioning_bundle": {
+  "role": "create_provisioning_bundle",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem ${local.tf_config_table_arn}/index/* null",
+   "Allow dynamodb:GetItem local.tf_config_table_arn null",
+   "Allow dynamodb:PutItem local.bundles_table_arn null",
+   "Allow dynamodb:Query ${local.tf_config_table_arn}/index/* null",
+   "Allow dynamodb:Query local.tf_config_table_arn null",
+   "Allow events:PutEvents local.eb_bus_arn null",
+   "Allow kms:Decrypt local.bundle_kms_arn null",
+   "Allow kms:DescribeKey local.bundle_kms_arn null",
+   "Allow kms:GenerateDataKey local.bundle_kms_arn null",
+   "Allow logs:CreateLogGroup ${local.bundle_logs_base}/createProvisioningBundle:* null",
+   "Allow logs:CreateLogStream ${local.bundle_logs_base}/createProvisioningBundle:* null",
+   "Allow logs:PutLogEvents ${local.bundle_logs_base}/createProvisioningBundle:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/create_provisioning_bundle_candidate_read": {
+  "role": "create_provisioning_bundle",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state null"
+  ]
+ },
+ "infra/get_provisioning_bundles": {
+  "role": "get_provisioning_bundles",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query ${local.bundles_table_arn}/index/* null",
+   "Allow dynamodb:Query local.bundles_table_arn null",
+   "Allow dynamodb:Scan ${local.bundles_table_arn}/index/* null",
+   "Allow dynamodb:Scan local.bundles_table_arn null",
+   "Allow kms:Decrypt local.bundle_kms_arn null",
+   "Allow kms:DescribeKey local.bundle_kms_arn null",
+   "Allow kms:GenerateDataKey local.bundle_kms_arn null",
+   "Allow logs:CreateLogGroup ${local.bundle_logs_base}/getProvisioningBundles:* null",
+   "Allow logs:CreateLogStream ${local.bundle_logs_base}/getProvisioningBundles:* null",
+   "Allow logs:PutLogEvents ${local.bundle_logs_base}/getProvisioningBundles:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_provisioning_bundle": {
+  "role": "get_provisioning_bundle",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem local.bundles_table_arn null",
+   "Allow kms:Decrypt local.bundle_kms_arn null",
+   "Allow kms:DescribeKey local.bundle_kms_arn null",
+   "Allow kms:GenerateDataKey local.bundle_kms_arn null",
+   "Allow logs:CreateLogGroup ${local.bundle_logs_base}/getProvisioningBundle:* null",
+   "Allow logs:CreateLogStream ${local.bundle_logs_base}/getProvisioningBundle:* null",
+   "Allow logs:PutLogEvents ${local.bundle_logs_base}/getProvisioningBundle:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/approve_provisioning_bundle": {
+  "role": "approve_provisioning_bundle",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem local.bundles_table_arn null",
+   "Allow dynamodb:UpdateItem local.bundles_table_arn null",
+   "Allow events:PutEvents local.eb_bus_arn null",
+   "Allow kms:Decrypt local.bundle_kms_arn null",
+   "Allow kms:DescribeKey local.bundle_kms_arn null",
+   "Allow kms:GenerateDataKey local.bundle_kms_arn null",
+   "Allow logs:CreateLogGroup ${local.bundle_logs_base}/approveProvisioningBundle:* null",
+   "Allow logs:CreateLogStream ${local.bundle_logs_base}/approveProvisioningBundle:* null",
+   "Allow logs:PutLogEvents ${local.bundle_logs_base}/approveProvisioningBundle:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/update_provisioning_bundle": {
+  "role": "update_provisioning_bundle",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem local.bundles_table_arn null",
+   "Allow dynamodb:UpdateItem local.bundles_table_arn null",
+   "Allow kms:Decrypt local.bundle_kms_arn null",
+   "Allow kms:DescribeKey local.bundle_kms_arn null",
+   "Allow kms:GenerateDataKey local.bundle_kms_arn null",
+   "Allow logs:CreateLogGroup ${local.bundle_logs_base}/updateProvisioningBundle:* null",
+   "Allow logs:CreateLogStream ${local.bundle_logs_base}/updateProvisioningBundle:* null",
+   "Allow logs:PutLogEvents ${local.bundle_logs_base}/updateProvisioningBundle:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_provisioning_bundle_progress": {
+  "role": "get_provisioning_bundle_progress",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem local.bundles_table_arn null",
+   "Allow dynamodb:Query ${local.it_tasks_table_arn}/index/byCandidateId null",
+   "Allow dynamodb:Query local.it_tasks_table_arn null",
+   "Allow kms:Decrypt local.bundle_kms_arn null",
+   "Allow kms:DescribeKey local.bundle_kms_arn null",
+   "Allow kms:GenerateDataKey local.bundle_kms_arn null",
+   "Allow logs:CreateLogGroup ${local.bundle_logs_base}/getProvisioningBundleProgress:* null",
+   "Allow logs:CreateLogStream ${local.bundle_logs_base}/getProvisioningBundleProgress:* null",
+   "Allow logs:PutLogEvents ${local.bundle_logs_base}/getProvisioningBundleProgress:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/send_document_reminders": {
+  "role": "send_document_reminders",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:DeleteItem aws_dynamodb_table.reminders.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.tenants.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.reminders.arn null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/documents null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/tenant-index null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+   "Allow dynamodb:Scan aws_dynamodb_table.tenants.arn {\"ForAllValues:StringEquals\":{\"dynamodb:Attributes\":[\"pk\",\"sk\",\"status\",\"modules\",\"founding\"]},\"StringEqualsIfExists\":{\"dynamodb:Select\":\"SPECIFIC_ATTRIBUTES\"}}",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/sendDocumentReminders:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/sendDocumentReminders:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/sendDocumentReminders:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/sfn_onboarding": {
+  "role": "sfn_onboarding",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.employees.arn null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.naleko_onboarding.arn null",
+   "Allow lambda:InvokeFunction aws_lambda_function.classify_onboarding_risk.arn null",
+   "Allow logs:CreateLogDelivery * null",
+   "Allow logs:CreateLogGroup * null",
+   "Allow logs:CreateLogStream * null",
+   "Allow logs:DeleteLogDelivery * null",
+   "Allow logs:DescribeLogGroups * null",
+   "Allow logs:DescribeResourcePolicies * null",
+   "Allow logs:GetLogDelivery * null",
+   "Allow logs:ListLogDeliveries * null",
+   "Allow logs:PutLogEvents * null",
+   "Allow logs:PutResourcePolicy * null",
+   "Allow logs:UpdateLogDelivery * null",
+   "Allow xray:GetSamplingRules * null",
+   "Allow xray:GetSamplingTargets * null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/talent_flow_audit_stream": {
+  "role": "talent_flow_audit_stream",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:PutItem aws_dynamodb_table.talent_flow_events.arn null",
+   "Allow kms:Decrypt data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:DescribeKey data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:GenerateDataKey data.aws_kms_key.talent_flow.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/talentFlowAuditStream:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/talentFlowAuditStream:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/talentFlowAuditStream:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_candidate_events": {
+  "role": "get_candidate_events",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem ${aws_dynamodb_table.talent_flow_events.arn}/index/* null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.talent_flow_events.arn null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.talent_flow_events.arn}/index/* null",
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_events.arn null",
+   "Allow kms:Decrypt data.aws_kms_key.talent_flow.arn null",
+   "Allow kms:DescribeKey data.aws_kms_key.talent_flow.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getCandidateEvents:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getCandidateEvents:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getCandidateEvents:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_candidate_events_modules_read": {
+  "role": "get_candidate_events",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.tenants.arn null"
+  ]
+ },
+ "infra/get_candidate_events_state_read": {
+  "role": "get_candidate_events",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state null"
+  ]
+ },
+ "infra/get_hiring_managers": {
+  "role": "get_hiring_managers",
+  "stack": "infra",
+  "pairs": [
+   "Allow cognito-idp:ListUsersInGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${aws_cognito_user_pool.naleko_dev.id} null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.get_hiring_managers_function_name}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.get_hiring_managers_function_name}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.get_hiring_managers_function_name}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "infra/get_hiring_managers_modules_read": {
+  "role": "get_hiring_managers",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.tenants.arn null"
+  ]
+ },
+ "infra/get_hiring_managers_member_read": {
+  "role": "get_hiring_managers",
+  "stack": "infra",
+  "pairs": [
+   "Allow dynamodb:Query aws_dynamodb_table.tenants.arn null"
+  ]
+ },
+ "talent-flow-infra/acknowledge_tile": {
+  "role": "acknowledge_tile",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:PutItem aws_dynamodb_table.intelligence_dismissals.arn null",
+   "Allow kms:Decrypt aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:DescribeKey aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup ${aws_cloudwatch_log_group.acknowledge_tile.arn}:* null",
+   "Allow logs:CreateLogStream ${aws_cloudwatch_log_group.acknowledge_tile.arn}:* null",
+   "Allow logs:PutLogEvents ${aws_cloudwatch_log_group.acknowledge_tile.arn}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/acknowledge_tile_modules_read": {
+  "role": "acknowledge_tile",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/acknowledge_tile_state_read": {
+  "role": "acknowledge_tile",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_state.arn null"
+  ]
+ },
+ "talent-flow-infra/advance_candidate_stage": {
+  "role": "advance_candidate_stage",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents arn:aws:events:af-south-1:000000000000:event-bus/${local.tf_event_bus_name} null",
+   "Allow kms:Decrypt aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:DescribeKey aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:GenerateDataKey aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:GenerateDataKeyWithoutPlaintext aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_advance_stage}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_advance_stage}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_advance_stage}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/advance_candidate_stage_modules_read": {
+  "role": "advance_candidate_stage",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/pre_token_tenants": {
+  "role": "pre_token_trigger",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/delete_leaver_chats": {
+  "role": "delete_leaver_chats",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow cognito-idp:AdminGetUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+   "Allow dynamodb:BatchWriteItem arn:aws:dynamodb:af-south-1:000000000000:table/ask-batsi-chats null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/naleko-agent-audit null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/ask-batsi-chats null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/deleteLeaverChats:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/deleteLeaverChats:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/deleteLeaverChats:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/dismiss_tile": {
+  "role": "dismiss_tile",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:PutItem aws_dynamodb_table.intelligence_dismissals.arn null",
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_state.arn null",
+   "Allow kms:Decrypt aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:DescribeKey aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup ${aws_cloudwatch_log_group.dismiss_tile.arn}:* null",
+   "Allow logs:CreateLogStream ${aws_cloudwatch_log_group.dismiss_tile.arn}:* null",
+   "Allow logs:PutLogEvents ${aws_cloudwatch_log_group.dismiss_tile.arn}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/dismiss_tile_modules_read": {
+  "role": "dismiss_tile",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/evaluate_intelligence_rules": {
+  "role": "evaluate_intelligence_rules",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:DescribeStream aws_dynamodb_table.talent_flow_state.stream_arn null",
+   "Allow dynamodb:GetItem ${aws_dynamodb_table.talent_flow_config.arn}/index/* null",
+   "Allow dynamodb:GetItem ${aws_dynamodb_table.talent_flow_state.arn}/index/* null",
+   "Allow dynamodb:GetItem ${aws_dynamodb_table.talent_flow_users.arn}/index/* null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.talent_flow_config.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.talent_flow_state.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.talent_flow_users.arn null",
+   "Allow dynamodb:GetRecords aws_dynamodb_table.talent_flow_state.stream_arn null",
+   "Allow dynamodb:GetShardIterator aws_dynamodb_table.talent_flow_state.stream_arn null",
+   "Allow dynamodb:ListStreams aws_dynamodb_table.talent_flow_state.stream_arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.intelligence_events.arn null",
+   "Allow dynamodb:PutItem aws_dynamodb_table.talent_flow_state.arn null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.talent_flow_config.arn}/index/* null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.talent_flow_notifications.arn}/index/* null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.talent_flow_state.arn}/index/* null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.talent_flow_users.arn}/index/* null",
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_config.arn null",
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_notifications.arn null",
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_state.arn null",
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_users.arn null",
+   "Allow kms:Decrypt aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:DescribeKey aws_kms_key.talent_flow_state.arn null",
+   "Allow lambda:InvokeFunction arn:aws:lambda:af-south-1:000000000000:function:sendTalentFlowNotification null",
+   "Allow logs:CreateLogGroup ${aws_cloudwatch_log_group.evaluate_intelligence_rules.arn}:* null",
+   "Allow logs:CreateLogStream ${aws_cloudwatch_log_group.evaluate_intelligence_rules.arn}:* null",
+   "Allow logs:PutLogEvents ${aws_cloudwatch_log_group.evaluate_intelligence_rules.arn}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/evaluate_intelligence_rules_modules_read": {
+  "role": "evaluate_intelligence_rules",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/get_intelligence_tiles": {
+  "role": "get_intelligence_tiles",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem ${aws_dynamodb_table.talent_flow_config.arn}/index/* null",
+   "Allow dynamodb:GetItem ${aws_dynamodb_table.talent_flow_state.arn}/index/* null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.talent_flow_config.arn null",
+   "Allow dynamodb:GetItem aws_dynamodb_table.talent_flow_state.arn null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.talent_flow_config.arn}/index/* null",
+   "Allow dynamodb:Query ${aws_dynamodb_table.talent_flow_state.arn}/index/* null",
+   "Allow dynamodb:Query aws_dynamodb_table.intelligence_dismissals.arn null",
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_config.arn null",
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_state.arn null",
+   "Allow dynamodb:Scan ${aws_dynamodb_table.talent_flow_state.arn}/index/* null",
+   "Allow dynamodb:Scan aws_dynamodb_table.talent_flow_state.arn null",
+   "Allow kms:Decrypt aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:DescribeKey aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup ${aws_cloudwatch_log_group.get_intelligence_tiles.arn}:* null",
+   "Allow logs:CreateLogStream ${aws_cloudwatch_log_group.get_intelligence_tiles.arn}:* null",
+   "Allow logs:PutLogEvents ${aws_cloudwatch_log_group.get_intelligence_tiles.arn}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/get_intelligence_tiles_modules_read": {
+  "role": "get_intelligence_tiles",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/create_candidate": {
+  "role": "create_candidate",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_idempotency} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_idempotency} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/GSI1-active-configs null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_create_candidate}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_create_candidate}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_create_candidate}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/orchestrate_workflow": {
+  "role": "orchestrate_workflow",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_orchestrate_workflow}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_orchestrate_workflow}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_orchestrate_workflow}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/schedule_interview": {
+  "role": "schedule_interview",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/GSI1-active-configs null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_agent_audit.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_schedule_interview}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_schedule_interview}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_schedule_interview}:* null",
+   "Allow sqs:SendMessage aws_sqs_queue.talent_flow_notification.arn null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/submit_vote": {
+  "role": "submit_vote",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/GSI1-active-configs null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_submit_vote}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_submit_vote}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_submit_vote}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/complete_evaluation": {
+  "role": "complete_evaluation",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/GSI1-active-configs null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_complete_evaluation}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_complete_evaluation}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_complete_evaluation}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/manage_config": {
+  "role": "manage_config",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_manage_config}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_manage_config}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_manage_config}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/send_notification": {
+  "role": "send_notification",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_notifications} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_agent_audit.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_send_notification}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_send_notification}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_send_notification}:* null",
+   "Allow ses:SendEmail arn:aws:ses:af-south-1:000000000000:identity/* null",
+   "Allow ses:SendRawEmail arn:aws:ses:af-south-1:000000000000:identity/* null",
+   "Allow sqs:DeleteMessage aws_sqs_queue.talent_flow_notification.arn null",
+   "Allow sqs:GetQueueAttributes aws_sqs_queue.talent_flow_notification.arn null",
+   "Allow sqs:ReceiveMessage aws_sqs_queue.talent_flow_notification.arn null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/monitor_slas": {
+  "role": "monitor_slas",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_monitor_slas}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_monitor_slas}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_monitor_slas}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/ai_chat": {
+  "role": "ai_chat",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow bedrock:InvokeModel arn:aws:bedrock:*::foundation-model/${local.tf_model_fast} null",
+   "Allow bedrock:InvokeModel arn:aws:bedrock:*::foundation-model/${local.tf_model_smart} null",
+   "Allow bedrock:InvokeModelWithResponseStream arn:aws:bedrock:*::foundation-model/${local.tf_model_fast} null",
+   "Allow bedrock:InvokeModelWithResponseStream arn:aws:bedrock:*::foundation-model/${local.tf_model_smart} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_pending_actions} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_prompt_cache} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_rate_limit} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/ask-batsi-chats null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_agent_audit} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_pending_actions} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_prompt_cache} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/ask-batsi-chats null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/GSI1-active-configs null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/ask-batsi-chats null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_rate_limit} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/ask-batsi-chats null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_agent_audit.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_ai_chat}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_ai_chat}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_ai_chat}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/authorizer": {
+  "role": "authorizer",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_agent_audit.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_authorizer}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_authorizer}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_authorizer}:* null",
+   "Allow secretsmanager:GetSecretValue arn:aws:secretsmanager:af-south-1:000000000000:secret:${local.tf_secret_agent_api_key}* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/approve_action": {
+  "role": "approve_action",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_pending_actions} null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_pending_actions} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_pending_actions} null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_approve_action}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_approve_action}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_approve_action}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/archive_audit_log": {
+  "role": "archive_audit_log",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:DescribeStream arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_agent_audit}/stream/* null",
+   "Allow dynamodb:GetRecords arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_agent_audit}/stream/* null",
+   "Allow dynamodb:GetShardIterator arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_agent_audit}/stream/* null",
+   "Allow dynamodb:ListStreams arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_agent_audit}/stream/* null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_agent_audit.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_archive_audit}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_archive_audit}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_archive_audit}:* null",
+   "Allow s3:PutObject ${aws_s3_bucket.talent_flow_audit_archive.arn}/* null",
+   "Allow sqs:SendMessage aws_sqs_queue.archive_audit_log_dlq.arn null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/get_candidates": {
+  "role": "get_candidates",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/GSI1 null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_candidates}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_candidates}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_candidates}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/get_candidate": {
+  "role": "get_candidate",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_candidate}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_candidate}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_candidate}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/rotate_api_key": {
+  "role": "rotate_api_key",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_agent_audit.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_rotate_api_key}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_rotate_api_key}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_rotate_api_key}:* null",
+   "Allow secretsmanager:GetSecretValue arn:aws:secretsmanager:af-south-1:000000000000:secret:${local.tf_secret_agent_api_key}* null",
+   "Allow secretsmanager:PutSecretValue arn:aws:secretsmanager:af-south-1:000000000000:secret:${local.tf_secret_agent_api_key}* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/capture_sentiment": {
+  "role": "capture_sentiment",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/GSI1-active-configs null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents arn:aws:events:af-south-1:000000000000:event-bus/${local.tf_event_bus_name} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_capture_sentiment}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_capture_sentiment}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_capture_sentiment}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/get_notifications": {
+  "role": "get_notifications",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_notifications} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_notifications}/index/UnreadIndex null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_notifications}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_notifications}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_notifications}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/get_panel_members": {
+  "role": "get_panel_members",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow cognito-idp:ListUsersInGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_panel_members}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_panel_members}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_panel_members}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/mark_notif_read": {
+  "role": "mark_notif_read",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_notifications} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_mark_notif_read}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_mark_notif_read}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_mark_notif_read}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/create_offer": {
+  "role": "create_offer",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/* null",
+   "Allow events:PutEvents arn:aws:events:af-south-1:000000000000:event-bus/${local.tf_event_bus_name} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_create_offer}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_create_offer}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_create_offer}:* null",
+   "Allow states:StartExecution aws_sfn_state_machine.offer_approval.arn null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/get_offer": {
+  "role": "get_offer",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_offer}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_offer}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_get_offer}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/update_candidate": {
+  "role": "update_candidate",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents arn:aws:events:af-south-1:000000000000:event-bus/${local.tf_event_bus_name} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_update_candidate}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_update_candidate}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_update_candidate}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/advance_offer_state": {
+  "role": "advance_offer_state",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents arn:aws:events:af-south-1:000000000000:event-bus/${local.tf_event_bus_name} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_advance_offer_state}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_advance_offer_state}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_advance_offer_state}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/generate_scoring_link": {
+  "role": "generate_scoring_link",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_generate_scoring_link}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_generate_scoring_link}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_generate_scoring_link}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/submit_vote_by_token": {
+  "role": "submit_vote_by_token",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/GSI1-active-configs null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow events:PutEvents arn:aws:events:af-south-1:000000000000:event-bus/${local.tf_event_bus_name} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_submit_vote_by_token}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_submit_vote_by_token}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_submit_vote_by_token}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/admin_get_dashboard": {
+  "role": "admin_get_dashboard",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users}/index/* null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/* null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users}/index/* null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_get_dashboard}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_get_dashboard}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_get_dashboard}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/admin_get_users": {
+  "role": "admin_get_users",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users}/index/* null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users}/index/* null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_get_users}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_get_users}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_get_users}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/admin_create_user": {
+  "role": "admin_create_user",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow cognito-idp:AdminAddUserToGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+   "Allow cognito-idp:AdminCreateUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+   "Allow cognito-idp:AdminGetUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users}/index/* null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users}/index/* null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users}/index/* null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_create_user}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_create_user}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_create_user}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/admin_update_user": {
+  "role": "admin_update_user",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow cognito-idp:AdminAddUserToGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+   "Allow cognito-idp:AdminListGroupsForUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+   "Allow cognito-idp:AdminRemoveUserFromGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_update_user}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_update_user}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_update_user}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/admin_deactivate_user": {
+  "role": "admin_deactivate_user",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow cognito-idp:AdminDisableUser arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_users} null",
+   "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_deactivate}:* null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_deactivate}:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_admin_deactivate}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/get_candidate_modules_read": {
+  "role": "get_candidate",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/update_candidate_modules_read": {
+  "role": "update_candidate",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/schedule_interview_modules_read": {
+  "role": "schedule_interview",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/submit_vote_modules_read": {
+  "role": "submit_vote",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/capture_sentiment_modules_read": {
+  "role": "capture_sentiment",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/generate_scoring_link_modules_read": {
+  "role": "generate_scoring_link",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/get_offer_modules_read": {
+  "role": "get_offer",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/create_offer_modules_read": {
+  "role": "create_offer",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/advance_offer_state_modules_read": {
+  "role": "advance_offer_state",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/get_candidates_modules_read": {
+  "role": "get_candidates",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/create_candidate_modules_read": {
+  "role": "create_candidate",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/manage_config_modules_read": {
+  "role": "manage_config",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/get_notifications_modules_read": {
+  "role": "get_notifications",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/mark_notif_read_modules_read": {
+  "role": "mark_notif_read",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/get_panel_members_modules_read": {
+  "role": "get_panel_members",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/approve_action_modules_read": {
+  "role": "approve_action",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/ai_chat_modules_read": {
+  "role": "ai_chat",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/submit_vote_by_token_modules_read": {
+  "role": "submit_vote_by_token",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/send_notification_modules_read": {
+  "role": "send_notification",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/orchestrate_workflow_modules_read": {
+  "role": "orchestrate_workflow",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/capture_sentiment_state_read": {
+  "role": "capture_sentiment",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.talent_flow_state.arn null"
+  ]
+ },
+ "talent-flow-infra/mark_notif_read_notifications_read": {
+  "role": "mark_notif_read",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem aws_dynamodb_table.talent_flow_notifications.arn null"
+  ]
+ },
+ "talent-flow-infra/get_panel_members_member_read": {
+  "role": "get_panel_members",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/record_not_hired": {
+  "role": "record_not_hired",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_idempotency} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_idempotency} null",
+   "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/GSI1-active-configs null",
+   "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/GSI1 null",
+   "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+   "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+   "Allow kms:Decrypt aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:DescribeKey aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:GenerateDataKey aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/recordNotHired:* null",
+   "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/recordNotHired:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/snooze_tile": {
+  "role": "snooze_tile",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:PutItem aws_dynamodb_table.intelligence_dismissals.arn null",
+   "Allow kms:Decrypt aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:DescribeKey aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup ${aws_cloudwatch_log_group.snooze_tile.arn}:* null",
+   "Allow logs:CreateLogStream ${aws_cloudwatch_log_group.snooze_tile.arn}:* null",
+   "Allow logs:PutLogEvents ${aws_cloudwatch_log_group.snooze_tile.arn}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/snooze_tile_modules_read": {
+  "role": "snooze_tile",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+  ]
+ },
+ "talent-flow-infra/snooze_tile_state_read": {
+  "role": "snooze_tile",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:Query aws_dynamodb_table.talent_flow_state.arn null"
+  ]
+ },
+ "talent-flow-infra/talent_flow_sfn": {
+  "role": "talent_flow_sfn",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow kms:Decrypt aws_kms_key.talent_flow_agent_audit.arn null",
+   "Allow kms:GenerateDataKey aws_kms_key.talent_flow_agent_audit.arn null",
+   "Allow lambda:InvokeFunction aws_lambda_function.approve_action.arn null",
+   "Allow lambda:InvokeFunction aws_lambda_function.send_notification.arn null",
+   "Allow logs:CreateLogDelivery * null",
+   "Allow logs:CreateLogGroup * null",
+   "Allow logs:CreateLogStream * null",
+   "Allow logs:DeleteLogDelivery * null",
+   "Allow logs:DescribeLogGroups * null",
+   "Allow logs:DescribeResourcePolicies * null",
+   "Allow logs:GetLogDelivery * null",
+   "Allow logs:ListLogDeliveries * null",
+   "Allow logs:PutLogEvents * null",
+   "Allow logs:PutResourcePolicy * null",
+   "Allow logs:StartQueryExecution * null",
+   "Allow logs:UpdateLogDelivery * null",
+   "Allow xray:GetSamplingRules * null",
+   "Allow xray:GetSamplingTargets * null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ },
+ "talent-flow-infra/track_user_actions": {
+  "role": "track_user_actions",
+  "stack": "talent-flow-infra",
+  "pairs": [
+   "Allow dynamodb:DescribeStream aws_dynamodb_table.talent_flow_state.stream_arn null",
+   "Allow dynamodb:GetRecords aws_dynamodb_table.talent_flow_state.stream_arn null",
+   "Allow dynamodb:GetShardIterator aws_dynamodb_table.talent_flow_state.stream_arn null",
+   "Allow dynamodb:ListStreams aws_dynamodb_table.talent_flow_state.stream_arn null",
+   "Allow dynamodb:UpdateItem aws_dynamodb_table.talent_flow_users.arn null",
+   "Allow kms:Decrypt aws_kms_key.talent_flow_state.arn null",
+   "Allow kms:DescribeKey aws_kms_key.talent_flow_state.arn null",
+   "Allow logs:CreateLogGroup ${aws_cloudwatch_log_group.track_user_actions.arn}:* null",
+   "Allow logs:CreateLogStream ${aws_cloudwatch_log_group.track_user_actions.arn}:* null",
+   "Allow logs:PutLogEvents ${aws_cloudwatch_log_group.track_user_actions.arn}:* null",
+   "Allow xray:PutTelemetryRecords * null",
+   "Allow xray:PutTraceSegments * null"
+  ]
+ }
+}

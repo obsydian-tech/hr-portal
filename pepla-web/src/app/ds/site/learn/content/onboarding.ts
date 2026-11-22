@@ -1,4 +1,4 @@
-import type { LearnEnding, LearnTop } from '../learn.types';
+import type { LearnDemoText, LearnEnding, LearnTab, LearnTop } from '../learn.types';
 
 /** The Onboarding page's top: the words of the kit's "Learn more top: Onboarding" (the hero card is the page's own). */
 export const ONBOARDING_TOP: LearnTop = {
@@ -65,7 +65,6 @@ export const ONBOARDING_ENDING: LearnEnding = {
     {
       icon: 'user-plus',
       title: 'Recruitment',
-      text: 'Accepted offers start onboarding with no retyping.',
       href: '#',
     },
     {
@@ -112,3 +111,89 @@ export const ONBOARDING_ENDING: LearnEnding = {
     ],
   },
 };
+
+/** The Onboarding page's demos: the words beside each sample panel, as in the kit's "Onboarding page" (`data-demo`: phone, read, follow, contract, laptop, exit). */
+export const ONBOARDING_DEMOS: Record<'phone' | 'read' | 'follow' | 'contract' | 'laptop' | 'exit', LearnDemoText> = {
+  phone: {
+    eyebrow: "New employee's side",
+    title: 'New employees finish their paperwork from a phone.',
+    lead: "An email link opens the new employee's own onboarding page. No app to install and no password to remember.",
+    points: [
+      { text: 'Secure link to a personal onboarding page' },
+      { text: 'POPIA consent before the first upload' },
+      { text: 'PDF, JPG or PNG, up to 5 MB' },
+      { text: 'Live status on each document as it is read' },
+      { text: 'Clear message when a file is too large, blurry or cropped' },
+      { text: 'Ask Batsi for help with any document', batsi: true },
+    ],
+  },
+  read: {
+    eyebrow: 'Documents read and matched',
+    title: 'Batsi reads every document. HR makes every decision.',
+    lead: 'Naleko People reads ID documents, qualifications and bank letters as they are uploaded, fills the employee record and checks each detail against it. HR accepts the document or asks for a new one.',
+    points: [
+      { text: '13-digit ID number present, date of birth matches it' },
+      { text: 'Gender and citizenship digits valid' },
+      { text: 'Name and surname match the record' },
+      { text: 'Bank letter matches the account holder' },
+      { text: "Matches, Needs a look or Doesn't match, with the reason", batsi: true },
+      { text: 'Every decision logged with who made it' },
+    ],
+  },
+  follow: {
+    eyebrow: 'Follow-ups',
+    title: 'Missing documents are chased until they arrive.',
+    lead: 'Batsi asks again for anything missing or unclear, on a set schedule. When nothing arrives, HR is told.',
+    points: [
+      { text: 'Missing or unclear documents requested again', batsi: true },
+      { text: "Reminders on the company's schedule", batsi: true },
+      { text: 'HR told when nothing arrives' },
+      { text: 'One list of who is waiting on what' },
+    ],
+  },
+  contract: {
+    eyebrow: 'Contract and probation',
+    title: 'Contracts come from the company template and are signed online.',
+    lead: 'Naleko People fills the contract from the employee record, sends it for signature and stores the signed copy on the record. Probation dates are set at the same time.',
+    points: [
+      { text: 'Contract templates per company and role' },
+      { text: 'Details filled from the record, no retyping' },
+      { text: 'Signed online, signed copy stored on the record' },
+      { text: 'Salary hidden on screen' },
+      { text: 'Probation end date with a reminder to confirm or extend probation' },
+    ],
+  },
+  laptop: {
+    eyebrow: 'Laptop and access',
+    title: 'Laptop, email and access ready before day one.',
+    lead: 'IT requests go out as soon as the contract is signed, each with an owner and a due date. The manager gets the first-day checklist.',
+    points: [
+      { text: 'IT requests with an owner and a due date' },
+      { text: 'Requests closed by IT inside Naleko People' },
+      { text: "Manager's first-day checklist" },
+      { text: 'Checklists and templates set per company' },
+    ],
+  },
+  exit: {
+    eyebrow: 'Offboarding',
+    title: 'Every exit closed off the same way.',
+    lead: 'An exit checklist opens when a last working day is set. Access removal and equipment returns are tracked, and the final documents stay on the record.',
+    points: [
+      { text: 'Exit checklist per person' },
+      { text: 'Access removed and equipment returned, tracked' },
+      { text: 'Certificate of service issued' },
+      { text: 'Exit record kept on the employee record' },
+    ],
+  },
+};
+
+/** The sub-menu of the Onboarding page, in the order of the page; the last tab is the questions. The first tab has the typographic apostrophe (the demo's own label has the straight one, as in the kit). */
+export const ONBOARDING_TABS: readonly LearnTab[] = [
+  { id: 'employee', label: 'New employee’s side' },
+  { id: 'documents', label: 'Documents read and matched' },
+  { id: 'follow-ups', label: 'Follow-ups' },
+  { id: 'contract', label: 'Contract and probation' },
+  { id: 'laptop', label: 'Laptop and access' },
+  { id: 'offboarding', label: 'Offboarding' },
+  { id: 'questions', label: 'Questions' },
+];

@@ -101,42 +101,19 @@ function getDefaults(configType) {
       problemSolving: 20
     },
     SLA_THRESHOLDS: {
-      APPLICATION_REVIEW: 24,
-      PHONE_SCREENING: 48,
-      TECHNICAL_INTERVIEW: 72,
-      PANEL_INTERVIEW: 96,
-      EVALUATION: 48,
-      OFFER_PREPARATION: 24,
-      OFFER_APPROVAL: 72,
-      OFFER_DELIVERY: 24
+      APPLIED: 24,
+      SCREENING: 48,
+      INTERVIEW: 96,
+      OFFER: 72
     },
     APPROVAL_RULES: {
-      minimumPassScore: 6.0,
       requireFinanceApprovalAbove: 600000,
       escalationThresholdDays: 3
     },
-    PANEL_CONFIG: {
-      rules: {
-        strongNoVeto: true,
-        votesRequired: { JUNIOR: 2, MID: 3, SENIOR: 4, DIRECTOR: 5 }
-      }
-    },
+    PANEL_CONFIG: {},
     EMAIL_TEMPLATES: {},
     STAGE_CONFIG: {
-      enabled: [
-        'APPLICATION_REVIEW',
-        'PHONE_SCREENING',
-        'TECHNICAL_INTERVIEW',
-        'PANEL_INTERVIEW',
-        'EVALUATION',
-        'BACKGROUND_CHECK',
-        'OFFER_PREPARATION',
-        'OFFER_APPROVAL',
-        'OFFER_DELIVERY',
-        'CONTRACT_SIGNING',
-        'PRE_BOARDING',
-        'ONBOARDING'
-      ]
+      enabled: ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER', 'HIRED', 'NOT_HIRED']
     },
     INTELLIGENCE_RULES: {
       rules: []  // Empty rules = no notifications (safe default)

@@ -4,6 +4,8 @@ import { groupsOf } from '../shared/document-check.mjs';
 import { CURRENT_NOTICE_VERSION, renderNotice } from '../shared/privacy-notice.mjs';
 import { NEW_EMPLOYEES_ONLY, NOT_FOUND, emailIsVerified, findEmployee, readConsent } from '../shared/consent.mjs';
 import { requireTenant } from '../shared/tenant.mjs';
+import { documentsDueDate } from '../shared/due-date.mjs';
+import { stepOf } from '../shared/onboarding-step.mjs';
 
 const logger = new Logger({ serviceName: 'getMyStart' });
 const COMPANY = (() => { const v = process.env.COMPANY_NAME; if (!v) throw new Error('Missing setting COMPANY_NAME'); return v; })();
@@ -35,11 +37,15 @@ export const handler = async (event) => {
     const consent = await readConsent(e.employee_id.S, CURRENT_NOTICE_VERSION);
     const department = e.department?.S ?? '';
     const startDate = e.planned_start_date?.S ?? '';
+    const documentsDue = documentsDueDate(startDate, tenantId) ?? '';
     return json(200, {
       firstName: e.first_name?.S ?? '',
       company: COMPANY,
       ...(department ? { department } : {}),
       ...(startDate ? { startDate } : {}),
+      ...(documentsDue ? { documentsDue } : {}),
+      // ONB-19: the same step HR sees (ONB-09). The row is a raw DynamoDB item, so the two fields are unwrapped first.
+      step: stepOf({ step: e.step?.S, stage: e.stage?.S }),
       notice: renderNotice(CURRENT_NOTICE_VERSION, COMPANY),
       consent,
     });

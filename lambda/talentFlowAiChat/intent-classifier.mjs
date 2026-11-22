@@ -83,7 +83,7 @@ export async function classifyIntent(message, templateId) {
     return { intentClass, classifierTokens: tokens };
   } catch (err) {
     // Classification failure is non-fatal — fall back to UNKNOWN → BEDROCK_MODEL_SMART
-    return { intentClass: 'UNKNOWN', classifierTokens: {}, error: err.message };
+    return { intentClass: 'UNKNOWN', classifierTokens: {}, error: err?.name ?? 'Error' };
   }
 }
 

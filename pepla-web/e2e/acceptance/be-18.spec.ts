@@ -192,7 +192,8 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
     expect(allowedNow, 'recordConsent is not in allowed_role_arns (no Encrypt, GenerateDataKey or direct Decrypt)').not.toContain(ROLE);
     expect(readNow, 'recordConsent stays in dynamodb_read_role_arns (Decrypt only, only through DynamoDB)').toContain(ROLE);
     expect(allowedNow, 'the start page (this card\'s other role) is not given encrypt rights either').not.toContain('aws_iam_role.get_my_start.arn');
-    for (const r of allowedNow) expect(listAttr(kmsBase!.body, 'allowed_role_arns'), `allowed_role_arns gains no role (${r})`).toContain(r);
+    // CHAT-02 (re-lock be-18.N): the two new Ask Batsi roles keep chats and read the company list; chat-02.spec.ts AC-31 pins them.
+    for (const r of allowedNow.filter((x) => !/ask_batsi_chats|admin_set_ask_batsi/.test(x))) expect(listAttr(kmsBase!.body, 'allowed_role_arns'), `allowed_role_arns gains no role (${r})`).toContain(r);
     const senderNow = listAttr(kmsNow!.body, 'cognito_sender_decrypt_role_arns');
     for (const r of [ROLE, 'aws_iam_role.get_my_start.arn']) expect(senderNow, `${r} gets no direct Decrypt through cognito_sender_decrypt_role_arns`).not.toContain(r);
 
@@ -604,9 +605,9 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
     const own = call.ownList(withId, HR(), { fail: kmsFail });
     noThrow(own, 'getEmployeeDocumentVerifications, KMS failing');
     const ownLogs = logText(own);
-    expect(own.calls.some((c) => c.service === 'kms'), 'the own list tried to decrypt').toBe(true);
+    // ONB-14: the list no longer decrypts anything (the full ID number only comes from a recorded Show), so a failing KMS changes nothing here.
+    expect(own.calls.some((c) => c.service === 'kms'), 'the own list asks KMS for nothing').toBe(false);
     expect(ownLogs, 'own list, KMS failing: no error text').not.toContain(MARKER);
-    expect(ownLogs, 'own list, KMS failing: the error name').toMatch(/"errorname":"accessdeniedexception"/);
 
     // The inner error logs: one failing table or step at a time, so each inner catch is reached.
     const eventsFail: Failure = { service: 'events', name: 'InternalServerError', message: `${MARKER}: item {"email":"${LEAKED}"} could not be read` };
@@ -703,7 +704,8 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
       const r = call.ownList(withId, HR(), { fail: { service: 'kms', name: 'AccessDeniedException', message: `${MARKER}: ${LEAKED}` } });
       expect(r.status, `${r.raw.slice(0, 200)}`).toBe(200);
       expect(r.raw).not.toContain(ID_NUMBER);
-      expect(logText(r)).toMatch(/"errorname":"accessdeniedexception"/);
+      // ONB-14: the list asks KMS for nothing now, so there is no failure to log.
+      expect(r.calls.some((c) => c.service === 'kms')).toBe(false);
       expect(logText(r)).not.toContain(MARKER);
     }
     // Added 17 Nov (lock check 4): post sign-in: no address and no error text on any error path, with the sign-in name set to the address.

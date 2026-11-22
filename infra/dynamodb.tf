@@ -24,6 +24,24 @@ resource "aws_dynamodb_table" "pending_actions" {
     type = "S"
   }
 
+  # ONB-22: a company's proposals, newest first.
+  attribute {
+    name = "tenant_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "createdAt"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "tenant-index"
+    hash_key        = "tenant_id"
+    range_key       = "createdAt"
+    projection_type = "ALL"
+  }
+
   ttl {
     attribute_name = "expiresAt"
     enabled        = true
@@ -37,7 +55,7 @@ resource "aws_dynamodb_table" "pending_actions" {
   tags = {
     Purpose            = "HITLGate"
     DataClassification = "Internal"
-    RetentionDays      = "1"
+    RetentionDays      = "90"
     Ticket             = "NH-73"
   }
 

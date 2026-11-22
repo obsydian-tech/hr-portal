@@ -6,9 +6,9 @@
  * Trigger: POST /candidates/{id}/interviews  (schedule a new interview)
  *          PATCH /candidates/{id}/interviews/{interviewId}  (update: add panel members OR complete)
  *
- * POST — Schedule a new interview within the INTERVIEWING stage:
+ * POST — Schedule a new interview while the candidate is in Interview:
  *   1. Parse and validate body fields
- *   2. GetItem SAGA — verify currentStage === 'INTERVIEWING'
+ *   2. GetItem SAGA — verify the candidate is in Interview (an old stored name is read through normaliseStage)
  *   3. Read active PANEL_CONFIG → votesRequired for positionLevel (Invariant #3)
  *   4. PutItem INTERVIEW# record (status=SCHEDULED)
  *   5. UpdateItem SAGA: currentInterviewId = interviewId (tracks most recent interview)
@@ -20,9 +20,9 @@
  *
  * PATCH (no action field) — Add panel members to an existing interview.
  *
- * DO NOT update SAGA currentStage from this Lambda — the stage stays INTERVIEWING
- * for all interview types. advanceCandidateStage gates the INTERVIEWING→EVALUATION
- * transition by checking all required interview types are COMPLETED.
+ * DO NOT update SAGA currentStage from this Lambda — the stage stays Interview
+ * for all interview types. The move from Interview to Offer (moveCandidate) is gated on all required interview types
+ * being COMPLETED.
  *
  * DO NOT read panelConfig using candidate's configVersion for new interviews —
  * always use active (Invariant #3).
@@ -192,7 +192,16 @@ exports.handler = async (event) => {
   // The InterviewScheduled event has no sign-in: its company is the event's tenant_id, checked against the record.
   const fromApi = !!event.requestContext;
   let tenantId;
+  let RA;
   if (fromApi) {
+    // REC-01: scheduling and changing an interview is the Recruiter's. Reading the interviews of one candidate is also
+    // open to its hiring manager and the panel members of its interviews, and is judged on the rows (404 when not theirs).
+    // The role answer comes first, before any AWS call.
+    RA = await import('../shared/recruitment-access.mjs');
+    if (method !== 'GET') {
+      const notRecruiter = RA.requireRecruiter(event);
+      if (notRecruiter) return notRecruiter;
+    }
     const t = T.requireTenant(event);
     if (t.refusal) return t.refusal;
     // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
@@ -219,6 +228,7 @@ exports.handler = async (event) => {
         Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
       }));
       if (!own.Item || !T.ownsRow(unmarshall(own.Item), tenantId)) return T.notFound();
+      const candidate = unmarshall(own.Item);
 
       // Fetch INTERVIEW# records
       const interviewResult = await dynamo.send(new QueryCommand({
@@ -226,9 +236,16 @@ exports.handler = async (event) => {
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
         ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${candidateId}`, ':prefix': 'INTERVIEW#' }),
       }));
-      const interviews = (interviewResult.Items || [])
-        .filter((i) => T.ownsRow(unmarshall(i), tenantId))
-        .map((i) => { const { PK, SK, ...rest } = unmarshall(i); return rest; })
+      const rows = (interviewResult.Items || []).map((i) => unmarshall(i)).filter((r) => T.ownsRow(r, tenantId));
+
+      // REC-01: a Recruiter and the hiring manager see every interview of the candidate; a panel member only their own.
+      // Anyone else answers like a candidate that does not exist.
+      const relation = await RA.relationOf(event, candidate, async () => rows);
+      if (!relation) return T.notFound();
+      const me = RA.callerId(event);
+      const interviews = rows
+        .filter((r) => relation !== 'panel' || RA.panelMemberOf(r, me))
+        .map((r) => { const { PK, SK, ...rest } = r; return rest; })
         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
       // Fetch all VOTE# records for this candidate and attach per interview
@@ -249,7 +266,7 @@ exports.handler = async (event) => {
           submittedByTA: v.submittedByTA ?? null,
           scores:        v.scores       ?? null,
         };
-      });
+      }).filter((v) => relation !== 'panel' || v.voterId === me);
 
       // Attach votes array to each interview record
       const interviewsWithVotes = interviews.map((iv) => ({
@@ -314,10 +331,11 @@ exports.handler = async (event) => {
     return serverError('Failed to read candidate record');
   }
 
-  if (saga.currentStage !== 'INTERVIEWING') {
+  const { normaliseStage } = await import('../shared/recruitment-stages.mjs');
+  if (normaliseStage(saga) !== 'INTERVIEW') {
     return conflict(
-      `Interviews can only be scheduled when the candidate is in INTERVIEWING stage. ` +
-      `Current stage: ${saga.currentStage}. Advance the candidate to INTERVIEWING first.`
+      `Interviews can only be scheduled when the candidate is in Interview. ` +
+      `Current stage: ${normaliseStage(saga) ?? 'unknown'}. Move the candidate to Interview first.`
     );
   }
 
@@ -373,7 +391,11 @@ exports.handler = async (event) => {
     return serverError('Failed to read panel configuration');
   }
 
-  const votesRequired = panelConfig?.rules?.votesRequired?.[positionLevel];
+  // REC-12: the Standard pack holds the panel size per level (PANEL_CONFIG.panelSize), which is the votes asked of the panel;
+  // a company that still holds the older rules.votesRequired shape keeps it.
+  // A company the Standard pack has not reached yet keeps today's panel sizes (the pack's own) until it has its own.
+  const packDefaults = (await import('../shared/recruitment-settings.mjs')).DEFAULTS.PANEL_CONFIG.panelSize;
+  const votesRequired = panelConfig?.rules?.votesRequired?.[positionLevel] ?? panelConfig?.panelSize?.[positionLevel] ?? packDefaults[positionLevel];
   if (votesRequired == null) {
     console.error('votesRequired not found for positionLevel', { positionLevel, panelConfig });
     return serverError(`votesRequired not configured for positionLevel: ${positionLevel}`);

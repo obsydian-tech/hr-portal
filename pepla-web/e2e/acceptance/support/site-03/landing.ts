@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { extname, join, normalize, sep } from 'node:path';
 import { icons as LUCIDE } from 'lucide';
 import type { Locator, Page } from '@playwright/test';
+import { LANDING_KIT_REF } from '../site-04/landing2';
 
 /**
  * SITE-03 helpers: the landing sections gallery (/dev/site-landing) and the design system's landing page kit
@@ -45,9 +46,13 @@ function curl(url: string): string {
 export function syncJson(): { repo: string; ref: string } {
   return JSON.parse(readFileSync(join(DS, 'sync.json'), 'utf8'));
 }
-/** A file of the design system repo at the ref the app is synced to, cached in the OS temp folder. */
-export function dsFile(path: string): string {
-  const { repo, ref } = syncJson();
+/**
+ * A file of the design system repo, cached in the OS temp folder. Read at the ref SITE-04 pins for the landing kit (`LANDING_KIT_REF`, child lock
+ * 04.7), not at the ref in sync.json: the kit's preview scripts play their demos under reduced motion since design system PR #49.
+ */
+export function dsFile(path: string, pinnedRef: string = LANDING_KIT_REF): string {
+  const { repo } = syncJson();
+  const ref = pinnedRef;
   const dir = join(tmpdir(), 'site-03-kit', ref);
   const file = join(dir, path.replace(/\//g, '__'));
   if (existsSync(file)) return readFileSync(file, 'utf8');

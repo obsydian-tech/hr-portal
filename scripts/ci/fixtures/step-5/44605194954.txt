@@ -1,0 +1,4 @@
+.github/workflows/app-e2e-dev.yml
+pepla-web/e2e/acceptance/mod-01.spec.ts
+scripts/ci/dev-ask-batsi-on.py
+scripts/tenancy/ten-04-rows.json

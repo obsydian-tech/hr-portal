@@ -28,7 +28,12 @@ const NOTIFICATION_LAMBDA = process.env.NOTIFICATION_LAMBDA_NAME || 'sendTalentF
 /**
  * Main handler - processes DynamoDB stream records
  */
+// REC-03: a row may still hold an old stage name until its company's stage move has run, so stages are read through the one list.
+// The shared file is an ES module: it is loaded once per run, before any row is read. Until then a stage reads as stored.
+let normaliseStage = (value) => (value && typeof value === 'object' ? value.currentStage : value);
+
 exports.handler = async (event) => {
+  ({ normaliseStage } = await import('../shared/recruitment-stages.mjs'));
   console.info('[evaluateIntelligenceRules] Processing batch', {
     recordCount: event.Records.length
   });
@@ -353,7 +358,7 @@ async function calculateSignals(item) {
  * Returns current hiring stage of the candidate
  */
 function calculateCandidateStage(item) {
-  return item.currentStage || null;
+  return normaliseStage(item) || null;
 }
 
 /**
@@ -955,10 +960,13 @@ async function calculateDaysInCurrentStage(item) {
       if (result.Items && result.Items.length > 0) {
         // Find the most recent transition TO the current stage
         const transitions = result.Items.map(i => unmarshall(i));
-        const currentStageEntry = transitions.find(t => t.toStage === currentStage);
+        // REC-03: history rows carry from/to/at; rows written before it carry fromStage/toStage/timestamp and the old stage names.
+        const currentCode = normaliseStage(item);
+        const currentStageEntry = transitions.find(t => normaliseStage(t.to ?? t.toStage) === currentCode);
+        const enteredAtText = currentStageEntry && (currentStageEntry.at ?? currentStageEntry.timestamp);
 
-        if (currentStageEntry && currentStageEntry.timestamp) {
-          const enteredAt = new Date(currentStageEntry.timestamp);
+        if (enteredAtText) {
+          const enteredAt = new Date(enteredAtText);
           const now = new Date();
           const daysSince = Math.floor((now - enteredAt) / (1000 * 60 * 60 * 24));
           return daysSince;
@@ -1092,7 +1100,7 @@ function calculateCandidateRiskScore(item) {
  * Returns readiness percentage 0-100 for candidates in pre-boarding/onboarding stages
  *
  * Factors (each worth 25%):
- * - Stage is PRE_BOARDING or ONBOARDING
+ * - Stage is Hired
  * - IT equipment requested
  * - Access provisioned
  * - Documents complete
@@ -1101,8 +1109,7 @@ function calculateCandidateRiskScore(item) {
  */
 function calculateOnboardingReadiness(item) {
   // Only calculate for candidates in relevant stages
-  const onboardingStages = ['PRE_BOARDING', 'ONBOARDING'];
-  if (!onboardingStages.includes(item.currentStage)) {
+  if (normaliseStage(item) !== 'HIRED') {
     return null;
   }
 
@@ -1179,7 +1186,7 @@ function calculateEquipmentRequestStatus(item) {
   if (item.equipmentRequested || item.provisioningBundleId) return 'PENDING';
 
   // Default for candidates in onboarding stages
-  if (['PRE_BOARDING', 'ONBOARDING', 'CONTRACT_SIGNING'].includes(item.currentStage)) {
+  if (normaliseStage(item) === 'HIRED') {
     return 'NOT_ORDERED';
   }
 
@@ -1202,7 +1209,7 @@ function calculateAccessProvisioned(item) {
   }
 
   // For candidates in onboarding stages, default to false if not explicitly set
-  if (['PRE_BOARDING', 'ONBOARDING'].includes(item.currentStage)) {
+  if (normaliseStage(item) === 'HIRED') {
     return false;
   }
 
@@ -1455,7 +1462,7 @@ async function processAction(rule, item, signals) {
     signals: signals,
     candidateName: item.firstName && item.lastName ? `${item.firstName} ${item.lastName}` : null,
     positionTitle: item.positionTitle || null,
-    currentStage: item.currentStage || null,
+    currentStage: normaliseStage(item) || null,
   };
 
   // Add type-specific fields
@@ -1499,7 +1506,7 @@ async function processAction(rule, item, signals) {
       entityType,
       entityId,
       entityName: item.firstName && item.lastName ? `${item.firstName} ${item.lastName}` : null,
-      currentStage: item.currentStage,
+      currentStage: normaliseStage(item),
       recipientId,
       recipientRole: getRecipientRole(rule.action.type),
       signalsSnapshot: signals,

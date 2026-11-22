@@ -90,11 +90,49 @@ resource "aws_iam_role_policy" "naleko_ai_chat" {
         Resource = aws_dynamodb_table.prompt_cache.arn
       },
       {
+        # CHAT-02: keeps and reads each person's chats
+        Sid      = "ChatsTable"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+        Resource = aws_dynamodb_table.ask_batsi_chats.arn
+      },
+      {
+        # CHAT-02: the Ask Batsi switch is read from the company row
+        Sid      = "CompanySwitchRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = aws_dynamodb_table.tenants.arn
+      },
+      {
         # NH-50: KMS decrypt/encrypt for KMS-encrypted DynamoDB tables (agent_audit, prompt_cache)
         Sid      = "KMSAuditAndCache"
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
         Resource = module.kms_pii.key_arn
+      },
+    ]
+  })
+}
+
+# Dev only (Iggie, 19 Nov 2026): Bedrock checks the model's Marketplace
+# subscription on first use and denies InvokeModel without these.
+# Marketplace actions only accept Resource "*". Prod is unchanged.
+# Its own policy (not a concat inside the one above) so the TEN-03 role-policy
+# check can still read the main policy as plain JSON.
+resource "aws_iam_role_policy" "naleko_ai_chat_ask_batsi_marketplace" {
+  count = var.environment == "dev" ? 1 : 0
+
+  name = "naleko-nalekoAiChat-marketplace-policy"
+  role = aws_iam_role.naleko_ai_chat.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "BedrockMarketplaceEnable"
+        Effect   = "Allow"
+        Action   = ["aws-marketplace:ViewSubscriptions", "aws-marketplace:Subscribe"]
+        Resource = "*"
       },
     ]
   })
@@ -135,6 +173,9 @@ resource "aws_lambda_function" "naleko_ai_chat" {
       # TEN-02: the company rule, and the one company Batsi chat serves (the agent key's).
       LEGACY_TENANT_ID = var.legacy_tenant_id
       AGENT_TENANT_ID  = var.founding_tenant_id
+      # CHAT-02: stored chats, and the company list the Ask Batsi switch is read from.
+      CHATS_TABLE   = aws_dynamodb_table.ask_batsi_chats.name
+      TENANTS_TABLE = aws_dynamodb_table.tenants.name
     }
   }
 

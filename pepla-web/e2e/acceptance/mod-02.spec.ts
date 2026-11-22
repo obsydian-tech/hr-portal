@@ -561,7 +561,9 @@ test.describe('MOD-02 The module-aware shell and guards', () => {
     for (const mods of [[], ['onboarding'], ['onboarding', 'recruitment']]) {
       expect(await landing(['hr_staff'], [], mods), `hr_staff lands on /hr (modules ${mods})`).toBe('/hr');
       expect(await landing(['hr_staff'], ['perm-recruitment'], mods), `hr_staff with the tick lands on /hr (modules ${mods})`).toBe('/hr');
-      expect(await landing(['admin'], [], mods), `admin lands on /hr (modules ${mods})`).toBe('/hr');
+      // CHAT-03 (child lock mod-02.4): an admin who is not HR has no /hr page, so they land on the Ask Batsi screen; an admin who is also HR keeps /hr.
+      expect(await landing(['admin'], [], mods), `admin lands on /admin/ask-batsi (modules ${mods})`).toBe('/admin/ask-batsi');
+      expect(await landing(['admin', 'hr_staff'], [], mods), `admin who is also HR lands on /hr (modules ${mods})`).toBe('/hr');
       expect(await landing(['employee'], [], mods), `employee lands on /start (modules ${mods})`).toBe('/start');
       expect(await landing(['employee'], ['perm-recruitment'], mods), `employee with the tick lands on /start (modules ${mods})`).toBe('/start');
     }
@@ -764,9 +766,15 @@ test.describe('MOD-02 The module-aware shell and guards', () => {
     });
 
     // Today's shell, whoever's it is: everything but the person's own words.
-    const sameAsToday = async (name: string, expected: ShellSnapshot) => {
+    // REC-UI-01 adds the "Hire" group (Roles, Pipeline at /hire/...) for a login that has Recruitment. Those entries are
+    // new on purpose, so for the founding company's HR login they are set aside; everything else must still be today's.
+    // The employee and a company with Recruitment off get no allowance: they must show no Hire entry at all.
+    const sameAsToday = async (name: string, expected: ShellSnapshot, hireAllowed = false) => {
       await quiet(page);
-      const got = await snapshot(page);
+      const raw = await snapshot(page);
+      const got = hireAllowed
+        ? { ...raw, headings: raw.headings.filter((h) => h !== 'Hire'), items: raw.items.filter((i) => !i.href.startsWith('/hire/')) }
+        : raw;
       const bare = (s: ShellSnapshot) => ({ ...s, h1: '', topBar: { ...s.topBar, account: null, buttons: s.topBar.buttons.filter((b) => !/^Your account/.test(b.label)) }, product: { ...s.product, area: s.product.area === 'HR' ? 'HR' : '' } });
       expect(bare(got), `${name}: the sidebar, top bar and first page are today's`).toEqual(bare(expected));
     };
@@ -779,7 +787,7 @@ test.describe('MOD-02 The module-aware shell and guards', () => {
     await expect.poll(() => asked.length, { message: 'the modules route is asked for on the page load' }).toBeGreaterThanOrEqual(1);
     await quiet(page);
     expect(asked, 'the modules route is asked once per page load').toHaveLength(1);
-    await sameAsToday('HR', base.hr.snap);
+    await sameAsToday('HR', base.hr.snap, true);
     expect(answer, 'the founding company has both modules').toEqual(expect.arrayContaining(['onboarding', 'recruitment']));
     await forgetSignIn(page);
 

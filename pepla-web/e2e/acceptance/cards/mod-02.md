@@ -73,3 +73,7 @@ Hook entries and routes take `allOf?: string[]`: group names (roles and `perm-` 
 
 ## Builder constraint from SITE-01 AC-1
 `/` must load no Cognito or signed-in code. The registry, guards, modules service and test hook must load lazily (with the app routes), never from `app.ts` or `site.routes.ts`. The throwaway shows one way: a pathless route in `app.routes.ts` with `provideEnvironmentInitializer`.
+
+## Re-locked by ONB-19
+The employee blocks of `support/mod-02/baseline.json` (both projects) gain the "My onboarding" sidebar item and its box.
+Nothing else in the file changes. Locks: acceptance-lock/mod-02.2 (the same commit as ONB-19's).

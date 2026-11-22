@@ -22,6 +22,20 @@ jest.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand:  jest.fn((p) => ({ _cmd: 'PutEvents', ...p })),
 }));
 
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
+// REC-02: the company's REJECTION_RULES come from the shared settings reader (tested in the acceptance suite); here they are set per test.
+let mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null };
+jest.unstable_mockModule('../shared/recruitment-settings.mjs', () => ({
+  DEFAULTS: { REJECTION_RULES: { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null } },
+  getRecruitmentSettings: async () => ({ REJECTION_RULES: mockRejectionRules }),
+}));
+
 jest.mock('./config-reader', () => ({
   getConfig: jest.fn(),
 }));
@@ -166,56 +180,44 @@ describe('handler – quorum met', () => {
 });
 
 // =============================================================================
-// 4.  STRONG_NO + strongNoVeto=true → veto applied, early return
+// 4.  REC-02: a Strong No decides nothing; it adds to strong_no_count when REJECTION_RULES ask for it
 // =============================================================================
-describe('handler – STRONG_NO veto', () => {
-  it('updates SAGA to EVALUATION_FAILED and publishes VotingCompleted result=STRONG_NO_VETO', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })  // GetItem SAGA
-      .mockResolvedValueOnce({});             // UpdateItem SAGA EVALUATION_FAILED
+describe('handler – STRONG_NO raises a flag, never an outcome', () => {
+  const strongNo = () => ({ detail: { ...validEvent.detail, rating: 'STRONG_NO' } });
+  const writes = () => mockDynamoSend.mock.calls.map((c) => c[0]).filter((c) => c._cmd === 'UpdateItem' || c._cmd === 'PutItem');
 
-    getConfig
-      .mockResolvedValueOnce(WEIGHTS)
-      .mockResolvedValueOnce(PANEL_CONFIG);
+  beforeEach(() => { mockRejectionRules = { reviewVoteLevel: 'STRONG_NO', reviewBelowScore: null }; });
 
-    const vetoEvent = { detail: { ...validEvent.detail, rating: 'STRONG_NO' } };
-    const res = await handler(vetoEvent);
+  it('records the vote, adds one to strong_no_count and writes no status or veto result', async () => {
+    setupHappyPath({ votesSubmitted: 1, votesRequired: 3 });
+    const res = await handler(strongNo());
 
     expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body);
-    expect(body.result).toBe('STRONG_NO_VETO');
-
-    // SAGA UpdateItem called with EVALUATION_FAILED in ExpressionAttributeValues
-    const updateCall = mockDynamoSend.mock.calls[1][0];
-    expect(updateCall.ExpressionAttributeValues[':sf']).toBe('EVALUATION_FAILED');
-
-    // VotingCompleted published
-    expect(mockEbSend).toHaveBeenCalledTimes(1);
-    const detail = JSON.parse(mockEbSend.mock.calls[0][0].Entries[0].Detail);
-    expect(detail.result).toBe('STRONG_NO_VETO');
+    expect(JSON.parse(res.body).result).toBeUndefined();
+    const flag = writes().find((c) => c.UpdateExpression === 'ADD strong_no_count :one');
+    expect(flag).toBeDefined();
+    expect(JSON.stringify(writes())).not.toMatch(/votingResult|STRONG_NO_VETO|#s = :|status/);
+    expect(mockEbSend).not.toHaveBeenCalled(); // quorum not met, and no veto event
   });
-});
 
-// =============================================================================
-// 5.  STRONG_NO + strongNoVeto=false → vote counted normally
-// =============================================================================
-describe('handler – STRONG_NO, veto disabled', () => {
-  it('counts STRONG_NO as a normal vote when strongNoVeto=false', async () => {
-    mockDynamoSend
-      .mockResolvedValueOnce({ Item: SAGA })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ Attributes: { votesSubmitted: 1 } })
-      .mockResolvedValueOnce({ Items: [{ votesRequired: 3 }] });
-
-    getConfig
-      .mockResolvedValueOnce(WEIGHTS)
-      .mockResolvedValueOnce(PANEL_CONFIG_NO_VETO);
-
-    const noVetoEvent = { detail: { ...validEvent.detail, rating: 'STRONG_NO' } };
-    const res = await handler(noVetoEvent);
+  it('writes no flag when the company sets reviewVoteLevel to null', async () => {
+    mockRejectionRules = { reviewVoteLevel: null, reviewBelowScore: null };
+    setupHappyPath({ votesSubmitted: 1, votesRequired: 3 });
+    const res = await handler(strongNo());
 
     expect(res.statusCode).toBe(200);
-    expect(mockEbSend).not.toHaveBeenCalled(); // quorum not met
+    expect(writes().some((c) => /strong_no_count/.test(c.UpdateExpression ?? ''))).toBe(false);
+  });
+
+  it('stores an empty score, not NaN, when the scoring weights carry no numbers', async () => {
+    getConfig.mockReset();
+    getConfig.mockResolvedValueOnce({ weights: null }).mockResolvedValueOnce(PANEL_CONFIG);
+    mockDynamoSend.mockResolvedValue({ Item: SAGA, Items: [], Attributes: { votesSubmitted: 1 } });
+    const res = await handler({ detail: { ...validEvent.detail, rating: 'YES' } });
+
+    expect(res.statusCode).toBe(200);
+    const vote = mockDynamoSend.mock.calls.map((c) => c[0]).find((c) => c._cmd === 'PutItem');
+    expect(vote.Item.weightedScore).toBeNull();
   });
 });
 
@@ -312,6 +314,33 @@ describe('handler – SAGA not found', () => {
 // =============================================================================
 // 10.  SAGA missing configVersion → 400
 // =============================================================================
+// A call through the API names the candidate in the path; the body need not repeat it (TEN-04 walk).
+describe('handler – candidate named in the path', () => {
+  const apiEvent = (pathId, body) => ({
+    requestContext: { authorizer: { jwt: { claims: { tenant_id: TEN, token_use: 'id', sub: 'u1' } } } },
+    pathParameters: { id: pathId },
+    body: JSON.stringify(body),
+  });
+  const bodyNoCandidate = { voterId: 'voter1', rating: 'YES', scores: SCORES };
+
+  it('answers 404 for another company\'s candidate when the body has no candidateId, and writes nothing', async () => {
+    mockDynamoSend.mockResolvedValueOnce({ Item: { ...SAGA, tenant_id: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' } });
+    getConfig.mockResolvedValue(WEIGHTS);
+
+    const res = await handler(apiEvent('cand1', bodyNoCandidate));
+    expect(res.statusCode).toBe(404);
+    expect(mockDynamoSend).toHaveBeenCalledTimes(1);
+    expect(mockDynamoSend.mock.calls[0][0].Key).toEqual({ PK: 'CANDIDATE#cand1', SK: 'SAGA' });
+    expect(mockEbSend).not.toHaveBeenCalled();
+  });
+
+  it('refuses a body that names another candidate than the path (REC-01), and reads nothing', async () => {
+    const res = await handler(apiEvent('cand-from-path', { ...bodyNoCandidate, candidateId: 'cand-from-body' }));
+    expect(res.statusCode).toBe(400);
+    expect(mockDynamoSend).not.toHaveBeenCalled();
+  });
+});
+
 describe('handler – SAGA missing configVersion', () => {
   it('returns 400 when configVersion is absent from SAGA', async () => {
     const sagaNoVer = { ...SAGA, configVersion: undefined };
@@ -528,5 +557,68 @@ describe('handler – duplicate vote on the same interview', () => {
     const dupQuery = mockDynamoSend.mock.calls[1][0];
     expect(dupQuery.ExpressionAttributeValues).toMatchObject({ ':votePrefix': 'VOTE#voter1#', ':iid': 'int1' });
     expect(mockEbSend).not.toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// 20.  REC-01: a person votes as themselves, and only on an interview whose panel they are on
+// =============================================================================
+// MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
+jest.unstable_mockModule('../shared/modules.mjs', () => ({
+  MODULE_KEYS: ['onboarding', 'recruitment'],
+  modulesOf: async () => ['onboarding', 'recruitment'],
+  requireModule: async () => null,
+}));
+
+describe('handler – a person calling the API (REC-01)', () => {
+  const INTERVIEW = { PK: 'CANDIDATE#cand1', SK: 'INTERVIEW#int1', tenant_id: TEN, panelMemberIds: ['p-1'], votesRequired: 3 };
+  const apiEvent = (sub, body = {}) => ({
+    requestContext: { authorizer: { jwt: { claims: { sub, tenant_id: TEN, token_use: 'id' } } } },
+    pathParameters: { id: 'cand1' },
+    body: JSON.stringify({ candidateId: 'cand1', interviewId: 'int1', rating: 'YES', scores: SCORES, ...body }),
+  });
+  const stored = () => mockDynamoSend.mock.calls.map((c) => c[0]).filter((c) => c._cmd === 'PutItem');
+
+  beforeEach(() => {
+    getConfig.mockResolvedValue(WEIGHTS);
+    mockDynamoSend.mockImplementation(async (cmd) => {
+      if (cmd._cmd === 'GetItem') {
+        if (cmd.Key?.SK === 'SAGA') return { Item: SAGA };
+        if (cmd.Key?.SK === 'INTERVIEW#int1') return { Item: INTERVIEW };
+        return {};
+      }
+      if (cmd._cmd === 'Query') return { Items: [] };
+      if (cmd._cmd === 'UpdateItem') return { Attributes: { votesSubmitted: 1, votesRequired: 3 } };
+      return {};
+    });
+  });
+
+  it('stores the vote under the signed-in person, not the voterId in the body', async () => {
+    const res = await handler(apiEvent('p-1', { voterId: 'someone-else', staffId: 'STAFF-1' }));
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).voterId).toBe('p-1');
+    expect(stored()).toHaveLength(1);
+    expect(stored()[0].Item.voterId).toBe('p-1');
+    expect(stored()[0].Item.SK).toMatch(/^VOTE#p-1#/);
+  });
+
+  it('refuses a person who is not on the panel (403 Forbidden) and writes nothing', async () => {
+    const res = await handler(apiEvent('p-2', { voterId: 'p-1' }));
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Forbidden' });
+    expect(stored()).toHaveLength(0);
+  });
+
+  it('refuses a vote with no interview, or an interview of another candidate (403)', async () => {
+    expect((await handler(apiEvent('p-1', { interviewId: undefined }))).statusCode).toBe(403);
+    expect((await handler(apiEvent('p-1', { interviewId: 'int-other' }))).statusCode).toBe(403);
+    expect(stored()).toHaveLength(0);
+  });
+
+  it('refuses a sign-in that carries no person id (403)', async () => {
+    const e = apiEvent('p-1');
+    delete e.requestContext.authorizer.jwt.claims.sub;
+    expect((await handler(e)).statusCode).toBe(403);
+    expect(stored()).toHaveLength(0);
   });
 });

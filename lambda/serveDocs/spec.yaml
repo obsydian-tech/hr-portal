@@ -66,7 +66,7 @@ components:
           type: string
         last_name:
           type: string
-          example: Dlamini
+          example: Doe
         email:
           type: string
           format: email
@@ -201,7 +201,7 @@ components:
           example: EMP-0000014
         employee_name:
           type: string
-          example: Sarah Dlamini
+          example: Jane Smith
         document_type:
           type: string
           enum: [NATIONAL_ID, BANK_CONFIRMATION, QUALIFICATION]
@@ -1165,7 +1165,7 @@ paths:
         - WhatsApp / chatbot channels
         - Future mobile app views
 
-        No PII is sent to the model. Response time is typically 2-5 s.
+        Numbers of six or more digits are removed from the text before it is sent to the model. Response time is typically 2-5 s.
       parameters:
         - name: id
           in: path

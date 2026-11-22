@@ -1,19 +1,18 @@
 /**
- * NH-47: Naleko MCP Server
+ * NH-47 / ONB-22: Naleko MCP Server
  *
- * Exposes 7 tools to AI agents via the Model Context Protocol:
- *   6 direct wrappers of the naleko-agent-api endpoints (from api/agent-tools.json)
- *   1 composite tool (onboard_new_employee) that chains createEmployee + assessRisk
+ * Exposes 8 tools to AI agents via the Model Context Protocol. Every tool is a wrapper of one naleko-agent-api route
+ * (api/agent-tools.json is the list). The agent reads, checks and proposes; it never decides: the only write is
+ * propose_accept_document, which makes a proposal that a signed-in HR person answers on the screen.
  *
  * Transport is chosen at runtime:
  *   - Lambda (HTTP+SSE): imported by lambda-handler.mjs (StreamableHTTPServerTransport)
  *   - Local stdio:       run `node mcp/server.mjs` directly (StdioServerTransport)
  *
- * Required env vars:
- *   NALEKO_AGENT_KEY   — x-api-key for /agent/v1/* routes
- *   AGENT_API_BASE     — e.g. https://api.naleko.co.za (no trailing slash)
- *   REST_API_BASE      — e.g. https://api.naleko.co.za (no trailing slash, same host for now)
- *   NALEKO_HR_API_KEY  — API key for the standard /v1/* HR routes (used by composite tool)
+ * Settings:
+ *   AGENT_API_BASE     - e.g. https://api.naleko.co.za (no trailing slash)
+ *   NALEKO_AGENT_KEY   - local stdio only: the key to send. The Lambda reads the key from its secret on every cold start
+ *                        and again after a refusal; nothing holds it in a setting.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -21,15 +20,16 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 const AGENT_BASE = (process.env.AGENT_API_BASE ?? 'https://api.naleko.co.za').replace(/\/$/, '');
-const REST_BASE  = (process.env.REST_API_BASE  ?? 'https://api.naleko.co.za').replace(/\/$/, '');
-const AGENT_KEY  = process.env.NALEKO_AGENT_KEY  ?? '';
-const HR_KEY     = process.env.NALEKO_HR_API_KEY ?? AGENT_KEY; // fallback to agent key in dev
+
+// The key the agent API is called with. The Lambda handler sets a provider that answers the secret's current key.
+let keyProvider = async () => process.env.NALEKO_AGENT_KEY ?? '';
+export function setKeyProvider(fn) { keyProvider = fn; }
 
 // ─── Shared fetch helpers ──────────────────────────────────────────────────
 
 async function agentGet(path) {
   const res = await fetch(`${AGENT_BASE}/agent/v1${path}`, {
-    headers: { 'x-api-key': AGENT_KEY },
+    headers: { 'x-api-key': await keyProvider() },
   });
   if (!res.ok) throw new Error(`Agent API ${res.status}: ${await res.text()}`);
   return res.json();
@@ -39,27 +39,13 @@ async function agentPost(path, body = {}) {
   const res = await fetch(`${AGENT_BASE}/agent/v1${path}`, {
     method: 'POST',
     headers: {
-      'x-api-key': AGENT_KEY,
+      'x-api-key': await keyProvider(),
       'Content-Type': 'application/json',
       'Idempotency-Key': crypto.randomUUID(),
     },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Agent API ${res.status}: ${await res.text()}`);
-  return res.json();
-}
-
-async function restPost(path, body = {}) {
-  const res = await fetch(`${REST_BASE}/v1${path}`, {
-    method: 'POST',
-    headers: {
-      'x-api-key': HR_KEY,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': crypto.randomUUID(),
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`REST API ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
@@ -92,7 +78,7 @@ server.tool(
 // ── Tool 2: get_employee ─────────────────────────────────────────────────
 server.tool(
   'get_employee',
-  'Retrieve a single employee record by UUID. Returns profile fields and current risk_band.',
+  'Retrieve a single employee record by UUID. Returns profile fields, the onboarding step (Invited, Documents, In review or Verified) and the current risk_band.',
   {
     id: z.string().uuid().describe('employee_id (UUID)'),
   },
@@ -102,14 +88,16 @@ server.tool(
 // ── Tool 3: list_verifications ───────────────────────────────────────────
 server.tool(
   'list_verifications',
-  'List document verification records. Optionally filter by status (PENDING, PASSED, FAILED, MANUAL_REVIEW).',
+  'List document verification records. With waiting=true: the documents still waiting for HR to decide, each with its check (Reading, Matches, Needs a look, Doesn\'t match). Optionally filter by status (PENDING, PROCESSING, PASSED, FAILED, MANUAL_REVIEW).',
   {
-    status: z.enum(['PENDING', 'PASSED', 'FAILED', 'MANUAL_REVIEW']).optional().describe('Filter by verification status'),
-    limit:  z.number().int().min(1).max(100).default(20).describe('Max results (default 20)'),
+    status:  z.enum(['PENDING', 'PROCESSING', 'PASSED', 'FAILED', 'MANUAL_REVIEW']).optional().describe('Filter by verification status'),
+    waiting: z.boolean().optional().describe('Only the documents waiting for HR to decide'),
+    limit:   z.number().int().min(1).max(100).default(20).describe('Max results (default 20)'),
   },
-  async ({ status, limit }) => {
+  async ({ status, waiting, limit }) => {
     const qs = new URLSearchParams({ limit: String(limit) });
     if (status) qs.set('status', status);
+    if (waiting) qs.set('waiting', 'true');
     return ok(await agentGet(`/verifications?${qs}`));
   },
 );
@@ -117,7 +105,7 @@ server.tool(
 // ── Tool 4: get_verification_summary ────────────────────────────────────
 server.tool(
   'get_verification_summary',
-  'Get a Bedrock-generated plain-English summary of a document verification. Useful for human-readable status reports.',
+  'Get a plain-English summary of a document verification. Useful for human-readable status reports.',
   {
     id: z.string().uuid().describe('verification_id (UUID)'),
   },
@@ -127,7 +115,7 @@ server.tool(
 // ── Tool 5: assess_employee_risk ─────────────────────────────────────────
 server.tool(
   'assess_employee_risk',
-  'Run Bedrock risk classification on an employee\'s document verifications. Returns risk_band (LOW | MEDIUM | HIGH) and a plain-English reason.',
+  'Run the risk check on an employee\'s document verifications. Returns risk_band (LOW | MEDIUM | HIGH) and a plain-English reason.',
   {
     id: z.string().uuid().describe('employee_id (UUID)'),
   },
@@ -137,7 +125,7 @@ server.tool(
 // ── Tool 6: query_audit_log ──────────────────────────────────────────────
 server.tool(
   'query_audit_log',
-  'Query the immutable POPIA-compliant audit log. Filter by employeeId and/or ISO 8601 date range. Returns events with actor (AGENT|HUMAN) tagging.',
+  'Query the audit log. Filter by employeeId and/or ISO 8601 date range. Returns events with their type and who did it (AGENT|HUMAN).',
   {
     employeeId: z.string().uuid().optional().describe('Filter to a specific employee'),
     startDate:  z.string().optional().describe('ISO 8601 lower bound (e.g. 2026-01-01T00:00:00Z)'),
@@ -153,40 +141,24 @@ server.tool(
   },
 );
 
-// ── Tool 7: onboard_new_employee (composite) ──────────────────────────────
+// ── Tool 7: propose_accept_document ──────────────────────────────────────
 server.tool(
-  'onboard_new_employee',
-  'Composite tool: creates a new employee via the HR REST API, then immediately runs Bedrock risk classification. Returns {employee, riskAssessment}. Use this single tool to fully onboard and assess a new hire in one step.',
+  'propose_accept_document',
+  'Propose Accept document for one document that is waiting for HR and whose check is Matches. Only proposes. A person decides.',
   {
-    email:       z.string().email().describe('Work email address of the new employee'),
-    firstName:   z.string().describe('First name'),
-    lastName:    z.string().describe('Last name'),
-    department:  z.string().describe('Department name'),
-    role:        z.string().describe('Job title / role'),
-    phoneNumber: z.string().optional().describe('Mobile number (optional, for WhatsApp onboarding)'),
+    document_id: z.string().min(1).max(200).describe('document_id of the waiting document'),
   },
-  async ({ email, firstName, lastName, department, role, phoneNumber }) => {
-    // Step 1 — create the employee via the agent API (POST /agent/v1/employees)
-    const employee = await agentPost('/employees', {
-      first_name: firstName,
-      last_name:  lastName,
-      email,
-      phone:      phoneNumber ?? '',
-      department,
-      job_title:  role,
-    });
+  async ({ document_id }) => ok(await agentPost('/proposals', { type: 'ACCEPT_DOCUMENT', document_id })),
+);
 
-    // Step 2 — immediately assess risk via the agent API
-    let riskAssessment = null;
-    try {
-      riskAssessment = await agentPost(`/employees/${employee.employee_id}/assess-risk`);
-    } catch (err) {
-      // Risk assessment is non-fatal — employee was created successfully
-      riskAssessment = { error: err.message, note: 'Employee created but risk assessment failed' };
-    }
-
-    return ok({ employee, riskAssessment });
+// ── Tool 8: get_proposal_status ──────────────────────────────────────────
+server.tool(
+  'get_proposal_status',
+  'Read where one proposal this agent made stands: waiting for HR, approved (and whether it ran), or declined.',
+  {
+    action_id: z.string().min(1).max(200).describe('action_id the proposal answered with'),
   },
+  async ({ action_id }) => ok(await agentGet(`/actions/${encodeURIComponent(action_id)}`)),
 );
 
 // ─── stdio transport (local dev / Claude Desktop) ────────────────────────────

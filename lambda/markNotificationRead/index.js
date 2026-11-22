@@ -39,7 +39,7 @@ exports.handler = async (event) => {
   const moduleOff = await requireModule(event, 'recruitment');
   if (moduleOff) return moduleOff;
 
-  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+  const userId = T.userIdOf(event);
   if (!userId) return response(401, { error: 'Unauthorized' });
 
   const notifSk = event.pathParameters?.id;

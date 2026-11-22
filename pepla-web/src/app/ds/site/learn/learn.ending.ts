@@ -27,7 +27,7 @@ export class PpSiteLearnStrip {
 <div class="pp-site-wrap"><h2 class="pp-site-related__title" [ppSiteReveal]="0" [id]="titleId()">Works together with</h2>
 <ul class="pp-site-related__list">@for (t of tiles(); track t.title; let i = $index) {<li><a ppSiteLearnLink class="pp-site-tile" [ppSiteReveal]="i + 1" [attr.href]="t.href"><span class="pp-site-tile__icon" aria-hidden="true"><span class="pp-site-tile__glyph"><svg [ppIcon]="t.icon" /></span><span class="pp-site-tile__glyph pp-site-tile__glyph--on"><svg [ppIcon]="t.icon" /></span></span>
 <h3 class="pp-site-tile__title">{{ t.title }}</h3>
-<p class="pp-site-tile__text">{{ t.text }}</p>
+@if (t.text) {<p class="pp-site-tile__text">{{ t.text }}</p>}
 <span class="pp-site-tile__more">Learn more<svg ppIcon="arrow-right" /></span></a></li>}</ul>
 </div>
   `,

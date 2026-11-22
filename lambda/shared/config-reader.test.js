@@ -190,9 +190,8 @@ describe('error handling', () => {
 
     // First call — DynamoDB throws, should return defaults
     const first = await getConfig('T3', 'PANEL_CONFIG', 'v1');
-    expect(first).toEqual({
-      rules: { strongNoVeto: true, votesRequired: { JUNIOR: 2, MID: 3, SENIOR: 4, DIRECTOR: 5 } }
-    });
+    // REC-12: the old fixed rules are gone, so a company with no stored setting gets an empty one
+    expect(first).toEqual({});
 
     // Second call — DynamoDB succeeds this time (error was NOT cached)
     const second = await getConfig('T3', 'PANEL_CONFIG', 'v1');

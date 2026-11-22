@@ -478,3 +478,19 @@ resource "aws_iam_role_policy" "get_candidate_events_modules_read" {
     }]
   })
 }
+
+# Walk fix: getCandidateEvents reads the candidate's SAGA row (a Query by key on the state table) to prove the candidate is the caller's company. Without it the handler answers 404 for every non-recruiter. KMS for this table is already on the role.
+resource "aws_iam_role_policy" "get_candidate_events_state_read" {
+  name = "walk-state-read-get-candidate-events"
+  role = aws_iam_role.get_candidate_events.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCandidateSaga"
+      Effect   = "Allow"
+      Action   = ["dynamodb:Query"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/talent-flow-state"]
+    }]
+  })
+}

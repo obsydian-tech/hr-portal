@@ -1,0 +1,62 @@
+# Iggie's standing rules about how work appears on GitHub, checked on every pull
+# request instead of by reading each one back by hand: every commit authored and
+# committed by Ignecious, no attribution text in commits or in the pull request
+# description, no banned branch name, no notes file for the tool.
+#
+# Runs on pull_request_target so the rules come from the target branch, not from
+# the PR: a PR that edits scripts/ci/check-rule-slips.py (or this file) is judged
+# by the copy already on develop. The pull request's own commits are fetched into
+# a separate folder and only read as git history. Nothing from the PR is run.
+#
+# REPORT ONLY at first: it writes what it found on the run page and never fails
+# the PR. After three days with no false alarm, change RULE_SLIPS_MODE to
+# "enforce" in a second small PR. It is not one of the required checks (the list
+# of required checks is a repository setting, not this file).
+name: Rule slips
+
+on:
+  pull_request_target:
+    branches: [develop, main]
+    # "edited" so that stripping a footer from the description re-runs the check.
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rule-slips-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  RULE_SLIPS_MODE: report
+
+jobs:
+  rule-slips:
+    name: Rule slips
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The target branch (the default for pull_request_target): the script and its word list.
+      - name: Checkout the rules from the target branch
+        uses: actions/checkout@v4
+        with:
+          path: rules
+          persist-credentials: false
+
+      # The pull request's commits, read only as history.
+      - name: Checkout the pull request's history
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch the target branch tip
+        working-directory: pr
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: git fetch --quiet origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+
+      - name: Check commits and description
+        run: python3 -I -B rules/scripts/ci/check-rule-slips.py --repo pr --event "$GITHUB_EVENT_PATH"

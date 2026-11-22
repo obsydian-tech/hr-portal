@@ -107,7 +107,6 @@ export class PpSiteLandModules {
       else { ci--; this.ask.set(q.slice(0, ci)); if (ci === 0) { del = false; qi = (qi + 1) % qs.length; } }
       this.clock.at(del ? 22 : 48, tick);
     };
-    if (this.clock.reduce) { this.ask.set(qs[0]); return; }
     tick();
   }
 }

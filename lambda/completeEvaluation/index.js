@@ -7,27 +7,21 @@
  * Trigger: EventBridge talent-flow.workflow / VotingCompleted
  *          (deployed rule: talent-flow-voting-completed → completeEvaluation)
  *
- * Implementation spec (6 steps):
- *   1.  Extract candidateId, tenantId, averageScore, result from event.detail
- *   2.  If result === 'STRONG_NO_VETO': skip scoring → outcome=FAILED
- *   3.  GetItem SAGA → extract configVersion
- *   4.  getConfig(tenantId, 'APPROVAL_RULES', configVersion) — VERSIONED (invariant #2)
- *   5.  averageScore >= config.minimumPassScore (default 6.0) → PASSED else FAILED
- *   6.  UpdateItem SAGA (scores + result only — stage stays at EVALUATION)
+ * REC-02: scores never decide. This Lambda records the final score on the candidate row as data and, when the candidate's
+ * REJECTION_RULES set reviewBelowScore and the score is below it, sets score_under_review_level = true (a flag for a person).
+ * Nothing here moves a candidate or writes a status; Not hired is a person's action (lambda/recordNotHired).
  *
- * Option B design: EvaluationCompleted is published by advanceCandidateStage
- * when the TA deliberately advances EVALUATION → BACKGROUND_CHECK. This Lambda
- * only records the computed score/result; the TA decides when to act on it.
- * Exception: FAILED path still sets status=REJECTED immediately — a vote veto
- * or score below threshold requires no TA decision.
+ *   1.  Extract candidateId, tenantId, averageScore from event.detail
+ *   2.  GetItem SAGA (must be the event's company)
+ *   3.  Read REJECTION_RULES (the version locked to the candidate)
+ *   4.  UpdateItem SAGA: finalScore, evaluationCompletedAt, configVersionUsedForEval (+ the flag when below reviewBelowScore)
  *
  * Notification: EventBridge Rule 5 routes EvaluationCompleted →
  *   sendTalentFlowNotification automatically. No direct SQS send from this
  *   Lambda — avoids double notification and respects invariant #5 & #6.
  *
- * Compliance invariant #2 (non-negotiable):
- *   getConfig MUST use candidate.configVersion — NEVER active version.
- *   Pass threshold decisions are POPIA-auditable and must be version-locked.
+ * Compliance invariant #2 (non-negotiable): the setting is read at the version locked to the candidate
+ *   (getRecruitmentSettings), never the active version.
  */
 
 const {
@@ -36,14 +30,11 @@ const {
   UpdateItemCommand,
 } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
-const { getConfig } = require('../shared/config-reader');
 const { tenantHelper, scopeWrite, eventTenant } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 
 const STATE_TABLE = process.env.STATE_TABLE_NAME;
-
-const DEFAULT_MINIMUM_PASS_SCORE = 6.0;
 
 // ── Response helpers ──────────────────────────────────────────────────────────
 const ok          = (body) => ({ statusCode: 200, body: JSON.stringify(body) });
@@ -69,9 +60,6 @@ exports.handler = async (event) => {
   if (!candidateId) return badRequest('Missing required field: candidateId');
   if (!result)      return badRequest('Missing required field: result');
 
-  // ── Step 2: STRONG_NO_VETO fast-path ─────────────────────────────────────
-  const isVeto = result === 'STRONG_NO_VETO';
-
   // ── Step 3: Get SAGA → configVersion ─────────────────────────────────────
   let saga;
   try {
@@ -95,76 +83,31 @@ exports.handler = async (event) => {
     return badRequest(`SAGA record for candidate ${candidateId} has no configVersion`);
   }
 
-  // ── Steps 4 & 5: Versioned config read + threshold comparison ─────────────
-  let outcome;
-
-  if (isVeto) {
-    outcome = 'FAILED';
-  } else {
-    // averageScore must be present for non-veto path
-    if (averageScore == null) {
-      return badRequest('Missing required field: averageScore (required when result is not STRONG_NO_VETO)');
-    }
-
-    let approvalRules;
-    try {
-      approvalRules = await getConfig(tenantId, 'APPROVAL_RULES', configVersion);
-    } catch (err) {
-      console.error('Failed to read APPROVAL_RULES', { tenantId, configVersion, error: err.message });
-      return serverError('Failed to read approval configuration');
-    }
-
-    const minimumPassScore = (approvalRules && approvalRules.minimumPassScore != null)
-      ? approvalRules.minimumPassScore
-      : DEFAULT_MINIMUM_PASS_SCORE;
-
-    outcome = averageScore >= minimumPassScore ? 'PASSED' : 'FAILED';
-
-    console.info('Threshold comparison', {
-      candidateId, averageScore, minimumPassScore, configVersion, outcome,
-    });
+  // ── Step 4: the score is data; a score under the company's reviewBelowScore raises a flag ─────────────
+  // averageScore is empty when no vote carried a score (the Standard pack has no weights yet; REC-07 rebuilds the maths).
+  const finalScore = Number.isFinite(averageScore) ? averageScore : null;
+  const { getRecruitmentSettings, DEFAULTS } = await import('../shared/recruitment-settings.mjs');
+  let rules;
+  try {
+    const settings = await getRecruitmentSettings(tenantId, saga);
+    rules = settings.REJECTION_RULES ?? DEFAULTS.REJECTION_RULES;
+  } catch (err) {
+    console.error('Failed to read REJECTION_RULES', { tenantId, error: err.name });
+    return serverError('Failed to read rejection settings');
   }
-
-  // ── Step 6a: UpdateItem SAGA (scores + result only; stage unchanged) ─────
-  // PASSED: stage stays at EVALUATION — TA advances via advanceCandidateStage.
-  // FAILED: status=REJECTED — vote quorum decided; no TA action needed.
+  const flagged = rules.reviewBelowScore != null && finalScore != null && finalScore < rules.reviewBelowScore;
   const now = new Date().toISOString();
 
-  const updateExpression = outcome === 'PASSED'
-    ? 'SET evaluationResult = :res, finalScore = :fs, evaluationCompletedAt = :at, configVersionUsedForEval = :cv'
-    : 'SET evaluationResult = :res, finalScore = :fs, evaluationCompletedAt = :at, #st = :rejected, configVersionUsedForEval = :cv';
-
-  const expressionAttributeValues = outcome === 'PASSED'
-    ? {
-        ':res': outcome,
-        ':fs':  averageScore ?? null,
-        ':at':  now,
-        ':cv':  configVersion,
-      }
-    : {
-        ':res':      outcome,
-        ':fs':       averageScore ?? null,
-        ':at':       now,
-        ':rejected': 'REJECTED',
-        ':cv':       configVersion,
-      };
-
-  const expressionAttributeNames = outcome === 'FAILED' ? { '#st': 'status' } : undefined;
-
   try {
-    const updateParams = {
+    await dynamo.send(new UpdateItemCommand(scopeWrite({
       TableName: STATE_TABLE,
       Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-      UpdateExpression: updateExpression,
-      ExpressionAttributeValues: marshall(expressionAttributeValues),
-    };
-    if (expressionAttributeNames) {
-      updateParams.ExpressionAttributeNames = expressionAttributeNames;
-    }
-    await dynamo.send(new UpdateItemCommand(scopeWrite(updateParams, tenantId)));
+      UpdateExpression: 'SET finalScore = :fs, evaluationCompletedAt = :at, configVersionUsedForEval = :cv' + (flagged ? ', score_under_review_level = :flag' : ''),
+      ExpressionAttributeValues: marshall({ ':fs': finalScore, ':at': now, ':cv': configVersion, ...(flagged ? { ':flag': true } : {}) }),
+    }, tenantId)));
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') return T.notFound();
-    console.error('Failed to update SAGA record', { candidateId, outcome, error: err.message });
+    console.error('Failed to update SAGA record', { candidateId, error: err.name });
     return serverError('Failed to update candidate evaluation record');
   }
 
@@ -189,7 +132,7 @@ exports.handler = async (event) => {
     }
   }
 
-  console.info('Evaluation scores recorded', { candidateId, outcome, configVersion, finalScore: averageScore ?? null });
+  console.info('Evaluation scores recorded', { candidateId, configVersion, finalScore, flagged });
 
-  return ok({ candidateId, outcome, finalScore: averageScore ?? null, configVersion });
+  return ok({ candidateId, finalScore, configVersion, flagged });
 };

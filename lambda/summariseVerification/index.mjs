@@ -1,8 +1,10 @@
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import { guardAi, isRobotCaller, markRobot } from '../shared/ai-guard.mjs';
+import { guardAi, isRobotCaller, isRobotEmail, markRobot } from '../shared/ai-guard.mjs';
 import { hrOrAgent } from '../shared/hr-group.mjs';
 import { requireTenant, ownsItem, notFound } from '../shared/tenant.mjs';
+import { redactNumbers, hasNumberRun } from '../shared/pii-redact.mjs';
+import { DOCUMENT_TYPES } from '../shared/upload-link.mjs';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 
@@ -16,8 +18,44 @@ const VERIFICATIONS_TABLE = process.env.VERIFICATIONS_TABLE ?? 'document-verific
 const MODEL_ID            = process.env.BEDROCK_MODEL_ID    ?? 'anthropic.claude-3-haiku-20240307-v1:0';
 const MAX_OCR_CHARS       = 2000;
 
-// PII field names we explicitly exclude from the prompt — never sent to Bedrock
-const PII_FIELDS = new Set(['idNumber', 'id_number', 'passportNumber', 'taxNumber', 'dateOfBirth']);
+// PII-01: these two types are mostly numbers, so no OCR text is sent for them at all.
+const NO_TEXT_TYPES = new Set(['NATIONAL_ID', 'BANK_CONFIRMATION']);
+const NO_TEXT_LINE  = 'Not included for this document type.';
+const STATUSES      = ['PASSED', 'FAILED', 'MANUAL_REVIEW', 'PENDING'];
+
+const REFUSED_BODY = { error: 'AI summary service unavailable — try again shortly' };
+
+/** Only fixed words or a clamped number go in from the row; free text goes through the redactor. Throws on trouble. */
+function buildPrompt(item) {
+  const documentType       = DOCUMENT_TYPES.includes(item.documentType?.S) ? item.documentType.S : 'OTHER';
+  const verificationStatus = STATUSES.includes(item.status?.S) ? item.status.S : 'PENDING';
+  const confidence         = Number(item.ocrConfidence?.N);
+  const ocrConfidence      = Number.isFinite(confidence) ? Math.round(Math.min(100, Math.max(0, confidence))) : 'N/A';
+  const reviewNotes        = redactNumbers(item.reviewNotes?.S ?? '');
+
+  // Redact first, then cut, so a cut cannot leave half a number.
+  const ocrSnippet = NO_TEXT_TYPES.has(documentType)
+    ? NO_TEXT_LINE
+    : redactNumbers(item.ocrText?.S ?? '').slice(0, MAX_OCR_CHARS);
+
+  const prompt = `Summarise this document verification in 3 sentences for an HR manager.
+Be professional and factual. Do not invent information not present in the data below.
+
+Document type:         ${documentType}
+Verification status:   ${verificationStatus}
+OCR confidence score:  ${ocrConfidence}%
+Review notes:          ${reviewNotes || 'None'}
+OCR text excerpt:
+${ocrSnippet}`;
+
+  // Last check on the whole finished prompt.
+  if (hasNumberRun(prompt)) {
+    const e = new Error('number left in prompt');
+    e.name = 'PiiRefused';
+    throw e;
+  }
+  return prompt;
+}
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
@@ -88,28 +126,33 @@ const handlerFn = async (event) => {
     return { ...notFound(), headers: CORS_HEADERS };
   }
 
-  // ── 2. Build prompt — no raw PII fields sent to Bedrock ───────────────────
-  const documentType       = item.documentType?.S        ?? 'Unknown';
-  const verificationStatus = item.status?.S              ?? 'Unknown';
-  const ocrConfidence      = item.ocrConfidence?.N       ?? 'N/A';
-  const reviewNotes        = item.reviewNotes?.S         ?? '';
+  // ONB-22: the person the document is about decides, as in classifyOnboardingRisk: a test person, or one with no
+  // email on record, never reaches the model, whoever asks (the agent has no claims to look at).
+  try {
+    const emp = await dynamo.send(new GetItemCommand({
+      TableName: 'employees',
+      Key: { employee_id: { S: item.employeeId?.S ?? '' } },
+      ProjectionExpression: 'email, tenant_id',
+    }));
+    // An employee row that is there decides: no email on record, another company's row, or a test address fails closed. No row at all
+    // (an orphan; the PII-01 acceptance rows have none) is left to the other guards.
+    if (emp.Item) {
+      const email = ownsItem(emp.Item, tenantId) ? emp.Item.email?.S : undefined;
+      if (!email || isRobotEmail(email)) markRobot(true);
+    }
+  } catch (err) {
+    logger.error('Employee lookup failed', { errorName: err?.name ?? 'Error', verificationId });
+    markRobot(true);
+  }
 
-  // Truncate OCR text; strip any accidental PII field labels
-  const rawOcr = item.ocrText?.S ?? '';
-  const ocrSnippet = rawOcr
-    .replace(/\b(\d{13})\b/g, '[ID_REDACTED]')        // SA 13-digit ID numbers
-    .replace(/\b([A-Z]{2}\d{6,9})\b/g, '[PASS_REDACTED]') // passport-like patterns
-    .slice(0, MAX_OCR_CHARS);
-
-  const prompt = `Summarise this document verification in 3 sentences for an HR manager.
-Be professional and factual. Do not invent information not present in the data below.
-
-Document type:         ${documentType}
-Verification status:   ${verificationStatus}
-OCR confidence score:  ${ocrConfidence}%
-Review notes:          ${reviewNotes || 'None'}
-OCR text excerpt:
-${ocrSnippet}`;
+  // ── 2. Build prompt — fixed words, redacted free text, last check; any failure means no model call ─────
+  let prompt;
+  try {
+    prompt = buildPrompt(item);
+  } catch (err) {
+    logger.error('Prompt refused', { errorName: err?.name ?? 'Error', verificationId });
+    return respond(502, REFUSED_BODY);
+  }
 
   // ── 3. Invoke Bedrock ──────────────────────────────────────────────────────
   let summary;
@@ -122,9 +165,9 @@ ${ocrSnippet}`;
       return respond(200, { verificationId, summary: err.label, aiDisabled: true,
                             generatedAt: new Date().toISOString() });
     }
-    logger.error('Bedrock invocation failed', { error: err.message, verificationId });
+    logger.error('Bedrock invocation failed', { errorName: err?.name ?? 'Error', verificationId });
     tracer.putAnnotation('bedrockSuccess', false);
-    return respond(502, { error: 'AI summary service unavailable — try again shortly' });
+    return respond(502, REFUSED_BODY);
   }
 
   return respond(200, {

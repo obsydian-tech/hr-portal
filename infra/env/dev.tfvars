@@ -22,3 +22,12 @@ founding_tenant_id = "ten_hyyt49drh9efwb79h2a0cjee0s"
 # TEN-02 step 1: rows written before TEN-02 belong to the dev first company until the backfill stamps them.
 # Step 2 (a later PR) sets this to "" once the dev backfill check passes.
 legacy_tenant_id = "ten_hyyt49drh9efwb79h2a0cjee0s"
+
+# TEN-06: the TalentFlow pool people move from, and its server-only migration client (output cognito_migration_client_id of
+# talent-flow-infra). Empty until that stack is applied on pepla-dev: userMigration then refuses every call, so nobody is
+# moved and nobody is locked out. A person with AWS access fills both in after the apply.
+talent_flow_user_pool_id     = ""
+talent_flow_server_client_id = ""
+
+# ONB-21: every seeded person on pepla-dev is a test login, so the daily reminder sends nothing real here.
+document_reminders_enabled = true

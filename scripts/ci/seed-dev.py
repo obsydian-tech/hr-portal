@@ -26,6 +26,9 @@ What it makes, every run, idempotently:
     for B). Only that login belongs to B; every other test login stays in the first company.
   * TEN-01: the first company's row (TENANT#<id> / PROFILE) in the tenants table,
     written once and never changed after. The id comes from infra/env/dev.tfvars.
+  * REC-01: two more Naleko-pool logins of the first company, a manager (group manager, no tick) and an HR login
+    without the Recruitment tick (group hr_staff only); two candidates in talent-flow-state, the manager as hiring
+    manager of one and not of the other; and an interview of the first with the employee login on its panel.
 Output is role names and counts only: the repo and its Actions logs are public.
 """
 import json
@@ -76,9 +79,46 @@ NALEKO_PERSONAS = {
         "attrs": {"given_name": "Lindo", "family_name": "Demo-IT"},
         "groups": ["naleko-it-provisioning", "perm-it"],
     },
+    # TEN-04: the company walk. tf holds every TalentFlow role and tick in company A. The walk's "company B" callers
+    # (hr-c, tf-b, it-b) belong to the THIRD company (WALK_TENANT_ID), which has Onboarding and Recruitment switched
+    # on: company B has only Onboarding, so on B every Recruitment route would answer 403 (module off) instead of the
+    # 404 the walk looks for. MOD-01 AC-10 keeps using company B (hr-b) unchanged. Each caller holds the roles, so a
+    # 404 proves the row is hidden, not that a role is missing. victim is a company A user nobody signs in as: the
+    # admin user routes need one to aim at. The test reads hr-c as E2E_HR_B (see app-e2e-dev.yml).
+    "hr-c": {
+        "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRC1",
+                  "given_name": "Cebo", "family_name": "Companyb-Walk"},
+        "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
+    },
+    "tf": {
+        "attrs": {"given_name": "Tessa", "family_name": "Demo-TF"},
+        "groups": ["admin", "manager", "perm-recruitment", "perm-it", "perm-approve-offers"],
+    },
+    "tf-b": {
+        "attrs": {"given_name": "Zola", "family_name": "Companyb-TF"},
+        "groups": ["admin", "manager", "perm-recruitment", "perm-it", "perm-approve-offers"],
+    },
+    "it-b": {
+        "attrs": {"given_name": "Zinhle", "family_name": "Companyb-IT"},
+        "groups": ["naleko-it-provisioning", "perm-it"],
+    },
+    "victim": {
+        "attrs": {"given_name": "Vic", "family_name": "Demo-Victim"},
+        "groups": ["guest"],
+    },
     "guest": {
         "attrs": {"given_name": "Nandi", "family_name": "Demo-Guest"},
         "groups": ["guest"],
+    },
+    # REC-01: a manager (hiring manager of one seeded candidate) and HR without the Recruitment tick.
+    "manager": {
+        "attrs": {"given_name": "Mpho", "family_name": "Demo-Manager"},
+        "groups": ["manager"],
+    },
+    "hr-notick": {
+        "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRN1",
+                  "given_name": "Hlengiwe", "family_name": "Demo-NoTick"},
+        "groups": ["hr_staff"],
     },
     "employee": {
         "attrs": {"custom:role": "employee", "custom:employee_id": EMPLOYEE_ID,
@@ -101,6 +141,10 @@ DEMO_PEOPLE = [
     ("Kagiso", "Nkosi", "Sales", "Store Manager", "ACTIVE"),
     ("Mwila", "Phiri", "Operations", "Driver", "INVITED"),
 ]
+
+# ONB-10: Pieter's documents were due on 3 Nov 2026, so he is always overdue; Mwila starts in 2030, so he never is.
+# Everyone else, and the test employee, start on 1 Dec 2026.
+START_DATES = {("Pieter", "van Wyk"): "2026-11-10", ("Mwila", "Phiri"): "2030-01-01"}
 
 # ONB-09: the stored onboarding step of each current stage. Chipo (TRAINING) and Ayesha (ONBOARDED)
 # get none on purpose: pepla-dev keeps two rows like the prod ones, and the API answers their step from
@@ -189,7 +233,8 @@ def user_sub(cognito, pool: str, role: str) -> str:
 
 
 def employee_item(employee_id: str, first: str, last: str, email: str, dept: str,
-                  title: str, stage: str, tenant_id: str = "", owner_sub: str = "") -> dict:
+                  title: str, stage: str, tenant_id: str = "", owner_sub: str = "",
+                  start_date: str = "2026-12-01") -> dict:
     item = {
         "employee_id": {"S": employee_id},
         "first_name": {"S": first},
@@ -201,7 +246,7 @@ def employee_item(employee_id: str, first: str, last: str, email: str, dept: str
         "job_title": {"S": title},
         "stage": {"S": stage},
         "offer_accept_date": {"S": "2026-11-01"},
-        "planned_start_date": {"S": "2026-12-01"},
+        "planned_start_date": {"S": start_date},
         "created_at": {"S": "2026-11-01T08:00:00.000Z"},
         "created_by": {"S": HR_STAFF_ID},
         "hr_staff_id": {"S": HR_STAFF_ID},
@@ -250,6 +295,13 @@ def reset_employee_documents(ddb, employee_id: str) -> int:
     return removed
 
 
+# ONB-14: made-up numbers so Show has something to show on dev. They fail the SA ID check digit and are zeros: never real.
+# Nothing prints them.
+MADE_UP_NUMBERS = {
+    "NATIONAL_ID": {"idNumber": {"S": "9801010000001"}, "idNumber_last4": {"S": "0001"}},
+    "BANK_CONFIRMATION": {"accountNumber": {"S": "0000000000"}},
+}
+
 # Naledi Dlamini's documents (ONB-13). (document_id, type, uploaded, ocr_status, confidence or None, decided)
 NALEDI_DOCUMENTS = [
     ("doc_1762156800000", "NATIONAL_ID", "2026-11-03T08:00:00Z", "MANUAL_REVIEW", 96, False),
@@ -289,7 +341,7 @@ def sample_pdf(title: str) -> bytes:
 
 
 def seed_documents(ddb, ns: uuid.UUID, employee_id: str, tenant_id: str = "") -> int:
-    """Replace the person's documents with the fixed set. Verification rows carry no extracted data."""
+    """Replace the person's documents with the fixed set. The ID and bank rows carry one made-up number each (ONB-14); never printed."""
     reset_employee_documents(ddb, employee_id)
     for doc_id, doc_type, uploaded, status, confidence, decided in NALEDI_DOCUMENTS:
         s3_key = sample_key(employee_id, doc_id)
@@ -321,6 +373,7 @@ def seed_documents(ddb, ns: uuid.UUID, employee_id: str, tenant_id: str = "") ->
                 "check": {"S": "MATCHES" if confidence >= 90 else "NEEDS_A_LOOK"},
                 "createdAt": {"S": uploaded},
                 "seed": {"S": SEED_TAG},
+                **MADE_UP_NUMBERS.get(doc_type, {}),
                 **({"tenant_id": {"S": tenant_id}} if tenant_id else {}),
             })
         if decided:
@@ -383,15 +436,41 @@ def ensure_second_company(ddb, hr_b_sub: str) -> int:
     return written
 
 
+# TEN-04: the third company, for the company walk only. Fixed id, so every run finds the same rows.
+WALK_TENANT_ID = "ten_c3w4lkc0mpanyc0000000000ab"
+
+
+def ensure_walk_company(ddb, member_subs: tuple) -> int:
+    """The walk company's row and a Member row for each of its logins. Each is written once; an existing row stays."""
+    written = 0
+    items = [{"pk": {"S": f"TENANT#{WALK_TENANT_ID}"}, "sk": {"S": "PROFILE"}, "tenant_id": {"S": WALK_TENANT_ID},
+              "name": {"S": "Company C (walk)"}, "status": {"S": "ACTIVE"}, "country": {"S": "ZA"},
+              "created_at": {"S": "2026-11-18T00:00:00Z"}}]
+    for sub in member_subs:
+        # An earlier version of the seed put tf-b and it-b in company B; take that membership away.
+        ddb.delete_item(TableName=TENANTS_TABLE, Key={"pk": {"S": f"USER#{sub}"}, "sk": {"S": f"TENANT#{SECOND_TENANT_ID}"}})
+        items.append({"pk": {"S": f"USER#{sub}"}, "sk": {"S": f"TENANT#{WALK_TENANT_ID}"}, "tenant_id": {"S": WALK_TENANT_ID},
+                      "created_at": {"S": "2026-11-18T00:00:00Z"}})
+    for item in items:
+        try:
+            ddb.put_item(TableName=TENANTS_TABLE, Item=item, ConditionExpression="attribute_not_exists(pk)")
+            written += 1
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+    return written
+
+
 # MOD-01: the dev companies' modules, set on every run (the founding company both, company B Onboarding only), so a
 # test that turned Recruitment on for B is put back. Only an existing Company row is changed. Prod is never seeded:
 # there the set-modules script does it, with an audit row.
-DEV_MODULES = {"founding": ["onboarding", "recruitment"], "second": ["onboarding"]}
+DEV_MODULES = {"founding": ["onboarding", "recruitment"], "second": ["onboarding"], "walk": ["onboarding", "recruitment"]}
 
 
 def set_dev_modules(ddb) -> int:
     changed = 0
-    for tid, keys in ((founding_tenant_id(), DEV_MODULES["founding"]), (SECOND_TENANT_ID, DEV_MODULES["second"])):
+    for tid, keys in ((founding_tenant_id(), DEV_MODULES["founding"]), (SECOND_TENANT_ID, DEV_MODULES["second"]),
+                      (WALK_TENANT_ID, DEV_MODULES["walk"])):
         try:
             ddb.update_item(TableName=TENANTS_TABLE, Key={"pk": {"S": f"TENANT#{tid}"}, "sk": {"S": "PROFILE"}},
                             UpdateExpression="SET #m = :m", ConditionExpression="attribute_exists(pk)",
@@ -401,6 +480,339 @@ def set_dev_modules(ddb) -> int:
             if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
                 raise
     return changed
+
+
+# REC-01: two candidates of the first company, so the access checks have something to tell apart. Fixed ids, so every run
+# finds the same rows; invented people on the blackhole domain. The manager login is the hiring manager of the first and
+# not of the second; the employee login is on the panel of the first one's interview.
+STATE_TABLE = "talent-flow-state"
+SEED_CANDIDATES = [
+    ("CAND-SEEDDEV00000000000000001", "Thabo", "Seed-One", "MANAGER"),
+    ("CAND-SEEDDEV00000000000000002", "Naomi", "Seed-Two", "OTHER"),
+]
+SEED_INTERVIEW_ID = "iv-seed-dev-0001"
+OTHER_HIRING_MANAGER = "seed-other-hiring-manager"
+
+
+def seed_candidates(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
+    """Write the two seeded candidates (and the interview with the employee login on its panel). Idempotent."""
+    if not manager_sub or not employee_sub:
+        print("warning: the manager or employee login has no sub; the seeded candidates were not written")
+        return 0
+    now = "2026-11-10T08:00:00.000Z"
+    written = 0
+    for cid, first, last, who in SEED_CANDIDATES:
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"},
+            "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+            "firstName": {"S": first}, "lastName": {"S": last},
+            "email": {"S": f"pepla-demo-{first.lower()}.{last.lower()}@{MAIL_DOMAIN}"},
+            "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": "APPLIED"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+            "hiringManagerId": {"S": manager_sub if who == "MANAGER" else OTHER_HIRING_MANAGER},
+            "seed": {"S": SEED_TAG},
+        })
+        written += 1
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"CANDIDATE#{SEED_CANDIDATES[0][0]}"}, "SK": {"S": f"INTERVIEW#{SEED_INTERVIEW_ID}"},
+        "interviewId": {"S": SEED_INTERVIEW_ID}, "candidateId": {"S": SEED_CANDIDATES[0][0]}, "tenant_id": {"S": tenant_id},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "votesRequired": {"N": "2"}, "votesSubmitted": {"N": "0"}, "panelMemberIds": {"L": [{"S": employee_sub}]},
+        "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+    })
+    return written + 1
+
+
+# REC-02: the candidate the dev test casts a Strong No on. The row, its interview and its votes are written again on every run,
+# so the panel login can vote once each time and the Strong No count starts at nothing (D-T-12). Company A, MID level, in Interview;
+# the employee login is on the panel and has not voted; the manager login is the hiring manager.
+REC02_CANDIDATE = "CAND-SEEDREC020000000000001"
+REC02_INTERVIEW = "iv-seed-rec02-0001"
+
+
+def active_config_version(ddb, tenant_id: str, config_type: str) -> str:
+    """The version of one setting the company has active (the candidate is locked to it); "1" when the company has none yet."""
+    try:
+        r = ddb.query(TableName="talent-flow-config", IndexName="GSI1-active-configs",
+                      KeyConditionExpression="GSI1PK = :pk AND GSI1SK = :sk",
+                      ExpressionAttributeValues={":pk": {"S": f"TENANT#{tenant_id}#ACTIVE"}, ":sk": {"S": f"CONFIG#{config_type}"}}, Limit=1)
+    except ddb.exceptions.ResourceNotFoundException:
+        return "1"
+    items = r.get("Items", [])
+    return items[0].get("version", {}).get("N", "1") if items else "1"
+
+
+def clear_rec02_test_candidates(ddb, tenant_id: str) -> int:
+    """Delete the candidates the REC-02 (AC-12) and REC-03 (AC-11) dev tests create each run (first name Rec, last name
+    Zero-Two or Zero-Three, email rec02.* or rec03.*) with every row they hold, so the manager test login is hiring manager
+    for one candidate again (REC-01 AC-9). Only this company's rows, only those three markers together."""
+    return sum(_clear_marked_candidates(ddb, tenant_id, last, prefix) for last, prefix in (("Zero-Two", "rec02."), ("Zero-Three", "rec03.")))
+
+
+def _clear_marked_candidates(ddb, tenant_id: str, last: str, prefix: str) -> int:
+    removed = 0
+    kwargs = {"TableName": STATE_TABLE, "IndexName": "GSI1",
+              "KeyConditionExpression": "GSI1PK = :pk AND begins_with(GSI1SK, :p)",
+              "FilterExpression": "firstName = :f AND lastName = :l AND begins_with(email, :e) AND tenant_id = :t",
+              "ExpressionAttributeValues": {":pk": {"S": f"TENANT#{tenant_id}"}, ":p": {"S": "SAGA#"}, ":f": {"S": "Rec"},
+                                            ":l": {"S": last}, ":e": {"S": prefix}, ":t": {"S": tenant_id}},
+              "ProjectionExpression": "PK"}
+    while True:
+        page = ddb.query(**kwargs)
+        for item in page.get("Items", []):
+            pk = item["PK"]
+            rows = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk",
+                             ExpressionAttributeValues={":pk": pk}, ProjectionExpression="PK, SK")
+            for row in rows.get("Items", []):
+                ddb.delete_item(TableName=STATE_TABLE, Key={"PK": row["PK"], "SK": row["SK"]})
+            removed += 1
+        if "LastEvaluatedKey" not in page:
+            return removed
+        kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+
+def seed_rec02(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
+    """Write the REC-02 vote candidate fresh: no votes, no flags, no decision. Idempotent."""
+    if not manager_sub or not employee_sub:
+        print("warning: the manager or employee login has no sub; the REC-02 candidate was not written")
+        return 0
+    removed = clear_rec02_test_candidates(ddb, tenant_id)
+    if removed:
+        print(f"cleared {removed} candidate(s) an earlier REC-02 or REC-03 dev test left behind")
+    now = "2026-11-10T08:00:00.000Z"
+    pk = f"CANDIDATE#{REC02_CANDIDATE}"
+    stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                      ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "VOTE#"}}, ProjectionExpression="PK, SK")
+    for item in stale.get("Items", []):
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": "SAGA"},
+        "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{REC02_CANDIDATE}"},
+        "candidateId": {"S": REC02_CANDIDATE}, "tenant_id": {"S": tenant_id},
+        "firstName": {"S": "Rec"}, "lastName": {"S": "Seed-Vote"},
+        "email": {"S": f"pepla-demo-rec.seed-vote@{MAIL_DOMAIN}"},
+        "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+        "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+        "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+        "configVersion": {"S": active_config_version(ddb, tenant_id, "SCORING_WEIGHTS")},
+        "hiringManagerId": {"S": manager_sub}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{REC02_INTERVIEW}"},
+        "interviewId": {"S": REC02_INTERVIEW}, "candidateId": {"S": REC02_CANDIDATE}, "tenant_id": {"S": tenant_id},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "votesRequired": {"N": "2"}, "votesSubmitted": {"N": "0"}, "panelMemberIds": {"L": [{"S": employee_sub}]},
+        "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+    })
+    return 2
+
+
+# REC-03: three candidates the dev test reads after the stage move. They are written again on every run in the OLD form (the stage
+# move, scripts/recruitment/migrate-stages.mjs, runs right after the seed and changes them), and anything an earlier move left on
+# them (history rows) is removed first, so every run starts from the same three rows. Company A, MID level. Their hiring manager is
+# the other manager, not the manager test login, so that login still lists exactly one candidate (REC-01 AC-9).
+#   1 Applied with one interview: the level lock (LEVEL_LOCKED)
+#   2 stored as INTERVIEWING: reads as INTERVIEW after the move, the old name kept as legacy_stage
+#   3 stored as EVALUATION with status REJECTED and a rejection time: Not hired by the old system, on REC-02's list
+REC03_CANDIDATES = [
+    ("CAND-SEEDREC030000000000001", "Applied-One", "APPLIED", {}),
+    ("CAND-SEEDREC030000000000002", "Old-Interview", "INTERVIEWING", {}),
+    ("CAND-SEEDREC030000000000003", "Old-Rejected", "EVALUATION", {"status": "REJECTED", "evaluationCompletedAt": "2026-09-14T10:00:00.000Z"}),
+]
+REC03_INTERVIEW = "iv-seed-rec03-0001"
+
+
+def seed_rec03(ddb, tenant_id: str, manager_sub: str) -> int:
+    """Write the three REC-03 candidates fresh (and the one interview). Idempotent."""
+    if not manager_sub:
+        print("warning: the manager login has no sub; the REC-03 candidates were not written")
+        return 0
+    now = "2026-11-10T08:00:00.000Z"
+    written = 0
+    for cid, last, stage, extra in REC03_CANDIDATES:
+        pk = f"CANDIDATE#{cid}"
+        stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                          ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "STAGE#"}}, ProjectionExpression="PK, SK")
+        for item in stale.get("Items", []):
+            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+        item = {
+            "PK": {"S": pk}, "SK": {"S": "SAGA"},
+            "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+            "firstName": {"S": "Rec"}, "lastName": {"S": last},
+            "email": {"S": f"pepla-demo-rec.{last.lower()}@{MAIL_DOMAIN}"},
+            "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": stage}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+            "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+        }
+        for k, v in extra.items():
+            item[k] = {"S": v}
+        ddb.put_item(TableName=STATE_TABLE, Item=item)
+        written += 1
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"CANDIDATE#{REC03_CANDIDATES[0][0]}"}, "SK": {"S": f"INTERVIEW#{REC03_INTERVIEW}"},
+        "interviewId": {"S": REC03_INTERVIEW}, "candidateId": {"S": REC03_CANDIDATES[0][0]}, "tenant_id": {"S": tenant_id},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "votesRequired": {"N": "0"}, "votesSubmitted": {"N": "0"}, "panelMemberIds": {"L": []},
+        "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+    })
+    return written + 1
+
+
+# TEN-04: the rows company A owns that the company B walk aims at. The ids are the ones in
+# pepla-web/e2e/acceptance/support/ten-04/dev-ids.json; the word TEN04A is what the walk looks for in an answer.
+# Written with put_item on every run, with A's company on each (Terraform never manages table data, and the seed must
+# not wipe tenant_id: PR 374). A table pepla-dev does not have is skipped with a warning.
+TEN04 = {
+    "candidate": "CAND-01TEN04AAAAAAAAAAAAAAA1",
+    "interview": "iv-ten04-a-0001",
+    # A tile is not a stored row: its id is the candidate plus a rule, and the tile routes check the candidate is the caller's.
+    "tile": "tile-CAND-01TEN04AAAAAAAAAAAAAAA1-RULE-SLA-002",
+    "config": "cfg-ten04-a-0001",
+    "itTask": "task-ten04-a-0001",
+    "bundle": "bundle-ten04-a-0001",
+    "notification": "NOTIF#2026-11-10T08:00:00.000Z#notif-ten04-a-0001",
+    "action": "act-ten04-a-0001",
+}
+
+
+def seed_ten04_rows(ddb, tenant_id: str, tf_sub: str) -> int:
+    now = "2026-11-10T08:00:00.000Z"
+    cid = TEN04["candidate"]
+    t = {"S": tenant_id}
+    config_type = "TEN04A_" + TEN04["config"]
+    rows = [
+        ("talent-flow-state", {
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"},
+            "GSI1SK": {"S": f"SAGA#{now}"}, "tenant_id": t, "candidateId": {"S": cid},
+            "firstName": {"S": "TEN04A"}, "lastName": {"S": "Demo-Candidate"}, "email": {"S": "ten04a@example.com"},
+            "phone": {"S": "0800000000"}, "positionTitle": {"S": "TEN04A Baker"}, "positionLevel": {"S": "JUNIOR"},
+            "department": {"S": "Operations"}, "currentStage": {"S": "APPLICATION_REVIEW"},
+            "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"},
+            "appliedDate": {"S": now}, "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+        ("talent-flow-state", {
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": f"INTERVIEW#{TEN04['interview']}"}, "tenant_id": t,
+            "candidateId": {"S": cid}, "interviewId": {"S": TEN04["interview"]}, "interviewType": {"S": "HR_SCREEN"},
+            "status": {"S": "SCHEDULED"}, "panelMemberIds": {"L": []}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+            "notes": {"S": "TEN04A"}, "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+        ("talent-flow-state", {
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "OFFER"}, "tenant_id": t, "tenantId": t,
+            "offerId": {"S": f"OFFER#{cid}"}, "candidateId": {"S": cid}, "state": {"S": "OFFER_CREATED"},
+            "positionLevel": {"S": "JUNIOR"}, "role": {"S": "TEN04A Baker"}, "department": {"S": "Operations"},
+            "approvalChain": {"L": []}, "currentApprovalStep": {"N": "0"}, "interactionLog": {"L": []},
+            "createdAt": {"S": now}, "updatedAt": {"S": now},
+        }),
+        ("talent-flow-config", {
+            "PK": {"S": f"TENANT#{tenant_id}"}, "SK": {"S": f"CONFIG#{config_type}#v1"},
+            "GSI1PK": {"S": f"TENANT#{tenant_id}#ACTIVE"}, "GSI1SK": {"S": f"CONFIG#{config_type}"},
+            "tenant_id": t, "configType": {"S": config_type}, "version": {"N": "1"},
+            "isActive": {"BOOL": True}, "data": {"M": {"note": {"S": "TEN04A"}}}, "createdAt": {"S": now},
+        }),
+        ("it-tasks", {
+            "taskId": {"S": TEN04["itTask"]}, "tenant_id": t, "candidateId": {"S": cid},
+            "title": {"S": "TEN04A laptop"}, "status": {"S": "PENDING"}, "queue": {"S": "Hardware"},
+            "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+        ("provisioning-bundles", {
+            "bundleId": {"S": TEN04["bundle"]}, "tenant_id": t, "candidateId": {"S": cid},
+            "candidateName": {"S": "TEN04A Demo-Candidate"}, "candidateRole": {"S": "Baker"},
+            "startDate": {"S": "2026-12-01"}, "status": {"S": "DRAFT"}, "items": {"L": []},
+            "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+        ("talent-flow-pending-actions", {
+            "actionId": {"S": TEN04["action"]}, "tenant_id": t, "candidateId": {"S": cid},
+            "status": {"S": "PENDING"}, "actionType": {"S": "TEN04A"}, "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        }),
+    ]
+    if tf_sub:
+        rows.append(("talent-flow-notifications", {
+            "PK": {"S": f"USER#{tf_sub}"}, "SK": {"S": TEN04["notification"]}, "tenant_id": t,
+            "title": {"S": "TEN04A"}, "read": {"BOOL": False}, "createdAt": {"S": now},
+        }))
+    written = 0
+    for table, item in rows:
+        try:
+            ddb.put_item(TableName=table, Item=item)
+            written += 1
+        except ddb.exceptions.ResourceNotFoundException:
+            print(f"warning: pepla-dev has no table {table}; a TEN-04 row was not written")
+    return written
+
+
+def remove_foreign_bundles(ddb, founding_tenant: str) -> int:
+    """TEN-04.2: earlier walks left a bundle of another company that holds the founding company's seeded candidate.
+    The route now refuses that, so such a row is stale test data. Found by a Query of the byCandidateId index (never a Scan),
+    deleted by its own key, only while it still carries the same company and candidate (a changed row is left alone).
+    Dev only: main() exits unless the account is pepla-dev, before anything runs. Counts only in the output."""
+    removed = 0
+    cid = TEN04["candidate"]
+    kwargs = {
+        "TableName": "provisioning-bundles", "IndexName": "byCandidateId",
+        "KeyConditionExpression": "candidateId = :c", "FilterExpression": "tenant_id <> :f",
+        "ExpressionAttributeValues": {":c": {"S": cid}, ":f": {"S": founding_tenant}},
+    }
+    while True:
+        res = ddb.query(**kwargs)
+        for item in res.get("Items", []):
+            try:
+                ddb.delete_item(
+                    TableName="provisioning-bundles", Key={"bundleId": item["bundleId"]},
+                    ConditionExpression="tenant_id = :t AND candidateId = :c",
+                    ExpressionAttributeValues={":t": item["tenant_id"], ":c": {"S": cid}})
+                removed += 1
+            except ClientError as e:
+                if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                    raise
+        if not res.get("LastEvaluatedKey"):
+            return removed
+        kwargs["ExclusiveStartKey"] = res["LastEvaluatedKey"]
+
+
+def reset_persona(ddb, tenant_id: str, employee_sub: str) -> tuple[int, int]:
+    """The employee test login's own row, back to a clean start: stage INVITED, no documents, no accepted notice.
+    The seed runs it once; the dev E2E workflow runs it again before the one test that needs the clean start
+    (ONB-10 AC-8), because ONB-07 and ONB-08 upload and accept the persona's required documents earlier in the run."""
+    ddb.put_item(TableName="employees", Item=employee_item(
+        EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
+        "Operations", "New Starter", "INVITED", tenant_id=tenant_id, owner_sub=employee_sub))
+    return reset_employee_documents(ddb, EMPLOYEE_ID), reset_employee_consents(ddb, EMPLOYEE_ID)
+
+
+# ONB-22: the person and the documents the agent walk reads. The test person is a robot (test-domain email), so the
+# summary and the risk check never reach the model. Company B has one waiting document of its own, for the 404 check.
+ONB22_EMAIL = "onb22.agent.test@blackhole.postmarkapp.com"
+ONB22_EMPLOYEE_ID = str(uuid.uuid5(NS, ONB22_EMAIL))
+ONB22_DOCUMENT = "doc-onb22-0001"
+ONB22_DOCUMENT_B = "doc-onb22-b-0001"
+
+
+def seed_onb22(ddb, tenant_id: str) -> int:
+    """A new person with one bank letter waiting for HR whose check is Matches, and company B's own waiting document."""
+    written = 0
+    for tid, eid, email, doc_id, first in ((tenant_id, ONB22_EMPLOYEE_ID, ONB22_EMAIL, ONB22_DOCUMENT, "Agent"),
+                                           (SECOND_TENANT_ID, str(uuid.uuid5(NS, "onb22.b.test@blackhole.postmarkapp.com")),
+                                            "onb22.b.test@blackhole.postmarkapp.com", ONB22_DOCUMENT_B, "Other")):
+        ddb.put_item(TableName="employees", Item=employee_item(eid, first, "Walk-Test", email, "Operations", "New Starter", "ACTIVE", tenant_id=tid))
+        reset_employee_documents(ddb, eid)
+        vid = str(uuid.uuid5(NS, f"verification:{doc_id}"))
+        ddb.put_item(TableName="document-verification", Item={
+            "verificationId": {"S": vid}, "employeeId": {"S": eid}, "documentId": {"S": doc_id},
+            "documentType": {"S": "BANK_CONFIRMATION"}, "confidence": {"N": "96"}, "decision": {"S": "MANUAL_REVIEW"},
+            "check": {"S": "MATCHES"}, "createdAt": {"S": "2026-11-17T08:00:00Z"}, "seed": {"S": SEED_TAG}, "tenant_id": {"S": tid},
+        })
+        ddb.put_item(TableName="documents", Item={
+            "employee_id": {"S": eid}, "document_id": {"S": doc_id}, "document_type": {"S": "BANK_CONFIRMATION"},
+            "file_name": {"S": "bank_confirmation.pdf"}, "s3_key": {"S": sample_key(eid, doc_id)},
+            "upload_timestamp": {"S": "2026-11-17T08:00:00Z"}, "ocr_status": {"S": "MANUAL_REVIEW"},
+            "verification_id": {"S": vid}, "seed": {"S": SEED_TAG}, "tenant_id": {"S": tid},
+        })
+        written += 2
+    return written
 
 
 def main() -> None:
@@ -435,7 +847,15 @@ def main() -> None:
     if not hr_b_sub:
         print("warning: the company B login has no sub; its Member row was not written")
     second_written = ensure_second_company(ddb, hr_b_sub) if hr_b_sub else 0
+    walk_subs = tuple(sub for sub in (user_sub(cognito, naleko, r) for r in ("hr-c", "tf-b", "it-b")) if sub)
+    walk_written = ensure_walk_company(ddb, walk_subs)
     modules_set = set_dev_modules(ddb)
+    ten04_written = seed_ten04_rows(ddb, founding_tenant_id(), user_sub(cognito, naleko, "tf"))
+    try:
+        foreign_bundles_removed = remove_foreign_bundles(ddb, founding_tenant_id())
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the provisioning bundles table is not there; stale bundles were not looked for")
+        foreign_bundles_removed = 0
 
     tid = founding_tenant_id()
     employee_sub = user_sub(cognito, naleko, "employee")
@@ -445,22 +865,43 @@ def main() -> None:
         email = f"pepla-demo-{first.lower()}.{last.lower().replace(' ', '')}@{MAIL_DOMAIN}"
         eid = str(uuid.uuid5(ns, email))
         ddb.put_item(TableName="employees",
-                     Item=employee_item(eid, first, last, email, dept, title, stage, tenant_id=tid))
+                     Item=employee_item(eid, first, last, email, dept, title, stage, tenant_id=tid,
+                                        start_date=START_DATES.get((first, last), "2026-12-01")))
         if (first, last) == ("Naledi", "Dlamini"):
             seeded_documents = seed_documents(ddb, ns, eid, tid)
 
-    ddb.put_item(TableName="employees", Item=employee_item(
-        EMPLOYEE_ID, "Sipho", "Demo-Starter", login("employee"),
-        "Operations", "New Starter", "INVITED", tenant_id=tid, owner_sub=employee_sub))
-    docs_removed = reset_employee_documents(ddb, EMPLOYEE_ID)
-    consents_removed = reset_employee_consents(ddb, EMPLOYEE_ID)
+    onb22_written = seed_onb22(ddb, tid)
+
+    try:
+        seeded_candidates = seed_candidates(ddb, tid, user_sub(cognito, naleko, "manager"), employee_sub)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the seeded candidates were not written")
+        seeded_candidates = 0
+
+    try:
+        rec02_written = seed_rec02(ddb, tid, user_sub(cognito, naleko, "manager"), employee_sub)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-02 candidate was not written")
+        rec02_written = 0
+
+    try:
+        rec03_written = seed_rec03(ddb, tid, user_sub(cognito, naleko, "manager"))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-03 candidates were not written")
+        rec03_written = 0
+
+    docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
     print(f"seed-dev: groups created {made_groups}; "
           f"logins {len(NALEKO_PERSONAS) + len(TF_GROUPS)}; "
           f"demo people {len(DEMO_PEOPLE) + 1}; persona documents reset {docs_removed}; "
           f"persona consents reset {consents_removed}; "
           f"demo documents {seeded_documents}; founding company row written {founding_written}; "
-          f"second company rows written {second_written}; company modules set {modules_set}")
+          f"second company rows written {second_written}; company modules set {modules_set}; "
+          f"walk company rows written {walk_written}; TEN-04 walk rows written {ten04_written}; "
+          f"agent walk rows written {onb22_written}; "
+          f"stale bundles of another company removed {foreign_bundles_removed}; "
+          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}; REC-03 rows seeded {rec03_written}")
 
 
 if __name__ == "__main__":

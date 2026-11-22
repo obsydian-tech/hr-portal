@@ -67,7 +67,7 @@ exports.handler = async (event) => {
   if (refusal) return refusal;
 
   const taskId       = event.pathParameters?.taskId;
-  const specialistId = claims['sub'] ?? '';
+  const specialistId = T.userIdOf(event); // TEN-06: a moved person's old id, as stored records know it
   const now          = new Date().toISOString();
 
   let body = {};

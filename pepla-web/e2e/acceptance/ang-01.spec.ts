@@ -612,7 +612,8 @@ test.describe('ANG-01 Board asks first, and the Modules button', () => {
       expect(base, 'develop is known (git merge-base HEAD origin/develop)').not.toBe('');
       const changed = git('diff', '--name-only', '--no-renames', base, 'HEAD', '--', '.').split('\n').filter(Boolean).map((f) => f.replace(/^pepla-web\//, ''));
       // Judged on a pull request that carries this card's tests (the lock and the build); another card's PR is not.
-      if (changed.some((f) => /^e2e\/acceptance\/(ang-01\.spec\.ts|support\/ang-01\/|cards\/ang-01\.md)/.test(f))) {
+      // Another card's lock may edit this spec or develop-bars.ts (a new top bar button), so those two files alone do not make a PR this card's own.
+      if (changed.some((f) => /^e2e\/acceptance\/(support\/ang-01\/(?!develop-bars\.ts$)|cards\/ang-01\.md)/.test(f))) {
         const allowed = (f: string) =>
           /^e2e\/acceptance\/(ang-01\.spec\.ts|cards\/ang-01\.md)$/.test(f) ||
           /^e2e\/acceptance\/support\/ang-01\//.test(f) ||

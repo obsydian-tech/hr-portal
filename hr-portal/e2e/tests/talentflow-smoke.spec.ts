@@ -64,6 +64,7 @@ test.describe('TalentFlow quick checks', { tag: ['@hire'] }, () => {
 
     const advance = page.getByRole('button', { name: /^Advance to / }).first();
     await expect(advance).toBeVisible({ timeout: 15_000 });
+    await page.getByLabel('Reason').first().fill('Robot check: moving one step');
     await advance.click();
     await expect(page.getByText(/Stage advanced to/)).toBeVisible({ timeout: 15_000 });
   });

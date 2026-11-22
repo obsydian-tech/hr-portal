@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -10,8 +10,10 @@ import {
 } from '../../ds';
 import { EmployeeDetailError, EmployeeDetailService } from '../../core/employees/employee-detail.service';
 import { CHECK_WORD, DECISION_WORD, type Check, type EmployeeDetail, type EmployeeDocument } from '../../core/employees/employee-detail';
+import { RISK_HEADING, RISK_NONE, RISK_WORD } from '../../core/employees/risk-words';
 import type { Step } from '../../core/employees/employee';
 import { InviteService, type InviteInfo } from '../../core/employees/invite.service';
+import { ScreenContext } from '../../core/screen-context';
 
 const SOUTH_AFRICA = 'Africa/Johannesburg';
 const TITLE = 'Naleko People';
@@ -94,6 +96,17 @@ function when(iso: string): string {
               }
             </pp-person-header>
 
+            @if (p.risk; as r) {
+              @if (r.band; as band) {
+                <pp-section-message [tone]="riskWord[band].tone" [heading]="riskHeading">
+                  {{ riskWord[band].text }}{{ r.assessedAt ? ' on ' + when(r.assessedAt) : '' }}.
+                  @if (r.reason) { {{ r.reason }} }
+                </pp-section-message>
+              } @else {
+                <pp-section-message tone="information" [heading]="riskHeading">{{ riskNone }}</pp-section-message>
+              }
+            }
+
             @if (invite(); as inv) {
               <pp-card heading="Invite link" [level]="2">
                 <div class="pp-stack pp-gap-200">
@@ -140,6 +153,10 @@ export class EmployeeDetailPage {
   private readonly title = inject(Title);
   private readonly id = toSignal(inject(ActivatedRoute).paramMap.pipe(map((m) => m.get('id') ?? '')), { initialValue: '' });
 
+  protected readonly riskWord = RISK_WORD;
+  protected readonly riskHeading = RISK_HEADING;
+  protected readonly riskNone = RISK_NONE;
+  protected readonly when = when;
   protected readonly crumbs: Crumb[] = [{ label: 'Home', link: '/hr' }];
   protected readonly placeholders = [1, 2, 3, 4];
   protected readonly status = signal<'loading' | 'ready' | 'not-found' | 'failed'>('loading');
@@ -167,6 +184,10 @@ export class EmployeeDetailPage {
       this.id();
       void this.load();
     });
+    // The assistant panel says who this page is about, from what the page has read, and forgets them when the page goes.
+    const context = inject(ScreenContext);
+    effect(() => { const p = this.person(); context.person.set(p ? { id: p.id, name: p.name } : null); });
+    inject(DestroyRef).onDestroy(() => context.person.set(null));
   }
 
   protected async load(): Promise<void> {
@@ -242,7 +263,7 @@ export class EmployeeDetailPage {
   /** The ID number on a National ID card: its last four digits, with Show when the full number is there. */
   protected idItems(p: EmployeeDetail, d: EmployeeDocument): DlItem[] | null {
     if (d.type !== 'NATIONAL_ID') return null;
-    if (d.idNumber) return [{ term: 'ID number', value: null, reveal: { record: p.name, value: d.idNumber, masked: mask(d.idNumber), maskedLabel: 'ID number' } }];
+    if (d.idAvailable && d.idLast4) return [{ term: 'ID number', value: null, reveal: { record: p.name, ref: { documentId: d.id, employeeId: p.id, field: 'id_number' }, masked: mask(`xxxxxxxxx${d.idLast4}`), maskedLabel: 'ID number', notice: true } }];
     if (d.idLast4) return [{ term: 'ID number', value: `${'•'.repeat(9)}${d.idLast4}` }];
     return null;
   }

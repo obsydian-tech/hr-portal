@@ -33,6 +33,10 @@ module "kms_pii" {
   # Decrypt/DescribeKey only, and only via DynamoDB.
   dynamodb_read_role_arns = [
     aws_iam_role.check_employee_email.arn,
+    # ONB-22: the proposal Lambdas and the two agent reads open the encrypted rows through DynamoDB.
+    aws_iam_role.create_proposal.arn,
+    aws_iam_role.approve_agent_action.arn,
+    aws_iam_role.summarise_verification.arn,
     aws_iam_role.lookup_invite.arn,
     aws_iam_role.redeem_invite.arn,
     aws_iam_role.get_invite.arn,
@@ -46,6 +50,8 @@ module "kms_pii" {
     aws_iam_role.get_my_documents.arn,
     aws_iam_role.create_my_upload_link.arn,
     aws_iam_role.tenant_pre_token.arn,
+    # TEN-06: writes pending rows in the encrypted tenants table.
+    aws_iam_role.user_migration.arn,
     # TEN-02: read Member rows in the tenants table.
     aws_iam_role.cognito_post_auth.arn,
     aws_iam_role.get_hr_partners.arn,
@@ -55,8 +61,20 @@ module "kms_pii" {
     # MOD-01: getCompanyModules and every Lambda that asks modules.mjs read the company row in the tenants table.
     # The TalentFlow roles live in talent-flow-infra, named by ARN (their path /talent-flow/ is part of it).
     aws_iam_role.get_company_modules.arn,
+    # CHAT-02: both read the encrypted tenants table (the company switch) and the chats table; writes need no key right (BE-18).
+    aws_iam_role.ask_batsi_chats.arn,
+    aws_iam_role.admin_set_ask_batsi.arn,
     aws_iam_role.get_candidate_events.arn,
     aws_iam_role.get_hiring_managers.arn,
+    # ONB-21: the daily reminder reads the tenants and employees tables (decrypt only, through DynamoDB).
+    aws_iam_role.send_document_reminders.arn,
+    # Walk fix: queryAuditLog Queries/Scans the onboarding-events table, which this key encrypts (AccessDeniedException in its log).
+    aws_iam_role.query_audit_log.arn,
+    # Dev E2E (ONB-11 AC-11): the onboarding state machine's WaitForDocumentUpload state stores a task token on the
+    # employees row with UpdateItem. Without this it gets AccessDenied on the PII key, and the invite then fails.
+    aws_iam_role.sfn_onboarding.arn,
+    # CHAT-15: deleteLeaverChats reads and deletes in the encrypted chats table and writes the audit table (decrypt only, through DynamoDB). Its role lives in talent-flow-infra.
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-deleteLeaverChats",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-getCandidate",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-updateCandidate",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-advanceCandidateStage",
@@ -83,6 +101,8 @@ module "kms_pii" {
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-evaluateIntelligenceRules",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-sendTalentFlowNotification",
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-orchestrateTalentFlowWorkflow",
+    # REC-02: recordNotHired asks lambda/shared/modules.mjs whether Recruitment is on (one GetItem on the tenants table; decrypt only, through DynamoDB). Its role is created in talent-flow-infra, so it is named here one merge later.
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-recordNotHired",
   ]
 
   # ONB-24: Cognito encrypts reset codes under a grant the deploy role makes (RootFullAdmin covers it).

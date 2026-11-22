@@ -8,12 +8,18 @@ export interface NoticeTerm { icon: string; term: string; text: string }
 export interface NoticeSection { heading: string; text: string }
 /** The privacy notice exactly as the server sends it, the company name filled in. */
 export interface Notice { version: string; title: string; intro: string; terms: NoticeTerm[]; full: NoticeSection[] }
+/** Where a person is in onboarding: the step HR sees too (ONB-09). */
+export type OnboardingStep = 'INVITED' | 'DOCUMENTS' | 'IN_REVIEW' | 'VERIFIED';
 export interface MyStart {
   firstName: string;
   company: string;
   department?: string;
   /** YYYY-MM-DD */
   startDate?: string;
+  /** YYYY-MM-DD: when the required documents are due. Left out when there is no start date. */
+  documentsDue?: string;
+  /** The API's step for this person, or null for an archived or unknown record. Left out by an older API. */
+  step?: OnboardingStep | null;
   notice: Notice;
   consent: { version: string; acceptedAt: string } | null;
 }

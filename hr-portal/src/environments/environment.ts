@@ -20,10 +20,11 @@ export const environment = {
     // TalentFlow Agent API (Cognito JWT auth) — naleko-agent-api HTTP API v2 (fou21cj8tj)
     agentApiUrl: 'https://fou21cj8tj.execute-api.af-south-1.amazonaws.com',
     agentApiKey: '', // unused — JWT Bearer auth via AuthService.getIdToken()
-    // TalentFlow Cognito User Pool (TF pool, NOT Naleko pool - Lesson 18)
+    // TEN-06: TalentFlow people sign in to the one pool now (they move at their next sign-in). Same pool and
+    // client as `cognito` above; the TalentFlow pool is only read by the migration trigger.
     cognitoConfig: {
-      userPoolId: 'af-south-1_C8TTlQxY7',
-      clientId: '74644m5eck56vvq4fp7nfm8dht',
+      userPoolId: 'af-south-1_2LdAGFnw2',
+      clientId: '1pk5rd58glsohfplnlr63tg0qb',
       region: 'af-south-1',
     },
   },

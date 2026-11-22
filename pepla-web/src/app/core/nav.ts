@@ -20,7 +20,7 @@ export function allowed(a: Access, who: Who): boolean {
 /** The first page for a person, a table. */
 const LANDING: ReadonlyArray<{ role: string; to: string }> = [
   { role: ROLE.hrStaff, to: '/hr' },
-  { role: ROLE.admin, to: '/hr' },
+  { role: ROLE.admin, to: '/admin/ask-batsi' },
   { role: ROLE.employee, to: '/start' },
 ];
 export function landingFor(roles: readonly string[], _perms: readonly string[], _modules: readonly string[]): string {
@@ -31,6 +31,9 @@ const registry = signal<NavEntry[]>([
   { id: 'hr-today', group: 'Today', label: 'Today', icon: 'house', route: '/hr', roles: [ROLE.hrStaff] },
   { id: 'hr-documents', group: 'Today', label: 'Documents to check', icon: 'files', route: '/hr/documents', roles: [ROLE.hrStaff] },
   { id: 'employee-today', group: 'Today', label: 'Today', icon: 'house', route: '/start', roles: [ROLE.employee] },
+  { id: 'employee-onboarding', group: 'Today', label: 'My onboarding', icon: 'list-checks', route: '/start/onboarding', roles: [ROLE.employee] },
+  // CHAT-03: no module, so an admin can reach it while Ask Batsi is off.
+  { id: 'admin-ask-batsi', group: 'Settings', label: 'Ask Batsi', icon: 'sparkles', route: '/admin/ask-batsi', roles: [ROLE.admin] },
 ]);
 export const navEntries = registry.asReadonly();
 export function registerNav(entries: NavEntry[]): void {

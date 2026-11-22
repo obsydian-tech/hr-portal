@@ -16,6 +16,7 @@ export * from './navigation/shell';
 export * from './navigation/navigation';
 export * from './navigation/sign-in-page';
 export * from './data/data';
+export * from './data/bar-chart';
 export * from './data/table/table';
 export * from './agent/agent';
 export * from './agent/activity-log';

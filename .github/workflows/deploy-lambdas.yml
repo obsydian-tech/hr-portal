@@ -35,6 +35,7 @@ on:
     branches: [develop, main]
     paths:
       - "lambda/**"
+      - "mcp/**"
       - "scripts/ci/build-lambdas.py"
       - "scripts/ci/check-ai-guard.py"
       - "scripts/ci/deploy-lambdas.sh"
@@ -99,7 +100,7 @@ jobs:
             has() { grep -qE "$1" <<<"$files" && echo true || echo false; }
             {
               echo "infra=$(has '^(infra|talent-flow-infra)/|^scripts/ci/tf-gate\.py$|^\.github/workflows/(deploy-lambdas|terraform-apply)\.yml$')"
-              echo "lambda=$(has '^lambda/|^scripts/ci/(build-lambdas\.py|check-ai-guard\.py|deploy-lambdas\.sh)$|^\.github/workflows/deploy-lambdas\.yml$')"
+              echo "lambda=$(has '^lambda/|^mcp/|^scripts/ci/(build-lambdas\.py|check-ai-guard\.py|deploy-lambdas\.sh)$|^\.github/workflows/deploy-lambdas\.yml$')"
             } >> "$GITHUB_OUTPUT"
           fi
           grep -E '^(infra|lambda)=' "$GITHUB_OUTPUT"
@@ -146,15 +147,39 @@ jobs:
     name: Deploy to pepla-dev
     # Waits for the pepla-dev apply. A failed or refused apply stops it, and
     # with it the tests below.
-    needs: [build, terraform]
+    needs: [changes, build, terraform]
     if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     environment: dev
     permissions:
       contents: read
       id-token: write
+      issues: read # only to see whether "Terraform apply failed: dev" is still open
     steps:
       - uses: actions/checkout@v4
+
+      # A merge with no Terraform change skips the apply, and "pepla-dev: Terraform result" then
+      # passes. If an earlier merge's apply failed, pepla-dev is still missing that change, so this
+      # run must not go green: "Terraform apply failed: dev" stays open until a good apply closes it.
+      # (This is a step here, not in dev-result, because the locked OPS-07 checks run dev-result's
+      # script on a plain machine.) With pipefail, an unreadable issue list fails the step.
+      - name: The last pepla-dev apply must have worked
+        if: needs.changes.outputs.infra != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          title="Terraform apply failed: dev"
+          if ! open=$(gh issue list --state open --search "\"$title\" in:title" --json number,title -q ".[] | select(.title == \"$title\") | .number" | head -1); then
+            echo "::error::Could not read the open issues, so the last pepla-dev apply cannot be confirmed."
+            exit 1
+          fi
+          if [ -n "$open" ]; then
+            echo "::error::The last pepla-dev Terraform apply failed and has not been applied since (issue #$open is open). Nothing is deployed and this run is red, so it does not look like pepla-dev is up to date."
+            exit 1
+          fi
+          echo "No earlier pepla-dev apply is waiting."
 
       - uses: actions/download-artifact@v4
         with:
@@ -215,6 +240,7 @@ jobs:
       contents: read
       id-token: write
       pull-requests: write
+      actions: write # only the called workflow's "Should this run start" job asks for it, and it never cancels this call
     uses: ./.github/workflows/app-e2e-dev.yml
     with:
       full: true

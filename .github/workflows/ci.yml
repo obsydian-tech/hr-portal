@@ -100,6 +100,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       # @redocly/cli validates $refs, required fields, type correctness
+      - name: Every route is described (TEN-04)
+        run: node scripts/ci/routes-match-openapi.mjs
+
       - name: Validate api/openapi.yaml
         run: |
           npx --yes @redocly/cli lint api/openapi.yaml
@@ -121,6 +124,9 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.CI_AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: af-south-1
+      # Pipeline step 7. "report": the permission check prints its findings and never fails this job.
+      # A one-line pull request changes it to "enforce".
+      PERMISSION_CHECK_MODE: report
 
     steps:
       - name: Checkout
@@ -168,6 +174,26 @@ jobs:
         run: |
           pip install -q python-hcl2==8.2.0
           python3 scripts/ci/check-tf-duplicates.py
+
+      # Does each function's role, and the encryption key, allow what its code does? Reads text only: no AWS call,
+      # and the CI read keys are blanked for this step so a run proves it. The exceptions list is read from the
+      # target branch, never from the pull request. Push and by-hand runs have no target branch: report only.
+      - name: Roles allow what the code does
+        working-directory: .
+        continue-on-error: ${{ env.PERMISSION_CHECK_MODE == 'report' }}
+        env:
+          AWS_ACCESS_KEY_ID: ""
+          AWS_SECRET_ACCESS_KEY: ""
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          python3 -B scripts/ci/test_check_permissions.py
+          args="--mode $PERMISSION_CHECK_MODE"
+          if [ -n "$BASE_REF" ]; then
+            git fetch --depth=1 origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+            git show "origin/$BASE_REF:scripts/ci/permission-check-exceptions.txt" > "$RUNNER_TEMP/exceptions.txt" 2>/dev/null || : > "$RUNNER_TEMP/exceptions.txt"
+            args="$args --base-ref origin/$BASE_REF --exceptions $RUNNER_TEMP/exceptions.txt"
+          fi
+          python3 -B scripts/ci/check-permissions.py $args
 
   # ---------------------------------------------------------------------------
   # Job 4 — Playwright E2E tests

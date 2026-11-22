@@ -10,13 +10,52 @@
  * conditional UpdateItem so we never regress the stage.
  */
 
-import { DynamoDBClient, QueryCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, QueryCommand, UpdateItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { tenantFilter } from '../shared/tenant.mjs';
-import { companyOfSignIn } from '../shared/membership.mjs';
+import { companyOfSignIn, companiesOf, addMember } from '../shared/membership.mjs';
 
 const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 const logger = new Logger({ serviceName: 'cognitoPostAuth' });
+const COMPANY = /^ten_[0-9a-z]{26}$/;
+
+/**
+ * TEN-06: a person who just moved from TalentFlow has a pending row (MIGRATE#<email>). On their first sign-in it becomes
+ * their Member row (with their old id), their groups are added, and the pending row goes. Each step can run again;
+ * the pending row is deleted last, so a failed step is tried again at the next sign-in. Never blocks the sign-in.
+ */
+async function movePending(event, sub, email) {
+  const table = process.env.TENANTS_TABLE;
+  const lower = String(email ?? '').trim().toLowerCase();
+  if (!table || !sub || !lower) return;
+  const found = await dynamo.send(new QueryCommand({
+    TableName: table,
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :t)',
+    ExpressionAttributeValues: { ':pk': { S: `MIGRATE#${lower}` }, ':t': { S: 'TENANT#' } },
+  }));
+  if ((found.Items?.length ?? 0) !== 1) return;
+  const row = found.Items[0];
+  const tenantId = String(row.sk?.S ?? '').replace(/^TENANT#/, '');
+  const legacyUserId = row.legacy_user_id?.S;
+  if (!COMPANY.test(tenantId) || !legacyUserId || !(Number(row.expires_at?.N) > Date.now() / 1000)) return;
+  if ((await companiesOf(sub)).length === 0) {
+    try {
+      await addMember(sub, tenantId, legacyUserId);
+    } catch (err) {
+      if (err?.name !== 'ConditionalCheckFailedException') throw err;
+    }
+  }
+  // Loaded only when a moved person is being linked: every other sign-in never touches the Cognito client.
+  const { CognitoIdentityProviderClient, AdminAddUserToGroupCommand } = await import('@aws-sdk/client-cognito-identity-provider');
+  const idp = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
+  for (const g of row.groups?.L ?? []) {
+    if (!g.S) continue;
+    await idp.send(new AdminAddUserToGroupCommand({ UserPoolId: event.userPoolId, Username: event.userName, GroupName: g.S }));
+  }
+  await dynamo.send(new DeleteItemCommand({ TableName: table, Key: { pk: row.pk, sk: row.sk } }));
+  logger.info('Moved person linked', { tenantId });
+}
+
 
 const EMPLOYEES_TABLE = process.env.EMPLOYEES_TABLE ?? 'employees';
 const TALENT_FLOW_USERS_TABLE = process.env.TALENT_FLOW_USERS_TABLE ?? 'talent-flow-users';
@@ -37,6 +76,11 @@ export const handler = async (event) => {
 
     // TEN-02: the company is the signed-in person's (their Member row, else the legacy company while that rule is on).
     const sub = event.request?.userAttributes?.sub ?? '';
+    try {
+      await movePending(event, sub, email);
+    } catch (err) {
+      logger.error('Could not link a moved person - login will still succeed', { errorName: err?.name ?? 'Error' });
+    }
     let tenantId = null;
     let reason = 'none';
     let errorName;

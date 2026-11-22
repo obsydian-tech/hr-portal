@@ -18,12 +18,15 @@ module "alarms" {
   lambda_names = [
     "createEmployee",
     "getCompanyModules",
+    "askBatsiChats",
+    "adminSetAskBatsi",
     "getHrPartners",
     "checkEmployeeEmail",
     "lookupInvite",
     "redeemInvite",
     "getMyStart",
     "getMyDocuments",
+    "revealDocumentField",
     "createMyUploadLink",
     "recordConsent",
     "getEmployees",
@@ -38,6 +41,8 @@ module "alarms" {
     "cognitoEmailSender",
     "cognitoPostConfirmation",
     "tenantPreToken",
+    "sendDocumentReminders",
+    "deleteLeaverChats",
   ]
 
   employees_api_id = aws_apigatewayv2_api.employees_api.id

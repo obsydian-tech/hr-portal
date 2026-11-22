@@ -13,6 +13,8 @@ import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { requireTenant, ownsRow, notFound } from '../shared/tenant.mjs';
+import { stepOf } from '../shared/onboarding-step.mjs';
+import { documentsDueDate } from '../shared/due-date.mjs';
 
 const dynamodb = new DynamoDBClient();
 const logger = new Logger({ serviceName: 'getEmployee' });
@@ -59,10 +61,17 @@ export const handler = async (event) => {
       last_name:    item.last_name?.S,
       department:   item.department?.S,
       stage:        item.stage?.S,
-      risk_band:    item.risk_band?.S,
-      risk_reason:  item.risk_reason?.S,
+      step:         stepOf({ stage: item.stage?.S, step: item.step?.S }),
+      risk_band:    item.riskBand?.S,
+      risk_reason:  item.riskReason?.S,
       created_at:   item.created_at?.S,
       updated_at:   item.updated_at?.S,
+      // CHAT-09: what the person page shows, from the same row (same names as getEmployees).
+      job_title:          item.job_title?.S ?? '',
+      planned_start_date: item.planned_start_date?.S ?? '',
+      documents_due:      documentsDueDate(item.planned_start_date?.S, tenantId) ?? '',
+      hr_staff_name:      item.hr_staff_name?.S ?? '',
+      risk_assessed_at:   item.riskAssessedAt?.S ?? null,
     };
 
     tracer.putAnnotation('employeeId', employeeId);
@@ -73,7 +82,7 @@ export const handler = async (event) => {
       body: JSON.stringify({ employee }),
     };
   } catch (error) {
-    logger.error('Error fetching employee', { error: error.message, employeeId });
+    logger.error('Error fetching employee', { errorName: error?.name ?? 'Error', employeeId });
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },

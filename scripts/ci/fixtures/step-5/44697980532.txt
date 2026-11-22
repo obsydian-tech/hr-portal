@@ -1,0 +1,12 @@
+pepla-web/e2e/acceptance/cards/chat-14.md
+pepla-web/e2e/acceptance/chat-12.spec.ts
+pepla-web/e2e/acceptance/chat-14.spec.ts
+pepla-web/e2e/acceptance/support/chat-14/chats-fake.ts
+pepla-web/src/app/ds/agent/panel.ts
+pepla-web/src/app/ds/all.ts
+pepla-web/src/app/ds/navigation/shell.ts
+pepla-web/src/app/ds/overlays/overlays.ts
+pepla-web/src/app/features/hr-assistant/assistant-panel.ts
+pepla-web/src/app/features/hr-assistant/chat-dialogs.ts
+pepla-web/src/app/features/hr-assistant/chat.service.ts
+pepla-web/src/app/features/hr/hr-shell.ts

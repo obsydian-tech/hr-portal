@@ -54,7 +54,7 @@ resource "aws_apigatewayv2_api" "agent_api" {
 
   cors_configuration {
     allow_headers = ["authorization", "x-api-key", "content-type"]
-    allow_methods = ["GET", "POST", "OPTIONS"]
+    allow_methods = ["DELETE", "GET", "POST", "OPTIONS"]
     allow_origins = ["*"]
     max_age       = 86400
   }
@@ -335,20 +335,54 @@ resource "aws_apigatewayv2_route" "agent_action_get" {
   authorizer_id      = aws_apigatewayv2_authorizer.agent_api_key.id
 }
 
+# ONB-22: approve and decline are answered by a signed-in HR person (Cognito ID token), never by the agent key.
 resource "aws_apigatewayv2_route" "agent_action_approve" {
   api_id             = aws_apigatewayv2_api.agent_api.id
   route_key          = "POST /agent/v1/actions/{actionId}/approve"
   target             = "integrations/${aws_apigatewayv2_integration.approve_agent_action.id}"
-  authorization_type = "CUSTOM"
-  authorizer_id      = aws_apigatewayv2_authorizer.agent_api_key.id
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.agent_api_cognito_jwt.id
 }
 
 resource "aws_apigatewayv2_route" "agent_action_reject" {
   api_id             = aws_apigatewayv2_api.agent_api.id
   route_key          = "POST /agent/v1/actions/{actionId}/reject"
   target             = "integrations/${aws_apigatewayv2_integration.approve_agent_action.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.agent_api_cognito_jwt.id
+}
+
+# ONB-22: HR's list of proposals (JWT).
+resource "aws_apigatewayv2_route" "agent_actions_list" {
+  api_id             = aws_apigatewayv2_api.agent_api.id
+  route_key          = "GET /agent/v1/actions"
+  target             = "integrations/${aws_apigatewayv2_integration.approve_agent_action.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.agent_api_cognito_jwt.id
+}
+
+# ONB-22: an agent proposes Accept document (agent key).
+resource "aws_apigatewayv2_integration" "create_proposal" {
+  api_id                 = aws_apigatewayv2_api.agent_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.create_proposal.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "agent_proposals" {
+  api_id             = aws_apigatewayv2_api.agent_api.id
+  route_key          = "POST /agent/v1/proposals"
+  target             = "integrations/${aws_apigatewayv2_integration.create_proposal.id}"
   authorization_type = "CUSTOM"
   authorizer_id      = aws_apigatewayv2_authorizer.agent_api_key.id
+}
+
+resource "aws_lambda_permission" "create_proposal" {
+  statement_id  = "AllowAgentAPIInvokeCreateProposal"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.create_proposal.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.agent_api.execution_arn}/*/*"
 }
 
 resource "aws_lambda_permission" "approve_agent_action" {

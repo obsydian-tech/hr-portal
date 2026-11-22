@@ -33,6 +33,9 @@ export interface PipelineStage {
   alert?: { text: string; tone: 'danger' | 'warning' };
 }
 
+/** One item in a card's More actions menu: the page's id and the page's words. */
+export interface PipelineCardItem { id: string; label: string; }
+export interface PipelineCardAction { card: PipelineCard; action: string; }
 export interface PipelineMove { card: PipelineCard; from: string; to: string; index: number; }
 export interface PipelineMoveRequest extends PipelineMove { reason: string; }
 
@@ -69,8 +72,22 @@ export interface PipelineMoveRequest extends PipelineMove { reason: string; }
                   @else if (c.deadline; as d) { <time ppDeadline [due]="d.due" [subject]="d.subject" [now]="now()"></time> }
                 </div>
                 @if (confirmMoves()) {
+                <span class="pp-pipeline__card-actions">
                   <button type="button" class="pp-button pp-button--subtle pp-button--icon pp-button--small" [attr.data-card]="c.id"
                           [attr.aria-label]="'Move ' + first(c.name)" aria-haspopup="dialog" (click)="ask(c, s.id, s.id)"><svg ppIcon="arrow-right-left" /></button>
+                  @if (itemsFor(c); as items) {
+                    <button #more type="button" class="pp-button pp-button--subtle pp-button--icon pp-button--small" [attr.data-more]="c.id"
+                            [attr.aria-label]="'More actions for ' + first(c.name)" aria-haspopup="menu" [attr.aria-expanded]="actionsFor() === c.id ? 'true' : null"
+                            (click)="actionsFor.set(actionsFor() === c.id ? null : c.id)"><svg ppIcon="ellipsis" /></button>
+                    @if (actionsFor() === c.id) {
+                      <pp-dropdown-menu [trigger]="false" [open]="true" align="end" (openChange)="$event || closeActions(c.id)" [origin]="more" [returnTo]="more" [label]="'More actions for ' + first(c.name)">
+                        <pp-menu-section>
+                          @for (a of items; track a.id) { <button ppMenuItem [attr.data-action]="a.id" (click)="pick(c, a.id)">{{ a.label }}</button> }
+                        </pp-menu-section>
+                      </pp-dropdown-menu>
+                    }
+                  }
+                </span>
                 } @else {
                 <button #mv type="button" class="pp-button pp-button--subtle pp-button--icon pp-button--small" [attr.data-card]="c.id"
                         [attr.aria-label]="'Move ' + c.name + ' to another stage'" aria-haspopup="menu" [attr.aria-expanded]="menuFor() === c.id ? 'true' : null"
@@ -119,6 +136,22 @@ export class PpPipelineBoard {
   /** Ask first: a drop or the Move button opens the Move dialog; the screen moves the card after `moveRequested`. */
   readonly confirmMoves = input(false);
   readonly moveRequested = output<PipelineMoveRequest>();
+  /**
+   * Optional "More actions" menu on each card, beside Move (only with `confirmMoves`). The page gives the items for a card;
+   * with none, the button is not shown. The board runs nothing itself: it reports the pick with `cardAction`.
+   */
+  readonly cardMenu = input<((card: PipelineCard) => readonly PipelineCardItem[]) | null>(null);
+  readonly cardAction = output<PipelineCardAction>();
+  protected readonly actionsFor = signal<string | null>(null);
+  protected itemsFor(card: PipelineCard): readonly PipelineCardItem[] | null {
+    const items = this.cardMenu()?.(card) ?? [];
+    return items.length ? items : null;
+  }
+  protected closeActions(id: string) { if (this.actionsFor() === id) this.actionsFor.set(null); }
+  protected pick(card: PipelineCard, action: string) {
+    this.actionsFor.set(null);
+    this.cardAction.emit({ card, action });
+  }
   protected readonly asking = signal<{ card: PipelineCard; from: string; to: string } | null>(null);
   protected readonly reason = signal('');
   private pending: { id: string; from: string } | null = null;

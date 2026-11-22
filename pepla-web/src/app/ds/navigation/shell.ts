@@ -1,10 +1,16 @@
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, contentChild, inject, input, model, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, Injector, afterNextRender, computed, contentChild, inject, input, model, output, signal, viewChild } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { A11yModule } from '@angular/cdk/a11y';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 import { PpIcon } from '../core/icon';
 import { PpMark } from '../core/mark';
 import { IconName } from '../core/icon.registry';
 import { PpButton } from '../actions/button';
+import { PpTextField } from '../forms/field';
+import { PpSkeleton, PpSkeletonGroup } from '../status/status';
+import { PpSectionMessage } from '../messages/messages';
 import { initials } from '../core/avatar';
 import { NgTemplateOutlet } from '@angular/common';
 import { uid } from '../util';
@@ -29,6 +35,7 @@ export interface NavSection { heading?: string; items: NavItem[]; }
     <a class="pp-app-shell__skip" href="#main" (click)="skip($event)">Skip to main content</a>
     <ng-content select="pp-banner" />
     <ng-content select="pp-side-navigation" />
+    <ng-content select="pp-chat-list" />
     <ng-content select="pp-top-navigation" />
     <main class="pp-app-shell__main" id="main" tabindex="-1" [attr.inert]="drawerOpen() ? '' : null">
       <div class="pp-app-shell__content"><ng-content /></div>
@@ -59,6 +66,107 @@ export class PpAppShell {
 /** The bottom action bar on phone: the page's one main action, and at most one more. */
 @Component({ selector: 'pp-app-shell-actions', template: '<ng-content />', host: { class: 'pp-app-shell__actions' }, changeDetection: ChangeDetectionStrategy.OnPush })
 export class PpAppShellActions {}
+
+/** One chat in the list. */
+export interface ChatItem { id: string; title: string; current: boolean; }
+/** A heading ("Today", "Yesterday", "October 2026") and the chats under it. */
+export interface ChatGroup { name: string; items: ChatItem[]; }
+
+/**
+ * The Ask Batsi page's left column in place of the sidebar: the person's past chats, grouped, with New chat, Search chats
+ * and Delete all my chats. On phone the top bar menu button opens it as a full-width "Chats" screen.
+ * `state` is what reading the list gave: loading rows, the list, a read that failed, or off (the company has not switched Ask Batsi on:
+ * only Back to Today and Delete all my chats). Spec: navigation/side-navigation.md, kit page ask-batsi-full-page.
+ */
+@Component({
+  selector: 'pp-chat-list',
+  imports: [RouterLink, PpIcon, PpButton, PpTextField, PpSkeleton, PpSkeletonGroup, PpSectionMessage],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    @if (!phone()) {
+      <div class="pp-side-navigation__header"><a ppButton appearance="subtle" size="small" icon="arrow-left" [routerLink]="backLink()">Back to Today</a></div>
+    }
+    <div class="pp-side-navigation__body">
+      @if (phone()) { <h2 class="pp-heading pp-heading--large">Chats</h2> }
+      @if (state() !== 'off') {
+        <ul class="pp-side-navigation__section">
+          <li><button class="pp-side-navigation__item pp-side-navigation__item--entry" type="button" (click)="newChat.emit(); open.set(false)"><svg ppIcon="plus" /><span class="pp-side-navigation__label">New chat</span></button></li>
+          <li>
+            @if (!searching()) {
+              <button #searchButton class="pp-side-navigation__item pp-side-navigation__item--entry" type="button" (click)="startSearch()"><svg ppIcon="search" /><span class="pp-side-navigation__label">Search chats</span></button>
+            } @else {
+              <input #searchBox ppTextField type="search" size="small" aria-label="Search chats" [value]="query()" (input)="query.set($any($event.target).value)" (keydown.escape)="stopSearch()" (blur)="leaveSearch()" />
+            }
+          </li>
+        </ul>
+      }
+      @switch (state()) {
+        @case ('loading') {
+          <div aria-busy="true"><pp-skeleton-group label="" gap="150"><pp-skeleton shape="text" /><pp-skeleton shape="text" /><pp-skeleton shape="text" /><pp-skeleton shape="text" /></pp-skeleton-group></div>
+        }
+        @case ('error') {
+          <div class="pp-stack pp-gap-100">
+            <pp-section-message tone="danger" heading="We could not load your chats." />
+            <button ppButton size="small" type="button" (click)="retry.emit()">Try again</button>
+          </div>
+        }
+        @case ('ok') {
+          @if (!groups().length) { <p class="pp-text pp-text--small pp-text--subtle pp-side-navigation__heading" role="status">No chats yet.</p> }
+          @for (g of shown(); track g.name; let i = $index) {
+            <ul class="pp-side-navigation__section" [attr.aria-labelledby]="id + '-g' + i">
+              <li><span class="pp-side-navigation__heading" [id]="id + '-g' + i">{{ g.name }}</span></li>
+              @for (c of g.items; track c.id) {
+                <li><button class="pp-side-navigation__item" type="button" [attr.aria-current]="c.current ? 'page' : null" [attr.aria-label]="c.title" (click)="openChat.emit(c.id); open.set(false)"><span class="pp-side-navigation__label">{{ c.title }}</span></button></li>
+              }
+            </ul>
+          }
+          @if (searching() && query().trim() && !shown().length) { <p class="pp-text pp-text--small pp-text--subtle" role="status">No chats found.</p> }
+        }
+      }
+      @if (canDeleteAll()) {
+        <ul class="pp-side-navigation__section">
+          <li><button class="pp-side-navigation__item pp-side-navigation__item--entry" type="button" (click)="deleteAll.emit()"><svg ppIcon="trash-2" /><span class="pp-side-navigation__label">Delete all my chats</span></button></li>
+        </ul>
+      }
+    </div>
+  `,
+  host: {
+    class: 'pp-side-navigation pp-side-navigation--chats', role: 'navigation', 'aria-label': 'Chats', id: 'pp-side-navigation',
+    '[attr.data-open]': 'open() ? "true" : null',
+    '[style.top]': 'phone() ? "var(--layout-topbar-height)" : null',
+    '[style.height]': 'phone() ? "calc(100% - var(--layout-topbar-height))" : null',
+    '[style.width]': 'phone() ? "100%" : null',
+    '[style.borderRadius]': 'phone() ? "0" : null',
+    '[style.zIndex]': 'phone() ? "5" : null',
+  },
+})
+export class PpChatList {
+  readonly groups = input<ChatGroup[]>([]);
+  readonly state = input<'loading' | 'ok' | 'error' | 'off'>('loading');
+  readonly canDeleteAll = input(false);
+  readonly backLink = input('/hr');
+  readonly open = model(false);
+  readonly newChat = output<void>();
+  readonly openChat = output<string>();
+  readonly retry = output<void>();
+  readonly deleteAll = output<void>();
+  protected readonly id = uid('pp-chats');
+  private readonly injector = inject(Injector);
+  protected readonly phone = toSignal(inject(BreakpointObserver).observe('(max-width: 767px)').pipe(map((r) => r.matches)), { initialValue: false });
+  protected readonly searching = signal(false);
+  protected readonly query = signal('');
+  private readonly searchButton = viewChild<ElementRef<HTMLElement>>('searchButton');
+  private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
+  /** The groups with only the titles that hold what was typed (any case); a group with none is left out. */
+  protected readonly shown = computed(() => {
+    const q = this.searching() ? this.query().trim().toLowerCase() : '';
+    if (!q) return this.groups();
+    return this.groups().map((g) => ({ name: g.name, items: g.items.filter((c) => c.title.toLowerCase().includes(q)) })).filter((g) => g.items.length);
+  });
+  protected startSearch(): void { this.searching.set(true); afterNextRender(() => this.searchBox()?.nativeElement.focus(), { injector: this.injector }); }
+  protected stopSearch(): void { this.searching.set(false); this.query.set(''); afterNextRender(() => this.searchButton()?.nativeElement.focus(), { injector: this.injector }); }
+  protected leaveSearch(): void { if (!this.query().trim()) { this.searching.set(false); this.query.set(''); } }
+}
 
 /**
  * The sidebar: Today, People, the modules this person can use, and Settings at the bottom (One Naleko People).
@@ -161,6 +269,18 @@ export class PpSideNavigation {
       @if (!compact()) { <kbd>/</kbd> }
     </label>
     <div class="pp-top-navigation__actions">
+      @if (showAsk()) {
+        <!-- Ask Batsi opens the agent panel. The only way in: no floating bubble. A phone shows the icon alone. -->
+        @if (narrow() || compact()) {
+          <button ppButton appearance="subtle" icon="sparkles" [iconOnly]="true" [attr.aria-label]="askLabel()" aria-haspopup="dialog" [attr.aria-expanded]="askOpen()" (click)="ask.emit()">
+            @if (waiting()) { <span class="pp-top-navigation__badge" aria-hidden="true">{{ waiting() }}</span> }
+          </button>
+        } @else {
+          <button ppButton appearance="default" size="small" icon="sparkles" [attr.aria-label]="askLabel()" aria-haspopup="dialog" [attr.aria-expanded]="askOpen()" (click)="ask.emit()">
+            <span>Ask Batsi</span>@if (waiting()) { <span class="pp-top-navigation__badge" aria-hidden="true">{{ waiting() }}</span> }
+          </button>
+        }
+      }
       <button ppButton appearance="subtle" icon="search" [iconOnly]="true" class="pp-top-navigation__search-button" aria-label="Search" (click)="search.emit('')"></button>
       <button ppButton appearance="subtle" icon="bell" [iconOnly]="true" [attr.aria-label]="bellLabel()" aria-haspopup="dialog" [attr.aria-expanded]="notificationsOpen()"
               [attr.aria-controls]="notificationsOpen() ? notificationsId() ?? null : null" [pressed]="notificationsOpen() || undefined" (click)="notifications.emit()">
@@ -194,6 +314,15 @@ export class PpTopNavigation {
   /** The modules popup or drawer is open, so the button says so. */
   readonly launcherOpen = input(false);
   readonly launcher = output<void>();
+  /** The Ask Batsi button, before Notifications (off by default). */
+  readonly showAsk = input(false);
+  /** How many of Batsi's proposals wait for this person; the button says so. */
+  readonly waiting = input(0);
+  /** The Batsi panel is open, so the button says so. */
+  readonly askOpen = input(false);
+  readonly ask = output<void>();
+  protected readonly narrow = toSignal(inject(BreakpointObserver).observe('(max-width: 767px)').pipe(map((r) => r.matches)), { initialValue: false });
+  protected readonly askLabel = computed(() => this.waiting() ? `Ask Batsi, ${this.waiting()} waiting` : 'Ask Batsi');
   private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
   /** "/" jumps to search from anywhere except a field. */
   @HostListener('document:keydown', ['$event']) protected slash(e: KeyboardEvent) {

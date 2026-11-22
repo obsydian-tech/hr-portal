@@ -1,49 +1,60 @@
-openapi: "3.0.3"
-
+openapi: 3.0.3
 info:
   title: Naleko HR Portal API
-  version: "1.0.0"
+  version: 1.0.0
   contact:
     name: Naleko Engineering
-  description: |
-    REST API powering the Naleko employee-onboarding HR Portal.
+  description: 'REST API powering the Naleko employee-onboarding HR Portal.
+
 
     Two API Gateways deployed in af-south-1 (Cape Town):
 
+
     | Gateway | API ID | Handles |
+
     |---|---|---|
+
     | Employees | ndksa9ec0k | Employee records, Swagger UI, OpenAPI spec |
+
     | Documents | b2wt303fc8 | Document upload, OCR verifications, AI risk assessment |
 
+
     Authentication: all endpoints require a Cognito ID token unless marked public.
+
     Authorization: Bearer <id_token>
+
     Identity and role are derived from JWT claims only (sub + cognito:groups). No custom headers.
 
+
     Roles:
+
     - hr-partners: create employees, review docs, assess risk for their employees
+
     - hr-managers: same plus full visibility across all employees and verifications
 
+
     POPIA: all data stays in af-south-1. No PII leaves South Africa.
+
     Bedrock AI calls use cross-region inference profiles via AWS infrastructure only.
+
 
     Interactive docs: GET https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com/docs
 
+    '
 servers:
-  - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
-    description: Employees API
-  - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
-    description: Documents and Verifications API
-
+- url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+  description: Employees API
+- url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+  description: Documents and Verifications API
 tags:
-  - name: Employees
-    description: Create and manage employee records
-  - name: Documents
-    description: Upload documents and generate pre-signed S3 URLs
-  - name: Verifications
-    description: OCR results, HR review workflow, and AI risk assessment
-  - name: Docs
-    description: Swagger UI and raw OpenAPI spec (no auth required)
-
+- name: Employees
+  description: Create and manage employee records
+- name: Documents
+  description: Upload documents and generate pre-signed S3 URLs
+- name: Verifications
+  description: OCR results, HR review workflow, and AI risk assessment
+- name: Docs
+  description: Swagger UI and raw OpenAPI spec (no auth required)
 components:
   securitySchemes:
     CognitoJWT:
@@ -51,29 +62,37 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Cognito User Pool ID token from InitiateAuth / RespondToAuthChallenge.
-
+    AgentKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: The agent API key.
   schemas:
-
     EmployeeCreate:
       type: object
-      required: [first_name, last_name, email, phone, department]
+      required:
+      - first_name
+      - last_name
+      - email
+      - phone
+      - department
       description: Fields required to register a new employee.
       properties:
         first_name:
           type: string
-          example: Sarah
+          example: Jane
         middle_name:
           type: string
         last_name:
           type: string
-          example: Dlamini
+          example: Smith
         email:
           type: string
           format: email
-          example: sarah.dlamini@example.com
+          example: jane.smith@example.com
         phone:
           type: string
-          example: "+27821234567"
+          example: '+27821234567'
         department:
           type: string
           example: Finance
@@ -83,14 +102,14 @@ components:
         offer_accept_date:
           type: string
           format: date
-          example: "2026-04-01"
+          example: '2026-04-01'
         planned_start_date:
           type: string
           format: date
-          example: "2026-05-01"
+          example: '2026-05-01'
         id_number:
           type: string
-          pattern: '^[0-9]{13}$'
+          pattern: ^[0-9]{13}$
           description: Optional South African ID number, 13 digits with a valid date and check digit. Kept encrypted; only the last four digits are stored in clear.
         hr_staff_id:
           type: string
@@ -98,14 +117,13 @@ components:
           description: The id of a member of the hr_staff group, as GET /v1/hr-partners lists it. The partner's name and email are taken from the pool, not from the request.
         hr_staff_name:
           type: string
-          example: Thabo Mokoena
+          example: John Doe
           description: Ignored when hr_staff_id is sent.
         hr_staff_email:
           type: string
           format: email
-          example: thabo@naleko.co.za
+          example: john.doe@example.com
           description: Ignored when hr_staff_id is sent.
-
     Employee:
       type: object
       description: Full employee record.
@@ -130,27 +148,49 @@ components:
           type: string
         stage:
           type: string
-          enum: [INVITED, ACTIVE, DOCUMENTS_SUBMITTED, VERIFIED, TRAINING, ONBOARDED]
-          description: |
-            The stored stage of the old app. Kept next to `step` for the old app until OPS-04 switches it off;
+          enum:
+          - INVITED
+          - ACTIVE
+          - DOCUMENTS_SUBMITTED
+          - VERIFIED
+          - TRAINING
+          - ONBOARDED
+          description: 'The stored stage of the old app. Kept next to `step` for the old app until OPS-04 switches it off;
+
             new screens read `step`.
+
+            '
         step:
           type: string
           nullable: true
-          enum: [INVITED, DOCUMENTS, IN_REVIEW, VERIFIED, null]
-          description: |
-            Where the person is in onboarding. INVITED: added by HR, has not signed in yet.
+          enum:
+          - INVITED
+          - DOCUMENTS
+          - IN_REVIEW
+          - VERIFIED
+          - null
+          description: 'Where the person is in onboarding. INVITED: added by HR, has not signed in yet.
+
             DOCUMENTS: signed in, and at least one required document is not in yet or was sent back.
+
             IN_REVIEW: every required document is in and HR has not accepted all of them.
+
             VERIFIED: HR has accepted every required document.
+
             Rows written before the step existed answer from their stage; null when the stage is not one of the
+
             six stored values.
+
+            '
         offer_accept_date:
           type: string
           format: date
         planned_start_date:
           type: string
           format: date
+        documents_due:
+          type: string
+          description: 'The date the required documents are due (YYYY-MM-DD): 7 days before the start date. An empty string when there is no start date.'
         created_at:
           type: string
           format: date-time
@@ -164,9 +204,37 @@ components:
         hr_staff_email:
           type: string
           format: email
+        risk_band:
+          type: string
+          nullable: true
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+          - UNKNOWN
+          - null
+          description: 'HR only, and only in the answer of GET /v1/employees/{id}/verifications (the employee''s own view
+            has no such key). The result of the risk check, or null before one has run. LOW: every check matches with high
+            confidence. MEDIUM: some checks need a look or have low confidence. HIGH: checks do not match or documents are
+            missing. UNKNOWN: the check could not be made (the model failed or answered badly, or AI is off or skipped for
+            test data). The check runs once, on its own, when every required document is in.'
+        risk_reason:
+          type: string
+          nullable: true
+          description: 'HR only, in the verifications answer. One sentence stored with the result, shown as written. Null
+            before a check has run.'
+        risk_assessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 'HR only, in the verifications answer. When the check ran. Null before a check has run.'
         riskBand:
           type: string
-          enum: [LOW, MEDIUM, HIGH, UNKNOWN]
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+          - UNKNOWN
           nullable: true
           description: AI-assessed onboarding risk. Null until assess-risk is called.
         riskReason:
@@ -178,7 +246,6 @@ components:
           format: date-time
           nullable: true
           description: Timestamp of the most recent risk assessment.
-
     Document:
       type: object
       description: A document uploaded by an employee during onboarding.
@@ -188,7 +255,10 @@ components:
           example: doc_1774086521598
         document_type:
           type: string
-          enum: [NATIONAL_ID, BANK_CONFIRMATION, QUALIFICATION]
+          enum:
+          - NATIONAL_ID
+          - BANK_CONFIRMATION
+          - QUALIFICATION
         file_name:
           type: string
         uploaded_at:
@@ -196,8 +266,12 @@ components:
           format: date-time
         ocr_status:
           type: string
-          enum: [PENDING, PASSED, MANUAL_REVIEW, FAILED]
-          description: "PENDING: OCR in progress. PASSED: approved. MANUAL_REVIEW: awaiting HR. FAILED: rejected, employee must re-upload."
+          enum:
+          - PENDING
+          - PASSED
+          - MANUAL_REVIEW
+          - FAILED
+          description: 'PENDING: OCR in progress. PASSED: approved. MANUAL_REVIEW: awaiting HR. FAILED: rejected, employee must re-upload.'
         ocr_completed_at:
           type: string
           format: date-time
@@ -206,37 +280,50 @@ components:
           type: boolean
           description: True when status is FAILED and the employee may submit a replacement.
         verification:
-          $ref: "#/components/schemas/VerificationSummary"
+          $ref: '#/components/schemas/VerificationSummary'
           nullable: true
-
     EmployeeDocument:
-      description: |
-        A document as GET /v1/employees/{id}/verifications answers it: the stored document plus
-        the check and HR's decision, worked out by the Lambda so every reader gets one answer.
-      allOf:
-        - $ref: "#/components/schemas/Document"
-        - type: object
-          properties:
-            document_type:
-              type: string
-              enum: [NATIONAL_ID, BANK_CONFIRMATION, MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION]
-            check:
-              type: string
-              enum: [READING, MATCHES, NEEDS_A_LOOK, DOESNT_MATCH]
-              description: |
-                READING: the file is still being read. MATCHES: a verification at 90% confidence or more.
-                NEEDS_A_LOOK: under 90%, or the file could not be read. DOESNT_MATCH: reserved for ONB-07.
-            hr_decision:
-              type: string
-              nullable: true
-              enum: [ACCEPTED, NEW_ONE_ASKED, null]
-              description: Null until HR decides. Told apart by hr_reviewed_at, because HR's decision overwrites ocr_status.
-            hr_decided_at:
-              type: string
-              format: date-time
-              nullable: true
-              description: When HR decided, or null.
+      description: 'A document as GET /v1/employees/{id}/verifications answers it: the stored document plus
 
+        the check and HR''s decision, worked out by the Lambda so every reader gets one answer.
+
+        '
+      allOf:
+      - $ref: '#/components/schemas/Document'
+      - type: object
+        properties:
+          document_type:
+            type: string
+            enum:
+            - NATIONAL_ID
+            - BANK_CONFIRMATION
+            - MATRIC_CERTIFICATE
+            - TERTIARY_QUALIFICATION
+          check:
+            type: string
+            enum:
+            - READING
+            - MATCHES
+            - NEEDS_A_LOOK
+            - DOESNT_MATCH
+            description: 'READING: the file is still being read. MATCHES: a verification at 90% confidence or more.
+
+              NEEDS_A_LOOK: under 90%, or the file could not be read. DOESNT_MATCH: reserved for ONB-07.
+
+              '
+          hr_decision:
+            type: string
+            nullable: true
+            enum:
+            - ACCEPTED
+            - NEW_ONE_ASKED
+            - null
+            description: Null until HR decides. Told apart by hr_reviewed_at, because HR's decision overwrites ocr_status.
+          hr_decided_at:
+            type: string
+            format: date-time
+            nullable: true
+            description: When HR decided, or null.
     WaitingDocuments:
       type: object
       description: Documents waiting for an HR decision (ONB-13), oldest first.
@@ -256,7 +343,11 @@ components:
                 type: string
               check:
                 type: string
-                enum: [READING, MATCHES, NEEDS_A_LOOK, DOESNT_MATCH]
+                enum:
+                - READING
+                - MATCHES
+                - NEEDS_A_LOOK
+                - DOESNT_MATCH
               arrived_at:
                 type: string
                 format: date-time
@@ -275,7 +366,6 @@ components:
               type: integer
             DOESNT_MATCH:
               type: integer
-
     VerificationSummary:
       type: object
       description: Condensed OCR result used in list views and embedded in Document records.
@@ -283,15 +373,31 @@ components:
         verification_id:
           type: string
           example: ver_1774086781234
+        id_number_last4:
+          type: string
+          nullable: true
+          description: The last four digits of the ID number. The full number is never in this answer (ONB-14).
+        account_number_last4:
+          type: string
+          nullable: true
+        id_number_available:
+          type: boolean
+          description: True when the document holds an ID number that Show can return.
+        account_number_available:
+          type: boolean
+          description: True when the document holds an account number that Show can return.
         employee_id:
           type: string
           example: EMP-0000014
         employee_name:
           type: string
-          example: Sarah Dlamini
+          example: Jane Smith
         document_type:
           type: string
-          enum: [NATIONAL_ID, BANK_CONFIRMATION, QUALIFICATION]
+          enum:
+          - NATIONAL_ID
+          - BANK_CONFIRMATION
+          - QUALIFICATION
         document_id:
           type: string
         confidence:
@@ -302,22 +408,22 @@ components:
           description: OCR confidence score as a percentage (0-100).
         decision:
           type: string
-          enum: [PASSED, FAILED, MANUAL_REVIEW]
-          description: "PASSED: accepted. FAILED: rejected. MANUAL_REVIEW: below confidence threshold, awaiting HR."
+          enum:
+          - PASSED
+          - FAILED
+          - MANUAL_REVIEW
+          description: 'PASSED: accepted. FAILED: rejected. MANUAL_REVIEW: below confidence threshold, awaiting HR.'
         created_at:
           type: string
           format: date-time
-
     VerificationDetail:
       allOf:
-        - $ref: "#/components/schemas/VerificationSummary"
+      - $ref: '#/components/schemas/VerificationSummary'
       description: Full verification record including OCR reasoning and extracted fields.
       properties:
         reasoning:
           type: string
           description: OCR model explanation for why the document passed, failed, or needs review.
-        id_number:
-          type: string
         name:
           type: string
         surname:
@@ -333,8 +439,6 @@ components:
           type: string
         bank_name:
           type: string
-        account_number:
-          type: string
         branch_code:
           type: string
         account_type:
@@ -345,14 +449,16 @@ components:
           type: string
         graduation_year:
           type: string
-
     ReviewRequest:
       type: object
-      required: [decision]
+      required:
+      - decision
       properties:
         decision:
           type: string
-          enum: [PASSED, FAILED]
+          enum:
+          - PASSED
+          - FAILED
           description: PASSED approves the document. FAILED rejects it and allows re-upload.
         notes:
           type: string
@@ -362,7 +468,6 @@ components:
         employee_id:
           type: string
           description: The document's employee. When given, the document is read with one GetItem instead of a Scan.
-
     Error:
       type: object
       properties:
@@ -375,14 +480,13 @@ components:
           items:
             type: string
           description: Required fields that were absent (400 responses only).
-
 security:
-  - CognitoJWT: []
-
+- CognitoJWT: []
 paths:
   /v1/invites/lookup:
     post:
-      tags: [Invites]
+      tags:
+      - Invites
       operationId: lookupInvite
       summary: Look up an invite link (public, ONB-04)
       security: []
@@ -392,12 +496,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [token]
+              required:
+              - token
               properties:
                 token:
                   type: string
       responses:
-        "200":
+        '200':
           description: The state of the link. invalid carries no other field.
           content:
             application/json:
@@ -406,7 +511,11 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [ok, expired, used, invalid]
+                    enum:
+                    - ok
+                    - expired
+                    - used
+                    - invalid
                   company:
                     type: string
                   firstName:
@@ -417,21 +526,26 @@ paths:
                     type: string
                   hrPartnerName:
                     type: string
-        "400":
+        '400':
           description: The body is missing or not JSON.
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      x-tenant: stored-record
+      x-roles: []
   /v1/employees/{id}/invite:
     get:
-      tags: [Invites]
+      tags:
+      - Invites
       operationId: getInvite
       summary: The invite link of one Invited person (HR only, ONB-18)
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: The latest link. sentAt, expiresAt and sentTo are left out when status is none.
           content:
             application/json:
@@ -440,7 +554,11 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [ok, expired, used, none]
+                    enum:
+                    - ok
+                    - expired
+                    - used
+                    - none
                   sentAt:
                     type: string
                     format: date-time
@@ -449,22 +567,48 @@ paths:
                     format: date-time
                   sentTo:
                     type: string
-        "403":
+        '403':
           description: Only HR can see the invite link.
-        "404":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '404':
           description: No such employee.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Not found
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
     post:
-      tags: [Invites]
+      tags:
+      - Invites
       operationId: resendInvite
       summary: Close the link and send a new one (HR only, ONB-18)
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: A new link is made and the old one is closed.
           content:
             application/json:
@@ -488,11 +632,29 @@ paths:
                         type: boolean
                       skipped:
                         type: string
-        "403":
+        '403':
           description: Only HR can send a new link.
-        "404":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '404':
           description: No such employee.
-        "409":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Not found
+        '409':
           description: The person is not Invited, or the sign-in is already in use or disabled.
           content:
             application/json:
@@ -501,8 +663,10 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [not-invited, refused]
-        "502":
+                    enum:
+                    - not-invited
+                    - refused
+        '502':
           description: The link could not be made.
           content:
             application/json:
@@ -511,10 +675,19 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [failed]
+                    enum:
+                    - failed
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/invites/redeem:
     post:
-      tags: [Invites]
+      tags:
+      - Invites
       operationId: redeemInvite
       summary: Set the password with an invite link (public, ONB-04)
       security: []
@@ -524,16 +697,18 @@ paths:
           application/json:
             schema:
               type: object
-              required: [token, password]
+              required:
+              - token
+              - password
               properties:
                 token:
                   type: string
                 password:
                   type: string
       responses:
-        "204":
+        '204':
           description: The password is set; the link is used.
-        "400":
+        '400':
           description: The body is missing, or the password breaks a rule.
           content:
             application/json:
@@ -549,8 +724,14 @@ paths:
                         type: array
                         items:
                           type: string
-                          enum: [minLength, maxLength, lower, upper, number, symbol]
-        "410":
+                          enum:
+                          - minLength
+                          - maxLength
+                          - lower
+                          - upper
+                          - number
+                          - symbol
+        '410':
           description: The link is expired, used or invalid.
           content:
             application/json:
@@ -559,8 +740,11 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [expired, used, invalid]
-        "502":
+                    enum:
+                    - expired
+                    - used
+                    - invalid
+        '502':
           description: Cognito could not set the password; the link still works.
           content:
             application/json:
@@ -569,29 +753,31 @@ paths:
                 properties:
                   error:
                     type: string
-
-  # =========================================================================
-  # EMPLOYEES API  (ndksa9ec0k)
-  # =========================================================================
-
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      x-tenant: stored-record
+      x-roles: []
   /v1/employees/lookup:
     get:
-      tags: [Employees]
+      tags:
+      - Employees
       operationId: lookupEmployeeEmail
       summary: Resolve an Employee ID to an email address
-      description: |
-        Public - no auth required.
+      description: 'Public - no auth required.
+
         Used by the login screen so an employee can find their email before sign-in.
+
+        '
       security: []
       parameters:
-        - name: employeeId
-          in: query
-          required: true
-          schema:
-            type: string
-            example: EMP-0000014
+      - name: employeeId
+        in: query
+        required: true
+        schema:
+          type: string
+          example: EMP-0000014
       responses:
-        "200":
+        '200':
           description: Email resolved.
           content:
             application/json:
@@ -601,51 +787,70 @@ paths:
                   email:
                     type: string
                     format: email
-        "400":
+        '400':
           description: Missing or malformed employee ID.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "404":
+                $ref: '#/components/schemas/Error'
+        '404':
           description: No employee found with that ID.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      x-tenant: stored-record
+      x-roles: []
   /v1/employees:
     get:
-      tags: [Employees]
+      tags:
+      - Employees
       operationId: listEmployees
       summary: List employees visible to the calling HR staff member
-      description: |
-        Returns employees managed by the caller (scoped to their Cognito sub).
+      description: 'Returns employees managed by the caller (scoped to their Cognito sub).
+
         Members of hr-managers see all employees regardless.
+
+        '
       parameters:
-        - name: stage
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [INVITED, DOCUMENTS_SUBMITTED, MANUAL_REVIEW, VERIFIED]
-        - name: department
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            default: 100
-            minimum: 1
-            maximum: 500
+      - name: stage
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - INVITED
+          - DOCUMENTS_SUBMITTED
+          - MANUAL_REVIEW
+          - VERIFIED
+      - name: department
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          minimum: 1
+          maximum: 500
       responses:
         '403':
           description: Only HR can look up employees.
-        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '200':
           description: List of employee records.
           content:
             application/json:
@@ -655,33 +860,44 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Employee"
+                      $ref: '#/components/schemas/Employee'
                   count:
                     type: integer
-        "401":
+        '401':
           description: Missing or invalid JWT.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
     post:
-      tags: [Employees]
+      tags:
+      - Employees
       operationId: createEmployee
       summary: Register a new employee and trigger onboarding
-      description: |
-        Creates an employee record in DynamoDB, provisions a Cognito account with
+      description: 'Creates an employee record in DynamoDB, provisions a Cognito account with
+
         a temporary password, and sends a welcome email via Postmark.
+
         Employee created in INVITED stage. ID auto-generated as EMP-NNNNNNN.
+
         HR staff identity comes from the JWT sub claim.
+
+        '
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/EmployeeCreate"
+              $ref: '#/components/schemas/EmployeeCreate'
       responses:
-        "201":
+        '201':
           description: Employee created and welcome email sent.
           content:
             application/json:
@@ -692,7 +908,7 @@ paths:
                     type: string
                     example: Employee created successfully
                   employee:
-                    $ref: "#/components/schemas/Employee"
+                    $ref: '#/components/schemas/Employee'
                   cognito:
                     type: object
                     properties:
@@ -709,14 +925,15 @@ paths:
                         type: boolean
                       skipped:
                         type: string
-                        enum: [test]
+                        enum:
+                        - test
                   invite:
                     type: object
                     description: pepla-dev test logins only.
                     properties:
                       link:
                         type: string
-        "400":
+        '400':
           description: The body is missing or not valid, or a field is wrong. `fields` names each wrong field.
           content:
             application/json:
@@ -733,33 +950,42 @@ paths:
                     type: object
                     additionalProperties:
                       type: string
-        "401":
+        '401':
           description: Missing or invalid JWT.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "403":
+                $ref: '#/components/schemas/Error'
+        '403':
           description: The caller is not in the hr_staff group.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "409":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '409':
           description: An employee with this email already exists (any capitals). Code DUPLICATE_EMAIL.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/hr-partners:
     get:
-      tags: [Employees]
+      tags:
+      - Employees
       operationId: getHrPartners
       summary: List the HR staff who can be an employee's HR partner
       description: HR only. Every member of the hr_staff group, sorted by name.
       responses:
-        "200":
+        '200':
           description: The HR partners.
           content:
             application/json:
@@ -780,33 +1006,42 @@ paths:
                           type: string
                         email:
                           type: string
-        "401":
+        '401':
           description: Missing or invalid JWT.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "403":
+                $ref: '#/components/schemas/Error'
+        '403':
           description: The caller is not in the hr_staff group.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/employees/email-check:
     get:
-      tags: [Employees]
+      tags:
+      - Employees
       operationId: checkEmployeeEmail
       summary: Ask whether an email is already in use
       description: HR only. Capitals and spaces around the address do not matter. Answers inUse and nothing else.
       parameters:
-        - name: email
-          in: query
-          required: true
-          schema:
-            type: string
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: Whether the email is in use.
           content:
             application/json:
@@ -815,82 +1050,106 @@ paths:
                 properties:
                   inUse:
                     type: boolean
-        "400":
+        '400':
           description: The email is missing or not an email address.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "401":
+                $ref: '#/components/schemas/Error'
+        '401':
           description: Missing or invalid JWT.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "403":
+                $ref: '#/components/schemas/Error'
+        '403':
           description: The caller is not in the hr_staff group.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/employees/by-email:
     get:
-      tags: [Employees]
+      tags:
+      - Employees
       operationId: getEmployeeByEmail
       summary: Look up an employee by email address
       description: Returns the full employee record for the given email address.
       parameters:
-        - name: email
-          in: query
-          required: true
-          schema:
-            type: string
-            format: email
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
+          format: email
       responses:
         '403':
           description: Only HR can look up employees.
-        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '200':
           description: Employee found.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Employee"
-        "400":
+                $ref: '#/components/schemas/Employee'
+        '400':
           description: Missing or invalid email.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "404":
+                $ref: '#/components/schemas/Error'
+        '404':
           description: No employee with that email.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
-  # =========================================================================
-  # DOCUMENTS AND VERIFICATIONS API  (b2wt303fc8)
-  # =========================================================================
-
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/employees/{id}/verifications:
     get:
-      tags: [Verifications]
+      tags:
+      - Verifications
       operationId: getEmployeeDocumentVerifications
       summary: Get all documents and verifications for a specific employee
-      description: |
-        Returns the employee with their full document list. Each document includes
+      description: 'Returns the employee with their full document list. Each document includes
+
         its OCR verification result (if complete) and a can_reupload flag.
+
         Also returns a status count: { total, passed, manual_review, failed }.
+
+        '
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            example: EMP-0000014
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: EMP-0000014
       responses:
-        "200":
+        '200':
           description: Employee with documents and verifications.
           content:
             application/json:
@@ -898,11 +1157,11 @@ paths:
                 type: object
                 properties:
                   employee:
-                    $ref: "#/components/schemas/Employee"
+                    $ref: '#/components/schemas/Employee'
                   documents:
                     type: array
                     items:
-                      $ref: "#/components/schemas/EmployeeDocument"
+                      $ref: '#/components/schemas/EmployeeDocument'
                   summary:
                     type: object
                     properties:
@@ -916,39 +1175,62 @@ paths:
                         type: integer
                   required_documents:
                     type: array
-                    description: |
-                      The document types HR must accept before the employee is Verified, for the employee's company.
+                    description: 'The document types HR must accept before the employee is Verified, for the employee''s company.
+
                       Today every company gets NATIONAL_ID and BANK_CONFIRMATION.
+
+                      '
                     items:
                       type: string
-                      enum: [NATIONAL_ID, BANK_CONFIRMATION, MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION]
-        "403":
-          description: |
-            The caller is neither in the hr_staff group nor the employee (the token email
-            must equal the employee's email, compared without case). The body carries no
+                      enum:
+                      - NATIONAL_ID
+                      - BANK_CONFIRMATION
+                      - MATRIC_CERTIFICATE
+                      - TERTIARY_QUALIFICATION
+        '403':
+          description: 'The caller is neither in the hr_staff group nor the employee (the token email
+
+            must equal the employee''s email, compared without case). The body carries no
+
             employee or document data.
+
+            '
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "404":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '404':
           description: Employee not found.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Not found
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/me/documents:
     get:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: getMyDocuments
       summary: The signed-in new employee's own documents and the state of each
-      description: |
-        Employee group only, with a verified email. The record is found from the token, never from a parameter.
+      description: 'Employee group only, with a verified email. The record is found from the token, never from a parameter.
+
         Answers the four document types in a fixed order with whether each is required, its state and its files.
+
         Never holds an employee id, a document id, an S3 key or anything from the document check.
+
+        '
       responses:
-        "200":
+        '200':
           description: The four documents.
           content:
             application/json:
@@ -962,12 +1244,20 @@ paths:
                       properties:
                         type:
                           type: string
-                          enum: [NATIONAL_ID, BANK_CONFIRMATION, MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION]
+                          enum:
+                          - NATIONAL_ID
+                          - BANK_CONFIRMATION
+                          - MATRIC_CERTIFICATE
+                          - TERTIARY_QUALIFICATION
                         required:
                           type: boolean
                         state:
                           type: string
-                          enum: [NOT_UPLOADED, WITH_HR, SENT_BACK, ACCEPTED]
+                          enum:
+                          - NOT_UPLOADED
+                          - WITH_HR
+                          - SENT_BACK
+                          - ACCEPTED
                         files:
                           type: array
                           items:
@@ -979,51 +1269,77 @@ paths:
                                 type: string
                               state:
                                 type: string
-                                enum: [WITH_HR, SENT_BACK, ACCEPTED]
-        "403":
+                                enum:
+                                - WITH_HR
+                                - SENT_BACK
+                                - ACCEPTED
+        '403':
           description: Not a new employee, or the email is not verified.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "404":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '404':
           description: No single record for this sign-in.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - employee
   /v1/me/documents/upload-url:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: createMyUploadLink
       summary: A 15 minute link to put one file into the signed-in new employee's own record
-      description: |
-        Employee group only, with a verified email, after the current privacy notice is accepted.
+      description: 'Employee group only, with a verified email, after the current privacy notice is accepted.
+
         The record is found from the token, never from the body. PUT the file to the link with the returned
+
         headers only (no Authorization header on S3). The link binds the content type and the exact size.
+
+        '
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [documentType, fileName, contentType, fileSize]
+              required:
+              - documentType
+              - fileName
+              - contentType
+              - fileSize
               properties:
                 documentType:
                   type: string
-                  enum: [NATIONAL_ID, BANK_CONFIRMATION, MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION]
+                  enum:
+                  - NATIONAL_ID
+                  - BANK_CONFIRMATION
+                  - MATRIC_CERTIFICATE
+                  - TERTIARY_QUALIFICATION
                 fileName:
                   type: string
                 contentType:
                   type: string
-                  enum: [application/pdf, image/jpeg, image/png]
+                  enum:
+                  - application/pdf
+                  - image/jpeg
+                  - image/png
                 fileSize:
                   type: integer
                   minimum: 1
                   maximum: 10485760
       responses:
-        "200":
+        '200':
           description: The link.
           content:
             application/json:
@@ -1043,62 +1359,94 @@ paths:
                     properties:
                       Content-Type:
                         type: string
-        "400":
+        '400':
           description: A missing or wrong field, with the words to show.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "403":
+                $ref: '#/components/schemas/Error'
+        '403':
           description: Not a new employee, the email is not verified, or the privacy notice is not accepted.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "404":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '404':
           description: No single record for this sign-in.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - employee
   /v1/employees/{employee_id}/documents/upload-url:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: generateDocumentUploadUrl
       summary: Generate a pre-signed S3 URL for direct browser upload
-      description: |
-        Two-step upload flow:
+      description: 'Two-step upload flow:
+
         1. Call this endpoint to get a short-lived pre-signed S3 PUT URL.
+
         2. PUT the file directly from the browser (no Authorization header on S3).
+
         URL expires in 300 s. Accepted: image/jpeg, image/png, application/pdf.
+
         KMS-encrypted with alias/naleko-onboarding-pii.
+
         S3 triggers processDocumentOCR Lambda automatically after upload.
+
+        '
       parameters:
-        - name: employee_id
-          in: path
-          required: true
-          schema:
-            type: string
-            example: EMP-0000014
+      - name: employee_id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: EMP-0000014
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [documentType, contentType]
+              required:
+              - documentType
+              - contentType
               properties:
                 documentType:
                   type: string
-                  enum: [NATIONAL_ID, BANK_CONFIRMATION, QUALIFICATION]
+                  enum:
+                  - NATIONAL_ID
+                  - BANK_CONFIRMATION
+                  - QUALIFICATION
                 contentType:
                   type: string
-                  enum: [image/jpeg, image/png, application/pdf]
+                  enum:
+                  - image/jpeg
+                  - image/png
+                  - application/pdf
       responses:
         '403':
           description: You can only upload documents to your own record.
-        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '200':
           description: Pre-signed URL ready.
           content:
             application/json:
@@ -1112,46 +1460,82 @@ paths:
                   key:
                     type: string
                     description: S3 object key for later reference.
-        "400":
+        '400':
           description: Unsupported content type or missing fields.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "401":
+                $ref: '#/components/schemas/Error'
+        '401':
           description: Missing or invalid JWT.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/employees/{id}/assess-risk:
     post:
-      tags: [Verifications]
+      tags:
+      - Verifications
       operationId: assessOnboardingRisk
       summary: AI risk classification for an employee based on their document verifications
-      description: |
-        Sends a PII-free summary of all verification results to Claude (Bedrock).
+      description: 'Sends a PII-free summary of all verification results to Claude (Bedrock).
+
 
         | Band | Meaning |
+
         |---|---|
+
         | LOW | All documents passed with high confidence |
+
         | MEDIUM | Some documents in manual review or low confidence |
+
         | HIGH | One or more documents failed or missing |
 
+
         Persists riskBand, riskReason, riskAssessedAt to the employee record.
+
         Requires at least one verification to exist for this employee.
+
+        '
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            example: EMP-0000014
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: EMP-0000014
       responses:
         '403':
           description: Only HR can check documents.
-        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '200':
           description: Risk classified and saved to employee record.
           content:
             application/json:
@@ -1162,41 +1546,57 @@ paths:
                     type: string
                   risk:
                     type: string
-                    enum: [LOW, MEDIUM, HIGH, UNKNOWN]
+                    enum:
+                    - LOW
+                    - MEDIUM
+                    - HIGH
+                    - UNKNOWN
                   reason:
                     type: string
                     example: All documents passed with high confidence. No anomalies detected.
-        "404":
+        '404':
           description: No verifications found for this employee.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "500":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Not found
+        '500':
           description: Bedrock or DynamoDB failure.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/documents/{id}/url:
     get:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: getDocumentPresignedUrl
       summary: Get a short-lived URL to preview or download a document
-      description: |
-        Returns a pre-signed S3 GET URL expiring in 15 minutes (900 s).
+      description: 'Returns a pre-signed S3 GET URL expiring in 15 minutes (900 s).
+
         Open in a browser to render the document inline. Used by the HR portal
+
         to display uploaded files without exposing S3 credentials.
+
+        '
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            example: doc_1774086521598
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: doc_1774086521598
       responses:
-        "200":
+        '200':
           description: Pre-signed URL generated.
           content:
             application/json:
@@ -1214,83 +1614,109 @@ paths:
                     type: integer
                     example: 900
                     description: Seconds until the URL expires.
-        "403":
+        '403':
           description: Only HR can open documents, or you can only open your own.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "404":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '404':
           description: Document not found.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Not found
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/verifications:
     get:
-      tags: [Verifications]
+      tags:
+      - Verifications
       operationId: listVerifications
       summary: List document verifications across employees
-      description: |
-        Returns OCR verification records enriched with employee names.
+      description: 'Returns OCR verification records enriched with employee names.
+
         Only HR staff (the `hr_staff` group) may call it; any other signed-in caller gets 403.
+
         The Agent API route reuses this Lambda and keeps its unfiltered answer.
 
+
         With `waiting=true` it returns the documents still waiting for an HR decision
+
         (no `hr_reviewed_at`), oldest first, six fields each, plus the full count and a
+
         count per check. Nothing read from a document (ID number, name, bank detail,
+
         file address) is in that answer.
+
+        '
       parameters:
-        - name: waiting
-          in: query
-          required: false
-          description: When `true`, list documents waiting for an HR decision, oldest first.
-          schema:
-            type: boolean
-        - name: status
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [PENDING, PASSED, MANUAL_REVIEW, FAILED]
-        - name: decision
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [PASSED, FAILED, MANUAL_REVIEW]
-        - name: employee_id
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: limit
-          in: query
-          required: false
-          schema:
-            type: integer
-            default: 50
-            minimum: 1
-            maximum: 200
+      - name: waiting
+        in: query
+        required: false
+        description: When `true`, list documents waiting for an HR decision, oldest first.
+        schema:
+          type: boolean
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PENDING
+          - PASSED
+          - MANUAL_REVIEW
+          - FAILED
+      - name: decision
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PASSED
+          - FAILED
+          - MANUAL_REVIEW
+      - name: employee_id
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          minimum: 1
+          maximum: 200
       responses:
-        "200":
-          description: |
-            List of verification records, or, with `waiting=true`, the documents waiting for an HR decision.
+        '200':
+          description: 'List of verification records, or, with `waiting=true`, the documents waiting for an HR decision.
+
+            '
           content:
             application/json:
               schema:
                 oneOf:
-                  - type: object
-                    properties:
+                - type: object
+                  properties:
+                    items:
+                      type: array
                       items:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/VerificationSummary"
-                      count:
-                        type: integer
-                  - $ref: "#/components/schemas/WaitingDocuments"
-        "403":
+                        $ref: '#/components/schemas/VerificationSummary'
+                    count:
+                      type: integer
+                - $ref: '#/components/schemas/WaitingDocuments'
+        '403':
           description: The caller is not HR staff. Nothing is read.
           content:
             application/json:
@@ -1300,38 +1726,60 @@ paths:
                   error:
                     type: string
                     example: Forbidden
-
+              example:
+                error: Forbidden
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/verifications/{id}:
     get:
-      tags: [Verifications]
+      tags:
+      - Verifications
       operationId: getVerification
       summary: Get one document with its verification, the employee and how it compares with the record (HR only)
-      description: |
-        HR only (the hr_staff group); anyone else gets 403 before anything is read. `{id}` is the document_id.
+      description: 'HR only (the hr_staff group); anyone else gets 403 before anything is read. `{id}` is the document_id.
+
         Pass `employee_id` as a query parameter when it is known: the document is then read with one GetItem
+
         instead of a Scan.
 
-        Returns the document, Batsi's verification (extracted fields, with the ID number decrypted), the
-        employee's id and name, Batsi's check, how what was read compares with the employee's record
-        (`comparisons`) and HR's decision, when there is one.
+
+        Returns the document, Batsi''s verification (extracted fields, with the ID number decrypted), the
+
+        employee''s id and name, Batsi''s check, how what was read compares with the employee''s record
+
+        (`comparisons`) and HR''s decision, when there is one.
+
         Fields by document type:
-        - NATIONAL_ID: id_number, id_number_last4, name, surname, date_of_birth, gender, citizenship
-        - BANK_CONFIRMATION: account_holder, bank_name, account_number, branch_code, account_type
+
+        - NATIONAL_ID: id_number_last4, id_number_available, name, surname, date_of_birth, gender, citizenship
+
+        - BANK_CONFIRMATION: account_holder, bank_name, account_number_last4, account_number_available, branch_code, account_type
+
+        The full ID number and account number are not in this answer (ONB-14). They come only from
+        `POST /v1/verifications/{id}/reveal`, which records who showed them.
+
         - MATRIC_CERTIFICATE, TERTIARY_QUALIFICATION: no fields beyond the document
+
+        '
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            example: doc_1774086521598
-        - name: employee_id
-          in: query
-          required: false
-          schema:
-            type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: doc_1774086521598
+      - name: employee_id
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: The document and its verification.
           content:
             application/json:
@@ -1374,13 +1822,18 @@ paths:
                       extracted_data:
                         type: object
                         properties:
-                          id_number:
-                            type: string
-                            nullable: true
-                            description: Decrypted for HR.
                           id_number_last4:
                             type: string
                             nullable: true
+                          id_number_available:
+                            type: boolean
+                            description: True when the document holds an ID number that Show can return.
+                          account_number_last4:
+                            type: string
+                            nullable: true
+                          account_number_available:
+                            type: boolean
+                            description: True when the document holds an account number that Show can return.
                           name:
                             type: string
                           surname:
@@ -1394,8 +1847,6 @@ paths:
                           account_holder:
                             type: string
                           bank_name:
-                            type: string
-                          account_number:
                             type: string
                           branch_code:
                             type: string
@@ -1419,11 +1870,18 @@ paths:
                         type: string
                   check:
                     type: string
-                    enum: [READING, MATCHES, NEEDS_A_LOOK, DOESNT_MATCH]
+                    enum:
+                    - READING
+                    - MATCHES
+                    - NEEDS_A_LOOK
+                    - DOESNT_MATCH
                   hr_decision:
                     type: string
                     nullable: true
-                    enum: [ACCEPTED, NEW_ONE_ASKED, null]
+                    enum:
+                    - ACCEPTED
+                    - NEW_ONE_ASKED
+                    - null
                   hr_decided_at:
                     type: string
                     nullable: true
@@ -1440,57 +1898,83 @@ paths:
                       properties:
                         field:
                           type: string
-                          enum: [SURNAME, ID_NUMBER, ACCOUNT_HOLDER]
+                          enum:
+                          - SURNAME
+                          - ID_NUMBER
+                          - ACCOUNT_HOLDER
                         result:
                           type: string
-                          enum: [AGREES, DIFFERS, NOT_READ, NOT_ON_RECORD]
-        "403":
+                          enum:
+                          - AGREES
+                          - DIFFERS
+                          - NOT_READ
+                          - NOT_ON_RECORD
+        '403':
           description: Only HR can open documents (the caller is not in the hr_staff group).
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "404":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '404':
           description: Document not found.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "500":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Not found
+        '500':
           description: The document could not be loaded.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/verifications/{id}/review:
     patch:
-      tags: [Verifications]
+      tags:
+      - Verifications
       operationId: reviewVerification
       summary: HR officer approves or rejects a document in manual review
-      description: |
-        HR only. PASSED: approves the document (ocr_status set to PASSED).
+      description: 'HR only. PASSED: approves the document (ocr_status set to PASSED).
+
         FAILED: rejects it (ocr_status set to FAILED, can_reupload set to true).
-        A document is decided once: the decision is one conditional write that records HR's name and the time,
+
+        A document is decided once: the decision is one conditional write that records HR''s name and the time,
+
         and a second decision, or a decision while the document is still being read, gets 409.
+
         `document.reviewed` carries decided_by, decided_by_name, decided_at and actor HUMAN.
+
         Auto-promotion: when every required document is accepted, the employee stage advances to VERIFIED
+
         (once per person). The newest read copy of each required type decides; optional documents never
+
         decide it, either way.
+
+        '
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReviewRequest"
+              $ref: '#/components/schemas/ReviewRequest'
       responses:
-        "200":
+        '200':
           description: Review recorded.
           content:
             application/json:
@@ -1505,14 +1989,18 @@ paths:
                     type: string
                   decision:
                     type: string
-                    enum: [PASSED, FAILED]
+                    enum:
+                    - PASSED
+                    - FAILED
                   can_reupload:
                     type: boolean
                   all_documents_passed:
                     type: boolean
-                    description: |
-                      True when every required document is accepted by HR (the newest read copy of each required
+                    description: 'True when every required document is accepted by HR (the newest read copy of each required
+
                       type). Optional documents are not looked at.
+
+                      '
                   required_documents:
                     type: array
                     description: The required document types used for this decision.
@@ -1528,7 +2016,9 @@ paths:
                     description: True if every required document was accepted and the employee was promoted to VERIFIED.
                   hr_decision:
                     type: string
-                    enum: [ACCEPTED, NEW_ONE_ASKED]
+                    enum:
+                    - ACCEPTED
+                    - NEW_ONE_ASKED
                   hr_decided_at:
                     type: string
                     format: date-time
@@ -1537,57 +2027,167 @@ paths:
                   hr_decision_reason:
                     type: string
                     nullable: true
-        "400":
+        '400':
           description: Invalid decision value, or the reason is longer than 500 characters.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "403":
+                $ref: '#/components/schemas/Error'
+        '403':
           description: Only HR can decide on a document.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "404":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '404':
           description: Verification not found.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "409":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Not found
+        '409':
           description: This document was already decided or is still being read. Nothing was written.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /v1/verifications/{id}/reveal:
+    post:
+      tags:
+      - Verifications
+      operationId: revealDocumentField
+      summary: Show one full number, recorded
+      description: 'HR only. Returns the full ID number or account number of one document, and only after the audit event
 
+        `document.field_shown` (who, which number, whose document, when) was accepted by the audit bus. If the event cannot
+
+        be recorded no number is returned. Two calls make two events. The event never holds the number.
+
+        '
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: The document id.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - field
+              - employee_id
+              properties:
+                field:
+                  type: string
+                  enum:
+                  - id_number
+                  - account_number
+                employee_id:
+                  type: string
+                  description: The document's person (only a key; the company comes from the token).
+      responses:
+        '200':
+          description: The number, recorded as shown. Cache-Control is no-store.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: string
+        '400':
+          description: Unknown field, or employee_id missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Only HR can show a number.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '404':
+          description: No such document in the company, or it holds no number to show. Nothing is recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Not found
+        '500':
+          description: The Show could not be recorded, so no number is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/verifications/{id}/summary:
     get:
-      tags: [Verifications]
+      tags:
+      - Verifications
       operationId: getVerificationSummary
       summary: AI-generated plain-English summary of a verification result
-      description: |
-        Calls Claude (Bedrock) to produce a human-readable digest of the OCR result
+      description: 'Calls Claude (Bedrock) to produce a human-readable digest of the OCR result
+
         and extracted fields - no raw model output or technical field names.
 
+
         Designed for downstream consumers:
+
         - Employee rejection notifications (why was my document not accepted)
+
         - WhatsApp / chatbot channels
+
         - Future mobile app views
 
-        No PII is sent to the model. Response time is typically 2-5 s.
+
+        Numbers of six or more digits are removed from the text before it is sent to the model. Response time is typically 2-5 s.
+
+        '
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            example: ver_1774086781234
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: ver_1774086781234
       responses:
         '403':
           description: Only HR can check documents.
-        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '200':
           description: AI summary generated.
           content:
             application/json:
@@ -1599,36 +2199,48 @@ paths:
                   summary:
                     type: string
                     example: The document is a valid South African ID. All key fields extracted with high confidence.
-        "404":
+        '404':
           description: Verification not found.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "500":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Not found
+        '500':
           description: Bedrock invocation failed.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /v1/verifications/{id}/external:
     post:
-      tags: [Verifications]
+      tags:
+      - Verifications
       operationId: triggerExternalVerification
       summary: Escalate a verification to an external verification provider
-      description: |
-        Sets status to EXTERNAL_VERIFICATION_TRIGGERED and publishes a
+      description: 'Sets status to EXTERNAL_VERIFICATION_TRIGGERED and publishes a
+
         VerificationExternalTriggered event to the naleko-onboarding EventBridge bus.
+
         Requires hr-partners group membership.
+
+        '
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: External verification triggered.
           content:
             application/json:
@@ -1642,53 +2254,2935 @@ paths:
                   status:
                     type: string
                     example: EXTERNAL_VERIFICATION_TRIGGERED
-        "403":
+        '403':
           description: Caller is not in hr-partners group.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-        "409":
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Forbidden
+        '409':
           description: Verification is not in an actionable state.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
-  # =========================================================================
-  # DEVELOPER DOCS  (ndksa9ec0k - no auth)
-  # =========================================================================
-
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      servers:
+      - url: https://b2wt303fc8.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
   /docs:
     get:
-      tags: [Docs]
+      tags:
+      - Docs
       operationId: getSwaggerUI
       summary: Swagger UI - interactive API documentation
-      description: |
-        Public - no auth required.
+      description: 'Public - no auth required.
+
         Returns Swagger UI HTML pointed at GET /openapi.yaml on the same gateway.
+
+        '
       security: []
       responses:
-        "200":
+        '200':
           description: Swagger UI HTML.
           content:
             text/html:
               schema:
                 type: string
-
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      x-tenant: none
+      x-roles: []
   /openapi.yaml:
     get:
-      tags: [Docs]
+      tags:
+      - Docs
       operationId: getOpenAPISpec
       summary: Raw OpenAPI 3.0 specification (YAML)
-      description: |
-        Public - no auth required.
+      description: 'Public - no auth required.
+
         Returns the canonical spec consumed by Swagger UI and API client generators.
+
+        '
       security: []
       responses:
-        "200":
+        '200':
           description: OpenAPI YAML.
           content:
             application/yaml:
               schema:
                 type: string
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      x-tenant: none
+      x-roles: []
+  /agent/v1/employees:
+    get:
+      summary: GET /agent/v1/employees
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_agent_v1_employees
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/v1/employees/{id}:
+    get:
+      summary: GET /agent/v1/employees/{id}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_agent_v1_employees_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/v1/verifications:
+    get:
+      summary: GET /agent/v1/verifications
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_agent_v1_verifications
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/v1/verifications/{id}/summary:
+    get:
+      summary: GET /agent/v1/verifications/{id}/summary
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_agent_v1_verifications_id_summary
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/v1/employees/{id}/assess-risk:
+    post:
+      summary: POST /agent/v1/employees/{id}/assess-risk
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_agent_v1_employees_id_assess_risk
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/v1/audit-log:
+    get:
+      summary: GET /agent/v1/audit-log
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_agent_v1_audit_log
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/agent-tools.json:
+    get:
+      summary: GET /agent/agent-tools.json
+      responses:
+        '200':
+          description: OK
+      operationId: GET_agent_agent_tools_json
+      servers:
+      - url: https://agent-api.example.com
+      security: []
+      x-tenant: none
+      x-roles: []
+  /agent/v1/employees/risk-report:
+    get:
+      summary: GET /agent/v1/employees/risk-report
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_agent_v1_employees_risk_report
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/v1/proposals:
+    post:
+      summary: POST /agent/v1/proposals
+      description: An agent proposes Accept document for one document waiting for HR whose check is Matches. Nothing is decided.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - type
+              - document_id
+              additionalProperties: false
+              properties:
+                type:
+                  type: string
+                  enum:
+                  - ACCEPT_DOCUMENT
+                document_id:
+                  type: string
+      responses:
+        '201':
+          description: Proposed. Waiting for HR.
+        '400':
+          description: Not a valid proposal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Unknown proposal
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Not found
+        '409':
+          description: Not waiting, not a match, or already proposed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: There is already a proposal for this document
+      operationId: POST_agent_v1_proposals
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/v1/actions:
+    get:
+      summary: GET /agent/v1/actions
+      description: HR's list of proposals, open first, then the last 20 answered.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden. Only HR can answer a proposal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Only HR can answer a proposal
+      operationId: GET_agent_v1_actions
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /agent/v1/actions/{actionId}:
+    get:
+      summary: GET /agent/v1/actions/{actionId}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_agent_v1_actions_actionId
+      parameters:
+      - name: actionId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - AgentKey: []
+      x-tenant: agent
+      x-roles: []
+  /agent/v1/actions/{actionId}/approve:
+    post:
+      summary: POST /agent/v1/actions/{actionId}/approve
+      responses:
+        '200':
+          description: Answered. A run that was refused or failed still answers 200 with run_status and error_code.
+        '409':
+          description: Already answered or expired
+        '403':
+          description: Forbidden. Only HR can answer a proposal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_agent_v1_actions_actionId_approve
+      parameters:
+      - name: actionId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /agent/v1/actions/{actionId}/reject:
+    post:
+      summary: POST /agent/v1/actions/{actionId}/reject
+      responses:
+        '200':
+          description: Answered. A run that was refused or failed still answers 200 with run_status and error_code.
+        '409':
+          description: Already answered or expired
+        '403':
+          description: Forbidden. Only HR can answer a proposal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_agent_v1_actions_actionId_reject
+      parameters:
+      - name: actionId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /agent/v1/actions/pending:
+    get:
+      summary: GET /agent/v1/actions/pending
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_agent_v1_actions_pending
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /agent/v1/ai-chat:
+    post:
+      summary: POST /agent/v1/ai-chat
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: POST_agent_v1_ai_chat
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles: []
+  /v1/me:
+    get:
+      summary: GET /v1/me
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  firstName:
+                    type: string
+                  company:
+                    type: string
+                  department:
+                    type: string
+                  startDate:
+                    type: string
+                    format: date
+                  documentsDue:
+                    type: string
+                    format: date
+                    description: 'The date the required documents are due: 7 days before the start date. Left out when there is no start date.'
+                  step:
+                    type: string
+                    nullable: true
+                    enum: [INVITED, DOCUMENTS, IN_REVIEW, VERIFIED]
+                    description: 'Where the signed-in person is in onboarding, the same step HR sees (ONB-09). null for an archived or unknown record.'
+                  notice:
+                    type: object
+                  consent:
+                    type: object
+                    nullable: true
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_me
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - employee
+  /v1/company/modules:
+    get:
+      summary: GET /v1/company/modules
+      description: The modules switched on for the caller's company. Any signed-in person whose sign-in carries a company.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_company_modules
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles: []
+  /v1/chats:
+    get:
+      summary: GET /v1/chats
+      description: The caller's own stored Ask Batsi chats, newest first, 50 to a page. 403 while the company's Ask Batsi switch is off.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_chats
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+    delete:
+      summary: DELETE /v1/chats
+      description: Deletes every chat of the caller, for real. Works with the switch off.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: DELETE_v1_chats
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /v1/chats/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: GET /v1/chats/{id}
+      description: One of the caller's chats with every message. Another person's chat is 404.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_chats_id
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+    delete:
+      summary: DELETE /v1/chats/{id}
+      description: Deletes one of the caller's chats, for real. Works with the switch off.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: DELETE_v1_chats_id
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /v1/admin/company/ask-batsi:
+    put:
+      summary: PUT /v1/admin/company/ask-batsi
+      description: A company admin turns the company's Ask Batsi switch on or off. The body names enabled, true or false.
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: PUT_v1_admin_company_ask_batsi
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+  /v1/me/consent:
+    post:
+      summary: POST /v1/me/consent
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: POST_v1_me_consent
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - employee
+  /v1/it/tasks:
+    get:
+      summary: GET /v1/it/tasks
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_it_tasks
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - perm-it
+  /v1/it/tasks/{taskId}:
+    get:
+      summary: GET /v1/it/tasks/{taskId}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_it_tasks_taskId
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - perm-it
+  /v1/it/tasks/{taskId}/claim:
+    post:
+      summary: POST /v1/it/tasks/{taskId}/claim
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_it_tasks_taskId_claim
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - perm-it
+  /v1/it/tasks/{taskId}/release:
+    post:
+      summary: POST /v1/it/tasks/{taskId}/release
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_it_tasks_taskId_release
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - perm-it
+  /v1/it/tasks/{taskId}/complete:
+    post:
+      summary: POST /v1/it/tasks/{taskId}/complete
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_it_tasks_taskId_complete
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - perm-it
+  /v1/provisioning/bundles:
+    post:
+      summary: POST /v1/provisioning/bundles
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: POST_v1_provisioning_bundles
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+    get:
+      summary: GET /v1/provisioning/bundles
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_provisioning_bundles
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+  /v1/provisioning/bundles/{bundleId}:
+    get:
+      summary: GET /v1/provisioning/bundles/{bundleId}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_provisioning_bundles_bundleId
+      parameters:
+      - name: bundleId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+    patch:
+      summary: PATCH /v1/provisioning/bundles/{bundleId}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: PATCH_v1_provisioning_bundles_bundleId
+      parameters:
+      - name: bundleId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+  /v1/provisioning/bundles/{bundleId}/approve:
+    post:
+      summary: POST /v1/provisioning/bundles/{bundleId}/approve
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_provisioning_bundles_bundleId_approve
+      parameters:
+      - name: bundleId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+  /v1/provisioning/bundles/{bundleId}/progress:
+    get:
+      summary: GET /v1/provisioning/bundles/{bundleId}/progress
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_provisioning_bundles_bundleId_progress
+      parameters:
+      - name: bundleId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+  /v1/candidates/{id}/events:
+    get:
+      summary: GET /v1/candidates/{id}/events
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_candidates_id_events
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/hiring-managers:
+    get:
+      summary: GET /v1/hiring-managers
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_hiring_managers
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles: []
+  /v1/candidates/{id}/interviews:
+    get:
+      summary: GET /v1/candidates/{id}/interviews
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_candidates_id_interviews
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+    post:
+      summary: POST /v1/candidates/{id}/interviews
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_candidates_id_interviews
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/intelligence/tiles/{id}/acknowledge:
+    post:
+      summary: POST /v1/intelligence/tiles/{id}/acknowledge
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_intelligence_tiles_id_acknowledge
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/stage:
+    put:
+      summary: "PUT /v1/candidates/{id}/stage: a person moves a candidate one step, with a reason (REC-03)"
+      description: Moves a candidate one step along Applied, Screening (when the company has it on), Interview and Offer, forward or back. A reason is required. Hired and Not hired are never reached here. Interview to Offer is the gate. The hiring manager may make that one move only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - to
+              - reason
+              properties:
+                to:
+                  type: string
+                  enum:
+                  - APPLIED
+                  - SCREENING
+                  - INTERVIEW
+                  - OFFER
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidateId:
+                    type: string
+                  from:
+                    type: string
+                  to:
+                    type: string
+                  at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Bad request (REASON_REQUIRED, UNKNOWN_STAGE, USE_ACTION, NOT_NEXT_STAGE)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+                  code:
+                    type: string
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+                  code:
+                    type: string
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+                  code:
+                    type: string
+              example:
+                error: Not found
+        '409':
+          description: Conflict (NOT_OPEN, INTERVIEWS_INCOMPLETE, OFFER_LIVE, STAGE_CHANGED)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+                  code:
+                    type: string
+              example:
+                error: Conflict
+      operationId: PUT_v1_candidates_id_stage
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/not-hired:
+    post:
+      summary: "POST /v1/candidates/{id}/not-hired: a person records Not hired with a reason (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_candidates_id_not_hired
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/not-hired/confirm:
+    post:
+      summary: "POST /v1/candidates/{id}/not-hired/confirm: a different person confirms (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_candidates_id_not_hired_confirm
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/not-hired/cancel:
+    post:
+      summary: "POST /v1/candidates/{id}/not-hired/cancel: let a pending decision go (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_candidates_id_not_hired_cancel
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/reopen:
+    post:
+      summary: "POST /v1/candidates/{id}/reopen: move a Not hired candidate back (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_candidates_id_reopen
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/old-system:
+    get:
+      summary: "GET /v1/candidates/old-system: what the old system rejected, for HR (REC-02)"
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_candidates_old_system
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /agent/v1/talentflow/chat:
+    post:
+      summary: POST /agent/v1/talentflow/chat
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: POST_agent_v1_talentflow_chat
+      servers:
+      - url: https://agent-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles: []
+  /v1/candidates:
+    post:
+      summary: POST /v1/candidates
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: POST_v1_candidates
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+    get:
+      summary: GET /v1/candidates
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_candidates
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/config:
+    post:
+      summary: POST /v1/config
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: POST_v1_config
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+    get:
+      summary: GET /v1/config
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_config
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+  /v1/config/{id}:
+    put:
+      summary: PUT /v1/config/{id}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: PUT_v1_config_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+  /v1/candidates/{id}:
+    get:
+      summary: GET /v1/candidates/{id}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_candidates_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+    patch:
+      summary: PATCH /v1/candidates/{id}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: PATCH_v1_candidates_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/interviews/{interviewId}:
+    patch:
+      summary: PATCH /v1/candidates/{id}/interviews/{interviewId}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: PATCH_v1_candidates_id_interviews_interviewId
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: interviewId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/votes:
+    post:
+      summary: POST /v1/candidates/{id}/votes
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_candidates_id_votes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/panel-members:
+    get:
+      summary: GET /v1/panel-members
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_panel_members
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles: []
+  /v1/candidates/{id}/sentiment:
+    post:
+      summary: POST /v1/candidates/{id}/sentiment
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_candidates_id_sentiment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/notifications:
+    get:
+      summary: GET /v1/notifications
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_notifications
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles: []
+  /v1/notifications/{id}/read:
+    patch:
+      summary: PATCH /v1/notifications/{id}/read
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: PATCH_v1_notifications_id_read
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles: []
+  /v1/candidates/{id}/offer:
+    post:
+      summary: POST /v1/candidates/{id}/offer
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_candidates_id_offer
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+    get:
+      summary: GET /v1/candidates/{id}/offer
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_candidates_id_offer
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+    put:
+      summary: PUT /v1/candidates/{id}/offer
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: PUT_v1_candidates_id_offer
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+      - perm-approve-offers
+  /v1/candidates/{id}/scoring-links:
+    post:
+      summary: POST /v1/candidates/{id}/scoring-links
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_candidates_id_scoring_links
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/scoring/{token}/votes:
+    post:
+      summary: POST /v1/scoring/{token}/votes
+      responses:
+        '200':
+          description: OK
+      operationId: POST_v1_scoring_token_votes
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security: []
+      x-tenant: stored-record
+      x-roles: []
+  /v1/admin/dashboard:
+    get:
+      summary: GET /v1/admin/dashboard
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_admin_dashboard
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+  /v1/admin/users:
+    get:
+      summary: GET /v1/admin/users
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_admin_users
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+    post:
+      summary: POST /v1/admin/users
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: POST_v1_admin_users
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+  /v1/admin/users/{userId}:
+    put:
+      summary: PUT /v1/admin/users/{userId}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: PUT_v1_admin_users_userId
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+    delete:
+      summary: DELETE /v1/admin/users/{userId}
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: DELETE_v1_admin_users_userId
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+  /v1/intelligence/tiles/{id}/dismiss:
+    post:
+      summary: POST /v1/intelligence/tiles/{id}/dismiss
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_intelligence_tiles_id_dismiss
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/intelligence/tiles:
+    get:
+      summary: GET /v1/intelligence/tiles
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_intelligence_tiles
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/intelligence/tiles/{id}/snooze:
+    post:
+      summary: POST /v1/intelligence/tiles/{id}/snooze
+      responses:
+        '200':
+          description: OK
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: POST_v1_intelligence_tiles_id_snooze
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment

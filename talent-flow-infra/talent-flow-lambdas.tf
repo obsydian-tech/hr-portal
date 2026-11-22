@@ -355,6 +355,7 @@ resource "aws_lambda_function" "ai_chat" {
   environment {
     variables = {
       TENANTS_TABLE              = local.tf_tenants_table
+      CHATS_TABLE                = "ask-batsi-chats"
       STATE_TABLE_NAME           = local.tf_table_state
       CONFIG_TABLE_NAME          = local.tf_table_config
       AGENT_AUDIT_TABLE_NAME     = local.tf_table_agent_audit
@@ -672,6 +673,7 @@ resource "aws_lambda_function" "get_panel_members" {
       COGNITO_POOL_ID  = local.tf_naleko_pool_id
       STATE_TABLE_NAME = local.tf_table_state
       ENVIRONMENT      = var.environment
+      LEGACY_TENANT_ID = var.legacy_tenant_id
     }
   }
 
@@ -744,6 +746,7 @@ resource "aws_lambda_function" "capture_sentiment" {
     variables = {
       TENANTS_TABLE        = local.tf_tenants_table
       STATE_TABLE_NAME     = local.tf_table_state
+      CONFIG_TABLE_NAME    = local.tf_table_config
       EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
       ENVIRONMENT          = var.environment
     }
@@ -1563,6 +1566,54 @@ resource "aws_iam_role_policy" "orchestrate_workflow_modules_read" {
       Sid      = "ReadCompanyModules"
       Effect   = "Allow"
       Action   = ["dynamodb:GetItem"]
+      Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
+    }]
+  })
+}
+
+# Walk fix: captureSentiment reads the candidate row (GetItem) before it writes the sentiment. Its role had UpdateItem only.
+resource "aws_iam_role_policy" "capture_sentiment_state_read" {
+  name = "walk-state-read-capture-sentiment"
+  role = aws_iam_role.capture_sentiment.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadCandidateState"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = [aws_dynamodb_table.talent_flow_state.arn]
+    }]
+  })
+}
+
+# Walk fix: markNotificationRead reads the notification (GetItem) before it marks it read. Its role had UpdateItem only.
+resource "aws_iam_role_policy" "mark_notif_read_notifications_read" {
+  name = "walk-notifications-read-mark-notif-read"
+  role = aws_iam_role.mark_notif_read.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadNotification"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = [aws_dynamodb_table.talent_flow_notifications.arn]
+    }]
+  })
+}
+
+# TEN-04.2: getPanelMembers keeps only the company's people, one Member row Query (pk = USER#<sub>) per listed person.
+resource "aws_iam_role_policy" "get_panel_members_member_read" {
+  name = "ten042-member-read-get-panel-members"
+  role = aws_iam_role.get_panel_members.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadMembers"
+      Effect   = "Allow"
+      Action   = ["dynamodb:Query"]
       Resource = ["arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"]
     }]
   })

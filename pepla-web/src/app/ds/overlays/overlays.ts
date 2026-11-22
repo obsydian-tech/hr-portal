@@ -23,6 +23,8 @@ export abstract class PpLayer implements OnDestroy {
   /** Height of the in-place frame, in pixels (docs only). */
   readonly inlineHeight = input<number>();
   protected inlineSize() { return this.inline() && this.inlineHeight() ? this.inlineHeight() + 'px' : null; }
+  /** Drawn in place on the page instead of over it. A layer that has a page form (the agent panel) says so here. */
+  protected inPlace(): boolean { return this.inline(); }
   readonly closed = output<void>();
   private readonly overlay = inject(Overlay);
   private readonly vcr = inject(ViewContainerRef);
@@ -32,7 +34,7 @@ export abstract class PpLayer implements OnDestroy {
 
   constructor() {
     effect(() => {
-      const show = this.open() && !this.inline();
+      const show = this.open() && !this.inPlace();
       untracked(() => {
         if (show && !this.ref) {
           this.opener = document.activeElement as HTMLElement;
@@ -66,11 +68,11 @@ export abstract class PpLayer implements OnDestroy {
     <ng-template #layer>
       <div class="pp-blanket" [class.pp-blanket--sheet]="sheet()" [class.pp-blanket--inline]="inline()" [style.--_height]="inlineSize()" (click)="blanket($event)">
         <div [class]="classes()" [attr.role]="tone() === 'danger' ? 'alertdialog' : 'dialog'" aria-modal="true"
-             [attr.aria-labelledby]="id + '-t'" [attr.aria-describedby]="tone() === 'danger' ? id + '-d' : null" cdkTrapFocus [cdkTrapFocusAutoCapture]="!inline()">
+             [attr.aria-labelledby]="id + '-t'" [attr.aria-describedby]="id + '-d'" cdkTrapFocus [cdkTrapFocusAutoCapture]="!inline()">
           <div class="pp-modal-dialog__header">
             @if (tone() !== 'default') { <svg ppIcon="triangle-alert" /> }
             <h2 class="pp-modal-dialog__title" [id]="id + '-t'">{{ heading() }}</h2>
-            @if (tone() === 'default' && closable()) {
+            @if (closable()) {
               <button ppButton appearance="subtle" icon="x" [iconOnly]="true" class="pp-modal-dialog__close" aria-label="Close" (click)="close()"></button>
             }
           </div>
@@ -99,7 +101,7 @@ export class PpModalDialog extends PpLayer {
       this.sheet() && 'pp-modal-dialog--sheet', this.inline() && 'pp-modal-dialog--inline'].filter(Boolean).join(' ');
   }
   protected blanket(e: MouseEvent) { if (e.target === e.currentTarget && this.tone() !== 'danger' && !this.inline()) this.close(); }
-  @HostListener('document:keydown.escape') protected escape() { if (this.open() && this.tone() !== 'danger' && !this.inline()) this.close(); }
+  @HostListener('document:keydown.escape') protected escape() { if (this.open() && (this.tone() !== 'danger' || this.closable()) && !this.inline()) this.close(); }
 }
 
 /** The dialog's buttons: secondary first, primary last. */

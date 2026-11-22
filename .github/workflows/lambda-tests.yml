@@ -19,6 +19,12 @@ on:
       - "scripts/ci/check-ai-guard.py"
       - "scripts/ci/check-lambda-settings.py"
       - "scripts/ci/test_check_lambda_settings.py"
+      - "scripts/ci/check-rule-slips.py"
+      - "scripts/ci/test_check_rule_slips.py"
+      - "scripts/ci/test_dev_run_truth.py"
+      - ".github/workflows/terraform-apply.yml"
+      - ".github/workflows/app-e2e-dev.yml"
+      - ".github/workflows/deploy-lambdas.yml"
       - "infra/**"
       - "talent-flow-infra/**"
       - ".github/workflows/lambda-tests.yml"
@@ -30,6 +36,12 @@ on:
       - "scripts/ci/check-ai-guard.py"
       - "scripts/ci/check-lambda-settings.py"
       - "scripts/ci/test_check_lambda_settings.py"
+      - "scripts/ci/check-rule-slips.py"
+      - "scripts/ci/test_check_rule_slips.py"
+      - "scripts/ci/test_dev_run_truth.py"
+      - ".github/workflows/terraform-apply.yml"
+      - ".github/workflows/app-e2e-dev.yml"
+      - ".github/workflows/deploy-lambdas.yml"
       - "infra/**"
       - "talent-flow-infra/**"
       - ".github/workflows/lambda-tests.yml"
@@ -63,6 +75,22 @@ jobs:
       - uses: actions/checkout@v4
       - run: python3 -B scripts/ci/test_check_lambda_settings.py
       - run: python3 -B scripts/ci/check-lambda-settings.py
+
+  rule-slips-tests:
+    # Pipeline step 8: the tests of the rule-slips check (scripts/ci/check-rule-slips.py).
+    name: Rule slips check tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -B scripts/ci/test_check_rule_slips.py
+
+  dev-run-truth-tests:
+    # Pipeline step 6: the dev run goes red after a failed AWS change, and a dev-test run that tests nothing is not green.
+    name: Dev run truth tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -B scripts/ci/test_dev_run_truth.py
 
   discover:
     name: Find Lambdas with tests

@@ -71,22 +71,29 @@ function isRuleVisibleToRole(ruleId, role) {
 
 // Stage labels for human-readable display
 const STAGE_LABELS = {
-  APPLICATION_REVIEW: 'Application Review',
-  INTERVIEWING: 'Interviewing',
-  EVALUATION: 'Evaluation',
-  BACKGROUND_CHECK: 'Background Check',
-  OFFER_PREPARATION: 'Offer Preparation',
-  OFFER_APPROVAL: 'Offer Approval',
-  OFFER_DELIVERY: 'Offer Delivery',
-  CONTRACT_SIGNING: 'Contract Signing',
-  PRE_BOARDING: 'Pre-Boarding',
-  ONBOARDING: 'Onboarding',
+  APPLIED: 'Applied',
+  SCREENING: 'Screening',
+  INTERVIEW: 'Interview',
+  OFFER: 'Offer',
+  HIRED: 'Hired',
+  NOT_HIRED: 'Not hired',
 };
+
+// REC-03: a snapshot may still hold an old stage name until its company's stage move has run, so stages are read through the one
+// list. The shared file is an ES module: it is loaded once per run, before any tile is made. Until then a stage reads as stored.
+let normaliseStage = (value) => (value && typeof value === 'object' ? value.currentStage : value);
+const stageOf = (snapshot) => normaliseStage(snapshot);
 
 /**
  * Lambda handler
  */
 exports.handler = async (event) => {
+  ({ normaliseStage } = await import('../shared/recruitment-stages.mjs'));
+  // REC-01: a Recruiter reads every tile of the company; a manager only the tiles of the candidates they are hiring for;
+  // everyone else gets 403. The role answer comes first, before any AWS call.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notAllowed = RA.requireRecruiterOrManager(event);
+  if (notAllowed) return notAllowed;
   // TEN-03: the company comes from the sign-in only. tenantId in the query string is not read.
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
@@ -117,7 +124,15 @@ exports.handler = async (event) => {
     }
 
     // Fetch signal snapshots
-    const snapshots = await fetchSnapshots(T, tenantId, { ownerId, role, limit });
+    // A manager's tiles are picked from the company's snapshots afterwards, so they are read without the small page limit.
+    let snapshots = await fetchSnapshots(T, tenantId, { ownerId, role, limit: RA.isRecruiter(event) ? limit : Math.max(limit, 1000) });
+
+    // REC-01: a manager who is not a Recruiter sees only the tiles of the candidates they are the hiring manager of.
+    // The candidate rows decide it, so nothing in the query (ownerId, role) can widen it.
+    if (!RA.isRecruiter(event)) {
+      const mine = await managedCandidateIds(T, tenantId, RA.callerId(event));
+      snapshots = snapshots.filter((s) => s.entityType === 'CANDIDATE' && mine.has(s.entityId));
+    }
 
     // Generate tiles from snapshots (with role filtering and config thresholds)
     const rawTiles = generateTiles(snapshots, role, thresholds);
@@ -130,7 +145,7 @@ exports.handler = async (event) => {
 
     // EPIC 1 Task 1.2: Apply dismissal/snooze overlay
     // Extract userId from JWT claims
-    const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+    const userId = T.userIdOf(event);
 
     // Fetch user's dismissal overlay (single query, no N+1)
     const dismissalOverlay = userId ? await fetchDismissalOverlay(T, tenantId, userId) : new Map();
@@ -158,6 +173,36 @@ exports.handler = async (event) => {
     return response(500, { error: 'Failed to fetch intelligence tiles' });
   }
 };
+
+/**
+ * REC-01: the ids of the candidates of this company whose hiring manager is this person (the candidates' own rows).
+ * An empty set when the caller has no person id.
+ */
+async function managedCandidateIds(T, tenantId, managerId) {
+  const ids = new Set();
+  if (!managerId) return ids;
+  let startKey;
+  do {
+    const res = await dynamoDB.send(new QueryCommand({
+      TableName: STATE_TABLE,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :saga)',
+      FilterExpression: 'hiringManagerId = :hm',
+      ExpressionAttributeValues: {
+        ':pk': { S: T.tenantKey(tenantId) },
+        ':saga': { S: 'SAGA#' },
+        ':hm': { S: managerId },
+      },
+      ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+    }));
+    for (const item of res.Items || []) {
+      const row = unmarshall(item);
+      if (T.ownsRow(row, tenantId) && row.candidateId) ids.add(row.candidateId);
+    }
+    startKey = res.LastEvaluatedKey;
+  } while (startKey);
+  return ids;
+}
 
 /**
  * Fetch signal snapshots from DynamoDB
@@ -525,7 +570,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
       tiles.push(createTile(snapshot, {
         priority: 'HIGH',
         title: 'Stalled in Stage',
-        description: `${entityName} has been in ${snapshot.currentStage?.replace(/_/g, ' ') || 'current stage'} for ${daysInStage} days`,
+        description: `${entityName} has been in ${STAGE_LABELS[stageOf(snapshot)] || 'current stage'} for ${daysInStage} days`,
         ruleId: 'RULE-STALE-001',
       }));
     }
@@ -534,7 +579,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     const onboardingReadiness = signals.ONBOARDING_READINESS;
     if (onboardingReadiness !== null && onboardingReadiness !== undefined &&
         onboardingReadiness < 75 &&
-        ['PRE_BOARDING', 'ONBOARDING'].includes(snapshot.currentStage)) {
+        stageOf(snapshot) === 'HIRED') {
       tiles.push(createTile(snapshot, {
         priority: onboardingReadiness < 50 ? 'HIGH' : 'MEDIUM',
         title: 'Onboarding Preparation Needed',
@@ -548,7 +593,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     // ══════════════════════════════════════════════════════════════════════════
 
     // Rule 10: Decision Needed - candidate in HM_REVIEW stage
-    if (snapshot.currentStage === 'HM_REVIEW' || snapshot.currentStage === 'EVALUATION') {
+    if (snapshot.currentStage === 'HM_REVIEW' || stageOf(snapshot) === 'INTERVIEW') {
       const daysInStage = signals.DAYS_IN_CURRENT_STAGE || 0;
       if (daysInStage >= 3) {
         tiles.push(createTile(snapshot, {
@@ -577,7 +622,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     // Rule 12: Provisioning at risk - start date approaching
     const daysToStart = signals.DAYS_TO_START_DATE;
     if (daysToStart !== null && daysToStart !== undefined && daysToStart <= 10 &&
-        ['PRE_BOARDING', 'ONBOARDING'].includes(snapshot.currentStage)) {
+        stageOf(snapshot) === 'HIRED') {
       tiles.push(createTile(snapshot, {
         priority: daysToStart <= 5 ? 'CRITICAL' : 'HIGH',
         title: 'Provisioning At Risk',
@@ -589,7 +634,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     // Rule 13: Equipment not ordered
     const equipmentStatus = signals.EQUIPMENT_REQUEST_STATUS;
     if (equipmentStatus === 'NOT_ORDERED' || equipmentStatus === 'PENDING') {
-      if (['PRE_BOARDING', 'ONBOARDING', 'CONTRACT_SIGNING'].includes(snapshot.currentStage)) {
+      if (stageOf(snapshot) === 'HIRED') {
         tiles.push(createTile(snapshot, {
           priority: 'HIGH',
           title: 'Equipment Not Ordered',
@@ -602,7 +647,7 @@ function generateTiles(snapshots, role = null, thresholds = DEFAULT_THRESHOLDS) 
     // Rule 14: Access not provisioned
     const accessProvisioned = signals.ACCESS_PROVISIONED;
     if (accessProvisioned === false &&
-        ['PRE_BOARDING', 'ONBOARDING'].includes(snapshot.currentStage)) {
+        stageOf(snapshot) === 'HIRED') {
       tiles.push(createTile(snapshot, {
         priority: 'HIGH',
         title: 'Access Not Provisioned',
@@ -700,7 +745,7 @@ function createTile(snapshot, opts) {
     entityType: snapshot.entityType,
     entityId: snapshot.entityId,
     entityName: snapshot.entityName || 'Unknown',
-    currentStage: snapshot.currentStage,
+    currentStage: stageOf(snapshot),
     signals: extractDisplaySignals(snapshot),
     actions: getDefaultActions(snapshot),
     createdAt: snapshot.computedAt,
@@ -725,7 +770,7 @@ function extractDisplaySignals(snapshot) {
   if (snapshot.currentStage) {
     signals.push({
       label: 'Stage',
-      value: STAGE_LABELS[snapshot.currentStage] || snapshot.currentStage,
+      value: STAGE_LABELS[stageOf(snapshot)] || snapshot.currentStage,
       type: 'info',
     });
   }

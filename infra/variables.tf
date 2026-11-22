@@ -111,3 +111,21 @@ variable "legacy_tenant_id" {
     error_message = "legacy_tenant_id must be empty or ten_ followed by 26 lower-case letters or digits."
   }
 }
+
+variable "talent_flow_user_pool_id" {
+  description = "TEN-06: the TalentFlow pool people move from (talent-flow-infra output)."
+  type        = string
+  default     = ""
+}
+
+variable "talent_flow_server_client_id" {
+  description = "TEN-06: the TalentFlow pool's server-only client (talent-flow-infra output)."
+  type        = string
+  default     = ""
+}
+
+variable "document_reminders_enabled" {
+  description = "ONB-21: whether the daily document reminder rule is ENABLED. Off by default (prod stays off until go-live, OPS-04); env/dev.tfvars turns it on."
+  type        = bool
+  default     = false
+}

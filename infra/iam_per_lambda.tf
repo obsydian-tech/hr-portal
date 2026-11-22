@@ -66,6 +66,14 @@ resource "aws_iam_role_policy" "create_employee" {
         Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
       },
       {
+        # TEN-02: createEmployee records the invited person's sign-in (user_sub) on their own employees row, so they own it.
+        # UpdateItem on the employees table only; no index, no other table.
+        Sid      = "EmployeesOwnerLink"
+        Effect   = "Allow"
+        Action   = ["dynamodb:UpdateItem"]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:${var.aws_account_id}:table/employees"
+      },
+      {
         # ONB-04: invite links
         Sid      = "InviteWrite"
         Effect   = "Allow"
@@ -153,6 +161,20 @@ resource "aws_iam_role_policy" "cognito_post_auth" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        # TEN-06: a moved person's pending row becomes their Member row, and goes.
+        Sid      = "TenantsMoveWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem", "dynamodb:DeleteItem"]
+        Resource = aws_dynamodb_table.tenants.arn
+      },
+      {
+        # TEN-06: the moved person's groups, in this pool only.
+        Sid      = "NalekoPoolGroups"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminAddUserToGroup"]
+        Resource = aws_cognito_user_pool.naleko_dev.arn
+      },
       {
         Sid      = "TenantsMemberRead"
         Effect   = "Allow"
@@ -1201,6 +1223,23 @@ resource "aws_iam_role_policy" "summarise_verification" {
   })
 }
 
+# ONB-22: the person's email decides whether the model may be called (a test person never reaches it). A second policy: the
+# first stays as ten-02 pins it.
+resource "aws_iam_role_policy" "summarise_verification_employees" {
+  name = "naleko-summariseVerification-employees-policy"
+  role = aws_iam_role.summarise_verification.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "EmployeesRead"
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem"]
+      Resource = aws_dynamodb_table.employees.arn
+    }]
+  })
+}
+
 # ─── NH-41: classifyOnboardingRisk ───────────────────────────────────────────
 resource "aws_iam_role" "classify_onboarding_risk" {
   name        = "naleko-classifyOnboardingRisk-role"
@@ -1632,6 +1671,23 @@ resource "aws_iam_role_policy" "naleko_mcp_server" {
   })
 }
 
+# ONB-22: the MCP server reads the real secret (naleko/agent/api-key) at run time. A second policy: the first stays as ten-02
+# pins it (its statement names a secret that does not exist, and grants nothing).
+resource "aws_iam_role_policy" "naleko_mcp_server_agent_key" {
+  name = "naleko-mcpServer-agent-key-policy"
+  role = aws_iam_role.naleko_mcp_server.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadAgentApiKey"
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:naleko/agent/api-key*"
+    }]
+  })
+}
+
 # ─── NH-55: getBatchRiskReport ────────────────────────────────────────────────
 resource "aws_iam_role" "get_batch_risk_report" {
   name        = "naleko-getBatchRiskReport-role"
@@ -1755,6 +1811,120 @@ resource "aws_iam_role_policy" "approve_agent_action" {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
         Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:naleko/agent/api-key*"
+      },
+    ]
+  })
+}
+
+# ONB-22: the approver's rights, in a second policy so the first stays as ten-02 pins it. A person's approval runs the real
+# review function, reads the document it decides, and is published for the audit log.
+resource "aws_iam_role_policy" "approve_agent_action_onb22" {
+  name = "naleko-approveAgentAction-proposals-policy"
+  role = aws_iam_role.approve_agent_action.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ProposalsOfTheCompany"
+        Effect = "Allow"
+        Action = ["dynamodb:Query", "dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = [
+          aws_dynamodb_table.pending_actions.arn,
+          "${aws_dynamodb_table.pending_actions.arn}/index/*",
+        ]
+      },
+      {
+        Sid      = "ReadTheDocumentItDecides"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = [aws_dynamodb_table.documents.arn, aws_dynamodb_table.document_verification.arn]
+      },
+      {
+        Sid      = "PublishTheApproval"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
+      },
+      {
+        Sid      = "RunTheReview"
+        Effect   = "Allow"
+        Action   = ["lambda:InvokeFunction"]
+        Resource = aws_lambda_function.review_document_verification.arn
+      },
+    ]
+  })
+}
+
+# ─── ONB-22: createProposal ───────────────────────────────────────────────────
+
+resource "aws_iam_role" "create_proposal" {
+  name        = "naleko-createProposal-role"
+  description = "Execution role for createProposal Lambda (ONB-22)"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "create_proposal" {
+  name = "naleko-createProposal-policy"
+  role = aws_iam_role.create_proposal.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/createProposal:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ProposalsWrite"
+        Effect = "Allow"
+        Action = ["dynamodb:PutItem", "dynamodb:Query"]
+        Resource = [
+          aws_dynamodb_table.pending_actions.arn,
+          "${aws_dynamodb_table.pending_actions.arn}/index/*",
+        ]
+      },
+      {
+        Sid      = "ReadTheDocument"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = [aws_dynamodb_table.documents.arn, aws_dynamodb_table.document_verification.arn, aws_dynamodb_table.employees.arn]
+      },
+      {
+        # findDocument: a Query on the company index; a Scan of documents until TEN-02 step 2 ends the legacy rule.
+        Sid      = "FindTheDocument"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = [aws_dynamodb_table.documents.arn, "${aws_dynamodb_table.documents.arn}/index/tenant-index"]
+      },
+      {
+        Sid      = "FindTheFoundingDocument"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Scan"]
+        Resource = aws_dynamodb_table.documents.arn
+      },
+      {
+        Sid      = "PublishTheProposal"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
       },
     ]
   })
@@ -2456,6 +2626,124 @@ resource "aws_iam_role_policy" "get_company_modules" {
         Effect   = "Allow"
         Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
         Resource = "*"
+      }
+    ]
+  })
+}
+
+# ─── TEN-06: userMigration ────────────────────────────────────────────────────
+resource "aws_iam_role" "user_migration" {
+  name        = "naleko-userMigration-role"
+  description = "Execution role for userMigration Lambda (TEN-06)"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "user_migration" {
+  name = "naleko-userMigration-policy"
+  role = aws_iam_role.user_migration.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/userMigration:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        # The TalentFlow pool only: the sign-in check, the lookup and the person's groups.
+        Sid      = "TalentFlowPool"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminInitiateAuth", "cognito-idp:AdminGetUser", "cognito-idp:AdminListGroupsForUser"]
+        Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${var.talent_flow_user_pool_id}"
+      },
+      {
+        # Pending rows only (MIGRATE#<email>); never a Member row.
+        Sid      = "PendingRowWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.tenants.arn
+        Condition = {
+          "ForAllValues:StringLike" = { "dynamodb:LeadingKeys" = ["MIGRATE#*"] }
+        }
+      }
+    ]
+  })
+}
+
+# ─── ONB-14: revealDocumentField ──────────────────────────────────────────────
+# Reads two rows by key, decrypts one value, puts one event. It is in no kms_pii list: the key policy delegates to IAM in this
+# account, so the role's own kms:Decrypt is enough and it holds no Encrypt or data-key right.
+
+resource "aws_iam_role" "reveal_document_field" {
+  name        = "naleko-revealDocumentField-role"
+  description = "Execution role for revealDocumentField Lambda"
+  path        = "/naleko/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "reveal_document_field" {
+  name = "naleko-revealDocumentField-policy"
+  role = aws_iam_role.reveal_document_field.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "Logs"
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:log-group:/aws/lambda/revealDocumentField:*"
+      },
+      {
+        Sid      = "XRay"
+        Effect   = "Allow"
+        Action   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDBGetItem"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem"]
+        Resource = [
+          aws_dynamodb_table.documents.arn,
+          aws_dynamodb_table.document_verification.arn,
+        ]
+      },
+      {
+        Sid      = "KMSPIIKeyDecrypt"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = module.kms_pii.key_arn
+      },
+      {
+        Sid      = "EventBridgePublish"
+        Effect   = "Allow"
+        Action   = ["events:PutEvents"]
+        Resource = aws_cloudwatch_event_bus.naleko_onboarding.arn
       }
     ]
   })

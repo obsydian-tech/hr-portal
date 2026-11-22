@@ -1,3 +1,5 @@
+import { isPast } from '../deadline';
+
 /** The four steps HR sees, in order. */
 export const STEPS = ['Invited', 'Documents', 'In review', 'Verified'] as const;
 export type Step = (typeof STEPS)[number];
@@ -12,6 +14,8 @@ export interface ApiEmployee {
   /** INVITED, DOCUMENTS, IN_REVIEW or VERIFIED; null or missing when the API has none. */
   step?: string | null;
   planned_start_date?: string;
+  /** YYYY-MM-DD: when the person's required documents are due, worked out by the API; empty when there is none. */
+  documents_due?: string;
   hr_staff_name?: string;
 }
 
@@ -25,6 +29,8 @@ export interface NewEmployee {
   step: Step | null;
   /** YYYY-MM-DD, or empty when not set. */
   startDate: string;
+  /** YYYY-MM-DD, or empty when there is none. */
+  documentsDue: string;
   hrPartner: string;
 }
 
@@ -49,6 +55,7 @@ export function toNewEmployee(a: ApiEmployee): NewEmployee {
     department: a.department ?? '',
     step: stepOfCode(a.step),
     startDate: a.planned_start_date ?? '',
+    documentsDue: a.documents_due ?? '',
     hrPartner: a.hr_staff_name ?? '',
   };
 }
@@ -76,6 +83,14 @@ export function countBySteps(people: readonly NewEmployee[]): Record<Step, numbe
   const out: Record<Step, number> = { Invited: 0, Documents: 0, 'In review': 0, Verified: 0 };
   for (const p of people) if (p.step) out[p.step]++;
   return out;
+}
+
+/**
+ * Overdue means: the person still has a required document to give (step Invited or Documents) and the due
+ * date has passed. A person whose documents are with HR, or who is verified, is never overdue (ONB-10).
+ */
+export function isOverdue(p: NewEmployee, today: string): boolean {
+  return (p.step === 'Invited' || p.step === 'Documents') && isPast(p.documentsDue, today);
 }
 
 /** Part of a name or email, any case. Words of the query may be split across first and last name. */

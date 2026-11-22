@@ -72,6 +72,10 @@ function internalError(message) {
 exports.handler = async (event) => {
   console.info('createCandidate invoked', { path: event.path, method: event.httpMethod });
 
+  // REC-01: only a Recruiter (HR with the Recruitment tick) may do this. The role answer comes first, before any AWS call.
+  const RA = await import('../shared/recruitment-access.mjs');
+  const notRecruiter = RA.requireRecruiter(event);
+  if (notRecruiter) return notRecruiter;
   // TEN-03: the company comes from the sign-in only. tenantId in the body is not read.
   const T = await tenantHelper();
   const { tenantId, refusal } = T.requireTenant(event);
@@ -82,7 +86,7 @@ exports.handler = async (event) => {
   if (moduleOff) return moduleOff;
 
   // Extract userId from JWT claims for action tracking (INTEL-001)
-  const userId = event.requestContext?.authorizer?.jwt?.claims?.sub;
+  const userId = T.userIdOf(event);
 
   let body;
   try {
@@ -174,6 +178,14 @@ exports.handler = async (event) => {
   // via attribute_not_exists(configVersion) condition. Writing null would create a
   // DynamoDB NULL-type attribute that satisfies attribute_exists, causing orchestrate
   // to skip with "already locked" on every invocation.
+  let settingVersions;
+  try {
+    const S = await import('../shared/recruitment-settings.mjs');
+    settingVersions = await S.activeVersions(tenantId);
+  } catch (err) {
+    console.error('Failed to read the settings versions', { error: err.name });
+    return internalError('Failed to create candidate record');
+  }
   const now = new Date().toISOString();
   const sagaRecord = T.stampTenant({
     PK: `CANDIDATE#${candidateId}`,
@@ -193,10 +205,11 @@ exports.handler = async (event) => {
     source,
     hiringManagerId,
     appliedDate: now,  // date the candidate was added to the system
-    currentStage: 'APPLICATION_REVIEW',
+    currentStage: 'APPLIED',
     stageEnteredAt: now,
     status: 'ACTIVE',
     slaStatus: 'ON_TRACK',
+    settingVersions: Object.keys(settingVersions).length ? settingVersions : undefined,
     configVersion: undefined,  // omitted — orchestrateTalentFlowWorkflow sets it via attribute_not_exists condition
     createdAt: now,
     updatedBy: userId,  // INTEL-001: Track who created the candidate for action tracking

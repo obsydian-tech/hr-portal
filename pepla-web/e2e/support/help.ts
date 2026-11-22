@@ -101,6 +101,13 @@ export class Help {
     await this.step(`Enter ${label}`, () => (this.on ? field.pressSequentially(value, { delay: 60 }) : field.fill(value)));
   }
 
+  /** Pick an option of a native select, by the field's exact label and the option's label. Caption: "Choose <label>". */
+  async choose(label: string, option: string, within: Page | Locator = this.page): Promise<void> {
+    const field = within.getByLabel(label, { exact: true });
+    await expect(field).toBeVisible();
+    await this.step(`Choose ${label}`, () => field.selectOption({ label: option }));
+  }
+
   /** Save a help picture as help/media/<desktop|phone>/<name>.png (help mode only). */
   async shot(name: string): Promise<void> {
     if (!NAME.test(name)) throw new Error(`help.shot: "${name}" must be lower-case words with - and /`);

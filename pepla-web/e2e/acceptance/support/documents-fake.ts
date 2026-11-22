@@ -1,5 +1,6 @@
 import type { BrowserContext, Route } from '@playwright/test';
 import { stepOfStage } from './employees-fake';
+import { RevealFake } from './onb-14/reveal-fake';
 
 /**
  * A stand-in for one route of the document upload API,
@@ -19,6 +20,14 @@ import { stepOfStage } from './employees-fake';
  * ONB-09: `employee.step` is the person's own `step` when the test gives one
  * (a value, null, or undefined to leave the field out), else the step the
  * stored stage gives (employees-fake.ts stepOfStage).
+ * ONB-11: `employee.risk_band`, `risk_reason` and `risk_assessed_at` are in the
+ * answer, as the Lambda gives them to HR, when the test gives the field (a
+ * value, or null before any check has run); a person with none of the three
+ * keys is the employee's own view, where the answer has no risk key at all.
+ * ONB-14: no answer carries a full ID number or account number. A verification answers `id_number_last4`,
+ * `account_number_last4`, `id_number_available` and `account_number_available` (true when the stored row holds a number
+ * that can be shown); the full number comes only from `reveal`, the fake of POST <documentUploadApiUrl>/v1/verifications/<document id>/reveal
+ * (support/onb-14/reveal-fake.ts), which answers from the same stored rows.
  * Nothing here calls AWS or any AI service.
  */
 
@@ -49,14 +58,20 @@ export type StoredEmployee = {
   hr_staff_email: string;
   /** ONB-09: the stored step, when the test gives one. */
   step?: string | null;
+  /** ONB-11: what HR is told about the risk check; a field left out is left out of the answer (the employee's view). */
+  risk_band?: string | null;
+  risk_reason?: string | null;
+  risk_assessed_at?: string | null;
 };
 
 /** A document-verification row, as stored (the parts this card reads). */
 export type StoredVerification = {
   confidence: number;
   decision?: string;
-  /** The full ID number. Stored encrypted; the Lambda decrypts it for HR. */
+  /** The full ID number. Stored encrypted; the reveal route decrypts it for HR. No other answer carries it. */
   idNumber?: string;
+  /** ONB-14: the full account number (stored as it is read from a bank letter). Only the reveal route answers it. */
+  accountNumber?: string;
   name?: string;
   surname?: string;
 };
@@ -161,8 +176,10 @@ export function answerFor(person: FakePerson): unknown {
             confidence: v.confidence,
             decision: v.decision ?? (v.confidence >= 90 ? 'AUTO_APPROVE' : 'MANUAL_REVIEW'),
             reasoning: 'Sample data.',
-            id_number: v.idNumber ?? null,
             id_number_last4: v.idNumber ? v.idNumber.slice(-4) : null,
+            account_number_last4: v.accountNumber ? v.accountNumber.slice(-4) : null,
+            id_number_available: !!v.idNumber,
+            account_number_available: !!v.accountNumber,
             name: v.name ?? e.first_name,
             surname: v.surname ?? e.last_name,
             date_of_birth: null,
@@ -193,6 +210,9 @@ export function answerFor(person: FakePerson): unknown {
       hr_staff_id: e.hr_staff_id,
       hr_staff_name: e.hr_staff_name,
       hr_staff_email: e.hr_staff_email,
+      ...('risk_band' in e ? { risk_band: e.risk_band } : {}),
+      ...('risk_reason' in e ? { risk_reason: e.risk_reason } : {}),
+      ...('risk_assessed_at' in e ? { risk_assessed_at: e.risk_assessed_at } : {}),
     },
     documents: documents.map(({ _order, ...d }) => d),
     summary: {
@@ -223,8 +243,23 @@ export class DocumentsFake {
   /** 'ok' answers; 'error' answers 500; 'offline' fails as if the network were down; 'hold' waits for release(). */
   mode: 'ok' | 'error' | 'offline' | 'hold' = 'ok';
   private held: Array<() => void> = [];
+  /** ONB-14: POST /v1/verifications/<document id>/reveal, answered from the same people. */
+  readonly reveal: RevealFake;
 
-  constructor(private readonly appOrigin: string) {}
+  /** The full number the stored document holds for a field, and whose document it is (what the Lambda reads). */
+  readonly revealLookup = (documentId: string, field: 'id_number' | 'account_number'): { value: string; employeeId: string } | undefined => {
+    for (const p of this.people.values()) {
+      const d = p.documents.find((x) => x.document_id === documentId);
+      if (!d) continue;
+      const value = field === 'id_number' && d.document_type === 'NATIONAL_ID' ? d.verification?.idNumber : field === 'account_number' && d.document_type === 'BANK_CONFIRMATION' ? d.verification?.accountNumber : undefined;
+      return value ? { value, employeeId: p.employee.employee_id } : undefined;
+    }
+    return undefined;
+  };
+
+  constructor(private readonly appOrigin: string) {
+    this.reveal = new RevealFake(appOrigin, this.revealLookup);
+  }
 
   add(...people: FakePerson[]): void {
     for (const p of people) this.people.set(p.employee.employee_id, p);
@@ -241,6 +276,7 @@ export class DocumentsFake {
 
   async install(context: BrowserContext): Promise<void> {
     await context.route((url) => isPersonApi(url, this.appOrigin), (route) => this.handle(route));
+    await this.reveal.install(context);
   }
 
   private async handle(route: Route): Promise<void> {

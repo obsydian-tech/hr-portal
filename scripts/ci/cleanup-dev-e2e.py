@@ -11,12 +11,16 @@ Refuses to run outside pepla-dev. Prints counts only.
 import sys
 
 import boto3
+from botocore.exceptions import ClientError
 
 DEV_ACCOUNT = "424556617428"
 REGION = "af-south-1"
 MARKER = "e2e.run-"
 TF_STATE = "talent-flow-state"
 EMPLOYEE_LOGIN_ID = "E2E-EMP-0001"  # the employee test login (scripts/ci/seed-dev.py)
+PENDING_ACTIONS = "naleko-pending-actions"
+# ONB-22 AC-7: the two waiting documents scripts/ci/seed-dev.py writes (pepla-web/e2e/acceptance/support/onb-22/dev-ids.json).
+ONB22_DOCUMENTS = ("doc-onb22-0001", "doc-onb22-b-0001")
 
 
 def main() -> None:
@@ -24,6 +28,9 @@ def main() -> None:
         sys.exit("::error::cleanup-dev-e2e only runs in pepla-dev")
 
     ddb = boto3.client("dynamodb", region_name=REGION)
+    if "--agent-actions" in sys.argv:
+        print(f"cleanup-dev-e2e: agent proposals on the ONB-22 test documents {remove_agent_proposals(ddb)}")
+        return
     cognito = boto3.client("cognito-idp", region_name=REGION)
 
     employees = docs = users = 0
@@ -65,6 +72,27 @@ def main() -> None:
     login_consents = remove_consents(ddb, EMPLOYEE_LOGIN_ID)
     print(f"cleanup-dev-e2e: employees {employees}; documents {docs}; "
           f"test login documents {login_docs}; test login consents {login_consents}; candidates {candidates}; logins {users}")
+
+
+def remove_agent_proposals(ddb) -> int:
+    """ONB-22 AC-7: the test proposes Accept document for a seeded document. A proposal an earlier run left open
+    (a failed run never reaches its own approve) answers the next run's proposal with 409, so remove the open ones for
+    the two seeded documents only. Names no one's real document."""
+    removed = 0
+    try:
+        for page in ddb.get_paginator("scan").paginate(
+                TableName=PENDING_ACTIONS,
+                FilterExpression="document_id IN (:a, :b)",
+                ExpressionAttributeValues={":a": {"S": ONB22_DOCUMENTS[0]}, ":b": {"S": ONB22_DOCUMENTS[1]}},
+                ProjectionExpression="actionId"):
+            for row in page["Items"]:
+                ddb.delete_item(TableName=PENDING_ACTIONS, Key={"actionId": row["actionId"]})
+                removed += 1
+    except ddb.exceptions.ResourceNotFoundException:
+        return 0
+    except ClientError as err:
+        print(f"::warning::cleanup-dev-e2e: could not clear the ONB-22 proposals ({err.response['Error']['Code']})")
+    return removed
 
 
 def remove_consents(ddb, employee_id: str) -> int:

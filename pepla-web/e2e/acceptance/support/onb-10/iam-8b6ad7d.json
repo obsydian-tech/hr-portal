@@ -1,0 +1,27 @@
+{
+  "getEmployees": [
+    "Allow dynamodb:Query ${aws_dynamodb_table.employees.arn}/index/tenant-index null",
+    "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+    "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/created_by-index null",
+    "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/employees null",
+    "Allow dynamodb:Scan arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/created_by-index null",
+    "Allow kms:Decrypt module.kms_pii.key_arn null",
+    "Allow kms:DescribeKey module.kms_pii.key_arn null",
+    "Allow kms:GenerateDataKey module.kms_pii.key_arn null",
+    "Allow kms:GenerateDataKeyWithoutPlaintext module.kms_pii.key_arn null",
+    "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployees:* null",
+    "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployees:* null",
+    "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getEmployees:* null",
+    "Allow xray:PutTelemetryRecords * null",
+    "Allow xray:PutTraceSegments * null"
+  ],
+  "getMyStart": [
+    "Allow dynamodb:GetItem aws_dynamodb_table.employee_consents.arn null",
+    "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/employees/index/email-index null",
+    "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyStart:* null",
+    "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyStart:* null",
+    "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/getMyStart:* null",
+    "Allow xray:PutTelemetryRecords * null",
+    "Allow xray:PutTraceSegments * null"
+  ]
+}

@@ -1,0 +1,7 @@
+# Byte for byte copies of files of obsydian-tech/hr-portal at commit 3f23586 (before the fix of PR #433).
+# Each copy carries an extra .txt suffix so repo-wide tests that read code files do not see it.
+# The sha256 is of the original bytes (the suffix does not change them).
+# commit | original path | sha256
+3f23586 | infra/ai_chat.tf | cf407040e8fb5f762d931e1e1788b3775434f65d412e8d59ad96e6d3afe3193b
+3f23586 | infra/env/dev.tfvars | 73cde85a5d311354b922ce9f08c6c7941987684c43d0bd558a13e07bb1692c89
+3f23586 | lambda/nalekoAiChat/index.mjs | 92671447f72a3ee6ccef336d7f1a153912c5a4ffa58a742ec75b43092b937a5d

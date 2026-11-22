@@ -1,7 +1,7 @@
 {
   "name": "advance-candidate-stage",
   "version": "1.0.0",
-  "description": "TalentFlow advanceCandidateStage Lambda — forward-only stage transition with EventBridge audit",
+  "description": "TalentFlow advanceCandidateStage Lambda — a person moves a candidate one stage with a reason",
   "main": "index.js",
   "scripts": {
     "test": "jest --no-coverage"

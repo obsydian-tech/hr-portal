@@ -1,6 +1,6 @@
-import { countBySteps, matchesSearch, orderNewEmployees, stepOfCode, toNewEmployee, type NewEmployee } from './employee';
+import { countBySteps, isOverdue, matchesSearch, orderNewEmployees, stepOfCode, toNewEmployee, type NewEmployee } from './employee';
 
-const person = (name: string, startDate: string, step: NewEmployee['step'] = 'Invited'): NewEmployee => ({ id: name, name, email: '', department: '', step, startDate, hrPartner: '' });
+const person = (name: string, startDate: string, step: NewEmployee['step'] = 'Invited'): NewEmployee => ({ id: name, name, email: '', department: '', step, startDate, documentsDue: '', hrPartner: '' });
 
 describe('stepOfCode', () => {
   it('turns the four API codes into the four words', () => {
@@ -43,5 +43,21 @@ describe('matchesSearch', () => {
     expect(matchesSearch(p, '@gmail')).toBe(true);
     expect(matchesSearch(p, 'zzz')).toBe(false);
     expect(matchesSearch(p, '  ')).toBe(true);
+  });
+});
+
+describe('isOverdue', () => {
+  const late = (step: NewEmployee['step'], documentsDue = '2026-11-16') => ({ ...person('a', '2026-11-23', step), documentsDue });
+  it('is for a person at Invited or Documents whose date has passed', () => {
+    expect(isOverdue(late('Invited'), '2026-11-17')).toBe(true);
+    expect(isOverdue(late('Documents'), '2026-11-17')).toBe(true);
+  });
+  it('is never for a person with HR, verified, with no step, due today, due later or with no date', () => {
+    expect(isOverdue(late('In review'), '2026-11-17')).toBe(false);
+    expect(isOverdue(late('Verified'), '2026-11-17')).toBe(false);
+    expect(isOverdue(late(null), '2026-11-17')).toBe(false);
+    expect(isOverdue(late('Documents', '2026-11-17'), '2026-11-17')).toBe(false);
+    expect(isOverdue(late('Documents', '2026-11-18'), '2026-11-17')).toBe(false);
+    expect(isOverdue(late('Documents', ''), '2026-11-17')).toBe(false);
   });
 });

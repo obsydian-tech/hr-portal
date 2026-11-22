@@ -339,15 +339,21 @@ test.describe('ONB-12 One new employee\'s page', () => {
       await expectIdHidden(page, ID_NUMBER);
       await expect(showButton(page), `${why}: Show is offered again`).toBeVisible();
     };
-    const noRecordingWords = async () => expect(await page.locator('body').innerText(), 'the page says nothing about recording').not.toMatch(/\brecorded\b|\blogged\b/i);
+    // ONB-14: Show is recorded, and the page says so beside Show (the design system's words, nothing else about recording).
+    const recordingLine = async () => {
+      const text = await page.locator('body').innerText();
+      expect(text, 'the page says "Showing this is recorded" beside Show').toContain('Showing this is recorded');
+      expect(text, 'the page does not say "Revealing is recorded" or that anything is logged').not.toMatch(/Revealing is recorded|\blogged\b/i);
+    };
 
     await hidden('before Show');
-    await noRecordingWords();
+    await recordingLine();
+    await expect(showButton(page), 'Show is described by the line').toHaveAccessibleDescription(/Showing this is recorded/);
 
     // Show, then Hide.
     await showButton(page).click();
     await expect(page.locator('body').getByText(new RegExp(ID_NUMBER.split('').join('\\s?'))), 'Show shows the full number').toBeVisible();
-    await noRecordingWords();
+    await expect(page.locator('body'), 'the page says when it was shown, and when it hides again').toContainText(/Shown to you, .+\. Hides again in 2 minutes\./);
     await page.getByRole('button', { name: /^Hide\b/ }).click();
     await hidden('after Hide');
 
@@ -644,7 +650,7 @@ test.describe('ONB-12 One new employee\'s page', () => {
 
     const ai = /\/agent\/|\/ai\/|\/chat|batsi|\/summary|assess-risk|risk-report|bedrock|textract|anthropic|openai/i;
     expect(seen.filter((s) => ai.test(s.url.href)).map((s) => s.url.href), 'no AI route is called').toEqual([]);
-    await expect(page.getByRole('button', { name: /Ask Batsi/i }), 'no "Ask Batsi to assess risk" button').toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Ask Batsi to assess risk/i }), 'no "Ask Batsi to assess risk" button').toHaveCount(0);
     await expect(page.getByText(/assess risk/i)).toHaveCount(0);
   });
 
@@ -705,8 +711,17 @@ test.describe('ONB-12 One new employee\'s page', () => {
       expect(got?.hr_decided_at, `${what}: hr_decided_at`).toBe(d.hr_reviewed_at ?? null);
       for (const f of ['document_type', 'file_name', 'uploaded_at', 'ocr_status', 'verification', 'can_reupload']) expect(got, `${what}: ${f} is still answered`).toHaveProperty(f);
     }
+    // ONB-14: no answer carries the full ID number; it comes only from a recorded Show (POST /v1/verifications/<id>/reveal).
     const id = p.documents.find((d) => d.verification?.idNumber)!;
-    expect(byId.get(id.document_id)?.verification?.id_number, 'HR still gets the full ID number (until ONB-14 / OPS-04)').toBe(id.verification!.idNumber);
+    const idVerification = byId.get(id.document_id)?.verification;
+    expect(idVerification, 'the ID document answers a verification').toBeTruthy();
+    expect(Object.keys(idVerification), 'no id_number key in the answer').not.toContain('id_number');
+    expect(r.raw, 'the full ID number is nowhere in the answer').not.toContain(id.verification!.idNumber!);
+    expect(idVerification.id_number_last4, 'the last four digits').toBe(id.verification!.idNumber!.slice(-4));
+    expect(idVerification.id_number_available, 'a number can be shown').toBe(true);
+    for (const d of p.documents.filter((x) => x.verification && !x.verification.idNumber)) {
+      expect(byId.get(d.document_id)?.verification?.id_number_available ?? false, `${d.document_id}: nothing to show`).toBe(false);
+    }
 
     // Who may read it: HR, or the person (email compared without case); anyone else 403.
     const emailCases: Array<[string, string]> = [

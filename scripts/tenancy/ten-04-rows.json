@@ -1,0 +1,135 @@
+{
+  "GET /v1/company/modules": {
+    "kind": "list"
+  },
+  "POST /agent/v1/proposals": {
+    "kind": "covered"
+  },
+  "GET /agent/v1/actions": {
+    "kind": "list"
+  },
+  "POST /agent/v1/actions/{actionId}/approve": {
+    "kind": "byId",
+    "ids": {
+      "actionId": "action"
+    },
+    "read": {
+      "op": "GET /agent/v1/actions"
+    }
+  },
+  "POST /agent/v1/actions/{actionId}/reject": {
+    "kind": "byId",
+    "ids": {
+      "actionId": "action"
+    },
+    "read": {
+      "op": "GET /agent/v1/actions"
+    }
+  },
+  "GET /v1/chats": {
+    "kind": "list"
+  },
+  "GET /v1/chats/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "employee"
+    }
+  },
+  "DELETE /v1/chats/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "employee"
+    },
+    "read": {
+      "op": "GET /v1/chats"
+    }
+  },
+  "DELETE /v1/chats": {
+    "kind": "create",
+    "read": {
+      "op": "GET /v1/chats"
+    }
+  },
+  "PUT /v1/admin/company/ask-batsi": {
+    "kind": "create",
+    "body": {
+      "enabled": true
+    },
+    "read": {
+      "op": "GET /v1/company/modules"
+    }
+  },
+  "POST /v1/verifications/{id}/reveal": {
+    "kind": "byId",
+    "ids": {
+      "id": "document"
+    },
+    "body": {
+      "field": "id_number",
+      "employee_id": "EMP-1"
+    },
+    "read": {
+      "op": "GET /v1/verifications/{id}",
+      "ids": {
+        "id": "document"
+      }
+    }
+  },
+  "POST /v1/candidates/{id}/not-hired": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "body": {
+      "reason": "OTHER"
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "POST /v1/candidates/{id}/not-hired/confirm": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "POST /v1/candidates/{id}/not-hired/cancel": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "POST /v1/candidates/{id}/reopen": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "body": {
+      "reason": "Looked again."
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "GET /v1/candidates/old-system": {
+    "kind": "list"
+  }
+}

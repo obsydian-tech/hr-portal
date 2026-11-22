@@ -13,6 +13,7 @@ import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-sec
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { randomUUID } from 'crypto';
+import { listPeople } from './people.mjs';
 
 const sm = new SecretsManagerClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
 const db = new DynamoDBClient({ region: process.env.AWS_REGION ?? 'af-south-1' });
@@ -75,13 +76,44 @@ async function pendingApproval(toolName, toolArgs, context) {
 
 /**
  * Fetch the agent API key from Secrets Manager (cached per warm container).
+ * ONB-22: `fresh` reads it again, for after a rotation.
  * @returns {Promise<string>}
  */
-async function getApiKey() {
-  if (_cachedApiKey) return _cachedApiKey;
+async function getApiKey(fresh = false) {
+  if (_cachedApiKey && !fresh) return _cachedApiKey;
   const result = await sm.send(new GetSecretValueCommand({ SecretId: SECRET_NAME }));
   _cachedApiKey = result.SecretString;
   return _cachedApiKey;
+}
+
+
+const OUR_TEXTS = ['No verifications found for employee', 'Not found', 'Forbidden'];
+/** CHAT-09: the thrown error keeps its message and also carries the status and, when it is one of our fixed texts, that text. */
+async function failure(res, verb, path) {
+  const err = new Error(`Agent API ${verb} ${path} failed: ${res.status} ${res.statusText}`);
+  err.status = res.status;
+  try {
+    const body = await res.json();
+    const text = body?.message ?? body?.error;
+    if (OUR_TEXTS.includes(text)) err.apiText = text;
+  } catch { /* no body */ }
+  return err;
+}
+
+/**
+ * One call to the Agent API. A 401 or 403 means the key may have rotated since this container read it: read it again and
+ * try once more. Any other answer, and a second 401 or 403, is the answer (no loop).
+ */
+async function agentCall(method, path, body) {
+  const send = async (apiKey) => fetch(`${AGENT_API_BASE}${path}`, {
+    method,
+    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  let res = await send(await getApiKey());
+  if (res.status === 401 || res.status === 403) res = await send(await getApiKey(true));
+  if (!res.ok) throw await failure(res, method, path);
+  return res.json();
 }
 
 /**
@@ -90,14 +122,7 @@ async function getApiKey() {
  * @returns {Promise<object>}
  */
 export async function agentGet(path) {
-  const apiKey = await getApiKey();
-  const url    = `${AGENT_API_BASE}${path}`;
-  const res    = await fetch(url, {
-    method:  'GET',
-    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) throw new Error(`Agent API GET ${path} failed: ${res.status} ${res.statusText}`);
-  return res.json();
+  return agentCall('GET', path);
 }
 
 /**
@@ -107,15 +132,7 @@ export async function agentGet(path) {
  * @returns {Promise<object>}
  */
 export async function agentPost(path, body) {
-  const apiKey = await getApiKey();
-  const url    = `${AGENT_API_BASE}${path}`;
-  const res    = await fetch(url, {
-    method:  'POST',
-    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`Agent API POST ${path} failed: ${res.status} ${res.statusText}`);
-  return res.json();
+  return agentCall('POST', path, body);
 }
 
 /**
@@ -125,15 +142,26 @@ export async function agentPost(path, body) {
 export const TOOL_DEFINITIONS = [
   {
     name: 'list_employees',
-    description: 'List employees created by this HR clerk. Supports optional limit.',
+    description: 'List the company\'s new employees in HR home\'s order, with counts by step and the overdue count over everyone the filters keep. Each person has name, department, job title, step, start and due dates (also written out), whether documents are overdue, HR partner and employee_id.',
     input_schema: {
       type: 'object',
-      properties: { limit: { type: 'number', description: 'Max results (default 20)' } },
+      properties: {
+        step: { type: 'array', items: { type: 'string', enum: ['Invited', 'Documents', 'In review', 'Verified'] } },
+        department: { type: 'string' },
+        starts_from: { type: 'string', description: 'YYYY-MM-DD, included' },
+        starts_to: { type: 'string', description: 'YYYY-MM-DD, included' },
+        no_start_date: { type: 'boolean' },
+        overdue: { type: 'boolean' },
+        hr_partner_is_me: { type: 'boolean' },
+        added_by_me: { type: 'boolean' },
+        sort: { type: 'string', enum: ['start', 'added', 'name'] },
+        limit: { type: 'number', description: 'People to show, at most 20 (default 20)' },
+      },
     },
   },
   {
     name: 'get_employee',
-    description: 'Get a single employee record by ID.',
+    description: 'Get what the person page shows about one person: name, email, job title, department, HR partner, step, start and due dates, risk, each document with its check and HR\'s decision, and whether the person is ready to start, with reasons.',
     input_schema: {
       type: 'object',
       properties: { id: { type: 'string', description: 'Employee ID e.g. EMP-0000012' } },
@@ -151,11 +179,13 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: 'list_verifications',
-    description: 'List document verifications, optionally filtered by status.',
+    description: 'List document verifications, optionally filtered by status. For a question about one person, pass employee_id: the answer then holds that one person\'s documents with their check.',
     input_schema: {
       type: 'object',
       properties: {
-        status: { type: 'string', enum: ['PENDING', 'VERIFIED', 'FAILED'] },
+        status:  { type: 'string', enum: ['PENDING', 'PROCESSING', 'PASSED', 'FAILED', 'MANUAL_REVIEW'] },
+        waiting: { type: 'boolean', description: 'Only the documents waiting for HR to decide' },
+        employee_id: { type: 'string', description: 'Employee ID e.g. EMP-0000012. Use it for a question about one person.' },
         limit:  { type: 'number' },
       },
     },
@@ -226,10 +256,9 @@ function qs(params) {
  */
 export const TOOL_MAP = {
   /**
-   * NH-53: always scopes to created_by={staffId} so the clerk only sees their own employees.
+   * CHAT-09: reads the company's list (every page, HR home's order); "mine" is decided here from the signed-in clerk, never from model input.
    */
-  list_employees: (args, context) =>
-    agentGet(`/agent/v1/employees${qs({ limit: args.limit ?? 20, created_by: context.staffId })}`),
+  list_employees: (args, context) => listPeople(args, context, agentGet),
 
   get_employee: (args, _context) =>
     agentGet(`/agent/v1/employees/${encodeURIComponent(args.id)}`),
@@ -238,7 +267,7 @@ export const TOOL_MAP = {
     agentPost(`/agent/v1/employees/${encodeURIComponent(args.id)}/assess-risk`, {}),
 
   list_verifications: (args, _context) =>
-    agentGet(`/agent/v1/verifications${qs({ status: args.status, limit: args.limit })}`),
+    agentGet(`/agent/v1/verifications${qs({ status: args.status, waiting: args.waiting === true ? 'true' : undefined, limit: args.limit, employee_id: args.employee_id })}`),
 
   get_verification_summary: (args, _context) =>
     agentGet(`/agent/v1/verifications/${encodeURIComponent(args.id)}/summary`),

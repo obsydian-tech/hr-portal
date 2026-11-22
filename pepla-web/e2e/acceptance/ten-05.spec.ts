@@ -8,6 +8,7 @@ import { DOCUMENT_CHECK, HR_GROUP_HELPER, LAMBDA, REPO, ROLES_HELPER, awsCalls, 
 import {
   A, B, CALLER_SUB, ID, POOL_GROUPS, TABLE, TENANTS, TEN05, ask, aws, bodyOf, describe, pool, rowsOf, statusOf, tables, type Ask, type Caller,
 } from './support/ten-05/world';
+import { av } from './support/ten-03/world';
 import {
   ALL_CALLERS, NEW_CALLERS, NEW_GROUPS, NOBODY_CALLERS, OLD_CALLERS, OLD_GROUPS, OLD_MANAGED, PERMS, UPDATE_MANAGED, PROBES, ROLES, ROLE_HANDLERS, grantOf, grantOfCaller, type Probe,
 } from './support/ten-05/access';
@@ -103,7 +104,7 @@ function judge(probes: Probe[], callers: Caller[]) {
       if (got !== want) wrong.push(`${p.name} | ${c.name}: want ${want}, got ${got}`);
       // R3: nobody of today's groups loses what develop gave them.
       const before = BASELINE[p.name]?.[c.name];
-      if (before !== undefined && (RANK[got] ?? -1) < (RANK[before] ?? -1)) wrong.push(`${p.name} | ${c.name}: LOST what develop gives (${before}), got ${got}`);
+      if (!p.movedBy && before !== undefined && (RANK[got] ?? -1) < (RANK[before] ?? -1)) wrong.push(`${p.name} | ${c.name}: LOST what develop gives (${before}), got ${got}`);
       if (p.gated && got === 'no' && JSON.stringify(bodyOf(r)) !== JSON.stringify(FORBIDDEN)) refusals.push(`${p.name} | ${c.name}: ${describe(r)}`);
     }
   }
@@ -554,7 +555,13 @@ test.describe('TEN-05 · One sign-in pool with five roles, every group in Terraf
       p('adminonly@example.test', 'sub-p-admin', ['admin']),
       p('manager.b@example.test', 'sub-p-mgr-b', ['manager']),
     ];
-    const world = { pool: { users: people, groups: POOL_GROUPS } };
+    // TEN-04.2 (re-locked by acceptance-lock/ten-05.4): the pickers keep only the company's people, so these people have Member rows:
+    // company A's, and company B's manager.
+    const members = tables();
+    const memberRow = (sub: string, company: string) => av({ pk: `USER#${sub}`, sk: `TENANT#${company}`, tenant_id: company });
+    for (const sub of ['sub-p-hmold', 'sub-p-mgr', 'sub-p-rec', 'sub-p-nta', 'sub-p-nth']) members[TENANTS]!.push(memberRow(sub, A));
+    members[TENANTS]!.push(memberRow('sub-p-mgr-b', B));
+    const world = { pool: { users: people, groups: POOL_GROUPS }, tables: members };
     const caller: Caller = { name: 'manager of A', groups: ['manager', 'perm-recruitment'] };
     const listed = (r: Run, key: string) => ((bodyOf(r)?.[key] ?? []) as any[]).map((m) => m.email);
 
@@ -573,11 +580,13 @@ test.describe('TEN-05 · One sign-in pool with five roles, every group in Terraf
     expect(new Set(pms).size, 'panel members: nobody twice').toBe(pms.length);
 
     for (const r of [hm, pm]) {
-      // MOD-01 (re-locked by acceptance-lock/mod-01): the module check's GetItem of the caller's own Company row is the one
-      // tenants table read allowed; the lists are still not narrowed by a Member read (R5).
+      // MOD-01 (re-locked by acceptance-lock/mod-01): the module check's GetItem of the caller's own Company row is one tenants table read allowed.
+      // TEN-04.2 (re-locked by acceptance-lock/ten-05.4): the other is a Member Query by USER#<sub> (pk and begins_with TENANT#), one per listed person.
       const modulesRead = (c: any) => c.service === 'dynamodb' && c.op === 'GetItem' && c.table === TENANTS && c.input?.Key?.pk?.S === `TENANT#${A}` && c.input?.Key?.sk?.S === 'PROFILE';
+      const memberRead = (c: any) => c.service === 'dynamodb' && c.op === 'Query' && c.table === TENANTS && /^USER#sub-p-/.test(c.input?.ExpressionAttributeValues?.[':pk']?.S ?? '');
       expect(aws(r).filter(modulesRead).length, 'the module check reads A\'s Company row at most once').toBeLessThanOrEqual(1);
-      expect(JSON.stringify(aws(r).filter((c: any) => !modulesRead(c))), 'no other read of the tenants table until Iggie grants it (R5)').not.toContain(TENANTS);
+      expect(JSON.stringify(aws(r).filter((c: any) => !modulesRead(c) && !memberRead(c))), 'the only tenants table reads are the module GetItem and the Member Query by USER#<sub> (R5)').not.toContain(TENANTS);
+      expect(aws(r).filter((c: any) => c.table === TENANTS && !modulesRead(c) && !memberRead(c)), 'no other call on the tenants table').toEqual([]);
       expect(aws(r).filter((c: any) => c.service === 'cognito' && c.input?.UserPoolId !== 'af-south-1_Ten05Fake'), 'only the Naleko pool is read').toEqual([]);
     }
     // Panel members by candidate: the scoring links of another company's candidate stay out (TEN-03, unchanged).

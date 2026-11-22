@@ -1,0 +1,13 @@
+# Exceptions and known keys for scripts/ci/check-permissions.py (pipeline step 7).
+# One entry per line, "|" between fields. Every line needs a reason and a date.
+# The check reads this file from the TARGET branch, never from the pull request,
+# so a change cannot add its own exception. A new line goes in its own small PR first.
+
+[known keys]
+# key id | which key in the setup files | reason | date
+68d7f1a9-2f46-452b-bda4-c0e319b48e15 | talent-flow-infra aws_kms_key.talent_flow_state | infra/env/dev.tfvars line 9 names it with the comment alias/talent-flow/state | 2026-11-20
+
+[exceptions]
+# function or workflow | action | resource | reason | card or PR that fixes it (or "never: <why>") | date
+submitVoteByToken | dynamodb:Query | table/talent-flow-config/index/GSI1-active-configs | the active-config read in lambda/shared/config-reader.js only runs when no version is given; this function refuses any candidate without a configVersion (index.js line 160) and always passes one, so the index is never queried here | never: unreachable from this function | 2026-11-21
+uploadDocumentToS3 | dynamodb:GetItem | table/employees | old upload route, replaced by the signed-link route; no API route in any Terraform file reaches it (checked 21 Nov), and the employee lookup fails closed if it were called | never: no route reaches it, to be removed | 2026-11-21

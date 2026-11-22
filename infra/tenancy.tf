@@ -29,6 +29,12 @@ resource "aws_dynamodb_table" "tenants" {
     projection_type = "ALL"
   }
 
+  # TEN-06: pending rows of people who are moving (MIGRATE#<email>) leave after 30 days.
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
+  }
+
   point_in_time_recovery {
     enabled = true
   }

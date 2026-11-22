@@ -1,0 +1,13 @@
+# Byte for byte copies of files of obsydian-tech/hr-portal at commit ae7bba4 (after the fix of PR #330).
+# Each copy carries an extra .txt suffix so repo-wide tests that read code files do not see it.
+# The sha256 is of the original bytes (the suffix does not change them).
+# commit | original path | sha256
+ae7bba4 | infra/dynamodb.tf | d0ce9d30cf27499aebca295d84927eee49ecd8c1c44b0369a9c9ec9b7444123f
+ae7bba4 | infra/iam_per_lambda.tf | 0c91f3ea62561104642a420d28d7bdb3db8d5affe7e8fe862a1cb3f95d50d24b
+ae7bba4 | infra/kms.tf | f89c76c4e7a8c6c28f473f0226dec4ebb5ce3ab196eb3263a465f41b3f7dc3ee
+ae7bba4 | infra/lambdas.tf | bcd88c23990d63bc6d950068b0c51a5c4b29f390a939aae2f9afe10437935ba5
+ae7bba4 | infra/modules/kms/main.tf | 86c4e973415e1279034fede9b18b48bef0413e54e33bd7e0ab89490a7b236afb
+ae7bba4 | infra/modules/kms/outputs.tf | c2b905415fa51c1839159fa55cddc8487798e3a9b1f12e3263c7f3dcef0f7c4f
+ae7bba4 | infra/variables.tf | 000fbf5ed0d754eb5bfff3f9b3607e5dd613fc7e7fc7784bb2a1515b23c925ea
+ae7bba4 | lambda/checkEmployeeEmail/index.mjs | 203e1d482fcb121be35668a2abe067c68234a011975484e42c31e41c47349edf
+ae7bba4 | talent-flow-infra/locals.tf | 2803bc1e9a90e77892141c0ef12c8281e6dd347724dfd94930ae9c650038f92d

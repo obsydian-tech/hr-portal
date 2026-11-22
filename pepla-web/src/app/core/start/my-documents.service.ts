@@ -10,8 +10,11 @@ export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 export type DocumentState = 'NOT_UPLOADED' | 'WITH_HR' | 'SENT_BACK' | 'ACCEPTED';
 export type FileState = Exclude<DocumentState, 'NOT_UPLOADED'>;
 
-/** One file as the server lists it: its name, when it was uploaded and its state. */
-export interface MyFile { fileName: string; uploadedAt: string; state: FileState }
+/**
+ * One file as the server lists it: its name, when it was uploaded and its state.
+ * A sent-back file also says when it came back, who sent it back (HR's name, never an email) and why (ONB-20).
+ */
+export interface MyFile { fileName: string; uploadedAt: string; state: FileState; returnedAt?: string | null; returnedBy?: string | null; reason?: string | null }
 /** One of the four documents as the server lists it. */
 export interface MyDocument { type: DocumentType; required: boolean; state: DocumentState; files: MyFile[] }
 

@@ -8,7 +8,7 @@ AC-9, AC-10) and `onb-23.spec.ts` (ONB-23 AC-1, AC-2, AC-5, AC-6, AC-7), with an
 
 Spec: [NH-174](https://obsydian.atlassian.net/browse/NH-174)
 
-Locks: acceptance-lock/onb-05, acceptance-lock/ops-05.6 (the same commit)
+Locks: acceptance-lock/onb-05, acceptance-lock/ops-05.6 (the same commit), acceptance-lock/onb-05.2 (ONB-10's commit, below)
 
 After setting a password or signing in, a new employee lands on `/start`: their own frame (one sidebar item,
 Today; Sign out in the "Your account" menu), a two-step tracker, and the declaration and consent form. Nothing
@@ -61,3 +61,14 @@ OPS-05 AC-7 counts every DynamoDB table: `employee_consents` makes 26 (was 25). 
 `support/fixtures.ts` gains one automatic fixture, `me`: the `/v1/me` fake, on in every no-backend test, so any
 card whose test lands an employee on `/start` finds the page's call answered. It adds a route only for
 `/v1/me` and `/v1/me/consent`, which no earlier card answers, so nothing the earlier cards rely on changes.
+
+## Re-locked by ONB-10
+
+One field is added to the list of what `GET /v1/me` may answer: `documentsDue` (AC-4's `LISTED`, and nothing else in the
+test). `support/onb-05/me-fake.ts` answers it only when a test gives the person one. Locks: acceptance-lock/onb-05.2
+(the same commit as ONB-10's).
+
+## Re-locked by ONB-19
+
+`step` joins the list of what `GET /v1/me` may answer (AC-5's `LISTED`, after `documentsDue`), and AC-7's sidebar has two
+items, Today then My onboarding. Locks: acceptance-lock/onb-05.3 (the same commit as ONB-19's).
