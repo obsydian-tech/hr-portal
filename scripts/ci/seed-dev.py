@@ -37,6 +37,7 @@ import re
 import secrets
 import string
 import sys
+import time
 import uuid
 
 import boto3
@@ -494,6 +495,82 @@ SEED_INTERVIEW_ID = "iv-seed-dev-0001"
 OTHER_HIRING_MANAGER = "seed-other-hiring-manager"
 
 
+# REC-14: every dev company gets its department list. The starting names are read from the seed prod uses
+# (scripts/tenancy/company-seeds/departments.mjs, STARTING), so there is one list of names; this file does not start node,
+# because the BE-16 seed test runs seed-dev.py with a fake boto3 only. Like that seed, a company with a list keeps it.
+# The founding company also gets "Fleet" with a fixed id for the company walk (support/ten-04/dev-ids.json `department`);
+# a test that renamed or archived it is put back on every run. The second company gets a name of its own so the two
+# lists differ. Nothing is ever deleted; a change writes the next version.
+DEPARTMENTS_SEED = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "tenancy" / "company-seeds" / "departments.mjs"
+WALK_DEPARTMENT = {"id": "dep_01TEN04A000000000000000001", "name": "Fleet"}
+SECOND_COMPANY_DEPARTMENT = "Dispatch"
+_CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def starting_departments() -> list:
+    m = re.search(r"export const STARTING = \[([^\]]*)\];", DEPARTMENTS_SEED.read_text())
+    names = re.findall(r"'([^']+)'", m.group(1)) if m else []
+    if not names:
+        sys.exit("::error::scripts/tenancy/company-seeds/departments.mjs has no STARTING list")
+    return names
+
+
+def _department_id() -> str:
+    t = int(time.time() * 1000)
+    stamp = ""
+    for _ in range(10):
+        stamp = _CROCKFORD[t % 32] + stamp
+        t //= 32
+    return "dep_" + stamp + "".join(secrets.choice(_CROCKFORD) for _ in range(16))
+
+
+def _department_list(ddb, tid: str):
+    item = ddb.get_item(TableName=TENANTS_TABLE, Key={"pk": {"S": f"TENANT#{tid}"}, "sk": {"S": "DEPARTMENTS"}},
+                        ConsistentRead=True).get("Item")
+    if not item:
+        return None, []
+    deps = [{"id": d["M"]["id"]["S"], "name": d["M"]["name"]["S"], "status": d["M"]["status"]["S"]}
+            for d in item.get("departments", {}).get("L", [])]
+    return int(item["version"]["N"]), deps
+
+
+def _write_department_list(ddb, tid: str, version, deps: list) -> None:
+    """Writes the next version (version None: the first one, only when there is still none)."""
+    cond = ({"ConditionExpression": "attribute_not_exists(sk)"} if version is None else
+            {"ConditionExpression": "#version = :read", "ExpressionAttributeNames": {"#version": "version"},
+             "ExpressionAttributeValues": {":read": {"N": str(version)}}})
+    ddb.put_item(TableName=TENANTS_TABLE, Item={
+        "pk": {"S": f"TENANT#{tid}"}, "sk": {"S": "DEPARTMENTS"}, "tenant_id": {"S": tid},
+        "version": {"N": str((version or 0) + 1)},
+        "departments": {"L": [{"M": {"id": {"S": d["id"]}, "name": {"S": d["name"]}, "status": {"S": d["status"]}}} for d in deps]},
+        "updated_at": {"S": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, "updated_by": {"S": "seed-dev"},
+    }, **cond)
+
+
+def seed_departments(ddb) -> int:
+    """The three dev companies' lists, the walk's Fleet and company B's own name. A second run changes nothing."""
+    founding = founding_tenant_id()
+    written = 0
+    for tid in (founding, SECOND_TENANT_ID, WALK_TENANT_ID):
+        version, _ = _department_list(ddb, tid)
+        if version is None:
+            _write_department_list(ddb, tid, None, [{"id": _department_id(), "name": n, "status": "ACTIVE"} for n in starting_departments()])
+            written += 1
+    version, deps = _department_list(ddb, founding)
+    want = {**WALK_DEPARTMENT, "status": "ACTIVE"}
+    if want not in deps:
+        if any(d["id"] != want["id"] and d["name"].lower() == want["name"].lower() for d in deps):
+            print("warning: the founding company has another department called Fleet; the walk department was not put back")
+        else:
+            _write_department_list(ddb, founding, version, [d for d in deps if d["id"] != want["id"]] + [want])
+            written += 1
+    version, deps = _department_list(ddb, SECOND_TENANT_ID)
+    if not any(d["name"].lower() == SECOND_COMPANY_DEPARTMENT.lower() for d in deps):
+        _write_department_list(ddb, SECOND_TENANT_ID, version,
+                               deps + [{"id": _department_id(), "name": SECOND_COMPANY_DEPARTMENT, "status": "ACTIVE"}])
+        written += 1
+    return written
+
 def seed_candidates(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
     """Write the two seeded candidates (and the interview with the employee login on its panel). Idempotent."""
     if not manager_sub or not employee_sub:
@@ -939,6 +1016,7 @@ def main() -> None:
     walk_subs = tuple(sub for sub in (user_sub(cognito, naleko, r) for r in ("hr-c", "tf-b", "it-b")) if sub)
     walk_written = ensure_walk_company(ddb, walk_subs)
     modules_set = set_dev_modules(ddb)
+    departments_written = seed_departments(ddb)
     ten04_written = seed_ten04_rows(ddb, founding_tenant_id(), user_sub(cognito, naleko, "tf"))
     try:
         foreign_bundles_removed = remove_foreign_bundles(ddb, founding_tenant_id())
@@ -993,7 +1071,7 @@ def main() -> None:
           f"persona consents reset {consents_removed}; "
           f"demo documents {seeded_documents}; founding company row written {founding_written}; "
           f"second company rows written {second_written}; company modules set {modules_set}; "
-          f"walk company rows written {walk_written}; TEN-04 walk rows written {ten04_written}; "
+          f"walk company rows written {walk_written}; department lists changed {departments_written}; TEN-04 walk rows written {ten04_written}; "
           f"agent walk rows written {onb22_written}; "
           f"stale bundles of another company removed {foreign_bundles_removed}; "
           f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}; REC-03 rows seeded {rec03_written}; REC-04 rows seeded {rec04_written}")

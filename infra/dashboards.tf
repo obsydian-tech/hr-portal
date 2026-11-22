@@ -16,6 +16,7 @@ module "dashboards" {
     "getCompanyModules",
     "askBatsiChats",
     "adminSetAskBatsi",
+    "manageDepartments",
     "getHrPartners",
     "checkEmployeeEmail",
     "lookupInvite",
