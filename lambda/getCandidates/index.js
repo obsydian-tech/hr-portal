@@ -51,6 +51,18 @@ exports.handler = async (event) => {
   if (moduleOff) return moduleOff;
 
   const qs = event.queryStringParameters || {};
+  // REC-04: the candidates of one role, in the board's shape with counts (the shared core; D-T-9).
+  if (qs.role_id !== undefined) {
+    const personId = RA.callerId(event);
+    if (!personId) return RA.forbidden();
+    try {
+      const { candidatesOfRole } = await import('../shared/recruitment-actions/roles.mjs');
+      return await candidatesOfRole({ tenantId, personId, event }, qs);
+    } catch (err) {
+      console.error('getCandidates role list failed', { error: err?.name ?? 'Error' });
+      return respond(500, { message: 'Failed to retrieve candidates' });
+    }
+  }
   const limit = Math.min(parseInt(qs.limit || '50', 10), 100);
   const { stage, positionLevel, slaStatus, search, nextToken } = qs;
   // REC-01: a manager who is not a Recruiter is limited to their own candidates, whatever the query says.

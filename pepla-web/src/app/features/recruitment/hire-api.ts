@@ -59,7 +59,7 @@ export class HireApi {
       const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
       if (body !== undefined) headers['Content-Type'] = 'application/json';
       if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
-      const res = await fetch(`${environment.employeesApiUrl}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+      const res = await fetch(`${environment.talentFlowApiUrl}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
       let json: unknown = null;
       try { json = await res.json(); } catch { /* an answer with no body */ }
       return { status: res.status, body: json as T };

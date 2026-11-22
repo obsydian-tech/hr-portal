@@ -302,7 +302,7 @@ jobs:
         # The company walk (TEN-04 AC-7) runs in its own step below: its "company B" caller is the walk company's HR login.
         # ONB-10 AC-8 runs in its own step after that: ONB-07 and ONB-08 upload and accept the test login's required
         # documents earlier in this run, and AC-8 needs one still to give.
-        run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev|ONB-10 Due dates and Overdue.*AC-8 pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev"
+        run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev|ONB-10 Due dates and Overdue.*AC-8 pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev"
 
       # Ask Batsi is off for every company until an admin turns it on (CHAT-02), and the seed puts the dev companies back
       # to their modules on each run. The walk needs it on for company A and for the walk company (its "company B"):
@@ -328,7 +328,7 @@ jobs:
         run: |
           export E2E_HR_B_EMAIL="$E2E_HR_C_EMAIL" E2E_HR_B_PASSWORD="$E2E_HR_C_PASSWORD"
           # list reporter only: the JSON report of the main run above is the one the PR comment reads
-          npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "company B walk on pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev"
+          npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "company B walk on pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev"
 
       # ONB-10 AC-8: the employee test login's checklist with a required document still to give. The login is put
       # back to the seed's clean start first (stage INVITED, no documents, notice not accepted), then the one test runs.

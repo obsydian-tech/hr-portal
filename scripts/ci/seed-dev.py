@@ -662,6 +662,94 @@ def seed_rec03(ddb, tenant_id: str, manager_sub: str) -> int:
     return written + 1
 
 
+# REC-04: the roles and candidates the hiring board reads on pepla-dev (REC-UI-01 AC-13, cards/rec-ui-01.md). Fixed ids, written
+# again on every run, so whatever a dev run did to them (a candidate moved or Not hired, a history row, a role closed) is put back.
+# The manager login is the hiring manager of Senior accountant only, and of no seeded candidate (REC-01 AC-9 counts its candidates).
+ROLES_TABLE = "talent-flow-roles"
+REC04_ROLES = [
+    # (role id, title, department, level, hiring manager is the manager login)
+    ("role-seed-rec04-fleet-controller", "Fleet controller", "Operations", "MID", False),
+    ("role-seed-rec04-warehouse-supervisor", "Warehouse supervisor", "Operations", "SENIOR", False),
+    ("role-seed-rec04-senior-accountant", "Senior accountant", "Finance", "SENIOR", True),
+]
+REC04_PANEL = {"JUNIOR": 2, "MID": 3, "SENIOR": 4}
+REC04_CRITERIA = [("technical", "Technical"), ("communication", "Communication"), ("culturalFit", "Cultural fit"), ("problemSolving", "Problem solving")]
+REC04_CANDIDATES = [
+    # (candidate id, first, last, role id, stage, extra)
+    ("CAND-SEEDREC040000000000001", "Amahle", "Dlamini", REC04_ROLES[0][0], "APPLIED", {}),
+    ("CAND-SEEDREC040000000000002", "Tariro", "Moyo", REC04_ROLES[0][0], "SCREENING", {}),
+    ("CAND-SEEDREC040000000000003", "Ayanda", "Mkhize", REC04_ROLES[0][0], "SCREENING", {}),
+    ("CAND-SEEDREC040000000000004", "Tendai", "Ncube", REC04_ROLES[0][0], "INTERVIEW", {}),
+    ("CAND-SEEDREC040000000000005", "Bongani", "Mthembu", REC04_ROLES[0][0], "INTERVIEW", {}),
+    ("CAND-SEEDREC040000000000006", "Kagiso", "Molefe", REC04_ROLES[0][0], "OFFER", {}),
+    ("CAND-SEEDREC040000000000007", "Nomvula", "Zulu", REC04_ROLES[0][0], "NOT_HIRED", {"reason_code": "WITHDREW", "decided_by_kind": "PERSON"}),
+    ("CAND-SEEDREC040000000000008", "Farai", "Moyo", REC04_ROLES[0][0], "NOT_HIRED", {"reason_code": "NOT_RIGHT_SKILLS", "decided_by_kind": "PERSON"}),
+    ("CAND-SEEDREC040000000000009", "Mpho", "Sithole", REC04_ROLES[1][0], "NOT_HIRED", {"status": "REJECTED", "decided_by_kind": "OLD_SYSTEM"}),
+]
+
+
+def seed_rec04(ddb, tenant_id: str, manager_sub: str) -> int:
+    """Write the REC-04 roles and candidates fresh, and remove the roles a dev run opened. Idempotent."""
+    if not manager_sub:
+        print("warning: the manager login has no sub; the REC-04 roles were not written")
+        return 0
+    now = "2026-11-10T08:00:00.000Z"
+    written = 0
+    # Roles the REC-04 dev test opened (and closed) on an earlier run.
+    kwargs = {"TableName": ROLES_TABLE, "KeyConditionExpression": "pk = :pk AND begins_with(sk, :r)",
+              "ExpressionAttributeValues": {":pk": {"S": f"TENANT#{tenant_id}"}, ":r": {"S": "ROLE#"}}}
+    while True:
+        page = ddb.query(**kwargs)
+        for item in page.get("Items", []):
+            if item.get("job_title", {}).get("S", "").startswith("REC-04 dev check") and item.get("tenant_id", {}).get("S") == tenant_id:
+                ddb.delete_item(TableName=ROLES_TABLE, Key={"pk": item["pk"], "sk": item["sk"]})
+        if "LastEvaluatedKey" not in page:
+            break
+        kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+    roles = {}
+    for rid, title, dept, level, mine in REC04_ROLES:
+        roles[rid] = (title, level)
+        ddb.put_item(TableName=ROLES_TABLE, Item={
+            "pk": {"S": f"TENANT#{tenant_id}"}, "sk": {"S": f"ROLE#{rid}"}, "tenant_id": {"S": tenant_id}, "role_id": {"S": rid},
+            "job_title": {"S": title}, "department": {"S": dept}, "level": {"S": level},
+            "hiring_manager_id": {"S": manager_sub if mine else OTHER_HIRING_MANAGER},
+            "criteria": {"L": [{"M": {"key": {"S": k}, "label": {"S": l}}} for k, l in REC04_CRITERIA]},
+            "panel_size": {"N": str(REC04_PANEL[level])}, "status": {"S": "OPEN"}, "opened_at": {"S": now},
+            "opened_by": {"S": "seed-dev"}, "legacy": {"BOOL": False}, "seed": {"S": SEED_TAG},
+        })
+        written += 1
+    for cid, first, last, rid, stage, extra in REC04_CANDIDATES:
+        pk = f"CANDIDATE#{cid}"
+        stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                          ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "STAGE#"}}, ProjectionExpression="PK, SK")
+        for item in stale.get("Items", []):
+            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+        title, level = roles[rid]
+        item = {
+            "PK": {"S": pk}, "SK": {"S": "SAGA"},
+            "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "role_id": {"S": rid},
+            "firstName": {"S": first}, "lastName": {"S": last},
+            "email": {"S": f"pepla-demo-{first.lower()}.{last.lower()}@{MAIL_DOMAIN}"},
+            "positionTitle": {"S": title}, "positionLevel": {"S": level}, "department": {"S": "Operations"},
+            "currentStage": {"S": stage}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+            "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+        }
+        for k, v in extra.items():
+            item[k] = {"S": v}
+        ddb.put_item(TableName=STATE_TABLE, Item=item)
+        written += 1
+        if stage == "OFFER":
+            ddb.put_item(TableName=STATE_TABLE, Item={
+                "PK": {"S": pk}, "SK": {"S": "OFFER"}, "offerId": {"S": f"OFFER#{cid}"}, "candidateId": {"S": cid},
+                "tenant_id": {"S": tenant_id}, "state": {"S": "OFFER_SENT"}, "positionLevel": {"S": level},
+                "createdAt": {"S": now}, "updatedAt": {"S": now}, "seed": {"S": SEED_TAG},
+            })
+            written += 1
+    return written
+
+
 # TEN-04: the rows company A owns that the company B walk aims at. The ids are the ones in
 # pepla-web/e2e/acceptance/support/ten-04/dev-ids.json; the word TEN04A is what the walk looks for in an answer.
 # Written with put_item on every run, with A's company on each (Terraform never manages table data, and the seed must
@@ -890,6 +978,12 @@ def main() -> None:
         print("warning: the TalentFlow state table is not there; the REC-03 candidates were not written")
         rec03_written = 0
 
+    try:
+        rec04_written = seed_rec04(ddb, tid, user_sub(cognito, naleko, "manager"))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow roles table is not there yet; the REC-04 roles were not written")
+        rec04_written = 0
+
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
     print(f"seed-dev: groups created {made_groups}; "
@@ -901,7 +995,7 @@ def main() -> None:
           f"walk company rows written {walk_written}; TEN-04 walk rows written {ten04_written}; "
           f"agent walk rows written {onb22_written}; "
           f"stale bundles of another company removed {foreign_bundles_removed}; "
-          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}; REC-03 rows seeded {rec03_written}")
+          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}; REC-03 rows seeded {rec03_written}; REC-04 rows seeded {rec04_written}")
 
 
 if __name__ == "__main__":

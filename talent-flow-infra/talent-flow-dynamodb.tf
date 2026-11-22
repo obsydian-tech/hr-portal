@@ -78,6 +78,18 @@ resource "aws_dynamodb_table" "talent_flow_state" {
     projection_type = "ALL"
   }
 
+  # REC-04: the candidates of one role (D-REC-4.4). Only rows that carry role_id are in it.
+  attribute {
+    name = "role_id"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "role-id-index"
+    hash_key        = "role_id"
+    projection_type = "ALL"
+  }
+
   # Stream - consumed by monitorTalentFlowSLAs Lambda (TF-012)
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
