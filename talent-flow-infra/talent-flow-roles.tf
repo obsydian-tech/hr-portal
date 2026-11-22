@@ -4,6 +4,7 @@
 #
 # One table and one Lambda, four JWT routes (the route key picks the action):
 #   GET  /v1/roles             a Recruiter lists the company's roles; a manager lists the roles they hire for
+#   GET  /v1/roles/options     the one answer the Open a role page needs (REC-14)
 #   GET  /v1/roles/{id}        one role, with its counts
 #   POST /v1/roles             a Recruiter opens a role (Idempotency-Key required)
 #   POST /v1/roles/{id}/close  a Recruiter closes a role once no candidate is open
@@ -188,6 +189,14 @@ resource "aws_apigatewayv2_integration" "manage_roles" {
 resource "aws_apigatewayv2_route" "manage_roles_list" {
   api_id             = aws_apigatewayv2_api.talent_flow_api.id
   route_key          = "GET /v1/roles"
+  target             = "integrations/${aws_apigatewayv2_integration.manage_roles.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_apigatewayv2_route" "manage_roles_options" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/roles/options"
   target             = "integrations/${aws_apigatewayv2_integration.manage_roles.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id

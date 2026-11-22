@@ -135,11 +135,14 @@
   "GET /v1/roles": {
     "kind": "list"
   },
+  "GET /v1/roles/options": {
+    "kind": "list"
+  },
   "POST /v1/roles": {
     "kind": "create",
     "body": {
       "job_title": "Walk check",
-      "department": "Operations",
+      "department_id": "dep_01TEN04A000000000000000001",
       "level": "MID",
       "hiring_manager_id": "ten04-made-up-person"
     },

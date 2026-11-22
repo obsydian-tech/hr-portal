@@ -18,15 +18,8 @@
  * Response: { hiringManagers: [{ sub, email, givenName, familyName, name }] }
  */
 
-const {
-  CognitoIdentityProviderClient,
-  ListUsersInGroupCommand,
-} = require('@aws-sdk/client-cognito-identity-provider');
-
 const { tenantHelper } = require('../shared/tf-tenant.js');
-const { rolesHelper } = require('../shared/tf-roles.js');
 
-const cognito    = new CognitoIdentityProviderClient({});
 // After pool consolidation, use the Naleko (HR Portal) Cognito pool.
 // The TF API GW authorizer validates against this pool, so subs must match.
 // BE-15: a setting that names one environment has no fallback value. A missing
@@ -41,7 +34,6 @@ function requireSetting(name) {
 }
 
 const HM_POOL_ID  = requireSetting('HM_COGNITO_POOL_ID');
-const HM_GROUP    = process.env.HM_GROUP_NAME;
 
 function respond(statusCode, body) {
   return {
@@ -66,48 +58,15 @@ exports.handler = async (event) => {
   const moduleOff = await requireModule(event, 'recruitment');
   if (moduleOff) return moduleOff;
 
-  const R = await rolesHelper();
-  const groups = [...new Set([...(HM_GROUP ? [HM_GROUP] : []), ...R.HIRING_MANAGER_GROUPS])];
-  const pool = [];
-  const seen = new Set();
-  for (const group of groups) {
-    try {
-      let nextToken;
-      do {
-        const result = await cognito.send(new ListUsersInGroupCommand({
-          UserPoolId: HM_POOL_ID,
-          GroupName:  group,
-          NextToken:  nextToken,
-        }));
-        for (const u of result.Users ?? []) if (!seen.has(u.Username)) { seen.add(u.Username); pool.push(u); }
-        nextToken = result.NextToken;
-      } while (nextToken);
-    } catch (err) {
-      console.warn(`getHiringManagers: skipping group "${group}"`, { error: err?.name });
-    }
-  }
-  let users;
+  // REC-14 rule 12: the people come from the one shared function (the same list the options route and the role check use).
+  let hiringManagers;
   try {
-    const { inCompany } = await import('../shared/membership.mjs');
-    users = await inCompany(pool, tenantId);
+    const { hiringManagerPeopleOf } = await import('../shared/hiring-managers.mjs');
+    hiringManagers = await hiringManagerPeopleOf(tenantId);
   } catch (err) {
-    console.error('getHiringManagers: Member read failed', { error: err?.name });
+    console.error('getHiringManagers: read failed', { error: err?.name });
     return respond(500, { error: 'Failed to retrieve hiring managers' });
   }
-
-  const hiringManagers = users
-    .filter(u => u.UserStatus === 'CONFIRMED')
-    .map(u => {
-      const a = Object.fromEntries((u.Attributes ?? []).map(x => [x.Name, x.Value]));
-      return {
-        sub:        a.sub,
-        email:      a.email,
-        givenName:  a.given_name  ?? '',
-        familyName: a.family_name ?? '',
-        name:       [a.given_name, a.family_name].filter(Boolean).join(' ') || a.email,
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
 
   return respond(200, { hiringManagers });
 };
