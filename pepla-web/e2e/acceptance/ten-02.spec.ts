@@ -949,6 +949,7 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
       if (role === 'tenant_pre_token') continue; // TEN-01, locked there.
       if (role === 'send_document_reminders') continue; // ONB-21 (re-lock ten-02.5): its own role, locked in onb-21.spec.ts AC-8.
       if (role === 'user_migration') continue; // TEN-06 (re-lock ten-02.4): its own role, locked in ten-06.spec.ts AC-7.
+      if (role === 'manage_departments') continue; // REC-14 (child lock rec-14.1): the department list's own role (Get, Put and Update on TENANT# keys only), locked in rec-14.spec.ts AC-3.
       if (/^(naleko_ai_chat|ask_batsi_chats|admin_set_ask_batsi)$/.test(role)) continue; // CHAT-02 (re-lock ten-02.N): the chat Lambda reads the switch and keeps chats; the two new roles are locked in chat-02.spec.ts AC-31.
       const policies = resources('aws_iam_role_policy').filter((b) => new RegExp(`^aws_iam_role\\.${role}\\.(name|id)$`).test(attributes(b.body).get('role') ?? ''));
       if (!policies.some((b) => /aws_dynamodb_table\.tenants\.|-tenants\b/.test(stripComments(b.body)))) continue;

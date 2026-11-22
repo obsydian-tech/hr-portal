@@ -662,7 +662,8 @@ test.describe('MOD-02 The module-aware shell and guards', () => {
     // No new dependency: the lists are the ones develop had.
     const pkg = JSON.parse(readFileSync(join(PEPLA_WEB, 'package.json'), 'utf8')) as { dependencies: Record<string, string>; devDependencies: Record<string, string> };
     expect(Object.keys(pkg.dependencies).sort(), 'dependencies').toEqual(BASELINE.dependencies);
-    expect(Object.keys(pkg.devDependencies).sort(), 'devDependencies').toEqual(BASELINE.devDependencies);
+    // child lock rec-14.1, REC-14 rule 15: the acceptance tests' schema checker (ajv) is a dev dependency; rec-14.spec.ts AC-1 pins it there.
+    expect(Object.keys(pkg.devDependencies).filter((d) => d !== 'ajv').sort(), 'devDependencies').toEqual(BASELINE.devDependencies);
 
     // The shells use design system parts only: every class they write starts with pp-, and they carry no styles of their own.
     for (const shell of ['features/hr/hr-shell.ts', 'features/start/employee-shell.ts']) {

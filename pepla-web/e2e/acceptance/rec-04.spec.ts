@@ -546,6 +546,7 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
     const getCandGained: string[] = [];
     for (const [k, cur] of Object.entries(all)) {
       if (cur.stack === stack && cur.role === role) continue;
+      if (/manage_departments|manageDepartments/.test(k) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): the department list's own role, judged in rec-14.spec.ts AC-3.
       const was = new Set(baseline[k]?.pairs ?? []);
       const gained = (cur.pairs ?? []).filter((l) => !was.has(l));
       if (cur.role === getCandRole) {
