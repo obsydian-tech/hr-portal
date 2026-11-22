@@ -899,6 +899,20 @@ resource "aws_iam_role_policy" "get_candidates" {
         ]
       },
       {
+        # REC-04: the candidates of one role (GET /v1/candidates?role_id=).
+        Sid      = "RoleIndexQuery"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/role-id-index"
+      },
+      {
+        # REC-04: read the one role row, to know the role is the caller's company's.
+        Sid      = "RoleRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_roles}"
+      },
+      {
         Sid      = "KMSStateKey"
         Effect   = "Allow"
         Action   = local.tf_kms_actions

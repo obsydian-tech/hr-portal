@@ -37,7 +37,7 @@ resource "aws_apigatewayv2_api" "talent_flow_api" {
     allow_credentials = false
     allow_headers     = ["authorization", "content-type", "idempotency-key"]
     allow_methods     = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
-    allow_origins     = ["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"]
+    allow_origins     = local.tf_api_allowed_origins
     expose_headers    = []
     max_age           = 86400
   }

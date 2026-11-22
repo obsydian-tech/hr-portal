@@ -57,6 +57,7 @@ export const environment = {
   employeesApiUrl: '${EMP_API}',
   documentUploadApiUrl: '${DOC_API}',
   agentApiUrl: '${AGENT_API}',
+  talentFlowApiUrl: '${TF_API}',
   cognito: { userPoolId: '${NALEKO_POOL}', clientId: '${NALEKO_CLIENT}', region: '${REGION}' },
 };
 TS

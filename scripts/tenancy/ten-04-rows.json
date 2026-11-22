@@ -131,5 +131,35 @@
   },
   "GET /v1/candidates/old-system": {
     "kind": "list"
+  },
+  "GET /v1/roles": {
+    "kind": "list"
+  },
+  "POST /v1/roles": {
+    "kind": "create",
+    "body": {
+      "job_title": "Walk check",
+      "department": "Operations",
+      "level": "MID",
+      "hiring_manager_id": "ten04-made-up-person"
+    },
+    "read": {
+      "op": "GET /v1/roles"
+    }
+  },
+  "GET /v1/roles/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    }
+  },
+  "POST /v1/roles/{id}/close": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/roles"
+    }
   }
 }

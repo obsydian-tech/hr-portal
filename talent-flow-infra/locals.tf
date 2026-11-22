@@ -36,6 +36,12 @@ locals {
   tf_table_idempotency     = "talent-flow-idempotency-keys"
   tf_table_notifications   = "talent-flow-notifications"
   tf_table_users           = "talent-flow-users"
+  tf_table_roles           = "talent-flow-roles" # REC-04: one row per role (keys pk, sk), encrypted with the state key.
+
+  # REC-04: who the TalentFlow API answers in a browser. The new app (pepla-web) on localhost:4300 and the dev web address are let in
+  # outside prod only; prod keeps the two addresses it has today.
+  tf_web_dev_origin      = "https://df2hrxausiknc.cloudfront.net"
+  tf_api_allowed_origins = concat(["http://localhost:4200", "https://hr-portal-beryl-three.vercel.app"], var.environment != "prod" ? ["http://localhost:4300", "http://127.0.0.1:4300", local.tf_web_dev_origin] : [])
 
   # ── EventBridge ───────────────────────────────────────────────────────────
   tf_event_bus_name = "talent-flow-bus"

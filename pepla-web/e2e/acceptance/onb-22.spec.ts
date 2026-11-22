@@ -1297,7 +1297,9 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
       // Child lock onb-22.8 (CHAT-15): the hourly leaver-chats job's role (TalentFlow stack, so a quoted ARN with the role path) may also be listed; chat-15.spec.ts AC-12 pins it exactly.
       '"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-deleteLeaverChats"',
       // Child lock onb-22.9 (REC-02): the recordNotHired role (TalentFlow stack, quoted ARN with the role path) may also be listed; chat-15.spec.ts AC-12 lets it in at most once.
-      '"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-recordNotHired"'];
+      '"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-recordNotHired"',
+      // Child lock rec-04.1 (REC-04): the manageRoles role likewise (added one merge after the role exists); chat-15.spec.ts AC-12 lets it in at most once.
+      '"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-manageRoles"'];
     const addedRoles = reads.filter((l) => !(baseline['kmsReadRoles'] as string[]).includes(l) && !OTHER_CARDS.includes(l)).sort();
     expect(addedRoles, 'dynamodb_read_role_arns gains exactly the four roles (and, apart from them, only the four roles of CHAT-02, ONB-21 and ONB-11)').toEqual(['createProposal', 'approveAgentAction', 'queryAuditLog', 'summariseVerification'].map((f) => `aws_iam_role.${roleOf(lambdaNamed(f))}.arn`).sort());
     expect((baseline['kmsReadRoles'] as string[]).filter((l) => !reads.includes(l)), 'and takes none away').toEqual([]);

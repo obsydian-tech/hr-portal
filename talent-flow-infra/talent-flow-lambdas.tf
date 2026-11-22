@@ -599,6 +599,7 @@ resource "aws_lambda_function" "get_candidates" {
     variables = {
       TENANTS_TABLE    = local.tf_tenants_table
       STATE_TABLE_NAME = local.tf_table_state
+      ROLES_TABLE_NAME = local.tf_table_roles
       ENVIRONMENT      = var.environment
     }
   }

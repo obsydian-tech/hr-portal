@@ -817,6 +817,7 @@ test.describe('REC-02 · A person decides: no automatic Not hired, and a Not hir
     const writesOf = (p: { pairs?: string[]; squash?: string } | undefined) => new Set((p?.pairs ?? []).filter((l) => WRITE.test(l)));
     for (const [key, cur] of Object.entries(all)) {
       if (cur.stack === stack && cur.role === role) continue;
+      if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): the roles Lambda's own role writes the roles table, judged in rec-04.spec.ts AC-8.
       const was = writesOf(baseline[key]);
       const gained = [...writesOf(cur)].filter((l) => !was.has(l));
       expect.soft(gained, `${key}: no new write grant`).toEqual([]);
