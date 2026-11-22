@@ -161,5 +161,31 @@
     "read": {
       "op": "GET /v1/roles"
     }
+  },
+  "GET /v1/company/departments": {
+    "kind": "list"
+  },
+  "POST /v1/admin/company/departments": {
+    "kind": "create",
+    "body": {
+      "name": "Walk department",
+      "tenant_id": "$A"
+    },
+    "read": {
+      "op": "GET /v1/company/departments"
+    }
+  },
+  "PATCH /v1/admin/company/departments/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "department"
+    },
+    "body": {
+      "name": "Taken by the walk",
+      "expected_version": 1
+    },
+    "read": {
+      "op": "GET /v1/company/departments"
+    }
   }
 }

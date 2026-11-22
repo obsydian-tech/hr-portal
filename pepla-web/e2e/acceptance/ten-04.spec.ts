@@ -406,7 +406,7 @@ test.describe('TEN-04 · every route is described, and a company B walk proves n
     const tenantA = (JSON.parse(Buffer.from(tokens.get('hrA')!.split('.')[1]!, 'base64url').toString('utf8')) as { tenant_id?: string }).tenant_id ?? '';
     expect(tenantA, 'company A\'s sign-in carries its company (tenant_id)').toMatch(/^ten_[0-9a-z]{26}$/);
     const world: World = {
-      ids: { employee: ids['employee']!, document: ids['document']!, candidate: ids['candidate']!, interview: ids['interview']!, tile: ids['tile']!, config: ids['config']!, itTask: ids['itTask']!, bundle: ids['bundle']!, notification: ids['notification']!, action: ids['action']!, user: sub } as Record<Kind, string>,
+      ids: { employee: ids['employee']!, document: ids['document']!, candidate: ids['candidate']!, interview: ids['interview']!, tile: ids['tile']!, config: ids['config']!, itTask: ids['itTask']!, bundle: ids['bundle']!, notification: ids['notification']!, action: ids['action']!, department: ids['department']!, user: sub } as Record<Kind, string>,
       tenantA, markers: [...Object.entries(ids).filter(([k]) => k !== 'names' && k !== '_note').map(([, v]) => v as string), ...ids.names, tenantA], bMarkers: ['Companyb', 'zanele.companyb', 'ten04-b-'],
     };
     const send = async (req: Req): Promise<Res> => {
@@ -433,7 +433,7 @@ test.describe('TEN-04 · every route is described, and a company B walk proves n
 
 function modelWorld(): World {
   return {
-    ids: { employee: ids['employee']!, document: ids['document']!, candidate: ids['candidate']!, interview: ids['interview']!, tile: ids['tile']!, config: ids['config']!, itTask: ids['itTask']!, bundle: ids['bundle']!, notification: ids['notification']!, action: ids['action']!, user: 'sub-ten04-victim-a' } as Record<Kind, string>,
+    ids: { employee: ids['employee']!, document: ids['document']!, candidate: ids['candidate']!, interview: ids['interview']!, tile: ids['tile']!, config: ids['config']!, itTask: ids['itTask']!, bundle: ids['bundle']!, notification: ids['notification']!, action: ids['action']!, department: ids['department']!, user: 'sub-ten04-victim-a' } as Record<Kind, string>,
     tenantA: `ten_${'a'.repeat(26)}`,
     markers: [...Object.entries(ids).filter(([k]) => k !== 'names' && k !== '_note').map(([, v]) => v as string), ...ids.names, 'sub-ten04-victim-a', `ten_${'a'.repeat(26)}`],
     bMarkers: ['Zanele', 'zanele.companyb', 'ten04-b-'],

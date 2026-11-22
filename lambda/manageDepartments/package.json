@@ -1,0 +1,7 @@
+{
+  "name": "manage-departments-lambda",
+  "version": "1.0.0",
+  "description": "REC-14 the company's department list: GET /v1/company/departments, POST and PATCH /v1/admin/company/departments",
+  "private": true,
+  "type": "module"
+}

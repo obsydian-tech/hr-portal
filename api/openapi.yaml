@@ -480,6 +480,84 @@ components:
           items:
             type: string
           description: Required fields that were absent (400 responses only).
+    Department:
+      type: object
+      description: REC-14. One department of the company's list. The id never changes; an archived one is kept, never deleted.
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - status
+      properties:
+        id:
+          type: string
+          pattern: ^dep_[0-9A-HJKMNP-TV-Z]{26}$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - ARCHIVED
+    DepartmentList:
+      type: object
+      description: REC-14. The company's list and its version (0 and no departments while the company has no list).
+      additionalProperties: false
+      required:
+      - version
+      - departments
+      properties:
+        version:
+          type: integer
+          minimum: 0
+        departments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Department'
+    DepartmentChange:
+      type: object
+      description: REC-14. The answer to an add or a change.
+      additionalProperties: false
+      required:
+      - version
+      - department
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        department:
+          $ref: '#/components/schemas/Department'
+    DepartmentError:
+      type: object
+      description: REC-14. A refusal of the department routes.
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          type: string
+          enum:
+          - Bad request
+          - Forbidden
+          - Not found
+          - Conflict
+          - Something went wrong
+        code:
+          type: string
+          enum:
+          - INVALID_FIELD
+          - IDEMPOTENCY_KEY_REQUIRED
+          - DUPLICATE_NAME
+          - TOO_MANY_DEPARTMENTS
+          - STALE_VERSION
+        field:
+          type: string
+          enum:
+          - name
+          - status
+          - expected_version
 security:
 - CognitoJWT: []
 paths:
@@ -3097,6 +3175,181 @@ paths:
               example:
                 error: Forbidden
       operationId: PUT_v1_admin_company_ask_batsi
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+  /v1/company/departments:
+    get:
+      summary: GET /v1/company/departments
+      description: REC-14. The company's departments, sorted by name, and the list's version. HR staff, Admin and Recruiters read it. Archived ones are included only for an Admin who asks with include=archived.
+      operationId: GET_v1_company_departments
+      parameters:
+      - name: include
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - archived
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentList'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+        '500':
+          description: Something went wrong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - hr_staff
+  /v1/admin/company/departments:
+    post:
+      summary: POST /v1/admin/company/departments
+      description: REC-14. An Admin adds a department to the company's list. Needs an Idempotency-Key.
+      operationId: POST_v1_admin_company_departments
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                  maxLength: 80
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentChange'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+        '500':
+          description: Something went wrong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+      servers:
+      - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+  /v1/admin/company/departments/{id}:
+    patch:
+      summary: PATCH /v1/admin/company/departments/{id}
+      description: REC-14. An Admin renames, archives or restores a department, with the version they last read.
+      operationId: PATCH_v1_admin_company_departments_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - expected_version
+              properties:
+                name:
+                  type: string
+                  maxLength: 80
+                status:
+                  type: string
+                  enum:
+                  - ACTIVE
+                  - ARCHIVED
+                expected_version:
+                  type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentChange'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
+        '500':
+          description: Something went wrong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentError'
       servers:
       - url: https://ndksa9ec0k.execute-api.af-south-1.amazonaws.com
       security:

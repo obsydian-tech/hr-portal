@@ -10,7 +10,7 @@
 import { randomBytes } from 'node:crypto';
 import { GetItemCommand, TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
 import { FOUNDING_DEFAULT, MODULE_KEYS } from '../../../lambda/shared/modules.mjs';
-import { seedFile } from '../module-seeds/index.mjs';
+import { companySeedFiles, seedFile } from '../module-seeds/index.mjs';
 
 export { MODULE_KEYS };
 export const TENANT_ID = /^ten_[0-9a-z]{26}$/;
@@ -66,8 +66,12 @@ export async function setModules({ ddb, env, tenantId, on = [], off = [], reason
   if (res.Item.founding?.BOOL === true && to.length === 0) throw new Refused('The founding company keeps at least one module');
 
   // Seed before flip. Load every seed first, then run them; any failure stops here with nothing written.
+  // REC-14: then the company-wide seeds of the keys being turned on (the department list), each once, still before the flip.
+  // They run after the module seeds, so a module seed that fails leaves nothing written.
   const seeds = [];
   for (const key of added) seeds.push([key, await import(seedFile(key).href)]);
+  const company = [...new Set(added.flatMap((key) => companySeedFiles(key).map((u) => u.href)))];
+  for (const href of company) seeds.push([href.split('/').slice(-2).join('/'), await import(href)]);
   if (env === 'prod') {
     for (const [key, seed] of seeds) {
       if (seed.available === false) {
@@ -79,7 +83,7 @@ export async function setModules({ ddb, env, tenantId, on = [], off = [], reason
   for (const [key, seed] of seeds) {
     const run = seed.default ?? seed.seed;
     if (typeof run !== 'function') throw new Refused(`The ${key} seed has no function to run`, 1);
-    await run({ ddb, env, tenantId, table, log });
+    await run({ ddb, env, tenantId, table, by, log });
   }
 
   const at = new Date();

@@ -24,7 +24,7 @@ resource "aws_apigatewayv2_api" "employees_api" {
   cors_configuration {
     allow_credentials = false
     allow_headers     = ["authorization", "content-type", "idempotency-key"]
-    allow_methods     = ["GET", "OPTIONS", "POST", "PUT"]
+    allow_methods     = ["GET", "OPTIONS", "PATCH", "POST", "PUT"]
     allow_origins     = local.api_allowed_origins
     expose_headers    = []
     max_age           = 86400

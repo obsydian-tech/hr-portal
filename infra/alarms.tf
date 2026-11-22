@@ -20,6 +20,7 @@ module "alarms" {
     "getCompanyModules",
     "askBatsiChats",
     "adminSetAskBatsi",
+    "manageDepartments",
     "getHrPartners",
     "checkEmployeeEmail",
     "lookupInvite",

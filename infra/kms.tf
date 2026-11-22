@@ -64,6 +64,8 @@ module "kms_pii" {
     # CHAT-02: both read the encrypted tenants table (the company switch) and the chats table; writes need no key right (BE-18).
     aws_iam_role.ask_batsi_chats.arn,
     aws_iam_role.admin_set_ask_batsi.arn,
+    # REC-14: manageDepartments reads and writes its own rows in the encrypted tenants table (decrypt only, through DynamoDB).
+    aws_iam_role.manage_departments.arn,
     aws_iam_role.get_candidate_events.arn,
     aws_iam_role.get_hiring_managers.arn,
     # ONB-21: the daily reminder reads the tenants and employees tables (decrypt only, through DynamoDB).
