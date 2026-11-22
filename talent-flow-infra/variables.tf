@@ -74,6 +74,17 @@ variable "legacy_tenant_id" {
   }
 }
 
+variable "roles_legacy_tenant_id" {
+  description = "REC-04: the founding company, for manageRoles only, so a hiring manager with no Member row counts as in that company. Same value as legacy_tenant_id in infra/env. Empty turns the rule off."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.roles_legacy_tenant_id == "" || can(regex("^ten_[0-9a-z]{26}$", var.roles_legacy_tenant_id))
+    error_message = "roles_legacy_tenant_id must be empty or ten_ followed by 26 lower-case letters or digits."
+  }
+}
+
 variable "agent_tenant_id" {
   description = "TEN-03: the one company the TalentFlow agent key (x-api-key) acts for. Empty: the authorizer authorizes nothing."
   type        = string

@@ -13,3 +13,6 @@ frontend_url = "http://localhost:4200"
 
 # CHAT-15: the hourly job that deletes a leaver's Ask Batsi chats runs on pepla-dev.
 delete_leaver_chats_enabled = true
+
+# REC-04: the founding company on pepla-dev, as in infra/env/dev.tfvars, so manageRoles counts the test manager as a hiring manager.
+roles_legacy_tenant_id = "ten_hyyt49drh9efwb79h2a0cjee0s"

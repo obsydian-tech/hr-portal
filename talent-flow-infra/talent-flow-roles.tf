@@ -155,7 +155,7 @@ resource "aws_lambda_function" "manage_roles" {
       IDEMPOTENCY_TABLE_NAME = local.tf_table_idempotency
       ROLES_TABLE_NAME       = local.tf_table_roles
       HM_COGNITO_POOL_ID     = local.tf_naleko_pool_id
-      LEGACY_TENANT_ID       = var.legacy_tenant_id
+      LEGACY_TENANT_ID       = var.roles_legacy_tenant_id
       ENVIRONMENT            = var.environment
     }
   }
