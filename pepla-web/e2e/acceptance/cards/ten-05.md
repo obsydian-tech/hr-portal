@@ -55,3 +55,7 @@ Expected red before the build: all except the Control test and AC-8, which guard
 
 `be-16.spec.ts` AC-4 and AC-5: the seed may now put test logins in the six TEN-05 groups, so the fake dev pool has them.
 Nothing else in be-16 changes.
+
+## Child lock ten-05.5 (REC-14 step B)
+
+`ten-05.spec.ts` AC-4: getHiringManagers loads the roles helper through `shared/hiring-managers.mjs` (which loads `./roles.mjs`).
