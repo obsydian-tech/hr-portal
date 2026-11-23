@@ -19,6 +19,9 @@ import { MODULE_COPY, MODULE_KEY, NOT_BUILT, ORDER, PUBLIC_PAGE, WORDS, type Key
  *   a tile           an element with data-module="<key>" and data-state="open|no-access|not-on|coming-soon" inside the dialog
  * and, like MOD-02, the test-only hook `window.__nalekoTestSetup` (entries and routes), which the app already has.
  *
+ * mod-03.2 (child lock): the Hire tile follows the Hire pages' own rule, HIRE_ACCESS in core/recruitment-nav.ts: Open only for
+ * HR with the Recruitment tick (perm-recruitment) in a company that has Recruitment; anyone else there sees No access.
+ *
  * Everything else the tests read is what a person sees: words, order, links, boxes, focus. The words are the approved site's
  * (support/mod-03/catalogue.ts). No test calls AWS, Bedrock or any paid AI service.
  */
@@ -69,6 +72,12 @@ const WHO = {
   adminA: person({ email: `nomsa.dlamini@${SUNBIRD}`, givenName: 'Nomsa', familyName: 'Dlamini', groups: ['admin'], company: 'A', lands: '/admin/ask-batsi' }),
   adminB: person({ email: `mpho.ndaba@${SUNBIRD}`, givenName: 'Mpho', familyName: 'Ndaba', groups: ['admin'], company: 'B', lands: '/admin/ask-batsi' }),
   adminC: person({ email: `sizwe.radebe@${SUNBIRD}`, givenName: 'Sizwe', familyName: 'Radebe', groups: ['admin'], company: 'C', lands: '/admin/ask-batsi' }),
+  // mod-03.2: Hire is Open only for HR with the Recruitment tick in a company that has Recruitment, as the Hire pages' own rule (HIRE_ACCESS).
+  hrTickA: person({ email: `thandeka.zulu@${SUNBIRD}`, givenName: 'Thandeka', familyName: 'Zulu', groups: ['hr_staff', 'perm-recruitment'], company: 'A', lands: '/hr' }),
+  hrTickB: person({ email: `bongani.khoza@${SUNBIRD}`, givenName: 'Bongani', familyName: 'Khoza', groups: ['hr_staff', 'perm-recruitment'], company: 'B', lands: '/hr' }),
+  adminTickA: person({ email: `ayanda.cele@${SUNBIRD}`, givenName: 'Ayanda', familyName: 'Cele', groups: ['admin', 'perm-recruitment'], company: 'A', lands: '/admin/ask-batsi' }),
+  hrAdminA: person({ email: `lindiwe.shabalala@${SUNBIRD}`, givenName: 'Lindiwe', familyName: 'Shabalala', groups: ['hr_staff', 'admin'], company: 'A', lands: '/hr' }),
+  hrAdminTickA: person({ email: `sipho.mabaso@${SUNBIRD}`, givenName: 'Sipho', familyName: 'Mabaso', groups: ['hr_staff', 'admin', 'perm-recruitment'], company: 'A', lands: '/hr' }),
 };
 
 async function signInAs(page: Page, signIn: SignInPage, cognito: CognitoFake | null, modules: ModulesFake | null, who: Who): Promise<void> {
@@ -175,17 +184,27 @@ const SOON: State = 'coming-soon';
 
 // ---------------------------------------------------------------- the matrix (card rule 5, companies A: onboarding+recruitment, B: onboarding, C: none)
 
+// mod-03.2: Hire is Open only for HR AND the Recruitment tick AND a company with Recruitment (HIRE_ACCESS). Everyone else in a company that has it sees No access.
 const MATRIX: Array<[string, Who, Expected]> = [
-  ['HR, company A', WHO.hrA, { records: 'open', hire: 'open', onboard: 'open' }],
+  ['HR without the Recruitment tick, company A: Hire is No access', WHO.hrA, { records: 'open', hire: 'no-access', onboard: 'open' }],
   ['HR, company B (no Recruitment)', WHO.hrB, { records: 'open', hire: 'not-on', onboard: 'open' }],
   ['HR, company C (no modules)', WHO.hrC, { records: 'open', hire: 'not-on', onboard: 'not-on' }],
   ['employee, company A', WHO.empA, { records: 'open', hire: 'no-access', onboard: 'no-access', recordsName: WORDS.myDetails }],
   ['employee, company B', WHO.empB, { records: 'open', hire: 'not-on', onboard: 'no-access', recordsName: WORDS.myDetails }],
-  ['employee with the Recruitment tick, company A', WHO.empTickA, { records: 'open', hire: 'open', onboard: 'no-access', recordsName: WORDS.myDetails }],
+  ['employee with the Recruitment tick, company A: not HR, so Hire is No access', WHO.empTickA, { records: 'open', hire: 'no-access', onboard: 'no-access', recordsName: WORDS.myDetails }],
   ['employee with the Recruitment tick, company B: the company lacks it, the tick does not matter', WHO.empTickB, { records: 'open', hire: 'not-on', onboard: 'no-access', recordsName: WORDS.myDetails }],
-  ['Admin, company A: every company module open', WHO.adminA, { records: 'open', hire: 'open', onboard: 'open' }],
+  ['Admin, company A: Hire is No access (not HR, no tick), Onboard open', WHO.adminA, { records: 'open', hire: 'no-access', onboard: 'open' }],
   ['Admin, company B: Not switched on tile has the public page link', WHO.adminB, { records: 'open', hire: 'not-on', onboard: 'open', link: { hire: true } }],
   ['Admin, company C', WHO.adminC, { records: 'open', hire: 'not-on', onboard: 'not-on', link: { hire: true, onboard: true } }],
+];
+
+/** mod-03.2: the other role combinations for Hire (a second list, so each test stays inside its time). */
+const HIRE_MATRIX: Array<[string, Who, Expected]> = [
+  ['HR with the Recruitment tick, company A: Hire is Open', WHO.hrTickA, { records: 'open', hire: 'open', onboard: 'open' }],
+  ['HR with the Recruitment tick, company B (no Recruitment): the tick does not matter', WHO.hrTickB, { records: 'open', hire: 'not-on', onboard: 'open' }],
+  ['Admin with the Recruitment tick, company A: not HR, so Hire is No access', WHO.adminTickA, { records: 'open', hire: 'no-access', onboard: 'open' }],
+  ['HR and Admin without the tick, company A: Hire is No access', WHO.hrAdminA, { records: 'open', hire: 'no-access', onboard: 'open' }],
+  ['HR and Admin with the tick, company A: Hire is Open', WHO.hrAdminTickA, { records: 'open', hire: 'open', onboard: 'open' }],
 ];
 
 /** The words a tile in this state carries, and the words it must not. */
@@ -201,6 +220,67 @@ function checkWords(tile: Tile, who: string, expectedName?: string): void {
   for (const w of all.filter((x) => !has.includes(x))) expect(tile.text, `${who}: ${key} (${tile.state}) does not say "${w}"`).not.toContain(w);
   expect(tile.text, `${who}: ${key} shows its name`).toContain(expectedName ?? copy.name);
   if (!expectedName) expect(tile.text, `${who}: ${key} shows its one-line description`).toContain(copy.description);
+}
+
+/** AC-3, for each row: the tile states, the words, what can be pressed, and where an Open tile goes. */
+async function checkMatrix(page: Page, signIn: SignInPage, cognito: CognitoFake | null, modules: ModulesFake | null, rows: Array<[string, Who, Expected]>): Promise<void> {
+  let calls = 0;
+  let first = true;
+  for (const [name, who, want] of rows) {
+    if (!first) await forgetSignIn(page);
+    first = false;
+    await enter(page, signIn, cognito, modules, who);
+    await answered(page, modules, ++calls);
+    await openLauncher(page);
+    const tiles = await readTiles(page);
+    expect(tiles.map((t) => t.key), `${name}: the tiles`).toEqual(ORDER);
+    expect(stateOf(tiles, 'records'), `${name}: Employee Records`).toBe(want.records);
+    expect(stateOf(tiles, 'hire'), `${name}: Hire`).toBe(want.hire);
+    expect(stateOf(tiles, 'onboard'), `${name}: Onboard`).toBe(want.onboard);
+    for (const k of NOT_BUILT) expect(stateOf(tiles, k), `${name}: ${k} is Coming soon for everyone`).toBe(SOON);
+    for (const t of tiles.slice(1)) checkWords(t, name, t.key === 'records' ? want.recordsName : undefined);
+
+    for (const t of tiles.slice(1)) {
+      const key = t.key as Key;
+      if (t.state === 'open') {
+        expect(t.pressable, `${name}: the Open ${key} tile can be pressed`).toBeGreaterThan(0);
+      } else if (t.state === 'not-on' && want.link?.[key]) {
+        expect(t.links, `${name}: the Not switched on ${key} tile has one link, the public module page`).toHaveLength(1);
+        expect(new URL(t.links[0]!, 'https://naleko.example').pathname.replace(/\/$/, ''), `${name}: ${key} link goes to the public module page`).toMatch(new RegExp(`${PUBLIC_PAGE[key]}(\\.html)?$`));
+        expect(t.pressable, `${name}: nothing else on that tile can be pressed`).toBe(1);
+      } else {
+        expect(t.pressable, `${name}: the ${t.state} ${key} tile cannot be pressed`).toBe(0);
+        expect(t.links, `${name}: and has no link`).toEqual([]);
+      }
+    }
+
+    // Where an Open tile goes (the test registry's first page for the person), and that the rest go nowhere.
+    const here = page.url();
+    const goes: Array<[Key, string]> = [];
+    if (who.groups.includes('hr_staff')) goes.push(['records', '/mod03/records'], ['hire', '/mod03/hire'], ['onboard', '/mod03/onboard']);
+    else if (who.groups.includes('employee')) {
+      goes.push(['records', '/start']);
+      if (who.groups.includes('perm-recruitment') && want.hire === 'open') goes.push(['hire', '/mod03/hire']);
+    }
+    for (const [key, path] of goes) {
+      if (stateOf(tiles, key) !== 'open') continue;
+      await tileOf(page, key).click();
+      await expect(page, `${name}: the Open ${key} tile goes to its first page`).toHaveURL(path);
+      await expect(dialog(page), `${name}: the launcher closes when a tile is pressed`).toHaveCount(0);
+      await page.goto(who.lands);
+      await expect(page.locator('main h1').first()).toBeVisible();
+      await answered(page, modules, calls);
+      await openLauncher(page);
+    }
+    for (const t of tiles.slice(1)) {
+      if (t.state === 'open' || t.links.length) continue;
+      await tileOf(page, t.key as Key).click({ force: true });
+      await expect(page, `${name}: pressing the ${t.state} ${t.key} tile goes nowhere`).toHaveURL(page.url());
+      await expect(dialog(page), `${name}: and the launcher stays open`).toBeVisible();
+    }
+    if (goes.length === 0) expect(page.url(), name).toBe(here);
+    await closeLauncher(page);
+  }
 }
 
 // ================================================================ the tests
@@ -309,63 +389,12 @@ test.describe('MOD-03 The module launcher', () => {
 
   test('AC-3 The state of every tile for each person is as the matrix; Open tiles go to the module\'s first page; the others go nowhere; an Admin\'s link on a Not switched on tile is the public page', async ({ page, signIn, cognito, modules }) => {
     noBackendOnly();
-    let calls = 0;
-    let first = true;
-    for (const [name, who, want] of MATRIX) {
-      if (!first) await forgetSignIn(page);
-      first = false;
-      await enter(page, signIn, cognito, modules, who);
-      await answered(page, modules, ++calls);
-      await openLauncher(page);
-      const tiles = await readTiles(page);
-      expect(tiles.map((t) => t.key), `${name}: the tiles`).toEqual(ORDER);
-      expect(stateOf(tiles, 'records'), `${name}: Employee Records`).toBe(want.records);
-      expect(stateOf(tiles, 'hire'), `${name}: Hire`).toBe(want.hire);
-      expect(stateOf(tiles, 'onboard'), `${name}: Onboard`).toBe(want.onboard);
-      for (const k of NOT_BUILT) expect(stateOf(tiles, k), `${name}: ${k} is Coming soon for everyone`).toBe(SOON);
-      for (const t of tiles.slice(1)) checkWords(t, name, t.key === 'records' ? want.recordsName : undefined);
+    await checkMatrix(page, signIn, cognito, modules, MATRIX);
+  });
 
-      for (const t of tiles.slice(1)) {
-        const key = t.key as Key;
-        if (t.state === 'open') {
-          expect(t.pressable, `${name}: the Open ${key} tile can be pressed`).toBeGreaterThan(0);
-        } else if (t.state === 'not-on' && want.link?.[key]) {
-          expect(t.links, `${name}: the Not switched on ${key} tile has one link, the public module page`).toHaveLength(1);
-          expect(new URL(t.links[0]!, 'https://naleko.example').pathname.replace(/\/$/, ''), `${name}: ${key} link goes to the public module page`).toMatch(new RegExp(`${PUBLIC_PAGE[key]}(\\.html)?$`));
-          expect(t.pressable, `${name}: nothing else on that tile can be pressed`).toBe(1);
-        } else {
-          expect(t.pressable, `${name}: the ${t.state} ${key} tile cannot be pressed`).toBe(0);
-          expect(t.links, `${name}: and has no link`).toEqual([]);
-        }
-      }
-
-      // Where an Open tile goes (the test registry's first page for the person), and that the rest go nowhere.
-      const here = page.url();
-      const goes: Array<[Key, string]> = [];
-      if (who.groups.includes('hr_staff')) goes.push(['records', '/mod03/records'], ['hire', '/mod03/hire'], ['onboard', '/mod03/onboard']);
-      else if (who.groups.includes('employee')) {
-        goes.push(['records', '/start']);
-        if (who.groups.includes('perm-recruitment') && want.hire === 'open') goes.push(['hire', '/mod03/hire']);
-      }
-      for (const [key, path] of goes) {
-        if (stateOf(tiles, key) !== 'open') continue;
-        await tileOf(page, key).click();
-        await expect(page, `${name}: the Open ${key} tile goes to its first page`).toHaveURL(path);
-        await expect(dialog(page), `${name}: the launcher closes when a tile is pressed`).toHaveCount(0);
-        await page.goto(who.lands);
-        await expect(page.locator('main h1').first()).toBeVisible();
-        await answered(page, modules, calls);
-        await openLauncher(page);
-      }
-      for (const t of tiles.slice(1)) {
-        if (t.state === 'open' || t.links.length) continue;
-        await tileOf(page, t.key as Key).click({ force: true });
-        await expect(page, `${name}: pressing the ${t.state} ${t.key} tile goes nowhere`).toHaveURL(page.url());
-        await expect(dialog(page), `${name}: and the launcher stays open`).toBeVisible();
-      }
-      if (goes.length === 0) expect(page.url(), name).toBe(here);
-      await closeLauncher(page);
-    }
+  test('AC-3 (mod-03.2) Hire is Open only for HR with the Recruitment tick in a company that has Recruitment; every other role combination there sees No access', async ({ page, signIn, cognito, modules }) => {
+    noBackendOnly();
+    await checkMatrix(page, signIn, cognito, modules, HIRE_MATRIX);
   });
 
   test('AC-4 With the modules call failing or not answered yet, no tile is Open except Employee Records (HR, an Admin) or the employee\'s own pages, and no tile shows an error', async ({ page, signIn, cognito, modules }) => {
@@ -373,7 +402,8 @@ test.describe('MOD-03 The module launcher', () => {
     const fake = modules!;
     let first = true;
     for (const mode of [...FAILING_MODES, 'hold' as const]) {
-      for (const who of [WHO.hrA, WHO.empTickA, WHO.adminA]) {
+      for (const who of [WHO.hrTickA, WHO.empTickA, WHO.adminA]) {
+        // mod-03.2: HR with the tick (the one person Hire is Open for) in place of HR without it, so a failed call is proved to close Hire for them too.
         if (!first) await forgetSignIn(page);
         first = false;
         fake.mode = mode;
@@ -407,7 +437,8 @@ test.describe('MOD-03 The module launcher', () => {
     noBackendOnly();
     const fake = modules!;
     await page.clock.install();
-    await enter(page, signIn, cognito, fake, WHO.hrB);
+    // mod-03.2: the person holds the Recruitment tick, so the only thing between them and an Open Hire tile is the company's switch.
+    await enter(page, signIn, cognito, fake, WHO.hrTickB);
     await answered(page, fake, 1);
     await openLauncher(page);
     expect(stateOf(await readTiles(page), 'hire'), 'company B starts without Recruitment').toBe('not-on');
@@ -435,10 +466,17 @@ test.describe('MOD-03 The module launcher', () => {
 
     // Company A's HR signs out, company C's HR signs in on the same page without a reload: C's tiles, never A's.
     await signOutInApp(page);
-    await enterHere(page, signIn, cognito, fake, WHO.hrA);
+    await enterHere(page, signIn, cognito, fake, WHO.hrTickA);
     await answered(page, fake, 4);
     await openLauncher(page);
-    expect(stateOf(await readTiles(page), 'hire'), 'company A has Recruitment').toBe('open');
+    expect(stateOf(await readTiles(page), 'hire'), 'company A has Recruitment and this HR has the tick').toBe('open');
+    await closeLauncher(page);
+    // mod-03.2: an HR of the same company without the tick signs in on the same page: No access, never the last person's Open.
+    await signOutInApp(page);
+    await enterHere(page, signIn, cognito, fake, WHO.hrA);
+    await answered(page, fake, 5);
+    await openLauncher(page);
+    expect(stateOf(await readTiles(page), 'hire'), 'the next HR has no Recruitment tick: No access, not the last person\'s Open').toBe('no-access');
     await closeLauncher(page);
     await signOutInApp(page);
     fake.mode = 'hold';
@@ -451,7 +489,7 @@ test.describe('MOD-03 The module launcher', () => {
     await closeLauncher(page);
     await page.clock.fastForward(61_000);
     await page.goto('/hr');
-    await answered(page, fake, 5);
+    await answered(page, fake, 6);
     await openLauncher(page);
     const after = await readTiles(page);
     expect(stateOf(after, 'hire'), 'company C has nothing on').toBe('not-on');
@@ -549,7 +587,7 @@ test.describe('MOD-03 The module launcher', () => {
     void desktopOnly;
   });
 
-  test('AC-8 @pepla-dev HR of the founding company opens the launcher and sees Hire and Onboard open; a company with Recruitment off sees Hire Not switched on', async ({ page, signIn, cognito, modules, hr }) => {
+  test('AC-8 @pepla-dev HR of the founding company (with the Recruitment tick) opens the launcher and sees Hire and Onboard open; a company with Recruitment off sees Hire Not switched on', async ({ page, signIn, cognito, modules, hr }) => {
     const seen = async (): Promise<Tile[]> => {
       await expect(page).toHaveURL('/hr');
       await expect.poll(async () => (await trigger(page).count()) > 0, { message: 'the Modules button is in the top bar' }).toBe(true);
@@ -557,8 +595,13 @@ test.describe('MOD-03 The module launcher', () => {
       await openLauncher(page);
       return readTiles(page);
     };
-    await signIn.open();
-    await signIn.signInAs(hr as Login);
+    // mod-03.2: Hire is Open only with the Recruitment tick. The dev HR login holds it (as REC-UI-01 AC-13 needs); the no-backend run signs in an HR who has it.
+    if (ON_DEV) {
+      await signIn.open();
+      await signIn.signInAs(hr as Login);
+    } else {
+      await signInAs(page, signIn, cognito, modules, WHO.hrTickA);
+    }
     const founding = await seen();
     expect(stateOf(founding, 'hire'), 'the founding company has Recruitment: Hire is open').toBe('open');
     expect(stateOf(founding, 'onboard'), 'and Onboarding: Onboard is open').toBe('open');
