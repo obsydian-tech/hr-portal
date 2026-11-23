@@ -10,6 +10,7 @@ import { blocks, tfFiles } from './support/infra-harness';
 import { decide as iamDecide, type Policy, type Statement } from './support/ops-05/iam-eval';
 import { policyOf, resourcesNamed, squash, table as tableArn } from './support/onb-15/tf-policy';
 import { onlyTenancyAdded } from './support/ten-02/relock';
+import { withoutGeneratedApiTypes } from './support/generated-api-types';
 import {
   FIVE, LIST, OCR, PERSON, POST_AUTH, REPO, REVIEW, aiReached, dynamoCalls, listEvent, personEvent, personOf, plain, postAuthEvent,
   published, reviewEvent, row, runHandler, s3Event, valuesWritten, writesTo, type Caller, type Run, type Tables, type World,
@@ -752,7 +753,7 @@ test.describe('ONB-09 Four steps everywhere', () => {
     // The new app.
     const src = join(REPO, 'pepla-web', 'src');
     const found: string[] = [];
-    for (const f of filesUnder(src, /\.(ts|html|scss|css|json)$/)) {
+    for (const f of withoutGeneratedApiTypes(filesUnder(src, /\.(ts|html|scss|css|json)$/))) {
       const text = readFileSync(f, 'utf8');
       for (const word of ['TRAINING', 'ONBOARDED', 'DOCUMENTS_SUBMITTED', 'stepOfStage']) if (text.includes(word)) found.push(`${relative(REPO, f)}: ${word}`);
       // The landing page's approved kit copy ("Onboarded, leave approved, certificate expiring.") lives under app/ds/site/ and is the one place "Onboarded" may appear.
