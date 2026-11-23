@@ -18,10 +18,14 @@ describe('launcher catalogue (MOD-03)', () => {
 
   it('gives each person the card matrix', () => {
     const company = ['recruitment', 'onboarding'];
-    expect(['hire', 'onboard'].map((k) => stateOf(mod(k as LauncherKey), who(['hr_staff'], company)))).toEqual(['open', 'open']);
+    expect(['hire', 'onboard'].map((k) => stateOf(mod(k as LauncherKey), who(['hr_staff'], company)))).toEqual(['no-access', 'open']);
+    expect(['hire', 'onboard'].map((k) => stateOf(mod(k as LauncherKey), who(['hr_staff'], company, ['perm-recruitment'])))).toEqual(['open', 'open']);
+    expect(['hire', 'onboard'].map((k) => stateOf(mod(k as LauncherKey), who(['hr_staff'], company, ['perm-it'])))).toEqual(['no-access', 'open']);
     expect(['hire', 'onboard'].map((k) => stateOf(mod(k as LauncherKey), who(['employee'], company)))).toEqual(['no-access', 'no-access']);
-    expect(['hire', 'onboard'].map((k) => stateOf(mod(k as LauncherKey), who(['employee'], company, ['perm-recruitment'])))).toEqual(['open', 'no-access']);
-    expect(['hire', 'onboard'].map((k) => stateOf(mod(k as LauncherKey), who(['admin'], company)))).toEqual(['open', 'open']);
+    expect(['hire', 'onboard'].map((k) => stateOf(mod(k as LauncherKey), who(['employee'], company, ['perm-recruitment'])))).toEqual(['no-access', 'no-access']);
+    expect(['hire', 'onboard'].map((k) => stateOf(mod(k as LauncherKey), who(['admin'], company)))).toEqual(['no-access', 'open']);
+    expect(stateOf(mod('hire'), who(['admin'], company, ['perm-recruitment']))).toBe('no-access');
+    expect(stateOf(mod('hire'), who(['hr_staff'], ['onboarding'], ['perm-recruitment']))).toBe('not-on');
     expect(stateOf(mod('hire'), who(['employee'], ['onboarding'], ['perm-recruitment']))).toBe('not-on');
   });
 

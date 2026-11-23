@@ -1,6 +1,7 @@
 import type { IconName } from '../../ds';
 import { allowed, type Access, type NavEntry, type NavGroup, type Who } from '../nav';
-import { PERM, ROLE } from '../roles';
+import { ROLE } from '../roles';
+import { HIRE_ACCESS } from '../recruitment-nav';
 
 /** MOD-03 rule 2: the module launcher's tiles, in the design system's fixed order. */
 export type LauncherKey = 'records' | 'hire' | 'onboard' | 'leave' | 'comply' | 'help-desk' | 'perform';
@@ -26,7 +27,7 @@ export interface LauncherModule {
 export const LAUNCHER_MODULES: readonly LauncherModule[] = [
   { key: 'records', name: 'Employee Records', description: 'One record per employee. ID, bank and salary details hidden, every view logged.', icon: 'user', group: 'Records', built: true, access: {} },
   { key: 'hire', name: 'Recruitment', description: 'Candidates tracked from application to offer, with interview panels and stage reminders.', icon: 'briefcase', group: 'Hire', moduleKey: 'recruitment', built: true,
-    access: { roles: [ROLE.hrStaff, ROLE.admin], perms: [PERM.recruitment] }, publicPage: '/product/recruitment' },
+    access: { allOf: HIRE_ACCESS.allOf }, publicPage: '/product/recruitment' },
   { key: 'onboard', name: 'Onboarding and Offboarding', description: 'Offer accepted to day one. Documents read and matched, IT set up, every exit recorded.', icon: 'user-plus', group: 'Onboard', moduleKey: 'onboarding', built: true,
     access: { roles: [ROLE.hrStaff, ROLE.admin] }, publicPage: '/product/onboarding' },
   { key: 'leave', name: 'Leave Management', description: 'Requests, approvals and balances under BCEA leave rules.', icon: 'calendar-days', group: 'Leave', built: false, access: {} },
@@ -48,7 +49,7 @@ export const LEARN_MORE = 'Learn more about';
 export function stateOf(m: LauncherModule, who: Who): LauncherState {
   if (!m.built) return 'coming-soon';
   if (m.moduleKey && !who.modules.has(m.moduleKey)) return 'not-on';
-  return allowed({ roles: m.access.roles, perms: m.access.perms }, who) ? 'open' : 'no-access';
+  return allowed({ roles: m.access.roles, perms: m.access.perms, allOf: m.access.allOf }, who) ? 'open' : 'no-access';
 }
 
 /** An employee's own Records tile reads "My details" (they open only their own pages). */
