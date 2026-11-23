@@ -15,7 +15,8 @@
     "e2e": "playwright test -c e2e/playwright.config.ts",
     "e2e:help": "HELP_SHOTS=1 playwright test -c e2e/playwright.config.ts",
     "e2e:acceptance": "playwright test -c e2e/acceptance/playwright.config.ts",
-    "parity:kit": "node scripts/parity-kit.mjs"
+    "parity:kit": "node scripts/parity-kit.mjs",
+    "api:types": "openapi-typescript ../api/openapi.yaml -o src/app/core/api/openapi.d.ts"
   },
   "private": true,
   "packageManager": "npm@10.9.9",
@@ -44,8 +45,14 @@
     "ajv": "8.20.0",
     "jsdom": "^30.0.0",
     "linkedom": "^0.18.5",
+    "openapi-typescript": "7.13.0",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2",
     "vitest": "^5.0.0"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }

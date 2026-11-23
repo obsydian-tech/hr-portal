@@ -11,6 +11,7 @@ on:
     branches: [develop, main]
     paths:
       - "pepla-web/**"
+      - "api/openapi.yaml"
       # Read or run by the infra acceptance checks (BE-16, OPS-05).
       - "infra/**"
       - "talent-flow-infra/**"
@@ -21,6 +22,7 @@ on:
     branches: [develop, main]
     paths:
       - "pepla-web/**"
+      - "api/openapi.yaml"
       # Read or run by the infra acceptance checks (BE-16, OPS-05).
       - "infra/**"
       - "talent-flow-infra/**"
@@ -51,6 +53,11 @@ jobs:
           cache: npm
           cache-dependency-path: pepla-web/package-lock.json
       - run: npm ci
+      # REC-14: the app's types for the API come from api/openapi.yaml; a stale committed copy fails here.
+      - name: Generated API types are current
+        run: |
+          npm run api:types
+          git diff --exit-code src/app/core/api/openapi.d.ts
       - run: npm test
       - run: npm run build
 

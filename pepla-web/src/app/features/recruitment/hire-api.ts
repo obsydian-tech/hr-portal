@@ -1,23 +1,16 @@
 import { Injectable, inject } from '@angular/core';
 import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
+import type { components } from '../../core/api/openapi';
 
 /** The answer of a call. A dropped connection is `null`, so a page can tell "no answer" from "an error answer". */
 export interface HireResponse<T = unknown> { status: number; body: T; }
 
-export interface HireRole {
-  role_id: string;
-  job_title: string;
-  department?: string;
-  level?: string;
-  hiring_manager_id?: string;
-  hiring_manager_name?: string;
-  candidate_count: number;
-  overdue_count?: number;
-  due_soon_count?: number;
-  opened_at: string;
-  status: string;
-}
+/** A role, as `api/openapi.yaml` describes it (REC-14). The Roles list may still send the manager's name (follow-up F-3). */
+export type HireRole = components['schemas']['Role'] & { hiring_manager_name?: string };
+
+/** What the Open a role page offers and the board reads, from one answer (REC-14). */
+export type RoleOptions = components['schemas']['RoleOptions'];
 
 export interface HirePending { awaiting?: { name?: string }; }
 
@@ -37,14 +30,22 @@ export interface HireCandidate {
 
 export interface HireCounts { all: number; mine: number; overdue: number; due_soon: number; not_hired: number; }
 
-export interface HireConfig {
-  departments: string[];
-  seniority_levels: { key: string; label: string }[];
-  criteria: { key: string; label: string }[];
-  screening?: boolean;
+export interface OldSystemRow { candidate_id: string; name: string; role_title: string; rejected_at: string; }
+
+const isList = (v: unknown, keys: string[]): boolean =>
+  Array.isArray(v) && v.every((x) => !!x && typeof x === 'object' && keys.every((k) => typeof (x as Record<string, unknown>)[k] === (k === 'order' ? 'number' : 'string')));
+
+/** A runtime check that an options answer has the shape of `RoleOptions`; anything else is treated as a failed call (REC-14 rule 21). */
+export function isRoleOptions(v: unknown): v is RoleOptions {
+  if (!v || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  return isList(o['departments'], ['id', 'name']) && isList(o['levels'], ['key', 'label', 'order']) && isList(o['criteria'], ['key', 'label'])
+    && isList(o['hiring_managers'], ['id', 'name']) && typeof o['screening'] === 'boolean'
+    && !!o['panel_size_by_level'] && typeof o['panel_size_by_level'] === 'object' && !Array.isArray(o['panel_size_by_level']);
 }
 
-export interface OldSystemRow { candidate_id: string; name: string; role_title: string; rejected_at: string; }
+/** The options out of an answer to `GET /v1/roles/options`: `null` for no answer, a refusal, an error or an answer that is not `RoleOptions`. */
+export const optionsOf = (r: HireResponse | null): RoleOptions | null => (r?.status === 200 && isRoleOptions(r.body) ? r.body : null);
 
 export const newKey = (): string => crypto.randomUUID();
 
