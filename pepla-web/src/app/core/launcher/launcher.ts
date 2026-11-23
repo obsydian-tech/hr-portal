@@ -66,12 +66,15 @@ interface Tile { m: LauncherModule; state: LauncherState; name: string; to: stri
       </div>
     </ng-template>
 
-    @if (phone()) {
-      <pp-drawer [heading]="words.title" [open]="open()" (openChange)="set($event)"><ng-container [ngTemplateOutlet]="tiles" /></pp-drawer>
-    } @else {
-      <pp-popup [trigger]="false" text="Modules" [heading]="words.title" [wide]="true" [closable]="true" [open]="open()" (openChange)="set($event)" [origin]="button()" [returnTo]="button()">
-        <ng-container [ngTemplateOutlet]="tiles" />
-      </pp-popup>
+    <!-- Drawn only while open, so a closed launcher leaves nothing in the page (it once added a 20px scroll under the full-page chat). -->
+    @if (open()) {
+      @if (phone()) {
+        <pp-drawer [heading]="words.title" [open]="true" (openChange)="set($event)"><ng-container [ngTemplateOutlet]="tiles" /></pp-drawer>
+      } @else {
+        <pp-popup [trigger]="false" text="Modules" [heading]="words.title" [wide]="true" [closable]="true" [open]="true" (openChange)="set($event)" [origin]="button()" [returnTo]="button()">
+          <ng-container [ngTemplateOutlet]="tiles" />
+        </pp-popup>
+      }
     }
   `,
 })
