@@ -558,6 +558,137 @@ components:
           - name
           - status
           - expected_version
+    CandidateRow:
+      type: object
+      description: REC-15. One candidate in the list. No email, phone or ID number. source only when the row has one.
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - stage
+      - stage_entered_at
+      - due_at
+      - sla_status
+      - role_id
+      - role_title
+      - level
+      - applied_at
+      - hiring_manager_id
+      - mine
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        stage:
+          type: string
+          enum:
+          - APPLIED
+          - SCREENING
+          - INTERVIEW
+          - OFFER
+          - HIRED
+          - NOT_HIRED
+        stage_entered_at:
+          type: string
+          nullable: true
+        due_at:
+          type: string
+          nullable: true
+          description: Stage time plus the company's hours for the stage; null when there are none or the stage has no clock.
+        sla_status:
+          type: string
+          nullable: true
+          enum:
+          - ON_TRACK
+          - DUE_SOON
+          - OVERDUE
+          - null
+        role_id:
+          type: string
+          nullable: true
+        role_title:
+          type: string
+          nullable: true
+        level:
+          type: string
+          nullable: true
+        source:
+          type: string
+        applied_at:
+          type: string
+          nullable: true
+        hiring_manager_id:
+          type: string
+          nullable: true
+        mine:
+          type: boolean
+    CandidateList:
+      type: object
+      description: REC-15. A page of the candidate list and the counts over all of the caller's rows.
+      additionalProperties: false
+      required:
+      - candidates
+      - counts
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateRow'
+        counts:
+          type: object
+          additionalProperties: false
+          required:
+          - all
+          - mine
+          - overdue
+          - due_soon
+          - not_hired
+          properties:
+            all:
+              type: integer
+              minimum: 0
+            mine:
+              type: integer
+              minimum: 0
+            overdue:
+              type: integer
+              minimum: 0
+            due_soon:
+              type: integer
+              minimum: 0
+            not_hired:
+              type: integer
+              minimum: 0
+        nextToken:
+          type: string
+    CandidateListError:
+      type: object
+      description: REC-15. A refusal of the candidate list.
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          type: string
+          enum:
+          - Bad request
+          - Forbidden
+          - Something went wrong
+        code:
+          type: string
+          enum:
+          - INVALID_FIELD
+          - LIST_TOO_LARGE
+        field:
+          type: string
+          enum:
+          - stage
+          - sla_status
+          - search
+          - limit
+          - mine
+          - nextToken
     RoleError:
       type: object
       description: REC-14. A refusal of the role routes.
@@ -4913,22 +5044,86 @@ paths:
       - manager
       - perm-recruitment
     get:
-      summary: GET /v1/candidates
+      summary: "GET /v1/candidates: the candidate list, all roles or one (REC-15)"
+      parameters:
+      - name: role_id
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: stage
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - APPLIED
+          - SCREENING
+          - INTERVIEW
+          - OFFER
+          - HIRED
+          - NOT_HIRED
+      - name: sla_status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ON_TRACK
+          - DUE_SOON
+          - OVERDUE
+      - name: mine
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - 'true'
+      - name: search
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 100
+      - name: nextToken
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateList'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateListError'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Forbidden
-              example:
-                error: Forbidden
+                $ref: '#/components/schemas/CandidateListError'
+        '500':
+          description: Something went wrong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateListError'
       operationId: GET_v1_candidates
       servers:
       - url: https://talentflow-api.example.com

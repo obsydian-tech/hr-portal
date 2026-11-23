@@ -1376,7 +1376,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** GET /v1/candidates */
+        /** GET /v1/candidates: the candidate list, all roles or one (REC-15) */
         get: operations["GET_v1_candidates"];
         put?: never;
         /** POST /v1/candidates */
@@ -1976,6 +1976,46 @@ export interface components {
             code?: "INVALID_FIELD" | "IDEMPOTENCY_KEY_REQUIRED" | "DUPLICATE_NAME" | "TOO_MANY_DEPARTMENTS" | "STALE_VERSION";
             /** @enum {string} */
             field?: "name" | "status" | "expected_version";
+        };
+        /** @description REC-15. One candidate in the list. No email, phone or ID number. source only when the row has one. */
+        CandidateRow: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            stage: "APPLIED" | "SCREENING" | "INTERVIEW" | "OFFER" | "HIRED" | "NOT_HIRED";
+            stage_entered_at: string | null;
+            /** @description Stage time plus the company's hours for the stage; null when there are none or the stage has no clock. */
+            due_at: string | null;
+            /** @enum {string|null} */
+            sla_status: "ON_TRACK" | "DUE_SOON" | "OVERDUE" | null;
+            role_id: string | null;
+            role_title: string | null;
+            level: string | null;
+            source?: string;
+            applied_at: string | null;
+            hiring_manager_id: string | null;
+            mine: boolean;
+        };
+        /** @description REC-15. A page of the candidate list and the counts over all of the caller's rows. */
+        CandidateList: {
+            candidates: components["schemas"]["CandidateRow"][];
+            counts: {
+                all: number;
+                mine: number;
+                overdue: number;
+                due_soon: number;
+                not_hired: number;
+            };
+            nextToken?: string;
+        };
+        /** @description REC-15. A refusal of the candidate list. */
+        CandidateListError: {
+            /** @enum {string} */
+            error: "Bad request" | "Forbidden" | "Something went wrong";
+            /** @enum {string} */
+            code?: "INVALID_FIELD" | "LIST_TOO_LARGE";
+            /** @enum {string} */
+            field?: "stage" | "sla_status" | "search" | "limit" | "mine" | "nextToken";
         };
         /** @description REC-14. A refusal of the role routes. */
         RoleError: {
@@ -6378,7 +6418,15 @@ export interface operations {
     };
     GET_v1_candidates: {
         parameters: {
-            query?: never;
+            query?: {
+                role_id?: string;
+                stage?: "APPLIED" | "SCREENING" | "INTERVIEW" | "OFFER" | "HIRED" | "NOT_HIRED";
+                sla_status?: "ON_TRACK" | "DUE_SOON" | "OVERDUE";
+                mine?: "true";
+                search?: string;
+                limit?: number;
+                nextToken?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -6390,7 +6438,18 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CandidateList"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateListError"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -6398,15 +6457,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "error": "Forbidden"
-                     *     }
-                     */
-                    "application/json": {
-                        /** @example Forbidden */
-                        error?: string;
-                    };
+                    "application/json": components["schemas"]["CandidateListError"];
+                };
+            };
+            /** @description Something went wrong */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateListError"];
                 };
             };
         };

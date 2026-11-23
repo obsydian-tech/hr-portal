@@ -16,12 +16,8 @@
  *   nextToken        — exclusive start key (base64 JSON)
  */
 
-const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
-const { unmarshall } = require('@aws-sdk/util-dynamodb');
 const { tenantHelper } = require('../shared/tf-tenant.js');
 
-const dynamo = new DynamoDBClient({});
-const STATE_TABLE = process.env.STATE_TABLE_NAME || 'talent-flow-state';
 
 function respond(statusCode, body) {
   return {
@@ -51,102 +47,14 @@ exports.handler = async (event) => {
   if (moduleOff) return moduleOff;
 
   const qs = event.queryStringParameters || {};
-  // REC-04: the candidates of one role, in the board's shape with counts (the shared core; D-T-9).
-  if (qs.role_id !== undefined) {
-    const personId = RA.callerId(event);
-    if (!personId) return RA.forbidden();
-    try {
-      const { candidatesOfRole } = await import('../shared/recruitment-actions/roles.mjs');
-      return await candidatesOfRole({ tenantId, personId, event }, qs);
-    } catch (err) {
-      console.error('getCandidates role list failed', { error: err?.name ?? 'Error' });
-      return respond(500, { message: 'Failed to retrieve candidates' });
-    }
-  }
-  const limit = Math.min(parseInt(qs.limit || '50', 10), 100);
-  const { stage, positionLevel, slaStatus, search, nextToken } = qs;
-  // REC-01: a manager who is not a Recruiter is limited to their own candidates, whatever the query says.
-  let hiringManagerId = qs.hiringManagerId;
-  if (!RA.isRecruiter(event)) {
-    hiringManagerId = RA.callerId(event);
-    if (!hiringManagerId) return RA.forbidden();
-  }
-
-
-  // GSI1 key condition — only fetch SAGA records for this tenant
-  const exprValues = {
-    ':pk': { S: T.tenantKey(tenantId) },
-    ':sagaPrefix': { S: 'SAGA#' },
-  };
-  const exprNames = {};
-
-  // Optional filter expressions
-  const filterParts = [];
-  if (stage) {
-    filterParts.push('#stage = :stage');
-    exprValues[':stage'] = { S: stage };
-    exprNames['#stage'] = 'currentStage';
-  }
-  if (positionLevel) {
-    filterParts.push('positionLevel = :pl');
-    exprValues[':pl'] = { S: positionLevel };
-  }
-  if (slaStatus) {
-    filterParts.push('slaStatus = :sla');
-    exprValues[':sla'] = { S: slaStatus };
-  }
-  if (search) {
-    filterParts.push(
-      '(contains(firstName, :s) OR contains(lastName, :s) OR contains(email, :s))',
-    );
-    exprValues[':s'] = { S: search };
-  }
-  if (hiringManagerId) {
-    filterParts.push('hiringManagerId = :hmId');
-    exprValues[':hmId'] = { S: hiringManagerId };
-  }
-
-  const params = {
-    TableName: STATE_TABLE,
-    IndexName: 'GSI1',
-    KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sagaPrefix)',
-    ExpressionAttributeValues: exprValues,
-    Limit: limit,
-  };
-  if (filterParts.length) {
-    params.FilterExpression = filterParts.join(' AND ');
-  }
-  if (Object.keys(exprNames).length) {
-    params.ExpressionAttributeNames = exprNames;
-  }
-  if (nextToken) {
-    try {
-      params.ExclusiveStartKey = JSON.parse(
-        Buffer.from(nextToken, 'base64').toString('utf8'),
-      );
-    } catch (_) {
-      return respond(400, { message: 'Invalid nextToken' });
-    }
-  }
-
+  // REC-15: the one candidate list, with or without role_id.
+  const personId = RA.callerId(event);
+  if (!personId) return RA.forbidden();
   try {
-    const result = await dynamo.send(new QueryCommand(params));
-    const candidates = (result.Items || []).filter((item) => T.ownsRow(unmarshall(item), tenantId)).map((item) => {
-      const c = unmarshall(item);
-      // Normalise: frontend Candidate interface uses `id`, DynamoDB stores `candidateId`
-      if (!c.id && c.candidateId) c.id = c.candidateId;
-      return c;
-    });
-
-    const response = { candidates, total: candidates.length };
-    if (result.LastEvaluatedKey) {
-      response.nextToken = Buffer.from(
-        JSON.stringify(result.LastEvaluatedKey),
-      ).toString('base64');
-    }
-    return respond(200, response);
+    const { listCandidates } = await import('../shared/recruitment-actions/candidate-list.mjs');
+    return await listCandidates({ tenantId, personId, event }, qs);
   } catch (err) {
-    console.error('getCandidates error', err);
-    return respond(500, { message: 'Failed to retrieve candidates' });
+    console.error('getCandidates failed', { error: err?.name ?? 'Error' });
+    return respond(500, { error: 'Something went wrong' });
   }
 };
