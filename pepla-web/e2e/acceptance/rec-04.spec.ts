@@ -416,7 +416,8 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
     for (const c of shown) {
       const id = c?.id;
       expect.soft([c?.name, c?.stage, c?.role_id, c?.level], `${id}: name, stage (six codes), role and level`).toEqual([fullName(id), FLEET_STAGE[id], R.fleet, 'MID']);
-      expect.soft(c?.sla_status, `${id}: sla_status in the screens' words (D-T-6)`).toBe(FLEET_SLA[id] ?? 'ON_TRACK');
+      // REC-15 rule 1 (child lock rec-04.3): Hired has no clock, so its sla_status is null.
+      expect.soft(c?.sla_status, `${id}: sla_status in the screens' words (D-T-6)`).toBe(FLEET_STAGE[id] === 'HIRED' ? null : (FLEET_SLA[id] ?? 'ON_TRACK'));
       expect.soft(String(c?.stage_entered_at ?? ''), `${id}: stage_entered_at`).toMatch(ISO);
     }
     const counts = b.counts ?? {};
@@ -559,7 +560,9 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
         if (cur.squash !== undefined) expect.soft(cur.squash, `${k}: an unreadable policy did not change`).toBe(baseline[k]?.squash);
       }
     }
-    expect.soft(getCandGained.filter((l) => !roleIndex.test(l) && !roleRead.test(l)), 'getCandidates gains only the Query on role-id-index and the read of one role (is the role the caller\'s company\'s)').toEqual([]);
+    // REC-15 (child lock rec-04.3): the list's stage clock reads the company's active SLA_THRESHOLDS (rec-15.spec.ts AC-17 pins it).
+    const configRead = /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/;
+    expect.soft(getCandGained.filter((l) => !roleIndex.test(l) && !roleRead.test(l) && !configRead.test(l)), 'getCandidates gains only the Query on role-id-index, the read of one role (is the role the caller\'s company\'s) and REC-15\'s settings read').toEqual([]);
     expect.soft([getCandGained.filter((l) => roleIndex.test(l)).length, getCandGained.filter((l) => roleRead.test(l)).length], 'getCandidates gains those two lines, once each').toEqual([1, 1]);
     // KMS (LESSONS 15 Nov, D-T-13): the module check and the hiring manager check read the encrypted company list, so the role goes on the PII
     // key's read list, and only there. The key refuses a role that does not exist yet and infra/ applies first, so the line may come one merge

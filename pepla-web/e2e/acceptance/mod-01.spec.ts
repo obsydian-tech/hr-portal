@@ -692,6 +692,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
         // TEN-06 (re-lock mod-01.1): the sign-in trigger moves a TalentFlow person in; ten-06.spec.ts AC-7 pins exactly this.
         if (/cognito_post_auth/.test(key) && /^Allow (dynamodb:(PutItem|DeleteItem) \$?\{?aws_dynamodb_table\.tenants\.arn\}? null|cognito-idp:AdminAddUserToGroup \$?\{?aws_cognito_user_pool\.naleko_dev\.arn\}? null)$/.test(p)) continue;
         if (ten042(p, cur.stack, cur.role)) continue;
+        // REC-15 (child lock rec-04.3): getCandidates reads the company's stage hours for the list's clock (rec-15.spec.ts AC-17 pins it).
+        if (/get_candidates$|getCandidates$/.test(key) && /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/.test(p)) continue;
         // ONB-11 (re-lock mod-01.13): createEmployee links the new person's sign-in to their employees row (one UpdateItem; onb-11.spec.ts AC-11 needs it).
         { const [e, a, r, ...c] = p.split(' '); if (e === 'Allow' && ownerLinkGrant(a!, r!, cur.role, c.join(' '))) continue; }
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null') && isGated(key, cur.role), `role policy ${key}: new grant "${p}" is only GetItem on the tenants table, on a gated Lambda's role`).toBe(true);
