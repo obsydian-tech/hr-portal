@@ -913,6 +913,13 @@ resource "aws_iam_role_policy" "get_candidates" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_roles}"
       },
       {
+        # REC-15: the company's active SLA_THRESHOLDS, for the stage clock of the list and the role counts.
+        Sid      = "ConfigActiveRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
         Sid      = "KMSStateKey"
         Effect   = "Allow"
         Action   = local.tf_kms_actions

@@ -232,8 +232,10 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
     expectIds(C.hmC1, { query: { hiringManagerId: SUB.hm2A } }, [ID.c1], 'a manager who asks for another manager\'s candidates still gets only their own');
     expectIds(C.hmC1, { query: { hiringManagerId: '' } }, [ID.c1], 'an empty hiringManagerId does not remove the limit');
     expectIds(C.hmC1, { query: { tenantId: B, tenant_id: B, company: B } }, [ID.c1], 'a company named in the query changes nothing');
-    expectIds(C.hmC1, { query: { stage: 'INTERVIEWING', search: 'Sipho' } }, [], 'a search for another manager\'s candidate finds nothing');
-    expectIds(C.recruiter, { query: { hiringManagerId: SUB.hm2A } }, [ID.c2], 'the Recruiter may still filter by hiring manager');
+    // REC-15 rule 3 (child lock rec-04.3): old stage names and hiringManagerId are no longer query values the list reads.
+    expectIds(C.recruiter, { query: { search: 'Sipho' } }, [ID.c2], 'the Recruiter\'s search finds Sipho');
+    expectIds(C.hmC1, { query: { search: 'Sipho' } }, [], 'a search for another manager\'s candidate finds nothing');
+    expectIds(C.recruiter, { query: { hiringManagerId: SUB.hm2A } }, [ID.c1, ID.c2], 'the old hiringManagerId name is ignored: the Recruiter still sees every candidate');
 
     // One candidate: opened by its manager, not by another; the refusal looks the same as a candidate that does not exist.
     const one = routeOf('getCandidate');
@@ -547,6 +549,8 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
       const added = (cur.pairs ?? []).filter((p) => !(was.pairs ?? []).includes(p));
       for (const p of added) {
         if (isCardGrant(p, cur.stack, cur.role)) continue;
+        // REC-15 (child lock rec-04.3): getCandidates reads the company's stage hours for the list's clock (rec-15.spec.ts AC-17 pins it).
+        if (/get_candidates$|getCandidates$/.test(key) && /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/.test(p)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null'), `role policy ${key}: new grant "${p}" is not allowed (only GetItem on the tenants table, which TEN-03 and MOD-01 own)`).toBe(true);
       }
       expect.soft((was.pairs ?? []).filter((p) => !(cur.pairs ?? []).includes(p)), `role policy ${key}: nothing it had is taken away`).toEqual([]);

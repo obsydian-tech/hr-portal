@@ -15,22 +15,22 @@ import { randomUUID } from 'node:crypto';
 import { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { json } from '../hr-group.mjs';
-import { ownsRow, stampTenant, tenantFilter, tenantKey } from '../tenant.mjs';
+import { ownsRow, stampTenant, tenantKey } from '../tenant.mjs';
 import { isRecruiter } from '../recruitment-access.mjs';
 import { DEFAULTS, activeSettings } from '../recruitment-settings.mjs';
 import { normaliseStage } from '../recruitment-stages.mjs';
 import { activeDepartment, byName, departmentsOf } from '../departments.mjs';
 import { hiringManagersOf } from '../hiring-managers.mjs';
+import { rowsOfRole, listCandidates } from './candidate-list.mjs';
+import { stageClock, thresholdsOf } from './stage-clock.mjs';
 
 const db = new DynamoDBClient({});
 const ROLES = () => process.env.ROLES_TABLE_NAME ?? 'talent-flow-roles';
 const STATE = () => process.env.STATE_TABLE_NAME ?? 'talent-flow-state';
 const IDEMPOTENCY = () => process.env.IDEMPOTENCY_TABLE_NAME ?? 'talent-flow-idempotency-keys';
-const INDEX = 'role-id-index';
 const KEY_TTL_SECONDS = 48 * 60 * 60;
 
 const OPEN_STAGES = ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER'];
-const SLA_WORDS = { ON_TRACK: 'ON_TRACK', AT_RISK: 'DUE_SOON', BREACHED: 'OVERDUE' };
 const LIMITS = { title: 120, criteria: 10, label: 60, panelMin: 1, panelMax: 12 };
 
 const notFound = () => json(404, { error: 'Not found' });
@@ -43,36 +43,14 @@ const filled = (v) => isText(v) && v.trim() !== '';
 
 /** The stage code a stored candidate reads as (an old outcome is Not hired). */
 const stageOf = (row) => normaliseStage(row) ?? 'APPLIED';
-const slaOf = (row) => SLA_WORDS[row.slaStatus] ?? 'ON_TRACK';
 
-/** Every candidate row of the company that carries this role id (every page of the index). */
-async function rowsOfRole(tenantId, roleId) {
-  const f = tenantFilter(tenantId);
-  const out = [];
-  let start;
-  do {
-    const page = await db.send(new QueryCommand({
-      TableName: STATE(), IndexName: INDEX, KeyConditionExpression: '#role = :role',
-      FilterExpression: f.FilterExpression,
-      ExpressionAttributeNames: { '#role': 'role_id', ...f.ExpressionAttributeNames },
-      ExpressionAttributeValues: marshall({ ':role': roleId, ...f.ExpressionAttributeValues }),
-      ExclusiveStartKey: start,
-    }));
-    for (const item of page.Items ?? []) {
-      const row = unmarshall(item);
-      if (row.SK === 'SAGA' && ownsRow(row, tenantId)) out.push(row);
-    }
-    start = page.LastEvaluatedKey;
-  } while (start);
-  return out;
-}
-
-function countsOf(rows) {
+function countsOf(rows, thresholds, now = Date.now()) {
   const open = rows.filter((r) => OPEN_STAGES.includes(stageOf(r)));
+  const sla = open.map((r) => stageClock(r, thresholds, now).sla_status);
   return {
     candidate_count: open.length,
-    overdue_count: open.filter((r) => slaOf(r) === 'OVERDUE').length,
-    due_soon_count: open.filter((r) => slaOf(r) === 'DUE_SOON').length,
+    overdue_count: sla.filter((x) => x === 'OVERDUE').length,
+    due_soon_count: sla.filter((x) => x === 'DUE_SOON').length,
   };
 }
 
@@ -114,8 +92,10 @@ export async function listRoles(ctx, query = {}) {
   const mine = isRecruiter(ctx.event) ? rows : rows.filter((r) => r.hiring_manager_id === ctx.personId);
   const shown = mine.filter((r) => !status || r.status === status).sort((a, b) => String(b.opened_at).localeCompare(String(a.opened_at)));
   const { departments } = await departmentsOf(ctx.tenantId);
+  const thresholds = shown.length ? await thresholdsOf(ctx.tenantId) : null;
+  const now = Date.now();
   const roles = [];
-  for (const r of shown) roles.push({ ...shapeRole(r, departments), ...countsOf(await rowsOfRole(ctx.tenantId, r.role_id)) });
+  for (const r of shown) roles.push({ ...shapeRole(r, departments), ...countsOf(await rowsOfRole(ctx.tenantId, r.role_id), thresholds, now) });
   return json(200, { roles });
 }
 
@@ -124,7 +104,7 @@ export async function getRole(ctx, roleId) {
   const row = await loadRole(ctx, roleId);
   if (!row) return notFound();
   const { departments } = await departmentsOf(ctx.tenantId);
-  return json(200, { ...shapeRole(row, departments), ...countsOf(await rowsOfRole(ctx.tenantId, row.role_id)) });
+  return json(200, { ...shapeRole(row, departments), ...countsOf(await rowsOfRole(ctx.tenantId, row.role_id), await thresholdsOf(ctx.tenantId)) });
 }
 
 // ---------------------------------------------------------------- open
@@ -239,36 +219,5 @@ export async function closeRole(ctx, roleId) {
 
 // ---------------------------------------------------------------- the candidates of a role
 
-const EMPTY = () => ({ candidates: [], counts: { all: 0, mine: 0, overdue: 0, due_soon: 0, not_hired: 0 } });
-
-/** GET /v1/candidates?role_id= (D-T-9). A role that is not the company's is the same empty answer as no role at all. */
-export async function candidatesOfRole(ctx, query = {}) {
-  const roleId = query.role_id;
-  const got = filled(roleId) ? await db.send(new GetItemCommand({ TableName: ROLES(), Key: marshall(roleKey(ctx.tenantId, roleId)) })) : {};
-  const role = got.Item ? unmarshall(got.Item) : null;
-  if (!role || !ownsRow(role, ctx.tenantId)) return json(200, EMPTY());
-  let rows = await rowsOfRole(ctx.tenantId, roleId);
-  if (!isRecruiter(ctx.event)) rows = rows.filter((r) => r.hiringManagerId === ctx.personId);
-  const isMine = (r) => r.hiringManagerId === ctx.personId || r.recruiterId === ctx.personId;
-  const shaped = rows.map((r) => ({
-    row: r,
-    c: {
-      id: r.candidateId, name: [r.firstName, r.lastName].filter(Boolean).join(' '), stage: stageOf(r), role_id: r.role_id, level: r.positionLevel,
-      sla_status: slaOf(r), stage_entered_at: r.stageEnteredAt ?? r.createdAt, hiring_manager_id: r.hiringManagerId,
-    },
-  }));
-  const live = shaped.filter((x) => x.c.stage !== 'NOT_HIRED');
-  const counts = {
-    all: live.length, mine: live.filter((x) => isMine(x.row)).length,
-    overdue: live.filter((x) => x.c.sla_status === 'OVERDUE').length, due_soon: live.filter((x) => x.c.sla_status === 'DUE_SOON').length,
-    not_hired: shaped.length - live.length,
-  };
-  let list = query.stage === 'NOT_HIRED' ? shaped.filter((x) => x.c.stage === 'NOT_HIRED') : live;
-  if (query.stage && query.stage !== 'NOT_HIRED') list = list.filter((x) => x.c.stage === query.stage);
-  if (query.sla_status) list = list.filter((x) => x.c.sla_status === query.sla_status);
-  if (filled(query.search)) { const s = query.search.trim().toLowerCase(); list = list.filter((x) => x.c.name.toLowerCase().includes(s)); }
-  if (query.mine === 'true') list = list.filter((x) => isMine(x.row));
-  const limit = Math.min(Math.max(parseInt(query.limit ?? '100', 10) || 100, 1), 100);
-  const candidates = list.map((x) => x.c).sort((a, b) => String(a.stage_entered_at).localeCompare(String(b.stage_entered_at))).slice(0, limit);
-  return json(200, { candidates, counts });
-}
+/** GET /v1/candidates?role_id= : the one list (REC-15). */
+export const candidatesOfRole = (ctx, query = {}) => listCandidates(ctx, query);
