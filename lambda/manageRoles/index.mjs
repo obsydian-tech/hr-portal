@@ -4,9 +4,10 @@ import { requireRecruiter, requireRecruiterOrManager, callerId, forbidden } from
 import { requireTenant } from '../shared/tenant.mjs';
 import { requireModule } from '../shared/modules.mjs';
 import { json } from '../shared/hr-group.mjs';
-import { listRoles, getRole, openRole, closeRole } from '../shared/recruitment-actions/roles.mjs';
+import { listRoles, getRole, openRole, closeRole, roleOptions } from '../shared/recruitment-actions/roles.mjs';
 
-const WRITES = new Set(['POST /v1/roles', 'POST /v1/roles/{id}/close']);
+// Recruiter-only routes (the options answer lists people and settings, so it is not for managers).
+const WRITES = new Set(['POST /v1/roles', 'POST /v1/roles/{id}/close', 'GET /v1/roles/options']);
 
 /** The parsed body, {} when there is none, undefined when it is not JSON. */
 const bodyOf = (event) => {
@@ -37,6 +38,8 @@ export const handler = async (event) => {
     switch (route) {
       case 'GET /v1/roles':
         return await listRoles(ctx, event.queryStringParameters ?? {});
+      case 'GET /v1/roles/options':
+        return await roleOptions(ctx);
       case 'GET /v1/roles/{id}':
         return await getRole(ctx, id);
       case 'POST /v1/roles': {

@@ -38,3 +38,9 @@ Pinned by the verifier (the reasons are in `TEN-04-tests-for-review.md`):
 (`E2E_TF_API_URL`, or `hr-portal/src/environments/environment.ts` `talentFlow.apiUrl`).
 
 Expected red before the build: every test except the Control, AC-5 and the walk-row coverage test.
+
+## Child lock ten-04.9 (REC-14 step B)
+
+`ten-04.2.spec.ts` AC-5 and AC-8: hiring managers come from `lambda/shared/hiring-managers.mjs` (rec-14.2 AC-5). A person with no
+Member row is nobody's, also while `LEGACY_TENANT_ID` names the company (REC-14 rule 12; prod catch-up P-4). The text check reads
+the Member rows and the missing-group warning in the shared file. Panel members (AC-4, AC-6) are as they were.

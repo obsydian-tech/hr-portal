@@ -342,7 +342,9 @@ test.describe('TEN-05 · One sign-in pool with five roles, every group in Terraf
     expect(found, 'no role handler (nor hr-group.mjs, document-check.mjs) names an old group or reads a group or admin claim itself').toEqual([]);
     for (const h of ROLE_HANDLERS) {
       const src = codeFiles(join(LAMBDA, h)).map((f) => strip(readFileSync(f, 'utf8'))).join('\n');
-      expect(src, `${h}: loads the shared roles helper`).toMatch(/shared\/[\w.-]*roles[\w.-]*\.(mjs|js|cjs)['"]/);
+      // REC-14 step B (child lock ten-05.5): getHiringManagers reads through shared/hiring-managers.mjs, which loads roles.mjs.
+      const viaShared = h === 'getHiringManagers' && /shared\/hiring-managers\.mjs['"]/.test(src) && /\.\/roles\.mjs['"]/.test(strip(readFileSync(join(LAMBDA, 'shared', 'hiring-managers.mjs'), 'utf8')));
+      if (!viaShared) expect(src, `${h}: loads the shared roles helper`).toMatch(/shared\/[\w.-]*roles[\w.-]*\.(mjs|js|cjs)['"]/);
     }
     // A CommonJS go-between, if one is used, loads roles.mjs and names no group itself.
     for (const f of readdirSync(join(LAMBDA, 'shared')).filter((n) => /roles/.test(n) && n !== 'roles.mjs' && !/\.test\./.test(n))) {

@@ -19,6 +19,8 @@ import { ownsRow, stampTenant, tenantFilter, tenantKey } from '../tenant.mjs';
 import { isRecruiter } from '../recruitment-access.mjs';
 import { DEFAULTS, activeSettings } from '../recruitment-settings.mjs';
 import { normaliseStage } from '../recruitment-stages.mjs';
+import { activeDepartment, byName, departmentsOf } from '../departments.mjs';
+import { hiringManagersOf } from '../hiring-managers.mjs';
 
 const db = new DynamoDBClient({});
 const ROLES = () => process.env.ROLES_TABLE_NAME ?? 'talent-flow-roles';
@@ -29,7 +31,7 @@ const KEY_TTL_SECONDS = 48 * 60 * 60;
 
 const OPEN_STAGES = ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER'];
 const SLA_WORDS = { ON_TRACK: 'ON_TRACK', AT_RISK: 'DUE_SOON', BREACHED: 'OVERDUE' };
-const LIMITS = { title: 120, department: 80, criteria: 10, label: 60, panelMin: 1, panelMax: 12 };
+const LIMITS = { title: 120, criteria: 10, label: 60, panelMin: 1, panelMax: 12 };
 
 const notFound = () => json(404, { error: 'Not found' });
 const bad = (code, field) => json(400, { error: 'Bad request', code, ...(field ? { field } : {}) });
@@ -74,8 +76,10 @@ function countsOf(rows) {
   };
 }
 
-const shapeRole = (row) => ({
-  role_id: row.role_id, job_title: row.job_title, department: row.department, level: row.level, hiring_manager_id: row.hiring_manager_id,
+/** The department as the answer shows it: the current name of the stored id, or the stored text of an old role (no id). */
+const shapeRole = (row, departments = []) => ({
+  role_id: row.role_id, job_title: row.job_title, ...(row.department_id ? { department_id: row.department_id } : {}),
+  department: (row.department_id && departments.find((d) => d.id === row.department_id)?.name) || row.department, level: row.level, hiring_manager_id: row.hiring_manager_id,
   criteria: row.criteria ?? [], panel_size: row.panel_size, status: row.status, opened_at: row.opened_at, opened_by: row.opened_by,
   ...(row.closed_at ? { closed_at: row.closed_at, closed_by: row.closed_by } : {}), legacy: row.legacy === true,
 });
@@ -109,8 +113,9 @@ export async function listRoles(ctx, query = {}) {
   } while (start);
   const mine = isRecruiter(ctx.event) ? rows : rows.filter((r) => r.hiring_manager_id === ctx.personId);
   const shown = mine.filter((r) => !status || r.status === status).sort((a, b) => String(b.opened_at).localeCompare(String(a.opened_at)));
+  const { departments } = await departmentsOf(ctx.tenantId);
   const roles = [];
-  for (const r of shown) roles.push({ ...shapeRole(r), ...countsOf(await rowsOfRole(ctx.tenantId, r.role_id)) });
+  for (const r of shown) roles.push({ ...shapeRole(r, departments), ...countsOf(await rowsOfRole(ctx.tenantId, r.role_id)) });
   return json(200, { roles });
 }
 
@@ -118,7 +123,8 @@ export async function listRoles(ctx, query = {}) {
 export async function getRole(ctx, roleId) {
   const row = await loadRole(ctx, roleId);
   if (!row) return notFound();
-  return json(200, { ...shapeRole(row), ...countsOf(await rowsOfRole(ctx.tenantId, row.role_id)) });
+  const { departments } = await departmentsOf(ctx.tenantId);
+  return json(200, { ...shapeRole(row, departments), ...countsOf(await rowsOfRole(ctx.tenantId, row.role_id)) });
 }
 
 // ---------------------------------------------------------------- open
@@ -145,35 +151,18 @@ function criteriaOf(value, defaults) {
   return out;
 }
 
-/** True when this person is one the hiring manager picker lists for the company (D-REC-4.1): getHiringManagers' rule. */
-async function isCompanyHiringManager(tenantId, personId) {
-  if (!filled(personId)) return false;
-  const [{ CognitoIdentityProviderClient, ListUsersInGroupCommand }, { HIRING_MANAGER_GROUPS }, { companyOfSignIn }] = await Promise.all([
-    import('@aws-sdk/client-cognito-identity-provider'), import('../roles.mjs'), import('../membership.mjs'),
-  ]);
-  const cognito = new CognitoIdentityProviderClient({});
-  const pool = process.env.HM_COGNITO_POOL_ID;
-  if (!pool) throw new Error('Missing setting HM_COGNITO_POOL_ID');
-  const groups = [...new Set([...(process.env.HM_GROUP_NAME ? [process.env.HM_GROUP_NAME] : []), ...HIRING_MANAGER_GROUPS])];
-  let found = null;
-  for (const group of groups) {
-    let next;
-    try {
-      do {
-        const page = await cognito.send(new ListUsersInGroupCommand({ UserPoolId: pool, GroupName: group, NextToken: next }));
-        for (const u of page.Users ?? []) {
-          const sub = (u.Attributes ?? []).find((a) => a.Name === 'sub')?.Value;
-          if (sub === personId) found = u;
-        }
-        next = page.NextToken;
-      } while (next && !found);
-    } catch (e) {
-      if (e?.name !== 'ResourceNotFoundException') throw e;
-    }
-    if (found) break;
-  }
-  if (!found || found.UserStatus !== 'CONFIRMED' || found.Enabled === false) return false;
-  return (await companyOfSignIn(personId)) === tenantId;
+/** GET /v1/roles/options: everything the Open a role page offers, built from the same rules openRole checks with. */
+export async function roleOptions(ctx) {
+  const [{ departments }, settings, managers] = await Promise.all([departmentsOf(ctx.tenantId), activeSettings(ctx.tenantId), hiringManagersOf(ctx.tenantId)]);
+  const levels = [...(settings.SENIORITY_PROFILES?.levels ?? DEFAULTS.SENIORITY_PROFILES.levels)].sort((a, b) => a.order - b.order).map((l) => ({ key: l.key, label: l.label, order: l.order }));
+  const criteria = (settings.SCORING_WEIGHTS?.defaultCriteria ?? DEFAULTS.SCORING_WEIGHTS.defaultCriteria).map((c) => ({ key: c.key, label: c.label }));
+  return json(200, {
+    departments: departments.filter((d) => d.status === 'ACTIVE').sort(byName).map((d) => ({ id: d.id, name: d.name })),
+    levels, criteria,
+    panel_size_by_level: settings.PANEL_CONFIG?.panelSize ?? DEFAULTS.PANEL_CONFIG.panelSize,
+    screening: settings.STAGE_CONFIG?.screening ?? DEFAULTS.STAGE_CONFIG.screening,
+    hiring_managers: managers,
+  });
 }
 
 const keyOf = (ctx, clientKey) => tenantKey(ctx.tenantId, 'OPEN_ROLE', String(clientKey));
@@ -202,18 +191,19 @@ export async function openRole(ctx, { body, idempotencyKey }) {
   const defaults = (settings.SCORING_WEIGHTS?.defaultCriteria ?? DEFAULTS.SCORING_WEIGHTS.defaultCriteria).map((c) => ({ key: c.key, label: c.label }));
   const panelOf = settings.PANEL_CONFIG?.panelSize ?? DEFAULTS.PANEL_CONFIG.panelSize;
 
-  const { job_title: title, department, level, criteria, panel_size: panel, hiring_manager_id: hm } = body;
+  const { job_title: title, department_id: departmentId, level, criteria, panel_size: panel, hiring_manager_id: hm } = body;
   if (!filled(title) || title.trim().length > LIMITS.title) return badField('job_title');
-  if (!filled(department) || department.trim().length > LIMITS.department) return badField('department');
+  const department = await activeDepartment(ctx.tenantId, departmentId);
+  if (!department) return bad('INVALID_DEPARTMENT');
   if (!isText(level) || !levels.includes(level)) return badField('level');
   const crit = criteria === undefined ? defaults : criteriaOf(criteria, defaults);
   if (!crit) return badField('criteria');
   if (panel !== undefined && !(Number.isInteger(panel) && panel >= LIMITS.panelMin && panel <= LIMITS.panelMax)) return badField('panel_size');
-  if (!isText(hm) || !(await isCompanyHiringManager(ctx.tenantId, hm))) return bad('INVALID_HIRING_MANAGER');
+  if (!isText(hm) || !(await hiringManagersOf(ctx.tenantId)).some((m) => m.id === hm)) return bad('INVALID_HIRING_MANAGER');
 
   const roleId = `role-${randomUUID()}`;
   const row = stampTenant({
-    ...roleKey(ctx.tenantId, roleId), role_id: roleId, job_title: title.trim(), department: department.trim(), level, hiring_manager_id: hm,
+    ...roleKey(ctx.tenantId, roleId), role_id: roleId, job_title: title.trim(), department_id: department.id, department: department.name, level, hiring_manager_id: hm,
     criteria: crit, panel_size: panel ?? panelOf[level] ?? DEFAULTS.PANEL_CONFIG.panelSize[level], status: 'OPEN',
     opened_at: new Date().toISOString(), opened_by: ctx.personId, legacy: false,
   }, ctx.tenantId);

@@ -244,12 +244,12 @@ test.describe('TEN-04.2 · Bundles check the candidate, pickers keep the company
     const leak = JSON.stringify(bodyOf(forA));
     for (const x of [MAIL.b1, MAIL.none, MAIL.both, NAMES.b1, NAMES.none, NAMES.both]) expect(leak, `A does not see ${x}`).not.toContain(x);
     const legacyA = managers(staffA, {}, { env: { LEGACY_TENANT_ID: A } });
-    expect(pick(legacyA, 'hiringManagers'), 'LEGACY_TENANT_ID = A: the person with no Member row is A\'s, in name order').toEqual([MAIL.a1, MAIL.a3, MAIL.none, MAIL.a2]);
+    expect(pick(legacyA, 'hiringManagers'), 'LEGACY_TENANT_ID = A: the person with no Member row is nobody\'s (REC-14 rule 12: no legacy fallback)').toEqual([MAIL.a1, MAIL.a3, MAIL.a2]);
     expect(pick(managers(staffB, {}, { env: { LEGACY_TENANT_ID: A } }), 'hiringManagers'), 'LEGACY_TENANT_ID = A: B does not get the person with no Member row').toEqual([MAIL.b1]);
     const forB = managers(staffB);
     expect(statusOf(forB), `hiring managers as B: 200\n${describe(forB)}`).toBe(200);
     expect(pick(forB, 'hiringManagers'), 'B sees B\'s person only').toEqual([MAIL.b1]);
-    expect(pick(managers(staffB, {}, { env: { LEGACY_TENANT_ID: B } }), 'hiringManagers'), 'LEGACY_TENANT_ID = B: B also gets the person with no Member row').toEqual([MAIL.b1, MAIL.none].sort());
+    expect(pick(managers(staffB, {}, { env: { LEGACY_TENANT_ID: B } }), 'hiringManagers'), 'LEGACY_TENANT_ID = B: the person with no Member row is nobody\'s (REC-14 rule 12: no legacy fallback)').toEqual([MAIL.b1]);
     expect(pick(managers(staffA, named(B)), 'hiringManagers'), 'A naming B: the same list').toEqual([MAIL.a1, MAIL.a3, MAIL.a2]);
     expect(pick(managers(staffB, named(A)), 'hiringManagers'), 'B naming A: B\'s list').toEqual([MAIL.b1]);
   });
@@ -328,14 +328,21 @@ test.describe('TEN-04.2 · Bundles check the candidate, pickers keep the company
     expect(bundleSrc, 'the state table name is STATE_TABLE_NAME with the TalentFlow table as fallback').toMatch(/process\.env\.STATE_TABLE_NAME\s*\|\|\s*['"]talent-flow-state['"]/);
     expect(bundleSrc, 'the company check takes the sign-in\'s company').toMatch(/candidateIsOurs\([\s\S]*?,\s*tenantId\s*\)/);
     // The pickers narrow with the Member read of the shared module, with the company from requireTenant only.
+    // REC-14 step B (child lock ten-04.9): the hiring managers' pick is the shared lambda/shared/hiring-managers.mjs, which reads the Member rows itself.
+    const sharedHm = stripComments(readFileSync(join(LAMBDA, 'shared', 'hiring-managers.mjs'), 'utf8'));
+    expect(sharedHm, 'the shared hiring manager function reads the Member rows').toMatch(/companiesOf\(/);
+    expect(sharedHm, 'and loads the shared membership module').toMatch(/membership\.mjs/);
+    expect(hmSrc, 'getHiringManagers uses the shared function').toMatch(/hiring-managers\.mjs/);
     for (const [name, src] of [['getPanelMembers', pmSrc], ['getHiringManagers', hmSrc]] as const) {
-      expect(src, `${name} narrows with inCompany`).toMatch(/inCompany\(/);
-      expect(src, `${name} loads the shared membership module`).toMatch(/membership\.mjs/);
+      if (name === 'getPanelMembers') {
+        expect(src, `${name} narrows with inCompany`).toMatch(/inCompany\(/);
+        expect(src, `${name} loads the shared membership module`).toMatch(/membership\.mjs/);
+      }
       expect(src, `${name} takes the company from requireTenant`).toMatch(/\{\s*tenantId\s*,\s*refusal\s*\}\s*=\s*T\.requireTenant\(event\)|\{\s*refusal\s*,\s*tenantId\s*\}\s*=\s*T\.requireTenant\(event\)/);
       expect(src.replace(/\s+/g, ' '), `${name} reads no company from the body, query, path or headers`).not.toMatch(/(event\.body|queryStringParameters|pathParameters|\.headers)[^;]{0,80}(tenant|company)/i);
       expect(src, `${name} reads no request body`).not.toMatch(/event\??\.body/);
     }
-    expect(hmSrc, 'getHiringManagers skips a failing group with a warning that holds the error name').toMatch(/console\.warn\([^)]*skipping group[^)]*error:\s*err\??\.name/s);
+    expect(sharedHm, 'the hiring manager function skips a missing group with a warning that holds the error name').toMatch(/console\.warn\([^)]*skipping group[^)]*error:\s*e\??\.name/s);
     // No group name was added to a handler (TEN-05 AC-4 stays true): the handlers name no Cognito group.
     const groupLiteral = new RegExp(`['"\`](${POOL_GROUPS.filter((g) => !['admin', 'manager', 'employee', 'guest'].includes(g)).join('|')})['"\`]`);
     for (const [name, src] of [['createProvisioningBundle', bundleSrc], ['getHiringManagers', hmSrc], ['getPanelMembers', pmSrc]] as const) {

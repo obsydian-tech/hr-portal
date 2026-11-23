@@ -558,6 +558,163 @@ components:
           - name
           - status
           - expected_version
+    RoleError:
+      type: object
+      description: REC-14. A refusal of the role routes.
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        field:
+          type: string
+        open_candidates:
+          type: integer
+    Role:
+      type: object
+      description: REC-14. A role with its counts. department_id is absent on an old role whose department is free text (until step D); department is then that text.
+      additionalProperties: false
+      required:
+      - role_id
+      - job_title
+      - department
+      - level
+      - hiring_manager_id
+      - criteria
+      - panel_size
+      - status
+      - opened_at
+      - opened_by
+      - legacy
+      - candidate_count
+      - overdue_count
+      - due_soon_count
+      properties:
+        role_id:
+          type: string
+        job_title:
+          type: string
+        department_id:
+          type: string
+        department:
+          type: string
+        level:
+          type: string
+        hiring_manager_id:
+          type: string
+        criteria:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - key
+            - label
+            properties:
+              key:
+                type: string
+              label:
+                type: string
+        panel_size:
+          type: integer
+        status:
+          type: string
+          enum:
+          - OPEN
+          - CLOSED
+        opened_at:
+          type: string
+        opened_by:
+          type: string
+        closed_at:
+          type: string
+        closed_by:
+          type: string
+        legacy:
+          type: boolean
+        candidate_count:
+          type: integer
+        overdue_count:
+          type: integer
+        due_soon_count:
+          type: integer
+    RoleOptions:
+      type: object
+      description: REC-14. Everything the Open a role page offers, from one answer. No email, group or company in it.
+      additionalProperties: false
+      required:
+      - departments
+      - levels
+      - criteria
+      - panel_size_by_level
+      - screening
+      - hiring_managers
+      properties:
+        departments:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - id
+            - name
+            properties:
+              id:
+                type: string
+                pattern: ^dep_[0-9A-HJKMNP-TV-Z]{26}$
+              name:
+                type: string
+        levels:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - key
+            - label
+            - order
+            properties:
+              key:
+                type: string
+              label:
+                type: string
+              order:
+                type: integer
+        criteria:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - key
+            - label
+            properties:
+              key:
+                type: string
+              label:
+                type: string
+        panel_size_by_level:
+          type: object
+          additionalProperties:
+            type: integer
+        screening:
+          type: boolean
+        hiring_managers:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - id
+            - name
+            properties:
+              id:
+                type: string
+              name:
+                type: string
 security:
 - CognitoJWT: []
 paths:
@@ -4458,6 +4615,18 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - roles
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
         '400':
           description: Bad request
           content:
@@ -4493,34 +4662,91 @@ paths:
       - perm-recruitment
     post:
       summary: "POST /v1/roles: a Recruiter opens a role (REC-04)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - job_title
+              - department_id
+              - level
+              - hiring_manager_id
+              properties:
+                job_title:
+                  type: string
+                  maxLength: 120
+                department_id:
+                  type: string
+                  pattern: ^dep_[0-9A-HJKMNP-TV-Z]{26}$
+                level:
+                  type: string
+                hiring_manager_id:
+                  type: string
+                criteria:
+                  type: array
+                  items: {}
+                panel_size:
+                  type: integer
       responses:
         '201':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
         '400':
           description: Bad request
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Bad request
-              example:
-                error: Bad request
+                $ref: '#/components/schemas/RoleError'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Forbidden
-              example:
-                error: Forbidden
+                $ref: '#/components/schemas/RoleError'
+        '500':
+          description: Something went wrong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleError'
       operationId: POST_v1_roles
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - perm-recruitment
+  /v1/roles/options:
+    get:
+      summary: "GET /v1/roles/options: everything the Open a role page offers (REC-14)"
+      description: REC-14. The company's active departments, levels, default criteria, panel sizes, the Screening switch and hiring managers, built by the same rules POST /v1/roles checks with.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleOptions'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleError'
+        '500':
+          description: Something went wrong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleError'
+      operationId: GET_v1_roles_options
       servers:
       - url: https://talentflow-api.example.com
       security:
@@ -4534,6 +4760,10 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
         '403':
           description: Forbidden
           content:
@@ -4737,6 +4967,12 @@ paths:
       - admin
     get:
       summary: GET /v1/config
+      parameters:
+      - name: configType
+        in: query
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: OK

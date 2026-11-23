@@ -61,10 +61,10 @@ class StaticChecks(unittest.TestCase):
                      "requireSetting('FRONTEND_URL') && 'hr-portal-beryl-three.vercel.app'", "prod web address in Lambda code")
 
     def test_prod_account_and_client_id_fail(self):
-        self.planted("lambda/getHiringManagers/index.js", "const HM_GROUP",
-                     "// 937137806477\nconst HM_GROUP", "prod account id in Lambda code")
-        self.planted("lambda/getHiringManagers/index.js", "const HM_GROUP",
-                     "// 1pk5rd58glsohfplnlr63tg0qb\nconst HM_GROUP", "prod app client id in Lambda code")
+        self.planted("lambda/getHiringManagers/index.js", "const HM_POOL_ID",
+                     "// 937137806477\nconst HM_POOL_ID", "prod account id in Lambda code")
+        self.planted("lambda/getHiringManagers/index.js", "const HM_POOL_ID",
+                     "// 1pk5rd58glsohfplnlr63tg0qb\nconst HM_POOL_ID", "prod app client id in Lambda code")
 
     def test_test_files_may_hold_prod_values(self):
         with tempfile.TemporaryDirectory() as d:
