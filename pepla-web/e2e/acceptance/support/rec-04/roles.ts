@@ -104,23 +104,32 @@ function cand(id: string, c: string, roleId: string | undefined, stage: string, 
   return saga(id, first, last, c, hm, { currentStage: stage, ...(roleId ? { role_id: roleId } : {}), positionTitle: roleId ? TITLE[roleId] ?? 'A role' : 'Junior baker', ...extra });
 }
 
+/**
+ * REC-15 (child lock rec-04.3): lists and role counts now work the due date out from the stage time and the company's hours
+ * (Applied 24, Screening 48, Interview 96, Offer 72 in the Standard pack), at the real time of the run. So each open row carries a stage
+ * time that gives the status its stored slaStatus names: just entered (on track), 85 hours into Interview (due soon), 200 hours into
+ * Offer (overdue), and B's stray row 50 hours into Applied (overdue). Hired and Not hired keep their old times (no clock).
+ */
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+const fresh = () => ({ stageEnteredAt: hoursAgo(1 / 60) });
+
 export function rec04Rows(): Row[] {
   return [
-    cand(K.applied, A, R.fleet, 'APPLIED', SUB.hmA),
-    cand(K.screening, A, R.fleet, 'SCREENING', SUB.hmA),
-    cand(K.interview, A, R.fleet, 'INTERVIEW', SUB.hmA),
-    cand(K.oldName, A, R.fleet, 'INTERVIEWING', SUB.hmA, { slaStatus: 'AT_RISK' }),
-    cand(K.offer, A, R.fleet, 'OFFER', SUB.hmA, { slaStatus: 'BREACHED' }),
+    cand(K.applied, A, R.fleet, 'APPLIED', SUB.hmA, fresh()),
+    cand(K.screening, A, R.fleet, 'SCREENING', SUB.hmA, fresh()),
+    cand(K.interview, A, R.fleet, 'INTERVIEW', SUB.hmA, fresh()),
+    cand(K.oldName, A, R.fleet, 'INTERVIEWING', SUB.hmA, { slaStatus: 'AT_RISK', stageEnteredAt: hoursAgo(85) }),
+    cand(K.offer, A, R.fleet, 'OFFER', SUB.hmA, { slaStatus: 'BREACHED', stageEnteredAt: hoursAgo(200) }),
     cand(K.hired, A, R.fleet, 'HIRED', SUB.hmA),
     cand(K.notHired, A, R.fleet, 'NOT_HIRED', SUB.hmA, { not_hired_reason: 'WITHDREW' }),
     cand(K.oldRejected, A, R.fleet, 'EVALUATION', SUB.hmA, { status: 'REJECTED', evaluationCompletedAt: '2026-09-14T10:00:00.000Z' }),
-    cand(K.otherHm, A, R.fleet, 'SCREENING', SUB.hm2A),
-    cand(K.w1, A, R.warehouse, 'APPLIED', SUB.hm2A),
-    cand(K.w2, A, R.warehouse, 'OFFER', SUB.hm2A, { slaStatus: 'BREACHED' }),
-    cand(K.noRole, A, undefined, 'APPLIED', SUB.hmA),
+    cand(K.otherHm, A, R.fleet, 'SCREENING', SUB.hm2A, fresh()),
+    cand(K.w1, A, R.warehouse, 'APPLIED', SUB.hm2A, fresh()),
+    cand(K.w2, A, R.warehouse, 'OFFER', SUB.hm2A, { slaStatus: 'BREACHED', stageEnteredAt: hoursAgo(200) }),
+    cand(K.noRole, A, undefined, 'APPLIED', SUB.hmA, fresh()),
     cand(K.closedHired, A, R.closed, 'HIRED', SUB.hmA),
-    cand(K.b1, B, R.b, 'APPLIED', SUB.hmB),
-    cand(K.bOnA, B, R.fleet, 'APPLIED', SUB.hmB, { slaStatus: 'BREACHED' }),
+    cand(K.b1, B, R.b, 'APPLIED', SUB.hmB, fresh()),
+    cand(K.bOnA, B, R.fleet, 'APPLIED', SUB.hmB, { slaStatus: 'BREACHED', stageEnteredAt: hoursAgo(50) }),
   ];
 }
 

@@ -667,6 +667,8 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
         if (effect === 'Allow' && cond === 'null' && /naleko_ai_chat|ai_chat/.test(key) && chat02Grant(action!, res!)) continue;
         // ONB-11 (re-lock ten-03.13): createEmployee links the new person's sign-in to their employees row (one UpdateItem on that table; ONB-11 AC-11).
         if (effect === 'Allow' && ownerLinkGrant(action!, res!, cur.role, cond)) continue;
+        // REC-15 (child lock rec-04.3): getCandidates reads the company's stage hours for the list's clock (rec-15.spec.ts AC-17 pins it).
+        if (/get_candidates$|getCandidates$/.test(key) && /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/.test(p)) continue;
         expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && (tenants || indexOfTalent)) || (MOD01_GET(p) && MOD01_ROLE(key, cur.role)) || TEN042_QUERY(p, key, cur.role), `role policy ${key}: new grant "${p}" is only a Query on the tenants table (TalentFlow trigger) or on an index of a TalentFlow, IT or bundle table, or one of the TEN-04.2 table grants`).toBe(true);
       }
     }
