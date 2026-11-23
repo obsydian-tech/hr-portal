@@ -51,6 +51,7 @@ import {
   type StoredDoc,
 } from './support/onb-06/lambda-harness';
 import { forgetSignIn } from './support/sign-in-again';
+import { withoutGeneratedApiTypes } from './support/generated-api-types';
 
 /**
  * ONB-06 · Phone: documents and upload (Jira NH-175, epic NH-150). Red.
@@ -1388,7 +1389,7 @@ test.describe('ONB-06 Documents and upload', () => {
     const startDir = join(app, 'features', 'start');
     const mine = [
       ...walk(startDir).filter((f) => /\.(ts|html)$/.test(f)),
-      ...walk(join(WEB, 'src')).filter((f) => /\.ts$/.test(f) && !f.startsWith(startDir) && /\/v1\/me\/documents\b/.test(readFileSync(f, 'utf8'))),
+      ...withoutGeneratedApiTypes(walk(join(WEB, 'src'))).filter((f) => /\.ts$/.test(f) && !f.startsWith(startDir) && /\/v1\/me\/documents\b/.test(readFileSync(f, 'utf8'))),
       join(REPO, 'lambda', 'getMyDocuments', 'index.mjs'),
       join(REPO, 'lambda', 'createMyUploadLink', 'index.mjs'),
       UPLOAD_LINK_MODULE,

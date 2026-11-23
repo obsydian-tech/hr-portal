@@ -38,3 +38,11 @@ Company A role "Fleet controller", six open candidates across Applied, Screening
 3. Contract choices to settle with the backend cards: `pending` in the candidates read, the `mine` filter, the `/v1/config` shape, the company name source, the department list source.
 4. A manager cannot sign in today (ONB-23), so only the refusal is tested.
 5. Phone drag is not tested.
+
+## Child lock rec-ui-01.2 (REC-14 step C, 23 Nov 2026)
+
+REC-14 rules 17 and 20: the fake API now gives the Open a role page one `GET /v1/roles/options` answer (`world.options`, schema-checked
+against api/openapi.yaml at load), refuses a route or a missing required query parameter that api/openapi.yaml does not have (today's
+`GET /v1/config` with no `configType`), and checks every rule 14 answer and the `POST /v1/roles` body; any problem fails the test.
+AC-3 follows the new page: Department and Hiring manager start empty, the body sends `department_id`, criteria keys and labels are the
+server's REC-12 defaults. AC-4's Screening-off fixture is `world.options.A.screening`. Nothing else in this card changes.

@@ -64,3 +64,35 @@ See the header of rec-14.2.spec.ts. The ones a builder is most likely to trip on
 
 - The throwaway build that passes every test: /mnt/project-files/onboarding-cards/rec-14/throwaway-build-B.patch. A guide, not the answer.
 - The new route needs its Terraform resource (talent-flow-roles.tf) and a company-walk row (ten-04-rows.json).
+
+## Step C: the Open a role page and the board (tests)
+
+Spec rules 16 to 24 (the UI half of AC-7, AC-8, AC-9, AC-10, AC-12, AC-13). Tests: `rec-14.3.spec.ts`. The fake API is the shared
+Recruitment harness (`support/rec-ui/harness.ts`), changed in the child lock rec-ui-01.2. Review page:
+onboarding-cards/specs/REC-14-step-C-tests-for-review.md.
+
+### Locks
+
+- `acceptance-lock/rec-14.3`: rec-14.3.spec.ts and this note. Step D gets rec-14.4 and on.
+- `acceptance-lock/rec-ui-01.2` (child): the harness reads `world.options` (one `GET /v1/roles/options` answer, checked against
+  api/openapi.yaml `RoleOptions` at load), refuses routes and missing required query parameters the file does not have, checks
+  every rule 14 answer and the `POST /v1/roles` body, and fails a test with `contractErrors`; rec-ui-01 AC-3 and AC-4 follow it.
+- The builder merges both lock branches, never copies them.
+
+### Decisions the tests pin where the spec is silent (D-T-C1 to D-T-C8, for the BA to confirm)
+
+See the header of rec-14.3.spec.ts. In short: placeholders "Choose a department" and "Choose a hiring manager" (the design system
+select's own placeholder); nothing can be sent while the options call is out; W-1 is a danger section message with Try again and no
+form; W-2 and W-3 are text on the form; after a 400 or 409 the options are read once more and the next attempt gets a new key; the
+types come from `npm run api:types` (openapi-typescript on ../api/openapi.yaml into src/app/core/api/openapi.d.ts) and a workflow
+checks the file is current with `git diff --exit-code`; no `HireConfig` is left; a wrongly shaped options answer shows W-1.
+
+### Notes for the builder
+
+- openapi-typescript 7 asks for TypeScript 5 as a peer; pepla-web has TypeScript 6. An `overrides` entry
+  (`"openapi-typescript": { "typescript": "$typescript" }`) lets `npm ci` pass. Throwaway build:
+  /mnt/project-files/onboarding-cards/rec-14/throwaway-build-C.patch (a guide, not the answer).
+- AC-12 on pepla-dev uses E2E_TF as the Admin login and E2E_MANAGER as the seeded hiring manager: the dev acceptance step needs
+  both in its environment (scripts/ci/load-e2e-logins.py already maps them).
+- The real `GET /v1/roles` and `GET /v1/roles/{id}` answers have no `hiring_manager_name` and give criteria as `{ key, label }`;
+  the Roles list fake still sends the name. That drift is outside rule 14 (follow-up F-3).

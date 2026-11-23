@@ -7,7 +7,7 @@ import { FAILING_MODES, type ModulesFake } from './support/mod-02/modules-fake';
 import { navHeadings, navItems, navLabels, openNav } from './support/mod-02/shell-snapshot';
 import { card, chooseStage, dialog, firstName, moveButton, moveFirst, moveTo, readBoard, reason, showStage, stageOptions, dragCardTo, pickerCounts, visibleBlocks, WORDS } from './support/ang-01/gallery';
 import { KIT } from './support/rec-ui/kit';
-import { REASONS, WHO, companyIdIn, drawsIcon, enter, expect, quiet, signInAs, test, watchErrors, withoutRoles, type Cand, type HireFake, type Who } from './support/rec-ui/harness';
+import { DEPT, REASONS, WHO, companyIdIn, depId, drawsIcon, enter, expect, quiet, signInAs, test, watchErrors, withoutRoles, type Cand, type HireFake, type Who } from './support/rec-ui/harness';
 
 /**
  * REC-UI-01 · Roles and the hiring board (Jira NH-227, epic NH-223, amber).
@@ -15,6 +15,11 @@ import { REASONS, WHO, companyIdIn, drawsIcon, enter, expect, quiet, signInAs, t
  * from the contract table of REC-UI-01.md (D-API-1). Where the card is silent, cards/rec-ui-01.md fixes what these tests
  * assume (the builder implements exactly that). Words: only the kit's, the approved lines and the settled U-1, U-2, U-3, U-7.
  * Every test runs at 1280 and 390 wide, unless it says why not. No test calls Bedrock or any paid AI.
+ *
+ * Child lock rec-ui-01.2 (REC-14 step C): the Open a role page reads its choices from one `GET /v1/roles/options` answer
+ * (`world.options`), starts Department and Hiring manager empty, keeps "Open a role" disabled until the four choices are made,
+ * and sends `department_id`; criteria keys and labels are the server's REC-12 defaults; the board's Screening switch is
+ * `world.options.screening`. The fake checks every call and every rule 14 answer against api/openapi.yaml.
  *
  * AC-13 is the pepla-dev check: it cannot run until REC-02, REC-03 and REC-04 are on dev. It is tagged @pepla-dev and stays
  * red there until they are; it does not run in the no-backend run, and it does not hold the lock or the board's merge.
@@ -289,6 +294,13 @@ test.describe('AC-3 Open a role', () => {
     await expect(h1(fx.page)).toHaveText('Open a role');
   }
   const field = (page: Page, label: string) => page.getByLabel(label, { exact: true });
+  /** The words of the chosen option of a select (rec-ui-01.2: a select's value is now an id). */
+  const chosen = (page: Page, label: string) => field(page, label).evaluate((el) => ((el as HTMLSelectElement).selectedOptions?.[0]?.textContent ?? '').trim());
+  /** rec-ui-01.2: Department and Hiring manager start empty, and "Open a role" waits for both. */
+  async function choose(page: Page, department = 'Operations', manager = 'Sipho Ndlovu'): Promise<void> {
+    await pickOption(page, 'Department', department);
+    await pickOption(page, 'Hiring manager', manager);
+  }
 
   test('AC-3 The page has the breadcrumb Roles > Open a role, every field with its approved label, the default criteria, the help line and the two buttons', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
@@ -300,7 +312,7 @@ test.describe('AC-3 Open a role', () => {
     else await expect(crumbs.getByRole('link', { name: 'Roles', exact: true })).toBeVisible();
     await expect(crumbs.locator('li').last()).toHaveText('Open a role');
     for (const label of ['Job title', 'Department', 'Seniority level', 'Hiring manager', 'What the panel scores', 'Panel size']) await expect(field(page, label), label).toBeVisible();
-    await expect(field(page, 'What the panel scores')).toHaveValue('Technical ability, Communication, Cultural fit, Problem solving');
+    await expect(field(page, 'What the panel scores')).toHaveValue('Technical, Communication, Cultural fit, Problem solving');
     await seeLine(page, HELP_LINE);
     await expect(page.getByRole('button', { name: 'Open a role', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible();
@@ -312,12 +324,12 @@ test.describe('AC-3 Open a role', () => {
   test('AC-3 Levels, departments and the default criteria are the company settings\' (another company setting shows other choices), and the hiring managers are the picker\'s answer only', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
     const { page, hire } = fx;
-    hire!.world.config.A = {
-      seniority_levels: [{ key: 'TRAINEE', label: 'Trainee', order: 1 }, { key: 'LEAD', label: 'Lead', order: 2 }],
+    hire!.world.options.A = {
+      levels: [{ key: 'TRAINEE', label: 'Trainee', order: 1 }, { key: 'LEAD', label: 'Lead', order: 2 }],
       criteria: [{ key: 'SAFETY', label: 'Safety record' }, { key: 'ROUTES', label: 'Route knowledge' }],
-      departments: ['Fleet', 'Stores'], screening: true,
+      departments: [{ id: depId(31), name: 'Fleet' }, { id: depId(32), name: 'Stores' }], panel_size_by_level: { TRAINEE: 2, LEAD: 5 }, screening: true,
+      hiring_managers: [{ id: 'hm-zodwa', name: 'Zodwa Hlatshwayo' }, { id: 'hm-bheki', name: 'Bheki Ntuli' }],
     };
-    hire!.world.managers.A = [{ id: 'hm-zodwa', name: 'Zodwa Hlatshwayo' }, { id: 'hm-bheki', name: 'Bheki Ntuli' }];
     await openForm(fx);
     await expect(field(page, 'What the panel scores')).toHaveValue('Safety record, Route knowledge');
     const options = async (label: string) => (await field(page, label).locator('option').allTextContents()).map((t) => t.trim()).filter(Boolean);
@@ -326,8 +338,7 @@ test.describe('AC-3 Open a role', () => {
     expect(await options('Department')).toEqual(expect.arrayContaining(['Fleet', 'Stores']));
     const managers = await options('Hiring manager');
     expect(managers.filter((m) => !/^(choose|select)/i.test(m)), 'only the picker\'s names').toEqual(['Zodwa Hlatshwayo', 'Bheki Ntuli']);
-    expect(hire!.to('GET', /\/v1\/hiring-managers$/).length, 'the picker was read').toBeGreaterThanOrEqual(1);
-    expect(hire!.to('GET', /\/v1\/config$/).length, 'the settings were read').toBeGreaterThanOrEqual(1);
+    expect(hire!.to('GET', /\/v1\/roles\/options$/).length, 'the choices were read (rec-ui-01.2: one options answer)').toBeGreaterThanOrEqual(1);
   });
 
   test('AC-3 Submitting sends the contract body once with one Idempotency-Key and no company, then opens the new role\'s board', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
@@ -345,8 +356,8 @@ test.describe('AC-3 Open a role', () => {
     const posts = hire!.to('POST', /\/v1\/roles$/);
     expect(posts, 'exactly one POST').toHaveLength(1);
     expect(posts[0]!.body, 'the contract body').toEqual({
-      job_title: 'Dispatch coordinator', department: 'Finance', level: 'SENIOR', hiring_manager_id: 'hm-farai',
-      criteria: ['TECHNICAL', 'COMMUNICATION', 'CULTURAL_FIT', 'PROBLEM_SOLVING'], panel_size: 4,
+      job_title: 'Dispatch coordinator', department_id: DEPT.finance.id, level: 'SENIOR', hiring_manager_id: 'hm-farai',
+      criteria: ['technical', 'communication', 'culturalFit', 'problemSolving'], panel_size: 4,
     });
     expect(posts[0]!.idempotencyKey, 'one Idempotency-Key').toMatch(/^[\w-]{8,}$/);
     expect(companyIdIn(posts[0]!), 'no company in the request').toEqual([]);
@@ -357,16 +368,18 @@ test.describe('AC-3 Open a role', () => {
     const { page, hire } = fx;
     await openForm(fx);
     await field(page, 'Job title').fill('Route planner');
-    await field(page, 'What the panel scores').fill('Technical ability, Communication');
+    await choose(page);
+    await field(page, 'What the panel scores').fill('Technical, Communication');
     await page.getByRole('button', { name: 'Open a role', exact: true }).click();
     await expect(page).toHaveURL(/role=role-new-1/);
     await page.goto('/hire/roles/new');
     await field(page, 'Job title').fill('Route planner two');
+    await choose(page);
     await page.getByRole('button', { name: 'Open a role', exact: true }).click();
     await expect(page).toHaveURL(/role=role-new-2/);
     const posts = hire!.to('POST', /\/v1\/roles$/);
     expect(posts).toHaveLength(2);
-    expect((posts[0]!.body as { criteria: string[] }).criteria).toEqual(['TECHNICAL', 'COMMUNICATION']);
+    expect((posts[0]!.body as { criteria: string[] }).criteria).toEqual(['technical', 'communication']);
     expect(posts[0]!.idempotencyKey).not.toBe(posts[1]!.idempotencyKey);
   });
 
@@ -374,7 +387,9 @@ test.describe('AC-3 Open a role', () => {
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
     const { page, hire } = fx;
     await openForm(fx);
-    await page.getByRole('button', { name: 'Open a role', exact: true }).click();
+    await choose(page);
+    // rec-ui-01.2: the button is disabled without a title, so a press may not reach it at all.
+    await page.getByRole('button', { name: 'Open a role', exact: true }).click({ force: true, timeout: 2000 }).catch(() => undefined);
     await page.waitForTimeout(500);
     expect(hire!.to('POST', /\/v1\/roles$/), 'no request').toHaveLength(0);
     await expect(page).toHaveURL(/\/hire\/roles\/new$/);
@@ -385,6 +400,7 @@ test.describe('AC-3 Open a role', () => {
     const { page, hire } = fx;
     await openForm(fx);
     await field(page, 'Job title').fill('Fleet clerk');
+    await choose(page);
     hire!.refuse({ method: 'POST', path: /\/v1\/roles$/, hold: true });
     const button = page.getByRole('button', { name: 'Open a role', exact: true });
     await button.click();
@@ -397,8 +413,8 @@ test.describe('AC-3 Open a role', () => {
   });
 
   const FAIL: Array<[string, { status?: number; abort?: boolean; body?: unknown }]> = [
-    ['INVALID_HIRING_MANAGER', { status: 400, body: { error: 'Invalid', code: 'INVALID_HIRING_MANAGER' } }],
-    ['a field error', { status: 400, body: { error: 'Invalid', code: 'INVALID_FIELD' } }], ['a 500', { status: 500 }], ['a 403', { status: 403, body: { error: 'Forbidden' } }],
+    ['INVALID_HIRING_MANAGER', { status: 400, body: { error: 'Bad request', code: 'INVALID_HIRING_MANAGER' } }],
+    ['a field error', { status: 400, body: { error: 'Bad request', code: 'INVALID_FIELD' } }], ['a 500', { status: 500, body: { error: 'Something went wrong' } }], ['a 403', { status: 403, body: { error: 'Forbidden' } }],
   ];
   for (const [label, how] of FAIL) {
     test(`AC-3 ${label} keeps the form filled and shows the generic save failure; nothing is created`, async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
@@ -406,7 +422,7 @@ test.describe('AC-3 Open a role', () => {
       const { page, hire } = fx;
       await openForm(fx);
       await field(page, 'Job title').fill('Stores clerk');
-      await pickOption(page, 'Department', 'Sales');
+      await choose(page, 'Operations');
       await pickOption(page, 'Seniority level', 'Junior');
       await field(page, 'Panel size').fill('2');
       hire!.refuse({ method: 'POST', path: /\/v1\/roles$/, ...how });
@@ -414,7 +430,7 @@ test.describe('AC-3 Open a role', () => {
       await seeLine(page, SAVE_FAIL);
       await expect(page).toHaveURL(/\/hire\/roles\/new$/);
       await expect(field(page, 'Job title')).toHaveValue('Stores clerk');
-      await expect(field(page, 'Department')).toHaveValue(/Sales/);
+      await expect.poll(() => chosen(page, 'Department')).toBe('Operations');
       await expect(field(page, 'Panel size')).toHaveValue('2');
       expect(hire!.world.roles.filter((r) => r.job_title === 'Stores clerk'), 'no role was made').toHaveLength(0);
     });
@@ -425,6 +441,7 @@ test.describe('AC-3 Open a role', () => {
     const { page, hire } = fx;
     await openForm(fx);
     await field(page, 'Job title').fill('Depot manager');
+    await choose(page);
     hire!.refuse({ method: 'POST', path: /\/v1\/roles$/, abort: true });
     await page.getByRole('button', { name: 'Open a role', exact: true }).click();
     await seeLine(page, SAVE_FAIL);
@@ -514,7 +531,7 @@ test.describe('AC-4 The board', () => {
   test('AC-4 With Screening off the board has four columns (no Screening) and the picker has no Screening', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
     const { hire } = fx;
-    hire!.world.config.A.screening = false;
+    hire!.world.options.A.screening = false;
     for (const c of hire!.world.cands.filter((x) => x.stage === 'SCREENING')) c.stage = 'APPLIED';
     await asRecruiter(fx);
     const scope = await openBoard(fx);
@@ -1127,6 +1144,9 @@ test.describe('AC-9 Company B and C', () => {
     await openRoles(fx);
     await either(page, 'Open a role').first().click();
     await page.getByLabel('Job title', { exact: true }).fill('Company check');
+    // rec-ui-01.2: Department and Hiring manager start empty.
+    await pickOption(page, 'Department', 'Operations');
+    await pickOption(page, 'Hiring manager', 'Sipho Ndlovu');
     await page.getByRole('button', { name: 'Open a role', exact: true }).click();
     await expect(page).toHaveURL(/role=role-new-1/);
     const scope = await openBoard(fx);

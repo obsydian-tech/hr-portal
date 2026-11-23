@@ -4,6 +4,7 @@ import type { CognitoFake, FakeAccount } from '../cognito-fake';
 import { EmployeesFake } from '../employees-fake';
 import { FAKE, ON_DEV, expect, test as base, type SignInPage } from '../fixtures';
 import { ModulesFake, isModulesCall, type Company } from '../mod-02/modules-fake';
+import { answerSchema, checker, operation, readDoc, type Doc } from '../rec-14/schema';
 
 /**
  * The shared harness of the Recruitment screen cards (REC-UI-01 to REC-UI-06; Jira NH-227, epic NH-223).
@@ -17,6 +18,13 @@ import { ModulesFake, isModulesCall, type Company } from '../mod-02/modules-fake
  *     the stage move, Not hired (and confirm / cancel), old-system rows, hiring managers and the company settings.
  *     It answers any host whose path matches; it needs a sign-in token; it records every call it gets;
  *   - small helpers: sign in as a person, the console-error watcher, the "no company id" text check.
+ *
+ * REC-14 rule 17 (child lock rec-ui-01.2): the fake cannot drift from api/openapi.yaml.
+ *   - every request to a method and path the file does not have, or without a `required` query parameter, is refused
+ *     and written to `contractErrors` (so today's `GET /v1/config` with no `configType` fails here as it fails for real);
+ *   - every answer on a rule 14 route (CONTRACT_ROUTES) and the body of `POST /v1/roles` are checked against the file;
+ *   - the choices of the Open a role page are one `GET /v1/roles/options` answer (`world.options`), checked at load;
+ *   - a test ends red when `contractErrors` is not empty (the fixture checks it after the test).
  *
  * Nothing here calls Bedrock or any paid AI. Nothing here knows a screen: screens are found by their words.
  */
@@ -79,35 +87,48 @@ export type Cand = {
   mine?: boolean; not_hired_reason?: string; pending?: Pending; old_system?: boolean; applied_at?: string;
 };
 export type Role = {
-  role_id: string; job_title: string; department: string; level: string; hiring_manager_id: string; hiring_manager_name: string;
+  role_id: string; job_title: string; department: string; department_id?: string; level: string; hiring_manager_id: string; hiring_manager_name: string;
   opened_at: string; status: 'OPEN' | 'CLOSED'; criteria: string[]; panel_size: number; company: Co;
 };
 export type Manager = { id: string; name: string };
 
-/** The company settings answer this card decided (the table says only "levels, criteria, screening switch"; cards/rec-ui-01.md). */
-export type Config = {
-  seniority_levels: Array<{ key: string; label: string; order: number }>;
+/** The one answer of `GET /v1/roles/options` (api/openapi.yaml `RoleOptions`, REC-14 rule 10). */
+export type Options = {
+  departments: Array<{ id: string; name: string }>;
+  levels: Array<{ key: string; label: string; order: number }>;
   criteria: Array<{ key: string; label: string }>;
-  departments: string[];
+  panel_size_by_level: Record<string, number>;
   screening: boolean;
+  hiring_managers: Manager[];
+};
+
+/** A department id as the server makes it: dep_ and 26 characters of Crockford base 32 (`Department.id` pattern). */
+export const depId = (n: number): string => `dep_01JDC${String(n).padStart(21, '0')}`;
+/** The REC-12 defaults the server falls back on (lambda/shared/recruitment-settings.mjs DEFAULTS). */
+export const DEFAULT_LEVELS = [{ key: 'JUNIOR', label: 'Junior', order: 1 }, { key: 'MID', label: 'Mid', order: 2 }, { key: 'SENIOR', label: 'Senior', order: 3 }];
+export const DEFAULT_CRITERIA = [{ key: 'technical', label: 'Technical' }, { key: 'communication', label: 'Communication' }, { key: 'culturalFit', label: 'Cultural fit' }, { key: 'problemSolving', label: 'Problem solving' }];
+export const DEFAULT_PANEL = { JUNIOR: 2, MID: 3, SENIOR: 4 };
+/** Company A's departments (the Q-1 four and Fleet), by name, as the options answer lists them. */
+export const DEPT = {
+  engineering: { id: depId(1), name: 'Engineering' }, finance: { id: depId(2), name: 'Finance' }, fleet: { id: depId(3), name: 'Fleet' },
+  operations: { id: depId(4), name: 'Operations' }, people: { id: depId(5), name: 'People' },
+  dispatchB: { id: depId(11), name: 'Dispatch' }, storesB: { id: depId(12), name: 'Stores' }, bakeryC: { id: depId(21), name: 'Bakery' },
 };
 
 const DAY = 86_400_000;
 export const iso = (ms: number) => new Date(ms).toISOString();
 
-export type World = { now: number; roles: Role[]; cands: Cand[]; managers: Record<Co, Manager[]>; config: Record<Co, Config> };
+export type World = { now: number; roles: Role[]; cands: Cand[]; options: Record<Co, Options> };
 
 /** The kit's data (recruitment.html at the pinned design system ref), with times counted from `now`. Company A has three roles. */
 export function seed(now: number): World {
-  const cfg = (screening: boolean): Config => ({
-    seniority_levels: [{ key: 'JUNIOR', label: 'Junior', order: 1 }, { key: 'MID', label: 'Mid', order: 2 }, { key: 'SENIOR', label: 'Senior', order: 3 }],
-    criteria: [{ key: 'TECHNICAL', label: 'Technical ability' }, { key: 'COMMUNICATION', label: 'Communication' }, { key: 'CULTURAL_FIT', label: 'Cultural fit' }, { key: 'PROBLEM_SOLVING', label: 'Problem solving' }],
-    departments: ['Operations', 'Finance', 'Sales', 'Human resources'],
-    screening,
+  const opts = (departments: Options['departments'], hiring_managers: Manager[]): Options => ({
+    departments, levels: DEFAULT_LEVELS.map((l) => ({ ...l })), criteria: DEFAULT_CRITERIA.map((c) => ({ ...c })), panel_size_by_level: { ...DEFAULT_PANEL }, screening: true,
+    hiring_managers: [...hiring_managers].sort((x, y) => x.name.toLowerCase().localeCompare(y.name.toLowerCase())),
   });
   const role = (company: Co, id: string, title: string, dept: string, level: string, hm: Manager, opened: string): Role => ({
     role_id: id, job_title: title, department: dept, level, hiring_manager_id: hm.id, hiring_manager_name: hm.name, opened_at: opened, status: 'OPEN',
-    criteria: ['TECHNICAL', 'COMMUNICATION', 'CULTURAL_FIT', 'PROBLEM_SOLVING'], panel_size: 3, company,
+    criteria: DEFAULT_CRITERIA.map((x) => x.key), panel_size: 3, company,
   });
   const managers: Record<Co, Manager[]> = {
     A: [{ id: 'hm-sipho', name: 'Sipho Ndlovu' }, { id: 'hm-farai', name: 'Farai Chikwanha' }, { id: 'hm-precious', name: 'Precious Mwale' }],
@@ -147,7 +168,67 @@ export function seed(now: number): World {
     c('cand-b1', 'Hlengiwe Sibiya', 'APPLIED', 'role-b-dispatch'), c('cand-b2', 'Mandla Cele', 'INTERVIEW', 'role-b-dispatch', { interviews_done: 1, interviews_required: 2 }),
     c('cand-c1', 'Palesa Mofokeng', 'APPLIED', 'role-c-baker'),
   ];
-  return { now, roles, cands, managers, config: { A: cfg(true), B: cfg(true), C: cfg(true) } };
+  const options: Record<Co, Options> = {
+    A: opts([DEPT.engineering, DEPT.finance, DEPT.fleet, DEPT.operations, DEPT.people], managers.A),
+    B: opts([DEPT.dispatchB, DEPT.storesB], managers.B),
+    C: opts([DEPT.bakeryC], managers.C),
+  };
+  // Fake answers are built from a fixture that is itself checked against the file (rule 17).
+  for (const [co, o] of Object.entries(options)) {
+    const problems = contract().check(contract().schemas('RoleOptions'), o);
+    if (problems.length) throw new Error(`harness: the options fixture of company ${co} does not match api/openapi.yaml RoleOptions: ${problems.join('; ')}`);
+  }
+  return { now, roles, cands, options };
+}
+
+// ---------------------------------------------------------------- the contract (REC-14 rule 17)
+
+/** The routes of REC-14 rule 14: every answer the fake gives on them is checked against api/openapi.yaml. */
+export const CONTRACT_ROUTES = ['GET /v1/roles/options', 'GET /v1/company/departments', 'POST /v1/admin/company/departments', 'PATCH /v1/admin/company/departments/{id}', 'POST /v1/roles'];
+
+type Contract = { doc: Doc; check: (schema: unknown, value: unknown) => string[]; schemas: (name: string) => unknown };
+let CONTRACT: Contract | null = null;
+/** api/openapi.yaml, read once per worker. */
+export function contract(): Contract {
+  if (!CONTRACT) {
+    const doc = readDoc();
+    const c = checker(doc);
+    CONTRACT = { doc, check: (schema, value) => c.check(schema, value), schemas: (name) => ({ $ref: `#/components/schemas/${name}` }) };
+  }
+  return CONTRACT;
+}
+
+/** The file's route key ("GET /v1/roles/{id}") for a request, or null when the file has no such method and path. */
+export function routeOf(method: string, pathname: string): string | null {
+  const path = pathname.slice(Math.max(0, pathname.indexOf('/v1/')));
+  const paths = Object.keys(contract().doc.paths ?? {});
+  const fits = (t: string) => new RegExp(`^${t.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[^}]+\}/g, '[^/]+')}$`).test(path);
+  // A written path ("/v1/roles/options") wins over a template ("/v1/roles/{id}"), as API Gateway does.
+  const has = (t: string) => !!operation(contract().doc, `${method} ${t}`);
+  const match = paths.find((t) => !t.includes('{') && t === path && has(t)) ?? paths.find((t) => t.includes('{') && fits(t) && has(t));
+  return match ? `${method} ${match}` : null;
+}
+
+/** What is wrong with a request in the file's eyes: no such route, or a `required` query parameter missing. Empty when it is fine. */
+export function requestProblems(method: string, pathname: string, query: Record<string, string>): string[] {
+  const route = routeOf(method, pathname);
+  if (!route) return [`${method} ${pathname}: api/openapi.yaml has no such route`];
+  const params = (operation(contract().doc, route)?.parameters ?? []) as Array<{ name: string; in: string; required?: boolean }>;
+  return params.filter((p) => p.in === 'query' && p.required && !(p.name in query)).map((p) => `${route}: the required query parameter ${p.name} is missing`);
+}
+
+/** What is wrong with an answer on a rule 14 route (empty when it passes, or when the route is not one of them). */
+export function answerProblems(route: string, status: number, body: unknown): string[] {
+  if (!CONTRACT_ROUTES.includes(route)) return [];
+  const schema = answerSchema(contract().doc, route, status);
+  if (!schema) return [`${route} ${status}: api/openapi.yaml describes no such answer`];
+  return contract().check(schema, body).map((p) => `${route} ${status}: ${p}`);
+}
+
+/** What is wrong with the body of `POST /v1/roles` (the request side of rule 14). */
+export function roleBodyProblems(body: unknown): string[] {
+  const schema = operation(contract().doc, 'POST /v1/roles')?.requestBody?.content?.['application/json']?.schema;
+  return contract().check(schema, body).map((p) => `POST /v1/roles body: ${p}`);
 }
 
 /** An empty company: no roles at all (the empty state of the Roles page). */
@@ -172,11 +253,13 @@ const CORS = {
   'access-control-allow-methods': 'GET, POST, PUT, OPTIONS',
 };
 const JWT = /^Bearer eyJ[\w-]+\.eyJ[\w-]+\.[\w-]*$/;
-const ROUTES = /\/v1\/(roles|candidates|hiring-managers|config)(\/|$)/;
+const ROUTES = /\/v1\/(roles|candidates|hiring-managers|config|company\/departments|admin\/company\/departments)(\/|$)/;
 export const isHireCall = (url: URL): boolean => ROUTES.test(url.pathname);
 
 export class HireFake {
   readonly calls: Call[] = [];
+  /** Requests and answers that break api/openapi.yaml (rule 17). The fixture fails the test when this is not empty. */
+  readonly contractErrors: string[] = [];
   world: World;
   /** A test shows that the tab numbers come from the answer, not from the cards the page holds. */
   countsOverride: Partial<Record<'all' | 'mine' | 'overdue' | 'due_soon' | 'not_hired', number>> | null = null;
@@ -249,12 +332,19 @@ export class HireFake {
     }
     if (!authorization || !JWT.test(authorization)) return this.send(route, call, 401, { message: 'Unauthorized' });
     if (!who) return this.send(route, call, 403, { error: 'Forbidden' });
+    const wrong = requestProblems(call.method, call.path, call.query);
+    if (wrong.length) {
+      this.contractErrors.push(...wrong);
+      return this.send(route, call, wrong[0]!.includes('no such route') ? 404 : 400, wrong[0]!.includes('no such route') ? { message: 'Not Found' } : { error: 'Bad request' });
+    }
     const [status, answer] = this.route(call, who);
     return this.send(route, call, status, answer);
   }
 
   private send(route: Route, call: Call, status: number, body: unknown): Promise<void> {
     call.status = status;
+    const key = routeOf(call.method, call.path);
+    if (key) this.contractErrors.push(...answerProblems(key, status, body));
     return route.fulfill({ status, headers: { ...CORS, 'cache-control': 'private, no-store', 'content-type': 'application/json' }, body: JSON.stringify(body) });
   }
 
@@ -268,30 +358,53 @@ export class HireFake {
     const { method, path, query } = call;
     let m: RegExpExecArray | null;
 
+    // Before /v1/roles/{id}: a written path wins over a template.
+    if (path.endsWith('/v1/roles/options') && method === 'GET') {
+      if (!recruiter) return [403, { error: 'Forbidden' }];
+      return [200, w.options[who.company]];
+    }
     if (path.endsWith('/v1/roles') && method === 'GET') {
       if (!recruiter) return forbidden;
       return [200, { roles: w.roles.filter((r) => mine(r) && r.status === (query['status'] ?? 'OPEN')).map((r) => this.roleRow(r)) }];
     }
     if (path.endsWith('/v1/roles') && method === 'POST') {
       if (!recruiter) return forbidden;
-      if (!call.idempotencyKey) return [400, { error: 'Idempotency-Key required', code: 'IDEMPOTENCY_KEY_REQUIRED' }];
+      if (!call.idempotencyKey) return [400, { error: 'Bad request', code: 'IDEMPOTENCY_KEY_REQUIRED' }];
       // A re-sent key returns the first answer and never writes again; another caller's key is a different key.
       const memo = `${who.company}|${who.email}|POST roles|${call.idempotencyKey}`;
       const seen = this.keyed.get(memo);
       if (seen) return [seen.status, seen.body];
+      this.contractErrors.push(...roleBodyProblems(call.body));
       const b = (call.body ?? {}) as Record<string, unknown>;
-      const hm = w.managers[who.company].find((x) => x.id === b['hiring_manager_id']);
-      if (typeof b['job_title'] !== 'string' || !b['job_title'].trim() || typeof b['department'] !== 'string' || typeof b['level'] !== 'string') return [400, { error: 'Invalid', code: 'INVALID_FIELD' }];
-      if (!hm) return [400, { error: 'Invalid', code: 'INVALID_HIRING_MANAGER' }];
-      const cfg = w.config[who.company];
+      const o = w.options[who.company];
+      const bad = (code: string, field?: string): [number, unknown] => [400, { error: 'Bad request', code, ...(field ? { field } : {}) }];
+      // The server's checks (REC-14 rule 11, REC-04): what the options answer offers is what is accepted, nothing else.
+      if (typeof b['job_title'] !== 'string' || !b['job_title'].trim()) return bad('INVALID_FIELD', 'job_title');
+      const dep = o.departments.find((d) => d.id === b['department_id']);
+      if (!dep) return bad('INVALID_DEPARTMENT');
+      const level = o.levels.find((l) => l.key === b['level']);
+      if (!level) return bad('INVALID_FIELD', 'level');
+      const hm = o.hiring_managers.find((x) => x.id === b['hiring_manager_id']);
+      if (!hm) return bad('INVALID_HIRING_MANAGER');
+      const crit = Array.isArray(b['criteria']) ? (b['criteria'] as unknown[]).map((c) => {
+        const d = o.criteria.find((x) => x.key === c);
+        return d ? { ...d } : { key: String(c).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'), label: String(c).trim() };
+      }) : o.criteria.map((x) => ({ ...x }));
+      const panel = typeof b['panel_size'] === 'number' ? b['panel_size'] : o.panel_size_by_level[level.key] ?? 3;
       const role: Role = {
-        role_id: `role-new-${this.nextRole++}`, job_title: b['job_title'].trim(), department: b['department'] as string, level: b['level'] as string,
+        role_id: `role-new-${this.nextRole++}`, job_title: b['job_title'].trim(), department: dep.name, department_id: dep.id, level: level.key,
         hiring_manager_id: hm.id, hiring_manager_name: hm.name, opened_at: iso(w.now), status: 'OPEN',
-        criteria: Array.isArray(b['criteria']) ? (b['criteria'] as string[]) : cfg.criteria.map((x) => x.key), panel_size: typeof b['panel_size'] === 'number' ? b['panel_size'] : 3, company: who.company,
+        criteria: crit.map((x) => x.key), panel_size: panel, company: who.company,
       };
       w.roles.push(role);
-      this.keyed.set(memo, { status: 201, body: { ...this.roleRow(role), criteria: role.criteria, panel_size: role.panel_size } });
-      return [201, { ...this.roleRow(role), criteria: role.criteria, panel_size: role.panel_size }];
+      // The answer is the real one's shape (api/openapi.yaml Role), not the list row this fake uses elsewhere.
+      const answer = {
+        role_id: role.role_id, job_title: role.job_title, department_id: dep.id, department: dep.name, level: role.level, hiring_manager_id: hm.id,
+        criteria: crit, panel_size: panel, status: 'OPEN', opened_at: role.opened_at, opened_by: this.subOf(who.email) ?? 'unknown', legacy: false,
+        candidate_count: 0, overdue_count: 0, due_soon_count: 0,
+      };
+      this.keyed.set(memo, { status: 201, body: answer });
+      return [201, answer];
     }
     if ((m = /\/v1\/roles\/([^/]+)$/.exec(path)) && method === 'GET') {
       if (!recruiter) return forbidden;
@@ -375,13 +488,18 @@ export class HireFake {
       c.stage = 'NOT_HIRED'; c.not_hired_reason = b.reason;
       return [200, this.candRow(c)];
     }
+    if (path.endsWith('/v1/company/departments') && method === 'GET') {
+      if (!who.groups.some((g) => ['hr_staff', 'admin'].includes(g))) return [403, { error: 'Forbidden' }];
+      return [200, { version: 1, departments: w.options[who.company].departments.map((d) => ({ ...d, status: 'ACTIVE' })) }];
+    }
+    // The old routes keep their real answers (getHiringManagers, manageTalentFlowConfig); the new page calls neither.
     if (path.endsWith('/v1/hiring-managers') && method === 'GET') {
       if (!recruiter) return forbidden;
-      return [200, { hiring_managers: w.managers[who.company].map((x) => ({ id: x.id, name: x.name })) }];
+      return [200, { hiringManagers: w.options[who.company].hiring_managers.map((x) => ({ sub: x.id, email: `${x.id}@example.org`, givenName: x.name.split(' ')[0], familyName: x.name.split(' ').slice(1).join(' '), name: x.name })) }];
     }
     if (path.endsWith('/v1/config') && method === 'GET') {
       if (!recruiter) return forbidden;
-      return [200, w.config[who.company]];
+      return [200, { data: {} }];
     }
     return [404, { message: 'Not Found' }];
   }
@@ -456,6 +574,7 @@ export const test = base.extend<Fixtures>({
       const fake = new HireFake((email) => cognito!.subOf(email), NOW);
       await fake.install(context);
       await use(fake);
+      expect(fake.contractErrors, 'every request and fake answer matches api/openapi.yaml (REC-14 rule 17)').toEqual([]);
     },
     { auto: true },
   ],

@@ -19,6 +19,7 @@ import {
 } from './support/onb-19/words';
 import { A, B, EMP, MAIL, SUB, askAs, bodyOf, describeRun, dynamoCalls, dynamoOps, employeeClaims, hrSees, stored, withRow } from './support/onb-19/world';
 import { jwtAuthorizer } from './support/ten-02/lambda-harness';
+import { withoutGeneratedApiTypes } from './support/generated-api-types';
 
 /**
  * ONB-19 · Where am I: four steps (Jira NH-177, epic NH-150). Amber.
@@ -610,7 +611,7 @@ test.describe('ONB-19 Where am I: four steps', () => {
 
     // pepla-web: no stage-to-step table anywhere in src, as ONB-09 AC-5.
     const found: string[] = [];
-    for (const f of walk(join(WEB, 'src')).filter((p) => /\.(ts|html|scss|css|json)$/.test(p))) {
+    for (const f of withoutGeneratedApiTypes(walk(join(WEB, 'src'))).filter((p) => /\.(ts|html|scss|css|json)$/.test(p))) {
       const body = readFileSync(f, 'utf8');
       for (const word of ['TRAINING', 'ONBOARDED', 'DOCUMENTS_SUBMITTED', 'stepOfStage']) if (body.includes(word)) found.push(`${rel(f)}: ${word}`);
     }

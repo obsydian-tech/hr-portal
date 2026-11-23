@@ -40,6 +40,7 @@ import { BAD_BODY, CHANGED, ME_COMPANY, NOT_EMPLOYEE, NOT_FOUND, type MeFake } f
 import { NEXT_VERSION, NOTICE_2026_11_1, NOTICE_NEXT, PINNED_SHA256, VERSION, canonical, filled, sha256Hex, type Notice } from './support/onb-05/notice';
 import { policyOf, resourcesNamed } from './support/onb-15/tf-policy';
 import { InviteFake } from './support/onb-17/invite-fake';
+import { withoutGeneratedApiTypes } from './support/generated-api-types';
 
 /**
  * ONB-05 · Privacy notice and consent (Jira NH-174, epic NH-150). Red.
@@ -1064,7 +1065,7 @@ test.describe('ONB-05 Privacy notice and consent', () => {
     const startDir = join(app, 'features', 'start');
     const mine = [
       ...walk(startDir).filter((f) => /\.(ts|html)$/.test(f)),
-      ...walk(join(WEB, 'src')).filter((f) => /\.ts$/.test(f) && !f.startsWith(startDir) && /\/v1\/me\b/.test(readFileSync(f, 'utf8'))),
+      ...withoutGeneratedApiTypes(walk(join(WEB, 'src'))).filter((f) => /\.ts$/.test(f) && !f.startsWith(startDir) && /\/v1\/me\b/.test(readFileSync(f, 'utf8'))),
       join(REPO, 'lambda', 'getMyStart', 'index.mjs'),
       join(REPO, 'lambda', 'recordConsent', 'index.mjs'),
       join(REPO, 'lambda', 'shared', 'privacy-notice.mjs'),

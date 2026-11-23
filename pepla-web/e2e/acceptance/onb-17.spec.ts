@@ -6,6 +6,7 @@ import type { Locator, Page, TestInfo } from '@playwright/test';
 import { COGNITO_ERRORS, type FakeAccount } from './support/cognito-fake';
 import { HR_HOME, ON_DEV, ON_SIGN_IN, expect, expectAnnounced, expectNoSession, test as base, type Login, type SignInPage } from './support/fixtures';
 import { InviteFake, MAX_REFUSED, TOO_MANY, newToken, type Invite } from './support/onb-17/invite-fake';
+import { withoutGeneratedApiTypes } from './support/generated-api-types';
 
 /**
  * ONB-17 · Set your password, and an expired link (Jira NH-171).
@@ -807,7 +808,7 @@ test.describe('ONB-17 Set your password, and an expired link', () => {
     // The card's own new files: found by what they do, among the files that were not there at ae7bba4.
     const before = new Set(readFileSync(join(HERE, 'support', 'onb-17', 'src-files.ae7bba4.txt'), 'utf8').split('\n').filter(Boolean));
     const added = src.filter((f) => !before.has(rel(f)));
-    const mine = added.filter((f) => /\/v1\/invites\/|Set your password|This link has expired|Your onboarding steps will show here/.test(readFileSync(f, 'utf8')));
+    const mine = withoutGeneratedApiTypes(added).filter((f) => /\/v1\/invites\/|Set your password|This link has expired|Your onboarding steps will show here/.test(readFileSync(f, 'utf8')));
     expect(mine.length, 'the card adds files for the page and its invite calls').toBeGreaterThan(0);
     for (const f of mine) {
       const text = readFileSync(f, 'utf8');

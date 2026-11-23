@@ -5,7 +5,7 @@ import {
   PpPipelineBoard, PpRadioGroup, PpSearch, PpSectionMessage, PpSectionMessageActions, PpTableDirective, PpTableWrap, PpTabs,
   type PipelineCard, type PipelineCardAction, type PipelineMoveRequest, type PipelineStage, type Tab,
 } from '../../ds';
-import { HireApi, newKey, type HireCandidate, type HireConfig, type HireCounts, type HireRole } from './hire-api';
+import { HireApi, newKey, optionsOf, type HireCandidate, type HireCounts, type HireRole } from './hire-api';
 import { ADD_CANDIDATE_READY } from './hire-flags';
 
 const SAVE_FAIL = 'Your change could not be saved. Try again.';
@@ -117,13 +117,14 @@ export class BoardPage implements OnInit {
 
   protected async load() {
     this.status.set('loading');
-    const [role, cfg] = await Promise.all([
+    const [role, opts] = await Promise.all([
       this.api.call<HireRole>('GET', `/v1/roles/${encodeURIComponent(this.roleId)}`),
-      this.api.call<HireConfig>('GET', '/v1/config'),
+      this.api.call('GET', '/v1/roles/options').then(optionsOf),
     ]);
     if (role?.status === 404) return this.status.set('notfound');
     if (!role || role.status !== 200) return this.status.set('failed');
-    this.screening = cfg?.body?.screening !== false;
+    // A failed options call keeps all five columns and shows no error line (REC-14 rule 24).
+    this.screening = opts?.screening !== false;
     await this.reload();
     // The header and the board appear together: the role is shown only once its candidates are in.
     if (this.status() === 'ready') this.role.set(role.body);
