@@ -6,6 +6,7 @@ import { DocumentsService } from '../../core/documents/documents.service';
 import { RegistrationService } from '../../core/employees/registration.service';
 import { navEntries, sectionsFor } from '../../core/nav';
 import { ModulesService } from '../../core/modules.service';
+import { Launcher } from '../../core/launcher/launcher';
 import { rolesOf } from '../../core/roles';
 import { CHAT_PAGE, ChatService } from '../hr-assistant/chat.service';
 import { HrChat } from '../hr-assistant/assistant-panel';
@@ -17,7 +18,7 @@ import { ChatDialogs } from '../hr-assistant/chat-dialogs';
  */
 @Component({
   selector: 'app-hr-shell',
-  imports: [RouterOutlet, PpAppShell, PpChatList, PpChatList, PpSideNavigation, PpTopNavigation, PpDropdownMenu, PpMenuSection, PpMenuItem, HrChat, ChatDialogs],
+  imports: [RouterOutlet, PpAppShell, PpChatList, PpChatList, PpSideNavigation, PpTopNavigation, PpDropdownMenu, PpMenuSection, PpMenuItem, HrChat, ChatDialogs, Launcher],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <pp-app-shell>
@@ -26,7 +27,7 @@ import { ChatDialogs } from '../hr-assistant/chat-dialogs';
           (newChat)="chat.newChat()" (openChat)="chat.openChat($event)" (retry)="chat.loadList()" (deleteAll)="chat.confirmAll.set(true)" />
       }
       @else { <pp-side-navigation company="HR" [sections]="sections()" [(open)]="menuOpen" /> }
-      <pp-top-navigation home="/hr" [userName]="userName()" [menuOpen]="menuOpen()" [accountOpen]="accountOpen()" [showAsk]="true" [waiting]="chat.waiting()" [askOpen]="askOpen()" (ask)="openAsk()" (menu)="menuOpen.set(!menuOpen())" (account)="accountOpen.set(!accountOpen())" />
+      <pp-top-navigation home="/hr" [userName]="userName()" [menuOpen]="menuOpen()" [accountOpen]="accountOpen()" [showLauncher]="true" [launcherOpen]="launcherOpen()" (launcher)="launcherOpen.set(!launcherOpen())" [showAsk]="true" [waiting]="chat.waiting()" [askOpen]="askOpen()" (ask)="openAsk()" (menu)="menuOpen.set(!menuOpen())" (account)="accountOpen.set(!accountOpen())" />
       <pp-dropdown-menu [trigger]="false" [(open)]="accountOpen" [origin]="avatar()" [returnTo]="avatar()" label="Your account">
         <pp-menu-section [heading]="userName()">
           <button ppMenuItem icon="log-out" (click)="signOut()">Sign out</button>
@@ -34,6 +35,7 @@ import { ChatDialogs } from '../hr-assistant/chat-dialogs';
       </pp-dropdown-menu>
       <router-outlet />
     </pp-app-shell>
+    <app-launcher [(open)]="launcherOpen" [askLink]="chatPage" />
     <app-chat-dialogs />
     <app-hr-chat [(open)]="askOpen" (expand)="expand()" />
   `,
@@ -56,6 +58,8 @@ export class HrShell {
   });
   protected readonly chat = inject(ChatService);
   protected readonly askOpen = signal(false);
+  protected readonly launcherOpen = signal(false);
+  protected readonly chatPage = CHAT_PAGE;
   protected readonly menuOpen = signal(false);
   protected readonly accountOpen = signal(false);
   protected readonly userName = () => this.auth.user()?.fullName ?? '';

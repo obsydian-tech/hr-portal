@@ -310,13 +310,18 @@ export class PpDropdownMenu {
   imports: [PpButton, OverlayModule, NgTemplateOutlet, A11yModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <button ppButton [appearance]="appearance()" size="small" [icon]="icon()" [iconAfter]="appearance() === 'link' ? undefined : 'chevron-down'"
-            cdkOverlayOrigin #origin="cdkOverlayOrigin" [attr.aria-expanded]="open()" [attr.aria-controls]="open() ? id : null" (click)="open.set(!open())">{{ text() }}</button>
+    @if (trigger()) {
+      <button ppButton [appearance]="appearance()" size="small" [icon]="icon()" [iconAfter]="appearance() === 'link' ? undefined : 'chevron-down'"
+              cdkOverlayOrigin [attr.aria-expanded]="open()" [attr.aria-controls]="open() ? id : null" (click)="open.set(!open())">{{ text() }}</button>
+    }
     <ng-template #panel>
       <div class="pp-popup" [class.pp-popup--inline]="inline()" [class.pp-popup--floating]="!inline()" [class.pp-popup--wide]="wide()" [id]="id" role="dialog"
            [attr.aria-label]="label() ?? null" [attr.aria-labelledby]="label() ? null : id + '-t'" (keydown.escape)="dismiss()" cdkTrapFocus [cdkTrapFocusAutoCapture]="!inline()">
-        @if (footerSlot()) {
-          <div class="pp-popup__header"><h3 class="pp-popup__title" [id]="id + '-t'">{{ heading() }}</h3></div>
+        @if (footerSlot() || closable()) {
+          <div class="pp-popup__header">
+            <h3 class="pp-popup__title" [id]="id + '-t'">{{ heading() }}</h3>
+            @if (closable()) { <button ppButton appearance="subtle" icon="x" [iconOnly]="true" aria-label="Close" (click)="dismiss()"></button> }
+          </div>
         } @else {
           <h3 class="pp-popup__title" [id]="id + '-t'">{{ heading() }}</h3>
         }
@@ -326,7 +331,7 @@ export class PpDropdownMenu {
     </ng-template>
     @if (inline()) { @if (open()) { <ng-container [ngTemplateOutlet]="panel" /> } }
     @else {
-      <ng-template cdkConnectedOverlay [cdkConnectedOverlayOrigin]="origin" [cdkConnectedOverlayOpen]="open()" [cdkConnectedOverlayPositions]="positions()"
+      <ng-template cdkConnectedOverlay [cdkConnectedOverlayOrigin]="origin() ?? host" [cdkConnectedOverlayOpen]="open()" [cdkConnectedOverlayPositions]="positions()"
                    cdkConnectedOverlayUsePopover="inline" (overlayOutsideClick)="outside($event)" (detach)="open.set(false)">
         <ng-container [ngTemplateOutlet]="panel" />
       </ng-template>
@@ -335,6 +340,11 @@ export class PpDropdownMenu {
   host: { class: 'pp-popup-anchor', '[attr.align]': 'null' },
 })
 export class PpPopup {
+  /**
+   * The built-in button. Turn it off when something else opens the popup (the Modules button in the top navigation):
+   * set `[(open)]` from there; the popup hangs under `origin`.
+   */
+  readonly trigger = input(true);
   /** The button's words. */
   readonly text = input.required<string>();
   readonly icon = input<IconName>();
@@ -344,15 +354,22 @@ export class PpPopup {
   readonly label = input<string>();
   readonly align = input<'start' | 'end'>('start');
   readonly wide = input(false);
+  /** A Close button beside the heading, for a popup that holds more than a filter. */
+  readonly closable = input(false);
   readonly open = model(false);
   readonly inline = input(false);
+  /** Without the built-in button: what the popup hangs from. Defaults to this element. */
+  readonly origin = input<HTMLElement | null>();
+  /** Without the built-in button: what gets focus back when the popup shuts. */
+  readonly returnTo = input<HTMLElement | null>();
   protected readonly id = uid('pp-popup');
   protected readonly positions = () => BELOW(this.align(), 4);
   protected readonly footers = contentChildren(PpPopupFooter);
   protected footerSlot() { return this.footers().length > 0; }
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-  protected dismiss() { this.open.set(false); this.host.querySelector<HTMLElement>('button')?.focus(); }
-  protected outside(e: MouseEvent) { if (!this.host.contains(e.target as Node)) this.open.set(false); }
+  protected readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private opener() { return this.trigger() ? this.host.querySelector<HTMLElement>('button') : this.returnTo() ?? null; }
+  protected dismiss() { this.open.set(false); this.opener()?.focus(); }
+  protected outside(e: MouseEvent) { if (!this.host.contains(e.target as Node) && !this.opener()?.contains(e.target as Node)) this.open.set(false); }
 }
 
 /** The popup's buttons: Clear first, the one that applies last. */
