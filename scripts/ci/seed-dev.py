@@ -413,6 +413,22 @@ def ensure_founding_company(ddb) -> int:
         raise
 
 
+def ensure_founding_member(ddb, sub: str) -> int:
+    """REC-14 rule 12: a hiring manager needs a Member row (no legacy-company fallback). The manager login's row for the
+    first company, written once; an existing row stays as it is."""
+    tid = founding_tenant_id()
+    try:
+        ddb.put_item(TableName=TENANTS_TABLE, Item={
+            "pk": {"S": f"USER#{sub}"}, "sk": {"S": f"TENANT#{tid}"}, "tenant_id": {"S": tid},
+            "created_at": {"S": "2026-11-23T00:00:00Z"},
+        }, ConditionExpression="attribute_not_exists(pk)")
+        return 1
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return 0
+        raise
+
+
 # TEN-02: the second company. Fixed id, so every run finds the same rows.
 SECOND_TENANT_ID = "ten_b2e2ec0mpanyb00000000000da"
 
@@ -1009,6 +1025,9 @@ def main() -> None:
         ensure_user(cognito, tf, role, secret_password(sm, role), {}, [group, ROBOT_GROUP])
 
     founding_written = ensure_founding_company(ddb)
+    manager_member_sub = user_sub(cognito, naleko, "manager")
+    if manager_member_sub:
+        founding_written += ensure_founding_member(ddb, manager_member_sub)
     hr_b_sub = user_sub(cognito, naleko, "hr-b")
     if not hr_b_sub:
         print("warning: the company B login has no sub; its Member row was not written")
