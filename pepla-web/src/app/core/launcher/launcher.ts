@@ -9,7 +9,7 @@ import { AuthService } from '../auth/auth.service';
 import { ModulesService } from '../modules.service';
 import { landingFor, navEntries, type Who } from '../nav';
 import { ROLE, rolesOf } from '../roles';
-import { LAUNCHER_MODULES, LAUNCHER_WORDS, firstPage, nameOf, stateOf, type LauncherModule, type LauncherState } from './launcher.catalogue';
+import { LAUNCHER_MODULES, LAUNCHER_WORDS, LEARN_MORE, firstPage, nameOf, stateOf, type LauncherModule, type LauncherState } from './launcher.catalogue';
 
 interface Tile { m: LauncherModule; state: LauncherState; name: string; to: string; learnMore: string | null; }
 
@@ -50,7 +50,7 @@ interface Tile { m: LauncherModule; state: LauncherState; name: string; to: stri
                   <pp-card [compact]="true" appearance="sunken" [icon]="t.m.icon" iconTone="neutral" [heading]="t.name" [attr.data-module]="t.m.key" data-state="not-on">
                     <pp-card-aside><pp-lozenge icon="circle-dashed">{{ words.notOn }}</pp-lozenge></pp-card-aside>
                     <div ppCardBody>{{ t.m.description }}</div>
-                    @if (t.learnMore) { <a ppLink [routerLink]="t.learnMore" (click)="shut()">{{ words.learnMore }} {{ t.m.name }}</a> }
+                    @if (t.learnMore) { <a ppLink [routerLink]="t.learnMore" (click)="shut()">{{ learnMore }} {{ t.m.name }}</a> }
                   </pp-card>
                 }
                 @default {
@@ -82,6 +82,7 @@ export class Launcher {
   readonly askLink = input<string | null>(null);
   readonly open = model(false);
   protected readonly words = LAUNCHER_WORDS;
+  protected readonly learnMore = LEARN_MORE;
   protected readonly phone = toSignal(inject(BreakpointObserver).observe('(max-width: 767px)').pipe(map((r) => r.matches)), { initialValue: false });
 
   /** The person and the company's modules. Empty modules (unknown, failed, or not answered yet) read as a company with nothing on. */

@@ -36,7 +36,10 @@ export const LAUNCHER_MODULES: readonly LauncherModule[] = [
 ];
 
 /** Approved words (Decision D-WORDS-MOD3). */
-export const LAUNCHER_WORDS = { title: 'Modules', noAccess: 'No access', notOn: 'Not switched on', askAdmin: 'Ask an Admin.', myDetails: 'My details', comingSoon: 'Coming soon', askBatsi: 'Ask Batsi', learnMore: 'Learn more about' } as const;
+export const LAUNCHER_WORDS = { title: 'Modules', noAccess: 'No access', notOn: 'Not switched on', askAdmin: 'Ask an Admin.', myDetails: 'My details', comingSoon: 'Coming soon', askBatsi: 'Ask Batsi' } as const;
+
+/** NOT in the approved words (D-WORDS-MOD3): the Admin's link on a Not switched on tile. Recommended wording from the site's own "Learn more about <module>" lines, logged in PIPELINE-DECISIONS.md. Iggie can change it. */
+export const LEARN_MORE = 'Learn more about';
 
 /**
  * Rule 3: the state of one tile. Fails closed: a module the company's answer does not hold (unknown, failed or not yet answered) is
