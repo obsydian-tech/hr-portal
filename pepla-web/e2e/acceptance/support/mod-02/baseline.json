@@ -63,6 +63,10 @@
         "icon": "fcfb4a1076"
        },
        {
+        "label": "Modules",
+        "icon": "a1ddb83226"
+       },
+       {
         "label": "Ask Batsi",
         "icon": "31a002755b"
        },
@@ -143,6 +147,10 @@
        {
         "label": "Open menu",
         "icon": "fcfb4a1076"
+       },
+       {
+        "label": "Modules",
+        "icon": "a1ddb83226"
        },
        {
         "label": "Search",
@@ -235,6 +243,10 @@
         "icon": "fcfb4a1076"
        },
        {
+        "label": "Modules",
+        "icon": "a1ddb83226"
+       },
+       {
         "label": "Ask Batsi",
         "icon": "31a002755b"
        },
@@ -315,6 +327,10 @@
        {
         "label": "Open menu",
         "icon": "fcfb4a1076"
+       },
+       {
+        "label": "Modules",
+        "icon": "a1ddb83226"
        },
        {
         "label": "Search",
