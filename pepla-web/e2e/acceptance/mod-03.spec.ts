@@ -531,8 +531,9 @@ test.describe('MOD-03 The module launcher', () => {
     });
     const foreignClasses = built.classes.filter((c) => !c.startsWith('pp-') && !kitClasses.has(c) && c !== 'lucide' && !/^ng-/.test(c) && !/^cdk-/.test(c));
     expect(foreignClasses, 'every class in the launcher is a design system class or one the kit screen itself uses').toEqual([]);
-    const notKit = built.classes.filter((c) => c.startsWith('pp-') && !kitClasses.has(c) && !/^pp-(popup|drawer|card|icon-tile|lozenge|button)/.test(c));
-    expect(notKit, 'every pp- class in the launcher is in the kit screen (or is the popup, drawer, card, icon tile, lozenge or button part)').toEqual([]);
+    // mod-03.1: the kit writes icons as <i data-lucide>, so it never shows pp-icon; the design system's own icon tile draws <svg class="lucide pp-icon">. Only that exact class, not its --tone or --size forms.
+    const notKit = built.classes.filter((c) => c.startsWith('pp-') && !kitClasses.has(c) && !/^pp-(popup|drawer|card|icon-tile|lozenge|button)/.test(c) && c !== 'pp-icon');
+    expect(notKit, 'every pp- class in the launcher is in the kit screen (or is the popup, drawer, card, icon tile, icon, lozenge or button part)').toEqual([]);
     const foreignTags = built.tags.filter((t) => t.includes('-') && !t.startsWith('pp-') && !kitTags.has(t));
     expect(foreignTags, 'every custom element in the launcher is a pp- part').toEqual([]);
     const styleAttrs = await dialog(page).evaluate((root) => [...root.querySelectorAll('[style]')].map((e) => e.getAttribute('style')));
