@@ -55,11 +55,12 @@ export async function vote(event) {
   if (rows.some((r) => String(r.SK).startsWith(`VOTE#${voter}#`) && r.interviewId === interview.interviewId)) return S.alreadyScored();
   const now = new Date().toISOString();
   const item = T.stampTenant({
-    PK: `CANDIDATE#${interview.candidateId}`, SK: `VOTE#${voter}#${now}#${interview.interviewId}`, voterId: voter, candidateId: interview.candidateId, interviewId: interview.interviewId,
+    PK: `CANDIDATE#${interview.candidateId}`, SK: `VOTE#${voter}#${interview.interviewId}`, voterId: voter, candidateId: interview.candidateId, interviewId: interview.interviewId,
     scores: body.scores, rating: body.rating, ...(body.comment !== undefined ? { comment: body.comment } : {}), scale: S.SCALE, on_behalf: onBehalf,
     ...(onBehalf ? { entered_by: me } : {}), createdAt: now,
   }, tenantId);
   try {
+    // The key holds no time, so two requests at the same moment write the same key and the second is refused.
     await db.send(new PutItemCommand({ TableName: STATE(), Item: marshall(item, { removeUndefinedValues: true }), ConditionExpression: 'attribute_not_exists(SK)' }));
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') return S.alreadyScored();

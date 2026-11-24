@@ -1016,6 +1016,7 @@ def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
     criteria = {"L": [{"M": {"key": {"S": k}, "label": {"S": label}}} for k, label in REC04_CRITERIA]}
     written = 0
 
+    # The list is read oldest first, so the later date in GSI1SK puts these candidates last: REC-01 AC-9 takes the first candidate that is not the manager's.
     def candidate(cid: str, tid: str, first: str, last: str, iv_id: str, panel: list, hm: str) -> None:
         pk = f"CANDIDATE#{cid}"
         stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
@@ -1024,7 +1025,7 @@ def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
             ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
         ddb.put_item(TableName=STATE_TABLE, Item={
             "PK": {"S": pk}, "SK": {"S": "SAGA"},
-            "GSI1PK": {"S": f"TENANT#{tid}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+            "GSI1PK": {"S": f"TENANT#{tid}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
             "candidateId": {"S": cid}, "tenant_id": {"S": tid},
             "firstName": {"S": first}, "lastName": {"S": last},
             "email": {"S": f"pepla-demo-{first.lower()}.{last.lower()}@{MAIL_DOMAIN}"},

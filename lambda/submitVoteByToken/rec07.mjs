@@ -65,7 +65,7 @@ export async function vote(event) {
   try {
     await db.send(new UpdateItemCommand(o.legacy
       ? { TableName: STATE(), Key: marshall(o.key), UpdateExpression: 'SET #u = :t, usedAt = :at', ConditionExpression: '#u <> :t', ExpressionAttributeNames: { '#u': 'used' }, ExpressionAttributeValues: marshall({ ':t': true, ':at': now }) }
-      : { TableName: STATE(), Key: marshall(o.key), UpdateExpression: 'SET used_at = :at', ConditionExpression: 'attribute_not_exists(used_at) OR used_at = :n', ExpressionAttributeValues: marshall({ ':at': now, ':n': null }) }));
+      : { TableName: STATE(), Key: marshall(o.key), UpdateExpression: 'SET used_at = :at', ConditionExpression: 'attribute_not_exists(used_at) OR attribute_type(used_at, :n)', ExpressionAttributeValues: marshall({ ':at': now, ':n': 'NULL' }) }));
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') return S.EXPIRED();
     console.error('scoring link use failed', { error: err.name });
