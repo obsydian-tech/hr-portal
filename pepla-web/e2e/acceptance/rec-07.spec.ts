@@ -10,6 +10,7 @@ import {
   interviewOf, interviewRow, interviews, linkVote, logsOf, makeLink, oldVoteRow, plain, readLink, rowsOf, sagaOf, schedule, sha256B64u, sha256Hex, sheet,
   statusOf, vote, votesOf, withSetting, world, writesOf, awsOf, isModulesRead, forged as withForgedCompany, personalLogLines, seen, type Caller, type Run, type Tables,
 } from './support/rec-07/world';
+import { isRec15bGrant } from './support/rec-15b.1/grants';
 
 /**
  * REC-07 · Scoring per role: 1 to 5 per criterion, plain averages, one guest link (amber). Spec:
@@ -682,7 +683,7 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
     }
     for (const a of added) {
       const [k, line] = [a.slice(0, a.indexOf(': ')), a.slice(a.indexOf(': ') + 2)];
-      const ok = FIVE.test(k) && READ.test(line) && !/\*/.test(line.replace(/\/index\/[\w-]+/, ''));
+      const ok = (FIVE.test(k) && READ.test(line) && !/\*/.test(line.replace(/\/index\/[\w-]+/, ''))) || isRec15bGrant(line, k); // child lock rec-15b.1
       expect.soft(ok, `a new policy line is a read of the state or roles table by one of the five handlers, with no wildcard: ${a.slice(0, 200)}`).toBe(true);
     }
     expect.soft(Object.keys(nowPolicies).filter((k) => !(k in oldPolicies)), 'no new policy').toEqual([]);

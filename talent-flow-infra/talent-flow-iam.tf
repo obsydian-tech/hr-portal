@@ -99,6 +99,12 @@ resource "aws_iam_role_policy" "create_candidate" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
+        Sid      = "RoleRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_roles}"
+      },
+      {
         Sid      = "KMSStateKey"
         Effect   = "Allow"
         Action   = local.tf_kms_actions

@@ -38,6 +38,7 @@ resource "aws_lambda_function" "create_candidate" {
       TENANTS_TABLE          = local.tf_tenants_table
       STATE_TABLE_NAME       = local.tf_table_state
       IDEMPOTENCY_TABLE_NAME = local.tf_table_idempotency
+      ROLES_TABLE_NAME       = local.tf_table_roles
       CONFIG_TABLE_NAME      = local.tf_table_config
       EVENTBRIDGE_BUS_NAME   = local.tf_event_bus_name
       AWS_ACCOUNT_ID         = var.aws_account_id

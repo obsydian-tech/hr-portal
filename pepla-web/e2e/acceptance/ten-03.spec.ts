@@ -16,6 +16,8 @@ import { ownerLinkGrant } from './support/onb-11/owner-link';
 import { legacyWorld } from './support/ten-03/legacy';
 import { changed, masked, notReads, sent, withB, wrote } from './support/ten-03/checks';
 import { isRec07Grant } from './support/rec-07.1/grants';
+import { isRec15bGrant } from './support/rec-15b.1/grants';
+import { withBOutsideBody } from './support/rec-15b.1/company';
 
 /**
  * TEN-03 · TalentFlow and IT routes take the company only from the sign-in (Jira NH-195, epic NH-192).
@@ -203,7 +205,8 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
     const eventsOf = (r: Run) => putEvents(r);
     // Every route that writes, as company A, naming B everywhere a client could: every new or changed row, in every table, is A's.
     for (const route of ROUTES.filter((x) => x.writes)) {
-      const r = ask(route.handler, route.caller ?? 'staffA', withB(route.own));
+      // Child lock rec-15b.1: REC-15 rule 19 refuses a company in the add-candidate body (400, below), so B is named in the query and headers.
+      const r = ask(route.handler, route.caller ?? 'staffA', route.handler === 'createCandidate' ? withBOutsideBody(route.own) : withB(route.own));
       for (const c of rowsOfRun(r)) {
         if (c.table === TABLE.idempotency) continue;
         expect.soft(c.row['tenant_id'], `${route.name}: ${c.table} row ${c.row['PK'] ?? c.row['taskId'] ?? c.row['bundleId'] ?? c.row['actionId']}/${c.row['SK'] ?? ''} carries tenant_id A`).toBe(A);
@@ -216,9 +219,13 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       }
     }
     // createCandidate: the key that holds the company is the token's.
-    const created = ask('createCandidate', 'staffA', withB(ROUTES.find((x) => x.handler === 'createCandidate')!.own));
+    const created = ask('createCandidate', 'staffA', withBOutsideBody(ROUTES.find((x) => x.handler === 'createCandidate')!.own));
     const saga = changed(tables(), created.tables).find((c) => c.row['SK'] === 'SAGA');
     expect.soft(saga?.row['GSI1PK'], 'createCandidate: the new candidate sits under TENANT#<A>').toBe(`TENANT#${A}`);
+    // Child lock rec-15b.1: a company in the add-candidate body is refused outright (REC-15 rule 19), and nothing is written.
+    const inBody = ask('createCandidate', 'staffA', withB(ROUTES.find((x) => x.handler === 'createCandidate')!.own));
+    expect.soft([statusOf(inBody), bodyOf(inBody)?.code], `createCandidate: a body naming a company is 400 INVALID_FIELD (got ${describe(inBody)})`).toEqual([400, 'INVALID_FIELD']);
+    expect.soft(changed(tables(), inBody.tables).filter((c) => c.table !== TABLE.idempotency).length, 'createCandidate: and writes nothing').toBe(0);
     // trackUserActions: the user row it touches names the company of the record that was changed.
     const tracked = runEvent('trackUserActions', stream(sagaImage(A, { updatedBy: SUB.staffA })));
     const userRows = changed(tables(), tracked.tables).filter((c) => c.table === TABLE.users);
@@ -671,7 +678,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
         // REC-15 (child lock rec-04.3): getCandidates reads the company's stage hours for the list's clock (rec-15.spec.ts AC-17 pins it).
         if (/get_candidates$|getCandidates$/.test(key) && /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/.test(p)) continue;
         // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
-        if (isRec07Grant(p, key)) continue;
+        if (isRec07Grant(p, key) || isRec15bGrant(p, key)) continue;
         expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && (tenants || indexOfTalent)) || (MOD01_GET(p) && MOD01_ROLE(key, cur.role)) || TEN042_QUERY(p, key, cur.role), `role policy ${key}: new grant "${p}" is only a Query on the tenants table (TalentFlow trigger) or on an index of a TalentFlow, IT or bundle table, or one of the TEN-04.2 table grants`).toBe(true);
       }
     }

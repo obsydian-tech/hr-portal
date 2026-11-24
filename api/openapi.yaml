@@ -689,6 +689,80 @@ components:
           - limit
           - mine
           - nextToken
+    NewCandidate:
+      type: object
+      description: REC-15 step B. The body of POST /v1/candidates. The company, title, level, department and hiring manager come from the role, never from here.
+      additionalProperties: false
+      required:
+      - first_name
+      - last_name
+      - email
+      - role_id
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        role_id:
+          type: string
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 30
+          pattern: '^[0-9 +()-]+$'
+        source:
+          type: string
+          minLength: 1
+          maxLength: 80
+        idempotencyKey:
+          type: string
+          description: Older callers only. The Idempotency-Key header is the key; this is read only when the header is absent.
+    NewCandidateAnswer:
+      type: object
+      description: REC-15 step B. The new candidate, in the list's row shape (201; a replay of the same key gives the same body with 200).
+      additionalProperties: false
+      required:
+      - candidateId
+      - candidate
+      properties:
+        candidateId:
+          type: string
+        candidate:
+          $ref: '#/components/schemas/CandidateRow'
+    NewCandidateError:
+      type: object
+      description: REC-15 step B. A refusal of POST /v1/candidates.
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          type: string
+          enum:
+          - Bad request
+          - Forbidden
+          - Not found
+          - Conflict
+          - Something went wrong
+        code:
+          type: string
+          enum:
+          - INVALID_BODY
+          - INVALID_FIELD
+          - IDEMPOTENCY_KEY_REQUIRED
+          - ROLE_REQUIRED
+          - ROLE_CLOSED
+          - IN_PROGRESS
+        field:
+          type: string
     RoleError:
       type: object
       description: REC-14. A refusal of the role routes.
@@ -5017,22 +5091,62 @@ paths:
       x-roles: []
   /v1/candidates:
     post:
-      summary: POST /v1/candidates
+      summary: "POST /v1/candidates: add a candidate to an open role (REC-15 step B)"
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewCandidate'
       responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateAnswer'
         '200':
-          description: OK
+          description: The same answer again (a replay of the key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateAnswer'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateError'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Forbidden
-              example:
-                error: Forbidden
+                $ref: '#/components/schemas/NewCandidateError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateError'
+        '500':
+          description: Something went wrong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateError'
       operationId: POST_v1_candidates
       servers:
       - url: https://talentflow-api.example.com

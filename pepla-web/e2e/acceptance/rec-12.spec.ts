@@ -12,6 +12,7 @@ import {
   activeRow, configRows, defaultOf, newRows, otherRows, type SettingType,
 } from './support/rec-12/standard';
 import { packTables } from './support/rec-12/world';
+import { ROLES_TABLE as ADD_ROLES_TABLE, addBody, withAddRoles } from './support/rec-15b.1/roles';
 
 /**
  * REC-12 · Settings that are only names become real settings, with a Standard pack (Jira NH-246, epic NH-234). Amber.
@@ -77,8 +78,11 @@ const stateWrites = (r: { calls: any[] }) => calls(r).filter((c) => c.service ==
 const sagaOf = (t: Tables, id: string) => rowsOf(t, TABLE.state).find((r) => r['PK'] === `CANDIDATE#${id}` && r['SK'] === 'SAGA');
 /** A version number as the lock may store it (7, "7" or "v7"). */
 const num = (v: unknown) => Number(String(v).replace(/^v/, ''));
-const newCandidate = (key: string, level = 'MID') => ({ idempotencyKey: key, firstName: 'Lerato', lastName: 'Mokoena', email: 'lerato@example.test', positionTitle: 'Baker', positionLevel: level });
-const make = (t: Tables, key: string, caller: any = C.recruiter, level = 'MID') => ask('createCandidate', caller, { method: 'POST', body: newCandidate(key, level) }, { tables: t });
+// Child lock rec-15b.1 (REC-15 step B): a candidate is added to an open role of the caller's company with the rule 19 body; the role
+// gives the level. Each company in these tables gets one open role at `level` (A's hiring manager hmA, B's hmB).
+const newCandidate = (key: string, company: string = A) => addBody(company, key);
+const make = (t: Tables, key: string, caller: any = C.recruiter, level = 'MID') =>
+  ask('createCandidate', caller, { method: 'POST', body: newCandidate(key, caller?.company === 'B' ? B : A) }, { tables: withAddRoles(t, [{ id: A, hm: SUB.hmA, level }, { id: B, hm: SUB.hmB, level }]), env: { ROLES_TABLE_NAME: ADD_ROLES_TABLE } });
 const candidateIdOf = (r: any): string => bodyOf(r)?.candidateId;
 const settingsRun = (steps: any[], t: Tables, opts: { fail?: any } = {}) =>
   runModule(steps, { tables: t, env: { STATE_TABLE_NAME: TABLE.state, CONFIG_TABLE_NAME: TABLE.config, TENANTS_TABLE: TENANTS }, ...opts });
@@ -826,7 +830,8 @@ test.describe('REC-12 · Settings that are only names become real settings, with
     const adminToken = await signIn(logins.admin);
     const recruiterToken = await signIn(logins.recruiter);
     // A candidate made before the save: locked to the versions that are active now.
-    const made = await call(recruiterToken, 'POST', '/v1/candidates', newCandidate(`rec12-${Date.now()}`, 'SENIOR'));
+    // Child lock rec-15b.1: the rule 19 body, on the dev seed's open Fleet controller role (scripts/ci/seed-dev.py, REC-04).
+    const made = await call(recruiterToken, 'POST', '/v1/candidates', { ...addBody(A, `rec12-${Date.now()}`), role_id: 'role-seed-rec04-fleet-controller' });
     expect(made.status(), 'a recruiter creates a candidate (this reads the settings through the real role and key)').toBe(201);
     const candidateId = ((await made.json()) as any).candidateId as string;
     const lockOf = async () => { const r = await call(recruiterToken, 'GET', `/v1/candidates/${candidateId}`); expect(r.status(), 'the recruiter reads the candidate').toBe(200); const b = (await r.json()) as any; return (b.settingVersions ?? b.candidate?.settingVersions) as Record<string, unknown>; };

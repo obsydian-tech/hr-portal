@@ -680,7 +680,6 @@ test.describe('REC-03 · Six stages, a reason on every move, and the old rows mo
     const read2 = async (token: string, id: string) => { const r = await call2(token, 'GET', `/v1/candidates/${id}`); expect(r.status(), `the candidate ${id} is read`).toBe(200); const b = (await r.json()) as any; return (b.candidate ?? b) as Record<string, any>; };
     const [hr, manager, companyB, admin] = await Promise.all([signIn(logins.hr), signIn(logins.manager), signIn(logins.companyB), signIn(logins.admin)]);
     const hrId = personOf(hr);
-    const managerId = personOf(manager);
 
     // Screening is on for the dev company (the seed sets it; set it back if a run left it off).
     const sc = await call2(admin, 'GET', '/v1/config?configType=STAGE_CONFIG&active=true');
@@ -691,7 +690,9 @@ test.describe('REC-03 · Six stages, a reason on every move, and the old rows mo
       expect(saved.status(), `the Admin turns Screening on (${await saved.text()})`).toBe(200);
     }
     // HR adds a candidate: it starts in Applied (the new code).
-    const made = await call2(hr, 'POST', '/v1/candidates', { idempotencyKey: `rec03-${Date.now()}`, firstName: 'Rec', lastName: 'Zero-Three', email: `rec03.${Date.now()}@example.com`, positionTitle: 'Demo role', positionLevel: 'MID', hiringManagerId: managerId });
+    // Child lock rec-15b.1: the REC-15 rule 19 body, on the dev seed's open Senior accountant role, whose hiring manager is the manager login
+    // (scripts/ci/seed-dev.py, REC-04), as the old body's hiringManagerId was.
+    const made = await call2(hr, 'POST', '/v1/candidates', { first_name: 'Rec', last_name: 'Zero-Three', email: `rec03.${Date.now()}@example.com`, role_id: 'role-seed-rec04-senior-accountant' }, { 'Idempotency-Key': `rec03-${Date.now()}` });
     expect(made.status(), 'HR creates a candidate').toBe(201);
     const x = ((await made.json()) as any).candidateId as string;
     expect((await read2(hr, x))['currentStage'], 'a new candidate is in APPLIED').toBe('APPLIED');

@@ -1379,7 +1379,7 @@ export interface paths {
         /** GET /v1/candidates: the candidate list, all roles or one (REC-15) */
         get: operations["GET_v1_candidates"];
         put?: never;
-        /** POST /v1/candidates */
+        /** POST /v1/candidates: add a candidate to an open role (REC-15 step B) */
         post: operations["POST_v1_candidates"];
         delete?: never;
         options?: never;
@@ -2068,6 +2068,31 @@ export interface components {
             code?: "INVALID_FIELD" | "LIST_TOO_LARGE";
             /** @enum {string} */
             field?: "stage" | "sla_status" | "search" | "limit" | "mine" | "nextToken";
+        };
+        /** @description REC-15 step B. The body of POST /v1/candidates. The company, title, level, department and hiring manager come from the role, never from here. */
+        NewCandidate: {
+            first_name: string;
+            last_name: string;
+            /** Format: email */
+            email: string;
+            role_id: string;
+            phone?: string;
+            source?: string;
+            /** @description Older callers only. The Idempotency-Key header is the key; this is read only when the header is absent. */
+            idempotencyKey?: string;
+        };
+        /** @description REC-15 step B. The new candidate, in the list's row shape (201; a replay of the same key gives the same body with 200). */
+        NewCandidateAnswer: {
+            candidateId: string;
+            candidate: components["schemas"]["CandidateRow"];
+        };
+        /** @description REC-15 step B. A refusal of POST /v1/candidates. */
+        NewCandidateError: {
+            /** @enum {string} */
+            error: "Bad request" | "Forbidden" | "Not found" | "Conflict" | "Something went wrong";
+            /** @enum {string} */
+            code?: "INVALID_BODY" | "INVALID_FIELD" | "IDEMPOTENCY_KEY_REQUIRED" | "ROLE_REQUIRED" | "ROLE_CLOSED" | "IN_PROGRESS";
+            field?: string;
         };
         /** @description REC-14. A refusal of the role routes. */
         RoleError: {
@@ -6526,18 +6551,44 @@ export interface operations {
     POST_v1_candidates: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewCandidate"];
+            };
+        };
         responses: {
-            /** @description OK */
+            /** @description The same answer again (a replay of the key) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["NewCandidateAnswer"];
+                };
+            };
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewCandidateAnswer"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewCandidateError"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -6545,15 +6596,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "error": "Forbidden"
-                     *     }
-                     */
-                    "application/json": {
-                        /** @example Forbidden */
-                        error?: string;
-                    };
+                    "application/json": components["schemas"]["NewCandidateError"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewCandidateError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewCandidateError"];
+                };
+            };
+            /** @description Something went wrong */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewCandidateError"];
                 };
             };
         };

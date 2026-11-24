@@ -13,6 +13,7 @@ export const KEYS = {
   'talent-flow-state': ['PK', 'SK'],
   'talent-flow-config': ['PK', 'SK'],
   'talent-flow-idempotency-keys': ['idempotencyKey'],
+  'talent-flow-roles': ['pk', 'sk'], // child lock rec-15b.1: the add reads the role (REC-04 table)
   'talent-flow-intelligence-dismissals': ['PK', 'SK'],
   'talent-flow-notifications': ['PK', 'SK'],
   'talent-flow-events': ['PK', 'SK'],
