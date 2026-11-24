@@ -779,6 +779,9 @@ REC04_CANDIDATES = [
     ("CAND-SEEDREC040000000000007", "Nomvula", "Zulu", REC04_ROLES[0][0], "NOT_HIRED", {"reason_code": "WITHDREW", "decided_by_kind": "PERSON"}),
     ("CAND-SEEDREC040000000000008", "Farai", "Moyo", REC04_ROLES[0][0], "NOT_HIRED", {"reason_code": "NOT_RIGHT_SKILLS", "decided_by_kind": "PERSON"}),
     ("CAND-SEEDREC040000000000009", "Mpho", "Sithole", REC04_ROLES[1][0], "NOT_HIRED", {"status": "REJECTED", "decided_by_kind": "OLD_SYSTEM"}),
+    # A live (not Not hired) candidate on a second role, so the Candidates list on pepla-dev shows more than one role (REC-UI-02 AC-15).
+    # Warehouse supervisor is not the manager login's role and every row here names the other hiring manager, so REC-01 AC-9 still counts one.
+    ("CAND-SEEDREC040000000000010", "Lerato", "Khumalo", REC04_ROLES[1][0], "APPLIED", {}),
 ]
 
 
