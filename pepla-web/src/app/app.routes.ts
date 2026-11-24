@@ -18,6 +18,8 @@ const appRoutes: Routes = [
   { path: 'sign-in', canActivate: [signedOutGuard], loadComponent: () => import('./features/sign-in/sign-in.page').then((m) => m.SignInPage), title: 'Sign in · Naleko People' },
   { path: 'forgot-password', canActivate: [signedOutGuard], loadComponent: () => import('./features/forgot-password/forgot-password.page').then((m) => m.ForgotPasswordPage), title: 'Reset your password · Naleko People' },
   { path: 'set-password', loadComponent: () => import('./features/set-password/set-password.page').then((m) => m.SetPasswordPage), title: 'Set your password · Naleko People' },
+  { path: 'score', loadComponent: () => import('./features/score/score.page').then((m) => m.ScorePage), title: 'Interview feedback · Naleko People' },
+  { path: 'score/:old', loadComponent: () => import('./features/score/score.page').then((m) => m.ScorePage), title: 'Interview feedback · Naleko People' },
   {
     path: 'start',
     canActivate: [employeeGuard],
