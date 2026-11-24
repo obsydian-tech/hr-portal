@@ -21,18 +21,21 @@ the card asked; steps C and D may follow either form, as long as the name is che
   - ten-03 AC-4: company B is named in the query and headers, not the body (a body naming a company is now 400 INVALID_FIELD, checked).
   - rec-01 AC-8, mod-01 AC-8, ten-03 AC-10, rec-04 AC-8, rec-07 AC-9, rec-15 AC-17: createCandidate may gain exactly the GetItem line on
     talent-flow-roles.
+  - rec-14's fake EventBridge can now be told to fail a send (`world.fail = { service: 'events' }`), as the DynamoDB fake can. Add-only:
+    no older test sets it.
   - These lines fail on today's develop on purpose (the old Lambda refuses the new body): rec-01 Control and AC-2 (Recruiter-only),
     mod-01 AC-2, rec-12 AC-3, ten-03 Control and AC-4.
 - The builder merges both lock branches, never copies them.
 
-## Decisions the tests pin where the spec is silent (D-T-B1 to D-T-B11, for the BA to confirm)
+## Decisions the tests pin where the spec is silent (D-T-B1 to D-T-B12, for the BA to confirm)
 
 Full list in the header of rec-15b.spec.ts. The ones a builder is most likely to trip on:
 - D-T-B1 refusal bodies and codes: INVALID_FIELD with `field`, ROLE_REQUIRED, IDEMPOTENCY_KEY_REQUIRED, INVALID_BODY; 404 { error: 'Not found' }
   for another company's role and a made-up id alike; 409 { error: 'Conflict', code: 'ROLE_CLOSED' }.
 - D-T-B5 the answer's `candidate` equals the row GET /v1/candidates gives the same caller.
 - D-T-B6 header key wins over body key. D-T-B7 a replay answers the first answer even after the role closed.
-- D-T-B10 a failed role read holds no key: the same key works afterwards.
+- D-T-B10 a failed role read holds no key; after any failure that stored no candidate the same key works again (round 1, D-1).
+- D-T-B12 every AWS call is one createCandidate's role may make (no UpdateItem, DeleteItem, Scan, Batch or Transact).
 - D-T-B11 one new grant (GetItem on talent-flow-roles) and ROLES_TABLE_NAME on the Lambda.
 
 ## Notes for the builder
@@ -40,7 +43,11 @@ Full list in the header of rec-15b.spec.ts. The ones a builder is most likely to
 - The throwaway build that passes every test: /mnt/project-files/onboarding-cards/rec-15b/throwaway-build-B.NOT-FOR-MERGE.patch. A guide only.
 - Keep `lambda/createCandidate/index.js` importing `../shared/recruitment-settings.mjs` (REC-12 AC-8 reads that import as text).
 - Run `npm run api:types` in pepla-web after the openapi change.
-- createCandidate's role has no UpdateItem or DeleteItem on the idempotency table, so a failure after the key is held (the candidate
-  write) leaves the key IN_PROGRESS until its TTL. The tests only demand a free key after a failed role read (nothing held yet). Do not add
-  a grant to free it: that is a lock move and needs the BA.
+- createCandidate's role has GetItem and PutItem on the idempotency table, never UpdateItem or DeleteItem. The tests check every AWS call
+  an add makes against the role (D-T-B12), so mark the key finished and free it with PutItem. Lock check round 1, D-1 (decided): after any
+  failure that stored no candidate, the same key must work on the next try; the throwaway marks the key FAILED with a PutItem and lets a
+  FAILED key be taken again (conditional put `attribute_not_exists(idempotencyKey) OR status = FAILED`). No new grant.
+- A failed event send does not fail the add (rule 23, best effort as today).
+- The new GetItem grant on talent-flow-roles goes inside the existing `aws_iam_role_policy.create_candidate` statement list. A separate
+  policy resource passes rec-15b but fails the older IAM checks, whose allowance is keyed to that one policy (lock check N1).
 - ten-02 AC-12 runs `npm test` in lambda/shared: run `npm ci` there first on a fresh machine.

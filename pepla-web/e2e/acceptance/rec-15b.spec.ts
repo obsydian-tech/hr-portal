@@ -9,7 +9,7 @@ import { filesOf, kmsList, lambdaNamed, policyLines, resourcesOf, roleResourceOf
 import { C, NOT_RECRUITERS, RECRUITERS } from './support/rec-04/callers';
 import { bodyOf, describe, isModulesRead, statusOf } from './support/rec-04/world';
 import { awsOf, changedRows, logsOf } from './support/rec-04/roles';
-import { A, B, NOW, R, ROLES_TABLE, SUB, TABLE, list, plain, roleRow, rowsOf, runRoute, withRole, world, type Run, type Tables } from './support/rec-15/world';
+import { A, B, NOW, R, ROLES_TABLE, SUB, TABLE, TENANTS, list, plain, roleRow, rowsOf, runRoute, withRole, world, type Run, type Tables } from './support/rec-15/world';
 import { isRec07Grant } from './support/rec-07.1/grants';
 
 /**
@@ -38,6 +38,12 @@ import { isRec07Grant } from './support/rec-07.1/grants';
  *  - D-T-B8 A key held by a request still running (IN_PROGRESS) is 409 and writes no candidate.
  *  - D-T-B9 CandidateCreated keeps today's detail keys exactly: candidateId, tenant_id, positionLevel, positionTitle, email (rule 23).
  *  - D-T-B10 A failed read of the role is 500 with nothing written, no candidate, no event and no key held (the same key then works).
+ *    Lock check round 1 (D-1, decided): after ANY failure that stored no candidate, the same key works on the next try (201). The build
+ *    may mark the key FAILED with a PutItem (the role already holds PutItem on the key table); it gets no new grant. A failed event send
+ *    does not fail the add (rule 23, best effort as today): 201, the candidate stored, the log names the error only.
+ *  - D-T-B12 (lock check round 1, F2) Every AWS call an add makes is one createCandidate's role may make after step B: DynamoDB GetItem on
+ *    the key, settings, roles and tenants tables; PutItem on the state and key tables; Query on the settings index GSI1-active-configs;
+ *    EventBridge PutEvents. No UpdateItem, DeleteItem, Scan, Batch or Transact call (the role has none, so on AWS they would be refused).
  *  - D-T-B11 Terraform: createCandidate gains exactly one grant, GetItem on talent-flow-roles, and its Lambda gets ROLES_TABLE_NAME. The
  *    roles table uses the state key createCandidate already holds, so no KMS line changes.
  */
@@ -81,8 +87,31 @@ const add = (who: any, b: unknown, t: Tables, o: AddOpts = {}): Run => {
   const now = new Date(Date.parse(NOW) + ++addN * 1000).toISOString();
   const r = runRoute('createCandidate', ROUTE, who, { body: b, headers: { ...(key === null ? {} : { 'Idempotency-Key': key }), ...(o.headers ?? {}) }, query: o.query, path: o.path }, t, { now, ...(o.fail ? { fail: o.fail } : {}) });
   runAt.set(r, now);
+  const refused = notAllowed(r);
+  expect.soft(refused, `add ${addN}: every AWS call is one createCandidate's role may make (D-T-B12)`).toEqual([]);
   return r;
 };
+
+/**
+ * D-T-B12: the calls createCandidate's role allows after step B (talent-flow-iam.tf, create_candidate and its modules read, plus the one
+ * roles grant). The fake AWS does not check IAM, so this list does: a call outside it would be refused on AWS.
+ */
+const MAY: Record<string, string[]> = {
+  'dynamodb GetItem': [TABLE.idempotency, TABLE.config, ROLES_TABLE, TENANTS],
+  'dynamodb PutItem': [TABLE.state, TABLE.idempotency],
+  'dynamodb Query': [TABLE.config],
+  'events PutEvents': [''],
+};
+function notAllowed(r: Run): string[] {
+  const out: string[] = [];
+  for (const c of awsOf(r) as any[]) {
+    const what = `${c.service} ${c.op}`;
+    const where = c.service === 'events' ? '' : String(c.table ?? '');
+    const ok = (MAY[what] ?? []).includes(where) && (what !== 'dynamodb Query' || c.input?.IndexName === 'GSI1-active-configs');
+    if (!ok) out.push(`${what} ${where}${c.input?.IndexName ? ' index ' + c.input.IndexName : ''}`);
+  }
+  return out;
+}
 
 /** The candidate rows (SK SAGA) a run added. */
 const newSagas = (before: Tables, r: Run) => {
@@ -399,12 +428,42 @@ test.describe('REC-15 step B · Add a candidate to an open role', () => {
       expect.soft(statusOf(retry), `read ${nth} failed: the same key afterwards gives 201 (D-T-B10) (${describe(retry)})`).toBe(201);
     }
     const [getFails, retry] = [getRuns[0]!, retries[0]!];
-    // The candidate write fails: 500, no event, no candidate; the log holds the error name only.
-    const putFails = add(C.recruiter, body(), t, { fail: { ...fail(['PutItem']), ops: ['PutItem'] } });
-    expect.soft(answer(putFails), 'the writes fail: 500').toEqual([500, SERVER_ERROR]);
-    expect.soft(newSagas(t, putFails).length, 'no candidate').toBe(0);
-    expect.soft(eventsOf(putFails).length, 'no event').toBe(0);
-    logsClean('the writes fail', putFails);
+    // Lock check round 1 (F1): each PutItem fails in turn (the order is the build's). Rules that do not depend on the order: a 201 or 200
+    // only ever comes with a stored candidate whose id is the answer's; a run that stored no candidate answers 500 Something went wrong,
+    // sends no event and leaves the key free (D-1: the same key then gives 201, and one candidate in all). Logs carry error names only.
+    const putRuns: Run[] = [];
+    let candidateWriteFailed = false;
+    for (const nth of [1, 2, 3, 4]) {
+      const pk = newKey();
+      const r = add(C.recruiter, body(), t, { key: pk, fail: fail(['PutItem'], nth) });
+      putRuns.push(r);
+      const puts = (awsOf(r) as any[]).filter((c) => c.service === 'dynamodb' && c.op === 'PutItem');
+      if (puts.length >= nth && puts[nth - 1].table === TABLE.state) candidateWriteFailed = true;
+      const stored = newSagas(t, r);
+      const s = statusOf(r);
+      if (s === 200 || s === 201) {
+        expect.soft(stored.map((x) => x['candidateId']), `PutItem ${nth} fails, answer ${s}: exactly the answered candidate is stored`).toEqual([bodyOf(r)?.candidateId]);
+      } else {
+        expect.soft(answer(r), `PutItem ${nth} fails, not 200 or 201: 500 Something went wrong`).toEqual([500, SERVER_ERROR]);
+      }
+      if (stored.length === 0) {
+        expect.soft(eventsOf(r).length, `PutItem ${nth} fails, no candidate stored: no event`).toBe(0);
+        const again = add(C.recruiter, body(), r.tables, { key: pk });
+        putRuns.push(again);
+        expect.soft(statusOf(again), `PutItem ${nth} failed with no candidate stored: the same key then gives 201 (D-1) (${describe(again)})`).toBe(201);
+        expect.soft(newSagas(t, again).length, `PutItem ${nth} failed, then the same key: one candidate in all`).toBe(1);
+      }
+      logsClean(`PutItem ${nth} fails`, r);
+      if (puts.length >= nth) expect.soft(logsOf(r).join('\n'), `PutItem ${nth} fails: the log names the error`).toContain('ProvisionedThroughputExceededException');
+    }
+    expect.soft(candidateWriteFailed, 'one of the runs failed the candidate write itself (a PutItem on the state table)').toBe(true);
+    // The event send fails: the add still stands (rule 23, best effort as today), and the log names the error only.
+    const evFails = add(C.recruiter, body(), t, { fail: { service: 'events', ops: ['PutEvents'], message: `${SECRET_MESSAGE} ${GOOD.email}`, name: 'EventBridgeThrottled' } });
+    expect.soft(statusOf(evFails), `the event send fails: still 201 (${describe(evFails)})`).toBe(201);
+    expect.soft(newSagas(t, evFails).map((x) => x['candidateId']), 'the event send fails: the candidate is stored').toEqual([bodyOf(evFails)?.candidateId]);
+    expect.soft(eventsOf(evFails).length, 'the event send was tried').toBe(1);
+    logsClean('the event send fails', evFails);
+    expect.soft(logsOf(evFails).join('\n'), 'the event send fails: the log names the error').toContain('EventBridgeThrottled');
     // The settings read fails: 500, nothing written.
     const qFails = add(C.recruiter, body(), t, { fail: fail(['Query']) });
     expect.soft(answer(qFails), 'the settings read fails: 500').toEqual([500, SERVER_ERROR]);
@@ -417,7 +476,7 @@ test.describe('REC-15 step B · Add a candidate to an open role', () => {
     logsClean('a good add', ok, sent);
     const refusedRun = add(C.recruiter, body({ ...sent, email: 'zz bad mail' }), t);
     logsClean('a refusal', refusedRun, { ...sent, email: 'zz bad mail' });
-    fits('AC-8 failures', ...getRuns, ...retries, putFails, qFails, ok, refusedRun);
+    fits('AC-8 failures', ...getRuns, ...retries, ...putRuns, evFails, qFails, ok, refusedRun);
     void [getFails, retry];
   });
 
