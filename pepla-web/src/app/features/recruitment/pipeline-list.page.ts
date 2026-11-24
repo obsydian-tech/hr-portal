@@ -18,7 +18,7 @@ import { ListState } from './candidate-list-state';
         </pp-page-header-actions>
       </pp-page-header>
       <pp-tabs label="Views" [tabs]="tabs()" [selected]="s.tab" (selectedChange)="pickTab($event)" [panel]="false" />
-      <div class="pp-inline pp-gap-100">
+      <div class="pp-inline pp-inline--bottom pp-gap-100">
         <pp-search label="Search by name, email or role" placeholder="Search by name, email or role" size="small" [value]="s.search" (valueChange)="pickSearch($event)" />
         <pp-field label="Role"><pp-select size="small" [fit]="true" [options]="roleOptions()" [value]="s.role || 'all'" (valueChange)="pickRole($event)" /></pp-field>
         <button ppButton type="button" size="small" icon="sliders-horizontal">More filters</button>
