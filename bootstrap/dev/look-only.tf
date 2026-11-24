@@ -5,6 +5,8 @@
 #
 # - Dev account only (the provider above refuses any other account).
 # - Add-only: one policy, one user, one attachment. Nothing existing changes.
+# - Lambda environment variables and Cognito user details are closed: they
+#   can hold the Postmark token and people's contact details.
 # - Every allowed action is a List/Describe/Get of settings or logs. No action
 #   wildcards. Reads of stored data (table items, files, secrets, parameter
 #   values, decrypt, function code) are not granted and are also denied.
@@ -25,8 +27,6 @@ data "aws_iam_policy_document" "look_only" {
     sid    = "LookRegionalSettingsAndLogs"
     effect = "Allow"
     actions = [
-      "lambda:ListFunctions",
-      "lambda:GetFunctionConfiguration",
       "lambda:GetFunctionConcurrency",
       "lambda:GetAccountSettings",
       "lambda:ListEventSourceMappings",
@@ -58,7 +58,6 @@ data "aws_iam_policy_document" "look_only" {
       "cognito-idp:ListUserPools",
       "cognito-idp:DescribeUserPool",
       "cognito-idp:ListGroups",
-      "cognito-idp:ListUsersInGroup",
       "cognito-idp:AdminListGroupsForUser",
 
       "states:ListStateMachines",
@@ -156,6 +155,8 @@ data "aws_iam_policy_document" "look_only" {
       "kms:GenerateDataKey",
       "kms:GenerateDataKeyWithoutPlaintext",
       "lambda:GetFunction",
+      "lambda:GetFunctionConfiguration",
+      "lambda:ListFunctions",
       "lambda:InvokeFunction",
       "lambda:InvokeFunctionUrl",
       "bedrock:InvokeModel",
@@ -164,6 +165,7 @@ data "aws_iam_policy_document" "look_only" {
       "cognito-idp:DescribeUserPoolClient",
       "cognito-idp:AdminGetUser",
       "cognito-idp:ListUsers",
+      "cognito-idp:ListUsersInGroup",
       "states:DescribeExecution",
       "states:GetExecutionHistory",
       "states:StartExecution",
@@ -178,6 +180,17 @@ data "aws_iam_policy_document" "look_only" {
       "sts:AssumeRole",
     ]
     resources = ["*"]
+  }
+
+  # GET /apikeys?includeValues=true would show API key values.
+  statement {
+    sid     = "NeverReadApiKeys"
+    effect  = "Deny"
+    actions = ["apigateway:GET"]
+    resources = [
+      "arn:aws:apigateway:af-south-1::/apikeys",
+      "arn:aws:apigateway:af-south-1::/apikeys/*",
+    ]
   }
 }
 
