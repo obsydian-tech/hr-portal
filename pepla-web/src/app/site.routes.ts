@@ -12,8 +12,6 @@ export const siteRoutes: Routes = [
   { path: 'product/recruitment', loadComponent: () => import('./ds/site/learn/recruitment/recruitment.page').then((m) => m.RecruitmentPage), canActivate: [siteStyles], title: 'Recruitment · Naleko People' },
   { path: 'product/onboarding', loadComponent: () => import('./ds/site/learn/onboarding/onboarding.page').then((m) => m.OnboardingPage), canActivate: [siteStyles], title: 'Onboarding and Offboarding · Naleko People' },
   { path: 'product/compliance', loadComponent: () => import('./ds/site/learn/compliance/compliance.page').then((m) => m.CompliancePage), canActivate: [siteStyles], title: 'Compliance Management · Naleko People' },
-  { path: 'score', loadComponent: () => import('./features/score/score.page').then((m) => m.ScorePage), title: 'Interview feedback · Naleko People' },
-  { path: 'score/:old', loadComponent: () => import('./features/score/score.page').then((m) => m.ScorePage), title: 'Interview feedback · Naleko People' },
   { path: '', loadChildren: () => import('./app.routes').then((m) => m.routes) },
   { path: '**', loadComponent: () => import('./features/public/public-page').then((m) => m.NotFoundPage), canActivate: [siteStyles], title: 'Naleko People' },
 ];
