@@ -19,6 +19,13 @@ import { answerSchema, checker, operation, readDoc, type Doc } from '../rec-14/s
  *     It answers any host whose path matches; it needs a sign-in token; it records every call it gets;
  *   - small helpers: sign in as a person, the console-error watcher, the "no company id" text check.
  *
+ * Child lock rec-ui-01.3 (REC-UI-02, decision D-T-A12): `GET /v1/candidates` answers exactly what the real list sends
+ * (REC-15 step A, api/openapi.yaml CandidateList and CandidateRow), checked against the file like the rule 14 routes:
+ * no interviews_done, interviews_required, offer_state or pending on a row; the server's order, page (`limit`, `nextToken`)
+ * and its 400 INVALID_FIELD refusals (a search of only spaces or over 100 characters among them). Not hired answers
+ * as the real REC-02 does: `{ candidateId, pending: true, awaiting: { kind, personId? } }`, with no name in it.
+ * A failure a test sets up with `refuse()` stands for a gateway or network failure and is not checked against the file.
+ *
  * REC-14 rule 17 (child lock rec-ui-01.2): the fake cannot drift from api/openapi.yaml.
  *   - every request to a method and path the file does not have, or without a `required` query parameter, is refused
  *     and written to `contractErrors` (so today's `GET /v1/config` with no `configType` fails here as it fails for real);
@@ -81,10 +88,15 @@ export const REASONS: ReadonlyArray<[string, string]> = [
 ];
 
 type Pending = { by: string; reason: string; awaiting: { kind: 'HIRING_MANAGER' | 'HR'; personId?: string; name?: string } };
+/**
+ * A candidate as the fake server stores it. interviews_done, interviews_required and offer_state stay on the server side
+ * (the move rules use them); the list never sends them (CandidateRow). `role_id` '' is a candidate with no role yet,
+ * whose company is then `company`. `due_at` and `sla_status` are what the server's stage clock gives at `now`.
+ */
 export type Cand = {
   id: string; name: string; stage: Stage; source?: string; level: string; role_id: string; email: string;
-  stage_entered_at: string; due_at: string; sla_status: Sla; interviews_done?: number; interviews_required?: number; offer_state?: string;
-  mine?: boolean; not_hired_reason?: string; pending?: Pending; old_system?: boolean; applied_at?: string;
+  stage_entered_at: string; due_at: string | null; sla_status: Sla; interviews_done?: number; interviews_required?: number; offer_state?: string;
+  mine?: boolean; not_hired_reason?: string; pending?: Pending; old_system?: boolean; applied_at?: string; company?: Co; role_title?: string;
 };
 export type Role = {
   role_id: string; job_title: string; department: string; department_id?: string; level: string; hiring_manager_id: string; hiring_manager_name: string;
@@ -149,12 +161,14 @@ export function seed(now: number): World {
   });
   const cands: Cand[] = [
     // The six of the kit's board for Fleet controller (company A).
-    c('cand-amahle', 'Amahle Dlamini', 'APPLIED', 'role-fleet', { source: 'Referral', mine: true }),
-    c('cand-tariro', 'Tariro Moyo', 'SCREENING', 'role-fleet', { mine: true }),
+    // rec-ui-01.3: the list comes in the server's order (most urgent first), so the due dates keep the kit's order on the board.
+    c('cand-amahle', 'Amahle Dlamini', 'APPLIED', 'role-fleet', { source: 'Referral', mine: true, due_at: iso(now + 3 * DAY) }),
+    c('cand-tariro', 'Tariro Moyo', 'SCREENING', 'role-fleet', { mine: true, due_at: iso(now + 3.5 * DAY) }),
     c('cand-ayanda', 'Ayanda Mkhize', 'SCREENING', 'role-fleet', { stage_entered_at: iso(now - 2 * DAY) }),
-    c('cand-bongani', 'Bongani Mthembu', 'INTERVIEW', 'role-fleet', { interviews_done: 2, interviews_required: 3, sla_status: 'OVERDUE', due_at: iso(now - 2 * DAY), mine: true }),
+    // rec-ui-01.3 (REC-UI-02 lock check B4): a real row past Applied applied before it entered its stage; two rows show it.
+    c('cand-bongani', 'Bongani Mthembu', 'INTERVIEW', 'role-fleet', { interviews_done: 2, interviews_required: 3, sla_status: 'OVERDUE', due_at: iso(now - 2 * DAY), mine: true, applied_at: '2026-11-04T08:00:00.000Z' }),
     c('cand-tendai', 'Tendai Ncube', 'INTERVIEW', 'role-fleet', { interviews_done: 1, interviews_required: 2, sla_status: 'DUE_SOON', due_at: iso(now + 3 * 3_600_000) }),
-    c('cand-kagiso', 'Kagiso Molefe', 'OFFER', 'role-fleet', { offer_state: 'SENT' }),
+    c('cand-kagiso', 'Kagiso Molefe', 'OFFER', 'role-fleet', { offer_state: 'SENT', applied_at: '2026-10-28T08:00:00.000Z' }),
     // Not hired, and old-system rows (company A).
     c('cand-nomvula', 'Nomvula Zulu', 'NOT_HIRED', 'role-fleet', { not_hired_reason: 'NOT_RIGHT_SKILLS' }),
     c('cand-farai-m', 'Farai Moyo', 'NOT_HIRED', 'role-fleet', { not_hired_reason: 'WITHDREW' }),
@@ -184,7 +198,7 @@ export function seed(now: number): World {
 // ---------------------------------------------------------------- the contract (REC-14 rule 17)
 
 /** The routes of REC-14 rule 14: every answer the fake gives on them is checked against api/openapi.yaml. */
-export const CONTRACT_ROUTES = ['GET /v1/roles/options', 'GET /v1/company/departments', 'POST /v1/admin/company/departments', 'PATCH /v1/admin/company/departments/{id}', 'POST /v1/roles'];
+export const CONTRACT_ROUTES = ['GET /v1/roles/options', 'GET /v1/company/departments', 'POST /v1/admin/company/departments', 'PATCH /v1/admin/company/departments/{id}', 'POST /v1/roles', 'GET /v1/candidates'];
 
 type Contract = { doc: Doc; check: (schema: unknown, value: unknown) => string[]; schemas: (name: string) => unknown };
 let CONTRACT: Contract | null = null;
@@ -283,6 +297,11 @@ export class HireFake {
     this.refusals.push({ once: true, ...r });
   }
 
+  /** Lifts every refusal still waiting (a test that refused with `once: false` lets the server answer again). */
+  lift(): void {
+    this.refusals.length = 0;
+  }
+
   /** Lets every held call answer. */
   release(): void {
     for (const go of this.held.splice(0)) go();
@@ -328,7 +347,7 @@ export class HireFake {
       if (refusal.once) this.refusals.splice(this.refusals.indexOf(refusal), 1);
       if (refusal.hold) await new Promise<void>((go) => this.held.push(go));
       if (refusal.abort) { call.status = -1; return route.abort('internetdisconnected'); }
-      if (!refusal.hold || refusal.status) return this.send(route, call, refusal.status ?? 500, refusal.body ?? { error: 'Internal Server Error' });
+      if (!refusal.hold || refusal.status) return this.send(route, call, refusal.status ?? 500, refusal.body ?? { error: 'Internal Server Error' }, false);
     }
     if (!authorization || !JWT.test(authorization)) return this.send(route, call, 401, { message: 'Unauthorized' });
     if (!who) return this.send(route, call, 403, { error: 'Forbidden' });
@@ -341,10 +360,10 @@ export class HireFake {
     return this.send(route, call, status, answer);
   }
 
-  private send(route: Route, call: Call, status: number, body: unknown): Promise<void> {
+  private send(route: Route, call: Call, status: number, body: unknown, checked = true): Promise<void> {
     call.status = status;
     const key = routeOf(call.method, call.path);
-    if (key) this.contractErrors.push(...answerProblems(key, status, body));
+    if (key && checked) this.contractErrors.push(...answerProblems(key, status, body));
     return route.fulfill({ status, headers: { ...CORS, 'cache-control': 'private, no-store', 'content-type': 'application/json' }, body: JSON.stringify(body) });
   }
 
@@ -426,19 +445,44 @@ export class HireFake {
       return [200, { candidates: w.cands.filter((c) => c.old_system && this.roleCompany(c.role_id) === who.company).map((c) => ({ candidate_id: c.id, name: c.name, role_id: c.role_id, role_title: this.title(c.role_id), rejected_at: c.applied_at })) }];
     }
     if (path.endsWith('/v1/candidates') && method === 'GET') {
-      if (!recruiter) return forbidden;
+      // REC-15 step A (lambda/shared/recruitment-actions/candidate-list.mjs): one list for one role or all roles.
+      if (!recruiter) return [403, { error: 'Forbidden' }];
+      const bad = (field: string): [number, unknown] => [400, { error: 'Bad request', code: 'INVALID_FIELD', field }];
+      if (query['stage'] !== undefined && !['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER', 'HIRED', 'NOT_HIRED'].includes(query['stage'])) return bad('stage');
+      if (query['sla_status'] !== undefined && !['ON_TRACK', 'DUE_SOON', 'OVERDUE'].includes(query['sla_status'])) return bad('sla_status');
+      if (query['mine'] !== undefined && query['mine'] !== 'true') return bad('mine');
+      if (query['limit'] !== undefined && !(/^\d+$/.test(query['limit']) && Number(query['limit']) >= 1 && Number(query['limit']) <= 100)) return bad('limit');
+      let search: string | null = null;
+      if (query['search'] !== undefined) {
+        search = query['search'].trim().toLowerCase();
+        if (!search || search.length > 100) return bad('search');
+      }
+      let after: Pos | null = null;
+      if (query['nextToken'] !== undefined) {
+        after = readToken(query['nextToken']);
+        if (!after) return bad('nextToken');
+      }
+      const limit = query['limit'] ? Number(query['limit']) : 100;
       const roleId = query['role_id'];
-      const inCompany = w.cands.filter((c) => this.roleCompany(c.role_id) === who.company && !c.old_system);
-      let list = roleId ? inCompany.filter((c) => c.role_id === roleId) : inCompany;
-      const open = list.filter((c) => c.stage !== 'NOT_HIRED');
-      const counts = { all: open.length, mine: open.filter((c) => c.mine).length, overdue: open.filter((c) => c.sla_status === 'OVERDUE').length, due_soon: open.filter((c) => c.sla_status === 'DUE_SOON').length, not_hired: list.filter((c) => c.stage === 'NOT_HIRED').length };
+      const inCompany = w.cands.filter((c) => this.companyOf(c) === who.company && !c.old_system);
+      const rows = roleId ? inCompany.filter((c) => c.role_id === roleId) : inCompany;
+      const live = rows.filter((c) => c.stage !== 'NOT_HIRED');
+      const counts = {
+        all: live.length, mine: live.filter((c) => c.mine).length, overdue: live.filter((c) => this.slaOf(c) === 'OVERDUE').length,
+        due_soon: live.filter((c) => this.slaOf(c) === 'DUE_SOON').length, not_hired: rows.length - live.length,
+      };
       const shown = { ...counts, ...(this.countsOverride ?? {}) };
-      if (query['stage']) list = list.filter((c) => c.stage === query['stage']);
-      else list = open;
-      if (query['sla_status']) list = list.filter((c) => c.sla_status === query['sla_status']);
+      let list = query['stage'] === 'NOT_HIRED' ? rows.filter((c) => c.stage === 'NOT_HIRED') : live;
+      if (query['stage'] && query['stage'] !== 'NOT_HIRED') list = list.filter((c) => c.stage === query['stage']);
+      if (query['sla_status']) list = list.filter((c) => this.slaOf(c) === query['sla_status']);
       if (query['mine'] === 'true') list = list.filter((c) => c.mine);
-      if (query['search']) { const s = query['search'].toLowerCase(); list = list.filter((c) => c.name.toLowerCase().includes(s) || c.email.includes(s)); }
-      return [200, { candidates: list.map((c) => this.candRow(c)), counts: shown }];
+      if (search) { const q = search; list = list.filter((c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (this.candRow(c).role_title ?? '').toLowerCase().includes(q)); }
+      list = [...list].sort((a, b) => cmpPos(posOf(a), posOf(b)));
+      if (after) { const from = after; list = list.filter((c) => cmpPos(posOf(c), from) > 0); }
+      const page = list.slice(0, limit);
+      const body: { candidates: unknown[]; counts: typeof shown; nextToken?: string } = { candidates: page.map((c) => this.candRow(c)), counts: shown };
+      if (list.length > limit) body.nextToken = writeToken(posOf(page[page.length - 1]!));
+      return [200, body];
     }
     if ((m = /\/v1\/candidates\/([^/]+)\/stage$/.exec(path)) && method === 'PUT') {
       if (!recruiter) return forbidden;
@@ -465,28 +509,30 @@ export class HireFake {
       const c = this.cand(m[1]!, who);
       if (!c) return notFound;
       const b = (call.body ?? {}) as { reason?: string; note?: string };
+      // The answers of lambda/shared/recruitment-actions/record-not-hired.mjs (REC-02): an id and a state, never a name.
       if (m[2] === '/confirm') {
-        if (!c.pending) return [409, { error: 'Not open', code: 'NOT_OPEN' }];
+        if (!c.pending) return [409, { error: 'Conflict', code: 'NOTHING_PENDING' }];
         if (c.pending.by === who.email) return [409, { error: 'Same person', code: 'SAME_PERSON' }];
-        c.stage = 'NOT_HIRED'; c.not_hired_reason = c.pending.reason; delete c.pending;
-        return [200, this.candRow(c)];
+        c.stage = 'NOT_HIRED'; c.not_hired_reason = c.pending.reason; c.stage_entered_at = iso(w.now); delete c.pending;
+        return [200, { candidateId: c.id, stage: 'NOT_HIRED' }];
       }
       if (m[2] === '/cancel') {
-        if (!c.pending) return [409, { error: 'Not open', code: 'NOT_OPEN' }];
+        if (!c.pending) return [409, { error: 'Conflict', code: 'NOTHING_PENDING' }];
         delete c.pending;
-        return [200, this.candRow(c)];
+        return [200, { candidateId: c.id, pending: false }];
       }
       if (!b.reason) return [400, { error: 'Reason required', code: 'REASON_REQUIRED' }];
       if (!REASONS.some(([code]) => code === b.reason)) return [400, { error: 'Invalid reason', code: 'INVALID_REASON' }];
       if (c.stage === 'NOT_HIRED' || c.stage === 'HIRED') return [409, { error: 'Not open', code: 'NOT_OPEN' }];
       if (c.offer_state === 'SENT') return [409, { error: 'Offer live', code: 'OFFER_LIVE' }];
-      if (this.secondConfirmation.has(c.id)) {
+      if (this.secondConfirmation.has(c.id) || this.secondConfirmationByHr.has(c.id)) {
         const hm = w.roles.find((r) => r.role_id === c.role_id)!;
-        c.pending = { by: who.email, reason: b.reason, awaiting: { kind: 'HIRING_MANAGER', personId: hm.hiring_manager_id, name: hm.hiring_manager_name } };
-        return [200, { pending: { awaiting: c.pending.awaiting } }];
+        const awaiting = this.secondConfirmationByHr.has(c.id) ? { kind: 'HR' as const } : { kind: 'HIRING_MANAGER' as const, personId: hm.hiring_manager_id };
+        c.pending = { by: who.email, reason: b.reason, awaiting };
+        return [200, { candidateId: c.id, pending: true, awaiting }];
       }
-      c.stage = 'NOT_HIRED'; c.not_hired_reason = b.reason;
-      return [200, this.candRow(c)];
+      c.stage = 'NOT_HIRED'; c.not_hired_reason = b.reason; c.stage_entered_at = iso(w.now);
+      return [200, { candidateId: c.id, stage: 'NOT_HIRED' }];
     }
     if (path.endsWith('/v1/company/departments') && method === 'GET') {
       if (!who.groups.some((g) => ['hr_staff', 'admin'].includes(g))) return [403, { error: 'Forbidden' }];
@@ -504,14 +550,20 @@ export class HireFake {
     return [404, { message: 'Not Found' }];
   }
 
-  /** Candidates whose Not hired needs a second confirmation (the answer says `pending`). */
+  /** Candidates whose Not hired needs a second confirmation by the role's hiring manager (the answer says `pending`). */
   readonly secondConfirmation = new Set<string>();
+  /** Candidates whose Not hired needs a second confirmation by any other HR person: the answer names nobody (`awaiting.kind` HR). */
+  readonly secondConfirmationByHr = new Set<string>();
 
   private roleCompany(roleId: string): Co | null { return this.world.roles.find((r) => r.role_id === roleId)?.company ?? null; }
+  /** A candidate's company: its role's, or its own when no role is attached yet. */
+  private companyOf(c: Cand): Co | null { return this.roleCompany(c.role_id) ?? c.company ?? null; }
+  /** The stage clock gives Hired and Not hired no status (REC-15 rule 1). */
+  private slaOf(c: Cand): Sla | null { return c.stage === 'HIRED' || c.stage === 'NOT_HIRED' ? null : c.sla_status; }
   private title(roleId: string): string { return this.world.roles.find((r) => r.role_id === roleId)?.job_title ?? ''; }
   private cand(id: string, who: Who): Cand | null {
     const c = this.world.cands.find((x) => x.id === decodeURIComponent(id));
-    return c && this.roleCompany(c.role_id) === who.company ? c : null;
+    return c && this.companyOf(c) === who.company ? c : null;
   }
   private roleRow(r: Role) {
     const open = this.world.cands.filter((c) => c.role_id === r.role_id && c.stage !== 'NOT_HIRED' && !c.old_system);
@@ -521,12 +573,35 @@ export class HireFake {
       opened_at: r.opened_at, status: r.status,
     };
   }
-  private candRow(c: Cand) {
+  /** One row exactly as api/openapi.yaml CandidateRow has it (REC-15 rule 4): no other key, no email, phone or ID number. */
+  candRow(c: Cand): { id: string; name: string; stage: Stage; stage_entered_at: string; due_at: string | null; sla_status: Sla | null; role_id: string | null; role_title: string | null; level: string | null; source?: string; applied_at: string | null; hiring_manager_id: string | null; mine: boolean } {
+    const open = this.slaOf(c) !== null;
+    const role = this.world.roles.find((r) => r.role_id === c.role_id);
     return {
-      id: c.id, name: c.name, stage: c.stage, stage_entered_at: c.stage_entered_at, due_at: c.due_at, sla_status: c.sla_status, source: c.source,
-      interviews_done: c.interviews_done, interviews_required: c.interviews_required, offer_state: c.offer_state, level: c.level,
-      ...(c.pending ? { pending: { awaiting: c.pending.awaiting } } : {}),
+      id: c.id, name: c.name, stage: c.stage, stage_entered_at: c.stage_entered_at, due_at: open ? c.due_at : null, sla_status: this.slaOf(c),
+      role_id: c.role_id || null, role_title: role?.job_title ?? c.role_title ?? null, level: c.level || null, ...(c.source ? { source: c.source } : {}),
+      applied_at: c.applied_at ?? c.stage_entered_at, hiring_manager_id: role?.hiring_manager_id ?? null, mine: !!c.mine,
     };
+  }
+}
+
+// The list's place of a row (REC-15 rule 9): open with a due date by due date, then open without one, then Hired and
+// Not hired newest first; ties by id. The page token holds that place and nothing else (no company, no table key).
+type Pos = { g: number; s: number; i: string };
+function posOf(c: Cand): Pos {
+  const open = c.stage !== 'HIRED' && c.stage !== 'NOT_HIRED';
+  if (open && c.due_at) return { g: 0, s: Date.parse(c.due_at), i: c.id };
+  if (open) return { g: 1, s: 0, i: c.id };
+  return { g: 2, s: -Date.parse(c.stage_entered_at), i: c.id };
+}
+function cmpPos(a: Pos, b: Pos): number { return a.g - b.g || a.s - b.s || (a.i < b.i ? -1 : a.i > b.i ? 1 : 0); }
+function writeToken(p: Pos): string { return Buffer.from(JSON.stringify({ v: 1, ...p })).toString('base64url'); }
+function readToken(t: string): Pos | null {
+  try {
+    const o = JSON.parse(Buffer.from(t, 'base64url').toString('utf8'));
+    return o && o.v === 1 && [0, 1, 2].includes(o.g) && Number.isFinite(o.s) && typeof o.i === 'string' && o.i ? { g: o.g, s: o.s, i: o.i } : null;
+  } catch {
+    return null;
   }
 }
 

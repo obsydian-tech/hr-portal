@@ -9,5 +9,6 @@ export function registerRecruitmentNav(): void {
   registerNav([
     { id: 'rec-roles', group: 'Hire', label: 'Roles', icon: 'briefcase', route: '/hire/roles', order: 1, ...HIRE_ACCESS },
     { id: 'rec-pipeline', group: 'Hire', label: 'Pipeline', icon: 'columns-3', route: '/hire/pipeline', order: 2, ...HIRE_ACCESS },
+    { id: 'rec-candidates', group: 'Hire', label: 'Candidates', icon: 'user-search', route: '/hire/candidates', order: 3, ...HIRE_ACCESS },
   ]);
 }
