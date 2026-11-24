@@ -3,43 +3,17 @@
 /**
  * lambda/createCandidate/index.test.js
  *
- * Unit tests covering the NH-118 Self-Verification Checklist:
- *   1. POST /candidates → 201 with candidateId
- *   2. DynamoDB talent-flow-state has SAGA record without configVersion
- *   3. EventBridge CandidateCreated event published with correct source
- *   4. Duplicate POST with same idempotencyKey → 200 with same candidateId
- *   5. Invalid body (missing required field) → 400
- * Plus: concurrent IN_PROGRESS → 409, EventBridge failure is non-fatal
+ * REC-15 step B: the handler is a thin door. The add itself (body rules, the role, the key, the row, the event) lives in
+ * shared/recruitment-actions/add-candidate.mjs and is checked in full by the locked acceptance tests (rec-15b.spec.ts)
+ * against a fake AWS. Here: who may reach it, where the company comes from, what it is handed, and what a crash says.
  */
 
 process.env.STATE_TABLE_NAME       = 'talent-flow-state';
 process.env.IDEMPOTENCY_TABLE_NAME = 'talent-flow-idempotency-keys';
 process.env.EVENTBRIDGE_BUS_NAME   = 'talent-flow-bus';
+process.env.ROLES_TABLE_NAME       = 'talent-flow-roles';
 
-// ── Mocks ─────────────────────────────────────────────────────────────────────
-
-const mockDynamoSend = jest.fn();
-const mockEbSend     = jest.fn();
-
-jest.mock('@aws-sdk/client-dynamodb', () => ({
-  DynamoDBClient:        jest.fn(() => ({ send: mockDynamoSend })),
-  GetItemCommand:        jest.fn(p => ({ _cmd: 'GetItem',    ...p })),
-  PutItemCommand:        jest.fn(p => ({ _cmd: 'PutItem',    ...p })),
-  UpdateItemCommand:     jest.fn(p => ({ _cmd: 'UpdateItem', ...p })),
-}));
-
-jest.mock('@aws-sdk/util-dynamodb', () => ({
-  // Pass-through, but honour removeUndefinedValues like the real marshall does.
-  marshall:   jest.fn((obj, opts) => (opts?.removeUndefinedValues
-    ? Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
-    : obj)),
-  unmarshall: jest.fn(item => item),
-}));
-
-jest.mock('@aws-sdk/client-eventbridge', () => ({
-  EventBridgeClient:  jest.fn(() => ({ send: mockEbSend })),
-  PutEventsCommand:   jest.fn(p => ({ _cmd: 'PutEvents', ...p })),
-}));
+const mockAdd = jest.fn();
 
 // MOD-01: the module switch is the shared helper's job (tested in shared/modules.test.mjs); here Recruitment is on.
 jest.unstable_mockModule('../shared/modules.mjs', () => ({
@@ -47,225 +21,78 @@ jest.unstable_mockModule('../shared/modules.mjs', () => ({
   modulesOf: async () => ['onboarding', 'recruitment'],
   requireModule: async () => null,
 }));
-
-// REC-12: a new candidate is locked to the active version of every setting; the reader is tested in REC-12's own tests.
-const VERSIONS = { SLA_THRESHOLDS: 2, SENTIMENT_SCALE: 1 };
-jest.unstable_mockModule('../shared/recruitment-settings.mjs', () => ({
-  activeVersions: async () => VERSIONS,
-}));
-
-// Deterministic ulid
-jest.mock('ulid', () => ({ ulid: jest.fn(() => '01HTEST00000000000000000') }));
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+jest.unstable_mockModule('../shared/recruitment-settings.mjs', () => ({ activeVersions: async () => ({}) }));
+jest.unstable_mockModule('../shared/recruitment-actions/add-candidate.mjs', () => ({ addCandidate: (...a) => mockAdd(...a) }));
 
 const TEN = 'ten_0123456789abcdefghijklmnop';
 // REC-01: a Recruiter is HR with the Recruitment tick; the role check comes before anything else.
-const RECRUITER = { tenant_id: TEN, 'cognito:groups': '[hr_staff perm-recruitment]' };
+const RECRUITER = { tenant_id: TEN, sub: 'user-1', 'cognito:groups': '[hr_staff perm-recruitment]' };
 
-function makeEvent(overrides = {}, claims = RECRUITER) {
+function makeEvent(body = {}, claims = RECRUITER, headers = {}) {
   return {
     httpMethod: 'POST',
     path: '/candidates',
+    headers,
     requestContext: { authorizer: { jwt: { claims } } },
-    body: JSON.stringify({
-      idempotencyKey: 'idem-key-001',
-      firstName: 'Jane',
-      lastName: 'Doe',
-      email: 'jane.doe@example.com',
-      positionTitle: 'Senior Engineer',
-      positionLevel: 'SENIOR',
-      ...overrides,
-    }),
+    body: JSON.stringify(body),
   };
 }
-
-function parseBody(response) {
-  return JSON.parse(response.body);
-}
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('createCandidate', () => {
   let handler;
 
   beforeEach(() => {
-    mockDynamoSend.mockReset();
-    mockEbSend.mockReset();
+    mockAdd.mockReset();
     jest.isolateModules(() => {
       ({ handler } = require('./index'));
     });
   });
 
-  // ── Checklist item 1 + 2 + 3: successful creation ────────────────────────
-  describe('successful creation', () => {
-    beforeEach(() => {
-      // GetItem: no existing idempotency record
-      mockDynamoSend.mockResolvedValueOnce({ Item: null });
-      // PutItem: idempotency IN_PROGRESS
-      mockDynamoSend.mockResolvedValueOnce({});
-      // PutItem: SAGA record
-      mockDynamoSend.mockResolvedValueOnce({});
-      // EventBridge
-      mockEbSend.mockResolvedValueOnce({ FailedEntryCount: 0, Entries: [] });
-      // UpdateItem: idempotency COMPLETED
-      mockDynamoSend.mockResolvedValueOnce({});
-    });
-
-    test('returns 201 with candidateId', async () => {
-      const response = await handler(makeEvent());
-      expect(response.statusCode).toBe(201);
-      expect(parseBody(response).candidateId).toBe('CAND-01HTEST00000000000000000');
-    });
-
-    test('SAGA record written with configVersion omitted and SK=SAGA', async () => {
-      await handler(makeEvent());
-      // Third DynamoDB call (index 2) is the SAGA PutItem
-      const sagaPutCall = mockDynamoSend.mock.calls[2][0];
-      expect(sagaPutCall.Item.SK).toBe('SAGA');
-      // Omitted, not null: the orchestrator sets it with attribute_not_exists(configVersion).
-      expect(sagaPutCall.Item).not.toHaveProperty('configVersion');
-      expect(sagaPutCall.Item.PK).toBe('CANDIDATE#CAND-01HTEST00000000000000000');
-      expect(sagaPutCall.Item.tenant_id).toBe(TEN);
-      // REC-12: locked to the active version of every setting at creation
-      expect(sagaPutCall.Item.settingVersions).toEqual({ SLA_THRESHOLDS: 2, SENTIMENT_SCALE: 1 });
-    });
-
-    test('EventBridge event published with source talent-flow.candidates and detail-type CandidateCreated', async () => {
-      await handler(makeEvent());
-      const ebCall = mockEbSend.mock.calls[0][0];
-      const entry = ebCall.Entries[0];
-      expect(entry.Source).toBe('talent-flow.candidates');
-      expect(entry.DetailType).toBe('CandidateCreated');
-      expect(entry.EventBusName).toBe('talent-flow-bus');
-      const detail = JSON.parse(entry.Detail);
-      expect(detail.candidateId).toBe('CAND-01HTEST00000000000000000');
-      expect(detail.tenant_id).toBe(TEN);
-      expect(detail).not.toHaveProperty('tenantId');
-    });
+  test('a token without a company is refused with 403 and the add never runs', async () => {
+    const res = await handler(makeEvent({}, { sub: 'user-1', 'cognito:groups': '[hr_staff perm-recruitment]' }));
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Forbidden' });
+    expect(mockAdd).not.toHaveBeenCalled();
   });
 
-  test('a token without a company is refused with 403 and nothing is read or written', async () => {
-    const response = await handler(makeEvent({}, {}));
-    expect(response.statusCode).toBe(403);
-    expect(parseBody(response)).toEqual({ error: 'Forbidden' });
-    expect(mockDynamoSend).not.toHaveBeenCalled();
-    expect(mockEbSend).not.toHaveBeenCalled();
-  });
-
-  test('REC-01: a caller who is not a Recruiter gets 403 before any AWS call', async () => {
+  test('REC-01: a caller who is not a Recruiter gets 403 and the add never runs', async () => {
     for (const groups of ['[hr_staff]', '[perm-recruitment]', '[admin]', '[manager]', '[employee]', '[guest]', undefined]) {
-      const res = await handler(makeEvent({}, { tenant_id: TEN, ...(groups ? { 'cognito:groups': groups } : {}) }));
+      const res = await handler(makeEvent({}, { tenant_id: TEN, sub: 'user-1', ...(groups ? { 'cognito:groups': groups } : {}) }));
       expect(res.statusCode).toBe(403);
-      expect(parseBody(res)).toEqual({ error: 'Forbidden' });
+      expect(JSON.parse(res.body)).toEqual({ error: 'Forbidden' });
     }
-    expect(mockDynamoSend).not.toHaveBeenCalled();
-    expect(mockEbSend).not.toHaveBeenCalled();
+    expect(mockAdd).not.toHaveBeenCalled();
   });
 
-  test('a company in the body is not read', async () => {
-    mockDynamoSend.mockResolvedValue({});
-    mockEbSend.mockResolvedValue({ FailedEntryCount: 0, Entries: [] });
-    await handler(makeEvent({ tenantId: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz', tenant_id: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' }));
-    const sagaPut = mockDynamoSend.mock.calls.map((c) => c[0]).find((c) => c.Item && c.Item.SK === 'SAGA');
-    expect(sagaPut.Item.tenant_id).toBe(TEN);
+  test('the company comes from the token only; the body is handed over untouched, with the Idempotency-Key header', async () => {
+    mockAdd.mockImplementationOnce(async () => ({ statusCode: 201, headers: {}, body: '{}' }));
+    const body = { first_name: 'Jane', last_name: 'Doe', email: 'jane@example.com', role_id: 'r1', tenantId: 'ten_zzzzzzzzzzzzzzzzzzzzzzzzzz' };
+    const res = await handler(makeEvent(body, RECRUITER, { 'Idempotency-Key': 'key-1' }));
+    expect(res.statusCode).toBe(201);
+    const [ctx, input] = mockAdd.mock.calls[0];
+    expect(ctx.tenantId).toBe(TEN);
+    expect(input.body).toEqual(body);
+    expect(input.headerKey).toBe('key-1');
   });
 
-  // ── Checklist item 4: duplicate idempotency key returns 200 ───────────────
-  test('duplicate POST with same idempotencyKey returns 200 with existing candidateId', async () => {
-    mockDynamoSend.mockResolvedValueOnce({
-      Item: {
-        idempotencyKey: 'idem-key-001',
-        status: 'COMPLETED',
-        candidateId: 'CAND-EXISTING123',
-      },
-    });
-
-    const response = await handler(makeEvent());
-    expect(response.statusCode).toBe(200);
-    expect(parseBody(response).candidateId).toBe('CAND-EXISTING123');
-    // No SAGA write and no EventBridge call on duplicate
-    expect(mockEbSend).not.toHaveBeenCalled();
-    expect(mockDynamoSend).toHaveBeenCalledTimes(1);
+  test('a body that is not JSON is handed over as undefined (the add answers 400)', async () => {
+    mockAdd.mockImplementationOnce(async () => ({ statusCode: 400, headers: {}, body: '{}' }));
+    const event = makeEvent({});
+    event.body = '{not json';
+    await handler(event);
+    expect(mockAdd.mock.calls[0][1].body).toBeUndefined();
   });
 
-  // ── Checklist item 5: missing required field → 400 ────────────────────────
-  test('missing email returns 400', async () => {
-    // No DynamoDB call expected before validation for missing fields,
-    // BUT idempotency check (GetItem) + IN_PROGRESS write happen before validation.
-    mockDynamoSend.mockResolvedValueOnce({ Item: null }); // GetItem
-    mockDynamoSend.mockResolvedValueOnce({});             // PutItem IN_PROGRESS
-
-    const response = await handler(makeEvent({ email: undefined }));
-    expect(response.statusCode).toBe(400);
-    expect(parseBody(response).missing).toContain('email');
-  });
-
-  test('missing idempotencyKey returns 400 immediately', async () => {
-    const event = makeEvent();
-    const body = JSON.parse(event.body);
-    delete body.idempotencyKey;
-    event.body = JSON.stringify(body);
-
-    const response = await handler(event);
-    expect(response.statusCode).toBe(400);
-    // No DynamoDB calls — rejected before idempotency check
-    expect(mockDynamoSend).not.toHaveBeenCalled();
-  });
-
-  // ── Concurrent request (IN_PROGRESS) → 409 ────────────────────────────────
-  test('IN_PROGRESS idempotency key returns 409', async () => {
-    mockDynamoSend.mockResolvedValueOnce({
-      Item: {
-        idempotencyKey: 'idem-key-001',
-        status: 'IN_PROGRESS',
-      },
-    });
-
-    const response = await handler(makeEvent());
-    expect(response.statusCode).toBe(409);
-  });
-
-  // ── Race condition — conditional PutItem fails ────────────────────────────
-  test('conditional PutItem ConditionalCheckFailedException returns 409', async () => {
-    mockDynamoSend.mockResolvedValueOnce({ Item: null }); // GetItem: not found
-    const err = new Error('ConditionalCheckFailedException');
-    err.name = 'ConditionalCheckFailedException';
-    mockDynamoSend.mockRejectedValueOnce(err); // PutItem IN_PROGRESS race
-
-    const response = await handler(makeEvent());
-    expect(response.statusCode).toBe(409);
-  });
-
-  // ── Invalid positionLevel → 400 ───────────────────────────────────────────
-  test('invalid positionLevel returns 400', async () => {
-    mockDynamoSend.mockResolvedValueOnce({ Item: null });
-    mockDynamoSend.mockResolvedValueOnce({});
-
-    const response = await handler(makeEvent({ positionLevel: 'INTERN' }));
-    expect(response.statusCode).toBe(400);
-    expect(parseBody(response).error).toMatch(/positionLevel/);
-  });
-
-  // ── EventBridge failure is non-fatal ─────────────────────────────────────
-  test('EventBridge failure does not prevent 201 response', async () => {
-    mockDynamoSend.mockResolvedValueOnce({ Item: null });
-    mockDynamoSend.mockResolvedValueOnce({});
-    mockDynamoSend.mockResolvedValueOnce({});
-    mockEbSend.mockRejectedValueOnce(new Error('EventBridge unavailable'));
-    mockDynamoSend.mockResolvedValueOnce({});
-
-    const response = await handler(makeEvent());
-    expect(response.statusCode).toBe(201);
-  });
-
-  // ── DynamoDB SAGA write failure → 500 ────────────────────────────────────
-  test('DynamoDB SAGA write failure returns 500', async () => {
-    mockDynamoSend.mockResolvedValueOnce({ Item: null });
-    mockDynamoSend.mockResolvedValueOnce({});
-    mockDynamoSend.mockRejectedValueOnce(new Error('ProvisionedThroughputExceeded'));
-
-    const response = await handler(makeEvent());
-    expect(response.statusCode).toBe(500);
+  test('a crash is a 500 that says nothing more, and the log carries the error name only', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const err = new Error('secret jane@example.com');
+    err.name = 'ProvisionedThroughputExceededException';
+    mockAdd.mockRejectedValueOnce(err);
+    const res = await handler(makeEvent({}));
+    expect(res.statusCode).toBe(500);
+    expect(JSON.parse(res.body)).toEqual({ error: 'Something went wrong' });
+    expect(JSON.stringify(spy.mock.calls)).toContain('ProvisionedThroughputExceededException');
+    expect(JSON.stringify(spy.mock.calls)).not.toContain('jane@example.com');
+    spy.mockRestore();
   });
 });
