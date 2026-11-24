@@ -71,3 +71,12 @@ Round 2 of the REC-UI-02 lock check (24 Nov 2026) added to rec-ui-01.3:
 - The seed gives Bongani Mthembu and Kagiso Molefe an `applied_at` before the day they entered their stage, as real rows past Applied have (the fake no longer makes the two dates equal for every row).
 - The AC-6 pending test drops `hiring_manager_name` from the role answer, as the real `GET /v1/roles/{id}` does, so the name must come from `awaiting.personId` and the company's hiring managers.
 - `HireFake.lift()` lifts refusals set with `once: false`.
+
+## Child lock rec-ui-01.4 (U-3 line, 24 Nov 2026)
+
+Iggie approved the line for the U-3 case on 24 Nov 2026 (10:43 SAST): "An HR person must confirm before this is final."
+When a Not hired answer waits on any other HR person (`awaiting.kind` `HR`, no `personId`, no name), the card stays in its
+column and shows that line, word for word, as a hiring manager's card shows "{name} must confirm before this is final."
+No other "must confirm" line shows: never an empty or a guessed name. Cancel on the card's More actions takes the line away.
+Only the U-3 test in `rec-ui-01.spec.ts` changes; the hiring manager case is unchanged. After a reload the line cannot show
+until the list carries a waiting decision (follow-up F-RUI-02.1), as for the hiring manager line.

@@ -169,6 +169,7 @@ export class BoardPage implements OnInit {
       : STAGE_NAMES[stage]!;
     const card: PipelineCard = { id: c.id, name: c.name, meta };
     if (c.pending?.awaiting?.name) card.lozenge = { status: 'warning', icon: 'clock', text: `${c.pending.awaiting.name} must confirm before this is final.` };
+    else if (c.pending?.awaiting?.hr) card.lozenge = { status: 'warning', icon: 'clock', text: 'An HR person must confirm before this is final.' };
     else if (c.sla_status && c.sla_status !== 'ON_TRACK' && c.due_at) card.deadline = { due: c.due_at };
     return card;
   }
@@ -219,7 +220,7 @@ export class BoardPage implements OnInit {
       const a = r.body.awaiting;
       const id = a?.kind === 'HIRING_MANAGER' ? a.personId : undefined;
       const name = !id ? undefined : this.roleBody?.hiring_manager_id === id && this.roleBody.hiring_manager_name ? this.roleBody.hiring_manager_name : this.managers.find((m) => m.id === id)?.name;
-      row.pending = { awaiting: name ? { name } : {} } as HireCandidate['pending'];
+      row.pending = { awaiting: name ? { name } : a?.kind === 'HR' ? { hr: true } : {} };
       this.stages.set(this.build(this.rows));
       this.nhFor.set({ ...row });
       return;
