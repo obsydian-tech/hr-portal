@@ -17,6 +17,7 @@ import { devEnv } from './support/ten-02/dev';
 import { isCardGrant } from './support/ten-04.2/grants';
 import { MARKETPLACE_DEV_KEY, marketplaceDev } from './support/marketplace-dev/grant';
 import { ownerLinkGrant } from './support/onb-11/owner-link';
+import { isRec07Grant } from './support/rec-07.1/grants';
 
 /**
  * MOD-01 · A company has modules switched on, and the server refuses a module that is off (epic Modules).
@@ -696,6 +697,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
         if (/get_candidates$|getCandidates$/.test(key) && /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/.test(p)) continue;
         // ONB-11 (re-lock mod-01.13): createEmployee links the new person's sign-in to their employees row (one UpdateItem; onb-11.spec.ts AC-11 needs it).
         { const [e, a, r, ...c] = p.split(' '); if (e === 'Allow' && ownerLinkGrant(a!, r!, cur.role, c.join(' '))) continue; }
+        // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
+        if (isRec07Grant(p, key)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null') && isGated(key, cur.role), `role policy ${key}: new grant "${p}" is only GetItem on the tenants table, on a gated Lambda's role`).toBe(true);
       }
     }
