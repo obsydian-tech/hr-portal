@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signa
 import { Meta } from '@angular/platform-browser';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
-import { PpButton, PpField, PpForm, PpRadioGroup, PpSectionMessage, PpSignInPage, PpSlider, PpTextarea } from '../../ds';
+import { PpButton, PpField, PpForm, PpSectionMessage, PpSignInPage, PpSlider, PpTextarea } from '../../ds';
 import { environment } from '../../../environments/environment';
 
 // REC-UI-03 step 1: the guest scoring page at /score#token=<token>. No sign-in: the guest opens the emailed link, scores, submits.
@@ -18,7 +18,7 @@ function day(iso: string): string {
 
 @Component({
   selector: 'app-score-page',
-  imports: [PpSignInPage, PpSlider, PpField, PpRadioGroup, PpTextarea, PpButton, PpForm, PpSectionMessage],
+  imports: [PpSignInPage, PpSlider, PpField, PpTextarea, PpButton, PpForm, PpSectionMessage],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @switch (state()) {
@@ -30,8 +30,15 @@ function day(iso: string): string {
             @for (c of a.criteria; track c.key) {
               <pp-slider [label]="c.label" [min]="1" [max]="5" [value]="$any(scores()[c.key])" (valueChange)="setScore(c.key, $event)" [words]="words" />
             }
-            <pp-field label="Decision" group="radio">
-              <pp-radio-group [tiles]="true" [options]="decisions" [value]="rating()" (valueChange)="rating.set($event)" />
+            <pp-field label="Decision" group="radio" options="none">
+              <div class="pp-grid pp-grid--2 pp-gap-100">
+                @for (d of decisions; track d.value; let i = $index) {
+                  <div class="pp-radio pp-radio--tile">
+                    <input class="pp-radio__input" type="radio" name="decision" [id]="'decision-' + i" [attr.aria-describedby]="'decision-' + i + '-d'" [checked]="d.value === rating()" (change)="rating.set(d.value)">
+                    <label class="pp-radio__label" [attr.for]="'decision-' + i">{{ d.label }}<span class="pp-radio__description" [id]="'decision-' + i + '-d'">{{ d.description }}</span></label>
+                  </div>
+                }
+              </div>
             </pp-field>
             <pp-field label="Notes" [optional]="true">
               <textarea ppTextarea rows="3" maxlength="2000" [value]="comment()" (input)="comment.set($any($event.target).value)"></textarea>
