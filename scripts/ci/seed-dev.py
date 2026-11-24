@@ -31,6 +31,7 @@ What it makes, every run, idempotently:
     manager of one and not of the other; and an interview of the first with the employee login on its panel.
 Output is role names and counts only: the repo and its Actions logs are public.
 """
+import hashlib
 import json
 import pathlib
 import re
@@ -1000,6 +1001,69 @@ def seed_onb22(ddb, tenant_id: str) -> int:
     return written
 
 
+def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
+    """REC-07: put the scoring interview, its guest link and company B's forged link back every run (cards/rec-07.md, "REC-07 dev seed").
+
+    Votes the last run left are removed, the link is unused again, so the dev check can score each time. Idempotent.
+    """
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-07" / "dev-ids.json").read_text())
+    if not manager_sub or len(panel_subs) < 2 or not all(panel_subs):
+        print("warning: the manager or a panel login has no sub; the REC-07 rows were not written")
+        return 0
+    now = "2026-11-10T08:00:00.000Z"
+    expires = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(time.time() + 7 * 86400))
+    ttl = int(time.time()) + 7 * 86400
+    criteria = {"L": [{"M": {"key": {"S": k}, "label": {"S": label}}} for k, label in REC04_CRITERIA]}
+    written = 0
+
+    # The list is read oldest first, so the later date in GSI1SK puts these candidates last: REC-01 AC-9 takes the first candidate that is not the manager's.
+    def candidate(cid: str, tid: str, first: str, last: str, iv_id: str, panel: list, hm: str) -> None:
+        pk = f"CANDIDATE#{cid}"
+        stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                          ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "VOTE#"}}, ProjectionExpression="PK, SK")
+        for item in stale.get("Items", []):
+            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": pk}, "SK": {"S": "SAGA"},
+            "GSI1PK": {"S": f"TENANT#{tid}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tid},
+            "firstName": {"S": first}, "lastName": {"S": last},
+            "email": {"S": f"pepla-demo-{first.lower()}.{last.lower()}@{MAIL_DOMAIN}"},
+            "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+            "hiringManagerId": {"S": hm}, "seed": {"S": SEED_TAG},
+        })
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"},
+            "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tid},
+            "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+            "votesRequired": {"N": str(len(panel))}, "votesSubmitted": {"N": "0"},
+            "panelMemberIds": {"L": [{"S": p} for p in panel]}, "criteria_snapshot": criteria,
+            "PANEL_FEEDBACK_PENDING_COUNT": {"N": str(len(panel))}, "PANEL_SPLIT_FLAG": {"BOOL": False},
+            "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        })
+
+    def link(token: str, link_tid: str, cid: str, iv_id: str) -> None:
+        h = hashlib.sha256(token.encode()).hexdigest()
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"SCORING_LINK#{h}"}, "SK": {"S": "META"}, "token_hash": {"S": h}, "tenant_id": {"S": link_tid},
+            "interview_id": {"S": iv_id}, "candidate_id": {"S": cid}, "guest_email": {"S": f"pepla-demo-guest@{MAIL_DOMAIN}"},
+            "expires_at": {"S": expires}, "used_at": {"NULL": True}, "created_at": {"S": now}, "ttl": {"N": str(ttl)}, "seed": {"S": SEED_TAG},
+        })
+
+    # REC-01 AC-9 (locked) says the manager login lists exactly one candidate, the one it is hiring for, so this candidate belongs to the
+    # other hiring manager. The manager login sits on the panel as a third member so it can still open the sheet (it sees its own vote only).
+    candidate(ids["candidate"], tenant_id, "Rec", "Seed-Score", ids["interview"], list(panel_subs[:2]) + [manager_sub], OTHER_HIRING_MANAGER)
+    link(ids["guestToken"], tenant_id, ids["candidate"], ids["interview"])
+    written += 3
+    # Company B's candidate and interview, and a link row that names company A for B's interview (the dev form of AC-7's forged row).
+    b_candidate, b_interview = "CAND-REC07DEVBBBBBBBBBBBBBB1", "iv-rec07-dev-b-1"
+    candidate(b_candidate, SECOND_TENANT_ID, "Rec", "Seed-ScoreB", b_interview, [OTHER_HIRING_MANAGER], OTHER_HIRING_MANAGER)
+    link(ids["crossCompanyToken"], tenant_id, b_candidate, b_interview)
+    return written + 3
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -1085,6 +1149,12 @@ def main() -> None:
         print("warning: the TalentFlow roles table is not there yet; the REC-04 roles were not written")
         rec04_written = 0
 
+    try:
+        rec07_written = seed_rec07(ddb, tid, (employee_sub, user_sub(cognito, naleko, "it")), user_sub(cognito, naleko, "manager"))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-07 rows were not written")
+        rec07_written = 0
+
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
     print(f"seed-dev: groups created {made_groups}; "
@@ -1096,7 +1166,7 @@ def main() -> None:
           f"walk company rows written {walk_written}; department lists changed {departments_written}; TEN-04 walk rows written {ten04_written}; "
           f"agent walk rows written {onb22_written}; "
           f"stale bundles of another company removed {foreign_bundles_removed}; "
-          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}; REC-03 rows seeded {rec03_written}; REC-04 rows seeded {rec04_written}")
+          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}; REC-03 rows seeded {rec03_written}; REC-04 rows seeded {rec04_written}; REC-07 rows seeded {rec07_written}")
 
 
 if __name__ == "__main__":

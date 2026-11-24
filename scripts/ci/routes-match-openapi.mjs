@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const argRoot = process.argv.indexOf('--root');
 const root = argRoot > 0 ? process.argv[argRoot + 1] : join(here, '..', '..');
-const PUBLIC = ['GET /agent/agent-tools.json', 'GET /docs', 'GET /openapi.yaml', 'GET /v1/employees/lookup', 'POST /v1/invites/lookup', 'POST /v1/invites/redeem', 'POST /v1/scoring/{token}/votes'];
+const PUBLIC = ['GET /agent/agent-tools.json', 'GET /docs', 'GET /openapi.yaml', 'GET /v1/employees/lookup', 'POST /v1/invites/lookup', 'POST /v1/invites/redeem', 'POST /v1/scoring/{token}/votes', 'GET /v1/scoring-links/{token}', 'POST /v1/scoring-links/{token}'];
 const ROLES = ['admin', 'hr_staff', 'manager', 'employee', 'guest', 'perm-recruitment', 'perm-it', 'perm-approve-offers'];
 const problems = [];
 const bad = (m) => problems.push(m);

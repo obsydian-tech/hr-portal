@@ -1474,6 +1474,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/interviews/{id}/votes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /v1/interviews/{id}/votes */
+        post: operations["POST_v1_interviews_id_votes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/candidates/{id}/scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /v1/candidates/{id}/scores */
+        get: operations["GET_v1_candidates_id_scores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scoring-links/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /v1/scoring-links/{token} */
+        get: operations["GET_v1_scoring_links_token"];
+        put?: never;
+        /** POST /v1/scoring-links/{token} */
+        post: operations["POST_v1_scoring_links_token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/panel-members": {
         parameters: {
             query?: never;
@@ -6844,6 +6896,240 @@ export interface operations {
                     "application/json": {
                         /** @example Not found */
                         error?: string;
+                    };
+                };
+            };
+        };
+    };
+    POST_v1_interviews_id_votes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        vote: Record<string, never>;
+                    };
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error?: string;
+                        code?: string;
+                        field?: string;
+                    };
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error?: string;
+                        code?: string;
+                        field?: string;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error?: string;
+                        code?: string;
+                        field?: string;
+                    };
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error?: string;
+                        code?: string;
+                        field?: string;
+                    };
+                };
+            };
+        };
+    };
+    GET_v1_candidates_id_scores: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        candidate_id?: string;
+                        final_score?: number | null;
+                        interviews: {
+                            interview_id: string;
+                            criteria?: unknown[];
+                            overall?: number | null;
+                            vote_count?: number;
+                            pending_count?: number;
+                            split?: boolean;
+                            consensus?: number | null;
+                            votes?: unknown[];
+                        }[];
+                    };
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Forbidden"
+                     *     }
+                     */
+                    "application/json": {
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error?: string;
+                        code?: string;
+                        field?: string;
+                    };
+                };
+            };
+        };
+    };
+    GET_v1_scoring_links_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        candidate_first: string;
+                        candidate_last: string;
+                        role_title: string | null;
+                        interview_type: string;
+                        interview_at: string;
+                        criteria: {
+                            key: string;
+                            label: string;
+                        }[];
+                        expires_at: string;
+                    };
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error?: string;
+                        code?: string;
+                        field?: string;
+                    };
+                };
+            };
+        };
+    };
+    POST_v1_scoring_links_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error?: string;
+                        code?: string;
+                        field?: string;
+                    };
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error?: string;
+                        code?: string;
+                        field?: string;
                     };
                 };
             };

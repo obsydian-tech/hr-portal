@@ -190,5 +190,49 @@
     "read": {
       "op": "GET /v1/company/departments"
     }
+  },
+  "POST /v1/interviews/{id}/votes": {
+    "kind": "byId",
+    "ids": {
+      "id": "interview"
+    },
+    "body": {
+      "tenantId": "$A",
+      "voterId": "sub-ten04-b",
+      "rating": "YES",
+      "scores": {
+        "technical": 4,
+        "communication": 4,
+        "culturalFit": 4,
+        "problemSolving": 4
+      }
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}/scores",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "GET /v1/candidates/{id}/scores": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    }
+  },
+  "GET /v1/scoring-links/{token}": {
+    "kind": "stored"
+  },
+  "POST /v1/scoring-links/{token}": {
+    "kind": "stored",
+    "body": {
+      "rating": "YES",
+      "scores": {
+        "technical": 4,
+        "communication": 4,
+        "culturalFit": 4,
+        "problemSolving": 4
+      }
+    }
   }
 }

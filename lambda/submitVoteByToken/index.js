@@ -74,6 +74,10 @@ function calculateWeightedScore(scores, weights) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
+  // REC-07: the card's two public routes.
+  const rk = event.routeKey || event.requestContext?.routeKey;
+  if (rk === 'GET /v1/scoring-links/{token}') return (await import('./rec07.mjs')).read(event);
+  if (rk === 'POST /v1/scoring-links/{token}') return (await import('./rec07.mjs')).vote(event);
   const token = event.pathParameters?.token;
   if (!token) return badRequest('Missing token path parameter');
 
