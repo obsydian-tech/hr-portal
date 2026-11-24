@@ -103,6 +103,33 @@ exports.handler = async (event) => {
 
   const { panelMemberId, panelMemberEmail, panelMemberName, panelMemberRole, interviewId } = body;
 
+  // REC-07: a guest link for one interview, stored hashed; the raw token is in this answer only.
+  if (panelMemberId === undefined) {
+    const { createHash, randomBytes } = require('crypto');
+    const j = (statusCode, b) => ({ statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+    let saga;
+    try {
+      const r = await dynamo.send(new GetItemCommand({ TableName: STATE_TABLE, Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }) }));
+      saga = r.Item ? unmarshall(r.Item) : null;
+    } catch (err) { console.error('Failed to read the candidate', { error: err.name }); return serverError('Failed to generate scoring link'); }
+    if (!saga || !T.ownsRow(saga, tenantId)) return T.notFound();
+    if (typeof body.interview_id !== 'string' || !body.interview_id) return j(400, { error: 'Bad request', code: 'INVALID_FIELD', field: 'interview_id' });
+    const ivRes = await dynamo.send(new GetItemCommand({ TableName: STATE_TABLE, Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${body.interview_id}` }) }));
+    const iv = ivRes.Item ? unmarshall(ivRes.Item) : null;
+    if (!iv || !T.ownsRow(iv, tenantId)) return T.notFound();
+    if (typeof body.guest_email !== 'string' || !/^[^@\s]+@[^@\s]+$/.test(body.guest_email)) return j(400, { error: 'Bad request', code: 'INVALID_FIELD', field: 'guest_email' });
+    const raw = randomBytes(32).toString('base64url');
+    const hash = createHash('sha256').update(raw).digest('hex');
+    const nowMs = Date.now();
+    const expiresAt = new Date(nowMs + TTL_DAYS * 86400000).toISOString();
+    await dynamo.send(new PutItemCommand({ TableName: STATE_TABLE, ConditionExpression: 'attribute_not_exists(PK)', Item: marshall(T.stampTenant({
+      PK: `SCORING_LINK#${hash}`, SK: 'META', token_hash: hash, interview_id: iv.interviewId, candidate_id: candidateId, guest_email: body.guest_email,
+      expires_at: expiresAt, used_at: null, created_by: createdBy, created_at: new Date(nowMs).toISOString(), ttl: Math.floor(nowMs / 1000) + TTL_DAYS * 86400,
+    }, tenantId)) }));
+    console.info('Scoring link generated', { candidateId, interviewId: iv.interviewId, expiresAt });
+    return j(201, { token: raw, expires_at: expiresAt });
+  }
+
   if (!panelMemberId)    return badRequest('Missing required field: panelMemberId');
   if (!panelMemberEmail) return badRequest('Missing required field: panelMemberEmail');
   if (!panelMemberName)  return badRequest('Missing required field: panelMemberName');

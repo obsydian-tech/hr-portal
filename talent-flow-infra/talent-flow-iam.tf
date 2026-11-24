@@ -208,6 +208,12 @@ resource "aws_iam_role_policy" "schedule_interview" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
+        Sid      = "Rec07RoleCriteria"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_roles}"
+      },
+      {
         Sid      = "ConfigTableRead"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
@@ -287,6 +293,12 @@ resource "aws_iam_role_policy" "submit_vote" {
         # NH-FIX: PutItem (vote record) + Query (quorum check) added — were missing
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid      = "Rec07InterviewIndex"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/interview-id-index"
       },
       {
         Sid      = "ConfigTableRead"

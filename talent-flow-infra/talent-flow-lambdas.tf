@@ -117,6 +117,7 @@ resource "aws_lambda_function" "schedule_interview" {
       TENANTS_TABLE          = local.tf_tenants_table
       STATE_TABLE_NAME       = local.tf_table_state
       CONFIG_TABLE_NAME      = local.tf_table_config
+      ROLES_TABLE_NAME       = local.tf_table_roles
       NOTIFICATION_QUEUE_URL = aws_sqs_queue.talent_flow_notification.url
       EVENTBRIDGE_BUS_NAME   = local.tf_event_bus_name
       AWS_ACCOUNT_ID         = var.aws_account_id
