@@ -29,6 +29,9 @@ import { DEPT, REASONS, WHO, companyIdIn, depId, drawsIcon, enter, expect, quiet
  * so the "another person confirms" half is judged then. The search box sends its text trimmed, never only spaces and never
  * more than 100 characters (REC-15 L2, build review note N1). The Hire group may hold REC-UI-02's Candidates after Pipeline.
  *
+ * Child lock rec-ui-01.4 (24 Nov 2026, Iggie's words): when the Not hired answer waits on any HR person (`awaiting.kind` HR,
+ * no one named), the card says "An HR person must confirm before this is final." Only the U-3 test changes.
+ *
  * AC-13 is the pepla-dev check: it cannot run until REC-02, REC-03 and REC-04 are on dev. It is tagged @pepla-dev and stays
  * red there until they are; it does not run in the no-backend run, and it does not hold the lock or the board's merge.
  */
@@ -49,6 +52,7 @@ const HELP_LINE = "From your company's default. Change it for this role if you n
 const NOT_HIRED_LINE = 'Not hired always carries a reason.';
 const OLD_LINE = 'These candidates were turned down by a score before 17 Nov. Open any of them to look again.';
 const must = (name: string) => `${name} must confirm before this is final.`;
+const HR_MUST = 'An HR person must confirm before this is final.'; // Iggie's words, 24 Nov 2026 (rec-ui-01.4, U-3)
 
 // ---------------------------------------------------------------- helpers
 
@@ -993,8 +997,9 @@ test.describe('AC-6 Not hired', () => {
     expect(hire!.world.cands.find((c) => c.id === 'cand-bongani')!.pending, 'the server let it go').toBeUndefined();
   });
 
-  // rec-ui-01.3: the real answer names no person when any other HR person may confirm (awaiting.kind HR). The approved line needs a name (U-3).
-  test('AC-6 When the answer waits on any HR person (no one named) the card stays, no line names anyone, and nothing says it is final (U-3)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
+  // rec-ui-01.3: the real answer names no person when any other HR person may confirm (awaiting.kind HR).
+  // rec-ui-01.4 (24 Nov 2026): Iggie's line for that case, "An HR person must confirm before this is final.", shows on the card.
+  test('AC-6 When the answer waits on any HR person (no one named) the card stays and shows "An HR person must confirm before this is final."; no line names anyone, nothing says it is final, and Cancel takes the line away (U-3)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
     const { page, hire } = fx;
     hire!.secondConfirmationByHr.add('cand-bongani');
@@ -1003,14 +1008,29 @@ test.describe('AC-6 Not hired', () => {
     await d.getByRole('radio', { name: 'Other', exact: true }).check();
     await record(d).click();
     await expect.poll(() => notHiredCalls(hire!).length).toBe(1);
-    await page.waitForTimeout(300);
+    expect(notHiredCalls(hire!)[0]!.status, 'the fake answered pending, waiting on any HR person').toBe(200);
+    await seeLine(page, HR_MUST);
     const text = ((await main(page).textContent()) ?? '') + ' ' + (await page.getByRole('dialog').allTextContents()).join(' ');
     expect(text, 'no empty name, no "undefined" or "null"').not.toMatch(/undefined|null/);
-    // The answer names nobody, so any "must confirm" line would carry an empty or a guessed name.
-    expect(text, 'no "must confirm" line at all').not.toContain('must confirm before this is final.');
+    // The answer names nobody: every "must confirm" on the page is Iggie's HR line, never an empty or a guessed name.
+    expect(text.split(HR_MUST).join(' '), 'no other "must confirm" line').not.toContain('must confirm');
     if (await d.isVisible()) await d.getByRole('button', { name: /^(Cancel|Close)$/ }).first().click();
+    await expect(page.getByRole('dialog'), 'the dialog is closed').toHaveCount(0);
     expect((await boardNow(scope))['Interview'], 'the card stays in its column').toEqual(['Bongani Mthembu', 'Tendai Ncube']);
     await expect(scope.getByRole('button', { name: 'Not hired 2', exact: true }), 'nothing is final yet').toBeVisible();
+    // The card itself carries the line (the dialog is closed now), and only that line.
+    await showStage(scope, 'Interview');
+    const bongani = card(scope, 'Bongani Mthembu');
+    await expect(bongani).toContainText(HR_MUST);
+    await expect(bongani.getByText(HR_MUST, { exact: true }), 'the card line is visible, not only in the page text').toBeVisible();
+    expect(((await bongani.textContent()) ?? '').split(HR_MUST).join(' '), 'the card names nobody').not.toContain('must confirm');
+    await expect(card(scope, 'Tendai Ncube'), 'only the waiting card carries the line').not.toContainText('must confirm');
+    // Cancel on the card's More actions lets the decision go and the line goes with it.
+    await cardMore(scope, 'Bongani Mthembu').click();
+    await page.getByRole('menuitem', { name: 'Cancel', exact: true }).click();
+    await expect.poll(() => hire!.to('POST', /\/not-hired\/cancel$/).length).toBe(1);
+    await expect(card(scope, 'Bongani Mthembu')).not.toContainText('must confirm');
+    expect((await boardNow(scope))['Interview']).toEqual(['Bongani Mthembu', 'Tendai Ncube']);
   });
 
   test('AC-6 "Not hired {n}" opens the list of the role\'s not-hired candidates (stage NOT_HIRED); an empty list reads "No one yet"', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
