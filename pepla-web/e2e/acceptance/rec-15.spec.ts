@@ -13,6 +13,7 @@ import {
   list, many, monitorVerdicts, phoneOf, plain, role, roleRow, roles, runMonitor, withCandidate, withRole, withRows, withThresholds, world, type Run, type Tables,
 } from './support/rec-15/world';
 import { isRec07Grant } from './support/rec-07.1/grants';
+import { isRec15bGrant } from './support/rec-15b.1/grants';
 
 /**
  * REC-15 step A · The candidate lists answer what the screens draw, from one stage clock (amber). Spec:
@@ -737,7 +738,7 @@ test.describe('REC-15 step A · The candidate lists, from one stage clock', () =
         expect.soft(lost, 'getCandidates loses nothing').toEqual([]);
       } else {
         // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
-        expect.soft(gained.filter((l) => !isRec07Grant(l, k)), `${k}: no new grant`).toEqual([]);
+        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec15bGrant(l, k)), `${k}: no new grant`).toEqual([]);
       }
     }
     const mine = [...(is.get(`${fn!.stack}/${role_}`) ?? [])];

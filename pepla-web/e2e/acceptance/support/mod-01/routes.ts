@@ -1,4 +1,5 @@
 import { A, ID, NAME, SUB, type Ask, type Caller } from './world';
+import { addBody } from '../rec-15b.1/roles';
 
 /**
  * MOD-01 rule 4: every Recruitment route a person or agent calls, after TEN-03 and TEN-05 (develop 6122df1), with one valid
@@ -38,7 +39,7 @@ export const ROUTES: Route[] = [
   { name: 'POST /v1/intelligence/tiles/{id}/snooze', handler: 'snoozeTile', own: { method: 'POST', path: { id: `tile-${ID.a1}-RULE-SLA-002` }, body: { hours: 24, tenantId: A } } },
   { name: 'POST /v1/intelligence/tiles/{id}/acknowledge', handler: 'acknowledgeTile', own: { method: 'POST', path: { id: `tile-${ID.a1}-RULE-SLA-002` }, body: { reason: 'seen', tenantId: A } } },
   { name: 'GET /v1/candidates', handler: 'getCandidates', own: { query: { tenantId: A } } },
-  { name: 'POST /v1/candidates', handler: 'createCandidate', own: { method: 'POST', body: { idempotencyKey: 'idem-a-0001', firstName: 'Lerato', lastName: 'Mokoena', email: 'lerato@example.test', positionTitle: 'Baker', positionLevel: 'JUNIOR', tenantId: A } } },
+  { name: 'POST /v1/candidates', handler: 'createCandidate', own: { method: 'POST', body: addBody(A) } /* child lock rec-15b.1: REC-15 rule 19 body; a body tenantId is now refused, see AC-4 */ },
   { name: 'GET /v1/intelligence/tiles', handler: 'getIntelligenceTiles', own: { query: { tenantId: A, role: 'TA' } } },
   { name: 'GET /v1/config', handler: 'manageTalentFlowConfig', own: { query: { tenantId: A, configType: 'SCORING_WEIGHTS', active: 'true' } } },
   { name: 'POST /v1/config', handler: 'manageTalentFlowConfig', own: { method: 'POST', body: { tenantId: A, configType: 'RETENTION', data: { notHiredMonths: 6 } } } },

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { LAMBDA, Row, Run, Tables, httpEvent, jwtAuthorizer, runHandler } from './lambda-harness';
+import { ROLES_TABLE as ADD_ROLES_TABLE, addRoleRows } from '../rec-15b.1/roles';
 
 /**
  * MOD-01: the companies of the card's acceptance criteria and their records (copied from ../ten-03/world.ts and
@@ -155,6 +156,8 @@ export function companyRows(): Row[] {
 /** The seeded world. */
 export function tables(): Tables {
   return {
+    // Child lock rec-15b.1 (REC-15 step B): one open role per company, so the add-candidate fixtures send a real role_id.
+    [ADD_ROLES_TABLE]: addRoleRows([{ id: A, hm: SUB.hmA }, { id: B, hm: SUB.hmB }, { id: C, hm: SUB.hmC }, { id: D, hm: SUB.hmA }]),
     [TABLE.state]: [
       saga(ID.a1, 'John', 'Doe', A), saga(ID.a2, 'Jane', 'Smith', A, { currentStage: 'INTERVIEWING' }),
       saga(ID.b1, 'Bongi', 'Mahlangu', B),
@@ -236,6 +239,7 @@ export function settings(extra: Record<string, string> = {}): Record<string, str
     IT_TASKS_TABLE: TABLE.itTasks, BUNDLES_TABLE: TABLE.bundles, EVENTBRIDGE_BUS_NAME: 'mod01-bus', EB_BUS_NAME: 'mod01-bus',
     NOTIFICATION_QUEUE_URL: 'https://sqs.mod01.example/queue', NOTIFICATION_LAMBDA_NAME: 'sendTalentFlowNotification', TENANTS_TABLE: TENANTS,
     AGENT_TENANT_ID: A, AGENT_API_KEY_SECRET_NAME: AGENT_SECRET, ENVIRONMENT: 'dev', HM_GROUP_NAME: 'HiringManager', POSTMARK_SENDER_EMAIL: 'noreply@mod01.example', POSTMARK_API_TOKEN: 'mod01-fake-token', COGNITO_POOL_ID: 'af-south-1_Mod01Fake', HM_COGNITO_POOL_ID: 'af-south-1_Mod01Fake', FRONTEND_URL: 'https://mod01.example',
+    ROLES_TABLE_NAME: ADD_ROLES_TABLE, // child lock rec-15b.1
     ...extra,
   };
 }
