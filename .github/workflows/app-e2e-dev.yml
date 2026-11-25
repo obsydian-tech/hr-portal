@@ -313,6 +313,14 @@ jobs:
           pip install --quiet boto3
           python3 scripts/ci/dev-ask-batsi-on.py
 
+      # REC-04 AC-10 pins how many candidates are open on Fleet controller. REC-12 AC-9 and REC-UI-02 AC-17 add one each on every run
+      # and leave it open, so the count grew by one or more on every dev run. Put the hiring board back to its seeded rows first.
+      - name: Put the hiring board's seeded candidates back (before the company walk)
+        if: ${{ !cancelled() }}
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/reset-dev-rec04.py
+
       # TEN-04 AC-7: the company walk. Its "company B" callers are the logins of the third (walk) company, which has
       # Recruitment switched on (company B has only Onboarding, so on B every Recruitment route answers 403 and the
       # walk cannot look for 404). The test reads its HR caller as E2E_HR_B; here that name points at hr-c.
