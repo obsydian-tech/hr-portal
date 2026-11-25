@@ -588,6 +588,10 @@ test.describe('MOD-02 The module-aware shell and guards', () => {
       const vw = window.innerWidth;
       const parts = [...document.querySelectorAll('pp-side-navigation .pp-side-navigation__heading, pp-side-navigation a.pp-side-navigation__item')];
       return parts.map((el) => {
+        // Child lock mod-02.7 (REC-UI-04): the Offers entry makes the Hire group four items, so the drawer can be taller
+        // than a 390 phone. Each part is scrolled into view inside the drawer before it is measured: it must still be
+        // reachable, on the screen and not under the top bar.
+        el.scrollIntoView({ block: 'nearest' });
         const r = el.getBoundingClientRect();
         const x = Math.min(Math.max(r.x + r.width / 2, 0), vw - 1);
         const y = Math.min(Math.max(r.y + r.height / 2, 0), window.innerHeight - 1);
