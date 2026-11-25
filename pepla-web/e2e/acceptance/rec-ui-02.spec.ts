@@ -19,7 +19,9 @@ import { A_ALL, W, clockCases, expect, extra, initialsOf, listCalls, many, names
  * Not in this lock (their backend is not built, so a test would judge a pretend server): Add candidate (AC-3, AC-4: REC-15
  * step B; built since child lock rec-ui-02.1, judged in rec-ui-02-add.spec.ts), the candidate record and its tabs (AC-5, AC-6, AC-9, AC-10, AC-11's record part: step C), Interviews and
  * Schedule (AC-7: step D and REC-07), Reopen (AC-8: U-8). Each comes as a child lock rec-ui-02.N when its step merges.
- * Until the record exists a row opens nothing (no link to a page that is not there).
+ * Child lock rec-ui-02.3 (REC-UI-02 step 3, the record, NH-228): a row now opens the record by the kit's "Open {name}" control;
+ * rec-ui-02-record.spec.ts judges that (AC-R1). Here the header row may end with the kit's hidden "Open" column name, and the kit
+ * match no longer skips the Open column.
  *
  * Every test runs at 1280 and 390 wide unless it says why not. Page time is 19 Nov 2026 10:00 in Johannesburg.
  * AC-15 runs on pepla-dev only. No test calls Bedrock or any paid AI.
@@ -167,7 +169,8 @@ test.describe('AC-1 Candidates', () => {
     await expect(main(page).getByLabel(W.search, { exact: true })).toBeVisible();
     await expect(either(main(page), W.moreFilters)).toBeVisible();
     await expect(table(page)).toBeAttached();
-    expect((await table(page).locator('thead th').allTextContents()).map((t) => t.trim()).filter(Boolean)).toEqual(W.columns);
+    // Child lock rec-ui-02.3: the kit's Open column has a hidden name, "Open", after the four.
+    expect([[...W.columns], [...W.columns, 'Open']]).toContainEqual((await table(page).locator('thead th').allTextContents()).map((t) => t.trim()).filter(Boolean));
     // Child lock rec-ui-02.1 (REC-UI-02 step 2): Add candidate is built; it is the page's one primary button (rec-ui-02-add.spec.ts judges it).
     await expect(main(page).getByRole('button', { name: 'Add candidate', exact: true })).toHaveCount(1);
     await expect(main(page).locator('.pp-button--primary')).toHaveCount(1);
@@ -395,15 +398,8 @@ test.describe('AC-1 Candidates', () => {
     expect(lastList(hire!).query['nextToken'], 'a new search starts at the first page').toBeUndefined();
   });
 
-  test('AC-1 Until the candidate record is built a row opens nothing: no link to a record page and no Open button (D-RUI-02.4)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
-    const fx = fxOf({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h });
-    const { page } = fx;
-    await asRecruiter(fx);
-    await openCandidates(fx);
-    expect(await readRows(page)).toHaveLength(A_ALL.length);
-    await expect(main(page).locator('a[href*="/hire/candidates/cand-"]'), 'no link to a page that is not built').toHaveCount(0);
-    await expect(main(page).getByRole('button', { name: /^Open /, exact: false }), 'no Open button').toHaveCount(0);
-  });
+  // Child lock rec-ui-02.3: the test "AC-1 Until the candidate record is built a row opens nothing" (D-RUI-02.4) is gone; a row
+  // opens the record now, judged by rec-ui-02-record.spec.ts AC-R1.
 
   test('AC-1 A company with no candidates reads "No one yet" and shows no rows (U-7)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx = fxOf({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h });
@@ -744,12 +740,19 @@ test.describe('AC-13 Phone', () => {
   }
 
   /** At 390 the table is the design system's stacked table: the person on top, every other cell below it with its column name
-   *  (the design system may set two short cells side by side), and no cell wider than the row. */
+   *  (the design system may set two short cells side by side), and no cell wider than the row. Child lock rec-ui-02.3: the
+   *  Open cell (pp-table__actions) is the design system's corner button, beside the person inside the row, not below it. */
   async function stacked(page: Page): Promise<void> {
     await expect(table(page)).toHaveClass(/pp-table--stack/);
     const first = table(page).locator('tbody tr').first();
     const rowBox = (await first.boundingBox())!;
-    const boxes = await first.locator('td').evaluateAll((tds) => tds.filter((td) => (td as HTMLElement).getBoundingClientRect().height > 0).map((td) => { const r = td.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), label: td.getAttribute('data-label') }; }));
+    const boxes = await first.locator('td').evaluateAll((tds) => tds.filter((td) => (td as HTMLElement).getBoundingClientRect().height > 0).map((td) => { const r = td.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), label: td.getAttribute('data-label'), corner: td.classList.contains('pp-table__actions'), inner: Math.round(r.right - parseFloat(getComputedStyle(td).paddingRight)) }; }));
+    for (const b of boxes.filter((x) => x.corner)) {
+      expect(b.top, 'the Open button sits inside the row').toBeGreaterThanOrEqual(Math.round(rowBox.y) - 1);
+      expect(b.right, 'the Open button sits inside the row').toBeLessThanOrEqual(Math.round(rowBox.x + rowBox.width) + 1);
+      expect(b.left, 'the Open button does not cover the person').toBeGreaterThanOrEqual(boxes[0]!.inner - 1);
+    }
+    boxes.splice(0, boxes.length, ...boxes.filter((x) => !x.corner));
     expect(boxes.length).toBeGreaterThanOrEqual(4);
     for (let i = 1; i < boxes.length; i++) expect(boxes[i]!.top, 'every cell sits below the person').toBeGreaterThanOrEqual(boxes[0]!.bottom - 1);
     for (const b of boxes) expect(b.right - b.left, 'no cell is wider than the row').toBeLessThanOrEqual(Math.round(rowBox.width) + 1);
@@ -822,9 +825,9 @@ test.describe('AC-14 Kit match and words', () => {
     const kit = (KIT.screens as Record<string, { main: readonly string[] }>)[name]!.main;
     const have = new Set(await main(page).evaluate((root) => [...new Set([root, ...root.querySelectorAll('*')].flatMap((el) => [...el.classList]).filter((c) => c.startsWith('pp-')))]));
     const layoutOnly = [/^pp-gap-/, /^pp-inline/, /^pp-grow/, /^pp-measure-/, /^pp-stack/, /--inline$/, /^pp-text(--|$)/, /^pp-avatar--/, /^pp-text-field--small$/];
-    // Not built yet: the row's Open column (D-RUI-02.4, the record is step C) and the page's More actions (subtle icon buttons).
-    // Add candidate (primary, and on Candidates the header's actions slot) is built since rec-ui-02.1.
-    const later = [/^pp-button--subtle$/, /^pp-button--icon$/, /^pp-table__actions$/];
+    // Not built yet: the page's More actions (subtle icon buttons). Add candidate (primary, and on Candidates the header's actions
+    // slot) is built since rec-ui-02.1; the row's Open column since rec-ui-02.3 (the record), so it is no longer skipped.
+    const later = [/^pp-button--subtle$/, /^pp-button--icon$/];
     const missing = kit.filter((c) => !have.has(c) && ![...layoutOnly, ...later].some((re) => re.test(c)));
     expect(missing, `${name}: classes the kit has and the page lacks`).toEqual([]);
   }
