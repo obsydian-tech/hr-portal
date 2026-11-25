@@ -13,6 +13,7 @@ import {
   read, resolve, resourceHash, roleBlock, roleBlocks, roleLabel, settings, sha, squash, unquote, valueOf,
 } from './support/chat-15/terraform';
 import { resourcesOf, filesOf, settingsOf } from './support/mod-01/iam';
+import { isRec05Resource } from './support/rec-05.1/grants'; // child lock rec-05.1
 
 /**
  * CHAT-15 · A leaver's Ask Batsi chats are deleted by an hourly job (red).
@@ -549,7 +550,9 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
       // REC-14 (child lock rec-14.1): the departments Lambda (manage_departments*) and its three routes, judged in rec-14.spec.ts AC-3.
       && !/\.(manage_departments(_[a-z_]+)?|list_departments|add_department|change_department)$/.test(x)
       // REC-07 (child lock rec-07.2): the four scoring routes: talent-flow-infra only, routes only, only these names; judged in rec-07.spec.ts.
-      && !/^talent-flow-infra\/aws_apigatewayv2_route\.(get_candidate_scores|get_scoring_link|post_interview_votes|post_scoring_link)$/.test(x));
+      && !/^talent-flow-infra\/aws_apigatewayv2_route\.(get_candidate_scores|get_scoring_link|post_interview_votes|post_scoring_link)$/.test(x)
+      // REC-05 (child lock rec-05.1): manageOffers and its role, policy, log group, integration, routes and permission (manage_offers*), judged in rec-05.spec.ts AC-10 and AC-15.
+      && !isRec05Resource(x));
     expect(added.filter((x) => x.startsWith(`${TF}/aws_lambda_function.`)).length, 'the job\'s function is added (a branch that adds nothing is not add-only, it is missing)').toBe(1);
     expect(added.filter((x) => x.startsWith(`${TF}/aws_iam_role.`)).length, 'the job\'s role is added').toBe(1);
     const ALLOWED = ['aws_lambda_function', 'aws_iam_role', 'aws_iam_role_policy', 'aws_cloudwatch_event_rule', 'aws_cloudwatch_event_target', 'aws_lambda_permission', 'aws_cloudwatch_log_group'];

@@ -11,6 +11,7 @@ import { bodyOf, describe, isModulesRead, statusOf } from './support/rec-04/worl
 import { awsOf, changedRows, logsOf } from './support/rec-04/roles';
 import { A, B, NOW, R, ROLES_TABLE, SUB, TABLE, TENANTS, list, plain, roleRow, rowsOf, runRoute, withRole, world, type Run, type Tables } from './support/rec-15/world';
 import { isRec07Grant } from './support/rec-07.1/grants';
+import { isRec05Grant } from './support/rec-05.1/grants'; // child lock rec-05.1
 
 /**
  * REC-15 step B · Add a candidate to an open role (amber). Jira NH-266. Spec: /mnt/project-files/onboarding-cards/specs/REC-15.md, Part 3
@@ -632,7 +633,7 @@ test.describe('REC-15 step B · Add a candidate to an open role', () => {
         expect.soft(gained.filter((l) => roleRead.test(l)).length, 'that line, once').toBe(1);
         expect.soft(lost, 'createCandidate loses nothing').toEqual([]);
       } else {
-        expect.soft(gained.filter((l) => !isRec07Grant(l, k)), `${k}: no new grant`).toEqual([]);
+        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec05Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec05Grant: child lock rec-05.1
       }
     }
     for (const k of was.keys()) expect.soft(is.has(k), `${k}: still there`).toBe(true);

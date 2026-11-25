@@ -15,7 +15,6 @@
  *   4.  getConfig(tenantId, 'APPROVAL_RULES', configVersion) — VERSIONED
  *   5.  Derive seniority-driven approval chain from config
  *   6.  PutItem OFFER record (PK=CANDIDATE#{id}, SK=OFFER)
- *       Start Step Functions offer-approval state machine
  *       Publish OfferInitialised event to EventBridge
  *
  * Compliance invariant #2: getConfig MUST use candidate's configVersion.
@@ -35,20 +34,14 @@ const {
   EventBridgeClient,
   PutEventsCommand,
 } = require('@aws-sdk/client-eventbridge');
-const {
-  SFNClient,
-  StartExecutionCommand,
-} = require('@aws-sdk/client-sfn');
 const { getConfig } = require('./shared/config-reader');
 const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const eb     = new EventBridgeClient({});
-const sfn    = new SFNClient({});
 
 const STATE_TABLE       = process.env.STATE_TABLE_NAME;
 const EB_BUS            = process.env.EVENTBRIDGE_BUS_NAME;
-const SFN_STATE_MACHINE = process.env.SFN_OFFER_APPROVAL_ARN;
 
 const ok          = (body) => ({ statusCode: 200, body: JSON.stringify(body) });
 const badRequest  = (msg)  => ({ statusCode: 400, body: JSON.stringify({ error: msg }) });
@@ -117,6 +110,10 @@ exports.handler = async (event) => {
     return serverError('Failed to read candidate record');
   }
 
+  // REC-05 rule 17: offers are made through POST /v1/offers now. After the role, company, module and row checks, this route
+  // changes nothing.
+  return { statusCode: 410, body: JSON.stringify({ error: 'OLD_ROUTE' }) };
+
   const positionLevel = saga.positionLevel;
   if (!positionLevel) return badRequest(`SAGA for candidate ${candidateId} has no positionLevel`);
 
@@ -172,19 +169,6 @@ exports.handler = async (event) => {
     }
     console.error('Failed to write OFFER record', { candidateId, error: err.message });
     return serverError('Failed to create offer record');
-  }
-
-  // Step 6b: Start Step Functions offer-approval state machine
-  if (SFN_STATE_MACHINE) {
-    try {
-      await sfn.send(new StartExecutionCommand({
-        stateMachineArn: SFN_STATE_MACHINE,
-        name:            `offer-${candidateId}-${Date.now()}`,
-        input:           JSON.stringify({ candidateId, tenant_id: tenantId, configVersion, positionLevel, approvalChain }),
-      }));
-    } catch (err) {
-      console.error('Failed to start Step Functions execution', { candidateId, error: err.message });
-    }
   }
 
   // Step 6c: Publish OfferInitialised event

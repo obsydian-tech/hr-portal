@@ -270,8 +270,9 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
     for (const k of ['firstName', 'lastName', 'email', 'currentStage', 'hiringManagerId']) if (hmOne?.[k] !== recOne?.[k]) wrong.push(`the hiring manager keeps ${k}`);
     const hmOffer = run(routeOf('getOffer'), C.hmC1);
     if (keysDeep(bodyOf(hmOffer)).some((k) => /salary/i.test(k))) wrong.push('the hiring manager\'s offer has no salary field (baseSalary is salary)');
-    if (bodyOf(hmOffer)?.state !== 'OFFER_CREATED' || bodyOf(hmOffer)?.currency !== 'ZAR') wrong.push('the hiring manager keeps the other offer fields (state, currency)');
-    if (!keysDeep(bodyOf(run(routeOf('getOffer'), C.recruiter))).includes('baseSalary')) wrong.push('the Recruiter sees baseSalary');
+    // Child lock rec-05.1 (REC-05 rules 1 and 9): the old read shows OFFER_CREATED as DRAFT, and no salary to anyone (the Recruiter reveals it on the new route).
+    if (bodyOf(hmOffer)?.state !== 'DRAFT' || bodyOf(hmOffer)?.currency !== 'ZAR') wrong.push('the hiring manager keeps the other offer fields (state as rule 1 maps it, currency)');
+    { const recOffer = bodyOf(run(routeOf('getOffer'), C.recruiter)); if (recOffer?.baseSalary != null || /"baseSalary":\s*\d/.test(JSON.stringify(recOffer))) wrong.push('the Recruiter\'s old offer read holds no salary value (REC-05 rule 9)'); if (recOffer?.state !== 'DRAFT') wrong.push('the Recruiter\'s old offer read maps OFFER_CREATED to DRAFT'); }
     const hmEvents = run(routeOf('getCandidateEvents'), C.hmC1);
     if (/salary/i.test(JSON.stringify(bodyOf(hmEvents)))) wrong.push('the hiring manager\'s history has no salary');
     if (!/OFFER_CREATED/.test(JSON.stringify(bodyOf(hmEvents)))) wrong.push('the hiring manager keeps the offer events on their candidate');

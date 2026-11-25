@@ -11,6 +11,7 @@ import {
   statusOf, vote, votesOf, withSetting, world, writesOf, awsOf, isModulesRead, forged as withForgedCompany, personalLogLines, seen, type Caller, type Run, type Tables,
 } from './support/rec-07/world';
 import { isRec15bGrant } from './support/rec-15b.1/grants';
+import { isRec05Grant, REC05_ROLE_KEY } from './support/rec-05.1/grants'; // child lock rec-05.1
 
 /**
  * REC-07 · Scoring per role: 1 to 5 per criterion, plain averages, one guest link (amber). Spec:
@@ -670,7 +671,8 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
     const baseDir = join(__dirname, 'support', 'rec-07', 'iam-bc0fada');
     const oldRoles = JSON.parse(readFileSync(join(baseDir, 'roles.json'), 'utf8')) as string[];
     const nowRoles = STACKS.flatMap((s) => resourcesOf(s, 'aws_iam_role').map((b) => `${s}/${b.labels[1]}`)).sort();
-    expect.soft(nowRoles.filter((x) => !oldRoles.includes(x)), 'no new IAM role').toEqual([]);
+    // Child lock rec-05.1: REC-05's manageOffers has its own role, judged in rec-05.spec.ts AC-10.
+    expect.soft(nowRoles.filter((x) => !oldRoles.includes(x) && x !== REC05_ROLE_KEY), 'no new IAM role').toEqual([]);
     const oldPolicies = JSON.parse(readFileSync(join(baseDir, 'policies.json'), 'utf8')) as Record<string, { pairs?: string[]; squash?: string }>;
     const nowPolicies = policyLines() as Record<string, { pairs?: string[]; squash?: string }>;
     const FIVE = /(submit_vote|submit_vote_by_token|generate_scoring_link|schedule_interview|complete_evaluation)$/;
@@ -683,10 +685,10 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
     }
     for (const a of added) {
       const [k, line] = [a.slice(0, a.indexOf(': ')), a.slice(a.indexOf(': ') + 2)];
-      const ok = (FIVE.test(k) && READ.test(line) && !/\*/.test(line.replace(/\/index\/[\w-]+/, ''))) || isRec15bGrant(line, k); // child lock rec-15b.1
+      const ok = (FIVE.test(k) && READ.test(line) && !/\*/.test(line.replace(/\/index\/[\w-]+/, ''))) || isRec15bGrant(line, k) || isRec05Grant(line, k); // child locks rec-15b.1 and rec-05.1
       expect.soft(ok, `a new policy line is a read of the state or roles table by one of the five handlers, with no wildcard: ${a.slice(0, 200)}`).toBe(true);
     }
-    expect.soft(Object.keys(nowPolicies).filter((k) => !(k in oldPolicies)), 'no new policy').toEqual([]);
+    expect.soft(Object.keys(nowPolicies).filter((k) => !(k in oldPolicies) && k !== REC05_ROLE_KEY), 'no new policy').toEqual([]); // && REC05_ROLE_KEY: child lock rec-05.1
     // Table rows are never written from Terraform (standing line 12).
     expect.soft(STACKS.flatMap((s) => resourcesOf(s, 'aws_dynamodb_table_item').map((b) => b.labels[1])), 'no table rows in Terraform').toEqual([]);
     // The API file describes the four routes and their refusals.

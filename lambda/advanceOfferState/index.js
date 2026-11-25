@@ -111,6 +111,12 @@ exports.handler = async (event) => {
     return serverErr('Failed to read offer record');
   }
 
+  // REC-05 rule 17: every write action of this route stopped (offers change through /v1/offers). After the role, company, module
+  // and row checks, nothing is written.
+  if (['SUBMIT_FOR_APPROVAL', 'MARK_SENT', 'CONFIRM_ACCEPTANCE', 'LOG_INTERACTION'].includes(action)) {
+    return { statusCode: 410, body: JSON.stringify({ error: 'OLD_ROUTE' }) };
+  }
+
   const now = new Date().toISOString();
 
   // ── Route by action ───────────────────────────────────────────────────────
