@@ -4,13 +4,14 @@ import { test, expect, Page } from '../fixtures/no-ai';
  * TalentFlow quick checks (old app).
  *
  * The new app replaces TalentFlow with a simpler Hire module, so the old one
- * only gets these three checks: HR can open it, the candidate list loads, and
- * a candidate can be added and moved one stage. Full Hire journeys are written
- * against the new app.
+ * only keeps two checks: HR can open it, and the candidate list loads. Full
+ * Hire journeys are written against the new app.
  *
- * The candidate's email carries the run marker, so it counts as test data
- * (no AI, see lambda/shared/ai-guard.mjs) and scripts/ci/cleanup-dev-e2e.py
- * deletes it after the run.
+ * Adding a candidate is no longer checked here: the old Add Candidate drawer
+ * posts the old body, which POST /v1/candidates no longer accepts (REC-15 step
+ * B). Adding one is judged by rec-ui-02-add.spec.ts AC-17 @pepla-dev (a real
+ * add in the new app, with company B unable to see it), and moving one stage
+ * by rec-ui-01.spec.ts AC-13 @pepla-dev.
  *
  * Env vars: E2E_HR_EMAIL, E2E_HR_PASSWORD (the HR login is in
  * naleko-talentflow-hr, which opens TalentFlow).
@@ -44,28 +45,5 @@ test.describe('TalentFlow quick checks', { tag: ['@hire'] }, () => {
   test('Candidate list loads', async ({ page }) => {
     await page.goto('/platform/talentflow/candidates');
     await expect(page.getByRole('heading', { level: 1, name: 'Candidates' })).toBeVisible({ timeout: 15_000 });
-  });
-
-  test('HR adds a candidate and moves them one stage', async ({ page }) => {
-    const email = `e2e.run-${process.env['GITHUB_RUN_ID'] ?? 'local'}-${Date.now()}@blackhole.postmarkapp.com`;
-
-    await page.goto('/platform/talentflow');
-    await page.getByRole('button', { name: 'Add Candidate' }).click();
-
-    await page.locator('#cr-firstName').fill('Robot');
-    await page.locator('#cr-lastName').fill('Candidate');
-    await page.locator('#cr-email').fill(email);
-    await page.locator('#cr-role').fill('Junior baker');
-    await page.getByRole('button', { name: /^Junior/ }).click();
-    await page.getByRole('button', { name: /Create Candidate/ }).click();
-
-    // The shell opens the new candidate's workspace.
-    await expect(page).toHaveURL(/\/platform\/talentflow\/candidates\/CAND-/, { timeout: 20_000 });
-
-    const advance = page.getByRole('button', { name: /^Advance to / }).first();
-    await expect(advance).toBeVisible({ timeout: 15_000 });
-    await page.getByLabel('Reason').first().fill('Robot check: moving one step');
-    await advance.click();
-    await expect(page.getByText(/Stage advanced to/)).toBeVisible({ timeout: 15_000 });
   });
 });

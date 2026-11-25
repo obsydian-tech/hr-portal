@@ -7,6 +7,7 @@ import {
 } from '../../ds';
 import { HireApi, newKey, optionsOf, type HireCandidate, type HireCounts, type HireRole } from './hire-api';
 import { ADD_CANDIDATE_READY } from './hire-flags';
+import { AddCandidateDrawer } from './add-candidate.drawer';
 
 const SAVE_FAIL = 'Your change could not be saved. Try again.';
 const STAGE_NAMES: Record<string, string> = { APPLIED: 'Applied', SCREENING: 'Screening', INTERVIEW: 'Interview', OFFER: 'Offer', HIRED: 'Hired' };
@@ -20,7 +21,7 @@ const DAY = 86_400_000;
 /** The hiring board of one role (REC-UI-01): five stages, Move with a reason, Not hired, Close role. The List view is REC-UI-02's. */
 @Component({
   selector: 'app-board-page',
-  imports: [RouterLink, PpButton, PpButtonGroup, PpCell, PpDropdownMenu, PpEmptyState, PpField, PpLink, PpMenuItem, PpMenuSection, PpModalDialog, PpModalFooter, PpPageHeader, PpPageHeaderActions, PpPipelineBoard, PpRadioGroup, PpSearch, PpSectionMessage, PpSectionMessageActions, PpTableDirective, PpTableWrap, PpTabs],
+  imports: [AddCandidateDrawer, RouterLink, PpButton, PpButtonGroup, PpCell, PpDropdownMenu, PpEmptyState, PpField, PpLink, PpMenuItem, PpMenuSection, PpModalDialog, PpModalFooter, PpPageHeader, PpPageHeaderActions, PpPipelineBoard, PpRadioGroup, PpSearch, PpSectionMessage, PpSectionMessageActions, PpTableDirective, PpTableWrap, PpTabs],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-250">
@@ -34,7 +35,7 @@ const DAY = 86_400_000;
         <pp-page-header [heading]="r.job_title" [description]="counts().all + ' candidates · Hiring manager ' + r.hiring_manager_name" [breadcrumbs]="[{ label: 'Roles', link: '/hire/roles' }, { label: r.job_title, link: '/hire/pipeline' }]">
           <pp-page-header-actions>
             <pp-button-group aria-label="View"><button ppButton type="button" [pressed]="false" (click)="toList()">List</button><button ppButton type="button" [pressed]="true">Board</button></pp-button-group>
-            @if (addCandidateReady) { <button ppButton appearance="primary" icon="user-plus" type="button">Add candidate</button> }
+            @if (addCandidateReady) { <button ppButton appearance="primary" icon="user-plus" type="button" (click)="adder.openIt()">Add candidate</button> }
             <pp-dropdown-menu [label]="'More actions for ' + r.job_title"><pp-menu-section><button ppMenuItem icon="circle-x" (click)="close()">Close role</button></pp-menu-section></pp-dropdown-menu>
           </pp-page-header-actions>
         </pp-page-header>
@@ -60,6 +61,7 @@ const DAY = 86_400_000;
         <pp-pipeline-board [label]="'Hiring stages for ' + r.job_title" [(stages)]="stages" [confirmMoves]="true" (moveRequested)="move($event)" [cardMenu]="cardMenu" (cardAction)="cardAction($event)" />
       }
     </div>
+    <app-add-candidate #adder [startRole]="roleId" (added)="reload()" />
     <pp-modal-dialog [open]="!!nhFor()" [closable]="true" [heading]="first() + ' not hired'" (closed)="closeNh()">
       <div class="pp-stack pp-gap-150">
         <pp-field label="Why? (required)" group="radio" help="Not hired always carries a reason.">
@@ -99,7 +101,7 @@ export class BoardPage implements OnInit {
   protected readonly canRecord = computed(() => !!this.nhFor()?.pending || !!this.reason());
   private screening = true;
   private rows: HireCandidate[] = [];
-  private roleId = '';
+  protected roleId = '';
   private managers: Array<{ id: string; name: string }> = [];
   private roleBody: HireRole | null = null;
   protected readonly tabs = computed<Tab[]>(() => {
@@ -134,7 +136,7 @@ export class BoardPage implements OnInit {
     if (this.status() === 'ready') this.role.set(role.body);
   }
 
-  private async reload() {
+  protected async reload() {
     const q = new URLSearchParams({ role_id: this.roleId, limit: '100' });
     const t = this.tab();
     if (t === 'overdue') q.set('sla_status', 'OVERDUE'); else if (t === 'due_soon') q.set('sla_status', 'DUE_SOON'); else if (t === 'mine') q.set('mine', 'true');
