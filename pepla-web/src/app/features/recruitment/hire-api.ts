@@ -55,7 +55,7 @@ export const newKey = (): string => crypto.randomUUID();
 export class HireApi {
   private readonly auth = inject(AuthService);
 
-  async call<T = unknown>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, idempotencyKey?: string): Promise<HireResponse<T> | null> {
+  async call<T = unknown>(method: 'GET' | 'POST' | 'PUT' | 'PATCH', path: string, body?: unknown, idempotencyKey?: string): Promise<HireResponse<T> | null> {
     try {
       const token = await this.auth.idToken();
       const headers: Record<string, string> = { Authorization: `Bearer ${token}` };

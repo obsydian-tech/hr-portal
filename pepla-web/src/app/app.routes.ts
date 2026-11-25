@@ -6,7 +6,7 @@ import { installTestHook, testRoutes } from './core/test-hook';
 import { PpRevealLog } from './ds';
 import { ApiRevealLog } from './core/documents/reveal-log.service';
 import { accessGuard, adminGuard, employeeGuard, hrGuard, signedOutGuard } from './core/auth/auth.guard';
-import { HIRE_ACCESS, registerRecruitmentNav } from './core/recruitment-nav';
+import { HIRE_ACCESS, OFFERS_ACCESS, registerRecruitmentNav } from './core/recruitment-nav';
 import { documentTitle, knownDocumentGuard } from './features/start/document-types';
 
 /**
@@ -47,16 +47,21 @@ const appRoutes: Routes = [
   },
   {
     path: 'hire',
-    canActivate: [accessGuard(HIRE_ACCESS)],
+    canActivate: [accessGuard(OFFERS_ACCESS)],
     providers: [{ provide: PpRevealLog, useClass: ApiRevealLog }],
     loadComponent: () => import('./features/hr/hr-shell').then((m) => m.HrShell),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'roles' },
+      { path: 'offers', canActivate: [accessGuard(OFFERS_ACCESS)], loadComponent: () => import('./features/recruitment/offers.page').then((m) => m.OffersPage), title: 'Offers · Naleko People' },
+      { path: 'offers/new', canActivate: [accessGuard(HIRE_ACCESS)], loadComponent: () => import('./features/recruitment/offer.page').then((m) => m.OfferPage), title: 'Offer · Naleko People' },
+      { path: 'offers/:offerId', canActivate: [accessGuard(OFFERS_ACCESS)], loadComponent: () => import('./features/recruitment/offer.page').then((m) => m.OfferPage), title: 'Offer · Naleko People' },
+      { path: '', canActivate: [accessGuard(HIRE_ACCESS)], children: [
       { path: 'roles', loadComponent: () => import('./features/recruitment/roles.page').then((m) => m.RolesPage), title: 'Roles · Naleko People' },
       { path: 'roles/new', loadComponent: () => import('./features/recruitment/open-role.page').then((m) => m.OpenRolePage), title: 'Open a role · Naleko People' },
       { path: 'pipeline', loadComponent: () => import('./features/recruitment/pipeline.page').then((m) => m.PipelinePage), title: 'Pipeline · Naleko People' },
       { path: 'candidates', loadComponent: () => import('./features/recruitment/candidates.page').then((m) => m.CandidatesPage), title: 'Candidates · Naleko People' },
       { path: 'candidates/old-system', loadComponent: () => import('./features/recruitment/old-system.page').then((m) => m.OldSystemPage), title: 'Not hired by the old system · Naleko People' },
+      ] },
     ],
   },
   {

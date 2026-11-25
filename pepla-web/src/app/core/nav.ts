@@ -4,12 +4,13 @@ import { ROLE } from './roles';
 
 export const GROUPS = ['Today', 'Records', 'Hire', 'Onboard', 'Leave', 'Comply', 'Help desk', 'Perform', 'Settings'] as const;
 export type NavGroup = (typeof GROUPS)[number];
-export type Access = { module?: string; roles?: readonly string[]; perms?: readonly string[]; allOf?: readonly string[] };
+export type Access = { module?: string; roles?: readonly string[]; perms?: readonly string[]; allOf?: readonly string[]; anyOf?: readonly Access[] };
 export type NavEntry = Access & { id: string; group: NavGroup; label: string; icon: IconName; route: string; order?: number };
 export type Who = { roles: readonly string[]; perms: readonly string[]; modules: ReadonlySet<string> };
 
 /** Rule 4 and rule 5 in one place: the shell and the route guard ask the same question. */
 export function allowed(a: Access, who: Who): boolean {
+  if (a.anyOf?.length && !a.anyOf.some((x) => allowed(x, who))) return false;
   if (a.module && !who.modules.has(a.module)) return false;
   if (a.allOf?.length && !a.allOf.every((g) => who.roles.includes(g) || who.perms.includes(g))) return false;
   const lists = [a.roles, a.perms].filter((l): l is readonly string[] => !!l?.length);
