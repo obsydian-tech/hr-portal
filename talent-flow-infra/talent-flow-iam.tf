@@ -992,6 +992,22 @@ resource "aws_iam_role_policy" "get_candidate" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
+        # REC-15 step C: the record reads the role's title and the candidate's settings (never writes them).
+        Sid    = "RecordReads"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem"]
+        Resource = [
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_roles}",
+          "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}",
+        ]
+      },
+      {
+        Sid      = "RecordSettingsIndex"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
+      },
+      {
         Sid      = "KMSStateKey"
         Effect   = "Allow"
         Action   = local.tf_kms_actions

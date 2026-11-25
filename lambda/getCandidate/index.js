@@ -16,6 +16,14 @@ const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const STATE_TABLE = process.env.STATE_TABLE_NAME || 'talent-flow-state';
+const ROLES_TABLE = process.env.ROLES_TABLE_NAME || 'talent-flow-roles';
+// REC-15 rule 12: the old fields the record keeps (and step 0 item 1's additions). Nothing else of the stored row is sent.
+const KEPT_OLD = [
+  'firstName', 'lastName', 'email', 'phone', 'positionTitle', 'positionLevel', 'location', 'experienceYears', 'source',
+  'hiringManagerId', 'appliedDate', 'currentStage', 'stageEnteredAt', 'status', 'slaStatus', 'createdAt',
+  'workflowTemplateId', 'configVersion', 'updatedAt', 'slaBreachedAt', 'interviewSentiment', 'engagementSentiment', 'acceptanceSentiment', 'engagementScore',
+  'evaluationResult', 'finalScore', 'decided_by_kind',
+];
 
 function respond(statusCode, body) {
   return {
@@ -58,66 +66,120 @@ exports.handler = async (event) => {
     if (!result.Item || !T.ownsRow(unmarshall(result.Item), tenantId)) {
       return T.notFound();
     }
+    const row = unmarshall(result.Item);
 
-    let candidate = unmarshall(result.Item);
-    // Normalise: frontend Candidate interface uses `id`, DynamoDB stores `candidateId`
-    if (!candidate.id && candidate.candidateId) candidate.id = candidate.candidateId;
-
-    // Look up the interviews of this candidate: the most recent SCHEDULED one powers the vote button (canSubmit
-    // requires a real interviewId), and a panel member's right to open the candidate is judged on them.
-    let interviews = [];
-    let interviewsRead = false;
+    // Every interview row of this candidate (every page), the company's own only.
+    let interviews = null;
     const loadInterviews = async () => {
-      if (interviewsRead) return interviews;
-      interviewsRead = true;
-      const interviewResult = await dynamo.send(
-        new QueryCommand({
+      if (interviews) return interviews;
+      const out = [];
+      let start;
+      do {
+        const page = await dynamo.send(new QueryCommand({
           TableName: STATE_TABLE,
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
-          ExpressionAttributeValues: marshall({
-            ':pk': `CANDIDATE#${candidate.id || candidate.candidateId}`,
-            ':prefix': 'INTERVIEW#',
-          }),
-          ProjectionExpression: 'interviewId, #st, scheduledAt, panelMemberIds, tenant_id',
-          ExpressionAttributeNames: { '#st': 'status' },
-          ScanIndexForward: false, // descending by SK — latest first
-        }),
-      );
-      interviews = (interviewResult.Items || []).map((i) => unmarshall(i)).filter((i) => T.ownsRow(i, tenantId));
-      return interviews;
+          ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${row.candidateId}`, ':prefix': 'INTERVIEW#' }),
+          ScanIndexForward: false,
+          ExclusiveStartKey: start,
+        }));
+        for (const i of page.Items || []) { const iv = unmarshall(i); if (T.ownsRow(iv, tenantId)) out.push(iv); }
+        start = page.LastEvaluatedKey;
+      } while (start);
+      interviews = out;
+      return out;
     };
 
-    // REC-01: a Recruiter, the hiring manager of this candidate, or a panel member of one of its interviews.
-    // Anyone else gets the answer of a candidate that does not exist.
     let relation;
     try {
-      relation = await RA.relationOf(event, candidate, loadInterviews);
+      relation = await RA.relationOf(event, row, loadInterviews);
     } catch (relationErr) {
-      // The interviews could not be read: the right is not proven, so the candidate is not shown (fail closed).
-      console.warn('getCandidate: could not prove access', { candidateId, error: relationErr.name });
+      console.warn('getCandidate: could not prove access', { error: relationErr.name });
       return T.notFound();
     }
     if (!relation) return T.notFound();
 
-    try {
-      const mine = relation === 'panel' ? interviews.filter((i) => RA.panelMemberOf(i, RA.callerId(event))) : await loadInterviews();
-      if (mine.length > 0) {
-        // Pick first SCHEDULED interview, fall back to any if none SCHEDULED
-        const scheduled = mine.find((i) => i.status === 'SCHEDULED') ?? mine[0];
-        candidate.currentInterviewId = scheduled.interviewId ?? null;
+    const S = await import('../shared/recruitment-stages.mjs');
+    const CLOCK = await import('../shared/recruitment-actions/stage-clock.mjs');
+    const PROG = await import('../shared/recruitment-actions/candidate-progress.mjs');
+    const SET = await import('../shared/recruitment-settings.mjs');
+    const DEPS = await import('../shared/departments.mjs');
+
+    const all = await loadInterviews();
+    const mine = relation === 'panel' ? all.filter((i) => RA.panelMemberOf(i, RA.callerId(event))) : all;
+    const stage = S.normaliseStage(row) ?? 'APPLIED';
+    const { settings, active } = await SET.settingsForRead(tenantId, row);
+
+    // The role's current title (rule 5's fallback: the stored title when the role row is not found).
+    let roleTitle = null;
+    if (typeof row.role_id === 'string' && row.role_id) {
+      try {
+        const got = await dynamo.send(new GetItemCommand({ TableName: ROLES_TABLE, Key: marshall({ pk: `TENANT#${tenantId}`, sk: `ROLE#${row.role_id}` }) }));
+        const r = got.Item ? unmarshall(got.Item) : null;
+        if (r && T.ownsRow(r, tenantId) && r.role_id === row.role_id) roleTitle = r.job_title ?? null;
+      } catch (roleErr) {
+        if (roleErr.name !== 'ResourceNotFoundException' && !/no table/.test(String(roleErr.message))) throw roleErr;
       }
-    } catch (interviewErr) {
-      // Non-fatal: vote button will remain disabled if we can't fetch interview
-      console.warn('getCandidate: failed to query interview record', { candidateId, error: interviewErr.message });
+    }
+    let department = row.department;
+    if (typeof row.department_id === 'string' && row.department_id) {
+      const { departments } = await DEPS.departmentsOf(tenantId, { table: process.env.TENANTS_TABLE });
+      const d = departments.find((x) => x.id === row.department_id);
+      if (d) department = d.name;
     }
 
-    // REC-01: salary stays hidden from the hiring manager; a panel member sees no offer and no salary field.
-    if (relation === 'hiringManager') candidate = RA.forHiringManager(candidate);
-    if (relation === 'panel') candidate = RA.forPanelMember(candidate);
+    const out = {};
+    for (const k of KEPT_OLD) if (row[k] !== undefined) out[k] = row[k];
+    out.candidateId = row.candidateId;
+    out.id = row.candidateId;
+    if (mine.length > 0) {
+      const scheduled = mine.find((i) => i.status === 'SCHEDULED') ?? mine[0];
+      out.currentInterviewId = scheduled.interviewId ?? null;
+    }
+    out.stage = stage;
+    out.role_id = row.role_id ?? null;
+    out.role_title = roleTitle || row.positionTitle || null;
+    out.level = row.positionLevel ?? null;
+    out.applied_at = row.appliedDate ?? row.createdAt ?? null;
+    if (row.department_id !== undefined) out.department_id = row.department_id;
+    if (row.department_id !== undefined || row.department !== undefined) out.department = department ?? null;
+    if (row.source !== undefined) out.source = row.source;
 
-    return respond(200, candidate);
+    const decider = { move: PROG.moveDeciderOf(settings, row), decide: PROG.decisionDeciderOf(settings, row) };
+    const open = ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER'].includes(stage);
+    if (relation === 'panel') {
+      out.can_move = false;
+      out.can_decide = false;
+      return respond(200, out);
+    }
+    out.can_move = relation === 'recruiter' ? open : stage === 'INTERVIEW' && RA.canDecide(event, row, decider.move);
+    out.can_decide = stage !== 'HIRED' && RA.canDecide(event, row, decider.decide);
+
+    const clock = CLOCK.stageClock(row, active.SLA_THRESHOLDS ?? null, Date.now());
+    out.stage_entered_at = CLOCK.enteredAt(row, stage);
+    out.due_at = clock.due_at;
+    out.sla_status = clock.sla_status;
+    const completed = new Set(all.filter((i) => i.status === 'COMPLETED').map((i) => i.interviewType));
+    const req = PROG.requiredInterviews(settings, row, completed);
+    const counted = ['INTERVIEW', 'OFFER', 'HIRED', 'NOT_HIRED'].includes(stage);
+    out.interviews_done = counted ? req.done : null;
+    out.interviews_required = counted ? req.total : null;
+    let next = null;
+    if (['APPLIED', 'SCREENING', 'INTERVIEW'].includes(stage)) {
+      const list = S.openStages(settings.STAGE_CONFIG?.screening);
+      const order = ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER'];
+      const to = order.slice(order.indexOf(stage) + 1).find((x) => list.includes(x));
+      next = { from: stage, to, blocker: stage === 'INTERVIEW' && req.incomplete ? { code: 'INTERVIEWS_INCOMPLETE', done: req.done, total: req.total } : null };
+    }
+    out.next_step = next;
+    out.legacy_hired = row.legacy_hired === true;
+    if (relation === 'recruiter') {
+      if (row.employee_id !== undefined) out.employee_id = row.employee_id;
+      if (row.added_by !== undefined) out.added_by = row.added_by;
+      if (row.settingVersions !== undefined) out.settingVersions = row.settingVersions;
+    }
+    return respond(200, out);
   } catch (err) {
-    console.error('getCandidate error', err);
-    return respond(500, { message: 'Failed to retrieve candidate' });
+    console.error('getCandidate error', { error: err.name });
+    return respond(500, { error: 'Something went wrong' });
   }
 };
