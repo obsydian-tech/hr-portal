@@ -145,7 +145,7 @@ exports.handler = async (event) => {
       return T.notFound();
     }
   } catch (err) {
-    console.error('Failed to read SAGA record', { candidateId, error: err.message });
+    console.error('Failed to read SAGA record', { candidateId, error: err.name });
     return serverError('Failed to validate candidate');
   }
 
@@ -168,13 +168,13 @@ exports.handler = async (event) => {
       if (rec.ttl && rec.ttl > nowSec && T.ownsRow(rec, tenantId)) {
         // Return existing valid token — do not regenerate
         const scoringUrl = `${FRONTEND_URL}/score?token=${rec.token}`;
-        console.info('Returning existing valid scoring link', { candidateId, panelMemberId, token: rec.token });
+        console.info('Returning existing valid scoring link', { candidateId, interviewId: rec.interviewId, panelMemberId });
         return ok({ token: rec.token, scoringUrl, expiresAt: rec.expiresAt, reused: true });
       }
     }
   } catch (err) {
     // Non-fatal: if idempotency check fails, proceed to create a new token
-    console.warn('Idempotency check failed, proceeding to create new token', { candidateId, error: err.message });
+    console.warn('Idempotency check failed, proceeding to create new token', { candidateId, error: err.name });
   }
 
   // ── Step 4: Generate token + TTL ─────────────────────────────────────────
@@ -211,7 +211,7 @@ exports.handler = async (event) => {
       }, tenantId)),
     }));
   } catch (err) {
-    console.error('Failed to write candidate-indexed scoring link', { candidateId, token, error: err.message });
+    console.error('Failed to write candidate-indexed scoring link', { candidateId, interviewId, error: err.name });
     return serverError('Failed to generate scoring link');
   }
 
@@ -226,14 +226,14 @@ exports.handler = async (event) => {
       }, tenantId)),
     }));
   } catch (err) {
-    console.error('Failed to write token-indexed scoring link', { token, error: err.message });
+    console.error('Failed to write token-indexed scoring link', { candidateId, interviewId, error: err.name });
     // Attempt to clean up the candidate-indexed record (best-effort)
     return serverError('Failed to generate scoring link (token index write failed)');
   }
 
   const scoringUrl = `${FRONTEND_URL}/score?token=${token}`;
 
-  console.info('Scoring link generated', { candidateId, panelMemberId, token, expiresAt });
+  console.info('Scoring link generated', { candidateId, interviewId, panelMemberId, expiresAt });
 
   // ── Step 6: Return link ───────────────────────────────────────────────────
   return ok({ token, scoringUrl, expiresAt });
