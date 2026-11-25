@@ -1,4 +1,5 @@
 import { A, B, ID, NAME, SUB, type Ask, type Caller } from './world';
+import { addBody } from '../rec-15b.1/roles';
 
 /**
  * TEN-03: every TalentFlow, IT task and provisioning bundle route a person or agent calls, with one valid request
@@ -49,7 +50,7 @@ export const ROUTES: Route[] = [
   { name: 'PATCH /v1/provisioning/bundles/{bundleId}', handler: 'updateProvisioningBundle', own: { method: 'PATCH', path: { bundleId: ID.bundleA }, body: { department: 'Operations' } }, byId: true, writes: true },
   // Lists and creates (no id of someone else's to aim at)
   { name: 'GET /v1/candidates', handler: 'getCandidates', own: { query: { tenantId: A } } },
-  { name: 'POST /v1/candidates', handler: 'createCandidate', own: { method: 'POST', body: { idempotencyKey: 'idem-a-0001', firstName: 'Lerato', lastName: 'Mokoena', email: 'lerato@example.test', positionTitle: 'Baker', positionLevel: 'JUNIOR', tenantId: A } }, writes: true },
+  { name: 'POST /v1/candidates', handler: 'createCandidate', own: { method: 'POST', body: addBody(A) } /* child lock rec-15b.1: REC-15 rule 19 body; a body tenantId is now refused, see AC-4 */, writes: true },
   { name: 'GET /v1/intelligence/tiles', handler: 'getIntelligenceTiles', own: { query: { tenantId: A, role: 'TA' } } },
   { name: 'GET /v1/config', handler: 'manageTalentFlowConfig', own: { query: { tenantId: A, configType: 'SCORING_WEIGHTS', active: 'true' } } },
   { name: 'POST /v1/config', handler: 'manageTalentFlowConfig', own: { method: 'POST', body: { tenantId: A, configType: 'RETENTION', data: { notHiredMonths: 6 } } }, writes: true },

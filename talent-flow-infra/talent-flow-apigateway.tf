@@ -89,6 +89,19 @@ resource "aws_apigatewayv2_stage" "talent_flow_api_default" {
     throttling_rate_limit  = 50
   }
 
+  # REC-07: the public scoring link routes are throttled harder (D-REC-7.3).
+  route_settings {
+    route_key              = "GET /v1/scoring-links/{token}"
+    throttling_burst_limit = 20
+    throttling_rate_limit  = 10
+  }
+
+  route_settings {
+    route_key              = "POST /v1/scoring-links/{token}"
+    throttling_burst_limit = 20
+    throttling_rate_limit  = 10
+  }
+
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.talent_flow_api_logs.arn
     format = jsonencode({
@@ -949,4 +962,35 @@ output "talent_flow_api_endpoint" {
 output "agent_api_endpoint" {
   description = "TalentFlow Agent REST API endpoint (Gateway 2 - TOKEN authorizer)"
   value       = "https://${aws_api_gateway_rest_api.agent_api.id}.execute-api.af-south-1.amazonaws.com/${aws_api_gateway_stage.agent_api_prod.stage_name}"
+}
+
+# REC-07: scoring routes.
+resource "aws_apigatewayv2_route" "post_interview_votes" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/interviews/{id}/votes"
+  target             = "integrations/${aws_apigatewayv2_integration.submit_vote.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_apigatewayv2_route" "get_candidate_scores" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/candidates/{id}/scores"
+  target             = "integrations/${aws_apigatewayv2_integration.submit_vote.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
+resource "aws_apigatewayv2_route" "get_scoring_link" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/scoring-links/{token}"
+  target             = "integrations/${aws_apigatewayv2_integration.submit_vote_by_token.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_apigatewayv2_route" "post_scoring_link" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "POST /v1/scoring-links/{token}"
+  target             = "integrations/${aws_apigatewayv2_integration.submit_vote_by_token.id}"
+  authorization_type = "NONE"
 }

@@ -129,6 +129,19 @@ jest.unstable_mockModule('../shared/modules.mjs', () => ({
   requireModule: async () => null,
 }));
 
+// REC-07: the criteria an interview keeps and the decider rule come from the Standard pack (shared/recruitment-settings.mjs, tested
+// with its own file); here the company has no setting of its own, so the pack's defaults apply and no extra read is made.
+const mockPack = {
+  PANEL_CONFIG: { panelSize: { JUNIOR: 2, MID: 3, SENIOR: 4 } },
+  SCORING_WEIGHTS: { defaultCriteria: [{ key: 'technical', label: 'Technical' }, { key: 'communication', label: 'Communication' }] },
+  REJECTION_RULES: { decider: { JUNIOR: 'HR_OR_HM', MID: 'HR_OR_HM', SENIOR: 'HR_OR_HM' } },
+};
+jest.unstable_mockModule('../shared/recruitment-settings.mjs', () => ({
+  DEFAULTS: mockPack,
+  activeSettings: async () => ({}),
+  getRecruitmentSettings: async () => ({}),
+}));
+
 describe('POST schedule interview', () => {
   test('SENIOR: writes a SCHEDULED interview with votesRequired=4, links it on the SAGA, notifies panel', async () => {
     happyChain();
@@ -157,6 +170,15 @@ describe('POST schedule interview', () => {
     expect(mockSqsSend).toHaveBeenCalledTimes(3);
     expect(mockEbSend).toHaveBeenCalledTimes(1);
     expect(mockEbSend.mock.calls[0][0].Entries[0].DetailType).toBe('InterviewScheduled');
+  });
+
+  test('REC-07: the interview keeps the company\'s default criteria and counts nobody pending yet', async () => {
+    happyChain();
+    const res = await handler(postEvent());
+    expect(res.statusCode).toBe(200);
+    const put = callsOf('PutItem').find((c) => String(c.Item?.SK).startsWith('INTERVIEW#'));
+    expect(put.Item.criteria_snapshot).toEqual([{ key: 'technical', label: 'Technical' }, { key: 'communication', label: 'Communication' }]);
+    expect(put.Item.PANEL_FEEDBACK_PENDING_COUNT).toBe(3);
   });
 
   test.each([
@@ -456,7 +478,7 @@ describe('REC-01 role checks', () => {
   });
 
   const rows = () => [
-    { Item: { tenant_id: TEN, hiringManagerId: 'hm-1' } },
+    { Item: { tenant_id: TEN, hiringManagerId: 'hm-1', positionLevel: 'MID' } },
     { Items: [
       { PK: 'x', SK: 'INTERVIEW#a', tenant_id: TEN, interviewId: 'a', scheduledAt: '2026-05-20T10:00:00Z', panelMemberIds: ['p-1'] },
       { PK: 'x', SK: 'INTERVIEW#b', tenant_id: TEN, interviewId: 'b', scheduledAt: '2026-05-21T10:00:00Z', panelMemberIds: ['p-2'] },
@@ -474,6 +496,16 @@ describe('REC-01 role checks', () => {
     const res = await get(claimsOf('[manager]', { sub: 'hm-1' }));
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).interviews.map((i) => i.votes.map((v) => v.voterId))).toEqual([['p-1'], ['p-2']]);
+  });
+
+  test('REC-07: a hiring manager who is not the decider for the level sees no vote', async () => {
+    stage();
+    mockPack.REJECTION_RULES.decider.MID = 'HR_ONLY';
+    try {
+      const res = await get(claimsOf('[manager]', { sub: 'hm-1' }));
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).interviews.map((i) => i.votes)).toEqual([[], []]);
+    } finally { mockPack.REJECTION_RULES.decider.MID = 'HR_OR_HM'; }
   });
 
   test('a panel member sees only their own interview and only their own vote', async () => {

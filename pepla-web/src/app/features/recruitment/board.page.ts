@@ -7,6 +7,7 @@ import {
 } from '../../ds';
 import { HireApi, newKey, optionsOf, type HireCandidate, type HireCounts, type HireRole } from './hire-api';
 import { ADD_CANDIDATE_READY } from './hire-flags';
+import { AddCandidateDrawer } from './add-candidate.drawer';
 
 const SAVE_FAIL = 'Your change could not be saved. Try again.';
 const STAGE_NAMES: Record<string, string> = { APPLIED: 'Applied', SCREENING: 'Screening', INTERVIEW: 'Interview', OFFER: 'Offer', HIRED: 'Hired' };
@@ -20,7 +21,7 @@ const DAY = 86_400_000;
 /** The hiring board of one role (REC-UI-01): five stages, Move with a reason, Not hired, Close role. The List view is REC-UI-02's. */
 @Component({
   selector: 'app-board-page',
-  imports: [RouterLink, PpButton, PpButtonGroup, PpCell, PpDropdownMenu, PpEmptyState, PpField, PpLink, PpMenuItem, PpMenuSection, PpModalDialog, PpModalFooter, PpPageHeader, PpPageHeaderActions, PpPipelineBoard, PpRadioGroup, PpSearch, PpSectionMessage, PpSectionMessageActions, PpTableDirective, PpTableWrap, PpTabs],
+  imports: [AddCandidateDrawer, RouterLink, PpButton, PpButtonGroup, PpCell, PpDropdownMenu, PpEmptyState, PpField, PpLink, PpMenuItem, PpMenuSection, PpModalDialog, PpModalFooter, PpPageHeader, PpPageHeaderActions, PpPipelineBoard, PpRadioGroup, PpSearch, PpSectionMessage, PpSectionMessageActions, PpTableDirective, PpTableWrap, PpTabs],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-250">
@@ -33,8 +34,8 @@ const DAY = 86_400_000;
       } @else if (role(); as r) {
         <pp-page-header [heading]="r.job_title" [description]="counts().all + ' candidates · Hiring manager ' + r.hiring_manager_name" [breadcrumbs]="[{ label: 'Roles', link: '/hire/roles' }, { label: r.job_title, link: '/hire/pipeline' }]">
           <pp-page-header-actions>
-            <pp-button-group aria-label="View"><button ppButton type="button" [pressed]="false" [disabled]="true">List</button><button ppButton type="button" [pressed]="true">Board</button></pp-button-group>
-            @if (addCandidateReady) { <button ppButton appearance="primary" icon="user-plus" type="button">Add candidate</button> }
+            <pp-button-group aria-label="View"><button ppButton type="button" [pressed]="false" (click)="toList()">List</button><button ppButton type="button" [pressed]="true">Board</button></pp-button-group>
+            @if (addCandidateReady) { <button ppButton appearance="primary" icon="user-plus" type="button" (click)="adder.openIt()">Add candidate</button> }
             <pp-dropdown-menu [label]="'More actions for ' + r.job_title"><pp-menu-section><button ppMenuItem icon="circle-x" (click)="close()">Close role</button></pp-menu-section></pp-dropdown-menu>
           </pp-page-header-actions>
         </pp-page-header>
@@ -60,6 +61,7 @@ const DAY = 86_400_000;
         <pp-pipeline-board [label]="'Hiring stages for ' + r.job_title" [(stages)]="stages" [confirmMoves]="true" (moveRequested)="move($event)" [cardMenu]="cardMenu" (cardAction)="cardAction($event)" />
       }
     </div>
+    <app-add-candidate #adder [startRole]="roleId" (added)="reload()" />
     <pp-modal-dialog [open]="!!nhFor()" [closable]="true" [heading]="first() + ' not hired'" (closed)="closeNh()">
       <div class="pp-stack pp-gap-150">
         <pp-field label="Why? (required)" group="radio" help="Not hired always carries a reason.">
@@ -99,7 +101,9 @@ export class BoardPage implements OnInit {
   protected readonly canRecord = computed(() => !!this.nhFor()?.pending || !!this.reason());
   private screening = true;
   private rows: HireCandidate[] = [];
-  private roleId = '';
+  protected roleId = '';
+  private managers: Array<{ id: string; name: string }> = [];
+  private roleBody: HireRole | null = null;
   protected readonly tabs = computed<Tab[]>(() => {
     const c = this.counts();
     return [{ id: 'all', label: 'All', count: c.all }, { id: 'mine', label: 'My candidates', count: c.mine }, { id: 'overdue', label: 'Overdue', count: c.overdue }, { id: 'due_soon', label: 'Due soon', count: c.due_soon }];
@@ -125,16 +129,19 @@ export class BoardPage implements OnInit {
     if (!role || role.status !== 200) return this.status.set('failed');
     // A failed options call keeps all five columns and shows no error line (REC-14 rule 24).
     this.screening = opts?.screening !== false;
+    this.managers = opts?.hiring_managers ?? [];
+    this.roleBody = role.body;
     await this.reload();
     // The header and the board appear together: the role is shown only once its candidates are in.
     if (this.status() === 'ready') this.role.set(role.body);
   }
 
-  private async reload() {
+  protected async reload() {
     const q = new URLSearchParams({ role_id: this.roleId, limit: '100' });
     const t = this.tab();
     if (t === 'overdue') q.set('sla_status', 'OVERDUE'); else if (t === 'due_soon') q.set('sla_status', 'DUE_SOON'); else if (t === 'mine') q.set('mine', 'true');
-    if (this.query()) q.set('search', this.query());
+    const s = this.query().trim().slice(0, 100).trim();
+    if (s) q.set('search', s);
     const r = await this.api.call<{ candidates: HireCandidate[]; counts: HireCounts }>('GET', `/v1/candidates?${q}`);
     if (!r || r.status !== 200) return this.status.set('failed');
     this.rows = r.body.candidates;
@@ -159,11 +166,12 @@ export class BoardPage implements OnInit {
     const days = Math.max(1, Math.round((Date.now() - Date.parse(c.stage_entered_at ?? '')) / DAY) + 1);
     const meta = stage === 'APPLIED' ? (c.source ?? 'Applied')
       : stage === 'SCREENING' ? `Day ${days}`
-      : stage === 'INTERVIEW' ? `${c.interviews_done ?? 0} of ${c.interviews_required ?? 0} interviews`
-      : stage === 'OFFER' ? (c.offer_state === 'SENT' ? 'Offer sent' : 'Offer')
+      : stage === 'INTERVIEW' ? `Day ${days}`
+      : stage === 'OFFER' ? 'Offer'
       : STAGE_NAMES[stage]!;
     const card: PipelineCard = { id: c.id, name: c.name, meta };
     if (c.pending?.awaiting?.name) card.lozenge = { status: 'warning', icon: 'clock', text: `${c.pending.awaiting.name} must confirm before this is final.` };
+    else if (c.pending?.awaiting?.hr) card.lozenge = { status: 'warning', icon: 'clock', text: 'An HR person must confirm before this is final.' };
     else if (c.sla_status && c.sla_status !== 'ON_TRACK' && c.due_at) card.deadline = { due: c.due_at };
     return card;
   }
@@ -207,11 +215,14 @@ export class BoardPage implements OnInit {
     if (!row) return;
     this.nhFailed.set(false);
     const r = row.pending
-      ? await this.api.call<{ pending?: HireCandidate['pending'] }>('POST', `/v1/candidates/${row.id}/not-hired/confirm`, {})
-      : await this.api.call<{ pending?: HireCandidate['pending'] }>('POST', `/v1/candidates/${row.id}/not-hired`, { reason: this.reason() });
+      ? await this.api.call<{ pending?: boolean; awaiting?: { kind?: string; personId?: string } }>('POST', `/v1/candidates/${row.id}/not-hired/confirm`, {})
+      : await this.api.call<{ pending?: boolean; awaiting?: { kind?: string; personId?: string } }>('POST', `/v1/candidates/${row.id}/not-hired`, { reason: this.reason() });
     if (r?.status !== 200) { this.nhFailed.set(true); return; }
-    if (r.body?.pending) {
-      row.pending = r.body.pending;
+    if (r.body?.pending === true) {
+      const a = r.body.awaiting;
+      const id = a?.kind === 'HIRING_MANAGER' ? a.personId : undefined;
+      const name = !id ? undefined : this.roleBody?.hiring_manager_id === id && this.roleBody.hiring_manager_name ? this.roleBody.hiring_manager_name : this.managers.find((m) => m.id === id)?.name;
+      row.pending = { awaiting: name ? { name } : a?.kind === 'HR' ? { hr: true } : {} };
       this.stages.set(this.build(this.rows));
       this.nhFor.set({ ...row });
       return;
@@ -237,6 +248,8 @@ export class BoardPage implements OnInit {
     this.oldRows.set(!!old?.body?.candidates?.length);
     this.showNotHired.set(true);
   }
+
+  protected toList() { void this.router.navigate(['/hire/pipeline'], { queryParams: { role: this.roleId, view: 'list' } }); }
 
   protected async close() {
     this.failedSave.set(false);

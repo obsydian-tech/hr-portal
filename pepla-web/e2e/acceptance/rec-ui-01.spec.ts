@@ -21,6 +21,17 @@ import { DEPT, REASONS, WHO, companyIdIn, depId, drawsIcon, enter, expect, quiet
  * and sends `department_id`; criteria keys and labels are the server's REC-12 defaults; the board's Screening switch is
  * `world.options.screening`. The fake checks every call and every rule 14 answer against api/openapi.yaml.
  *
+ * Child lock rec-ui-01.3 (REC-UI-02, decision D-T-A12, 23 Nov 2026): the fake list answers what the real list sends (REC-15
+ * step A, CandidateRow), so the board's cards carry no interview count and no offer state: an Interview card says "Day {n}"
+ * as a Screening card does, an Offer card says "Offer". The second confirmation follows the real Not hired answer
+ * (`pending: true`, `awaiting.kind`, a person id, no name): the board names the hiring manager from the role and the company's
+ * hiring managers, and after a reload it cannot know a decision is waiting until the list says so (follow-up F-RUI-02.1),
+ * so the "another person confirms" half is judged then. The search box sends its text trimmed, never only spaces and never
+ * more than 100 characters (REC-15 L2, build review note N1). The Hire group may hold REC-UI-02's Candidates after Pipeline.
+ *
+ * Child lock rec-ui-01.4 (24 Nov 2026, Iggie's words): when the Not hired answer waits on any HR person (`awaiting.kind` HR,
+ * no one named), the card says "An HR person must confirm before this is final." Only the U-3 test changes.
+ *
  * AC-13 is the pepla-dev check: it cannot run until REC-02, REC-03 and REC-04 are on dev. It is tagged @pepla-dev and stays
  * red there until they are; it does not run in the no-backend run, and it does not hold the lock or the board's merge.
  */
@@ -41,6 +52,7 @@ const HELP_LINE = "From your company's default. Change it for this role if you n
 const NOT_HIRED_LINE = 'Not hired always carries a reason.';
 const OLD_LINE = 'These candidates were turned down by a score before 17 Nov. Open any of them to look again.';
 const must = (name: string) => `${name} must confirm before this is final.`;
+const HR_MUST = 'An HR person must confirm before this is final.'; // Iggie's words, 24 Nov 2026 (rec-ui-01.4, U-3)
 
 // ---------------------------------------------------------------- helpers
 
@@ -125,7 +137,8 @@ test.describe('AC-1 Entry and guard', () => {
     const under = await page.locator('pp-side-navigation .pp-side-navigation__section').evaluateAll((sections) =>
       sections.map((s) => ({ heading: (s.querySelector('.pp-side-navigation__heading')?.textContent ?? '').trim(), items: [...s.querySelectorAll('a.pp-side-navigation__item')].map((a) => ({ label: (a.querySelector('.pp-side-navigation__label')?.textContent ?? '').trim(), href: a.getAttribute('href') })) })));
     const hire = under.find((s) => s.heading === 'Hire');
-    expect(hire?.items, 'Roles then Pipeline, under the heading Hire, with their routes').toEqual([{ label: 'Roles', href: '/hire/roles' }, { label: 'Pipeline', href: '/hire/pipeline' }]);
+    // rec-ui-01.3: REC-UI-02 adds Candidates after these two; its own tests judge that entry.
+    expect(hire?.items.slice(0, 2), 'Roles then Pipeline, under the heading Hire, with their routes').toEqual([{ label: 'Roles', href: '/hire/roles' }, { label: 'Pipeline', href: '/hire/pipeline' }]);
     expect(await drawsIcon(navItems(page).filter({ hasText: /^Roles$/ }), 'briefcase'), 'Roles draws the briefcase icon').toBe(true);
     expect(await drawsIcon(navItems(page).filter({ hasText: /^Pipeline$/ }), 'columns-3'), 'Pipeline draws the columns icon').toBe(true);
     // HR's first page stays Today (D-LANDING): this card registers no landing override.
@@ -505,13 +518,15 @@ test.describe('AC-4 The board', () => {
     else expect((await readBoard(scope)).map((c) => [c.stage, c.count])).toEqual([['Applied', 1], ['Screening', 2], ['Interview', 2], ['Offer', 1], ['Hired', 0]]);
     await showStage(scope, 'Hired');
     await expect(scope.locator('.pp-pipeline__column').filter({ hasText: 'Hired' }).getByText('No one yet', { exact: true })).toBeVisible();
+    // rec-ui-01.3 (D-T-A12): the list sends no interview count and no offer state, so Interview reads "Day {n}" and Offer "Offer".
     const lines: Array<[string, string, RegExp | string]> = [
-      ['Amahle Dlamini', 'Applied', 'Referral'], ['Tariro Moyo', 'Screening', /Day \d+/], ['Bongani Mthembu', 'Interview', '2 of 3 interviews'],
-      ['Tendai Ncube', 'Interview', '1 of 2 interviews'], ['Kagiso Molefe', 'Offer', 'Offer sent'],
+      ['Amahle Dlamini', 'Applied', 'Referral'], ['Tariro Moyo', 'Screening', /^Day \d+$/], ['Bongani Mthembu', 'Interview', /^Day \d+$/],
+      ['Tendai Ncube', 'Interview', /^Day \d+$/], ['Kagiso Molefe', 'Offer', /^Offer$/],
     ];
     for (const [name, stage, line] of lines) {
       const c = await cardOf(scope, name, stage);
-      await expect(c, `${name}'s line`).toContainText(line);
+      await expect(c.locator('.pp-person__meta').first(), `${name}'s line, exactly`).toHaveText(line);
+      await expect(c, `${name}: no count or state the list does not send`).not.toContainText(/interviews|Offer sent|undefined|null|NaN/);
       await expect(c.locator('.pp-avatar').first(), `${name}'s initials`).toContainText(name.split(' ').map((w) => w[0]).join(''));
       await expect(moveBtn(scope, name), `${name}'s Move button`).toBeVisible();
     }
@@ -572,13 +587,50 @@ test.describe('AC-4 The board', () => {
     expect(hire!.calls.filter((c) => c.path.endsWith('/v1/candidates')).at(-1)!.query).toMatchObject({ role_id: 'role-fleet', search: 'Ayanda' });
   });
 
-  test('AC-4 Add candidate is hidden until REC-UI-02 is on, so the board has no primary button', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
+  // rec-ui-01.3 (REC-15 L2, build review N1): the server refuses a search of only spaces or over 100 characters with a 400.
+  test('AC-4 The search is sent trimmed: spaces around the words go, only spaces sends no search, and the board never fails on it', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
+    const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
+    const { page, hire } = fx;
+    await asRecruiter(fx);
+    const scope = await openBoard(fx);
+    const box = scope.locator('input[type="search"][placeholder="Search by name, email or role"]');
+    const lists = () => hire!.calls.filter((c) => c.path.endsWith('/v1/candidates'));
+    await box.fill('   Ayanda  ');
+    await expect.poll(async () => Object.values(await boardNow(scope)).flat()).toEqual(['Ayanda Mkhize']);
+    expect(lists().at(-1)!.query['search'], 'the words without the spaces').toBe('Ayanda');
+    await box.fill('     ');
+    await expect.poll(async () => Object.values(await boardNow(scope)).flat().length).toBe(6);
+    await quiet(page);
+    expect(lists().at(-1)!.query['search'], 'only spaces sends no search').toBeUndefined();
+    expect(lists().filter((c) => c.status !== 200).map((c) => `${c.status} ${JSON.stringify(c.query)}`), 'no list request was refused').toEqual([]);
+    await expect(page.getByText(/could not be loaded\.$/)).toHaveCount(0);
+  });
+
+  test('AC-4 A search longer than 100 characters is never sent: the server would refuse it, and the board keeps working', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
+    const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
+    const { page, hire } = fx;
+    await asRecruiter(fx);
+    const scope = await openBoard(fx);
+    const box = scope.locator('input[type="search"][placeholder="Search by name, email or role"]');
+    await box.fill('Ayanda ' + 'x'.repeat(130));
+    await quiet(page);
+    const lists = hire!.calls.filter((c) => c.path.endsWith('/v1/candidates'));
+    for (const c of lists) expect((c.query['search'] ?? '').length, 'never more than 100 characters').toBeLessThanOrEqual(100);
+    expect(lists.filter((c) => c.status !== 200).map((c) => `${c.status} ${JSON.stringify(c.query).slice(0, 80)}`), 'no list request was refused').toEqual([]);
+    await expect(page.getByText(/could not be loaded\.$/)).toHaveCount(0);
+    await expect(h1(page)).toHaveText('Fleet controller');
+  });
+
+  // Child lock rec-ui-01.5 (REC-UI-02 step 2, NH-228): Add candidate is built (spec REC-UI-02-next-slice.md rule 1), so the board's
+  // one primary button is now "Add candidate"; its drawer is judged in rec-ui-02-add.spec.ts.
+  test('AC-4 The board\'s one primary button is Add candidate (REC-UI-02 step 2)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
     const { page } = fx;
     await asRecruiter(fx);
     const scope = await openBoard(fx);
-    await expect(either(page, /add candidate/i, false), 'no Add candidate button').toHaveCount(0);
-    await expect(scope.locator('.pp-button--primary'), 'no primary button on the board').toHaveCount(0);
+    await expect(scope.getByRole('button', { name: 'Add candidate', exact: true }), 'one Add candidate button').toHaveCount(1);
+    await expect(scope.locator('.pp-button--primary'), 'one primary button on the board').toHaveCount(1);
+    await expect(scope.locator('.pp-button--primary')).toHaveAccessibleName('Add candidate');
   });
 
   test('AC-4 A failing read shows the generic could-not-be-loaded state with Try again, never cards, and Try again reads once more', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
@@ -875,10 +927,14 @@ test.describe('AC-6 Not hired', () => {
     });
   }
 
-  test('AC-6 When the answer says pending the card stays and shows "{name} must confirm before this is final."; the same person cannot confirm; another person confirms and the card leaves', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
+  // rec-ui-01.3 (D-T-A12): the real answer is { candidateId, pending: true, awaiting: { kind: 'HIRING_MANAGER', personId } }, no name.
+  test('AC-6 When the answer says pending the card stays and shows "{name} must confirm before this is final." with the hiring manager the answer points to; the same person cannot confirm', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
     const { page, hire } = fx;
     hire!.secondConfirmation.add('cand-bongani');
+    // As on dev, the role answer carries the hiring manager's id but not the name (roles.mjs shapeRole), so the name must
+    // come from the answer's awaiting.personId and the company's hiring managers (REC-UI-02 lock check B21).
+    delete (hire!.world.roles.find((r) => r.role_id === 'role-fleet') as { hiring_manager_name?: string }).hiring_manager_name;
     await asRecruiter(fx);
     const { scope, d } = await openNotHired(fx, 'Bongani Mthembu', 'Interview');
     await d.getByRole('radio', { name: 'Not the right skills', exact: true }).check();
@@ -886,6 +942,7 @@ test.describe('AC-6 Not hired', () => {
     await expect.poll(() => notHiredCalls(hire!).length).toBe(1);
     await seeLine(page, must('Sipho Ndlovu'));
     expect((await boardNow(scope))['Interview'], 'the card stays in its column').toEqual(['Bongani Mthembu', 'Tendai Ncube']);
+    await expect(scope.getByRole('button', { name: 'Not hired 2', exact: true }), 'nothing is final yet').toBeVisible();
     // The card shows the state (after the dialog is closed, if it stays open).
     if (await d.isVisible()) await d.getByRole('button', { name: /^(Cancel|Close)$/ }).first().click();
     await showStage(scope, 'Interview');
@@ -901,11 +958,16 @@ test.describe('AC-6 Not hired', () => {
     expect(confirm).toHaveLength(1);
     expect(confirm[0]!.status, 'the server refuses the same person').toBe(409);
     expect((await boardNow(scope))['Interview']).toContain('Bongani Mthembu');
-    // Another Recruiter signs in and confirms.
-    await page.getByRole('button', { name: /^(Cancel|Close)$/ }).first().click().catch(() => undefined);
-    await avatarButton(page).click();
-    await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
-    await expect(page).toHaveURL(/\/sign-in/);
+  });
+
+  test('AC-6 Another Recruiter sees the waiting decision on the board and confirms it; the card leaves (judged when the list says a decision is waiting, follow-up F-RUI-02.1)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
+    // The real list (REC-15 CandidateRow) does not say a Not hired decision is waiting, so after a reload or for another person
+    // the board cannot show it. This half of the old test is judged when a backend card adds that to the list (rec-ui-01.3).
+    test.fixme(true, 'F-RUI-02.1: the candidate list does not carry a waiting Not hired decision yet');
+    const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
+    const { page, hire } = fx;
+    const c = hire!.world.cands.find((x) => x.id === 'cand-bongani')!;
+    c.pending = { by: WHO.recruiterA.email, reason: 'NOT_RIGHT_SKILLS', awaiting: { kind: 'HIRING_MANAGER', personId: 'hm-sipho' } };
     await signInAs(fx.signIn, fx.cognito, fx.modules, hire, WHO.recruiter2A);
     await expect(page).toHaveURL('/hr');
     const scope2 = await openBoard(fx);
@@ -915,7 +977,7 @@ test.describe('AC-6 Not hired', () => {
     await page.getByRole('menuitem', { name: 'Not hired', exact: true }).click();
     const second = page.getByRole('dialog', { name: 'Bongani not hired', exact: true });
     await record(second).click();
-    await expect.poll(() => hire!.to('POST', /\/not-hired\/confirm$/).length).toBe(2);
+    await expect.poll(() => hire!.to('POST', /\/not-hired\/confirm$/).length).toBe(1);
     await expect.poll(async () => (await boardNow(scope2))['Interview']).toEqual(['Tendai Ncube']);
   });
 
@@ -938,20 +1000,40 @@ test.describe('AC-6 Not hired', () => {
     expect(hire!.world.cands.find((c) => c.id === 'cand-bongani')!.pending, 'the server let it go').toBeUndefined();
   });
 
-  test('AC-6 When the person to confirm is not named in the answer the line has no name in it (U-3)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
+  // rec-ui-01.3: the real answer names no person when any other HR person may confirm (awaiting.kind HR).
+  // rec-ui-01.4 (24 Nov 2026): Iggie's line for that case, "An HR person must confirm before this is final.", shows on the card.
+  test('AC-6 When the answer waits on any HR person (no one named) the card stays and shows "An HR person must confirm before this is final."; no line names anyone, nothing says it is final, and Cancel takes the line away (U-3)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
     const { page, hire } = fx;
-    hire!.secondConfirmation.add('cand-bongani');
-    const origin = hire!.world.roles.find((r) => r.role_id === 'role-fleet')!;
-    origin.hiring_manager_name = '';
+    hire!.secondConfirmationByHr.add('cand-bongani');
     await asRecruiter(fx);
-    const { d } = await openNotHired(fx, 'Bongani Mthembu', 'Interview');
+    const { scope, d } = await openNotHired(fx, 'Bongani Mthembu', 'Interview');
     await d.getByRole('radio', { name: 'Other', exact: true }).check();
     await record(d).click();
     await expect.poll(() => notHiredCalls(hire!).length).toBe(1);
-    await page.waitForTimeout(300);
-    const text = (await main(page).textContent()) ?? '';
-    expect(text + ((await page.getByRole('dialog').allTextContents()).join(' ')), 'no empty name, no "undefined" or "null"').not.toMatch(/undefined|null| must confirm before this is final\.$/);
+    expect(notHiredCalls(hire!)[0]!.status, 'the fake answered pending, waiting on any HR person').toBe(200);
+    await seeLine(page, HR_MUST);
+    const text = ((await main(page).textContent()) ?? '') + ' ' + (await page.getByRole('dialog').allTextContents()).join(' ');
+    expect(text, 'no empty name, no "undefined" or "null"').not.toMatch(/undefined|null/);
+    // The answer names nobody: every "must confirm" on the page is Iggie's HR line, never an empty or a guessed name.
+    expect(text.split(HR_MUST).join(' '), 'no other "must confirm" line').not.toContain('must confirm');
+    if (await d.isVisible()) await d.getByRole('button', { name: /^(Cancel|Close)$/ }).first().click();
+    await expect(page.getByRole('dialog'), 'the dialog is closed').toHaveCount(0);
+    expect((await boardNow(scope))['Interview'], 'the card stays in its column').toEqual(['Bongani Mthembu', 'Tendai Ncube']);
+    await expect(scope.getByRole('button', { name: 'Not hired 2', exact: true }), 'nothing is final yet').toBeVisible();
+    // The card itself carries the line (the dialog is closed now), and only that line.
+    await showStage(scope, 'Interview');
+    const bongani = card(scope, 'Bongani Mthembu');
+    await expect(bongani).toContainText(HR_MUST);
+    await expect(bongani.getByText(HR_MUST, { exact: true }), 'the card line is visible, not only in the page text').toBeVisible();
+    expect(((await bongani.textContent()) ?? '').split(HR_MUST).join(' '), 'the card names nobody').not.toContain('must confirm');
+    await expect(card(scope, 'Tendai Ncube'), 'only the waiting card carries the line').not.toContainText('must confirm');
+    // Cancel on the card's More actions lets the decision go and the line goes with it.
+    await cardMore(scope, 'Bongani Mthembu').click();
+    await page.getByRole('menuitem', { name: 'Cancel', exact: true }).click();
+    await expect.poll(() => hire!.to('POST', /\/not-hired\/cancel$/).length).toBe(1);
+    await expect(card(scope, 'Bongani Mthembu')).not.toContainText('must confirm');
+    expect((await boardNow(scope))['Interview']).toEqual(['Bongani Mthembu', 'Tendai Ncube']);
   });
 
   test('AC-6 "Not hired {n}" opens the list of the role\'s not-hired candidates (stage NOT_HIRED); an empty list reads "No one yet"', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {

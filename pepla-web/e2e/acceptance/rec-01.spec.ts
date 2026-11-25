@@ -10,6 +10,8 @@ import { A, B, D, ID, SUB, TABLE, TENANTS, ask, authorizerOf, bodyOf, calls, des
 import { ADMINS, C, MANAGERS, NOT_RECRUITERS, RECRUITERS, RECRUITER_FORMS } from './support/rec-01/callers';
 import { LIST_LAMBDAS, ROUTES, type Route } from './support/rec-01/routes';
 import { isCardGrant } from './support/ten-04.2/grants';
+import { isRec07Grant } from './support/rec-07.1/grants';
+import { isRec15bGrant } from './support/rec-15b.1/grants';
 
 /**
  * REC-01 · Recruitment role checks: every action says who may do it (Jira NH-235, epic NH-234). Red.
@@ -268,8 +270,9 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
     for (const k of ['firstName', 'lastName', 'email', 'currentStage', 'hiringManagerId']) if (hmOne?.[k] !== recOne?.[k]) wrong.push(`the hiring manager keeps ${k}`);
     const hmOffer = run(routeOf('getOffer'), C.hmC1);
     if (keysDeep(bodyOf(hmOffer)).some((k) => /salary/i.test(k))) wrong.push('the hiring manager\'s offer has no salary field (baseSalary is salary)');
-    if (bodyOf(hmOffer)?.state !== 'OFFER_CREATED' || bodyOf(hmOffer)?.currency !== 'ZAR') wrong.push('the hiring manager keeps the other offer fields (state, currency)');
-    if (!keysDeep(bodyOf(run(routeOf('getOffer'), C.recruiter))).includes('baseSalary')) wrong.push('the Recruiter sees baseSalary');
+    // Child lock rec-05.1 (REC-05 rules 1 and 9): the old read shows OFFER_CREATED as DRAFT, and no salary to anyone (the Recruiter reveals it on the new route).
+    if (bodyOf(hmOffer)?.state !== 'DRAFT' || bodyOf(hmOffer)?.currency !== 'ZAR') wrong.push('the hiring manager keeps the other offer fields (state as rule 1 maps it, currency)');
+    { const recOffer = bodyOf(run(routeOf('getOffer'), C.recruiter)); if (recOffer?.baseSalary != null || /"baseSalary":\s*\d/.test(JSON.stringify(recOffer))) wrong.push('the Recruiter\'s old offer read holds no salary value (REC-05 rule 9)'); if (recOffer?.state !== 'DRAFT') wrong.push('the Recruiter\'s old offer read maps OFFER_CREATED to DRAFT'); }
     const hmEvents = run(routeOf('getCandidateEvents'), C.hmC1);
     if (/salary/i.test(JSON.stringify(bodyOf(hmEvents)))) wrong.push('the hiring manager\'s history has no salary');
     if (!/OFFER_CREATED/.test(JSON.stringify(bodyOf(hmEvents)))) wrong.push('the hiring manager keeps the offer events on their candidate');
@@ -551,6 +554,8 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
         if (isCardGrant(p, cur.stack, cur.role)) continue;
         // REC-15 (child lock rec-04.3): getCandidates reads the company's stage hours for the list's clock (rec-15.spec.ts AC-17 pins it).
         if (/get_candidates$|getCandidates$/.test(key) && /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/.test(p)) continue;
+        // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
+        if (isRec07Grant(p, key) || isRec15bGrant(p, key)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null'), `role policy ${key}: new grant "${p}" is not allowed (only GetItem on the tenants table, which TEN-03 and MOD-01 own)`).toBe(true);
       }
       expect.soft((was.pairs ?? []).filter((p) => !(cur.pairs ?? []).includes(p)), `role policy ${key}: nothing it had is taken away`).toEqual([]);

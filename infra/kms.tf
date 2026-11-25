@@ -26,6 +26,8 @@ module "kms_pii" {
     aws_iam_role.review_document_verification.arn,
     aws_iam_role.lookup_employee_email.arn,
     aws_iam_role.get_document_presigned_url.arn,
+    # REC-05: manageOffers signs uploads into the bucket this key encrypts, so it needs encrypt rights. Its role lives in talent-flow-infra and already exists, so it is named by ARN.
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-manageOffers",
   ]
 
   # NH-169: checkEmployeeEmail queries the encrypted employees table. Its role
@@ -107,6 +109,9 @@ module "kms_pii" {
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-recordNotHired",
     # REC-04: manageRoles asks lambda/shared/modules.mjs whether Recruitment is on and looks up a hiring manager's company (reads on the tenants table; decrypt only, through DynamoDB). Its role is created in talent-flow-infra, so it is named here one merge later.
     "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-manageRoles",
+    # REC-05: manageOffers asks lambda/shared/modules.mjs whether Recruitment is on, and the hourly offer expiry (monitorTalentFlowSLAs) does the same (reads on the tenants table; decrypt only, through DynamoDB). Both roles already exist in talent-flow-infra.
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-manageOffers",
+    "arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-monitorTalentFlowSLAs",
   ]
 
   # ONB-24: Cognito encrypts reset codes under a grant the deploy role makes (RootFullAdmin covers it).

@@ -153,7 +153,17 @@ exports.handler = async () => {
     }
   }
 
-  console.log(JSON.stringify({ event: 'SLA_MONITOR_COMPLETE', scanned: openSagas.length, breached }));
+  // REC-05 rule 8: SENT offers past their expiry date become EXPIRED (companies with Recruitment off are skipped).
+  // A failure here must not hide the SLA work above, so it is logged by error name only and the next hourly run tries again.
+  let expired = 0;
+  try {
+    const { expireOffers } = await import('../shared/recruitment-actions/offers.mjs');
+    expired = await expireOffers(await scanSentOffers(dynamo, STATE_TABLE));
+  } catch (err) {
+    console.error(JSON.stringify({ event: 'OFFER_EXPIRY_FAILED', error: err?.name ?? 'Error' }));
+  }
+
+  console.log(JSON.stringify({ event: 'SLA_MONITOR_COMPLETE', scanned: openSagas.length, breached, expired }));
 };
 
 /**
@@ -182,5 +192,23 @@ async function scanOpenSagas(dynamo, tableName) {
     lastKey = resp.LastEvaluatedKey;
   } while (lastKey);
 
+  return items;
+}
+
+/** REC-05: every SENT offer row (PK OFFER#<id>, SK OFFER), every page. */
+async function scanSentOffers(dynamo, tableName) {
+  const items = [];
+  let lastKey;
+  do {
+    const resp = await dynamo.send(new ScanCommand({
+      TableName:                 tableName,
+      FilterExpression:          'SK = :offer AND begins_with(PK, :p) AND #s = :sent',
+      ExpressionAttributeNames:  { '#s': 'state' },
+      ExpressionAttributeValues: marshall({ ':offer': 'OFFER', ':p': 'OFFER#', ':sent': 'SENT' }),
+      ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
+    }));
+    for (const item of (resp.Items ?? [])) items.push(unmarshall(item));
+    lastKey = resp.LastEvaluatedKey;
+  } while (lastKey);
   return items;
 }

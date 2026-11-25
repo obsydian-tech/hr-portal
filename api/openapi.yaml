@@ -689,6 +689,80 @@ components:
           - limit
           - mine
           - nextToken
+    NewCandidate:
+      type: object
+      description: REC-15 step B. The body of POST /v1/candidates. The company, title, level, department and hiring manager come from the role, never from here.
+      additionalProperties: false
+      required:
+      - first_name
+      - last_name
+      - email
+      - role_id
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        role_id:
+          type: string
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 30
+          pattern: '^[0-9 +()-]+$'
+        source:
+          type: string
+          minLength: 1
+          maxLength: 80
+        idempotencyKey:
+          type: string
+          description: Older callers only. The Idempotency-Key header is the key; this is read only when the header is absent.
+    NewCandidateAnswer:
+      type: object
+      description: REC-15 step B. The new candidate, in the list's row shape (201; a replay of the same key gives the same body with 200).
+      additionalProperties: false
+      required:
+      - candidateId
+      - candidate
+      properties:
+        candidateId:
+          type: string
+        candidate:
+          $ref: '#/components/schemas/CandidateRow'
+    NewCandidateError:
+      type: object
+      description: REC-15 step B. A refusal of POST /v1/candidates.
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          type: string
+          enum:
+          - Bad request
+          - Forbidden
+          - Not found
+          - Conflict
+          - Something went wrong
+        code:
+          type: string
+          enum:
+          - INVALID_BODY
+          - INVALID_FIELD
+          - IDEMPOTENCY_KEY_REQUIRED
+          - ROLE_REQUIRED
+          - ROLE_CLOSED
+          - IN_PROGRESS
+        field:
+          type: string
     RoleError:
       type: object
       description: REC-14. A refusal of the role routes.
@@ -5017,22 +5091,62 @@ paths:
       x-roles: []
   /v1/candidates:
     post:
-      summary: POST /v1/candidates
+      summary: "POST /v1/candidates: add a candidate to an open role (REC-15 step B)"
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewCandidate'
       responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateAnswer'
         '200':
-          description: OK
+          description: The same answer again (a replay of the key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateAnswer'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateError'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Forbidden
-              example:
-                error: Forbidden
+                $ref: '#/components/schemas/NewCandidateError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateError'
+        '500':
+          description: Something went wrong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewCandidateError'
       operationId: POST_v1_candidates
       servers:
       - url: https://talentflow-api.example.com
@@ -5423,6 +5537,277 @@ paths:
       - admin
       - manager
       - perm-recruitment
+  /v1/interviews/{id}/votes:
+    post:
+      summary: POST /v1/interviews/{id}/votes
+      responses:
+        '201':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [vote]
+                properties:
+                  vote:
+                    type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_interviews_id_votes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/candidates/{id}/scores:
+    get:
+      summary: GET /v1/candidates/{id}/scores
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [interviews]
+                properties:
+                  candidate_id:
+                    type: string
+                  final_score:
+                    type: number
+                    nullable: true
+                  interviews:
+                    type: array
+                    items:
+                      type: object
+                      required: [interview_id]
+                      properties:
+                        interview_id:
+                          type: string
+                        criteria:
+                          type: array
+                        overall:
+                          type: number
+                          nullable: true
+                        vote_count:
+                          type: integer
+                        pending_count:
+                          type: integer
+                        split:
+                          type: boolean
+                        consensus:
+                          type: number
+                          nullable: true
+                        votes:
+                          type: array
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: GET_v1_candidates_id_scores
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - manager
+      - perm-recruitment
+  /v1/scoring-links/{token}:
+    get:
+      summary: GET /v1/scoring-links/{token}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [candidate_first, candidate_last, role_title, interview_type, interview_at, criteria, expires_at]
+                properties:
+                  candidate_first:
+                    type: string
+                  candidate_last:
+                    type: string
+                  role_title:
+                    type: string
+                    nullable: true
+                  interview_type:
+                    type: string
+                  interview_at:
+                    type: string
+                  criteria:
+                    type: array
+                    items:
+                      type: object
+                      required: [key, label]
+                      properties:
+                        key:
+                          type: string
+                        label:
+                          type: string
+                  expires_at:
+                    type: string
+        '410':
+          description: Gone
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: GET_v1_scoring_links_token
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security: []
+      x-tenant: stored-record
+      x-roles: []
+    post:
+      summary: POST /v1/scoring-links/{token}
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '410':
+          description: Gone
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_scoring_links_token
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security: []
+      x-tenant: stored-record
+      x-roles: []
   /v1/panel-members:
     get:
       summary: GET /v1/panel-members
@@ -6047,3 +6432,825 @@ paths:
       - admin
       - manager
       - perm-recruitment
+  /v1/offers:
+    get:
+      summary: 'GET /v1/offers: list offers of the company, newest first (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: GET_v1_offers
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+      - perm-recruitment
+      - perm-approve-offers
+    post:
+      summary: 'POST /v1/offers: a Recruiter drafts an offer for a candidate in Offer (REC-05)'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_offers
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+      - perm-recruitment
+      parameters:
+      - name: idempotency-key
+        in: header
+        required: false
+        schema:
+          type: string
+  /v1/offers/{id}:
+    get:
+      summary: 'GET /v1/offers/{id}: one offer (salary only with ?reveal=salary) (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: GET_v1_offers_id
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+      - perm-recruitment
+      - perm-approve-offers
+      - manager
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: reveal
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - salary
+    patch:
+      summary: 'PATCH /v1/offers/{id}: a Recruiter edits a draft or an approved offer (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: PATCH_v1_offers_id
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+      - perm-recruitment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: idempotency-key
+        in: header
+        required: false
+        schema:
+          type: string
+  /v1/offers/{id}/submit:
+    post:
+      summary: 'POST /v1/offers/{id}/submit: a Recruiter asks another person to approve (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_offers_id_submit
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+      - perm-recruitment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: idempotency-key
+        in: header
+        required: false
+        schema:
+          type: string
+  /v1/offers/{id}/approve:
+    post:
+      summary: 'POST /v1/offers/{id}/approve: an approver who did not draft it approves (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_offers_id_approve
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - perm-approve-offers
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: idempotency-key
+        in: header
+        required: false
+        schema:
+          type: string
+  /v1/offers/{id}/send-back:
+    post:
+      summary: 'POST /v1/offers/{id}/send-back: an approver sends it back with a note (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_offers_id_send_back
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - perm-approve-offers
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: idempotency-key
+        in: header
+        required: false
+        schema:
+          type: string
+  /v1/offers/{id}/send:
+    post:
+      summary: 'POST /v1/offers/{id}/send: a Recruiter sends an approved offer (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_offers_id_send
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+      - perm-recruitment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: idempotency-key
+        in: header
+        required: false
+        schema:
+          type: string
+  /v1/offers/{id}/answer:
+    post:
+      summary: 'POST /v1/offers/{id}/answer: a Recruiter records the candidate answer (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_offers_id_answer
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+      - perm-recruitment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: idempotency-key
+        in: header
+        required: false
+        schema:
+          type: string
+  /v1/offers/{id}/withdraw:
+    post:
+      summary: 'POST /v1/offers/{id}/withdraw: a Recruiter withdraws the offer (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_offers_id_withdraw
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+      - perm-recruitment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: idempotency-key
+        in: header
+        required: false
+        schema:
+          type: string
+  /v1/offers/{id}/signed-upload:
+    post:
+      summary: 'POST /v1/offers/{id}/signed-upload: an upload link for the signed copy (REC-05)'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  code:
+                    type: string
+                  field:
+                    type: string
+      operationId: POST_v1_offers_id_signed_upload
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - hr_staff
+      - perm-recruitment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: idempotency-key
+        in: header
+        required: false
+        schema:
+          type: string

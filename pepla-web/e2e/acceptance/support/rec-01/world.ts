@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { LAMBDA, Row, Run, Tables, httpEvent, jwtAuthorizer, runHandler } from './lambda-harness';
+import { ROLES_TABLE as ADD_ROLES_TABLE, addRoleRows } from '../rec-15b.1/roles';
 
 /**
  * REC-01: the world of the card's acceptance criteria (rows and helpers adapted from ../mod-01/world.ts).
@@ -134,6 +135,8 @@ function companyRows(): Row[] {
 /** The seeded world. */
 export function tables(): Tables {
   return {
+    // Child lock rec-15b.1 (REC-15 step B): one open role per company, so the add-candidate fixtures send a real role_id.
+    [ADD_ROLES_TABLE]: addRoleRows([{ id: A, hm: SUB.hmA }, { id: B, hm: SUB.hmB }]),
     [TABLE.state]: [
       saga(ID.c1, 'Lerato', 'Dlamini', A, SUB.hmA, { salary: 95000, offer: { baseSalary: 95000, state: 'OFFER_CREATED' } }),
       saga(ID.c2, 'Sipho', 'Khumalo', A, SUB.hm2A, { currentStage: 'INTERVIEWING' }),
@@ -200,6 +203,7 @@ export function settings(extra: Record<string, string> = {}): Record<string, str
     NOTIFICATION_QUEUE_URL: 'https://sqs.rec01.example/queue', NOTIFICATION_LAMBDA_NAME: 'sendTalentFlowNotification', TENANTS_TABLE: TENANTS,
     AGENT_TENANT_ID: A, AGENT_API_KEY_SECRET_NAME: AGENT_SECRET, ENVIRONMENT: 'dev', HM_GROUP_NAME: 'HiringManager', POSTMARK_SENDER_EMAIL: 'noreply@rec01.example',
     POSTMARK_API_TOKEN: 'rec01-fake-token', COGNITO_POOL_ID: 'af-south-1_Rec01Fake', HM_COGNITO_POOL_ID: 'af-south-1_Rec01Fake', FRONTEND_URL: 'https://rec01.example',
+    ROLES_TABLE_NAME: ADD_ROLES_TABLE, // child lock rec-15b.1
     ...extra,
   };
 }

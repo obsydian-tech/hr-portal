@@ -190,5 +190,143 @@
     "read": {
       "op": "GET /v1/company/departments"
     }
+  },
+  "POST /v1/interviews/{id}/votes": {
+    "kind": "byId",
+    "ids": {
+      "id": "interview"
+    },
+    "body": {
+      "tenantId": "$A",
+      "voterId": "sub-ten04-b",
+      "rating": "YES",
+      "scores": {
+        "technical": 4,
+        "communication": 4,
+        "culturalFit": 4,
+        "problemSolving": 4
+      }
+    },
+    "read": {
+      "op": "GET /v1/candidates/{id}/scores",
+      "ids": {
+        "id": "candidate"
+      }
+    }
+  },
+  "GET /v1/candidates/{id}/scores": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    }
+  },
+  "GET /v1/scoring-links/{token}": {
+    "kind": "stored"
+  },
+  "POST /v1/scoring-links/{token}": {
+    "kind": "stored",
+    "body": {
+      "rating": "YES",
+      "scores": {
+        "technical": 4,
+        "communication": 4,
+        "culturalFit": 4,
+        "problemSolving": 4
+      }
+    }
+  },
+  "GET /v1/offers": {
+    "kind": "list"
+  },
+  "POST /v1/offers": {
+    "kind": "create",
+    "body": {
+      "candidate_id": "ten04-made-up-candidate",
+      "salary": 1,
+      "currency": "ZAR",
+      "start_date": "2030-01-15",
+      "expiry_date": "2029-12-15"
+    },
+    "read": {
+      "op": "GET /v1/offers"
+    }
+  },
+  "GET /v1/offers/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    }
+  },
+  "PATCH /v1/offers/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/offers"
+    }
+  },
+  "POST /v1/offers/{id}/submit": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/offers"
+    }
+  },
+  "POST /v1/offers/{id}/approve": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/offers"
+    }
+  },
+  "POST /v1/offers/{id}/send-back": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/offers"
+    }
+  },
+  "POST /v1/offers/{id}/send": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/offers"
+    }
+  },
+  "POST /v1/offers/{id}/answer": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/offers"
+    }
+  },
+  "POST /v1/offers/{id}/withdraw": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/offers"
+    }
+  },
+  "POST /v1/offers/{id}/signed-upload": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/offers"
+    }
   }
 }

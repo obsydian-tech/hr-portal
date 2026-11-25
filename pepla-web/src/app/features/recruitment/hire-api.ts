@@ -12,7 +12,8 @@ export type HireRole = components['schemas']['Role'] & { hiring_manager_name?: s
 /** What the Open a role page offers and the board reads, from one answer (REC-14). */
 export type RoleOptions = components['schemas']['RoleOptions'];
 
-export interface HirePending { awaiting?: { name?: string }; }
+/** Who a pending Not hired answer waits on: a named hiring manager, or any HR person (`hr`). */
+export interface HirePending { awaiting?: { name?: string; hr?: boolean }; }
 
 export interface HireCandidate {
   id: string;

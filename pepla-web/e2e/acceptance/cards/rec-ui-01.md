@@ -46,3 +46,37 @@ against api/openapi.yaml at load), refuses a route or a missing required query p
 `GET /v1/config` with no `configType`), and checks every rule 14 answer and the `POST /v1/roles` body; any problem fails the test.
 AC-3 follows the new page: Department and Hiring manager start empty, the body sends `department_id`, criteria keys and labels are the
 server's REC-12 defaults. AC-4's Screening-off fixture is `world.options.A.screening`. Nothing else in this card changes.
+
+## Child lock rec-ui-01.3 (REC-UI-02 decision D-T-A12, 23 Nov 2026)
+
+The fake API now answers `GET /v1/candidates` exactly as the real list does since REC-15 step A (PR 495): `CandidateList` and
+`CandidateRow` of api/openapi.yaml, checked like the rule 14 routes; the server's order (most urgent first), its page
+(`limit`, `nextToken`) and its 400 `INVALID_FIELD` refusals (a search of only spaces or over 100 characters among them).
+Rows no longer carry `interviews_done`, `interviews_required`, `offer_state` or `pending`. Not hired, confirm and cancel
+answer as `record-not-hired.mjs` does: `{ candidateId, pending: true, awaiting: { kind, personId? } }`, never a name.
+A failure set up with `refuse()` stands for a gateway or network failure and is not checked against the file.
+
+What changes for the board (the builder follows these):
+- An Interview card says "Day {n}" as a Screening card does; an Offer card says "Offer". The counts and the offer state come
+  back when a backend card adds them to the list (REC-15 step D and REC-05), with their own child lock.
+- "{name} must confirm before this is final." names the person the Not hired answer points to: `awaiting.kind`
+  `HIRING_MANAGER` with `personId`, named from the company's hiring managers (`GET /v1/roles/options`) or the role. An answer
+  that waits on any HR person names nobody, so no line shows (U-3).
+- The search box sends its text trimmed; only spaces sends no search; more than 100 characters is never sent.
+- After a reload, or for another person, the board cannot know a decision is waiting: the list does not say so. The test
+  "Another Recruiter sees the waiting decision ... and confirms it" is `test.fixme` until follow-up F-RUI-02.1 adds it.
+- AC-1 accepts REC-UI-02's Candidates entry after Roles and Pipeline.
+
+Round 2 of the REC-UI-02 lock check (24 Nov 2026) added to rec-ui-01.3:
+- The seed gives Bongani Mthembu and Kagiso Molefe an `applied_at` before the day they entered their stage, as real rows past Applied have (the fake no longer makes the two dates equal for every row).
+- The AC-6 pending test drops `hiring_manager_name` from the role answer, as the real `GET /v1/roles/{id}` does, so the name must come from `awaiting.personId` and the company's hiring managers.
+- `HireFake.lift()` lifts refusals set with `once: false`.
+
+## Child lock rec-ui-01.4 (U-3 line, 24 Nov 2026)
+
+Iggie approved the line for the U-3 case on 24 Nov 2026 (10:43 SAST): "An HR person must confirm before this is final."
+When a Not hired answer waits on any other HR person (`awaiting.kind` `HR`, no `personId`, no name), the card stays in its
+column and shows that line, word for word, as a hiring manager's card shows "{name} must confirm before this is final."
+No other "must confirm" line shows: never an empty or a guessed name. Cancel on the card's More actions takes the line away.
+Only the U-3 test in `rec-ui-01.spec.ts` changes; the hiring manager case is unchanged. After a reload the line cannot show
+until the list carries a waiting decision (follow-up F-RUI-02.1), as for the hiring manager line.

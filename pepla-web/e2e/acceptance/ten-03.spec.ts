@@ -15,6 +15,10 @@ import { MARKETPLACE_DEV_KEY, marketplaceDev } from './support/marketplace-dev/g
 import { ownerLinkGrant } from './support/onb-11/owner-link';
 import { legacyWorld } from './support/ten-03/legacy';
 import { changed, masked, notReads, sent, withB, wrote } from './support/ten-03/checks';
+import { isRec07Grant } from './support/rec-07.1/grants';
+import { OLD_ROUTE, isOldOfferWrite, isRec05Grant, isRec05Role } from './support/rec-05.1/grants'; // child lock rec-05.1
+import { isRec15bGrant } from './support/rec-15b.1/grants';
+import { withBOutsideBody } from './support/rec-15b.1/company';
 
 /**
  * TEN-03 · TalentFlow and IT routes take the company only from the sign-in (Jira NH-195, epic NH-192).
@@ -76,7 +80,9 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
     // refusal look right, so each route must answer 2xx for the company that owns the record, today and after the build.
     for (const route of ROUTES) {
       const r = ask(route.handler, route.caller ?? 'staffA', route.own);
-      expect.soft([200, 201].includes(statusOf(r) ?? 0), `${route.name} for its own company answers 2xx (got ${describe(r)})`).toBe(true);
+      // Child lock rec-05.1 (REC-05 rule 17): the old offer writes pass the company checks, then answer 410 OLD_ROUTE.
+      if (isOldOfferWrite(route.name)) expect.soft([statusOf(r), bodyOf(r)], `${route.name} for its own company: 410 OLD_ROUTE (got ${describe(r)})`).toEqual([410, OLD_ROUTE]);
+      else expect.soft([200, 201].includes(statusOf(r) ?? 0), `${route.name} for its own company answers 2xx (got ${describe(r)})`).toBe(true);
     }
   });
 
@@ -202,7 +208,8 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
     const eventsOf = (r: Run) => putEvents(r);
     // Every route that writes, as company A, naming B everywhere a client could: every new or changed row, in every table, is A's.
     for (const route of ROUTES.filter((x) => x.writes)) {
-      const r = ask(route.handler, route.caller ?? 'staffA', withB(route.own));
+      // Child lock rec-15b.1: REC-15 rule 19 refuses a company in the add-candidate body (400, below), so B is named in the query and headers.
+      const r = ask(route.handler, route.caller ?? 'staffA', route.handler === 'createCandidate' ? withBOutsideBody(route.own) : withB(route.own));
       for (const c of rowsOfRun(r)) {
         if (c.table === TABLE.idempotency) continue;
         expect.soft(c.row['tenant_id'], `${route.name}: ${c.table} row ${c.row['PK'] ?? c.row['taskId'] ?? c.row['bundleId'] ?? c.row['actionId']}/${c.row['SK'] ?? ''} carries tenant_id A`).toBe(A);
@@ -215,9 +222,13 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       }
     }
     // createCandidate: the key that holds the company is the token's.
-    const created = ask('createCandidate', 'staffA', withB(ROUTES.find((x) => x.handler === 'createCandidate')!.own));
+    const created = ask('createCandidate', 'staffA', withBOutsideBody(ROUTES.find((x) => x.handler === 'createCandidate')!.own));
     const saga = changed(tables(), created.tables).find((c) => c.row['SK'] === 'SAGA');
     expect.soft(saga?.row['GSI1PK'], 'createCandidate: the new candidate sits under TENANT#<A>').toBe(`TENANT#${A}`);
+    // Child lock rec-15b.1: a company in the add-candidate body is refused outright (REC-15 rule 19), and nothing is written.
+    const inBody = ask('createCandidate', 'staffA', withB(ROUTES.find((x) => x.handler === 'createCandidate')!.own));
+    expect.soft([statusOf(inBody), bodyOf(inBody)?.code], `createCandidate: a body naming a company is 400 INVALID_FIELD (got ${describe(inBody)})`).toEqual([400, 'INVALID_FIELD']);
+    expect.soft(changed(tables(), inBody.tables).filter((c) => c.table !== TABLE.idempotency).length, 'createCandidate: and writes nothing').toBe(0);
     // trackUserActions: the user row it touches names the company of the record that was changed.
     const tracked = runEvent('trackUserActions', stream(sagaImage(A, { updatedBy: SUB.staffA })));
     const userRows = changed(tables(), tracked.tables).filter((c) => c.table === TABLE.users);
@@ -669,6 +680,10 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
         if (effect === 'Allow' && ownerLinkGrant(action!, res!, cur.role, cond)) continue;
         // REC-15 (child lock rec-04.3): getCandidates reads the company's stage hours for the list's clock (rec-15.spec.ts AC-17 pins it).
         if (/get_candidates$|getCandidates$/.test(key) && /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/.test(p)) continue;
+        // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
+        if (isRec07Grant(p, key) || isRec15bGrant(p, key)) continue;
+        // REC-05 (child lock rec-05.1): monitorTalentFlowSLAs reads the company's modules before an offer expires (support/rec-05.1/grants.ts).
+        if (isRec05Grant(p, key)) continue;
         expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && (tenants || indexOfTalent)) || (MOD01_GET(p) && MOD01_ROLE(key, cur.role)) || TEN042_QUERY(p, key, cur.role), `role policy ${key}: new grant "${p}" is only a Query on the tenants table (TalentFlow trigger) or on an index of a TalentFlow, IT or bundle table, or one of the TEN-04.2 table grants`).toBe(true);
       }
     }
@@ -688,6 +703,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): its own role, judged in rec-04.spec.ts AC-8.
       if (/leaver_chats|deleteLeaverChats/.test(key) || /leaver_chats|deleteLeaverChats/.test(cur.role)) continue; // CHAT-15 (re-lock ten-03.16): its own role, judged in chat-15.spec.ts AC-12.
       if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): its own role, judged in rec-14.spec.ts AC-3.
+      if (isRec05Role(key, cur.role)) { expect.soft((cur.pairs ?? []).filter((p) => !isRec05Grant(p, key)), `${key}: only the lines REC-05 allows`).toEqual([]); continue; } // REC-05 (child lock rec-05.1): its own role, judged in rec-05.spec.ts AC-10.
       // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.
       const mod01 = (cur.pairs ?? []).length > 0 && MOD01_ROLE(key, cur.role) && (cur.pairs ?? []).every((p) => MOD01_GET(p) || (key === 'infra/get_company_modules' && MOD01_OWN(p)));
       // TEN-04.2: or it is one of the three table Queries of that card, on its role, and nothing else.

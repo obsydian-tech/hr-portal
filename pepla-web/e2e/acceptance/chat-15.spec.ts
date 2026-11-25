@@ -13,6 +13,8 @@ import {
   read, resolve, resourceHash, roleBlock, roleBlocks, roleLabel, settings, sha, squash, unquote, valueOf,
 } from './support/chat-15/terraform';
 import { resourcesOf, filesOf, settingsOf } from './support/mod-01/iam';
+import { isRec05Resource } from './support/rec-05.1/grants'; // child lock rec-05.1
+import { MANAGE_OFFERS_ARN, MONITOR_SLAS_ARN, withoutOnce } from './support/ten-02.12/kms'; // child lock ten-02.12
 
 /**
  * CHAT-15 · A leaver's Ask Batsi chats are deleted by an hourly job (red).
@@ -533,8 +535,13 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     // Child lock rec-14.1 (REC-14): the manageDepartments role likewise, at most once (rec-14.spec.ts AC-3 pins it exactly once).
     const rec14 = squash('aws_iam_role.manage_departments.arn');
     expect(now.readers.filter((e) => e === rec14).length, 'the REC-14 role is on the read list at most once').toBeLessThanOrEqual(1);
-    expect([...now.readers].filter((e) => e !== rec02 && e !== rec04 && e !== rec14).sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
-    expect(now.allowed, 'the encrypt list is as on develop').toEqual(base.allowed);
+    // Child lock ten-02.12 (REC-05 key follow-up): manageOffers and the hourly offer expiry (monitorTalentFlowSLAs) may each be on the read list at most once,
+    // and manageOffers on the encrypt list at most once (it signs uploads into the bucket this key encrypts). rec-05-kms.spec.ts pins them exactly.
+    const rec05 = [squash(MANAGE_OFFERS_ARN), squash(MONITOR_SLAS_ARN)];
+    for (const r of rec05) expect(now.readers.filter((e) => e === r).length, `${r} is on the read list at most once`).toBeLessThanOrEqual(1);
+    expect(now.allowed.filter((e) => e === rec05[0]).length, 'the manageOffers role is on the encrypt list at most once').toBeLessThanOrEqual(1);
+    expect([...now.readers].filter((e) => e !== rec02 && e !== rec04 && e !== rec14 && !rec05.includes(e)).sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
+    expect(withoutOnce(now.allowed, rec05[0]!), 'the encrypt list is as on develop').toEqual(base.allowed);
     expect(squash(read('infra/kms.tf')).split(arn).length - 1, 'the ARN appears once in kms.tf').toBe(1);
   });
 
@@ -547,7 +554,11 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     // REC-04 (re-lock rec-04.1): the roles Lambda (manage_roles*) and the roles table (talent_flow_roles) likewise, judged in rec-04.spec.ts AC-8.
     const added = now.filter((x) => !base.resources.includes(x) && !/\.record_not_hired(_[a-z_]+)?$/.test(x) && !/\.manage_roles(_[a-z_]+)?$/.test(x) && !/\/aws_dynamodb_table\.talent_flow_roles$/.test(x)
       // REC-14 (child lock rec-14.1): the departments Lambda (manage_departments*) and its three routes, judged in rec-14.spec.ts AC-3.
-      && !/\.(manage_departments(_[a-z_]+)?|list_departments|add_department|change_department)$/.test(x));
+      && !/\.(manage_departments(_[a-z_]+)?|list_departments|add_department|change_department)$/.test(x)
+      // REC-07 (child lock rec-07.2): the four scoring routes: talent-flow-infra only, routes only, only these names; judged in rec-07.spec.ts.
+      && !/^talent-flow-infra\/aws_apigatewayv2_route\.(get_candidate_scores|get_scoring_link|post_interview_votes|post_scoring_link)$/.test(x)
+      // REC-05 (child lock rec-05.1): manageOffers and its role, policy, log group, integration, routes and permission (manage_offers*), judged in rec-05.spec.ts AC-10 and AC-15.
+      && !isRec05Resource(x));
     expect(added.filter((x) => x.startsWith(`${TF}/aws_lambda_function.`)).length, 'the job\'s function is added (a branch that adds nothing is not add-only, it is missing)').toBe(1);
     expect(added.filter((x) => x.startsWith(`${TF}/aws_iam_role.`)).length, 'the job\'s role is added').toBe(1);
     const ALLOWED = ['aws_lambda_function', 'aws_iam_role', 'aws_iam_role_policy', 'aws_cloudwatch_event_rule', 'aws_cloudwatch_event_target', 'aws_lambda_permission', 'aws_cloudwatch_log_group'];

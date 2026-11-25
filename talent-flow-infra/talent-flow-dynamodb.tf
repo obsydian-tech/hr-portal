@@ -90,6 +90,18 @@ resource "aws_dynamodb_table" "talent_flow_state" {
     projection_type = "ALL"
   }
 
+  # REC-07: an interview by its own id (POST /v1/interviews/{id}/votes).
+  attribute {
+    name = "interviewId"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "interview-id-index"
+    hash_key        = "interviewId"
+    projection_type = "ALL"
+  }
+
   # Stream - consumed by monitorTalentFlowSLAs Lambda (TF-012)
   stream_enabled   = true
   stream_view_type = "NEW_AND_OLD_IMAGES"

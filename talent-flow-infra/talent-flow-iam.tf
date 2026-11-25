@@ -99,6 +99,12 @@ resource "aws_iam_role_policy" "create_candidate" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}"
       },
       {
+        Sid      = "RoleRead"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_roles}"
+      },
+      {
         Sid      = "KMSStateKey"
         Effect   = "Allow"
         Action   = local.tf_kms_actions
@@ -208,6 +214,12 @@ resource "aws_iam_role_policy" "schedule_interview" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
+        Sid      = "Rec07RoleCriteria"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_roles}"
+      },
+      {
         Sid      = "ConfigTableRead"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
@@ -287,6 +299,12 @@ resource "aws_iam_role_policy" "submit_vote" {
         # NH-FIX: PutItem (vote record) + Query (quorum check) added — were missing
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        Sid      = "Rec07InterviewIndex"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}/index/interview-id-index"
       },
       {
         Sid      = "ConfigTableRead"
@@ -553,6 +571,13 @@ resource "aws_iam_role_policy" "monitor_slas" {
         Effect   = "Allow"
         Action   = ["dynamodb:UpdateItem"]
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
+      },
+      {
+        # REC-05: the offer expiry skips a company with Recruitment off (lambda/shared/modules.mjs).
+        Sid      = "ReadCompanyModules"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"
       },
       {
         Sid    = "ConfigTableRead"

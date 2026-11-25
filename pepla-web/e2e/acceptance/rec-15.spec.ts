@@ -12,6 +12,9 @@ import {
   A, B, FIX, K, NOW, R, ROLES_TABLE, ROLE_TITLE, SUB, TABLE, THRESHOLDS_A, THRESHOLDS_OLD, after, ago, av, candidateRow, emailOf, fullName, idNumberOf,
   list, many, monitorVerdicts, phoneOf, plain, role, roleRow, roles, runMonitor, withCandidate, withRole, withRows, withThresholds, world, type Run, type Tables,
 } from './support/rec-15/world';
+import { isRec07Grant } from './support/rec-07.1/grants';
+import { isRec05Grant } from './support/rec-05.1/grants'; // child lock rec-05.1
+import { isRec15bGrant } from './support/rec-15b.1/grants';
 
 /**
  * REC-15 step A · The candidate lists answer what the screens draw, from one stage clock (amber). Spec:
@@ -735,7 +738,8 @@ test.describe('REC-15 step A · The candidate lists, from one stage clock', () =
         expect.soft(gained.filter((l) => configRead.test(l)).length, 'that line, once').toBe(1);
         expect.soft(lost, 'getCandidates loses nothing').toEqual([]);
       } else {
-        expect.soft(gained, `${k}: no new grant`).toEqual([]);
+        // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
+        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec15bGrant(l, k) && !isRec05Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec05Grant: child lock rec-05.1
       }
     }
     const mine = [...(is.get(`${fn!.stack}/${role_}`) ?? [])];

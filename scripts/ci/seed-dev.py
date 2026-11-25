@@ -31,6 +31,7 @@ What it makes, every run, idempotently:
     manager of one and not of the other; and an interview of the first with the employee login on its panel.
 Output is role names and counts only: the repo and its Actions logs are public.
 """
+import hashlib
 import json
 import pathlib
 import re
@@ -90,6 +91,11 @@ NALEKO_PERSONAS = {
         "attrs": {"custom:role": "hr_staff", "custom:staff_id": "E2EHRC1",
                   "given_name": "Cebo", "family_name": "Companyb-Walk"},
         "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
+    },
+    # REC-05 AC-11: the offer approver of company A. Group perm-approve-offers only; the Member row is written in main().
+    "approver": {
+        "attrs": {"given_name": "Anele", "family_name": "Demo-Approver"},
+        "groups": ["perm-approve-offers"],
     },
     "tf": {
         "attrs": {"given_name": "Tessa", "family_name": "Demo-TF"},
@@ -779,6 +785,9 @@ REC04_CANDIDATES = [
     ("CAND-SEEDREC040000000000007", "Nomvula", "Zulu", REC04_ROLES[0][0], "NOT_HIRED", {"reason_code": "WITHDREW", "decided_by_kind": "PERSON"}),
     ("CAND-SEEDREC040000000000008", "Farai", "Moyo", REC04_ROLES[0][0], "NOT_HIRED", {"reason_code": "NOT_RIGHT_SKILLS", "decided_by_kind": "PERSON"}),
     ("CAND-SEEDREC040000000000009", "Mpho", "Sithole", REC04_ROLES[1][0], "NOT_HIRED", {"status": "REJECTED", "decided_by_kind": "OLD_SYSTEM"}),
+    # A live (not Not hired) candidate on a second role, so the Candidates list on pepla-dev shows more than one role (REC-UI-02 AC-15).
+    # Warehouse supervisor is not the manager login's role and every row here names the other hiring manager, so REC-01 AC-9 still counts one.
+    ("CAND-SEEDREC040000000000010", "Lerato", "Khumalo", REC04_ROLES[1][0], "APPLIED", {}),
 ]
 
 
@@ -997,6 +1006,98 @@ def seed_onb22(ddb, tenant_id: str) -> int:
     return written
 
 
+def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
+    """REC-07: put the scoring interview, its guest link and company B's forged link back every run (cards/rec-07.md, "REC-07 dev seed").
+
+    Votes the last run left are removed, the link is unused again, so the dev check can score each time. Idempotent.
+    """
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-07" / "dev-ids.json").read_text())
+    if not manager_sub or len(panel_subs) < 2 or not all(panel_subs):
+        print("warning: the manager or a panel login has no sub; the REC-07 rows were not written")
+        return 0
+    now = "2026-11-10T08:00:00.000Z"
+    expires = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(time.time() + 7 * 86400))
+    ttl = int(time.time()) + 7 * 86400
+    criteria = {"L": [{"M": {"key": {"S": k}, "label": {"S": label}}} for k, label in REC04_CRITERIA]}
+    written = 0
+
+    # The list is read oldest first, so the later date in GSI1SK puts these candidates last: REC-01 AC-9 takes the first candidate that is not the manager's.
+    def candidate(cid: str, tid: str, first: str, last: str, iv_id: str, panel: list, hm: str) -> None:
+        pk = f"CANDIDATE#{cid}"
+        stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                          ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "VOTE#"}}, ProjectionExpression="PK, SK")
+        for item in stale.get("Items", []):
+            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": pk}, "SK": {"S": "SAGA"},
+            "GSI1PK": {"S": f"TENANT#{tid}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tid},
+            "firstName": {"S": first}, "lastName": {"S": last},
+            "email": {"S": f"pepla-demo-{first.lower()}.{last.lower()}@{MAIL_DOMAIN}"},
+            "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+            "hiringManagerId": {"S": hm}, "seed": {"S": SEED_TAG},
+        })
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"},
+            "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tid},
+            "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+            "votesRequired": {"N": str(len(panel))}, "votesSubmitted": {"N": "0"},
+            "panelMemberIds": {"L": [{"S": p} for p in panel]}, "criteria_snapshot": criteria,
+            "PANEL_FEEDBACK_PENDING_COUNT": {"N": str(len(panel))}, "PANEL_SPLIT_FLAG": {"BOOL": False},
+            "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+        })
+
+    def link(token: str, link_tid: str, cid: str, iv_id: str) -> None:
+        h = hashlib.sha256(token.encode()).hexdigest()
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"SCORING_LINK#{h}"}, "SK": {"S": "META"}, "token_hash": {"S": h}, "tenant_id": {"S": link_tid},
+            "interview_id": {"S": iv_id}, "candidate_id": {"S": cid}, "guest_email": {"S": f"pepla-demo-guest@{MAIL_DOMAIN}"},
+            "expires_at": {"S": expires}, "used_at": {"NULL": True}, "created_at": {"S": now}, "ttl": {"N": str(ttl)}, "seed": {"S": SEED_TAG},
+        })
+
+    # REC-01 AC-9 (locked) says the manager login lists exactly one candidate, the one it is hiring for, so this candidate belongs to the
+    # other hiring manager. The manager login sits on the panel as a third member so it can still open the sheet (it sees its own vote only).
+    candidate(ids["candidate"], tenant_id, "Rec", "Seed-Score", ids["interview"], list(panel_subs[:2]) + [manager_sub], OTHER_HIRING_MANAGER)
+    link(ids["guestToken"], tenant_id, ids["candidate"], ids["interview"])
+    written += 3
+    # Company B's candidate and interview, and a link row that names company A for B's interview (the dev form of AC-7's forged row).
+    b_candidate, b_interview = "CAND-REC07DEVBBBBBBBBBBBBBB1", "iv-rec07-dev-b-1"
+    candidate(b_candidate, SECOND_TENANT_ID, "Rec", "Seed-ScoreB", b_interview, [OTHER_HIRING_MANAGER], OTHER_HIRING_MANAGER)
+    link(ids["crossCompanyToken"], tenant_id, b_candidate, b_interview)
+    return written + 3
+
+
+def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
+    """REC-05: put the offer rows back every run (cards/rec-05.md, "REC-05 dev seed"). Idempotent."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-05" / "dev-ids.json").read_text())
+    if not hr_sub:
+        print("warning: the HR login has no sub; the REC-05 rows were not written")
+        return 0
+    now = "2026-11-20T08:00:00.000Z"
+    for cid, first in ((ids["candidate"], "Seed-Offer"), (ids["draftCandidate"], "Seed-Draft")):
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": "Rec"}, "lastName": {"S": first},
+            "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "currentStage": {"S": "OFFER"}, "stageEnteredAt": {"S": now},
+            "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+        })
+    # If the dev test stops before its last withdraw, this lock stays and every later run gets 409 OFFER_EXISTS. Clear it each run.
+    ddb.delete_item(TableName=STATE_TABLE, Key={"PK": {"S": f"TENANT#{tenant_id}#OFFER_LIVE#{ids['candidate']}"}, "SK": {"S": "LOCK"}})
+    oid = ids["draftOffer"]
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"OFFER#{oid}"}, "SK": {"S": "OFFER"}, "offer_id": {"S": oid}, "tenant_id": {"S": tenant_id}, "candidate_id": {"S": ids["draftCandidate"]},
+        "candidate_name": {"S": "Rec Seed-Draft"}, "role_title": {"S": "Demo role"}, "department": {"S": "Operations"}, "state": {"S": "DRAFT"}, "version": {"N": "1"},
+        "salary": {"N": "350000"}, "currency": {"S": "ZAR"}, "start_date": {"S": ids["startDate"]}, "expiry_date": {"S": ids["expiryDate"]},
+        "drafted_by": {"S": hr_sub}, "drafted_by_name": {"S": "Thandi Demo-HR"}, "created_at": {"S": now}, "updated_at": {"S": now},
+        "approval_history": {"L": []}, "history": {"L": []}, "GSI2PK": {"S": f"TENANT#{tenant_id}#OFFER"}, "GSI2SK": {"S": f"{now}#{oid}"}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={"PK": {"S": f"TENANT#{tenant_id}#OFFER_LIVE#{ids['draftCandidate']}"}, "SK": {"S": "LOCK"},
+                                               "tenant_id": {"S": tenant_id}, "live_offer_id": {"S": oid}})
+    return 4
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -1028,6 +1129,11 @@ def main() -> None:
     manager_member_sub = user_sub(cognito, naleko, "manager")
     if manager_member_sub:
         founding_written += ensure_founding_member(ddb, manager_member_sub)
+    approver_member_sub = user_sub(cognito, naleko, "approver")
+    if approver_member_sub:
+        founding_written += ensure_founding_member(ddb, approver_member_sub)
+    else:
+        print("warning: the approver login has no sub; its Member row was not written")
     hr_b_sub = user_sub(cognito, naleko, "hr-b")
     if not hr_b_sub:
         print("warning: the company B login has no sub; its Member row was not written")
@@ -1082,6 +1188,18 @@ def main() -> None:
         print("warning: the TalentFlow roles table is not there yet; the REC-04 roles were not written")
         rec04_written = 0
 
+    try:
+        rec07_written = seed_rec07(ddb, tid, (employee_sub, user_sub(cognito, naleko, "it")), user_sub(cognito, naleko, "manager"))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-07 rows were not written")
+        rec07_written = 0
+
+    try:
+        rec05_written = seed_rec05(ddb, tid, user_sub(cognito, naleko, "hr"))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-05 rows were not written")
+        rec05_written = 0
+
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
     print(f"seed-dev: groups created {made_groups}; "
@@ -1093,7 +1211,7 @@ def main() -> None:
           f"walk company rows written {walk_written}; department lists changed {departments_written}; TEN-04 walk rows written {ten04_written}; "
           f"agent walk rows written {onb22_written}; "
           f"stale bundles of another company removed {foreign_bundles_removed}; "
-          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}; REC-03 rows seeded {rec03_written}; REC-04 rows seeded {rec04_written}")
+          f"recruitment rows seeded {seeded_candidates}; REC-02 rows seeded {rec02_written}; REC-03 rows seeded {rec03_written}; REC-04 rows seeded {rec04_written}; REC-07 rows seeded {rec07_written}")
 
 
 if __name__ == "__main__":

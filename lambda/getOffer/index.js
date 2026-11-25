@@ -83,7 +83,10 @@ exports.handler = async (event) => {
   }
 
   // Strip internal DynamoDB keys from the response
-  const { PK, SK, ...offerData } = offer;
+  const { PK, SK, ...stored } = offer;
+  // REC-05 rule 1 and 17: old state codes read as the new ones; the salary is null here for everyone (the new reveal shows it).
+  const { mapState } = await import('../shared/offer-states.mjs');
+  const offerData = { ...stored, state: mapState(stored.state), ...(stored.baseSalary !== undefined ? { baseSalary: null } : {}) };
 
   console.info('Offer retrieved', { candidateId, state: offerData.state });
   // Salary stays hidden from the hiring manager (REC-05).

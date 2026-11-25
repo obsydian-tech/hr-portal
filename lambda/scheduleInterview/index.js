@@ -243,9 +243,16 @@ exports.handler = async (event) => {
       const relation = await RA.relationOf(event, candidate, async () => rows);
       if (!relation) return T.notFound();
       const me = RA.callerId(event);
+      // REC-07: a hiring manager who is not the decider sees no vote; a panel member nothing worked out from others' votes.
+      let seesVotes = true;
+      if (relation === 'hiringManager') {
+        const RS = await import('../shared/recruitment-settings.mjs');
+        const st = await RS.getRecruitmentSettings(tenantId, candidate);
+        seesVotes = RA.canDecide(event, candidate, (st.REJECTION_RULES ?? RS.DEFAULTS.REJECTION_RULES).decider?.[candidate.positionLevel]);
+      }
       const interviews = rows
         .filter((r) => relation !== 'panel' || RA.panelMemberOf(r, me))
-        .map((r) => { const { PK, SK, ...rest } = r; return rest; })
+        .map((r) => { const { PK, SK, ...rest } = r; if (relation === 'panel') { delete rest.PANEL_SPLIT_FLAG; delete rest.PANEL_CONSENSUS; } return rest; })
         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
       // Fetch all VOTE# records for this candidate and attach per interview
@@ -253,7 +260,8 @@ exports.handler = async (event) => {
         TableName: process.env.STATE_TABLE_NAME,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
         ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${candidateId}`, ':prefix': 'VOTE#' }),
-        ProjectionExpression: 'voterId, rating, weightedScore, interviewId, createdAt, submittedByTA, scores',
+        ProjectionExpression: 'voterId, rating, weightedScore, interviewId, createdAt, submittedByTA, scores, #c',
+        ExpressionAttributeNames: { '#c': 'comment' },
       }));
       const allVotes = (voteResult.Items || []).map((i) => {
         const v = unmarshall(i);
@@ -265,8 +273,9 @@ exports.handler = async (event) => {
           submittedAt:   v.createdAt    ?? null,
           submittedByTA: v.submittedByTA ?? null,
           scores:        v.scores       ?? null,
+          comment:       v.comment      ?? null,
         };
-      }).filter((v) => relation !== 'panel' || v.voterId === me);
+      }).filter((v) => (relation !== 'panel' || v.voterId === me) && seesVotes);
 
       // Attach votes array to each interview record
       const interviewsWithVotes = interviews.map((iv) => ({
@@ -403,6 +412,24 @@ exports.handler = async (event) => {
 
   const now = new Date().toISOString();
 
+  // REC-07: the interview keeps the role's criteria (or the company's default criteria) from now on.
+  let criteriaSnapshot;
+  try {
+    if (saga.role_id) {
+      const rr = await dynamo.send(new GetItemCommand({ TableName: process.env.ROLES_TABLE_NAME, Key: marshall({ pk: `TENANT#${tenantId}`, sk: `ROLE#${saga.role_id}` }) }));
+      const role = rr.Item ? unmarshall(rr.Item) : null;
+      if (role && T.ownsRow(role, tenantId) && Array.isArray(role.criteria)) criteriaSnapshot = role.criteria.map((c) => ({ key: c.key, label: c.label }));
+    }
+    if (!criteriaSnapshot) {
+      const RS = await import('../shared/recruitment-settings.mjs');
+      const active = await RS.activeSettings(tenantId);
+      criteriaSnapshot = (active.SCORING_WEIGHTS?.defaultCriteria ?? RS.DEFAULTS.SCORING_WEIGHTS.defaultCriteria).map((c) => ({ key: c.key, label: c.label }));
+    }
+  } catch (err) {
+    console.error('Failed to read the criteria', { error: err.name });
+    return serverError('Failed to read the criteria');
+  }
+
   // ── Step 4: Write INTERVIEW# record ──────────────────────────────────────
   const interviewItem = T.stampTenant({
     PK: `CANDIDATE#${candidateId}`,
@@ -418,6 +445,8 @@ exports.handler = async (event) => {
     votesSubmitted: 0,
     status: 'SCHEDULED',
     createdAt: now,
+    criteria_snapshot: criteriaSnapshot,
+    PANEL_FEEDBACK_PENDING_COUNT: systemIds.length,
   }, tenantId);
 
   try {

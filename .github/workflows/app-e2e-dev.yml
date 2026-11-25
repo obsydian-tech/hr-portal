@@ -291,6 +291,14 @@ jobs:
           npm ci --prefix scripts
           npm ci --prefix lambda/shared
 
+      # REC-01 AC-9 expects the manager login to be hiring manager for exactly one candidate. A candidate a test added on a role it opened
+      # stays on dev after the run, so clear it (and put the seeded hiring board back) before the main run starts.
+      - name: Clear leftover candidates before the main run
+        if: ${{ !cancelled() }}
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/reset-dev-rec04.py
+
       - name: Run new app acceptance tests
         id: acceptance
         if: ${{ !cancelled() }}
@@ -302,7 +310,25 @@ jobs:
         # The company walk (TEN-04 AC-7) runs in its own step below: its "company B" caller is the walk company's HR login.
         # ONB-10 AC-8 runs in its own step after that: ONB-07 and ONB-08 upload and accept the test login's required
         # documents earlier in this run, and AC-8 needs one still to give.
-        run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev|AC-13 @pepla-dev The Recruiter sees Roles|ONB-10 Due dates and Overdue.*AC-8 pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev"
+        run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev|AC-13 @pepla-dev The Recruiter sees Roles|ONB-10 Due dates and Overdue.*AC-8 pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev|REC-05 .* AC-11 The test logins on pepla-dev"
+
+      # REC-01 AC-9 expects the manager login to be hiring manager for exactly one candidate. Read only: list which rows the manager has,
+      # so a second one can be named (ids and dates only). Writes nothing.
+      - name: Show the manager login's candidates (read only)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/show-manager-candidates.py
+
+      # REC-05 AC-11 got 409 OFFER_EXISTS on the seeded candidate. Read only: print its lock, old-shape and offer rows (keys, state,
+      # version, dates; no names, emails or salary), right after the main run. Writes nothing.
+      - name: Show the REC-05 seeded candidate's offer rows (after the main run, read only)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/show-offer-rows.py
 
       # Ask Batsi is off for every company until an admin turns it on (CHAT-02), and the seed puts the dev companies back
       # to their modules on each run. The walk needs it on for company A and for the walk company (its "company B"):
@@ -313,10 +339,18 @@ jobs:
           pip install --quiet boto3
           python3 scripts/ci/dev-ask-batsi-on.py
 
+      # REC-04 AC-10 pins how many candidates are open on Fleet controller. REC-12 AC-9 and REC-UI-02 AC-17 add one each on every run
+      # and leave it open, so the count grew by one or more on every dev run. Put the hiring board back to its seeded rows first.
+      - name: Put the hiring board's seeded candidates back (before the company walk)
+        if: ${{ !cancelled() }}
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/reset-dev-rec04.py
+
       # TEN-04 AC-7: the company walk. Its "company B" callers are the logins of the third (walk) company, which has
       # Recruitment switched on (company B has only Onboarding, so on B every Recruitment route answers 403 and the
       # walk cannot look for 404). The test reads its HR caller as E2E_HR_B; here that name points at hr-c.
-      # REC-02 AC-12 and REC-03 AC-11 also look for 404 as company B, so they run here too and not in the main run above.
+      # REC-02 AC-12, REC-03 AC-11, REC-04 AC-10 and REC-05 AC-11 also look for 404 as company B, so they run here too and not in the main run above.
       - name: Company walk (TEN-04)
         id: walk
         if: ${{ !cancelled() }}
@@ -328,7 +362,16 @@ jobs:
         run: |
           export E2E_HR_B_EMAIL="$E2E_HR_C_EMAIL" E2E_HR_B_PASSWORD="$E2E_HR_C_PASSWORD"
           # list reporter only: the JSON report of the main run above is the one the PR comment reads
-          npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "company B walk on pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev"
+          npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "company B walk on pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev|REC-05 .* AC-11 The test logins on pepla-dev"
+
+      # REC-05 AC-11 got 409 OFFER_EXISTS on the seeded candidate. Read only: print its lock, old-shape and offer rows (keys, state,
+      # version, dates; no names, emails or salary), right after the company walk. Writes nothing.
+      - name: Show the REC-05 seeded candidate's offer rows (after the company walk, read only)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/show-offer-rows.py
 
       # REC-UI-01 AC-13: the Recruiter test records the seeded candidate Tendai Ncube as Not hired, and the seed only runs once per
       # run. In the main run the phone project came second and found no Tendai in Interview. So the test runs here, once per project,
