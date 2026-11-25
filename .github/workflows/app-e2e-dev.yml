@@ -308,6 +308,7 @@ jobs:
       # so a second one can be named (ids and dates only). Writes nothing.
       - name: Show the manager login's candidates (read only)
         if: ${{ !cancelled() }}
+        continue-on-error: true
         run: |
           pip install --quiet boto3
           python3 scripts/ci/show-manager-candidates.py
