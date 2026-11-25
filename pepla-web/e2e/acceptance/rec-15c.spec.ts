@@ -22,6 +22,11 @@ import {
  * (onboarding-cards/specs/REC-15C-spec-check.md, C-1 to C-4). Notes: cards/rec-15c.md. Review page:
  * onboarding-cards/specs/REC-15C-tests-for-review.md (the bar).
  *
+ * Child lock rec-15c.2 (REC-15 rule 12, step 0 item 1; onboarding-cards/specs/REC-15C-record-fields.md): the locked dev checks rec-02 AC-12
+ * and rec-03 AC-11 read strong_no_count, reason_code, decided_by, stage_before_not_hired and legacy_stage from the record as the HR login.
+ * The Recruiter and the hiring manager get each of them when the row has it, with its stored value; a panel member gets none of them
+ * (D-REC-15C.2-1). Every other field off rule 12's list stays out for everyone.
+ *
  * The tests run the real handlers (lambda/getCandidate for the record; advanceCandidateStage and recordNotHired where the record's answers
  * are compared with the real routes) in a fresh Node process for each call, against REC-14's fake AWS over REC-15 step A's world plus this
  * card's candidates (support/rec-15c/world.ts), at a fixed time NOW. Every answer is checked against api/openapi.yaml. Terraform is read as
@@ -85,6 +90,11 @@ const KEPT_OLD = [
 const FOR_ALL = ['stage', 'role_id', 'role_title', 'level', 'applied_at', 'can_move', 'can_decide'];
 const FOR_R_HM = ['due_at', 'sla_status', 'stage_entered_at', 'next_step', 'interviews_done', 'interviews_required', 'legacy_hired'];
 const NEW_FIELDS = [...FOR_ALL, ...FOR_R_HM, 'department_id', 'department', 'source', 'employee_id', 'added_by'];
+/** Child lock rec-15c.2: old row fields the locked dev checks read (rec-02 AC-12, rec-03 AC-11), for R and HM when the row has them. */
+const READ_BY_OLD_CHECKS: Record<string, 'integer' | 'string'> = {
+  strong_no_count: 'integer', reason_code: 'string', decided_by: 'string', stage_before_not_hired: 'string', legacy_stage: 'string',
+};
+const OLD_CHECK_FIELDS = Object.keys(READ_BY_OLD_CHECKS);
 const INTERNAL = ['PK', 'SK', 'GSI1PK', 'GSI1SK', 'settingVersions', 'idempotencyKey'];
 type Kind = 'R' | 'HM' | 'P';
 
@@ -97,6 +107,7 @@ function expectedKeys(row: Record<string, any>, kind: Kind, hasInterview: boolea
   if (row['department_id'] !== undefined || row['department'] !== undefined) out.add('department');
   if (row['source'] !== undefined) out.add('source');
   if (kind !== 'P') for (const k of FOR_R_HM) out.add(k);
+  if (kind !== 'P') for (const k of OLD_CHECK_FIELDS) if (row[k] !== undefined) out.add(k); // child lock rec-15c.2
   if (kind === 'R') for (const k of ['employee_id', 'added_by', 'settingVersions']) if (row[k] !== undefined) out.add(k);
   return sorted(out);
 }
@@ -187,7 +198,11 @@ test.describe('REC-15 step C · The candidate record', () => {
       bodies[kind] = a;
       expect.soft(Object.keys(a).sort(), `${kind}: exactly the fields rule 18 and rule 12 give (D-T-C1)`).toEqual(expectedKeys(row, kind, hasInterviewFor(Q.full, kind)));
       for (const k of INTERNAL.filter((x) => kind !== 'R' || x !== 'settingVersions')) expect.soft(k in a, `${kind}: no ${k}`).toBe(false);
-      for (const k of Object.keys(NEVER_FIELDS)) expect.soft(k in a, `${kind}: no ${k} (not on rule 12's list)`).toBe(false);
+      // Child lock rec-15c.2: legacy_stage and stage_before_not_hired are read by the locked dev checks, so R and HM get them as stored.
+      for (const k of Object.keys(NEVER_FIELDS)) {
+        if (kind !== 'P' && OLD_CHECK_FIELDS.includes(k)) expect.soft(a[k], `${kind}: ${k} as stored (child lock rec-15c.2)`).toEqual(NEVER_FIELDS[k]);
+        else expect.soft(k in a, `${kind}: no ${k} (not on rule 12's list)`).toBe(false);
+      }
       const text = JSON.stringify(a);
       for (const [what, v] of Object.entries(NEVER)) expect.soft(text.includes(v), `${kind}: the answer holds no ${what}`).toBe(false);
       expect.soft(/salary|offer/i.test(Object.keys(a).join(' ')), `${kind}: no offer or salary field (rule 12: the Offer tab reads its own route)`).toBe(false);
@@ -214,6 +229,49 @@ test.describe('REC-15 step C · The candidate record', () => {
     for (const k of ['firstName', 'lastName', 'email', 'phone', 'positionTitle', 'currentStage', 'hiringManagerId']) {
       expect.soft(new Set(['R', 'HM', 'P'].map((x) => JSON.stringify(bodies[x]?.[k]))).size, `${k} is the same for R, HM and P`).toBe(1);
     }
+    expect.soft(changedRows(t, recordRun(R_, Q.full, t).tables), 'the read changes no row').toEqual([]);
+  });
+
+  // ---------------------------------------------------------------- AC-10, child lock rec-15c.2
+
+  test('AC-10 Child lock rec-15c.2: the fields the locked dev checks read (Strong No count, Not hired reason, who decided, the stage it left, the old stage name) reach the Recruiter and the hiring manager as stored, never a panel member, and only when the row has them', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    const STORED: Record<string, unknown> = { strong_no_count: 2, reason_code: 'WITHDREW', decided_by: SUB.recA, stage_before_not_hired: 'SCREENING', legacy_stage: 'INTERVIEWING' };
+    const t = withCandidate(world(), Q.full, STORED);
+    expect.soft(pick(stored(t, Q.full), OLD_CHECK_FIELDS), 'the row holds all five').toEqual(STORED);
+    for (const [kind, who] of [['R', R_], ['HM', HM]] as const) {
+      const a = ok(rec(who, Q.full, t), `${kind} opens full holding the five fields`);
+      expect.soft(pick(a, OLD_CHECK_FIELDS), `${kind}: each of the five as stored`).toEqual(STORED);
+      expect.soft(Object.keys(a).sort(), `${kind}: and otherwise exactly the fields of rule 18 and rule 12`).toEqual(expectedKeys(stored(t, Q.full), kind, hasInterviewFor(Q.full, kind)));
+    }
+    const p = ok(rec(P, Q.full, t), 'P opens full holding the five fields');
+    expect.soft(OLD_CHECK_FIELDS.filter((k) => k in p), 'a panel member gets none of the five').toEqual([]);
+    expect.soft(Object.keys(p).sort(), 'P: exactly the fields of rule 18 and rule 12').toEqual(expectedKeys(stored(t, Q.full), 'P', hasInterviewFor(Q.full, 'P')));
+    // A row without them gets no key for them (not null), for R and HM.
+    const plain = world();
+    expect.soft(OLD_CHECK_FIELDS.filter((k) => k in stored(plain, Q.ready)), 'ready stores none of the five').toEqual([]);
+    for (const [kind, who] of [['R', R_], ['HM', HM]] as const) {
+      const a = ok(rec(who, Q.ready, plain), `${kind} opens ready`);
+      expect.soft(OLD_CHECK_FIELDS.filter((k) => k in a), `${kind}: a row without them gets none of the keys`).toEqual([]);
+    }
+    // As rec-02 AC-12 reads it on dev: the real Not hired route, then the record shows the reason, who decided and the stage it left.
+    const nh = notHiredRun(R_, Q.applied, plain);
+    expect(statusOf(nh), `the Recruiter records Not hired on applied (${describe(nh).slice(0, 200)})`).toBe(200);
+    const after = ok(rec(R_, Q.applied, nh.tables), 'R opens applied after Not hired');
+    const row = stored(nh.tables, Q.applied);
+    expect.soft(pick(after, ['stage', 'reason_code', 'decided_by', 'decided_by_kind', 'stage_before_not_hired']), 'the record shows what the Not hired route stored').toEqual({
+      stage: 'NOT_HIRED', reason_code: row['reason_code'], decided_by: row['decided_by'], decided_by_kind: row['decided_by_kind'], stage_before_not_hired: 'APPLIED',
+    });
+    expect.soft([row['reason_code'], row['decided_by']], 'the route stored the reason and the Recruiter\'s id').toEqual(['WITHDREW', SUB.recA]);
+    const pAfter = bodyOf(recordRun(P, Q.applied, nh.tables)) ?? {};
+    expect.soft(OLD_CHECK_FIELDS.filter((k) => k in pAfter), 'a panel member still gets none of them').toEqual([]);
+    // The schema takes the five with their types and refuses a wrong type.
+    const ck = checker(doc());
+    const a200 = answerSchema(doc(), ROUTE, 200);
+    const good = ok(rec(R_, Q.full, t), 'R opens full again');
+    expect.soft(ck.check(a200, good), 'R\'s answer with the five passes api/openapi.yaml').toEqual([]);
+    expect.soft(ck.check(a200, { ...good, strong_no_count: 'two' }).length > 0, 'strong_no_count as text fails').toBe(true);
+    expect.soft(ck.check(a200, { ...good, legacy_stage: 3 }).length > 0, 'legacy_stage as a number fails').toBe(true);
     expect.soft(changedRows(t, recordRun(R_, Q.full, t).tables), 'the read changes no row').toEqual([]);
   });
 
@@ -565,7 +623,8 @@ test.describe('REC-15 step C · The candidate record', () => {
     const cr = d.components?.schemas?.['CandidateRecord'];
     expect.soft(cr?.additionalProperties, 'CandidateRecord is closed').toBe(false);
     const props = Object.keys(cr?.properties ?? {});
-    expect.soft(sorted(props), 'CandidateRecord has exactly the kept old fields, the new fields and settingVersions').toEqual(sorted([...KEPT_OLD, ...NEW_FIELDS, 'settingVersions']));
+    expect.soft(sorted(props), 'CandidateRecord has exactly the kept old fields, the new fields, settingVersions and the fields of child lock rec-15c.2').toEqual(sorted([...KEPT_OLD, ...NEW_FIELDS, 'settingVersions', ...OLD_CHECK_FIELDS]));
+    for (const [k, type] of Object.entries(READ_BY_OLD_CHECKS)) expect.soft(cr?.properties?.[k]?.type, `CandidateRecord.${k} is a ${type} (child lock rec-15c.2)`).toBe(type);
     for (const k of ['PK', 'SK', 'GSI1PK', 'GSI1SK', 'salary', 'offer', 'idNumber', 'criteria', 'reason_note', 'idempotencyKey']) expect.soft(props.includes(k), `CandidateRecord has no ${k}`).toBe(false);
     expect.soft(sorted(cr?.required ?? []), 'the fields every caller always gets are required (D-T-C12)').toEqual(sorted(['id', 'candidateId', ...FOR_ALL]));
     expect.soft(cr?.properties?.next_step?.$ref ?? cr?.properties?.next_step?.allOf?.[0]?.$ref ?? cr?.properties?.next_step?.oneOf?.find((x: any) => x.$ref)?.$ref, 'next_step is a NextStep').toBe('#/components/schemas/NextStep');
