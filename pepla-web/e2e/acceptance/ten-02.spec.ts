@@ -13,6 +13,7 @@ import {
 import { devEnv } from './support/ten-02/dev';
 import { onlyTenancyAdded } from './support/ten-02/relock';
 import { resourcesNamed, squash as tfSquash } from './support/onb-15/tf-policy';
+import { isRec15dGrant } from './support/rec-15d.1/grants'; // child lock rec-15d.1
 
 /**
  * TEN-02 · Onboarding records carry their company, and every onboarding route checks it (Jira NH-194, epic NH-192).
@@ -1002,6 +1003,8 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
         // A policy the reader cannot parse (ai_brake_budgets uses a conditional): it must be unchanged.
         wrong = tfSquash(before[0]!.body) === tfSquash(now[0]!.body) ? [] : ['changed, and the policy reader cannot read it'];
       }
+      // child lock rec-15d.1, REC-15 step D: getCandidateEvents asks the sign-in pool for names (AdminGetUser on the Naleko pool), pinned in rec-15d.spec.ts AC-17.
+      wrong = wrong.filter((w) => !isRec15dGrant(w.replace(/^added beyond TEN-02: /, ''), `infra/${name}`));
       expect.soft(wrong, `role policy ${name}: only TEN-02's grants added`).toEqual([]);
     }
     // The PII key's role lists stay lists of roles (nothing else joins them).

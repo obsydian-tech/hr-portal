@@ -10,6 +10,7 @@ import { awsOf, changedRows, logsOf } from './support/rec-04/roles';
 import { K as K15, list, withRole } from './support/rec-15/world';
 import { isRec07Grant } from './support/rec-07.1/grants';
 import { isRec05Grant } from './support/rec-05.1/grants';
+import { isRec15dGrant } from './support/rec-15d.1/grants'; // child lock rec-15d.1
 import {
   A, B, CAND, DEP, EMPLOYEE_ID, LOCK_V1, NEVER, NEVER_FIELDS, OLD_KEPT_VALUES, Q, R, ROLES_TABLE, SUB, TABLE, TENANTS, ago, activeData, moveRun, nameOf,
   notHiredRun, recordRun, reopenRun, rowsOf, sagaOf, STRAY, interviewIdOf, withPanel, withStrayRoles, withCandidate, withDecider, withDepartmentName, withNewVersion, withScreening, withSetting, world,
@@ -700,7 +701,7 @@ test.describe('REC-15 step C · The candidate record', () => {
       const lost = [...was].filter((l) => !is.has(l));
       if (!baseline[k]) {
         expect.soft(now[k]?.role, `${k}: a new policy is not on getCandidate's role (D-T-C11: the lines go in aws_iam_role_policy.get_candidate)`).not.toBe('get_candidate');
-        if (now[k]?.role !== 'get_candidate') expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec05Grant(l, k)), `${k}: no new grant`).toEqual([]);
+        if (now[k]?.role !== 'get_candidate') expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec05Grant(l, k) && !isRec15dGrant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec15dGrant: child lock rec-15d.1
         continue;
       }
       if (k === KEY) {
@@ -708,7 +709,7 @@ test.describe('REC-15 step C · The candidate record', () => {
         expect.soft(WANT.map((w) => gained.filter((l) => w.test(l)).length), 'each of the three, once').toEqual([1, 1, 1]);
         expect.soft(lost, 'getCandidate loses nothing').toEqual([]);
       } else {
-        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec05Grant(l, k)), `${k}: no new grant`).toEqual([]);
+        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec05Grant(l, k) && !isRec15dGrant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec15dGrant: child lock rec-15d.1
       }
     }
     const mine = Object.entries(now).filter(([, v]) => v.role === 'get_candidate').flatMap(([, v]) => v.pairs ?? []);
