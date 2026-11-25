@@ -14,6 +14,7 @@ import {
 } from './support/chat-15/terraform';
 import { resourcesOf, filesOf, settingsOf } from './support/mod-01/iam';
 import { isRec05Resource } from './support/rec-05.1/grants'; // child lock rec-05.1
+import { MANAGE_OFFERS_ARN, MONITOR_SLAS_ARN, withoutOnce } from './support/ten-02.12/kms'; // child lock ten-02.12
 
 /**
  * CHAT-15 · A leaver's Ask Batsi chats are deleted by an hourly job (red).
@@ -534,8 +535,13 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     // Child lock rec-14.1 (REC-14): the manageDepartments role likewise, at most once (rec-14.spec.ts AC-3 pins it exactly once).
     const rec14 = squash('aws_iam_role.manage_departments.arn');
     expect(now.readers.filter((e) => e === rec14).length, 'the REC-14 role is on the read list at most once').toBeLessThanOrEqual(1);
-    expect([...now.readers].filter((e) => e !== rec02 && e !== rec04 && e !== rec14).sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
-    expect(now.allowed, 'the encrypt list is as on develop').toEqual(base.allowed);
+    // Child lock ten-02.12 (REC-05 key follow-up): manageOffers and the hourly offer expiry (monitorTalentFlowSLAs) may each be on the read list at most once,
+    // and manageOffers on the encrypt list at most once (it signs uploads into the bucket this key encrypts). rec-05-kms.spec.ts pins them exactly.
+    const rec05 = [squash(MANAGE_OFFERS_ARN), squash(MONITOR_SLAS_ARN)];
+    for (const r of rec05) expect(now.readers.filter((e) => e === r).length, `${r} is on the read list at most once`).toBeLessThanOrEqual(1);
+    expect(now.allowed.filter((e) => e === rec05[0]).length, 'the manageOffers role is on the encrypt list at most once').toBeLessThanOrEqual(1);
+    expect([...now.readers].filter((e) => e !== rec02 && e !== rec04 && e !== rec14 && !rec05.includes(e)).sort(), 'every other entry of the read list is as on develop').toEqual([...base.readers, arn].sort());
+    expect(withoutOnce(now.allowed, rec05[0]!), 'the encrypt list is as on develop').toEqual(base.allowed);
     expect(squash(read('infra/kms.tf')).split(arn).length - 1, 'the ARN appears once in kms.tf').toBe(1);
   });
 

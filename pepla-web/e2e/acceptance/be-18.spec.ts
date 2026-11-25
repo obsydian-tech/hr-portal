@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { blocks, stripComments, tfFiles, type Block } from './support/infra-harness';
+import { MANAGE_OFFERS_ARN } from './support/ten-02.12/kms'; // child lock ten-02.12
 import {
   HANDLER, HR_GROUP_FILE, REPO, cognitoEvent, dynamoCalls, encrypted, eventFor, fnRule, logText, plain, row, runHandler, runScript, s3Calls, writes,
   type Caller, type Failure, type Run, type Tables,
@@ -193,7 +194,8 @@ test.describe('BE-18 Part A · sign-in identity hardening', () => {
     expect(readNow, 'recordConsent stays in dynamodb_read_role_arns (Decrypt only, only through DynamoDB)').toContain(ROLE);
     expect(allowedNow, 'the start page (this card\'s other role) is not given encrypt rights either').not.toContain('aws_iam_role.get_my_start.arn');
     // CHAT-02 (re-lock be-18.N): the two new Ask Batsi roles keep chats and read the company list; chat-02.spec.ts AC-31 pins them.
-    for (const r of allowedNow.filter((x) => !/ask_batsi_chats|admin_set_ask_batsi/.test(x))) expect(listAttr(kmsBase!.body, 'allowed_role_arns'), `allowed_role_arns gains no role (${r})`).toContain(r);
+    // Child lock ten-02.12 (REC-05 key follow-up): manageOffers signs uploads into the bucket this key encrypts, so its role (TalentFlow stack, quoted ARN) may join allowed_role_arns; rec-05-kms.spec.ts pins it there once.
+    for (const r of allowedNow.filter((x) => !/ask_batsi_chats|admin_set_ask_batsi/.test(x) && x !== MANAGE_OFFERS_ARN)) expect(listAttr(kmsBase!.body, 'allowed_role_arns'), `allowed_role_arns gains no role (${r})`).toContain(r);
     const senderNow = listAttr(kmsNow!.body, 'cognito_sender_decrypt_role_arns');
     for (const r of [ROLE, 'aws_iam_role.get_my_start.arn']) expect(senderNow, `${r} gets no direct Decrypt through cognito_sender_decrypt_role_arns`).not.toContain(r);
 
