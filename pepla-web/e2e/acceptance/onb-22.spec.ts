@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { attributes } from './support/infra-harness';
 import { policyOf, type TfResource } from './support/onb-15/tf-policy';
+import { MANAGE_OFFERS_ARN, MONITOR_SLAS_ARN } from './support/ten-02.12/kms'; // child lock ten-02.12
 import { common, expectOnly, grants, lambdaNamed, list, resources, roleOf, settingsOf, squash as tfSquash } from './support/ten-01/tf';
 import {
   A, AGENT_SECRET, B, D, HR, P, REPO, REVIEW_NAME, V, auditRows, awsCalls, bedrockOf, bodyOf, call, callEvent, callTogether, describe, document, eventFor, find, httpIn, httpOf, invokesOf, logLines,
@@ -1289,7 +1290,8 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
     expect(sorted([...seen].filter((a) => !a.startsWith('xray:') && !a.startsWith('logs:'))), 'the new rights are exactly these').toEqual(sorted(['dynamodb:Query', 'dynamodb:GetItem', 'dynamodb:UpdateItem', 'events:PutEvents', 'lambda:InvokeFunction']));
     // The KMS lists.
     const kms = text('infra/kms.tf').replace(/^\s*(#|\/\/).*$/gm, '');
-    expect(sq(/allowed_role_arns\s*=\s*\[([\s\S]*?)\]/.exec(kms)?.[1] ?? ''), 'allowed_role_arns gains nothing').toBe(baseline['kmsAllowed']);
+    // Child lock ten-02.12 (REC-05 key follow-up): the manageOffers role (TalentFlow stack, quoted ARN) may be on allowed_role_arns once; a second copy or any other entry still fails.
+    expect(sq(/allowed_role_arns\s*=\s*\[([\s\S]*?)\]/.exec(kms)?.[1] ?? '').replace(`${MANAGE_OFFERS_ARN},`, ''), 'allowed_role_arns gains nothing').toBe(baseline['kmsAllowed']);
     const reads = (/dynamodb_read_role_arns\s*=\s*\[([\s\S]*?)\n\s*\]/.exec(kms)?.[1] ?? '').split('\n').map((l) => l.trim().replace(/,$/, '')).filter(Boolean);
     // Child lock onb-22.3: the roles of other cards that read tables behind the PII key may also be listed: CHAT-02's two (ask_batsi_chats, admin_set_ask_batsi) and ONB-21's reminder sender.
     // Child lock onb-22.7: and the onboarding state machine's role (ONB-11 AC-11), which stores a task token on the employees row through DynamoDB and so needs to decrypt through it.
@@ -1301,7 +1303,9 @@ test.describe('ONB-22 The same rules through the Agent API and MCP', () => {
       // Child lock rec-04.1 (REC-04): the manageRoles role likewise (added one merge after the role exists); chat-15.spec.ts AC-12 lets it in at most once.
       '"arn:aws:iam::${var.aws_account_id}:role/talent-flow/talent-flow-role-manageRoles"',
       // Child lock rec-14.1 (REC-14): the manageDepartments role (this stack); rec-14.spec.ts AC-3 pins it exactly once.
-      'aws_iam_role.manage_departments.arn'];
+      'aws_iam_role.manage_departments.arn',
+      // Child lock ten-02.12 (REC-05 key follow-up): manageOffers and the hourly offer expiry (TalentFlow stack, quoted ARNs); chat-15.spec.ts AC-12 lets each in at most once.
+      MANAGE_OFFERS_ARN, MONITOR_SLAS_ARN];
     const addedRoles = reads.filter((l) => !(baseline['kmsReadRoles'] as string[]).includes(l) && !OTHER_CARDS.includes(l)).sort();
     expect(addedRoles, 'dynamodb_read_role_arns gains exactly the four roles (and, apart from them, only the four roles of CHAT-02, ONB-21 and ONB-11)').toEqual(['createProposal', 'approveAgentAction', 'queryAuditLog', 'summariseVerification'].map((f) => `aws_iam_role.${roleOf(lambdaNamed(f))}.arn`).sort());
     expect((baseline['kmsReadRoles'] as string[]).filter((l) => !reads.includes(l)), 'and takes none away').toEqual([]);
