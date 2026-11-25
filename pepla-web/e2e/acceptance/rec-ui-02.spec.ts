@@ -17,7 +17,7 @@ import { A_ALL, W, clockCases, expect, extra, initialsOf, listCalls, many, names
  * these tests assume (the builder implements exactly that). Words: only the kit's, the approved lines and settled U-1, U-7.
  *
  * Not in this lock (their backend is not built, so a test would judge a pretend server): Add candidate (AC-3, AC-4: REC-15
- * step B), the candidate record and its tabs (AC-5, AC-6, AC-9, AC-10, AC-11's record part: step C), Interviews and
+ * step B; built since child lock rec-ui-02.1, judged in rec-ui-02-add.spec.ts), the candidate record and its tabs (AC-5, AC-6, AC-9, AC-10, AC-11's record part: step C), Interviews and
  * Schedule (AC-7: step D and REC-07), Reopen (AC-8: U-8). Each comes as a child lock rec-ui-02.N when its step merges.
  * Until the record exists a row opens nothing (no link to a page that is not there).
  *
@@ -152,7 +152,7 @@ test.describe('AC-1 Entry and guard', () => {
 test.describe('AC-1 Candidates', () => {
   test.beforeEach(noBackendOnly);
 
-  test('AC-1 The page shows the heading, the line, the tabs with the answer\'s counts, the search, More filters and the table with its caption and columns; no Add candidate yet', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
+  test('AC-1 The page shows the heading, the line, the tabs with the answer\'s counts, the search, More filters and the table with its caption and columns; Add candidate is its one primary button', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx = fxOf({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h });
     const { page, hire } = fx;
     hire!.countsOverride = { all: 13, mine: 5, overdue: 2, due_soon: 3, not_hired: 4 };
@@ -166,9 +166,9 @@ test.describe('AC-1 Candidates', () => {
     await expect(either(main(page), W.moreFilters)).toBeVisible();
     await expect(table(page)).toBeAttached();
     expect((await table(page).locator('thead th').allTextContents()).map((t) => t.trim()).filter(Boolean)).toEqual(W.columns);
-    // Add candidate waits for REC-15 step B (ADD_CANDIDATE_READY, D-RUI-01.1): no button with nowhere to go.
-    await expect(either(page, /add candidate/i, false)).toHaveCount(0);
-    await expect(main(page).locator('.pp-button--primary')).toHaveCount(0);
+    // Child lock rec-ui-02.1 (REC-UI-02 step 2): Add candidate is built; it is the page's one primary button (rec-ui-02-add.spec.ts judges it).
+    await expect(main(page).getByRole('button', { name: 'Add candidate', exact: true })).toHaveCount(1);
+    await expect(main(page).locator('.pp-button--primary')).toHaveCount(1);
   });
 
   test('AC-1 Desktop: the Role filter offers All roles and the company\'s open roles; the Stage filter offers All stages and the six stages, Not hired among them', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
@@ -489,7 +489,7 @@ test.describe('AC-1 Pipeline list', () => {
     if (!phone()) await expect(main(page).getByRole('button', { name: 'Not hired 4', exact: true })).toBeVisible();
     expect(listCalls(hire!)[0]!.query['role_id'], 'All roles sends no role_id').toBeUndefined();
     expect((await readRows(page)).map(without)).toEqual(A_ALL);
-    await expect(either(page, /add candidate/i, false)).toHaveCount(0);
+    await expect(main(page).getByRole('button', { name: 'Add candidate', exact: true }), 'Add candidate (rec-ui-02.1)').toHaveCount(1);
   });
 
   test('AC-1 Choosing a role lists its candidates with role_id and its own count, and turns Board on; Board opens that role\'s board; the board\'s List comes back to the list', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
@@ -820,9 +820,9 @@ test.describe('AC-14 Kit match and words', () => {
     const kit = (KIT.screens as Record<string, { main: readonly string[] }>)[name]!.main;
     const have = new Set(await main(page).evaluate((root) => [...new Set([root, ...root.querySelectorAll('*')].flatMap((el) => [...el.classList]).filter((c) => c.startsWith('pp-')))]));
     const layoutOnly = [/^pp-gap-/, /^pp-inline/, /^pp-grow/, /^pp-measure-/, /^pp-stack/, /--inline$/, /^pp-text(--|$)/, /^pp-avatar--/, /^pp-text-field--small$/];
-    // Not built in this step: Add candidate (primary, REC-15 step B; on Candidates it is the header's only action, so the actions
-    // slot goes with it), the row's Open column (D-RUI-02.4, the record is step C) and the page's More actions (subtle icon buttons).
-    const later = [/^pp-button--primary$/, /^pp-button--subtle$/, /^pp-button--icon$/, /^pp-table__actions$/, ...(screen === 'Candidates' ? [/^pp-page-header__actions$/] : [])];
+    // Not built yet: the row's Open column (D-RUI-02.4, the record is step C) and the page's More actions (subtle icon buttons).
+    // Add candidate (primary, and on Candidates the header's actions slot) is built since rec-ui-02.1.
+    const later = [/^pp-button--subtle$/, /^pp-button--icon$/, /^pp-table__actions$/];
     const missing = kit.filter((c) => !have.has(c) && ![...layoutOnly, ...later].some((re) => re.test(c)));
     expect(missing, `${name}: classes the kit has and the page lacks`).toEqual([]);
   }
