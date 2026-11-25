@@ -300,7 +300,14 @@ export async function createOffer(ctx, body) {
       ],
     }));
   } catch (e) {
-    if (e.name === 'TransactionCanceledException') return conflict('OFFER_EXISTS');
+    if (e.name === 'TransactionCanceledException') {
+      // Only a failed condition means another live offer. Any other cancel reason (a clash with another write, a bad request) is not that.
+      const reasons = e.CancellationReasons?.map((r) => r?.Code ?? 'None')
+        ?? String(e.message ?? '').match(/\[([^\]]*)\]/)?.[1]?.split(/,\s*/).map((c) => c.trim()) ?? [];
+      if (reasons.length === 0 || reasons.includes('ConditionalCheckFailed')) return conflict('OFFER_EXISTS');
+      console.error('offers: create cancelled', { reasons });
+      return json(409, { error: 'Conflict', code: 'OFFER_BUSY', reasons });
+    }
     throw e;
   }
   return json(201, shape(row, ctx));
