@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import {
-  PpAccordion, PpAccordionItem, PpButton, PpDrawer, PpDrawerFooter, PpErrorSummary, PpField, PpInlineMessage, PpSectionMessage, PpSelect, PpTextField, type FormError,
+  PpAccordion, PpAccordionItem, PpButton, PpDrawer, PpDrawerFooter, PpErrorSummary, PpField, PpForm, PpInlineMessage, PpSectionMessage, PpSelect, PpTextField, type FormError,
 } from '../../ds';
 import { HireApi, newKey, type HireRole } from './hire-api';
 
@@ -15,12 +15,12 @@ type Problems = Partial<Record<'first' | 'last' | 'email' | 'role' | 'phone', st
  */
 @Component({
   selector: 'app-add-candidate',
-  imports: [PpAccordion, PpAccordionItem, PpButton, PpDrawer, PpDrawerFooter, PpErrorSummary, PpField, PpInlineMessage, PpSectionMessage, PpSelect, PpTextField],
+  imports: [PpAccordion, PpAccordionItem, PpButton, PpDrawer, PpDrawerFooter, PpErrorSummary, PpField, PpForm, PpInlineMessage, PpSectionMessage, PpSelect, PpTextField],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <pp-drawer [(open)]="open" heading="Add candidate" description="Fill in the details to add a candidate to the pipeline." (closed)="reset()">
       @if (open()) {
-      <form class="pp-drawer__form" (submit)="$event.preventDefault(); submit()">
+      <form ppForm (submit)="$event.preventDefault(); submit()">
         @if (notFound()) { <pp-section-message tone="danger" heading="This role could not be found." /> }
         @if (failed()) { <pp-section-message tone="danger" heading="Your change could not be saved. Try again." /> }
         @if (summary().length) { <pp-error-summary [heading]="summaryHeading()" [errors]="summary()" /> }
