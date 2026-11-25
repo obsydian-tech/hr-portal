@@ -873,11 +873,26 @@ test.describe('REC-02 · A person decides: no automatic Not hired, and a Not hir
     expect((pre.headers()['access-control-allow-headers'] ?? '').toLowerCase(), 'the API allows the idempotency-key header').toContain('idempotency-key');
 
     // HR records Not hired with a reason on a new candidate of their own, then reopens it. B gets 404 throughout.
+    // Child lock rec-02.3: since REC-15 step B (PR 506) a candidate is added to an open role in the new format (first_name,
+    // last_name, email, role_id, phone, source, idempotencyKey); the level and the hiring manager come from the role. So HR
+    // first opens a role of that level with the manager login as its hiring manager (as rec-04.spec.ts AC-14 does), and
+    // the roles are closed again at the end.
+    const devDepartmentId = String((JSON.parse(readFileSync(join(__dirname, 'support', 'ten-04', 'dev-ids.json'), 'utf8')) as Record<string, unknown>)['department']);
+    const opened: string[] = [];
+    const made: string[] = [];
     const make = async (level: string) => {
-      const r = await call2(hr, 'POST', '/v1/candidates', { idempotencyKey: `rec02-${level}-${Date.now()}`, firstName: 'Rec', lastName: 'Zero-Two', email: `rec02.${Date.now()}@example.com`, positionTitle: 'Demo role', positionLevel: level, hiringManagerId: managerId });
-      expect(r.status(), `HR creates a ${level} candidate`).toBe(201);
-      return ((await r.json()) as any).candidateId as string;
+      const run = `${level}-${Date.now()}`;
+      const role = await call2(hr, 'POST', '/v1/roles', { job_title: `REC-02 dev check ${run}`, department_id: devDepartmentId, level, hiring_manager_id: managerId }, { 'Idempotency-Key': `rec02-role-${run}` });
+      expect(role.status(), `HR opens a ${level} role for the check (${await role.text()})`).toBe(201);
+      const roleId = ((await role.json()) as any).role_id as string;
+      opened.push(roleId);
+      const r = await call2(hr, 'POST', '/v1/candidates', { first_name: 'Rec', last_name: 'Zero-Two', email: `rec02.${run.toLowerCase()}@example.com`, role_id: roleId, phone: '082 555 0102', source: 'Referral', idempotencyKey: `rec02-${run}` });
+      expect(r.status(), `HR adds a ${level} candidate in the new format (${await r.text()})`).toBe(201);
+      const id = ((await r.json()) as any).candidateId as string;
+      made.push(id);
+      return id;
     };
+    try {
     const x = await make('MID');
     const nh = await call2(hr, 'POST', `/v1/candidates/${x}/not-hired`, { reason: 'WITHDREW', note: 'REC-02 dev check' }, { 'Idempotency-Key': `rec02-dev-${Date.now()}` });
     expect(nh.status(), `HR records Not hired with a reason (${await nh.text()})`).toBe(200);
@@ -910,6 +925,15 @@ test.describe('REC-02 · A person decides: no automatic Not hired, and a Not hir
     // The old-system list: HR 200, the manager 403.
     expect((await call2(hr, 'GET', '/v1/candidates/old-system')).status(), 'HR reads the old-system list').toBe(200);
     expect((await call2(manager, 'GET', '/v1/candidates/old-system')).status(), 'the manager is refused the old-system list').toBe(403);
+    } finally {
+      // Leave dev as it was: the check's candidates are Not hired and its roles closed (a role with open candidates cannot close).
+      for (const id of made) {
+        const now = await call2(hr, 'GET', `/v1/candidates/${id}`);
+        const b = now.status() === 200 ? (await now.json()) as any : null;
+        if (b && (b.candidate ?? b).currentStage !== 'NOT_HIRED') await call2(hr, 'POST', `/v1/candidates/${id}/not-hired`, { reason: 'WITHDREW', note: 'REC-02 dev check: tidy up' }, { 'Idempotency-Key': `rec02-tidy-${id}` });
+      }
+      for (const roleId of opened) await call2(hr, 'POST', `/v1/roles/${encodeURIComponent(roleId)}/close`, {});
+    }
     void [ID, B];
   });
 });
