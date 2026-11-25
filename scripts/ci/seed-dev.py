@@ -92,6 +92,11 @@ NALEKO_PERSONAS = {
                   "given_name": "Cebo", "family_name": "Companyb-Walk"},
         "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
     },
+    # REC-05 AC-11: the offer approver of company A. Group perm-approve-offers only; the Member row is written in main().
+    "approver": {
+        "attrs": {"given_name": "Anele", "family_name": "Demo-Approver"},
+        "groups": ["perm-approve-offers"],
+    },
     "tf": {
         "attrs": {"given_name": "Tessa", "family_name": "Demo-TF"},
         "groups": ["admin", "manager", "perm-recruitment", "perm-it", "perm-approve-offers"],
@@ -1124,6 +1129,11 @@ def main() -> None:
     manager_member_sub = user_sub(cognito, naleko, "manager")
     if manager_member_sub:
         founding_written += ensure_founding_member(ddb, manager_member_sub)
+    approver_member_sub = user_sub(cognito, naleko, "approver")
+    if approver_member_sub:
+        founding_written += ensure_founding_member(ddb, approver_member_sub)
+    else:
+        print("warning: the approver login has no sub; its Member row was not written")
     hr_b_sub = user_sub(cognito, naleko, "hr-b")
     if not hr_b_sub:
         print("warning: the company B login has no sub; its Member row was not written")
