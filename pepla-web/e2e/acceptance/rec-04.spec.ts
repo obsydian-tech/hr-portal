@@ -14,6 +14,7 @@ import {
   anyWrite, awsOf, call, candidates, changedRows, close, fullName, handlerFolderFiles, list, logsOf, newKey, one, open, roleOf, rolesIn, sagaOf, withMany, world,
 } from './support/rec-04/roles';
 import { isRec07Grant } from './support/rec-07.1/grants';
+import { isRec05Grant } from './support/rec-05.1/grants'; // child lock rec-05.1
 import { isRec15bGrant } from './support/rec-15b.1/grants';
 
 /**
@@ -559,7 +560,7 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
         if (cur.squash !== undefined) expect.soft(cur.squash, `${k}: an unreadable policy did not change`).toBe(baseline[k]?.squash);
       } else {
         // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
-        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec15bGrant(l, k)), `${k}: no new grant`).toEqual([]);
+        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec15bGrant(l, k) && !isRec05Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec05Grant: child lock rec-05.1
         if (cur.squash !== undefined) expect.soft(cur.squash, `${k}: an unreadable policy did not change`).toBe(baseline[k]?.squash);
       }
     }
