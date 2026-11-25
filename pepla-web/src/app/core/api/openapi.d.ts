@@ -2251,6 +2251,11 @@ export interface components {
             engagementSentiment?: string | null;
             acceptanceSentiment?: string | null;
             evaluationResult?: string | null;
+            strong_no_count?: number;
+            reason_code?: string;
+            decided_by?: string;
+            stage_before_not_hired?: string;
+            legacy_stage?: string;
             decided_by_kind?: string | null;
             experienceYears?: number | null;
             engagementScore?: number | null;
