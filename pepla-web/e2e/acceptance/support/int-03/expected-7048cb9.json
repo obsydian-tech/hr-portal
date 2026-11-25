@@ -1,0 +1,432 @@
+{
+ "G1": {
+  "status": 201,
+  "body": {
+   "token": "<NEW>",
+   "scoringUrl": "https://rec01.example/score?token=<NEW>",
+   "expiresAt": "2026-12-01T08:00:00.000Z"
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SCORING_LINK#<NEW>\",\"token\":\"<NEW>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"pm-int03-new\",\"panelMemberEmail\":\"naledi.guest@example.test\",\"panelMemberName\":\"Naledi Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"expiresAt\":\"2026-12-01T08:00:00.000Z\",\"ttl\":1796112000,\"used\":false,\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "+ talent-flow-state {\"PK\":\"SCORING_LINK#<NEW>\",\"SK\":\"META\",\"token\":\"<NEW>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"pm-int03-new\",\"panelMemberEmail\":\"naledi.guest@example.test\",\"panelMemberName\":\"Naledi Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"expiresAt\":\"2026-12-01T08:00:00.000Z\",\"ttl\":1796112000,\"used\":false,\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+  ],
+  "events": []
+ },
+ "G2": {
+  "status": 201,
+  "body": {
+   "token": "<EXISTING>",
+   "scoringUrl": "https://rec01.example/score?token=<EXISTING>",
+   "expiresAt": "2026-11-27T08:00:00.000Z",
+   "reused": true
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "G3": {
+  "status": 500,
+  "body": {
+   "error": "Failed to generate scoring link"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "G4": {
+  "status": 500,
+  "body": {
+   "error": "Failed to generate scoring link (token index write failed)"
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SCORING_LINK#<NEW>\",\"token\":\"<NEW>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"pm-int03-new\",\"panelMemberEmail\":\"naledi.guest@example.test\",\"panelMemberName\":\"Naledi Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"expiresAt\":\"2026-12-01T08:00:00.000Z\",\"ttl\":1796112000,\"used\":false,\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+  ],
+  "events": []
+ },
+ "G5": {
+  "status": 500,
+  "body": {
+   "error": "Failed to validate candidate"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "G6": {
+  "status": 201,
+  "body": {
+   "token": "<NEW>",
+   "scoringUrl": "https://rec01.example/score?token=<NEW>",
+   "expiresAt": "2026-12-01T08:00:00.000Z"
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SCORING_LINK#<NEW>\",\"token\":\"<NEW>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"pm-int03-new\",\"panelMemberEmail\":\"naledi.guest@example.test\",\"panelMemberName\":\"Naledi Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"expiresAt\":\"2026-12-01T08:00:00.000Z\",\"ttl\":1796112000,\"used\":false,\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "+ talent-flow-state {\"PK\":\"SCORING_LINK#<NEW>\",\"SK\":\"META\",\"token\":\"<NEW>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"pm-int03-new\",\"panelMemberEmail\":\"naledi.guest@example.test\",\"panelMemberName\":\"Naledi Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"expiresAt\":\"2026-12-01T08:00:00.000Z\",\"ttl\":1796112000,\"used\":false,\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+  ],
+  "events": []
+ },
+ "R0": {
+  "status": 201,
+  "body": {
+   "token": "<RAW>",
+   "expires_at": "2026-12-01T08:00:00.000Z"
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"SCORING_LINK#<RAW:hex>\",\"SK\":\"META\",\"token_hash\":\"<RAW:hex>\",\"interview_id\":\"iv-rec07-a-1\",\"candidate_id\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"guest_email\":\"naledi.guest@example.test\",\"expires_at\":\"2026-12-01T08:00:00.000Z\",\"used_at\":null,\"created_by\":\"sub-rec-a\",\"created_at\":\"2026-11-24T08:00:00.000Z\",\"ttl\":1796112000,\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+  ],
+  "events": []
+ },
+ "R1": {
+  "status": 200,
+  "body": {
+   "candidate_first": "Thandi",
+   "candidate_last": "Nkosi",
+   "role_title": "Sales consultant",
+   "interview_type": "TECHNICAL",
+   "interview_at": "2026-11-20T09:00:00.000Z",
+   "criteria": [
+    {
+     "key": "sales",
+     "label": "Sales experience"
+    },
+    {
+     "key": "comms",
+     "label": "Communication"
+    },
+    {
+     "key": "product",
+     "label": "Product knowledge"
+    }
+   ],
+   "expires_at": "2026-11-27T08:00:00.000Z"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "R2": {
+  "status": 410,
+  "body": {
+   "error": "Scoring link has expired"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "R3": {
+  "status": 410,
+  "body": {
+   "error": "Scoring link has expired"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "R4": {
+  "status": 200,
+  "body": {
+   "saved": true
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"INTERVIEW#iv-rec07-a-1\",\"interviewId\":\"iv-rec07-a-1\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"interviewType\":\"TECHNICAL\",\"scheduledAt\":\"2026-11-20T09:00:00.000Z\",\"panelMemberIds\":[\"sub-rec07-m1\",\"sub-rec07-m2\",\"sub-rec07-m3\"],\"votesRequired\":3,\"votesSubmitted\":1,\"status\":\"SCHEDULED\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"criteria_snapshot\":[{\"key\":\"sales\",\"label\":\"Sales experience\"},{\"key\":\"comms\",\"label\":\"Communication\"},{\"key\":\"product\",\"label\":\"Product knowledge\"}],\"PANEL_FEEDBACK_PENDING_COUNT\":3,\"PANEL_SPLIT_FLAG\":false}",
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"VOTE#GUEST#<GUEST:hex16>#2026-11-24T08:00:00.000Z#iv-rec07-a-1\",\"voterId\":\"GUEST#<GUEST:hex16>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"interviewId\":\"iv-rec07-a-1\",\"scores\":{\"sales\":4,\"comms\":5,\"product\":3},\"rating\":\"YES\",\"comment\":\"Clear on the product range.\",\"scale\":{\"min\":1,\"max\":5},\"guest\":true,\"on_behalf\":false,\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "+ talent-flow-state {\"PK\":\"SCORING_LINK#<GUEST:hex>\",\"SK\":\"META\",\"token_hash\":\"<GUEST:hex>\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"interview_id\":\"iv-rec07-a-1\",\"candidate_id\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"guest_email\":\"naledi.guest@example.test\",\"expires_at\":\"2026-11-27T08:00:00.000Z\",\"used_at\":\"2026-11-24T08:00:00.000Z\",\"created_by\":\"sub-rec-a\",\"created_at\":\"2026-11-20T08:00:00.000Z\",\"ttl\":1795766400}",
+   "- talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"INTERVIEW#iv-rec07-a-1\",\"interviewId\":\"iv-rec07-a-1\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"interviewType\":\"TECHNICAL\",\"scheduledAt\":\"2026-11-20T09:00:00.000Z\",\"panelMemberIds\":[\"sub-rec07-m1\",\"sub-rec07-m2\",\"sub-rec07-m3\"],\"votesRequired\":3,\"votesSubmitted\":0,\"status\":\"SCHEDULED\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"criteria_snapshot\":[{\"key\":\"sales\",\"label\":\"Sales experience\"},{\"key\":\"comms\",\"label\":\"Communication\"},{\"key\":\"product\",\"label\":\"Product knowledge\"}]}",
+   "- talent-flow-state {\"PK\":\"SCORING_LINK#<GUEST:hex>\",\"SK\":\"META\",\"token_hash\":\"<GUEST:hex>\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"interview_id\":\"iv-rec07-a-1\",\"candidate_id\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"guest_email\":\"naledi.guest@example.test\",\"expires_at\":\"2026-11-27T08:00:00.000Z\",\"used_at\":null,\"created_by\":\"sub-rec-a\",\"created_at\":\"2026-11-20T08:00:00.000Z\",\"ttl\":1795766400}"
+  ],
+  "events": []
+ },
+ "R5": {
+  "status": 410,
+  "body": {
+   "error": "Scoring link has expired"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "R6": {
+  "status": 410,
+  "body": {
+   "error": "Scoring link has expired"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "R7": {
+  "status": 200,
+  "body": {
+   "candidate_first": "Thandi",
+   "candidate_last": "Nkosi",
+   "role_title": "Sales consultant",
+   "interview_type": "TECHNICAL",
+   "interview_at": "2026-11-20T09:00:00.000Z",
+   "criteria": [
+    {
+     "key": "sales",
+     "label": "Sales experience"
+    },
+    {
+     "key": "comms",
+     "label": "Communication"
+    },
+    {
+     "key": "product",
+     "label": "Product knowledge"
+    }
+   ],
+   "expires_at": "2026-11-27T08:00:00.000Z"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "V1": {
+  "status": 403,
+  "body": {
+   "error": "Invalid or expired scoring link"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "V2": {
+  "status": 500,
+  "body": {
+   "error": "Failed to validate scoring link"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "V3": {
+  "status": 410,
+  "body": {
+   "error": "Scoring link has expired"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "V4": {
+  "status": 410,
+  "body": {
+   "error": "Scoring link has already been used"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "V5": {
+  "status": 200,
+  "body": {
+   "candidateId": "CAND-REC07AAAAAAAAAAAAAAAAV1",
+   "voterId": "guest-old-1",
+   "weightedScore": null,
+   "configVersionUsed": "1"
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SAGA\",\"GSI1PK\":\"TENANT#ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"GSI1SK\":\"SAGA#2026-11-10T08:00:00.000Z\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"firstName\":\"Thandi\",\"lastName\":\"Nkosi\",\"email\":\"thandi.nkosi@example.test\",\"positionTitle\":\"Sales consultant\",\"positionLevel\":\"MID\",\"department\":\"Operations\",\"currentStage\":\"INTERVIEW\",\"stageEnteredAt\":\"2026-11-11T08:00:00.000Z\",\"status\":\"ACTIVE\",\"slaStatus\":\"ON_TRACK\",\"configVersion\":\"1\",\"hiringManagerId\":\"sub-hm-a\",\"appliedDate\":\"2026-11-10T08:00:00.000Z\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"role_id\":\"role-rec07-sales\",\"votesSubmitted\":1}",
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"VOTE#guest-old-1#2026-11-24T08:00:00.000Z\",\"voterId\":\"guest-old-1\",\"voterEmail\":\"pieter.guest@example.test\",\"voterName\":\"Pieter Guest\",\"voteSource\":\"EMAIL_LINK\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"rating\":\"YES\",\"scores\":{\"technical\":7,\"communication\":8,\"culturalFit\":6,\"problemSolving\":9},\"weightedScore\":null,\"configVersionUsed\":\"1\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "+ talent-flow-state {\"PK\":\"SCORING_LINK#<OLD>\",\"SK\":\"META\",\"token\":\"<OLD>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"guest-old-1\",\"panelMemberEmail\":\"pieter.guest@example.test\",\"panelMemberName\":\"Pieter Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"used\":true,\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-20T08:00:00.000Z\",\"expiresAt\":\"2026-11-27T08:00:00.000Z\",\"ttl\":1795766400,\"usedAt\":\"2026-11-24T08:00:00.000Z\"}",
+   "- talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SAGA\",\"GSI1PK\":\"TENANT#ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"GSI1SK\":\"SAGA#2026-11-10T08:00:00.000Z\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"firstName\":\"Thandi\",\"lastName\":\"Nkosi\",\"email\":\"thandi.nkosi@example.test\",\"positionTitle\":\"Sales consultant\",\"positionLevel\":\"MID\",\"department\":\"Operations\",\"currentStage\":\"INTERVIEW\",\"stageEnteredAt\":\"2026-11-11T08:00:00.000Z\",\"status\":\"ACTIVE\",\"slaStatus\":\"ON_TRACK\",\"configVersion\":\"1\",\"hiringManagerId\":\"sub-hm-a\",\"appliedDate\":\"2026-11-10T08:00:00.000Z\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"role_id\":\"role-rec07-sales\"}",
+   "- talent-flow-state {\"PK\":\"SCORING_LINK#<OLD>\",\"SK\":\"META\",\"token\":\"<OLD>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"guest-old-1\",\"panelMemberEmail\":\"pieter.guest@example.test\",\"panelMemberName\":\"Pieter Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"used\":false,\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-20T08:00:00.000Z\",\"expiresAt\":\"2026-11-27T08:00:00.000Z\",\"ttl\":1795766400}"
+  ],
+  "events": [
+   {
+    "service": "events",
+    "op": "PutEvents",
+    "bus": "rec01-bus",
+    "source": "talent-flow.workflow",
+    "detailType": "VotingCompleted",
+    "detail": {
+     "candidateId": "CAND-REC07AAAAAAAAAAAAAAAAV1",
+     "tenant_id": "ten_aaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "result": "COMPLETED",
+     "averageScore": 8.4,
+     "votesSubmitted": 1,
+     "voterId": null,
+     "timestamp": "2026-11-24T08:00:00.000Z"
+    }
+   }
+  ]
+ },
+ "V6": {
+  "status": 200,
+  "body": {
+   "candidateId": "CAND-REC07AAAAAAAAAAAAAAAAV1",
+   "voterId": "guest-old-1",
+   "weightedScore": null,
+   "configVersionUsed": "1"
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SAGA\",\"GSI1PK\":\"TENANT#ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"GSI1SK\":\"SAGA#2026-11-10T08:00:00.000Z\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"firstName\":\"Thandi\",\"lastName\":\"Nkosi\",\"email\":\"thandi.nkosi@example.test\",\"positionTitle\":\"Sales consultant\",\"positionLevel\":\"MID\",\"department\":\"Operations\",\"currentStage\":\"INTERVIEW\",\"stageEnteredAt\":\"2026-11-11T08:00:00.000Z\",\"status\":\"ACTIVE\",\"slaStatus\":\"ON_TRACK\",\"configVersion\":\"1\",\"hiringManagerId\":\"sub-hm-a\",\"appliedDate\":\"2026-11-10T08:00:00.000Z\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"role_id\":\"role-rec07-sales\",\"votesSubmitted\":1}",
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"VOTE#guest-old-1#2026-11-24T08:00:00.000Z\",\"voterId\":\"guest-old-1\",\"voterEmail\":\"pieter.guest@example.test\",\"voterName\":\"Pieter Guest\",\"voteSource\":\"EMAIL_LINK\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"rating\":\"YES\",\"scores\":{\"technical\":7,\"communication\":8,\"culturalFit\":6,\"problemSolving\":9},\"weightedScore\":null,\"configVersionUsed\":\"1\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "- talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SAGA\",\"GSI1PK\":\"TENANT#ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"GSI1SK\":\"SAGA#2026-11-10T08:00:00.000Z\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"firstName\":\"Thandi\",\"lastName\":\"Nkosi\",\"email\":\"thandi.nkosi@example.test\",\"positionTitle\":\"Sales consultant\",\"positionLevel\":\"MID\",\"department\":\"Operations\",\"currentStage\":\"INTERVIEW\",\"stageEnteredAt\":\"2026-11-11T08:00:00.000Z\",\"status\":\"ACTIVE\",\"slaStatus\":\"ON_TRACK\",\"configVersion\":\"1\",\"hiringManagerId\":\"sub-hm-a\",\"appliedDate\":\"2026-11-10T08:00:00.000Z\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"role_id\":\"role-rec07-sales\"}"
+  ],
+  "events": [
+   {
+    "service": "events",
+    "op": "PutEvents",
+    "bus": "rec01-bus",
+    "source": "talent-flow.workflow",
+    "detailType": "VotingCompleted",
+    "detail": {
+     "candidateId": "CAND-REC07AAAAAAAAAAAAAAAAV1",
+     "tenant_id": "ten_aaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "result": "COMPLETED",
+     "averageScore": 8.4,
+     "votesSubmitted": 1,
+     "voterId": null,
+     "timestamp": "2026-11-24T08:00:00.000Z"
+    }
+   }
+  ]
+ },
+ "V7": {
+  "status": 200,
+  "body": {
+   "candidateId": "CAND-REC07AAAAAAAAAAAAAAAAV1",
+   "voterId": "guest-old-1",
+   "weightedScore": null,
+   "configVersionUsed": "1"
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SAGA\",\"GSI1PK\":\"TENANT#ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"GSI1SK\":\"SAGA#2026-11-10T08:00:00.000Z\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"firstName\":\"Thandi\",\"lastName\":\"Nkosi\",\"email\":\"thandi.nkosi@example.test\",\"positionTitle\":\"Sales consultant\",\"positionLevel\":\"MID\",\"department\":\"Operations\",\"currentStage\":\"INTERVIEW\",\"stageEnteredAt\":\"2026-11-11T08:00:00.000Z\",\"status\":\"ACTIVE\",\"slaStatus\":\"ON_TRACK\",\"configVersion\":\"1\",\"hiringManagerId\":\"sub-hm-a\",\"appliedDate\":\"2026-11-10T08:00:00.000Z\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"role_id\":\"role-rec07-sales\",\"votesSubmitted\":1}",
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"VOTE#guest-old-1#2026-11-24T08:00:00.000Z\",\"voterId\":\"guest-old-1\",\"voterEmail\":\"pieter.guest@example.test\",\"voterName\":\"Pieter Guest\",\"voteSource\":\"EMAIL_LINK\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"rating\":\"YES\",\"scores\":{\"technical\":7,\"communication\":8,\"culturalFit\":6,\"problemSolving\":9},\"weightedScore\":null,\"configVersionUsed\":\"1\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "+ talent-flow-state {\"PK\":\"SCORING_LINK#<OLD>\",\"SK\":\"META\",\"token\":\"<OLD>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"guest-old-1\",\"panelMemberEmail\":\"pieter.guest@example.test\",\"panelMemberName\":\"Pieter Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"used\":true,\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-20T08:00:00.000Z\",\"expiresAt\":\"2026-11-27T08:00:00.000Z\",\"ttl\":1795766400,\"usedAt\":\"2026-11-24T08:00:00.000Z\"}",
+   "- talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SAGA\",\"GSI1PK\":\"TENANT#ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"GSI1SK\":\"SAGA#2026-11-10T08:00:00.000Z\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"firstName\":\"Thandi\",\"lastName\":\"Nkosi\",\"email\":\"thandi.nkosi@example.test\",\"positionTitle\":\"Sales consultant\",\"positionLevel\":\"MID\",\"department\":\"Operations\",\"currentStage\":\"INTERVIEW\",\"stageEnteredAt\":\"2026-11-11T08:00:00.000Z\",\"status\":\"ACTIVE\",\"slaStatus\":\"ON_TRACK\",\"configVersion\":\"1\",\"hiringManagerId\":\"sub-hm-a\",\"appliedDate\":\"2026-11-10T08:00:00.000Z\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"role_id\":\"role-rec07-sales\"}",
+   "- talent-flow-state {\"PK\":\"SCORING_LINK#<OLD>\",\"SK\":\"META\",\"token\":\"<OLD>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"guest-old-1\",\"panelMemberEmail\":\"pieter.guest@example.test\",\"panelMemberName\":\"Pieter Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"used\":false,\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-20T08:00:00.000Z\",\"expiresAt\":\"2026-11-27T08:00:00.000Z\",\"ttl\":1795766400}"
+  ],
+  "events": [
+   {
+    "service": "events",
+    "op": "PutEvents",
+    "bus": "rec01-bus",
+    "source": "talent-flow.workflow",
+    "detailType": "VotingCompleted",
+    "detail": {
+     "candidateId": "CAND-REC07AAAAAAAAAAAAAAAAV1",
+     "tenant_id": "ten_aaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "result": "COMPLETED",
+     "averageScore": 8.4,
+     "votesSubmitted": 1,
+     "voterId": null,
+     "timestamp": "2026-11-24T08:00:00.000Z"
+    }
+   }
+  ]
+ },
+ "B1": {
+  "status": 404,
+  "body": {
+   "error": "Not found"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "B1R": {
+  "status": 404,
+  "body": {
+   "error": "Not found"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "B2": {
+  "status": 403,
+  "body": {
+   "error": "Invalid or expired scoring link"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "B2R": {
+  "status": 410,
+  "body": {
+   "error": "Scoring link has expired"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "B3": {
+  "status": 403,
+  "body": {
+   "error": "Invalid or expired scoring link"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "B4": {
+  "status": 410,
+  "body": {
+   "error": "Scoring link has expired"
+  },
+  "threw": null,
+  "rows": [],
+  "events": []
+ },
+ "F1": {
+  "status": 201,
+  "body": {
+   "token": "<NEW>",
+   "scoringUrl": "https://rec01.example/score?token=<NEW>",
+   "expiresAt": "2026-12-01T08:00:00.000Z"
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SCORING_LINK#<NEW>\",\"token\":\"<NEW>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"pm-int03-new\",\"panelMemberEmail\":\"naledi.guest@example.test\",\"panelMemberName\":\"Naledi Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"expiresAt\":\"2026-12-01T08:00:00.000Z\",\"ttl\":1796112000,\"used\":false,\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "+ talent-flow-state {\"PK\":\"SCORING_LINK#<NEW>\",\"SK\":\"META\",\"token\":\"<NEW>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"pm-int03-new\",\"panelMemberEmail\":\"naledi.guest@example.test\",\"panelMemberName\":\"Naledi Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"expiresAt\":\"2026-12-01T08:00:00.000Z\",\"ttl\":1796112000,\"used\":false,\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+  ],
+  "events": []
+ },
+ "F2": {
+  "status": 200,
+  "body": {
+   "candidateId": "CAND-REC07AAAAAAAAAAAAAAAAV1",
+   "voterId": "guest-old-1",
+   "weightedScore": null,
+   "configVersionUsed": "1"
+  },
+  "threw": null,
+  "rows": [
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SAGA\",\"GSI1PK\":\"TENANT#ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"GSI1SK\":\"SAGA#2026-11-10T08:00:00.000Z\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"firstName\":\"Thandi\",\"lastName\":\"Nkosi\",\"email\":\"thandi.nkosi@example.test\",\"positionTitle\":\"Sales consultant\",\"positionLevel\":\"MID\",\"department\":\"Operations\",\"currentStage\":\"INTERVIEW\",\"stageEnteredAt\":\"2026-11-11T08:00:00.000Z\",\"status\":\"ACTIVE\",\"slaStatus\":\"ON_TRACK\",\"configVersion\":\"1\",\"hiringManagerId\":\"sub-hm-a\",\"appliedDate\":\"2026-11-10T08:00:00.000Z\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"role_id\":\"role-rec07-sales\",\"votesSubmitted\":1}",
+   "+ talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"VOTE#guest-old-1#2026-11-24T08:00:00.000Z\",\"voterId\":\"guest-old-1\",\"voterEmail\":\"pieter.guest@example.test\",\"voterName\":\"Pieter Guest\",\"voteSource\":\"EMAIL_LINK\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"rating\":\"YES\",\"scores\":{\"technical\":7,\"communication\":8,\"culturalFit\":6,\"problemSolving\":9},\"weightedScore\":null,\"configVersionUsed\":\"1\",\"createdAt\":\"2026-11-24T08:00:00.000Z\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+   "+ talent-flow-state {\"PK\":\"SCORING_LINK#<OLD>\",\"SK\":\"META\",\"token\":\"<OLD>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"guest-old-1\",\"panelMemberEmail\":\"pieter.guest@example.test\",\"panelMemberName\":\"Pieter Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"used\":true,\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-20T08:00:00.000Z\",\"expiresAt\":\"2026-11-27T08:00:00.000Z\",\"ttl\":1795766400,\"usedAt\":\"2026-11-24T08:00:00.000Z\"}",
+   "- talent-flow-state {\"PK\":\"CANDIDATE#CAND-REC07AAAAAAAAAAAAAAAAV1\",\"SK\":\"SAGA\",\"GSI1PK\":\"TENANT#ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"GSI1SK\":\"SAGA#2026-11-10T08:00:00.000Z\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"firstName\":\"Thandi\",\"lastName\":\"Nkosi\",\"email\":\"thandi.nkosi@example.test\",\"positionTitle\":\"Sales consultant\",\"positionLevel\":\"MID\",\"department\":\"Operations\",\"currentStage\":\"INTERVIEW\",\"stageEnteredAt\":\"2026-11-11T08:00:00.000Z\",\"status\":\"ACTIVE\",\"slaStatus\":\"ON_TRACK\",\"configVersion\":\"1\",\"hiringManagerId\":\"sub-hm-a\",\"appliedDate\":\"2026-11-10T08:00:00.000Z\",\"createdAt\":\"2026-11-10T08:00:00.000Z\",\"role_id\":\"role-rec07-sales\"}",
+   "- talent-flow-state {\"PK\":\"SCORING_LINK#<OLD>\",\"SK\":\"META\",\"token\":\"<OLD>\",\"candidateId\":\"CAND-REC07AAAAAAAAAAAAAAAAV1\",\"tenant_id\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tenantId\":\"ten_aaaaaaaaaaaaaaaaaaaaaaaaaa\",\"panelMemberId\":\"guest-old-1\",\"panelMemberEmail\":\"pieter.guest@example.test\",\"panelMemberName\":\"Pieter Guest\",\"panelMemberRole\":\"Area manager\",\"interviewId\":\"iv-rec07-a-1\",\"used\":false,\"createdBy\":\"sub-rec-a\",\"createdAt\":\"2026-11-20T08:00:00.000Z\",\"expiresAt\":\"2026-11-27T08:00:00.000Z\",\"ttl\":1795766400}"
+  ],
+  "events": [
+   {
+    "service": "events",
+    "op": "PutEvents",
+    "bus": "rec01-bus",
+    "source": "talent-flow.workflow",
+    "detailType": "VotingCompleted",
+    "detail": {
+     "candidateId": "CAND-REC07AAAAAAAAAAAAAAAAV1",
+     "tenant_id": "ten_aaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "result": "COMPLETED",
+     "averageScore": 8.4,
+     "votesSubmitted": 1,
+     "voterId": null,
+     "timestamp": "2026-11-24T08:00:00.000Z"
+    }
+   }
+  ]
+ }
+}

@@ -109,25 +109,25 @@ exports.handler = async (event) => {
       Key:       marshall({ PK: `SCORING_LINK#${token}`, SK: 'META' }),
     }));
     if (!result.Item) {
-      console.warn('Token not found', { token });
+      console.warn('Token not found');
       return forbidden('Invalid or expired scoring link');
     }
     tokenRecord = unmarshall(result.Item);
   } catch (err) {
-    console.error('Failed to read token record', { token, error: err.message });
+    console.error('Failed to read token record', { error: err.name });
     return serverError('Failed to validate scoring link');
   }
 
   // ── TTL check (guard against DDB TTL processing lag) ─────────────────────
   const nowSec = Math.floor(Date.now() / 1000);
   if (tokenRecord.ttl && tokenRecord.ttl < nowSec) {
-    console.warn('Token expired', { token, ttl: tokenRecord.ttl, nowSec });
+    console.warn('Token expired', { candidateId: tokenRecord.candidateId, interviewId: tokenRecord.interviewId, ttl: tokenRecord.ttl, nowSec });
     return gone('Scoring link has expired');
   }
 
   // ── Single-use check ──────────────────────────────────────────────────────
   if (tokenRecord.used === true) {
-    console.warn('Token already used', { token });
+    console.warn('Token already used', { candidateId: tokenRecord.candidateId, interviewId: tokenRecord.interviewId });
     return gone('Scoring link has already been used');
   }
 
@@ -158,7 +158,7 @@ exports.handler = async (event) => {
     saga = unmarshall(result.Item);
     if (!T.ownsRow(saga, tenantId)) return forbidden('Invalid or expired scoring link');
   } catch (err) {
-    console.error('Failed to read SAGA record', { candidateId, error: err.message });
+    console.error('Failed to read SAGA record', { candidateId, error: err.name });
     return serverError('Failed to read candidate record');
   }
 
@@ -172,7 +172,7 @@ exports.handler = async (event) => {
   try {
     scoringWeights = await getConfig(tenantId, 'SCORING_WEIGHTS', configVersion);
   } catch (err) {
-    console.error('Failed to read SCORING_WEIGHTS', { tenantId, configVersion, error: err.message });
+    console.error('Failed to read SCORING_WEIGHTS', { tenantId, configVersion, error: err.name });
     return serverError('Failed to read scoring configuration');
   }
   // ── Step 5: a Strong No raises a flag, never an outcome (REC-02) ──────────
@@ -214,7 +214,7 @@ exports.handler = async (event) => {
     }));
   } catch (err) {
     if (err.name !== 'ConditionalCheckFailedException') {
-      console.error('Failed to write vote record', { voteSK, error: err.message });
+      console.error('Failed to write vote record', { voteSK, error: err.name });
       return serverError('Failed to write vote record');
     }
     console.warn('Duplicate vote record — idempotent skip', { voteSK });
@@ -234,12 +234,12 @@ exports.handler = async (event) => {
       ? unmarshall(updateResult.Attributes).votesSubmitted
       : null;
   } catch (err) {
-    console.error('Failed to increment votesSubmitted', { candidateId, error: err.message });
+    console.error('Failed to increment votesSubmitted', { candidateId, error: err.name });
     return serverError('Failed to update vote counter');
   }
 
   // ── Mark token used (single-use enforcement) ──────────────────────────────
-  await markTokenUsed(token);
+  await markTokenUsed(token, { candidateId, interviewId: tokenRecord.interviewId });
 
   // ── Quorum check ──────────────────────────────────────────────────────────
   let votesRequired = null;
@@ -255,7 +255,7 @@ exports.handler = async (event) => {
       votesRequired = unmarshall(interviewQuery.Items[0]).votesRequired;
     }
   } catch (err) {
-    console.error('Failed to query interview record for votesRequired', { candidateId, error: err.message });
+    console.error('Failed to query interview record for votesRequired', { candidateId, error: err.name });
   }
 
   if (votesRequired != null && newVotesSubmitted != null && newVotesSubmitted >= votesRequired) {
@@ -273,7 +273,7 @@ exports.handler = async (event) => {
         averageScore = allScores.length > 0 ? allScores.reduce((sum, s) => sum + s, 0) / allScores.length : null;
       }
     } catch (err) {
-      console.error('Failed to aggregate vote scores', { candidateId, error: err.message });
+      console.error('Failed to aggregate vote scores', { candidateId, error: err.name });
     }
 
     await publishVotingCompleted({
@@ -293,7 +293,7 @@ exports.handler = async (event) => {
 };
 
 // ── Mark token used (best-effort — non-fatal if it fails) ────────────────────
-async function markTokenUsed(token) {
+async function markTokenUsed(token, ids) {
   try {
     await dynamo.send(new UpdateItemCommand({
       TableName:                 STATE_TABLE,
@@ -303,7 +303,7 @@ async function markTokenUsed(token) {
       ExpressionAttributeValues: marshall({ ':t': true, ':at': new Date().toISOString() }),
     }));
   } catch (err) {
-    console.error('Failed to mark token as used — token may be reusable', { token, error: err.message });
+    console.error('Failed to mark token as used — token may be reusable', { ...ids, error: err.name });
   }
 }
 
@@ -327,6 +327,6 @@ async function publishVotingCompleted({ candidateId, tenantId, result, averageSc
       }],
     }));
   } catch (err) {
-    console.error('Failed to publish VotingCompleted', { candidateId, result, error: err.message });
+    console.error('Failed to publish VotingCompleted', { candidateId, result, error: err.name });
   }
 }

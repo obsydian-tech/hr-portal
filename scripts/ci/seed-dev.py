@@ -1098,6 +1098,55 @@ def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
     return 4
 
 
+def seed_int03(ddb, tenant_id: str) -> int:
+    """INT-03: put the old-path scoring link the dev check votes through back every run (INT-03.md AC-4).
+
+    One throwaway candidate with a fixed id: its SAGA row (with the active SCORING_WEIGHTS version), one interview that needs 99 votes
+    (so one vote never reaches a quorum and nothing publishes VotingCompleted), and the old-path link rows, unused. The votes the last
+    run left are deleted. Not on reset-dev-rec04.py's list (it runs before the main run). Idempotent.
+    """
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "int-03" / "dev-ids.json").read_text())
+    cid, iv_id, token, pm = ids["candidate"], ids["interview"], ids["token"], ids["panelMember"]
+    now = "2026-11-10T08:00:00.000Z"
+    ttl = int(time.time()) + 7 * 86400
+    expires = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(ttl))
+    pk = f"CANDIDATE#{cid}"
+    stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                      ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "VOTE#"}}, ProjectionExpression="PK, SK")
+    for item in stale.get("Items", []):
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": "SAGA"},
+        "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+        "firstName": {"S": "Int"}, "lastName": {"S": "Seed-Token"},
+        "email": {"S": f"pepla-demo-int.seed-token@{MAIL_DOMAIN}"},
+        "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+        "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+        "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+        "configVersion": {"S": active_config_version(ddb, tenant_id, "SCORING_WEIGHTS")},
+        "votesSubmitted": {"N": "0"},
+        "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"},
+        "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "votesRequired": {"N": "99"}, "votesSubmitted": {"N": "0"},
+        "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+    })
+    link = {
+        "token": {"S": token}, "candidateId": {"S": cid}, "tenantId": {"S": tenant_id}, "tenant_id": {"S": tenant_id},
+        "panelMemberId": {"S": pm}, "panelMemberEmail": {"S": f"pepla-demo-guest@{MAIL_DOMAIN}"},
+        "panelMemberName": {"S": "Int Seed Guest"}, "panelMemberRole": {"S": "Guest"}, "interviewId": {"S": iv_id},
+        "createdBy": {"S": "seed-dev"}, "createdAt": {"S": now}, "expiresAt": {"S": expires}, "ttl": {"N": str(ttl)},
+        "used": {"BOOL": False}, "seed": {"S": SEED_TAG},
+    }
+    ddb.put_item(TableName=STATE_TABLE, Item={"PK": {"S": f"SCORING_LINK#{token}"}, "SK": {"S": "META"}, **link})
+    ddb.put_item(TableName=STATE_TABLE, Item={"PK": {"S": pk}, "SK": {"S": f"SCORING_LINK#{token}"}, **link})
+    return 4
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -1193,6 +1242,11 @@ def main() -> None:
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-07 rows were not written")
         rec07_written = 0
+
+    try:
+        seed_int03(ddb, tid)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the INT-03 rows were not written")
 
     try:
         rec05_written = seed_rec05(ddb, tid, user_sub(cognito, naleko, "hr"))
