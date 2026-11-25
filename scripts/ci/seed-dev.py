@@ -1078,6 +1078,8 @@ def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
             "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "currentStage": {"S": "OFFER"}, "stageEnteredAt": {"S": now},
             "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
         })
+    # If the dev test stops before its last withdraw, this lock stays and every later run gets 409 OFFER_EXISTS. Clear it each run.
+    ddb.delete_item(TableName=STATE_TABLE, Key={"PK": {"S": f"TENANT#{tenant_id}#OFFER_LIVE#{ids['candidate']}"}, "SK": {"S": "LOCK"}})
     oid = ids["draftOffer"]
     ddb.put_item(TableName=STATE_TABLE, Item={
         "PK": {"S": f"OFFER#{oid}"}, "SK": {"S": "OFFER"}, "offer_id": {"S": oid}, "tenant_id": {"S": tenant_id}, "candidate_id": {"S": ids["draftCandidate"]},
