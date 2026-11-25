@@ -20,6 +20,7 @@ import { ownsRow, stampTenant, tenantKey } from '../tenant.mjs';
 import { canDecide, isManager, isRecruiter, hiringManagerOf } from '../recruitment-access.mjs';
 import { DEFAULTS, REASONS, getRecruitmentSettings } from '../recruitment-settings.mjs';
 import { normaliseStage } from '../recruitment-stages.mjs';
+import { decisionDeciderOf } from './candidate-progress.mjs';
 
 const db = new DynamoDBClient({});
 const bus = new EventBridgeClient({});
@@ -64,7 +65,7 @@ async function rulesFor(tenantId, row) {
   const settings = await getRecruitmentSettings(tenantId, row);
   const rules = settings.REJECTION_RULES ?? DEFAULTS.REJECTION_RULES;
   const level = row.positionLevel;
-  return { decider: rules.decider?.[level] ?? 'HR_ONLY', second: rules.secondConfirmation?.[level] === true };
+  return { decider: decisionDeciderOf(settings, row), second: rules.secondConfirmation?.[level] === true };
 }
 
 /** null when the caller may decide; the hiring manager who may not (HR_ONLY) is told 403, anyone else with no relation 404. */

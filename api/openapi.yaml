@@ -689,6 +689,257 @@ components:
           - limit
           - mine
           - nextToken
+    CandidateRecord:
+      type: object
+      description: REC-15 step C. One candidate, an explicit list of fields (rule 12 and 18). No internal key, no offer and no salary.
+      additionalProperties: false
+      required:
+      - id
+      - candidateId
+      - stage
+      - role_id
+      - role_title
+      - level
+      - applied_at
+      - can_move
+      - can_decide
+      properties:
+        id:
+          type: string
+        candidateId:
+          type: string
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        positionTitle:
+          type: string
+          nullable: true
+        positionLevel:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        hiringManagerId:
+          type: string
+          nullable: true
+        appliedDate:
+          type: string
+          nullable: true
+        currentStage:
+          type: string
+          nullable: true
+        stageEnteredAt:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        slaStatus:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          nullable: true
+        currentInterviewId:
+          type: string
+          nullable: true
+        workflowTemplateId:
+          type: string
+          nullable: true
+        configVersion:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          nullable: true
+        slaBreachedAt:
+          type: string
+          nullable: true
+        interviewSentiment:
+          type: string
+          nullable: true
+        engagementSentiment:
+          type: string
+          nullable: true
+        acceptanceSentiment:
+          type: string
+          nullable: true
+        evaluationResult:
+          type: string
+          nullable: true
+        decided_by_kind:
+          type: string
+          nullable: true
+        experienceYears:
+          type: number
+          nullable: true
+        engagementScore:
+          type: number
+          nullable: true
+        finalScore:
+          type: number
+          nullable: true
+        stage:
+          type: string
+          enum:
+          - APPLIED
+          - SCREENING
+          - INTERVIEW
+          - OFFER
+          - HIRED
+          - NOT_HIRED
+        role_id:
+          type: string
+          nullable: true
+        role_title:
+          type: string
+          nullable: true
+        level:
+          type: string
+          nullable: true
+        applied_at:
+          type: string
+          nullable: true
+        stage_entered_at:
+          type: string
+          nullable: true
+        due_at:
+          type: string
+          nullable: true
+        sla_status:
+          type: string
+          nullable: true
+          enum:
+          - ON_TRACK
+          - DUE_SOON
+          - OVERDUE
+          - null
+        department_id:
+          type: string
+          nullable: true
+        department:
+          type: string
+          nullable: true
+          description: The department's current name (by department_id), else the stored text.
+        source:
+          type: string
+          nullable: true
+        next_step:
+          $ref: '#/components/schemas/NextStep'
+        interviews_done:
+          type: integer
+          minimum: 0
+          nullable: true
+        interviews_required:
+          type: integer
+          minimum: 0
+          nullable: true
+        legacy_hired:
+          type: boolean
+        employee_id:
+          type: string
+        added_by:
+          type: string
+        can_move:
+          type: boolean
+        can_decide:
+          type: boolean
+        settingVersions:
+          type: object
+          description: The setting versions this candidate is held to (Recruiter only).
+          additionalProperties: false
+          properties:
+            STAGE_CONFIG:
+              type: integer
+            SENIORITY_PROFILES:
+              type: integer
+            INTERVIEW_TYPES:
+              type: integer
+            PANEL_CONFIG:
+              type: integer
+            SCORING_WEIGHTS:
+              type: integer
+            REJECTION_RULES:
+              type: integer
+            APPROVAL_RULES:
+              type: integer
+            SLA_THRESHOLDS:
+              type: integer
+            SENTIMENT_SCALE:
+              type: integer
+            EMAIL_TEMPLATES:
+              type: integer
+            INTELLIGENCE_RULES:
+              type: integer
+            RETENTION:
+              type: integer
+    NextStep:
+      type: object
+      nullable: true
+      description: REC-15 rule 14. Codes and numbers only. null on Offer, Hired and Not hired.
+      additionalProperties: false
+      required:
+      - from
+      - to
+      - blocker
+      properties:
+        from:
+          type: string
+          enum:
+          - APPLIED
+          - SCREENING
+          - INTERVIEW
+          - OFFER
+          - HIRED
+          - NOT_HIRED
+        to:
+          type: string
+          enum:
+          - APPLIED
+          - SCREENING
+          - INTERVIEW
+          - OFFER
+          - HIRED
+          - NOT_HIRED
+        blocker:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required:
+          - code
+          - done
+          - total
+          properties:
+            code:
+              type: string
+              enum:
+              - INTERVIEWS_INCOMPLETE
+            done:
+              type: integer
+              minimum: 0
+            total:
+              type: integer
+              minimum: 0
+    ServerError:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          type: string
+          enum:
+          - Something went wrong
     NewCandidate:
       type: object
       description: REC-15 step B. The body of POST /v1/candidates. The company, title, level, department and hiring manager come from the role, never from here.
@@ -5355,6 +5606,16 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateRecord'
+        '500':
+          description: Something went wrong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerError'
         '403':
           description: Forbidden
           content:
