@@ -12,6 +12,7 @@ import { LIST_LAMBDAS, ROUTES, type Route } from './support/rec-01/routes';
 import { isCardGrant } from './support/ten-04.2/grants';
 import { isRec07Grant } from './support/rec-07.1/grants';
 import { isRec15bGrant } from './support/rec-15b.1/grants';
+import { isRec15cGrant } from './support/rec-15c.1/grants'; // child lock rec-15c.1
 
 /**
  * REC-01 · Recruitment role checks: every action says who may do it (Jira NH-235, epic NH-234). Red.
@@ -264,9 +265,10 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
     // Hiding: a hiring manager keeps everything on their candidates except salary.
     const hmOne = bodyOf(okOwn);
     const recOne = bodyOf(open(C.recruiter, ID.c1));
-    if (!('salary' in recOne) || !('offer' in recOne)) wrong.push('the Recruiter still sees salary and offer on C1 (the fixture holds both)');
+    // Child lock rec-15c.1 (REC-15 rule 12): the record is an explicit list with no offer and no salary for anyone; the offer is read on its own route.
+    if (keysDeep(recOne).some((k) => /salary|offer/i.test(k))) wrong.push('the Recruiter\'s candidate read holds no salary or offer field (REC-15 rule 12)');
     if (keysDeep(hmOne).some((k) => /salary/i.test(k))) wrong.push(`the hiring manager's candidate read has no salary field (got keys ${keysDeep(hmOne).filter((k) => /salary/i.test(k)).join(', ')})`);
-    if (hmOne?.offer?.state !== 'OFFER_CREATED') wrong.push('the hiring manager keeps the rest of the offer fields on their candidate (offer.state)');
+    if (keysDeep(hmOne).some((k) => /offer/i.test(k))) wrong.push('the hiring manager\'s candidate read holds no offer field (REC-15 rule 12; the offer route below gives its state)');
     for (const k of ['firstName', 'lastName', 'email', 'currentStage', 'hiringManagerId']) if (hmOne?.[k] !== recOne?.[k]) wrong.push(`the hiring manager keeps ${k}`);
     const hmOffer = run(routeOf('getOffer'), C.hmC1);
     if (keysDeep(bodyOf(hmOffer)).some((k) => /salary/i.test(k))) wrong.push('the hiring manager\'s offer has no salary field (baseSalary is salary)');
@@ -555,7 +557,7 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
         // REC-15 (child lock rec-04.3): getCandidates reads the company's stage hours for the list's clock (rec-15.spec.ts AC-17 pins it).
         if (/get_candidates$|getCandidates$/.test(key) && /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/.test(p)) continue;
         // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
-        if (isRec07Grant(p, key) || isRec15bGrant(p, key)) continue;
+        if (isRec07Grant(p, key) || isRec15bGrant(p, key) || isRec15cGrant(p, key)) continue; // child lock rec-15c.1
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null'), `role policy ${key}: new grant "${p}" is not allowed (only GetItem on the tenants table, which TEN-03 and MOD-01 own)`).toBe(true);
       }
       expect.soft((was.pairs ?? []).filter((p) => !(cur.pairs ?? []).includes(p)), `role policy ${key}: nothing it had is taken away`).toEqual([]);

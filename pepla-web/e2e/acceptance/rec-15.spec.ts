@@ -15,6 +15,7 @@ import {
 import { isRec07Grant } from './support/rec-07.1/grants';
 import { isRec05Grant } from './support/rec-05.1/grants'; // child lock rec-05.1
 import { isRec15bGrant } from './support/rec-15b.1/grants';
+import { isRec15cGrant } from './support/rec-15c.1/grants'; // child lock rec-15c.1
 
 /**
  * REC-15 step A · The candidate lists answer what the screens draw, from one stage clock (amber). Spec:
@@ -739,7 +740,7 @@ test.describe('REC-15 step A · The candidate lists, from one stage clock', () =
         expect.soft(lost, 'getCandidates loses nothing').toEqual([]);
       } else {
         // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
-        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec15bGrant(l, k) && !isRec05Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec05Grant: child lock rec-05.1
+        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec15bGrant(l, k) && !isRec05Grant(l, k) && !isRec15cGrant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec05Grant: child lock rec-05.1; && isRec15cGrant: // child lock rec-15c.1
       }
     }
     const mine = [...(is.get(`${fn!.stack}/${role_}`) ?? [])];

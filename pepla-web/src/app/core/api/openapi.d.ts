@@ -2224,6 +2224,92 @@ export interface components {
             /** @enum {string} */
             field?: "stage" | "sla_status" | "search" | "limit" | "mine" | "nextToken";
         };
+        /** @description REC-15 step C. One candidate, an explicit list of fields (rule 12 and 18). No internal key, no offer and no salary. */
+        CandidateRecord: {
+            id: string;
+            candidateId: string;
+            firstName?: string | null;
+            lastName?: string | null;
+            email?: string | null;
+            phone?: string | null;
+            positionTitle?: string | null;
+            positionLevel?: string | null;
+            location?: string | null;
+            hiringManagerId?: string | null;
+            appliedDate?: string | null;
+            currentStage?: string | null;
+            stageEnteredAt?: string | null;
+            status?: string | null;
+            slaStatus?: string | null;
+            createdAt?: string | null;
+            currentInterviewId?: string | null;
+            workflowTemplateId?: string | null;
+            configVersion?: string | null;
+            updatedAt?: string | null;
+            slaBreachedAt?: string | null;
+            interviewSentiment?: string | null;
+            engagementSentiment?: string | null;
+            acceptanceSentiment?: string | null;
+            evaluationResult?: string | null;
+            decided_by_kind?: string | null;
+            experienceYears?: number | null;
+            engagementScore?: number | null;
+            finalScore?: number | null;
+            /** @enum {string} */
+            stage: "APPLIED" | "SCREENING" | "INTERVIEW" | "OFFER" | "HIRED" | "NOT_HIRED";
+            role_id: string | null;
+            role_title: string | null;
+            level: string | null;
+            applied_at: string | null;
+            stage_entered_at?: string | null;
+            due_at?: string | null;
+            /** @enum {string|null} */
+            sla_status?: "ON_TRACK" | "DUE_SOON" | "OVERDUE" | null;
+            department_id?: string | null;
+            /** @description The department's current name (by department_id), else the stored text. */
+            department?: string | null;
+            source?: string | null;
+            next_step?: components["schemas"]["NextStep"];
+            interviews_done?: number | null;
+            interviews_required?: number | null;
+            legacy_hired?: boolean;
+            employee_id?: string;
+            added_by?: string;
+            can_move: boolean;
+            can_decide: boolean;
+            /** @description The setting versions this candidate is held to (Recruiter only). */
+            settingVersions?: {
+                STAGE_CONFIG?: number;
+                SENIORITY_PROFILES?: number;
+                INTERVIEW_TYPES?: number;
+                PANEL_CONFIG?: number;
+                SCORING_WEIGHTS?: number;
+                REJECTION_RULES?: number;
+                APPROVAL_RULES?: number;
+                SLA_THRESHOLDS?: number;
+                SENTIMENT_SCALE?: number;
+                EMAIL_TEMPLATES?: number;
+                INTELLIGENCE_RULES?: number;
+                RETENTION?: number;
+            };
+        };
+        /** @description REC-15 rule 14. Codes and numbers only. null on Offer, Hired and Not hired. */
+        NextStep: {
+            /** @enum {string} */
+            from: "APPLIED" | "SCREENING" | "INTERVIEW" | "OFFER" | "HIRED" | "NOT_HIRED";
+            /** @enum {string} */
+            to: "APPLIED" | "SCREENING" | "INTERVIEW" | "OFFER" | "HIRED" | "NOT_HIRED";
+            blocker: {
+                /** @enum {string} */
+                code: "INTERVIEWS_INCOMPLETE";
+                done: number;
+                total: number;
+            } | null;
+        } | null;
+        ServerError: {
+            /** @enum {string} */
+            error: "Something went wrong";
+        };
         /** @description REC-15 step B. The body of POST /v1/candidates. The company, title, level, department and hiring manager come from the role, never from here. */
         NewCandidate: {
             first_name: string;
@@ -6925,7 +7011,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CandidateRecord"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -6959,6 +7047,15 @@ export interface operations {
                         /** @example Not found */
                         error?: string;
                     };
+                };
+            };
+            /** @description Something went wrong */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerError"];
                 };
             };
         };

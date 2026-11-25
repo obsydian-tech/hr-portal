@@ -189,6 +189,22 @@ export async function getRecruitmentSettings(tenantId, candidate) {
   return out;
 }
 
+/**
+ * REC-15 step C (spec check C-2): the settings a candidate is held to, for a read. The same versions getRecruitmentSettings gives
+ * (the lock where there is one, else the active version), but it never writes: an unlocked row stays unlocked. Also gives the active
+ * data (the stage clock reads the active SLA_THRESHOLDS, as the list does).
+ */
+export async function settingsForRead(tenantId, candidate) {
+  const active = await activeItems(tenantId);
+  const lock = candidate?.settingVersions ?? {};
+  const settings = {};
+  for (const t of Object.keys(active)) {
+    if (lock[t] === undefined || lock[t] === active[t].version) { settings[t] = active[t].data; continue; }
+    settings[t] = (await versionItem(tenantId, t, lock[t]))?.data ?? active[t].data;
+  }
+  return { settings, active: Object.fromEntries(Object.entries(active).map(([t, i]) => [t, i.data])) };
+}
+
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const fill = (text, values, escape) => String(text ?? '').replace(/\{([a-z_]+)\}/g, (_m, k) => { const v = values && Object.prototype.hasOwnProperty.call(values, k) ? values[k] : undefined; return v === undefined || v === null ? '' : escape ? esc(v) : String(v); });
 export function renderTemplate(template, values = {}) {

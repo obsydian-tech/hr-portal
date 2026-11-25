@@ -25,6 +25,7 @@ import { ownsRow, stampTenant } from '../tenant.mjs';
 import { canDecide, isManager, isRecruiter, hiringManagerOf } from '../recruitment-access.mjs';
 import { getRecruitmentSettings } from '../recruitment-settings.mjs';
 import { STAGE_CODES, normaliseStage, openStages } from '../recruitment-stages.mjs';
+import { moveDeciderOf, requiredInterviews } from './candidate-progress.mjs';
 
 const db = new DynamoDBClient({});
 const bus = new EventBridgeClient({});
@@ -101,12 +102,10 @@ export async function moveCandidate(ctx, { candidateId, to, reason }) {
   if (!list.includes(from) || !list.includes(to) || Math.abs(step) !== 1) return bad('NOT_NEXT_STAGE');
 
   if (gate) {
-    const decider = settings.REJECTION_RULES?.decider?.[row.positionLevel] ?? 'HR_ONLY';
-    if (!canDecide(ctx.event, row, decider)) return forbidden();
-    const required = settings.INTERVIEW_TYPES?.requiredByLevel?.[row.positionLevel] ?? [];
-    if (required.length > 0) {
+    if (!canDecide(ctx.event, row, moveDeciderOf(settings, row))) return forbidden();
+    if (requiredInterviews(settings, row, new Set()).total > 0) {
       const done = await completedInterviewTypes(ctx.tenantId, candidateId);
-      if (required.some((type) => !done.has(type))) return conflict('INTERVIEWS_INCOMPLETE');
+      if (requiredInterviews(settings, row, done).incomplete) return conflict('INTERVIEWS_INCOMPLETE');
     }
   }
   if (step < 0 && from === 'OFFER' && (await hasLiveOffer(ctx.tenantId, candidateId))) return conflict('OFFER_LIVE');
