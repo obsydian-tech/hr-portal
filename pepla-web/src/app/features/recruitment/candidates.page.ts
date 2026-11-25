@@ -1,17 +1,19 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
-import { PpButton, PpField, PpPageHeader, PpSearch, PpSectionMessage, PpSectionMessageActions, PpSelect, PpTabs, type Tab } from '../../ds';
+import { PpButton, PpField, PpPageHeader, PpPageHeaderActions, PpSearch, PpSectionMessage, PpSectionMessageActions, PpSelect, PpTabs, type Tab } from '../../ds';
 import { CandidateList } from './candidate-list';
+import { AddCandidateDrawer } from './add-candidate.drawer';
 import { ListState } from './candidate-list-state';
 
 /** Candidates (REC-UI-02 rule 2): anyone who applied, in any stage. */
 @Component({
   selector: 'app-candidates-page',
-  imports: [CandidateList, PpButton, PpField, PpPageHeader, PpSearch, PpSectionMessage, PpSectionMessageActions, PpSelect, PpTabs],
+  imports: [AddCandidateDrawer, CandidateList, PpButton, PpField, PpPageHeader, PpPageHeaderActions, PpSearch, PpSectionMessage, PpSectionMessageActions, PpSelect, PpTabs],
   providers: [ListState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-200">
-      <pp-page-header heading="Candidates" description="Find anyone who applied, in any stage." />
+      <pp-page-header heading="Candidates" description="Find anyone who applied, in any stage."><pp-page-header-actions><button ppButton appearance="primary" icon="user-plus" type="button" (click)="adder.openIt()">Add candidate</button></pp-page-header-actions></pp-page-header>
+      <app-add-candidate #adder [startRole]="s.role" (added)="s.load()" />
       <pp-tabs label="Views" [tabs]="tabs()" [selected]="s.tab" (selectedChange)="pickTab($event)" [panel]="false" />
       <div class="pp-inline pp-inline--bottom pp-gap-150">
         <pp-search label="Search by name, email or role" placeholder="Search by name, email or role" size="small" [value]="s.search" (valueChange)="pickSearch($event)" />

@@ -2,12 +2,13 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, si
 import { Router } from '@angular/router';
 import { PpButton, PpButtonGroup, PpField, PpPageHeader, PpPageHeaderActions, PpSearch, PpSectionMessage, PpSectionMessageActions, PpSelect, PpTabs, type Tab } from '../../ds';
 import { CandidateList } from './candidate-list';
+import { AddCandidateDrawer } from './add-candidate.drawer';
 import { ListState } from './candidate-list-state';
 
 /** The Pipeline list (REC-UI-02 rule 2): all roles or one, the List | Board switch, "Not hired {n}". */
 @Component({
   selector: 'app-pipeline-list',
-  imports: [CandidateList, PpButton, PpButtonGroup, PpField, PpPageHeader, PpPageHeaderActions, PpSearch, PpSectionMessage, PpSectionMessageActions, PpSelect, PpTabs],
+  imports: [AddCandidateDrawer, CandidateList, PpButton, PpButtonGroup, PpField, PpPageHeader, PpPageHeaderActions, PpSearch, PpSectionMessage, PpSectionMessageActions, PpSelect, PpTabs],
   providers: [ListState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -15,8 +16,10 @@ import { ListState } from './candidate-list-state';
       <pp-page-header heading="Pipeline" [description]="s.counts().all + ' candidates'">
         <pp-page-header-actions>
           <pp-button-group aria-label="View"><button ppButton type="button" icon="list" [pressed]="true">List</button><button ppButton type="button" icon="columns-3" [pressed]="false" [disabled]="!s.role" (click)="board()">Board</button></pp-button-group>
+          <button ppButton appearance="primary" icon="user-plus" type="button" (click)="adder.openIt()">Add candidate</button>
         </pp-page-header-actions>
       </pp-page-header>
+      <app-add-candidate #adder [startRole]="s.role" (added)="s.load()" />
       <pp-tabs label="Views" [tabs]="tabs()" [selected]="s.tab" (selectedChange)="pickTab($event)" [panel]="false" />
       <div class="pp-inline pp-inline--bottom pp-gap-100">
         <pp-search label="Search by name, email or role" placeholder="Search by name, email or role" size="small" [value]="s.search" (valueChange)="pickSearch($event)" />
