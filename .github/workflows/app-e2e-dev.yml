@@ -304,6 +304,14 @@ jobs:
         # documents earlier in this run, and AC-8 needs one still to give.
         run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev|AC-13 @pepla-dev The Recruiter sees Roles|ONB-10 Due dates and Overdue.*AC-8 pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev"
 
+      # REC-01 AC-9 expects the manager login to be hiring manager for exactly one candidate. Read only: list which rows the manager has,
+      # so a second one can be named (ids and dates only). Writes nothing.
+      - name: Show the manager login's candidates (read only)
+        if: ${{ !cancelled() }}
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/show-manager-candidates.py
+
       # Ask Batsi is off for every company until an admin turns it on (CHAT-02), and the seed puts the dev companies back
       # to their modules on each run. The walk needs it on for company A and for the walk company (its "company B"):
       # with it off every chat route answers 403 to both, and the walk could prove nothing about them.
