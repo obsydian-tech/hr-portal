@@ -993,9 +993,9 @@ resource "aws_iam_role_policy" "get_candidate" {
       },
       {
         # REC-15 step C: the record reads the role's title and the candidate's settings (never writes them).
-        Sid      = "RecordReads"
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem"]
+        Sid    = "RecordReads"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem"]
         Resource = [
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_roles}",
           "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}",
