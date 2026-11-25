@@ -151,6 +151,9 @@ exports.handler = async (event) => {
       out.can_decide = false;
       return respond(200, out);
     }
+    for (const k of ['strong_no_count', 'reason_code', 'decided_by', 'stage_before_not_hired', 'legacy_stage']) {
+      if (row[k] !== undefined) out[k] = row[k];
+    }
     out.can_move = relation === 'recruiter' ? open : stage === 'INTERVIEW' && RA.canDecide(event, row, decider.move);
     out.can_decide = stage !== 'HIRED' && RA.canDecide(event, row, decider.decide);
 

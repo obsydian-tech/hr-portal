@@ -777,6 +777,16 @@ components:
         evaluationResult:
           type: string
           nullable: true
+        strong_no_count:
+          type: integer
+        reason_code:
+          type: string
+        decided_by:
+          type: string
+        stage_before_not_hired:
+          type: string
+        legacy_stage:
+          type: string
         decided_by_kind:
           type: string
           nullable: true
