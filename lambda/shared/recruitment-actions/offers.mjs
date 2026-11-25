@@ -281,7 +281,7 @@ export async function createOffer(ctx, body) {
   const at = new Date().toISOString();
   const offerId = `offer-${randomUUID()}`;
   const row = stampTenant({
-    ...offerKey(offerId), offer_id: offerId, candidate_id: candidateId, role_id: saga.role_id ?? null,
+    ...offerKey(offerId), offer_id: offerId, candidate_id: candidateId, ...(saga.role_id ? { role_id: saga.role_id } : {}), // role_id is a table index key: a null there is refused
     candidate_name: [saga.firstName, saga.lastName].filter(Boolean).join(' ') || null, role_title: role?.job_title ?? null, department,
     state: 'DRAFT', version: 1, salary, currency: currency ?? 'ZAR', start_date: start, expiry_date: expiry, ...(benefits !== undefined ? { benefits } : {}),
     drafted_by: ctx.personId, drafted_by_name: ctx.personName, created_at: at, updated_at: at, approval_history: [],
