@@ -90,7 +90,9 @@ test.describe('AC-1 Entry and guard', () => {
     const hire = await page.locator('pp-side-navigation .pp-side-navigation__section').evaluateAll((sections) =>
       sections.map((s) => ({ heading: (s.querySelector('.pp-side-navigation__heading')?.textContent ?? '').trim(), items: [...s.querySelectorAll('a.pp-side-navigation__item')].map((x) => ({ label: (x.querySelector('.pp-side-navigation__label')?.textContent ?? '').trim(), href: x.getAttribute('href') })) }))
         .find((s) => s.heading === 'Hire'));
-    expect(hire?.items, 'Roles, Pipeline, Candidates under Hire').toEqual([{ label: 'Roles', href: '/hire/roles' }, { label: 'Pipeline', href: '/hire/pipeline' }, { label: 'Candidates', href: '/hire/candidates' }]);
+    expect(hire?.items.slice(0, 3), 'Roles, Pipeline, Candidates under Hire').toEqual([{ label: 'Roles', href: '/hire/roles' }, { label: 'Pipeline', href: '/hire/pipeline' }, { label: 'Candidates', href: '/hire/candidates' }]);
+    // Child lock rec-ui-02.2 (REC-UI-04): after Candidates the only entry allowed is Offers.
+    expect([[], [{ label: 'Offers', href: '/hire/offers' }]], 'after Candidates, nothing or Offers only').toContainEqual(hire?.items.slice(3));
     expect(await drawsIcon(navItems(page).filter({ hasText: /^Candidates$/ }), 'user-search'), 'Candidates draws the kit icon').toBe(true);
     await navItems(page).filter({ hasText: /^Candidates$/ }).click();
     await expect(page).toHaveURL(/\/hire\/candidates$/);
