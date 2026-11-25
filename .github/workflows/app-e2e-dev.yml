@@ -291,6 +291,14 @@ jobs:
           npm ci --prefix scripts
           npm ci --prefix lambda/shared
 
+      # REC-01 AC-9 expects the manager login to be hiring manager for exactly one candidate. A candidate a test added on a role it opened
+      # stays on dev after the run, so clear it (and put the seeded hiring board back) before the main run starts.
+      - name: Clear leftover candidates before the main run
+        if: ${{ !cancelled() }}
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/reset-dev-rec04.py
+
       - name: Run new app acceptance tests
         id: acceptance
         if: ${{ !cancelled() }}
