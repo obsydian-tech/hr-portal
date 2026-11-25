@@ -321,6 +321,15 @@ jobs:
           pip install --quiet boto3
           python3 scripts/ci/show-manager-candidates.py
 
+      # REC-05 AC-11 got 409 OFFER_EXISTS on the seeded candidate. Read only: print its lock, old-shape and offer rows (keys, state,
+      # version, dates; no names, emails or salary), right after the main run. Writes nothing.
+      - name: Show the REC-05 seeded candidate's offer rows (after the main run, read only)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/show-offer-rows.py
+
       # Ask Batsi is off for every company until an admin turns it on (CHAT-02), and the seed puts the dev companies back
       # to their modules on each run. The walk needs it on for company A and for the walk company (its "company B"):
       # with it off every chat route answers 403 to both, and the walk could prove nothing about them.
@@ -354,6 +363,15 @@ jobs:
           export E2E_HR_B_EMAIL="$E2E_HR_C_EMAIL" E2E_HR_B_PASSWORD="$E2E_HR_C_PASSWORD"
           # list reporter only: the JSON report of the main run above is the one the PR comment reads
           npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "company B walk on pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev|REC-05 .* AC-11 The test logins on pepla-dev"
+
+      # REC-05 AC-11 got 409 OFFER_EXISTS on the seeded candidate. Read only: print its lock, old-shape and offer rows (keys, state,
+      # version, dates; no names, emails or salary), right after the company walk. Writes nothing.
+      - name: Show the REC-05 seeded candidate's offer rows (after the company walk, read only)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          pip install --quiet boto3
+          python3 scripts/ci/show-offer-rows.py
 
       # REC-UI-01 AC-13: the Recruiter test records the seeded candidate Tendai Ncube as Not hired, and the seed only runs once per
       # run. In the main run the phone project came second and found no Tendai in Interview. So the test runs here, once per project,
