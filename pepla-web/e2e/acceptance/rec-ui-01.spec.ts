@@ -621,13 +621,16 @@ test.describe('AC-4 The board', () => {
     await expect(h1(page)).toHaveText('Fleet controller');
   });
 
-  test('AC-4 Add candidate is hidden until REC-UI-02 is on, so the board has no primary button', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
+  // Child lock rec-ui-01.5 (REC-UI-02 step 2, NH-228): Add candidate is built (spec REC-UI-02-next-slice.md rule 1), so the board's
+  // one primary button is now "Add candidate"; its drawer is judged in rec-ui-02-add.spec.ts.
+  test('AC-4 The board\'s one primary button is Add candidate (REC-UI-02 step 2)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
     const { page } = fx;
     await asRecruiter(fx);
     const scope = await openBoard(fx);
-    await expect(either(page, /add candidate/i, false), 'no Add candidate button').toHaveCount(0);
-    await expect(scope.locator('.pp-button--primary'), 'no primary button on the board').toHaveCount(0);
+    await expect(scope.getByRole('button', { name: 'Add candidate', exact: true }), 'one Add candidate button').toHaveCount(1);
+    await expect(scope.locator('.pp-button--primary'), 'one primary button on the board').toHaveCount(1);
+    await expect(scope.locator('.pp-button--primary')).toHaveAccessibleName('Add candidate');
   });
 
   test('AC-4 A failing read shows the generic could-not-be-loaded state with Try again, never cards, and Try again reads once more', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
