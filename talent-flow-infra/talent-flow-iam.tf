@@ -573,6 +573,13 @@ resource "aws_iam_role_policy" "monitor_slas" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
+        # REC-05: the offer expiry skips a company with Recruitment off (lambda/shared/modules.mjs).
+        Sid      = "ReadCompanyModules"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"
+      },
+      {
         Sid    = "ConfigTableRead"
         Effect = "Allow"
         Action = ["dynamodb:GetItem", "dynamodb:Query"]

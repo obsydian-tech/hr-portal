@@ -1064,6 +1064,33 @@ def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
     return written + 3
 
 
+def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
+    """REC-05: put the offer rows back every run (cards/rec-05.md, "REC-05 dev seed"). Idempotent."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-05" / "dev-ids.json").read_text())
+    if not hr_sub:
+        print("warning: the HR login has no sub; the REC-05 rows were not written")
+        return 0
+    now = "2026-11-20T08:00:00.000Z"
+    for cid, first in ((ids["candidate"], "Seed-Offer"), (ids["draftCandidate"], "Seed-Draft")):
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": "Rec"}, "lastName": {"S": first},
+            "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "currentStage": {"S": "OFFER"}, "stageEnteredAt": {"S": now},
+            "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+        })
+    oid = ids["draftOffer"]
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"OFFER#{oid}"}, "SK": {"S": "OFFER"}, "offer_id": {"S": oid}, "tenant_id": {"S": tenant_id}, "candidate_id": {"S": ids["draftCandidate"]},
+        "candidate_name": {"S": "Rec Seed-Draft"}, "role_title": {"S": "Demo role"}, "department": {"S": "Operations"}, "state": {"S": "DRAFT"}, "version": {"N": "1"},
+        "salary": {"N": "350000"}, "currency": {"S": "ZAR"}, "start_date": {"S": ids["startDate"]}, "expiry_date": {"S": ids["expiryDate"]},
+        "drafted_by": {"S": hr_sub}, "drafted_by_name": {"S": "Thandi Demo-HR"}, "created_at": {"S": now}, "updated_at": {"S": now},
+        "approval_history": {"L": []}, "history": {"L": []}, "GSI2PK": {"S": f"TENANT#{tenant_id}#OFFER"}, "GSI2SK": {"S": f"{now}#{oid}"}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={"PK": {"S": f"TENANT#{tenant_id}#OFFER_LIVE#{ids['draftCandidate']}"}, "SK": {"S": "LOCK"},
+                                               "tenant_id": {"S": tenant_id}, "live_offer_id": {"S": oid}})
+    return 4
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
     if account != DEV_ACCOUNT:
@@ -1154,6 +1181,12 @@ def main() -> None:
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-07 rows were not written")
         rec07_written = 0
+
+    try:
+        rec05_written = seed_rec05(ddb, tid, user_sub(cognito, naleko, "hr"))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-05 rows were not written")
+        rec05_written = 0
 
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
