@@ -6,6 +6,7 @@ import { LAMBDA, REPO, httpEvent, type Tables } from './support/rec-02/lambda-ha
 import { STACKS, filesOf, lambdaNamed, policyLines, resourcesOf, roleResourceOf, valueOf, type Stack } from './support/rec-02/iam';
 import { A, B, ID, SUB, TABLE, ask, bodyOf, describe, isModulesRead, runEvent, statusOf } from './support/rec-02/world';
 import { C } from './support/rec-02/callers';
+import { isRec05Role } from './support/rec-05.1/grants'; // child lock rec-05.1
 import {
   CANDIDATE_ROUTES, CLOSED, HANDLER, LIVE_OFFER, OLD_OPEN, OLD_ROWS, OPEN, OTHER_VOTERS, PANEL5, R, REASONS, ROLE_ID, ROUTE, TOKENS,
   anyWrite, awsOf, byLevel, call, candidate, changedRows, eventsOf, historyOf, logsOf, notHired, offerRow, sagaOf, stateWrites, votesOf, withRules, world,
@@ -819,6 +820,7 @@ test.describe('REC-02 · A person decides: no automatic Not hired, and a Not hir
       if (cur.stack === stack && cur.role === role) continue;
       if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): the roles Lambda's own role writes the roles table, judged in rec-04.spec.ts AC-8.
       if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): the department list's own role, judged in rec-14.spec.ts AC-3.
+      if (isRec05Role(key, cur.role)) continue; // REC-05 (child lock rec-05.1): the offers Lambda's own role writes the state table, judged in rec-05.spec.ts AC-10.
       const was = writesOf(baseline[key]);
       const gained = [...writesOf(cur)].filter((l) => !was.has(l));
       expect.soft(gained, `${key}: no new write grant`).toEqual([]);

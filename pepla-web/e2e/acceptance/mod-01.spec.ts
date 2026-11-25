@@ -18,6 +18,7 @@ import { isCardGrant } from './support/ten-04.2/grants';
 import { MARKETPLACE_DEV_KEY, marketplaceDev } from './support/marketplace-dev/grant';
 import { ownerLinkGrant } from './support/onb-11/owner-link';
 import { isRec07Grant } from './support/rec-07.1/grants';
+import { OLD_ROUTE, isOldOfferWrite, isRec05Grant, isRec05Role } from './support/rec-05.1/grants'; // child lock rec-05.1
 import { isRec15bGrant } from './support/rec-15b.1/grants';
 
 /**
@@ -235,7 +236,9 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       expect.soft(calls(c).some((x) => !isModulesRead(x)), `${route.name} as company C: the handler goes on to its own work (got ${callLines(c).join(', ')})`).toBe(true);
       expect.soft(isModulesRead(calls(c)[0]), `${route.name} as company C: the first AWS call is the modules read (got ${callLines(c)[0]})`).toBe(true);
       const a = ask(route.handler, callerFor(route, 'A'), route.own);
-      expect.soft([200, 201].includes(statusOf(a) ?? 0), `${route.name} as founding company A: works as today (got ${describe(a)})`).toBe(true);
+      // Child lock rec-05.1 (REC-05 rule 17): the old offer writes pass the same checks, then answer 410 OLD_ROUTE.
+      if (isOldOfferWrite(route.name)) expect.soft([statusOf(a), bodyOf(a)], `${route.name} as founding company A: past the checks, 410 OLD_ROUTE (got ${describe(a)})`).toEqual([410, OLD_ROUTE]);
+      else expect.soft([200, 201].includes(statusOf(a) ?? 0), `${route.name} as founding company A: works as today (got ${describe(a)})`).toBe(true);
       expect.soft(isModulesRead(calls(a)[0]), `${route.name} as company A: the first AWS call is the modules read (got ${callLines(a)[0]})`).toBe(true);
       // Order: tenant before module (no company: no read at all), role before module.
       const none = ask(route.handler, route.who === 'agent' ? 'public' : 'noTenant', route.own);
@@ -700,6 +703,8 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
         { const [e, a, r, ...c] = p.split(' '); if (e === 'Allow' && ownerLinkGrant(a!, r!, cur.role, c.join(' '))) continue; }
         // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
         if (isRec07Grant(p, key) || isRec15bGrant(p, key)) continue;
+        // REC-05 (child lock rec-05.1): monitorTalentFlowSLAs reads the company's modules before an offer expires (support/rec-05.1/grants.ts).
+        if (isRec05Grant(p, key)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null') && isGated(key, cur.role), `role policy ${key}: new grant "${p}" is only GetItem on the tenants table, on a gated Lambda's role`).toBe(true);
       }
     }
@@ -718,6 +723,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): its own role, judged in rec-04.spec.ts AC-8.
       if (/leaver_chats|deleteLeaverChats/.test(key) || /leaver_chats|deleteLeaverChats/.test(cur.role)) continue; // CHAT-15 (re-lock mod-01.16): its own role, judged in chat-15.spec.ts AC-12.
       if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): company-wide, no module gate; its own role, judged in rec-14.spec.ts AC-3.
+      if (isRec05Role(key, cur.role)) { expect.soft((cur.pairs ?? []).filter((p) => !isRec05Grant(p, key)), `${key}: only the lines REC-05 allows`).toEqual([]); continue; } // REC-05 (child lock rec-05.1): its own role, judged in rec-05.spec.ts AC-10.
       if ((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => ten042(p, cur.stack, cur.role))) continue; // TEN-04.2: one of the three table Queries
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);
       for (const p of cur.pairs ?? [`unreadable ${cur.squash}`]) {
