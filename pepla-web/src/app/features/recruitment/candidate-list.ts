@@ -5,7 +5,7 @@ import type { components } from '../../core/api/openapi';
 import { shortDate } from './hire-format';
 
 export type CandidateRow = components['schemas']['CandidateRow'];
-const STAGE: Record<string, string> = { APPLIED: 'Applied', SCREENING: 'Screening', INTERVIEW: 'Interview', OFFER: 'Offer', HIRED: 'Hired', NOT_HIRED: 'Not hired' };
+export const STAGE: Record<string, string> = { APPLIED: 'Applied', SCREENING: 'Screening', INTERVIEW: 'Interview', OFFER: 'Offer', HIRED: 'Hired', NOT_HIRED: 'Not hired' };
 const DAY = 86_400_000;
 const sast = (ms: number) => { const d = new Date(ms + 2 * 3_600_000); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); };
 const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
