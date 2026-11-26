@@ -69,3 +69,11 @@ AI service.
 
 On develop: 23 of 23 red (no job, no Terraform). On a throwaway correct build: 23 of 23 green. The build is not part of the lock; see
 `/mnt/project-files/ask-batsi-chat/chat-15-throwaway-build-NOT-FOR-MERGE.patch`.
+
+## Child lock chat-15.5 (NH-282, 26 Nov)
+
+PR 529 (NH-282, INT-01 R-9) removed three resources from `talent-flow-infra/talent-flow-eventbridge.tf`:
+`aws_cloudwatch_event_rule.interview_scheduled`, `aws_cloudwatch_event_target.interview_scheduled` and
+`aws_lambda_permission.schedule_interview_eventbridge`. Iggie approved the deletes and they were applied on pepla-dev on 26 Nov. AC-12
+"Add only" now lets exactly those three addresses be missing from the frozen `ccc2beb-419` list. Any other missing resource still fails,
+and nothing else in this file moved.
