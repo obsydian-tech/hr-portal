@@ -198,7 +198,7 @@ export function authorizerOf(c: Caller, extra: Record<string, unknown> = {}): un
 export function settings(extra: Record<string, string> = {}): Record<string, string> {
   return {
     STATE_TABLE_NAME: TABLE.state, CONFIG_TABLE_NAME: TABLE.config, DISMISSALS_TABLE_NAME: TABLE.dismissals, NOTIFICATIONS_TABLE_NAME: TABLE.notifications,
-    USERS_TABLE_NAME: TABLE.users, EVENTS_TABLE_NAME: TABLE.events, IDEMPOTENCY_TABLE_NAME: TABLE.idempotency, PENDING_ACTIONS_TABLE_NAME: TABLE.pending,
+    USERS_TABLE_NAME: TABLE.users, EVENTS_TABLE_NAME: TABLE.events, IDEMPOTENCY_TABLE_NAME: TABLE.idempotency, IDEMPOTENCY_TABLE: TABLE.idempotency, /* child lock int-01.1 (R-22) */ PENDING_ACTIONS_TABLE_NAME: TABLE.pending,
     IT_TASKS_TABLE: TABLE.itTasks, BUNDLES_TABLE: TABLE.bundles, EVENTBRIDGE_BUS_NAME: 'rec01-bus', EB_BUS_NAME: 'rec01-bus',
     NOTIFICATION_QUEUE_URL: 'https://sqs.rec01.example/queue', NOTIFICATION_LAMBDA_NAME: 'sendTalentFlowNotification', TENANTS_TABLE: TENANTS,
     AGENT_TENANT_ID: A, AGENT_API_KEY_SECRET_NAME: AGENT_SECRET, ENVIRONMENT: 'dev', HM_GROUP_NAME: 'HiringManager', POSTMARK_SENDER_EMAIL: 'noreply@rec01.example',

@@ -13,6 +13,7 @@ import {
   A, ALL_NAMES, AT, B, BEMAIL, D, GUEST, GUEST_VOTER, IV, MANY, NAME, NEVER, NOW, P, PC, POOL_OTHER, Q, SUB, TABLE, TENANTS, awsOf, eventsRun,
   interviewsRun, logsOf, membersRead, poolAsked, rowsOf, withFeedbackHours, withInterview, world, EVENTS, INTERVIEWS, type Opts, type Run, type Tables,
 } from './support/rec-15d/world';
+import { isInt01Grant } from './support/int-01.1/grants'; // child lock int-01.1
 // The fault preload (support/rec-15d/faults.mjs) throws with this exact message; it is kept in step with that file.
 const FAULT_MESSAGE = 'zz-rec15d-fault-message';
 
@@ -60,10 +61,17 @@ const SIGN_IN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const sorted = (a: Iterable<string>) => [...a].sort();
 const due = (hoursAgo: number, hours: number) => new Date(Date.parse(NOW) - Math.round(hoursAgo * 3_600_000) + hours * 3_600_000).toISOString();
 const KEPT = ['interviewId', 'candidateId', 'interviewType', 'scheduledAt', 'panelMemberIds', 'adhocPanelMembers', 'votesRequired', 'votesSubmitted', 'status',
-  'completedAt', 'outcome', 'createdAt', 'criteria_snapshot', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS'];
+  'completedAt', /* 'outcome' left the list: child lock int-01.1 (INT-01 R-4) */ 'createdAt', 'criteria_snapshot', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS'];
 const NEW_IV = ['id', 'type', 'at', 'status', 'panel', 'votes'];
 const PERSON_KEYS = ['due_at', 'feedback', 'kind', 'name', 'person_id'];
 const GUEST_KEYS = ['due_at', 'feedback', 'kind', 'name'];
+// child lock int-01.1 (INT-01 rule 6, R-2, R-4): each interview gains the rule 6 keys and loses `outcome`; a panel entry may carry `vote`,
+// `no_feedback` and (a guest's, for a Recruiter) `email`, each left out for a caller who may not see it. int-01.spec.ts AC-11 and AC-20
+// judge those; the checks here judge the rest of each entry as before.
+const INT01_IV = ['length_minutes', 'where', 'place', 'video_link', 'sequence', 'closed_reason', 'closed_note', 'closed_by_name', 'closed_at', 'candidate_note', 'can'];
+const INT01_IV_ALWAYS = INT01_IV.filter((k) => k !== 'closed_note' && k !== 'candidate_note');
+const INT01_ENTRY = ['vote', 'no_feedback', 'email'];
+const base = (e: any) => (e && typeof e === 'object' ? Object.fromEntries(Object.entries(e).filter(([k]) => !INT01_ENTRY.includes(k))) : e);
 
 // ---------------------------------------------------------------- the checks every read must pass
 
@@ -169,7 +177,7 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
         for (const id of ids) {
           const e = personEntry(iv, id);
           const given = voted.includes(id);
-          expect.soft(e && sorted(Object.keys(e)), `${kind} ${iv?.id}: ${id}'s entry is exactly kind, person_id, name, feedback, due_at (D-T-D1)`).toEqual(PERSON_KEYS);
+          expect.soft(e && sorted(Object.keys(base(e))), `${kind} ${iv?.id}: ${id}'s entry is exactly kind, person_id, name, feedback, due_at (D-T-D1)`).toEqual(PERSON_KEYS);
           expect.soft([e?.name, e?.feedback, e?.due_at], `${kind} ${iv?.id}: ${id}: name, feedback, due_at`).toEqual([NAME[id] ?? null, given ? 'GIVEN' : 'WAITING', given ? null : due(h, 24)]);
         }
         expect.soft(((iv?.panel ?? []) as any[]).filter((e) => e?.kind === 'PERSON').length, `${kind} ${iv?.id}: one entry per panel member id`).toBe(ids.length);
@@ -180,19 +188,19 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
       // Guests: from adhocPanelMembers, the typed name trimmed (spaces only: null), never the email; the old link vote (email as voterId,
       // other capitals) is GIVEN; the REC-07 GUEST# vote adds no entry (D-6).
       const g1 = guestEntries(i1);
-      expect.soft(g1.map((e) => sorted(Object.keys(e))), `${kind}: guest entries are exactly kind, name, feedback, due_at (D-T-D1)`).toEqual([GUEST_KEYS, GUEST_KEYS]);
+      expect.soft(g1.map((e) => sorted(Object.keys(base(e)))), `${kind}: guest entries are exactly kind, name, feedback, due_at (D-T-D1)`).toEqual([GUEST_KEYS, GUEST_KEYS]);
       expect.soft(g1.map((e) => `${e.name} ${e.feedback} ${e.due_at}`).sort(), `${kind}: Gift voted the old way (GIVEN); Rec Seven is waiting; no entry for the GUEST# vote`).toEqual(sorted(['Gift Guest GIVEN null', `Rec Seven WAITING ${due(AT.iv1, 24)}`]));
       expect.soft(guestEntries(i2).map((e) => [e.name, e.feedback]), `${kind}: a guest whose typed name is only spaces has name null`).toEqual([[null, 'WAITING']]);
       expect.soft(guestEntries(i3), `${kind}: no guest on iv3`).toEqual([]);
       // person_id is the stored panel member id as stored (BEMAIL on iv2 is the R2-1 case), so the search leaves person_id out.
-      const noId = (iv: any) => ((iv?.panel ?? []) as any[]).map(({ person_id: _id, ...rest }) => rest);
+      const noId = (iv: any) => ((iv?.panel ?? []) as any[]).map(({ person_id: _id, ...rest }) => base(rest)); // base(): child lock int-01.1
       const entries = JSON.stringify([noId(i1), noId(i2), noId(i3)]).toLowerCase();
       for (const w of [GUEST.gift.email, GUEST.seven.email, GUEST.blank.email, GUEST_VOTER.toLowerCase(), '@', 'rating', 'score', 'comment', NEVER.comment, 'yes']) {
         expect.soft(entries.includes(w), `${kind}: no entry holds "${w}" (no email, no score, no rating, no comment)`).toBe(false);
       }
       // The kept old fields stay for the Recruiter and the hiring manager, with their stored values.
       expect.soft([i2?.panelMemberIds?.length, i2?.adhocPanelMembers, i2?.votesSubmitted, i2?.PANEL_SPLIT_FLAG, i2?.PANEL_CONSENSUS, i2?.criteria_snapshot?.length], `${kind}: the old fields on iv2 as stored`).toEqual([10, [GUEST.blank], 1, true, 'SPLIT', 2]);
-      expect.soft([i1?.interviewId, i1?.interviewType, i1?.completedAt, i1?.outcome, i1?.votesRequired], `${kind}: iv1's old fields as stored`).toEqual([IV.iv1, 'PHONE_SCREEN', new Date(Date.parse(NOW) - 40 * 3_600_000).toISOString(), 'PASS', 3]);
+      expect.soft([i1?.interviewId, i1?.interviewType, i1?.completedAt, i1?.outcome, i1?.votesRequired], `${kind}: iv1's old fields as stored`).toEqual([IV.iv1, 'PHONE_SCREEN', new Date(Date.parse(NOW) - 40 * 3_600_000).toISOString(), undefined /* outcome left the list: child lock int-01.1 (INT-01 R-4) */, 3]);
     }
   });
 
@@ -227,7 +235,7 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
     expect.soft(((b['interviews'] ?? []) as any[]).map((x) => x.id), 'p1 is on iv1 and iv2 only (not iv3; ivB is B\'s)').toEqual([IV.iv1, IV.iv2]);
     for (const [iv, given, h] of [[IV.iv1, true, AT.iv1], [IV.iv2, false, AT.iv2]] as [string, boolean, number][]) {
       const x = ivOf(b, iv);
-      expect.soft(x?.panel, `p1 on ${iv}: only their own entry`).toEqual([{ kind: 'PERSON', person_id: P.p1, name: 'Thandi Mokoena', feedback: given ? 'GIVEN' : 'WAITING', due_at: given ? null : due(h, 24) }]);
+      expect.soft(((x?.panel ?? []) as any[]).map(base), `p1 on ${iv}: only their own entry`) /* base(): child lock int-01.1 */.toEqual([{ kind: 'PERSON', person_id: P.p1, name: 'Thandi Mokoena', feedback: given ? 'GIVEN' : 'WAITING', due_at: given ? null : due(h, 24) }]);
       expect.soft(x?.panelMemberIds, `p1 on ${iv}: panelMemberIds is [me]`).toEqual([P.p1]);
       for (const k of ['adhocPanelMembers', 'votesSubmitted', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS', 'PANEL_FEEDBACK_PENDING_COUNT']) expect.soft(k in (x ?? {}), `p1 on ${iv}: no ${k}`).toBe(false);
       expect.soft(x?.votesRequired, `p1 on ${iv}: votesRequired (the panel size the company set) stays (R2-4)`).toBe(3);
@@ -365,7 +373,7 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
       bodies[kind] = b;
       expect.soft(sorted(Object.keys(b)), `${kind}: the answer is { interviews, required }`).toEqual(['interviews', 'required']);
       for (const x of (b['interviews'] ?? []) as any[]) {
-        const extra = Object.keys(x).filter((k) => !KEPT.includes(k) && !NEW_IV.includes(k));
+        const extra = Object.keys(x).filter((k) => !KEPT.includes(k) && !NEW_IV.includes(k) && !INT01_IV.includes(k)); // && INT01_IV: child lock int-01.1
         expect.soft(extra, `${kind} ${x.id}: no key outside the explicit list (D-3)`).toEqual([]);
         for (const k of NEW_IV) expect.soft(k in x, `${kind} ${x.id}: ${k} is there (D-T-D2)`).toBe(true);
       }
@@ -377,7 +385,7 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
     const r2 = ivOf(bodies['R']!, IV.iv2);
     expect.soft(sorted(Object.keys(r2 ?? {})), 'the Recruiter\'s iv2: every kept field it stores, and the new ones').toEqual(sorted([
       'interviewId', 'candidateId', 'interviewType', 'scheduledAt', 'panelMemberIds', 'adhocPanelMembers', 'votesRequired', 'votesSubmitted', 'status', 'createdAt',
-      'criteria_snapshot', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS', 'id', 'type', 'at', 'panel', 'votes',
+      'criteria_snapshot', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS', 'id', 'type', 'at', 'panel', 'votes', ...INT01_IV_ALWAYS, // child lock int-01.1
     ]));
     // votes[] keeps today's rule: the Recruiter sees every vote of the interview, the panel member only their own.
     expect.soft(((ivOf(bodies['R']!, IV.iv1)?.votes ?? []) as any[]).map((v) => v.voterId).sort(), 'R: every vote on iv1').toEqual(sorted([P.p1, 'Gift.Guest@OUTSIDE.test', GUEST_VOTER]));
@@ -481,10 +489,11 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
     for (const n of ['InterviewList', 'PanelEntry', 'CandidateEvents']) expect.soft(S[n]?.additionalProperties, `${n} is closed`).toBe(false);
     const ivItem = S['InterviewList']?.properties?.interviews?.items;
     const ivProps = Object.keys((ivItem?.$ref ? S[String(ivItem.$ref).split('/').pop()!] : ivItem)?.properties ?? {});
-    expect.soft(sorted(ivProps), 'an interview has exactly the kept old fields and the new ones').toEqual(sorted([...new Set([...KEPT, ...NEW_IV])]));
-    expect.soft(sorted(Object.keys(S['PanelEntry']?.properties ?? {})), 'PanelEntry: kind, person_id, name, feedback, due_at').toEqual(PERSON_KEYS);
+    expect.soft(sorted(ivProps), 'an interview has exactly the kept old fields and the new ones').toEqual(sorted([...new Set([...KEPT, ...NEW_IV, ...INT01_IV])])); // INT01_IV: child lock int-01.1
+    expect.soft(sorted(Object.keys(S['PanelEntry']?.properties ?? {})), 'PanelEntry: kind, person_id, name, feedback, due_at').toEqual(sorted([...PERSON_KEYS, ...INT01_ENTRY])); // INT01_ENTRY: child lock int-01.1
     expect.soft(sorted(S['PanelEntry']?.required ?? []), 'PanelEntry requires all but person_id').toEqual(GUEST_KEYS);
-    const optional = [...KEPT, 'person_id', 'source', 'tenant_id', 'detail', 'from', 'to', 'by', 'by_kind', 'reason_code', 'reason', 'nextToken', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS', 'name', 'email', 'role'];
+    const optional = [...KEPT, 'person_id', 'source', 'tenant_id', 'detail', 'from', 'to', 'by', 'by_kind', 'reason_code', 'reason', 'nextToken', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS', 'name', 'email', 'role',
+      'closed_note', 'candidate_note', 'vote', 'no_feedback']; // the last four: child lock int-01.1 (shown only to some callers)
     expect.soft(looseObjects(d, { $ref: '#/components/schemas/InterviewList' }, 'InterviewList', new Set(), optional), 'every object of InterviewList closed').toEqual([]);
     const evItem = S['CandidateEvents']?.properties?.events?.items;
     const evSchema = evItem?.$ref ? S[String(evItem.$ref).split('/').pop()!] : evItem;
@@ -496,14 +505,17 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
     const ck = checker(d);
     const iv200 = answerSchema(d, INTERVIEWS, 200);
     const entry = { kind: 'PERSON', person_id: 'p', name: 'A Person', feedback: 'WAITING', due_at: NOW };
-    const iv = { id: 'i', type: 'TECHNICAL', at: NOW, status: 'SCHEDULED', panel: [entry, { kind: 'GUEST', name: null, feedback: 'GIVEN', due_at: null }], votes: [], interviewId: 'i', panelMemberIds: ['p'] };
+    const iv = { id: 'i', type: 'TECHNICAL', at: NOW, status: 'SCHEDULED', panel: [entry, { kind: 'GUEST', name: null, feedback: 'GIVEN', due_at: null }], votes: [], interviewId: 'i', panelMemberIds: ['p'],
+      // child lock int-01.1: INT-01 rule 6's keys, as an old-way interview shows them.
+      length_minutes: null, where: null, place: null, video_link: null, sequence: null, closed_reason: null, closed_by_name: null, closed_at: null,
+      can: { reschedule: false, cancel: false, did_not_happen: false, mark_done: false, capture_feedback: false } };
     const good = { interviews: [iv], required: { done: 1, total: 2 } };
     expect.soft(ck.check(iv200, good), 'a right interviews answer passes').toEqual([]);
     expect.soft(ck.check(iv200, { interviews: [{ ...iv, status: 'CANCELLED' }], required: null }), 'CANCELLED and required null pass').toEqual([]);
     const bad: [string, unknown][] = [
       ['an extra key on an interview', { ...good, interviews: [{ ...iv, PK: 'x' }] }], ['tenant_id on an interview', { ...good, interviews: [{ ...iv, tenant_id: A }] }],
       ['PANEL_FEEDBACK_PENDING_COUNT', { ...good, interviews: [{ ...iv, PANEL_FEEDBACK_PENDING_COUNT: 2 }] }],
-      ['an email in an entry', { ...good, interviews: [{ ...iv, panel: [{ ...entry, email: 'a@b.c' }] }] }],
+      ['a phone in an entry', { ...good, interviews: [{ ...iv, panel: [{ ...entry, phone: '0821234567' }] }] }], // child lock int-01.1: a guest entry may carry email (R-2), so the stray key is a phone
       ['a score in an entry', { ...good, interviews: [{ ...iv, panel: [{ ...entry, score: 4 }] }] }], ['a rating in an entry', { ...good, interviews: [{ ...iv, panel: [{ ...entry, rating: 'YES' }] }] }],
       ['a comment in an entry', { ...good, interviews: [{ ...iv, panel: [{ ...entry, comment: 'x' }] }] }],
       ['feedback DONE', { ...good, interviews: [{ ...iv, panel: [{ ...entry, feedback: 'DONE' }] }] }], ['kind PANEL', { ...good, interviews: [{ ...iv, panel: [{ ...entry, kind: 'PANEL' }] }] }],
@@ -549,7 +561,7 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
     for (const k of new Set([...Object.keys(baseline), ...Object.keys(now)])) {
       const was = new Set(baseline[k]?.pairs ?? [`squashed ${baseline[k]?.squash}`]);
       const is = new Set(now[k]?.pairs ?? [`squashed ${now[k]?.squash}`]);
-      const gained = [...is].filter((l) => !was.has(l));
+      const gained = [...is].filter((l) => !was.has(l) && !isInt01Grant(l, k)); // && isInt01Grant: child lock int-01.1 (INT-01's two request-key lines)
       const lost = [...was].filter((l) => !is.has(l));
       const want = REC15D_GRANTS[k];
       if (!baseline[k]) { expect.soft(gained, `${k}: a new policy gains nothing (D-9: no new policy, no new role)`).toEqual([]); continue; }
