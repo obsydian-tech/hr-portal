@@ -1,0 +1,9 @@
+{
+  "name": "notify-hiring-manager-on-hire-lambda",
+  "version": "1.0.0",
+  "description": "Lambda: REC-16 hiring manager IT-bundle email on an accepted offer, via Postmark",
+  "type": "module",
+  "dependencies": {
+    "postmark": "^4.0.5"
+  }
+}

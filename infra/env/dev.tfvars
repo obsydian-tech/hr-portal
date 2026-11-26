@@ -31,3 +31,6 @@ talent_flow_server_client_id = ""
 
 # ONB-21: every seeded person on pepla-dev is a test login, so the daily reminder sends nothing real here.
 document_reminders_enabled = true
+
+# REC-16 AC-7: on pepla-dev the hiring manager IT-bundle email only ever goes to the blackhole test address.
+hm_it_email_mode = "TEST_ADDRESS"

@@ -120,6 +120,11 @@ NALEKO_PERSONAS = {
         "attrs": {"given_name": "Nandi", "family_name": "Demo-Guest"},
         "groups": ["guest"],
     },
+    # REC-16 AC-7 (d): the hiring manager of the REC-16 seeded candidate only (REC-01 AC-9 keeps "manager" at exactly one candidate).
+    "hm-it": {
+        "attrs": {"given_name": "Hana", "family_name": "Demo-HM-IT"},
+        "groups": ["manager"],
+    },
     # REC-01: a manager (hiring manager of one seeded candidate) and HR without the Recruitment tick.
     "manager": {
         "attrs": {"given_name": "Mpho", "family_name": "Demo-Manager"},
@@ -1208,6 +1213,39 @@ def seed_rec06(ddb, tenant_id: str) -> int:
     return written + 1
 
 
+def seed_rec16(ddb, tenant_id: str, hm_sub: str) -> int:
+    """REC-16 AC-7 (d): put the REC-16 offer back to SENT each run, with the hm-it login as the candidate's hiring manager, and remove the
+    employee and the guard row the last run made, so each run starts clean."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-16" / "dev-ids.json").read_text())
+    now = "2026-11-20T08:00:00.000Z"
+    cid, oid = ids["candidate"], ids["offer"]
+    eid = str(uuid.uuid5(uuid.UUID("6b7dcfde-d603-4673-9949-d5d39ac59e17"), f"{tenant_id}:{oid}"))
+    try:
+        ddb.delete_item(TableName="employees", Key={"employee_id": {"S": eid}}, ConditionExpression="tenant_id = :t",
+                        ExpressionAttributeValues={":t": {"S": tenant_id}})
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            raise
+    ddb.delete_item(TableName=STATE_TABLE, Key={"PK": {"S": f"NOTICE#HM_IT#{oid}"}, "SK": {"S": "NOTICE"}})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": ids["firstName"]}, "lastName": {"S": ids["lastName"]}, "email": {"S": ids["email"]},
+        "phone": {"S": "0800000000"}, "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+        "currentStage": {"S": "OFFER"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now},
+        "hiringManagerId": {"S": hm_sub}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"OFFER#{oid}"}, "SK": {"S": "OFFER"}, "offer_id": {"S": oid}, "tenant_id": {"S": tenant_id}, "candidate_id": {"S": cid},
+        "candidate_name": {"S": f"{ids['firstName']} {ids['lastName']}"}, "role_title": {"S": "Demo role"}, "department": {"S": "Operations"}, "state": {"S": "SENT"}, "version": {"N": "1"},
+        "salary": {"N": "350000"}, "currency": {"S": "ZAR"}, "start_date": {"S": ids["startDate"]}, "expiry_date": {"S": "2030-01-15"},
+        "drafted_by": {"S": "seed-drafter"}, "drafted_by_name": {"S": "Thandi Demo-HR"}, "created_at": {"S": now}, "updated_at": {"S": now}, "sent_at": {"S": now},
+        "approval_history": {"L": []}, "history": {"L": []}, "GSI2PK": {"S": f"TENANT#{tenant_id}#OFFER"}, "GSI2SK": {"S": f"{now}#{oid}"}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={"PK": {"S": f"TENANT#{tenant_id}#OFFER_LIVE#{cid}"}, "SK": {"S": "LOCK"},
+                                               "tenant_id": {"S": tenant_id}, "live_offer_id": {"S": oid}})
+    return 3
+
+
 def seed_recui04(ddb, tenant_id: str) -> int:
     """REC-UI-04.2: put back the candidate the offer screens' dev walk drafts an offer for (cards/rec-ui-04.2.md, "REC-UI-04.2 dev seed").
 
@@ -1318,6 +1356,9 @@ def main() -> None:
     manager_member_sub = user_sub(cognito, naleko, "manager")
     if manager_member_sub:
         founding_written += ensure_founding_member(ddb, manager_member_sub)
+    hm_it_sub = user_sub(cognito, naleko, "hm-it")
+    if hm_it_sub:
+        founding_written += ensure_founding_member(ddb, hm_it_sub)
     approver_member_sub = user_sub(cognito, naleko, "approver")
     if approver_member_sub:
         founding_written += ensure_founding_member(ddb, approver_member_sub)
@@ -1403,6 +1444,12 @@ def main() -> None:
         seed_rec06(ddb, tid)
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-06 rows were not written")
+
+    try:
+        if hm_it_sub:
+            seed_rec16(ddb, tid, hm_it_sub)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-16 rows were not written")
 
     try:
         seed_recui04(ddb, tid)
