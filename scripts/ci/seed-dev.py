@@ -1275,6 +1275,50 @@ def seed_recui04(ddb, tenant_id: str) -> int:
     return 1 + len(old)
 
 
+def seed_int04(ddb, tenant_id: str) -> int:
+    """INT-04: turn company A's interview emails on and put the INT-04 dev candidate back every run (INT-04.md, "Dev seed").
+
+    Company A's active PANEL_CONFIG row gets interview_emails ON in place (same version); candidate emails stay unset, so OFF. When the
+    company has no PANEL_CONFIG row yet, version 1 is written with the defaults and the switch. The candidate's interview rows and
+    the guard rows of those interviews are removed first, so each run starts clean. The sender's mode stays TEST_ADDRESS. Idempotent.
+    """
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "int-04" / "dev-ids.json").read_text())
+    cid = ids["candidate"]
+    pk = f"CANDIDATE#{cid}"
+    now = "2026-11-26T08:00:00.000Z"
+    version = active_config_version(ddb, tenant_id, "PANEL_CONFIG")
+    key = {"PK": {"S": f"TENANT#{tenant_id}"}, "SK": {"S": f"CONFIG#PANEL_CONFIG#v{version}"}}
+    if ddb.get_item(TableName="talent-flow-config", Key=key).get("Item"):
+        ddb.update_item(TableName="talent-flow-config", Key=key, UpdateExpression="SET #d.#e = :on",
+                        ExpressionAttributeNames={"#d": "data", "#e": "interview_emails"}, ExpressionAttributeValues={":on": {"S": "ON"}})
+    else:
+        ddb.put_item(TableName="talent-flow-config", Item={**key,
+            "GSI1PK": {"S": f"TENANT#{tenant_id}#ACTIVE"}, "GSI1SK": {"S": "CONFIG#PANEL_CONFIG"}, "tenant_id": {"S": tenant_id},
+            "configType": {"S": "PANEL_CONFIG"}, "version": {"N": "1"}, "isActive": {"BOOL": True}, "createdAt": {"S": now},
+            "data": {"M": {"panelSize": {"M": {"JUNIOR": {"N": "2"}, "MID": {"N": "3"}, "SENIOR": {"N": "4"}}}, "guestAllowed": {"BOOL": True},
+                           "hrMayEnterForMember": {"BOOL": True}, "interview_emails": {"S": "ON"}}}})
+    old = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk", ExpressionAttributeValues={":pk": {"S": pk}}, ProjectionExpression="PK, SK")
+    removed = 0
+    for item in old.get("Items", []):
+        sk = item["SK"]["S"]
+        if sk.startswith("INTERVIEW#"):
+            iv_id = sk[len("INTERVIEW#"):]
+            for page in ddb.get_paginator("scan").paginate(TableName="talent-flow-notifications", FilterExpression="begins_with(PK, :p)",
+                                                            ExpressionAttributeValues={":p": {"S": f"INTERVIEW_EMAIL#{iv_id}#"}}, ProjectionExpression="PK, SK"):
+                for g in page.get("Items", []):
+                    ddb.delete_item(TableName="talent-flow-notifications", Key={"PK": g["PK"], "SK": g["SK"]})
+                    removed += 1
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": "Int04"}, "lastName": {"S": "Seed-Emails"},
+        "email": {"S": f"pepla-demo-int04.seed-emails@{MAIL_DOMAIN}"}, "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"},
+        "department": {"S": "Operations"}, "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+        "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+    })
+    return 1 + removed
+
+
 def seed_int03(ddb, tenant_id: str) -> int:
     """INT-03: put the old-path scoring link the dev check votes through back every run (INT-03.md AC-4).
 
@@ -1433,6 +1477,11 @@ def main() -> None:
         seed_int03(ddb, tid)
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the INT-03 rows were not written")
+
+    try:
+        seed_int04(ddb, tid)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: a TalentFlow table is not there; the INT-04 rows were not written")
 
     try:
         rec05_written = seed_rec05(ddb, tid, user_sub(cognito, naleko, "hr"))

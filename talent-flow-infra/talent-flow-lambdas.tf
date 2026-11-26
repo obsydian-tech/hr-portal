@@ -115,17 +115,19 @@ resource "aws_lambda_function" "schedule_interview" {
 
   environment {
     variables = {
-      TENANTS_TABLE          = local.tf_tenants_table
-      IDEMPOTENCY_TABLE      = local.tf_table_idempotency
-      STATE_TABLE_NAME       = local.tf_table_state
-      CONFIG_TABLE_NAME      = local.tf_table_config
-      ROLES_TABLE_NAME       = local.tf_table_roles
-      NOTIFICATION_QUEUE_URL = aws_sqs_queue.talent_flow_notification.url
-      EVENTBRIDGE_BUS_NAME   = local.tf_event_bus_name
-      AWS_ACCOUNT_ID         = var.aws_account_id
-      ENVIRONMENT            = var.environment
-      COGNITO_POOL_ID        = local.tf_naleko_pool_id
-      LEGACY_TENANT_ID       = var.roles_legacy_tenant_id
+      TENANTS_TABLE             = local.tf_tenants_table
+      IDEMPOTENCY_TABLE         = local.tf_table_idempotency
+      STATE_TABLE_NAME          = local.tf_table_state
+      CONFIG_TABLE_NAME         = local.tf_table_config
+      ROLES_TABLE_NAME          = local.tf_table_roles
+      NOTIFICATION_QUEUE_URL    = aws_sqs_queue.talent_flow_notification.url
+      EVENTBRIDGE_BUS_NAME      = local.tf_event_bus_name
+      FRONTEND_URL              = var.frontend_url
+      INTERVIEW_ORGANISER_EMAIL = local.tf_interview_sender_email
+      AWS_ACCOUNT_ID            = var.aws_account_id
+      ENVIRONMENT               = var.environment
+      COGNITO_POOL_ID           = local.tf_naleko_pool_id
+      LEGACY_TENANT_ID          = var.roles_legacy_tenant_id
     }
   }
 
@@ -266,6 +268,12 @@ data "aws_ssm_parameter" "postmark_token" {
 # ── 7. sendTalentFlowNotification ─────────────────────────────────────────────
 # Trigger: SQS talent-flow-notification-queue.fifo (ESM below)
 # Config-driven Postmark email templates, handles all 7 notification event types
+# INT-04 AC-9: interview emails go only to the blackhole test address until Iggie sets interview_email_mode = "REAL" (P-21).
+
+locals {
+  # INT-04 rule 13: the interview invite's organiser is the sender's own address, so the two cannot differ.
+  tf_interview_sender_email = "ignecious@obsydiantechnologies.com"
+}
 
 resource "aws_lambda_function" "send_notification" {
   function_name = local.tf_lambda_send_notification
@@ -287,7 +295,9 @@ resource "aws_lambda_function" "send_notification" {
       AWS_ACCOUNT_ID           = var.aws_account_id
       ENVIRONMENT              = var.environment
       POSTMARK_API_TOKEN       = data.aws_ssm_parameter.postmark_token.value
-      POSTMARK_SENDER_EMAIL    = "ignecious@obsydiantechnologies.com"
+      POSTMARK_SENDER_EMAIL    = local.tf_interview_sender_email
+      INTERVIEW_EMAIL_MODE     = var.interview_email_mode
+      INTERVIEW_TEST_EMAIL     = "interviews@blackhole.postmarkapp.com"
     }
   }
 
