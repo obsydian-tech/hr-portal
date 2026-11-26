@@ -117,6 +117,8 @@ exports.handler = async (event) => {
     const ivRes = await dynamo.send(new GetItemCommand({ TableName: STATE_TABLE, Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${body.interview_id}` }) }));
     const iv = ivRes.Item ? unmarshall(ivRes.Item) : null;
     if (!iv || !T.ownsRow(iv, tenantId)) return T.notFound();
+    // INT-01 (R-3): a guest of an interview booked the new way comes with the booking; no token is made here.
+    if (iv.sequence !== undefined && iv.sequence !== null) return j(409, { error: 'Conflict', code: 'USE_BOOKING' });
     if (typeof body.guest_email !== 'string' || !/^[^@\s]+@[^@\s]+$/.test(body.guest_email)) return j(400, { error: 'Bad request', code: 'INVALID_FIELD', field: 'guest_email' });
     const raw = randomBytes(32).toString('base64url');
     const hash = createHash('sha256').update(raw).digest('hex');

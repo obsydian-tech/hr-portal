@@ -1,5 +1,6 @@
 // REC-07: POST /v1/interviews/{id}/votes and GET /v1/candidates/{id}/scores.
-import { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, GetItemCommand, UpdateItemCommand, QueryCommand, TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
+import { voteRefusalOf } from '../shared/interview-lifecycle.mjs';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import * as T from '../shared/tenant.mjs';
@@ -51,19 +52,31 @@ export async function vote(event) {
   if (!body) return S.badScores();
   const refusal = S.checkBody(body, S.criteriaOf(interview, settings, DEFAULTS));
   if (refusal) return refusal;
+  const nowMs = Date.now();
+  const early = voteRefusalOf(interview, nowMs);
+  if (early) return S.json(409, { error: 'Conflict', code: early });
   const rows = await candidateRows(interview.candidateId);
   if (rows.some((r) => String(r.SK).startsWith(`VOTE#${voter}#`) && r.interviewId === interview.interviewId)) return S.alreadyScored();
-  const now = new Date().toISOString();
+  const now = new Date(nowMs).toISOString();
   const item = T.stampTenant({
     PK: `CANDIDATE#${interview.candidateId}`, SK: `VOTE#${voter}#${interview.interviewId}`, voterId: voter, candidateId: interview.candidateId, interviewId: interview.interviewId,
     scores: body.scores, rating: body.rating, ...(body.comment !== undefined ? { comment: body.comment } : {}), scale: S.SCALE, on_behalf: onBehalf,
     ...(onBehalf ? { entered_by: me } : {}), createdAt: now,
   }, tenantId);
+  const ivKey = { PK: `CANDIDATE#${interview.candidateId}`, SK: `INTERVIEW#${interview.interviewId}` };
   try {
-    // The key holds no time, so two requests at the same moment write the same key and the second is refused.
-    await db.send(new PutItemCommand({ TableName: STATE(), Item: marshall(item, { removeUndefinedValues: true }), ConditionExpression: 'attribute_not_exists(SK)' }));
+    // INT-01 (R-18): the vote, its guard row and the counter in one transaction, on a SCHEDULED interview that has started.
+    await db.send(new TransactWriteItemsCommand({ TransactItems: [
+      { Put: { TableName: STATE(), Item: marshall(item, { removeUndefinedValues: true }), ConditionExpression: 'attribute_not_exists(SK)' } },
+      { Put: { TableName: STATE(), Item: marshall(T.stampTenant({ PK: `CANDIDATE#${interview.candidateId}`, SK: `VOTED#${interview.interviewId}#${voter}`, createdAt: now }, tenantId)), ConditionExpression: 'attribute_not_exists(PK)' } },
+      { Update: { TableName: STATE(), Key: marshall(ivKey), UpdateExpression: 'ADD votesSubmitted :one', ConditionExpression: 'tenant_id = :t AND #s = :sch AND scheduledAt <= :now', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: marshall({ ':one': 1, ':t': tenantId, ':sch': 'SCHEDULED', ':now': now }) } },
+    ] }));
   } catch (err) {
-    if (err.name === 'ConditionalCheckFailedException') return S.alreadyScored();
+    if (err.name === 'TransactionCanceledException') {
+      const again = await db.send(new GetItemCommand({ TableName: STATE(), Key: marshall(ivKey), ConsistentRead: true }));
+      const code = voteRefusalOf(again.Item ? unmarshall(again.Item) : null, nowMs);
+      return code ? S.json(409, { error: 'Conflict', code }) : S.alreadyScored();
+    }
     console.error('submitVote: vote write failed', { error: err.name });
     return S.json(500, { error: 'Internal error' });
   }
@@ -106,21 +119,21 @@ export async function sheet(event) {
   if (!relation) return T.notFound();
   const me = RA.callerId(event);
   const settings = await getRecruitmentSettings(tenantId, saga);
-  if (relation === 'panel') {
-    const mine = ivs.filter((iv) => RA.panelMemberOf(iv, me)).map((iv) => ({
-      interview_id: iv.interviewId, criteria: S.criteriaOf(iv, settings, DEFAULTS).map((c) => ({ key: c.key, label: c.label })),
-      votes: votes.filter((v) => v.interviewId === iv.interviewId && v.voterId === me).map(voteOut),
-    }));
-    return S.json(200, { candidate_id: cid, interviews: mine });
-  }
+  const ownOnly = () => S.json(200, { candidate_id: cid, interviews: ivs.filter((iv) => RA.panelMemberOf(iv, me)).map((iv) => ({
+    interview_id: iv.interviewId, criteria: S.criteriaOf(iv, settings, DEFAULTS).map((c) => ({ key: c.key, label: c.label })),
+    votes: votes.filter((v) => v.interviewId === iv.interviewId && v.voterId === me).map(voteOut),
+  })) });
+  if (relation === 'panel') return ownOnly();
   const decider = (settings.REJECTION_RULES ?? DEFAULTS.REJECTION_RULES).decider?.[saga.positionLevel];
   const all = relation === 'recruiter' || RA.canDecide(event, saga, decider);
+  // INT-01 AC-19: a hiring manager who does not decide sees only their own votes when on a panel, else 403.
+  if (!all) return ivs.some((iv) => RA.panelMemberOf(iv, me)) ? ownOnly() : S.json(403, { error: 'Forbidden' });
   const per = ivs.map((iv) => ({ iv, n: S.interviewNumbers(iv, S.criteriaOf(iv, settings, DEFAULTS), votes) }));
   const out = per.map(({ iv, n }) => ({
     interview_id: iv.interviewId, interview_type: iv.interviewType ?? null, scheduled_at: iv.scheduledAt ?? null,
     criteria: n.criteria.map((c) => ({ key: c.key, label: c.label, mean: S.oneDecimal(c.mean) })), overall: S.oneDecimal(n.overall), vote_count: n.votes.length,
     pending_count: n.pending, split: n.split, consensus: n.consensus,
-    ...(all ? { votes: votes.filter((v) => v.interviewId === iv.interviewId).map(voteOut) } : {}),
+    votes: votes.filter((v) => v.interviewId === iv.interviewId).map(voteOut),
   }));
   return S.json(200, { candidate_id: cid, final_score: S.oneDecimal(S.finalScore(per.map((x) => x.n))), interviews: out });
 }

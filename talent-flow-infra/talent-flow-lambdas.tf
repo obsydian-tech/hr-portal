@@ -116,6 +116,7 @@ resource "aws_lambda_function" "schedule_interview" {
   environment {
     variables = {
       TENANTS_TABLE          = local.tf_tenants_table
+      IDEMPOTENCY_TABLE      = local.tf_table_idempotency
       STATE_TABLE_NAME       = local.tf_table_state
       CONFIG_TABLE_NAME      = local.tf_table_config
       ROLES_TABLE_NAME       = local.tf_table_roles

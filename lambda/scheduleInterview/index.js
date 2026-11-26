@@ -1,221 +1,64 @@
 'use strict';
 
 /**
- * scheduleInterview — NH-122 / BE-006
+ * scheduleInterview — NH-122 / BE-006, rebuilt by INT-01 (NH-269)
  *
- * Trigger: POST /candidates/{id}/interviews  (schedule a new interview)
- *          PATCH /candidates/{id}/interviews/{interviewId}  (update: add panel members OR complete)
+ *   GET   /candidates/{id}/interviews                 the interviews of one candidate (this file)
+ *   POST  /candidates/{id}/interviews                 book an interview            (int01.mjs, `book`)
+ *   PATCH /candidates/{id}/interviews/{interviewId}   reschedule, cancel, did_not_happen, complete (int01.mjs, `act`)
  *
- * POST — Schedule a new interview while the candidate is in Interview:
- *   1. Parse and validate body fields
- *   2. GetItem SAGA — verify the candidate is in Interview (an old stored name is read through normaliseStage)
- *   3. Read active PANEL_CONFIG → votesRequired for positionLevel (Invariant #3)
- *   4. PutItem INTERVIEW# record (status=SCHEDULED)
- *   5. UpdateItem SAGA: currentInterviewId = interviewId (tracks most recent interview)
- *   6. Write AUDIT# timeline entry
- *   7. Enqueue INTERVIEW_SCHEDULED notification for each system panel member
- *
- * PATCH (action=complete) — Mark an interview as COMPLETED:
- *   1. UpdateItem INTERVIEW# record: status=COMPLETED, completedAt, outcome
- *
- * PATCH (no action field) — Add panel members to an existing interview.
- *
- * DO NOT update SAGA currentStage from this Lambda — the stage stays Interview
- * for all interview types. The move from Interview to Offer (moveCandidate) is gated on all required interview types
- * being COMPLETED.
- *
- * DO NOT read panelConfig using candidate's configVersion for new interviews —
- * always use active (Invariant #3).
+ * A call with no sign-in (a bus event or a direct invoke) is skipped before any AWS call (INT-01 R-15).
+ * DO NOT update SAGA currentStage from this Lambda — the stage stays Interview for all interview types. The move from
+ * Interview to Offer (moveCandidate) is gated on all required interview types being COMPLETED.
  *
  * Env vars:
  *   STATE_TABLE_NAME       — talent-flow-state
  *   CONFIG_TABLE_NAME      — talent-flow-config
+ *   IDEMPOTENCY_TABLE      — talent-flow-idempotency-keys (INT-01 request keys)
  *   NOTIFICATION_QUEUE_URL — talent-flow-notification-queue.fifo URL
  *   EVENTBRIDGE_BUS_NAME   — talent-flow-bus
  */
 
-const { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, GetItemCommand, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
-const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
-const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
-const { getConfig } = require('../shared/config-reader');
-const { tenantHelper, scopeWrite, eventTenant } = require('../shared/tf-tenant.js');
-
-const VALID_POSITION_LEVELS = ['JUNIOR', 'MID', 'SENIOR'];
+const { tenantHelper } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
-const sqs    = new SQSClient({});
-const eb     = new EventBridgeClient({});
-
-async function publishEvent(detailType, detail) {
-  try {
-    await eb.send(new PutEventsCommand({
-      Entries: [{
-        EventBusName: process.env.EVENTBRIDGE_BUS_NAME,
-        Source:       'talent-flow.interviews',
-        DetailType:   detailType,
-        Detail:       JSON.stringify({ ...detail, actor: 'HUMAN' }),
-      }],
-    }));
-  } catch (err) {
-    // Non-fatal — interview record already written; EB failure only affects activity log
-    console.error('EventBridge publish failed (non-fatal)', { detailType, error: err.message });
-  }
-}
 
 function badRequest(message) { return { statusCode: 400, body: JSON.stringify({ error: message }) }; }
-function notFound(message)   { return { statusCode: 404, body: JSON.stringify({ error: message }) }; }
-function conflict(message)   { return { statusCode: 409, body: JSON.stringify({ error: message }) }; }
 function serverError(message){ return { statusCode: 500, body: JSON.stringify({ error: message }) }; }
 function ok(body)            { return { statusCode: 200, body: JSON.stringify(body) }; }
 
-// ── PATCH: complete interview ─────────────────────────────────────────────────
-
-async function handleCompleteInterview(event, T, tenantId) {
-  const candidateId  = event.pathParameters?.id;
-  const interviewId  = event.pathParameters?.interviewId;
-  const body         = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || {});
-  const { outcome }  = body; // optional: PASS | DEFER | FAIL
-
-  if (!candidateId || !interviewId) return badRequest('Missing candidateId or interviewId');
-
-  const now = new Date().toISOString();
-
-  // The interview is this company's, or it is not found.
-  try {
-    const found = await dynamo.send(new GetItemCommand({
-      TableName: process.env.STATE_TABLE_NAME,
-      Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
-    }));
-    if (!found.Item || !T.ownsRow(unmarshall(found.Item), tenantId)) return T.notFound();
-  } catch (err) {
-    console.error('handleCompleteInterview: GetItem failed', { interviewId, error: err.message });
-    return serverError('Failed to read interview record');
-  }
-
-  try {
-    await dynamo.send(new UpdateItemCommand(scopeWrite({
-      TableName: process.env.STATE_TABLE_NAME,
-      Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
-      UpdateExpression: 'SET #s = :completed, completedAt = :at' + (outcome ? ', outcome = :outcome' : ''),
-      ConditionExpression: 'attribute_exists(PK)',
-      ExpressionAttributeNames: { '#s': 'status' },
-      ExpressionAttributeValues: marshall({
-        ':completed': 'COMPLETED',
-        ':at': now,
-        ...(outcome ? { ':outcome': outcome } : {}),
-      }),
-    }, tenantId)));
-  } catch (err) {
-    if (err.name === 'ConditionalCheckFailedException') return T.notFound();
-    console.error('handleCompleteInterview: UpdateItem failed', { interviewId, error: err.message });
-    return serverError('Failed to mark interview as completed');
-  }
-
-  await publishEvent('InterviewCompleted', { candidateId, interviewId, tenant_id: tenantId, outcome: outcome ?? null });
-
-  console.info('Interview marked COMPLETED', { candidateId, interviewId, outcome: outcome ?? 'not set' });
-  return ok({ interviewId, candidateId, status: 'COMPLETED', completedAt: now });
-}
-
-// ── PATCH: add panel members ──────────────────────────────────────────────────
-
-async function handleAddPanelMembers(event, T, tenantId) {
-  const candidateId  = event.pathParameters?.id;
-  const interviewId  = event.pathParameters?.interviewId;
-  const body         = typeof event.body === 'string' ? JSON.parse(event.body) : (event.body || {});
-  const newSystemIds = Array.isArray(body.panelMemberIds)    ? body.panelMemberIds    : [];
-  const newAdhocList = Array.isArray(body.adhocPanelMembers) ? body.adhocPanelMembers : [];
-
-  if (!candidateId || !interviewId) return badRequest('Missing candidateId or interviewId');
-  if (newSystemIds.length === 0 && newAdhocList.length === 0) {
-    return badRequest('At least one panel member must be provided');
-  }
-
-  let existing;
-  try {
-    const result = await dynamo.send(new GetItemCommand({
-      TableName: process.env.STATE_TABLE_NAME,
-      Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
-    }));
-    if (!result.Item) return T.notFound();
-    existing = unmarshall(result.Item);
-    if (!T.ownsRow(existing, tenantId)) return T.notFound();
-  } catch (err) {
-    console.error('handleAddPanelMembers: GetItem failed', { interviewId, error: err.message });
-    return serverError('Failed to read interview record');
-  }
-
-  const currentIds   = Array.isArray(existing.panelMemberIds)    ? existing.panelMemberIds    : [];
-  const currentAdhoc = Array.isArray(existing.adhocPanelMembers) ? existing.adhocPanelMembers : [];
-  const mergedIds    = [...new Set([...currentIds, ...newSystemIds])];
-  const adhocEmails  = new Set(currentAdhoc.map((m) => m.email));
-  const mergedAdhoc  = [
-    ...currentAdhoc,
-    ...newAdhocList.filter((m) => !adhocEmails.has(m.email)),
-  ];
-
-  try {
-    const updateExpr  = mergedAdhoc.length > 0
-      ? 'SET panelMemberIds = :ids, adhocPanelMembers = :adhoc, updatedAt = :ts'
-      : 'SET panelMemberIds = :ids, updatedAt = :ts';
-    const exprValues  = mergedAdhoc.length > 0
-      ? marshall({ ':ids': mergedIds, ':adhoc': mergedAdhoc, ':ts': new Date().toISOString() })
-      : marshall({ ':ids': mergedIds, ':ts': new Date().toISOString() });
-
-    await dynamo.send(new UpdateItemCommand(scopeWrite({
-      TableName: process.env.STATE_TABLE_NAME,
-      Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: `INTERVIEW#${interviewId}` }),
-      UpdateExpression: updateExpr,
-      ExpressionAttributeValues: exprValues,
-    }, tenantId)));
-  } catch (err) {
-    if (err.name === 'ConditionalCheckFailedException') return T.notFound();
-    console.error('handleAddPanelMembers: UpdateItem failed', { interviewId, error: err.message });
-    return serverError('Failed to update interview panel');
-  }
-
-  console.info('Panel members added to interview', {
-    interviewId, candidateId,
-    addedSystem: newSystemIds.length, addedAdhoc: newAdhocList.length,
-  });
-  return ok({ interviewId, panelMemberIds: mergedIds, adhocPanelMembers: mergedAdhoc });
-}
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
+  // INT-01 (R-15): no sign-in, no run. A bus event or a direct invoke is skipped before any AWS call.
+  if (!event.requestContext) {
+    console.warn('scheduleInterview: skipped', { error: 'NO_SIGN_IN' });
+    return { statusCode: 200, body: JSON.stringify({ skipped: true }) };
+  }
   const method = event.requestContext?.http?.method;
+  const RA = await import('../shared/recruitment-access.mjs');
+  if (method === 'POST' || method === 'PATCH') {
+    // REC-01, R-8: booking and changing an interview is the Recruiter's. The role answer comes first, before any AWS call.
+    const notRecruiter = RA.requireRecruiter(event);
+    if (notRecruiter) return notRecruiter;
+    const I1 = await import('./int01.mjs');
+    return method === 'POST' ? I1.book(event) : I1.act(event);
+  }
   const T = await tenantHelper();
 
-  // TEN-03: a person calling the API gets the company from the sign-in (tenantId in the body or path is not read).
-  // The InterviewScheduled event has no sign-in: its company is the event's tenant_id, checked against the record.
-  const fromApi = !!event.requestContext;
-  let tenantId;
-  let RA;
-  if (fromApi) {
-    // REC-01: scheduling and changing an interview is the Recruiter's. Reading the interviews of one candidate is also
-    // open to its hiring manager and the panel members of its interviews, and is judged on the rows (404 when not theirs).
-    // The role answer comes first, before any AWS call.
-    RA = await import('../shared/recruitment-access.mjs');
-    if (method !== 'GET') {
-      const notRecruiter = RA.requireRecruiter(event);
-      if (notRecruiter) return notRecruiter;
-    }
-    const t = T.requireTenant(event);
-    if (t.refusal) return t.refusal;
-    // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
-    const { requireModule } = await import('../shared/modules.mjs');
-    const moduleOff = await requireModule(event, 'recruitment');
-    if (moduleOff) return moduleOff;
-    tenantId = t.tenantId;
-  } else {
-    tenantId = await eventTenant(event.detail || event);
-    if (!tenantId) {
-      console.warn('scheduleInterview: event skipped, it names no company');
-      return { statusCode: 200, body: JSON.stringify({ skipped: true }) };
-    }
-  }
+  // Anyone with a sign-in may read; the company comes from the sign-in (TEN-03), never from the body, path or headers.
+  // REC-01: reading the interviews of one candidate is open to a Recruiter, the candidate's hiring manager and the panel
+  // members of its interviews, and is judged on the rows (404 when not theirs). The role answer comes before any AWS call.
+  const t = T.requireTenant(event);
+  if (t.refusal) return t.refusal;
+  // MOD-01: Recruitment must be on for the company (after the company check, before any other AWS call).
+  const { requireModule } = await import('../shared/modules.mjs');
+  const moduleOff = await requireModule(event, 'recruitment');
+  if (moduleOff) return moduleOff;
+  const tenantId = t.tenantId;
 
   // ── GET: list all interviews + votes for a candidate ─────────────────────
   if (method === 'GET') {
@@ -260,7 +103,7 @@ exports.handler = async (event) => {
         TableName: process.env.STATE_TABLE_NAME,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
         ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${candidateId}`, ':prefix': 'VOTE#' }),
-        ProjectionExpression: 'voterId, rating, weightedScore, interviewId, createdAt, submittedByTA, scores, #c',
+        ProjectionExpression: 'voterId, rating, weightedScore, interviewId, createdAt, submittedByTA, scores, #c, scale, on_behalf, entered_by',
         ExpressionAttributeNames: { '#c': 'comment' },
       }));
       const stored = (voteResult.Items || []).map((i) => unmarshall(i));
@@ -277,10 +120,20 @@ exports.handler = async (event) => {
 
       const PN = await import('../shared/people-names.mjs');
       const FD = await import('../shared/feedback-due.mjs');
+      const IV = await import('./interview-view.mjs');
       const people = relation === 'panel' ? [me] : mineRows.flatMap((r) => (Array.isArray(r.panelMemberIds) ? r.panelMemberIds : []));
-      const names = await PN.namesOf(tenantId, people);
+      const extraPeople = mineRows.flatMap((r) => [r.closed_by]).concat(stored.filter((v) => v.on_behalf && v.entered_by).map((v) => v.entered_by)).filter((x) => typeof x === 'string');
+      const names = await PN.namesOf(tenantId, [...people, ...extraPeople]);
+      const linkRows = {};
+      if (relation === 'recruiter') {
+        for (const r of mineRows.filter((x) => x.guest_link_hash)) {
+          const l = await dynamo.send(new GetItemCommand({ TableName: process.env.STATE_TABLE_NAME, Key: marshall({ PK: `SCORING_LINK#${r.guest_link_hash}`, SK: 'META' }) }));
+          if (l.Item) linkRows[r.guest_link_hash] = unmarshall(l.Item);
+        }
+      }
+      const dctx = { relation, seesVotes, event, saga: candidate, settings, votes: stored, links: linkRows, names, nowMs: Date.now() };
       const KEPT = ['interviewId', 'candidateId', 'interviewType', 'scheduledAt', 'panelMemberIds', 'adhocPanelMembers', 'votesRequired', 'votesSubmitted',
-        'status', 'completedAt', 'outcome', 'createdAt', 'criteria_snapshot', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS'];
+        'status', 'completedAt', 'createdAt', 'criteria_snapshot', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS'];
       const interviewsWithVotes = mineRows.map((r) => {
         const out = {};
         for (const k of KEPT) if (r[k] !== undefined) out[k] = r[k];
@@ -288,7 +141,9 @@ exports.handler = async (event) => {
         const due = FD.feedbackDueAt(r.scheduledAt, settings.SLA_THRESHOLDS);
         const entry = (base, given) => ({ ...base, feedback: given ? 'GIVEN' : 'WAITING', due_at: given ? null : due });
         const persons = relation === 'panel' ? [me] : (Array.isArray(r.panelMemberIds) ? r.panelMemberIds : []);
-        const panel = persons.map((pid) => entry({ kind: 'PERSON', person_id: pid, name: names[pid] ?? null }, votesHere.some((v) => v.voterId === pid)));
+        const dec = IV.decorate(r, dctx);
+        const panel = persons.map((pid) => ({ ...entry({ kind: 'PERSON', person_id: pid, name: names[pid] ?? null }, votesHere.some((v) => v.voterId === pid)), ...dec.personExtra(pid) }));
+        if (dec.guestEntry) panel.push(dec.guestEntry);
         if (relation !== 'panel') {
           for (const g of Array.isArray(r.adhocPanelMembers) ? r.adhocPanelMembers : []) {
             const email = typeof g?.email === 'string' ? g.email.toLowerCase() : null;
@@ -301,7 +156,7 @@ exports.handler = async (event) => {
           delete out.adhocPanelMembers; delete out.votesSubmitted; delete out.PANEL_SPLIT_FLAG; delete out.PANEL_CONSENSUS;
         }
         return {
-          ...out, id: r.interviewId ?? null, type: r.interviewType ?? null, at: r.scheduledAt ?? null, status: r.status ?? null, panel,
+          ...out, id: r.interviewId ?? null, type: r.interviewType ?? null, at: r.scheduledAt ?? null, ...dec.out, panel,
           votes: allVotes.filter((v) => v.interviewId === r.interviewId),
         };
       });
@@ -318,247 +173,10 @@ exports.handler = async (event) => {
       }
       return ok({ interviews: interviewsWithVotes, required });
     } catch (err) {
-      console.error('GET interviews: query failed', { candidateId, error: err.message });
+      console.error('GET interviews: query failed', { candidateId, error: err.name });
       return serverError('Failed to fetch interviews');
     }
   }
 
-  if (method === 'PATCH') {
-    const body = typeof event.body === 'string' ? JSON.parse(event.body || '{}') : (event.body || {});
-    if (body.action === 'complete') return handleCompleteInterview(event, T, tenantId);
-    return handleAddPanelMembers(event, T, tenantId);
-  }
-
-  // ── POST: schedule a new interview ───────────────────────────────────────────
-
-  let detail;
-  if (event.detail) {
-    detail = event.detail;
-  } else if (event.body != null) {
-    const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-    const pathCandidateId = event.pathParameters?.id;
-    detail = { ...body, candidateId: pathCandidateId || body.candidateId };
-  } else {
-    detail = event;
-  }
-
-  const {
-    candidateId, interviewId, interviewType, scheduledAt,
-    panelMemberIds, adhocPanelMembers,
-  } = detail;
-
-  const missing = ['candidateId', 'interviewId', 'interviewType', 'scheduledAt']
-    .filter((f) => detail[f] == null);
-  if (missing.length > 0) return badRequest(`Missing required fields: ${missing.join(', ')}`);
-
-  const systemIds = Array.isArray(panelMemberIds)   ? panelMemberIds   : [];
-  const adhocList = Array.isArray(adhocPanelMembers) ? adhocPanelMembers : [];
-
-  if (systemIds.length === 0 && adhocList.length === 0) {
-    return badRequest('At least one panel member (system user or ad hoc) is required');
-  }
-
-  // ── Step 2: Read SAGA — verify stage and positionLevel ────────────────────
-  let saga;
-  try {
-    const sagaResult = await dynamo.send(new GetItemCommand({
-      TableName: process.env.STATE_TABLE_NAME,
-      Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-    }));
-    if (!sagaResult.Item) return T.notFound();
-    saga = unmarshall(sagaResult.Item);
-    if (!T.ownsRow(saga, tenantId)) return T.notFound();
-  } catch (err) {
-    console.error('Failed to read SAGA record', { candidateId, error: err.message });
-    return serverError('Failed to read candidate record');
-  }
-
-  const { normaliseStage } = await import('../shared/recruitment-stages.mjs');
-  if (normaliseStage(saga) !== 'INTERVIEW') {
-    return conflict(
-      `Interviews can only be scheduled when the candidate is in Interview. ` +
-      `Current stage: ${normaliseStage(saga) ?? 'unknown'}. Move the candidate to Interview first.`
-    );
-  }
-
-  // ── Guard: no concurrent SCHEDULED interview (sequential rule) ───────────
-  // ── Guard: no duplicate COMPLETED type (each type runs once) ────────────
-  let existingInterviews = [];
-  try {
-    const existingResult = await dynamo.send(new QueryCommand({
-      TableName: process.env.STATE_TABLE_NAME,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
-      ExpressionAttributeValues: marshall({
-        ':pk':     `CANDIDATE#${candidateId}`,
-        ':prefix': 'INTERVIEW#',
-      }),
-      ProjectionExpression: 'interviewType, #s',
-      ExpressionAttributeNames: { '#s': 'status' },
-    }));
-    existingInterviews = (existingResult.Items || []).map((i) => unmarshall(i));
-  } catch (err) {
-    console.error('Failed to query existing interviews', { candidateId, error: err.message });
-    return serverError('Failed to validate interview scheduling');
-  }
-
-  const scheduledOne = existingInterviews.find((i) => i.status === 'SCHEDULED');
-  if (scheduledOne) {
-    return conflict(
-      `Cannot schedule a new interview while ${scheduledOne.interviewType.replace(/_/g, ' ')} ` +
-      `is still in SCHEDULED state. Mark it as COMPLETED first.`
-    );
-  }
-
-  const alreadyCompleted = existingInterviews.find(
-    (i) => i.interviewType === interviewType && i.status === 'COMPLETED',
-  );
-  if (alreadyCompleted) {
-    return conflict(
-      `A ${interviewType.replace(/_/g, ' ')} interview has already been COMPLETED for this candidate. ` +
-      `Each interview type can only be completed once.`
-    );
-  }
-
-  const positionLevel = saga.positionLevel;
-  if (!VALID_POSITION_LEVELS.includes(positionLevel)) {
-    return badRequest(`positionLevel must be one of: ${VALID_POSITION_LEVELS.join(', ')} — got: ${positionLevel}`);
-  }
-
-  // ── Step 3: Read active PANEL_CONFIG → votesRequired ─────────────────────
-  let panelConfig;
-  try {
-    panelConfig = await getConfig(tenantId, 'PANEL_CONFIG');
-  } catch (err) {
-    console.error('Failed to read PANEL_CONFIG', { tenantId, error: err.message });
-    return serverError('Failed to read panel configuration');
-  }
-
-  // REC-12: the Standard pack holds the panel size per level (PANEL_CONFIG.panelSize), which is the votes asked of the panel;
-  // a company that still holds the older rules.votesRequired shape keeps it.
-  // A company the Standard pack has not reached yet keeps today's panel sizes (the pack's own) until it has its own.
-  const packDefaults = (await import('../shared/recruitment-settings.mjs')).DEFAULTS.PANEL_CONFIG.panelSize;
-  const votesRequired = panelConfig?.rules?.votesRequired?.[positionLevel] ?? panelConfig?.panelSize?.[positionLevel] ?? packDefaults[positionLevel];
-  if (votesRequired == null) {
-    console.error('votesRequired not found for positionLevel', { positionLevel, panelConfig });
-    return serverError(`votesRequired not configured for positionLevel: ${positionLevel}`);
-  }
-
-  const now = new Date().toISOString();
-
-  // REC-07: the interview keeps the role's criteria (or the company's default criteria) from now on.
-  let criteriaSnapshot;
-  try {
-    if (saga.role_id) {
-      const rr = await dynamo.send(new GetItemCommand({ TableName: process.env.ROLES_TABLE_NAME, Key: marshall({ pk: `TENANT#${tenantId}`, sk: `ROLE#${saga.role_id}` }) }));
-      const role = rr.Item ? unmarshall(rr.Item) : null;
-      if (role && T.ownsRow(role, tenantId) && Array.isArray(role.criteria)) criteriaSnapshot = role.criteria.map((c) => ({ key: c.key, label: c.label }));
-    }
-    if (!criteriaSnapshot) {
-      const RS = await import('../shared/recruitment-settings.mjs');
-      const active = await RS.activeSettings(tenantId);
-      criteriaSnapshot = (active.SCORING_WEIGHTS?.defaultCriteria ?? RS.DEFAULTS.SCORING_WEIGHTS.defaultCriteria).map((c) => ({ key: c.key, label: c.label }));
-    }
-  } catch (err) {
-    console.error('Failed to read the criteria', { error: err.name });
-    return serverError('Failed to read the criteria');
-  }
-
-  // ── Step 4: Write INTERVIEW# record ──────────────────────────────────────
-  const interviewItem = T.stampTenant({
-    PK: `CANDIDATE#${candidateId}`,
-    SK: `INTERVIEW#${interviewId}`,
-    interviewId,
-    candidateId,
-    tenantId,
-    interviewType,
-    scheduledAt,
-    panelMemberIds: systemIds,
-    ...(adhocList.length > 0 ? { adhocPanelMembers: adhocList } : {}),
-    votesRequired,
-    votesSubmitted: 0,
-    status: 'SCHEDULED',
-    createdAt: now,
-    criteria_snapshot: criteriaSnapshot,
-    PANEL_FEEDBACK_PENDING_COUNT: systemIds.length,
-  }, tenantId);
-
-  try {
-    await dynamo.send(new PutItemCommand({
-      TableName: process.env.STATE_TABLE_NAME,
-      Item: marshall(interviewItem, { removeUndefinedValues: true }),
-      ConditionExpression: 'attribute_not_exists(PK)',
-    }));
-  } catch (err) {
-    if (err.name === 'ConditionalCheckFailedException') {
-      console.warn('Interview record already exists — idempotent skip', { interviewId });
-    } else {
-      console.error('Failed to write interview record', { interviewId, error: err.message });
-      return serverError('Failed to write interview record');
-    }
-  }
-
-  // ── Step 5: Update SAGA currentInterviewId (tracks most recent interview) ─
-  try {
-    await dynamo.send(new UpdateItemCommand(scopeWrite({
-      TableName: process.env.STATE_TABLE_NAME,
-      Key: marshall({ PK: `CANDIDATE#${candidateId}`, SK: 'SAGA' }),
-      UpdateExpression: 'SET currentInterviewId = :iid',
-      ExpressionAttributeValues: marshall({ ':iid': interviewId }),
-    }, tenantId)));
-  } catch (err) {
-    console.error('Failed to update SAGA currentInterviewId', { candidateId, error: err.message });
-  }
-
-  // ── Step 6: Write timeline audit entry ───────────────────────────────────
-  try {
-    await dynamo.send(new PutItemCommand({
-      TableName: process.env.STATE_TABLE_NAME,
-      Item: marshall(T.stampTenant({
-        PK: `CANDIDATE#${candidateId}`,
-        SK: `AUDIT#${now}`,
-        eventType: 'INTERVIEW_SCHEDULED',
-        interviewId,
-        interviewType,
-        scheduledAt,
-        tenantId,
-        createdAt: now,
-      }, tenantId), { removeUndefinedValues: true }),
-    }));
-  } catch (err) {
-    console.error('Failed to write timeline audit entry', { candidateId, error: err.message });
-  }
-
-  // ── Step 7: Enqueue notification for each system panel member ─────────────
-  for (const recipientId of systemIds) {
-    try {
-      await sqs.send(new SendMessageCommand({
-        QueueUrl: process.env.NOTIFICATION_QUEUE_URL,
-        MessageBody: JSON.stringify({
-          type: 'INTERVIEW_SCHEDULED',
-          tenant_id: tenantId,
-          recipientId,
-          candidateId,
-          scheduledAt,
-          interviewId,
-          interviewType,
-        }),
-        MessageGroupId: candidateId,
-        MessageDeduplicationId: `${interviewId}#${recipientId}`,
-      }));
-    } catch (err) {
-      console.error('Failed to enqueue notification', { recipientId, interviewId, error: err.message });
-    }
-  }
-
-  await publishEvent('InterviewScheduled', {
-    candidateId, interviewId, tenant_id: tenantId, interviewType, scheduledAt,
-    positionLevel, panelMemberIds: systemIds,
-  });
-
-  console.info('Interview scheduled', {
-    interviewId, candidateId, tenantId, interviewType, positionLevel, votesRequired,
-    panelSize: systemIds.length, adhocCount: adhocList.length,
-  });
-
-  return ok({ interviewId, candidateId, interviewType, votesRequired, status: 'SCHEDULED' });
+  return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
 };

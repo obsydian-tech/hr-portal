@@ -620,7 +620,7 @@ def seed_candidates(ddb, tenant_id: str, manager_sub: str, employee_sub: str) ->
     ddb.put_item(TableName=STATE_TABLE, Item={
         "PK": {"S": f"CANDIDATE#{SEED_CANDIDATES[0][0]}"}, "SK": {"S": f"INTERVIEW#{SEED_INTERVIEW_ID}"},
         "interviewId": {"S": SEED_INTERVIEW_ID}, "candidateId": {"S": SEED_CANDIDATES[0][0]}, "tenant_id": {"S": tenant_id},
-        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-11-20T09:00:00.000Z"},
         "votesRequired": {"N": "2"}, "votesSubmitted": {"N": "0"}, "panelMemberIds": {"L": [{"S": employee_sub}]},
         "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
     })
@@ -705,7 +705,7 @@ def seed_rec02(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
     ddb.put_item(TableName=STATE_TABLE, Item={
         "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{REC02_INTERVIEW}"},
         "interviewId": {"S": REC02_INTERVIEW}, "candidateId": {"S": REC02_CANDIDATE}, "tenant_id": {"S": tenant_id},
-        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-11-20T09:00:00.000Z"},
         "votesRequired": {"N": "2"}, "votesSubmitted": {"N": "0"}, "panelMemberIds": {"L": [{"S": employee_sub}]},
         "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
     })
@@ -758,7 +758,7 @@ def seed_rec03(ddb, tenant_id: str, manager_sub: str) -> int:
     ddb.put_item(TableName=STATE_TABLE, Item={
         "PK": {"S": f"CANDIDATE#{REC03_CANDIDATES[0][0]}"}, "SK": {"S": f"INTERVIEW#{REC03_INTERVIEW}"},
         "interviewId": {"S": REC03_INTERVIEW}, "candidateId": {"S": REC03_CANDIDATES[0][0]}, "tenant_id": {"S": tenant_id},
-        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-11-20T09:00:00.000Z"},
         "votesRequired": {"N": "0"}, "votesSubmitted": {"N": "0"}, "panelMemberIds": {"L": []},
         "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
     })
@@ -1045,7 +1045,7 @@ def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
         ddb.put_item(TableName=STATE_TABLE, Item={
             "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"},
             "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tid},
-            "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+            "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-11-20T09:00:00.000Z"},
             "votesRequired": {"N": str(len(panel))}, "votesSubmitted": {"N": "0"},
             "panelMemberIds": {"L": [{"S": p} for p in panel]}, "criteria_snapshot": criteria,
             "PANEL_FEEDBACK_PENDING_COUNT": {"N": str(len(panel))}, "PANEL_SPLIT_FLAG": {"BOOL": False},
@@ -1082,6 +1082,58 @@ def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
     candidate(b_candidate, SECOND_TENANT_ID, "Rec", "Seed-ScoreB", b_interview, [OTHER_HIRING_MANAGER], OTHER_HIRING_MANAGER)
     link(ids["crossCompanyToken"], tenant_id, b_candidate, b_interview)
     return written + 3
+
+
+def seed_int01(ddb, tenant_id: str, panel_subs: tuple) -> int:
+    """INT-01: the dev candidate, a past interview booked the new way (two panel logins and a guest link in the R-21 format) and a
+    future one. Everything the last run left on the candidate is removed first, so each run starts the same. Idempotent."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "int-01" / "dev-ids.json").read_text())
+    if len(panel_subs) < 2 or not all(panel_subs):
+        print("warning: a panel login has no sub; the INT-01 rows were not written")
+        return 0
+    cid = ids["candidate"]
+    pk = f"CANDIDATE#{cid}"
+    now_s = time.time()
+    iso = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(t))
+    past_at, future_at = iso(now_s - 3600), iso(now_s + 3 * 86400)
+    expires = iso(now_s - 3600 + 7 * 86400)
+    old = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk", ExpressionAttributeValues={":pk": {"S": pk}}, ProjectionExpression="PK, SK")
+    for item in old.get("Items", []):
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    stamp = iso(now_s - 86400)
+    criteria = {"L": [{"M": {"key": {"S": k}, "label": {"S": label}}} for k, label in REC04_CRITERIA]}
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": "SAGA"},
+        "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": "Int"}, "lastName": {"S": "Seed-Interview"},
+        "email": {"S": f"pepla-demo-int.seed-interview@{MAIL_DOMAIN}"},
+        "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+        "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": stamp}, "status": {"S": "ACTIVE"},
+        "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": stamp}, "appliedDate": {"S": stamp},
+        "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+    })
+    token_hash = hashlib.sha256(ids["guestToken"].encode()).hexdigest()
+
+    def interview(iv_id: str, kind: str, at: str, guest: bool) -> None:
+        item = {
+            "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"}, "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+            "interviewType": {"S": kind}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": at}, "length_minutes": {"N": "60"},
+            "where": {"S": "ONLINE"}, "video_link": {"S": "https://meet.example.test/int-01-seed"}, "sequence": {"N": "1"},
+            "booked_by": {"S": panel_subs[0]}, "booked_at": {"S": stamp}, "votesSubmitted": {"N": "0"},
+            "panelMemberIds": {"L": [{"S": p} for p in panel_subs[:2]]}, "criteria_snapshot": criteria, "createdAt": {"S": stamp}, "seed": {"S": SEED_TAG},
+        }
+        if guest:
+            item["guest_link_hash"] = {"S": token_hash}
+        ddb.put_item(TableName=STATE_TABLE, Item=item)
+
+    interview(ids["pastInterview"], "HR_SCREEN", past_at, True)
+    interview(ids["futureInterview"], "FINAL", future_at, False)
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"SCORING_LINK#{token_hash}"}, "SK": {"S": "META"}, "token_hash": {"S": token_hash}, "tenant_id": {"S": tenant_id},
+        "interview_id": {"S": ids["pastInterview"]}, "candidate_id": {"S": cid}, "guest_email": {"S": f"pepla-demo-guest@{MAIL_DOMAIN}"},
+        "expires_at": {"S": expires}, "used_at": {"NULL": True}, "created_at": {"S": stamp}, "ttl": {"N": str(int(now_s) + 8 * 86400)}, "seed": {"S": SEED_TAG},
+    })
+    return 4
 
 
 def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
@@ -1175,7 +1227,7 @@ def seed_int03(ddb, tenant_id: str) -> int:
     ddb.put_item(TableName=STATE_TABLE, Item={
         "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"},
         "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
-        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-12-01T09:00:00.000Z"},
+        "interviewType": {"S": "HR_SCREEN"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": "2026-11-20T09:00:00.000Z"},
         "votesRequired": {"N": "99"}, "votesSubmitted": {"N": "0"},
         "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
     })
@@ -1286,6 +1338,11 @@ def main() -> None:
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-07 rows were not written")
         rec07_written = 0
+
+    try:
+        seed_int01(ddb, tid, (employee_sub, user_sub(cognito, naleko, "it")))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the INT-01 rows were not written")
 
     try:
         seed_int03(ddb, tid)

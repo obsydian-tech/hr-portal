@@ -59,7 +59,8 @@ export function validate(type, d, ctx = {}) {
     case 'INTERVIEW_TYPES': {
       if (!sameKeys(d, ['types', 'requiredByLevel']) || !Array.isArray(d.types) || !sameKeys(d.requiredByLevel, levels)) return false;
       const keys = d.types.map((t) => t?.key);
-      return d.types.every((t) => sameKeys(t, ['key', 'label', 'optional']) && typeof t.key === 'string' && typeof t.label === 'string' && typeof t.optional === 'boolean')
+      const lengthOk = (t) => t.default_length_minutes === undefined || (Number.isInteger(t.default_length_minutes) && t.default_length_minutes >= 15 && t.default_length_minutes <= 240 && t.default_length_minutes % 15 === 0);
+      return d.types.every((t) => (sameKeys(t, ['key', 'label', 'optional']) || sameKeys(t, ['key', 'label', 'optional', 'default_length_minutes'])) && lengthOk(t) && typeof t.key === 'string' && typeof t.label === 'string' && typeof t.optional === 'boolean')
         && levels.every((l) => Array.isArray(d.requiredByLevel[l]) && d.requiredByLevel[l].every((k) => keys.includes(k)));
     }
     case 'PANEL_CONFIG':

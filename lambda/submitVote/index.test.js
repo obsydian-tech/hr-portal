@@ -154,6 +154,7 @@ describe('handler – quorum met', () => {
     // the INTERVIEW# record (returned ALL_NEW with votesRequired).
     mockDynamoSend
       .mockResolvedValueOnce({ Item: SAGA })                                     // GetItem SAGA
+      .mockResolvedValueOnce({})                                                 // GetItem interview (booked the old way: no sequence)
       .mockResolvedValueOnce({ Items: [] })                                      // duplicate-vote Query
       .mockResolvedValueOnce({})                                                 // PutItem vote
       .mockResolvedValueOnce({ Attributes: { votesSubmitted: 3, votesRequired: 3 } }) // ADD on INTERVIEW#
@@ -166,7 +167,7 @@ describe('handler – quorum met', () => {
     const res = await handler(interviewEvent);
 
     expect(res.statusCode).toBe(200);
-    const counterUpdate = mockDynamoSend.mock.calls[3][0];
+    const counterUpdate = mockDynamoSend.mock.calls[4][0];
     expect(counterUpdate.Key).toEqual({ PK: 'CANDIDATE#cand1', SK: 'INTERVIEW#int1' });
     expect(mockEbSend).toHaveBeenCalledTimes(1);
 
@@ -500,6 +501,7 @@ describe('handler – averageScore calculation', () => {
 
     mockDynamoSend
       .mockResolvedValueOnce({ Item: SAGA })
+      .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ Items: [] })
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ Attributes: { votesSubmitted: 3, votesRequired: 3 } })
@@ -545,6 +547,7 @@ describe('handler – duplicate vote on the same interview', () => {
   it('returns 409 and writes nothing when the voter already voted on this interview', async () => {
     mockDynamoSend
       .mockResolvedValueOnce({ Item: SAGA })
+      .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ Items: [{ SK: 'VOTE#voter1#2026-01-01T00:00:00Z' }] });
     getConfig
       .mockResolvedValueOnce(WEIGHTS)
@@ -553,8 +556,8 @@ describe('handler – duplicate vote on the same interview', () => {
     const res = await handler(interviewEvent);
 
     expect(res.statusCode).toBe(409);
-    expect(mockDynamoSend).toHaveBeenCalledTimes(2);
-    const dupQuery = mockDynamoSend.mock.calls[1][0];
+    expect(mockDynamoSend).toHaveBeenCalledTimes(3);
+    const dupQuery = mockDynamoSend.mock.calls[2][0];
     expect(dupQuery.ExpressionAttributeValues).toMatchObject({ ':votePrefix': 'VOTE#voter1#', ':iid': 'int1' });
     expect(mockEbSend).not.toHaveBeenCalled();
   });
@@ -620,5 +623,24 @@ describe('handler – a person calling the API (REC-01)', () => {
     delete e.requestContext.authorizer.jwt.claims.sub;
     expect((await handler(e)).statusCode).toBe(403);
     expect(stored()).toHaveLength(0);
+  });
+});
+
+// =============================================================================
+// 21.  INT-01 (R-13): an interview booked the new way is scored on the new route only
+// =============================================================================
+describe('handler – interview booked the new way (has sequence)', () => {
+  it('skips the VoteSubmitted event, logs only the error name and writes nothing', async () => {
+    mockDynamoSend
+      .mockResolvedValueOnce({ Item: SAGA })
+      .mockResolvedValueOnce({ Item: { PK: 'CANDIDATE#cand1', SK: 'INTERVIEW#int1', tenant_id: SAGA.tenant_id, sequence: 1 } });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const res = await handler(interviewEvent);
+      expect(res).toEqual({ statusCode: 200, body: JSON.stringify({ skipped: true }) });
+      expect(warn).toHaveBeenCalledWith('submitVote: event skipped', { error: 'USE_NEW_ROUTE' });
+    } finally { warn.mockRestore(); }
+    expect(mockDynamoSend).toHaveBeenCalledTimes(2);
+    expect(mockEbSend).not.toHaveBeenCalled();
   });
 });
