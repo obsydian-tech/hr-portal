@@ -1063,7 +1063,7 @@ def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
     link(ids["guestToken"], tenant_id, ids["candidate"], ids["interview"])
     written += 3
     # REC-15 step D (lock check F-1): one history row by a company A login, so the dev check sees a name in the history. The row carries
-    # company A's tenant_id (the history read drops a row that does not), and `by` is the sub of a login with a Member row of company A.
+    # company A's tenant_id (the history read drops a row that does not), and `by` is the IT login's sub. That login has no Member row of its own, so its name comes through the legacy-company rule (LEGACY_TENANT_ID on getCandidateEvents is company A on dev).
     stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
                       ExpressionAttributeValues={":pk": {"S": f"CANDIDATE#{ids['candidate']}"}, ":p": {"S": "STAGE#"}}, ProjectionExpression="PK, SK")
     for item in stale.get("Items", []):
