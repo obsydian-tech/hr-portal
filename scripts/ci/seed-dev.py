@@ -1168,6 +1168,46 @@ def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
     return 4
 
 
+def seed_rec06(ddb, tenant_id: str) -> int:
+    """REC-06: put both conversion offers back to SENT each run and remove the employee the last run made (cards/rec-06.md, "Seed and clean-up").
+
+    Both candidates use robot addresses (blackhole.postmarkapp.com), so even a later "send the invite again" can never email a real person. The
+    ids are known, so only those employee rows are deleted, each on condition of the company. The rehire pair's employee is written again each run.
+    """
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-06" / "dev-ids.json").read_text())
+    now = "2026-11-20T08:00:00.000Z"
+    namespace = uuid.UUID("6b7dcfde-d603-4673-9949-d5d39ac59e17")
+    written = 0
+    for cid, oid, email, first in ((ids["candidate"], ids["offer"], ids["email"], "Hire"), (ids["rehireCandidate"], ids["rehireOffer"], ids["rehireEmail"], "Rehire")):
+        eid = str(uuid.uuid5(namespace, f"{tenant_id}:{oid}"))
+        try:
+            ddb.delete_item(TableName="employees", Key={"employee_id": {"S": eid}}, ConditionExpression="tenant_id = :t",
+                            ExpressionAttributeValues={":t": {"S": tenant_id}})
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": "Rec06"}, "lastName": {"S": f"Seed-{first}"}, "email": {"S": email},
+            "phone": {"S": "0800000000"}, "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": "OFFER"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now},
+            "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+        })
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"OFFER#{oid}"}, "SK": {"S": "OFFER"}, "offer_id": {"S": oid}, "tenant_id": {"S": tenant_id}, "candidate_id": {"S": cid},
+            "candidate_name": {"S": f"Rec06 Seed-{first}"}, "role_title": {"S": "Demo role"}, "department": {"S": "Operations"}, "state": {"S": "SENT"}, "version": {"N": "1"},
+            "salary": {"N": "350000"}, "currency": {"S": "ZAR"}, "start_date": {"S": ids["startDate"]}, "expiry_date": {"S": "2030-01-15"},
+            "drafted_by": {"S": "seed-drafter"}, "drafted_by_name": {"S": "Thandi Demo-HR"}, "created_at": {"S": now}, "updated_at": {"S": now}, "sent_at": {"S": now},
+            "approval_history": {"L": []}, "history": {"L": []}, "GSI2PK": {"S": f"TENANT#{tenant_id}#OFFER"}, "GSI2SK": {"S": f"{now}#{oid}"}, "seed": {"S": SEED_TAG},
+        })
+        ddb.put_item(TableName=STATE_TABLE, Item={"PK": {"S": f"TENANT#{tenant_id}#OFFER_LIVE#{cid}"}, "SK": {"S": "LOCK"},
+                                                   "tenant_id": {"S": tenant_id}, "live_offer_id": {"S": oid}})
+        written += 3
+    # The rehire pair: the candidate's address belongs to an employee of the company already.
+    ddb.put_item(TableName="employees", Item=employee_item(ids["rehireEmployee"], "Rec06", "Seed-Rehire-Employee", ids["rehireEmail"], "Operations", "Clerk", "ACTIVE", tenant_id=tenant_id))
+    return written + 1
+
+
 def seed_recui04(ddb, tenant_id: str) -> int:
     """REC-UI-04.2: put back the candidate the offer screens' dev walk drafts an offer for (cards/rec-ui-04.2.md, "REC-UI-04.2 dev seed").
 
@@ -1358,6 +1398,11 @@ def main() -> None:
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-05 rows were not written")
         rec05_written = 0
+
+    try:
+        seed_rec06(ddb, tid)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-06 rows were not written")
 
     try:
         seed_recui04(ddb, tid)

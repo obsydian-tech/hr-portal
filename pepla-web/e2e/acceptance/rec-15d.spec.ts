@@ -9,6 +9,13 @@ import { bodyOf, describe, statusOf, type Caller } from './support/rec-04/world'
 import { changedRows } from './support/rec-04/roles';
 import { recordRun, withCandidate, withNewVersion } from './support/rec-15c/world';
 import { REC15D_GRANTS } from './support/rec-15d.1/grants';
+/** Child lock rec-15d.2 (REC-06): grants later cards add to policies step D does not own, each matched exactly. */
+const LATER_CARD_GRANTS: Record<string, RegExp[]> = {
+  'talent-flow-infra/manage_offers': [
+    /^Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table\/employees null$/,
+    /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table\/employees\/index\/email-index null$/,
+  ],
+};
 import {
   A, ALL_NAMES, AT, B, BEMAIL, D, GUEST, GUEST_VOTER, IV, MANY, NAME, NEVER, NOW, P, PC, POOL_OTHER, Q, SUB, TABLE, TENANTS, awsOf, eventsRun,
   interviewsRun, logsOf, membersRead, poolAsked, rowsOf, withFeedbackHours, withInterview, world, EVENTS, INTERVIEWS, type Opts, type Run, type Tables,
@@ -570,7 +577,9 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
         expect.soft(want.map((w) => gained.filter((l) => w.test(l)).length), `${k}: each of the two, once`).toEqual([1, 1]);
         expect.soft(lost, `${k}: loses nothing`).toEqual([]);
       } else {
-        expect.soft(gained, `${k}: no new grant`).toEqual([]);
+        // Child lock rec-15d.2 (REC-06): the two lines REC-06 gives manage_offers are REC-06's own (its AC-9 checks them exactly), not a step D change.
+        const later = LATER_CARD_GRANTS[k] ?? [];
+        expect.soft(gained.filter((l) => !later.some((w) => w.test(l))), `${k}: no new grant`).toEqual([]);
       }
     }
     // The new lines name one pool and one table each (the older lines of these policies, such as the events table's index/*, are not step D's).
