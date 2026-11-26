@@ -8,7 +8,7 @@ import * as RA from '../shared/recruitment-access.mjs';
 import { requireModule } from '../shared/modules.mjs';
 import { getRecruitmentSettings, activeSettings, DEFAULTS } from '../shared/recruitment-settings.mjs';
 import * as S from '../shared/scoring.mjs';
-import { candidateRows, recomputeInterview } from '../shared/interview-scoring.mjs';
+import { candidateRows, recomputeInterview, sequenceClause } from '../shared/interview-scoring.mjs';
 
 const db = new DynamoDBClient({});
 const eb = new EventBridgeClient({});
@@ -32,6 +32,16 @@ export async function vote(event) {
     return S.json(500, { error: 'Internal error' });
   }
   if (!interview) return T.notFound();
+  // INT-01.F rule 2.1: the index copy only finds the row. Everything below is judged on a strong read of the row itself.
+  const ivKey = { PK: `CANDIDATE#${interview.candidateId}`, SK: `INTERVIEW#${interview.interviewId}` };
+  try {
+    const strong = await db.send(new GetItemCommand({ TableName: STATE(), Key: marshall(ivKey), ConsistentRead: true }));
+    interview = strong.Item ? unmarshall(strong.Item) : null;
+  } catch (err) {
+    console.error('submitVote: interview read failed', { error: err.name });
+    return S.json(500, { error: 'Internal error' });
+  }
+  if (!interview || !T.ownsRow(interview, tenantId)) return T.notFound();
   const body = parse(event);
   const me = RA.callerId(event);
   let voter = me;
@@ -57,29 +67,51 @@ export async function vote(event) {
   if (early) return S.json(409, { error: 'Conflict', code: early });
   const rows = await candidateRows(interview.candidateId);
   if (rows.some((r) => String(r.SK).startsWith(`VOTE#${voter}#`) && r.interviewId === interview.interviewId)) return S.alreadyScored();
-  const now = new Date(nowMs).toISOString();
-  const item = T.stampTenant({
-    PK: `CANDIDATE#${interview.candidateId}`, SK: `VOTE#${voter}#${interview.interviewId}`, voterId: voter, candidateId: interview.candidateId, interviewId: interview.interviewId,
-    scores: body.scores, rating: body.rating, ...(body.comment !== undefined ? { comment: body.comment } : {}), scale: S.SCALE, on_behalf: onBehalf,
-    ...(onBehalf ? { entered_by: me } : {}), createdAt: now,
-  }, tenantId);
-  const ivKey = { PK: `CANDIDATE#${interview.candidateId}`, SK: `INTERVIEW#${interview.interviewId}` };
-  try {
+  // Rule 2.2: the interview part of the transaction holds the sequence of the copy the panel was judged on.
+  const send = async (iv, atMs) => {
+    const at = new Date(atMs).toISOString();
+    const seq = sequenceClause(iv);
+    const item = T.stampTenant({
+      PK: `CANDIDATE#${iv.candidateId}`, SK: `VOTE#${voter}#${iv.interviewId}`, voterId: voter, candidateId: iv.candidateId, interviewId: iv.interviewId,
+      scores: body.scores, rating: body.rating, ...(body.comment !== undefined ? { comment: body.comment } : {}), scale: S.SCALE, on_behalf: onBehalf,
+      ...(onBehalf ? { entered_by: me } : {}), createdAt: at,
+    }, tenantId);
     // INT-01 (R-18): the vote, its guard row and the counter in one transaction, on a SCHEDULED interview that has started.
     await db.send(new TransactWriteItemsCommand({ TransactItems: [
       { Put: { TableName: STATE(), Item: marshall(item, { removeUndefinedValues: true }), ConditionExpression: 'attribute_not_exists(SK)' } },
-      { Put: { TableName: STATE(), Item: marshall(T.stampTenant({ PK: `CANDIDATE#${interview.candidateId}`, SK: `VOTED#${interview.interviewId}#${voter}`, createdAt: now }, tenantId)), ConditionExpression: 'attribute_not_exists(PK)' } },
-      { Update: { TableName: STATE(), Key: marshall(ivKey), UpdateExpression: 'ADD votesSubmitted :one', ConditionExpression: 'tenant_id = :t AND #s = :sch AND scheduledAt <= :now', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: marshall({ ':one': 1, ':t': tenantId, ':sch': 'SCHEDULED', ':now': now }) } },
+      { Put: { TableName: STATE(), Item: marshall(T.stampTenant({ PK: `CANDIDATE#${iv.candidateId}`, SK: `VOTED#${iv.interviewId}#${voter}`, createdAt: at }, tenantId)), ConditionExpression: 'attribute_not_exists(PK)' } },
+      { Update: { TableName: STATE(), Key: marshall(ivKey), UpdateExpression: 'ADD votesSubmitted :one', ConditionExpression: `tenant_id = :t AND #s = :sch AND scheduledAt <= :now AND ${seq.expr}`, ExpressionAttributeNames: { '#s': 'status', '#q': 'sequence' }, ExpressionAttributeValues: marshall({ ':one': 1, ':t': tenantId, ':sch': 'SCHEDULED', ':now': at, ...seq.values }) } },
     ] }));
+    return at;
+  };
+  let now;
+  let judged = interview;
+  try {
+    now = await send(judged, nowMs);
   } catch (err) {
-    if (err.name === 'TransactionCanceledException') {
-      const again = await db.send(new GetItemCommand({ TableName: STATE(), Key: marshall(ivKey), ConsistentRead: true }));
-      const code = voteRefusalOf(again.Item ? unmarshall(again.Item) : null, nowMs);
-      return code ? S.json(409, { error: 'Conflict', code }) : S.alreadyScored();
+    if (err.name !== 'TransactionCanceledException') {
+      console.error('submitVote: vote write failed', { error: err.name });
+      return S.json(500, { error: 'Internal error' });
     }
-    console.error('submitVote: vote write failed', { error: err.name });
-    return S.json(500, { error: 'Internal error' });
+    // Rule 2.4: one retry. Judge again, strongly, as a fresh request would be judged; nothing is written on any refusal.
+    try {
+      const again = await db.send(new GetItemCommand({ TableName: STATE(), Key: marshall(ivKey), ConsistentRead: true }));
+      judged = again.Item ? unmarshall(again.Item) : null;
+      if (!judged || !T.ownsRow(judged, tenantId)) return T.notFound();
+      if (onBehalf ? !RA.panelMemberOf(judged, voter) : !RA.panelMemberOf(judged, me)) return onBehalf ? S.badField('on_behalf_of') : RA.forbidden();
+      const retryNowMs = Date.now();
+      const code = voteRefusalOf(judged, retryNowMs);
+      if (code) return S.json(409, { error: 'Conflict', code });
+      const rows2 = await candidateRows(judged.candidateId);
+      if (rows2.some((r) => (String(r.SK).startsWith(`VOTE#${voter}#`) && r.interviewId === judged.interviewId) || r.SK === `VOTED#${judged.interviewId}#${voter}`)) return S.alreadyScored();
+      now = await send(judged, retryNowMs);
+    } catch (err2) {
+      if (err2.name === 'TransactionCanceledException') return S.json(409, { error: 'Conflict', code: 'NOT_ALLOWED_NOW' });
+      console.error('submitVote: vote write failed', { error: err2.name });
+      return S.json(500, { error: 'Internal error' });
+    }
   }
+  interview = judged;
   const rules = (await getRecruitmentSettings(tenantId, saga)).REJECTION_RULES ?? DEFAULTS.REJECTION_RULES;
   if (body.rating === 'STRONG_NO' && rules.reviewVoteLevel === 'STRONG_NO') {
     await db.send(new UpdateItemCommand({ TableName: STATE(), Key: marshall({ PK: `CANDIDATE#${interview.candidateId}`, SK: 'SAGA' }), UpdateExpression: 'ADD strong_no_count :one', ExpressionAttributeValues: marshall({ ':one': 1 }) }));

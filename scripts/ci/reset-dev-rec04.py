@@ -13,6 +13,7 @@ and the seed only runs once per run, so without this the phone run finds no Tend
 Counts only in the output.
 """
 import importlib.util
+import json
 import pathlib
 import sys
 
@@ -50,6 +51,27 @@ def clear_extra_candidates(ddb, tenant_id: str, manager_sub: str) -> int:
         kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
 
 
+def clear_int01f_interviews(ddb) -> int:
+    """INT-01.F AC-9: the dev check books its own interview on INT-01's dev candidate, reschedules it and cancels it. Delete what it leaves
+    there: every interview row except the two seeded ones, and the per-type booking guard rows (seed_int01 writes none). Only that candidate's
+    partition, nothing else."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "int-01" / "dev-ids.json").read_text())
+    keep = {f"INTERVIEW#{ids['pastInterview']}", f"INTERVIEW#{ids['futureInterview']}"}
+    pk = {"S": f"CANDIDATE#{ids['candidate']}"}
+    removed = 0
+    kwargs = {"TableName": seed.STATE_TABLE, "KeyConditionExpression": "PK = :pk", "ExpressionAttributeValues": {":pk": pk}, "ProjectionExpression": "PK, SK"}
+    while True:
+        page = ddb.query(**kwargs)
+        for row in page.get("Items", []):
+            sk = row["SK"]["S"]
+            if (sk.startswith("INTERVIEW#") and sk not in keep) or sk.startswith("IVTYPE#"):
+                ddb.delete_item(TableName=seed.STATE_TABLE, Key={"PK": row["PK"], "SK": row["SK"]})
+                removed += 1
+        if "LastEvaluatedKey" not in page:
+            return removed
+        kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+
 def main() -> None:
     account = boto3.client("sts", region_name=seed.REGION).get_caller_identity()["Account"]
     if account != seed.DEV_ACCOUNT:
@@ -60,7 +82,8 @@ def main() -> None:
     tenant_id = seed.founding_tenant_id()
     removed = clear_extra_candidates(ddb, tenant_id, manager_sub)
     written = seed.seed_rec04(ddb, tenant_id, manager_sub)
-    print(f"reset-dev-rec04: extra candidates removed {removed}; rows written {written}")
+    int01f = clear_int01f_interviews(ddb)
+    print(f"reset-dev-rec04: extra candidates removed {removed}; rows written {written}; INT-01.F rows removed {int01f}")
 
 
 if __name__ == "__main__":

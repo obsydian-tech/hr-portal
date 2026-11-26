@@ -1,5 +1,5 @@
 // INT-01: booking (POST) and the four actions (PATCH) of scheduleInterview.
-import { randomBytes, randomUUID, createHash } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { DynamoDBClient, GetItemCommand, QueryCommand, TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
@@ -21,6 +21,8 @@ const TTL_DAYS = 7;
 const json = (statusCode, body) => ({ statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const bad = (field) => json(400, { error: 'Bad request', code: 'INVALID_FIELD', field });
 const conflict = (code) => json(409, { error: 'Conflict', code });
+// INT-01.F rule 5: an extra key's name goes back as written only when it looks like a plain field name.
+const fieldOf = (k) => (/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(k) ? k : 'body');
 const fail = () => json(500, { error: 'Internal error' });
 
 class Answer extends Error { constructor(a) { super('answer'); this.answer = a; } }
@@ -80,7 +82,7 @@ async function withKey(event, interviewId, run) {
   const r = await K.reserve({ tenantId: f.tenantId, routeKey, caller: f.caller, candidateId, interviewId, header: f.header, body: f.body });
   if (r.answer) return r.answer;
   let answer;
-  try { answer = await run({ ...f, candidateId }); } catch (e) {
+  try { answer = await run({ ...f, candidateId, newInterviewId: r.pendingInterviewId }); } catch (e) {
     if (e instanceof Answer) answer = e.answer;
     else { console.error('scheduleInterview: failed', { error: e?.name ?? 'Error' }); answer = fail(); }
   }
@@ -123,9 +125,9 @@ const BOOK_KEYS = ['type', 'at', 'length_minutes', 'where', 'place', 'video_link
 // ---------------------------------------------------------------- POST
 
 export function book(event) {
-  return withKey(event, undefined, async ({ tenantId, body, caller, candidateId }) => {
+  return withKey(event, undefined, async ({ tenantId, body, caller, candidateId, newInterviewId }) => {
     const extra = Object.keys(body).find((k) => !BOOK_KEYS.includes(k));
-    if (extra) return bad(extra);
+    if (extra !== undefined) return bad(fieldOf(extra));
     if (typeof body.type !== 'string' || !body.type) return bad('type');
     const atMs = L.timeOf(body.at);
     if (atMs === null) return bad('at');
@@ -155,7 +157,8 @@ export function book(event) {
     if (existing.some((x) => T.ownsRow(x, tenantId) && x.interviewType === body.type && ['SCHEDULED', 'COMPLETED'].includes(x.status))) return conflict('TYPE_ALREADY_BOOKED');
     const guard = await getRow(`CANDIDATE#${candidateId}`, `IVTYPE#${body.type}`);
     const now = new Date(nowMs).toISOString();
-    const interviewId = randomUUID();
+    // The id was made when the request key was reserved (INT-01.F rule 3.6), so a take-over books the same id.
+    const interviewId = newInterviewId;
     // REC-07: the role's criteria, else the company's default criteria.
     let criteria;
     if (saga.role_id && process.env.ROLES_TABLE_NAME) {
@@ -216,7 +219,7 @@ export function act(event) {
     if (typeof action !== 'string' || !ACTION_KEYS[action]) return bad('action');
     if (action === 'reschedule' && body.type !== undefined) return bad('type');
     const extra = Object.keys(body).find((k) => !ACTION_KEYS[action].includes(k));
-    if (extra) return bad(extra);
+    if (extra !== undefined) return bad(fieldOf(extra));
     if (action !== 'reschedule') {
       if (!REASONS[action].includes(body.reason)) return bad('reason');
       if (body.reason === 'OTHER' ? !L.isNote(body.reason_note, 500) : body.reason_note !== undefined && !L.isNote(body.reason_note, 500)) return bad('reason_note');
@@ -284,16 +287,22 @@ export function act(event) {
       if (body.video_link !== undefined) set('video_link', body.video_link);
       if (where === 'ONLINE' && iv.place !== undefined && body.place === undefined) removes.push('place');
       if (where === 'IN_PERSON' && iv.video_link !== undefined && body.video_link === undefined) removes.push('video_link');
+      // INT-01.F rule 1: the latest reschedule's removed people, server-only (never in an answer, the read, the event or a log line).
+      const removedPanel = body.panel !== undefined ? (iv.panelMemberIds ?? []).filter((p) => !body.panel.includes(p)) : [];
+      if (removedPanel.length) set('removed_panel_ids', removedPanel); else removes.push('removed_panel_ids');
+      let removedGuest = false;
       if (body.panel !== undefined) { set('panelMemberIds', body.panel); set('votesRequired', body.panel.length); set('PANEL_FEEDBACK_PENDING_COUNT', body.panel.length); }
       if (body.reason_note !== undefined) set('reschedule_note', body.reason_note);
       if (changes.includes('guest')) {
-        if (iv.guest_link_hash) { items.push(linkSet(iv.guest_link_hash, now)); set('removed_guest_link_hash', iv.guest_link_hash); }
+        if (iv.guest_link_hash) { items.push(linkSet(iv.guest_link_hash, now)); set('removed_guest_link_hash', iv.guest_link_hash); removedGuest = true; }
         if (typeof body.guest_email === 'string') {
           const l = newLink(tenantId, after, body.guest_email, caller, atMs, nowMs);
           items.push({ Put: { TableName: STATE(), Item: marshall(l.item), ConditionExpression: 'attribute_not_exists(PK)' } });
           set('guest_link_hash', l.hash);
         } else removes.push('guest_link_hash');
       } else if (iv.guest_link_hash && changes.includes('at')) items.push(linkSet(iv.guest_link_hash, new Date(atMs + TTL_DAYS * 86400000).toISOString()));
+      if (!removedGuest) removes.push('removed_guest_link_hash');
+      if (removedPanel.length || removedGuest) set('removed_at_sequence', seq); else removes.push('removed_at_sequence');
     } else {
       const no = L.refusalOf(action, iv, ctx);
       if (no) return conflict(no);
