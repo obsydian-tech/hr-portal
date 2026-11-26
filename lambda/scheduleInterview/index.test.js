@@ -135,11 +135,20 @@ const mockPack = {
   PANEL_CONFIG: { panelSize: { JUNIOR: 2, MID: 3, SENIOR: 4 } },
   SCORING_WEIGHTS: { defaultCriteria: [{ key: 'technical', label: 'Technical' }, { key: 'communication', label: 'Communication' }] },
   REJECTION_RULES: { decider: { JUNIOR: 'HR_OR_HM', MID: 'HR_OR_HM', SENIOR: 'HR_OR_HM' } },
+  SLA_THRESHOLDS: { feedbackDueHours: 48 },
 };
 jest.unstable_mockModule('../shared/recruitment-settings.mjs', () => ({
   DEFAULTS: mockPack,
   activeSettings: async () => ({}),
   getRecruitmentSettings: async () => ({}),
+  // REC-15 step D: the interviews read takes the candidate's settings without writing (D-5).
+  settingsForRead: async () => ({ settings: {} }),
+}));
+
+// REC-15 step D: names come from the shared helper (tested with the acceptance suite rec-15d); here nobody has a name.
+jest.unstable_mockModule('../shared/people-names.mjs', () => ({
+  SIGN_IN_ID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  namesOf: async (_tenantId, ids) => Object.fromEntries((ids ?? []).map((id) => [id, null])),
 }));
 
 describe('POST schedule interview', () => {
