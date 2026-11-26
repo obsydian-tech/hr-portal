@@ -92,10 +92,13 @@ NALEKO_PERSONAS = {
                   "given_name": "Cebo", "family_name": "Companyb-Walk"},
         "groups": ["hr_staff", "naleko-onboarding-hr", "naleko-talentflow-hr", "perm-recruitment"],
     },
-    # REC-05 AC-11: the offer approver of company A. Group perm-approve-offers only; the Member row is written in main().
+    # REC-05 AC-11: the offer approver of company A; the Member row is written in main(). An employee with the Approve
+    # offers tick, as the locked REC-UI-04 tests have it (D-T-04.3). Without a role the app refuses the sign-in ("This
+    # account can't use Naleko People yet.") and REC-UI-04.2 AC-14.1 never gets a token. REC-05 AC-11 signs in through
+    # the API and does not mind either way.
     "approver": {
         "attrs": {"given_name": "Anele", "family_name": "Demo-Approver"},
-        "groups": ["perm-approve-offers"],
+        "groups": ["employee", "perm-approve-offers"],
     },
     "tf": {
         "attrs": {"given_name": "Tessa", "family_name": "Demo-TF"},
