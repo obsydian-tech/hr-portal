@@ -48,14 +48,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          # The screen is built from pepla-web/, the generated API types read api/openapi.yaml,
-          # and this file defines the jobs themselves.
-          if files=$(git diff --name-only "$BASE_SHA" HEAD); then
-            if echo "$files" | grep -Eq '^(pepla-web/|api/openapi\.yaml$|\.github/workflows/pepla-web\.yml$)'; then screen=true; else screen=false; fi
-          else
-            echo "Could not list the changed files; building the screen to be safe."; screen=true
-          fi
-          echo "screen=$screen" | tee -a "$GITHUB_OUTPUT"
+          python3 -B scripts/ci/screen-changed.py | tee -a "$GITHUB_OUTPUT"
 
   build:
     name: verify:design, tests, build

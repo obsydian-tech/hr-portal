@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Tests for pick-acceptance-specs.py. Run: python3 -B scripts/ci/test_pick_acceptance_specs.py"""
 import importlib.util
+import json
+import os
 import unittest
 from pathlib import Path
 
@@ -455,6 +457,100 @@ class EveryPullRequestReportsTheCheck(unittest.TestCase):
             cond = self.doc["jobs"][name]["if"]
             self.assertIn("needs.changes.outputs.screen != 'false'", cond)
             self.assertIn("!cancelled()", cond)
+
+
+class RealRepo(unittest.TestCase):
+    """Runs the two CI scripts as the workflow does, on a throwaway git repo (review of PR 548)."""
+
+    HERE = Path(__file__).resolve().parent
+
+    def setUp(self):
+        import subprocess
+        import tempfile
+
+        self.sp = subprocess
+        self.dir = Path(tempfile.mkdtemp())
+        self.git("init", "-q", "-b", "develop")
+        self.git("config", "user.email", "t@example.com")
+        self.git("config", "user.name", "t")
+        self.write("pepla-web/e2e/acceptance/onb-09.spec.ts", "page.goto")
+        self.write("pepla-web/src/util.ts", "export const a = 1;\n")
+        self.write("lambda/x.mjs", "export const a = 1;\n")
+        self.write("docs/a.md", "a\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.base = self.git("rev-parse", "HEAD").strip()
+
+    def git(self, *args):
+        return self.sp.run(["git", *args], cwd=self.dir, check=True, capture_output=True, text=True).stdout
+
+    def write(self, rel, text):
+        f = self.dir / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(text)
+
+    def commit_change(self, edit):
+        edit()
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "change")
+
+    def screen(self, base=None):
+        env = {**os.environ, "BASE_SHA": base or self.base}
+        out = self.sp.run(["python3", "-B", str(self.HERE / "screen-changed.py")], cwd=self.dir, env=env, capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        return out.stdout.strip()
+
+    def pick(self):
+        env = {**os.environ, "EVENT_NAME": "pull_request", "BASE_REF": "develop", "BASE_SHA": self.base, "PR_TITLE": "", "HEAD_REF": "x"}
+        env.pop("GITHUB_STEP_SUMMARY", None)
+        out = self.sp.run(["python3", "-B", str(self.HERE / "pick-acceptance-specs.py")], cwd=self.dir, env=env, capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        return dict(line.split("=", 1) for line in out.stdout.splitlines() if "=" in line)
+
+    def edit_file(self, rel):
+        self.commit_change(lambda: self.write(rel, "export const a = 2;\n"))
+
+    def test_screen_files_say_true(self):
+        for rel in ("pepla-web/src/util.ts", "api/openapi.yaml", ".github/workflows/pepla-web.yml"):
+            self.setUp()
+            self.edit_file(rel)
+            self.assertEqual(self.screen(), "screen=true", rel)
+
+    def test_other_files_say_false(self):
+        for rel in ("lambda/x.mjs", "docs/a.md", ".github/workflows/ci.yml", "scripts/ci/a.py"):
+            self.setUp()
+            self.edit_file(rel)
+            self.assertEqual(self.screen(), "screen=false", rel)
+
+    def test_a_file_moved_out_of_pepla_web_says_true(self):
+        self.commit_change(lambda: self.git("mv", "pepla-web/src/util.ts", "docs/util.ts"))
+        self.assertEqual(self.screen(), "screen=true")
+
+    def test_a_bad_base_commit_says_true(self):
+        self.edit_file("docs/a.md")
+        self.assertEqual(self.screen("0" * 40), "screen=true")
+
+    def test_picker_on_a_docs_only_change_picks_none_with_no_shards(self):
+        self.edit_file("docs/a.md")
+        out = self.pick()
+        self.assertEqual(out["mode"], "none")
+        self.assertEqual(json.loads(out["matrix"]), {"include": []})
+
+    def test_picker_does_not_call_a_moved_screen_file_docs(self):
+        self.commit_change(lambda: self.git("mv", "pepla-web/src/util.ts", "docs/util.ts"))
+        self.assertNotEqual(self.pick()["mode"], "none")
+
+
+class ScreenJobConditions(unittest.TestCase):
+    def test_no_screen_job_needs_a_true_answer(self):
+        import yaml
+        from pathlib import Path as P
+
+        doc = yaml.safe_load(P(".github/workflows/pepla-web.yml").read_text())
+        for name in ("build", "journeys"):
+            self.assertNotIn("== 'true'", doc["jobs"][name]["if"])
+        step = doc["jobs"]["changes"]["steps"][-1]
+        self.assertIn("screen-changed.py", step["run"])
 
 
 NOW = datetime(2026, 11, 21, 12, 0, tzinfo=timezone.utc)
