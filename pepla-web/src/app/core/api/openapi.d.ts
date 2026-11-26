@@ -7603,7 +7603,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @description INT-01 AC-24. False before the interview starts. */
-                        open: boolean;
+                        open?: boolean;
                         candidate_first: string;
                         candidate_last: string;
                         role_title: string | null;

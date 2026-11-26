@@ -6457,7 +6457,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [candidate_first, candidate_last, role_title, interview_type, interview_at, criteria, expires_at, open]
+                required: [candidate_first, candidate_last, role_title, interview_type, interview_at, criteria, expires_at]
                 properties:
                   open:
                     type: boolean
