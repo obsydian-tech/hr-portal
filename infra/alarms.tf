@@ -21,6 +21,7 @@ module "alarms" {
     "askBatsiChats",
     "adminSetAskBatsi",
     "manageDepartments",
+    "notifyHiringManagerOnHire",
     "getHrPartners",
     "checkEmployeeEmail",
     "lookupInvite",

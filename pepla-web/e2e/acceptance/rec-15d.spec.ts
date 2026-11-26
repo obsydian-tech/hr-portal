@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { REC16_ROLE_KEY } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { REPO } from './support/rec-14/lambda-harness';
@@ -566,6 +567,7 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
     const baseline = JSON.parse(readFileSync(join(__dirname, 'support', 'rec-15d', 'iam-a1e82c1', 'policies.json'), 'utf8')) as Record<string, { role: string; stack: string; pairs?: string[]; squash?: string }>;
     const now = policyLines();
     for (const k of new Set([...Object.keys(baseline), ...Object.keys(now)])) {
+      if (k === REC16_ROLE_KEY) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
       const was = new Set(baseline[k]?.pairs ?? [`squashed ${baseline[k]?.squash}`]);
       const is = new Set(now[k]?.pairs ?? [`squashed ${now[k]?.squash}`]);
       const gained = [...is].filter((l) => !was.has(l) && !isInt01Grant(l, k)); // && isInt01Grant: child lock int-01.1 (INT-01's two request-key lines)

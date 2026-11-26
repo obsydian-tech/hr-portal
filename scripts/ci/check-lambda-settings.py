@@ -52,6 +52,8 @@ LAMBDAS = {
     "sendTalentFlowNotification": ("lambda/sendTalentFlowNotification/index.js", ["POSTMARK_SENDER_EMAIL"]),
     "reviewDocumentVerification": ("lambda/reviewDocumentVerification/index.mjs", ["ENVIRONMENT"]),
     "talentFlowApproveAction": ("lambda/talentFlowApproveAction/index.mjs", ["ENVIRONMENT"]),
+    # REC-16: every setting it reads at load through requireSetting (rule 11).
+    "notifyHiringManagerOnHire": ("lambda/notifyHiringManagerOnHire/index.mjs", ["HM_IT_EMAIL_MODE", "HM_IT_TEST_EMAIL", "POSTMARK_API_TOKEN", "POSTMARK_SENDER_EMAIL", "STATE_TABLE", "TENANTS_TABLE", "HM_COGNITO_POOL_ID"]),
 }
 SETTINGS = sorted({s for _, names in LAMBDAS.values() for s in names})
 

@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { REC16_ROLE_KEY } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { REPO } from './support/rec-14/lambda-harness';
@@ -696,6 +697,7 @@ test.describe('REC-15 step C · The candidate record', () => {
     ];
     const KEY = 'talent-flow-infra/get_candidate';
     for (const k of new Set([...Object.keys(baseline), ...Object.keys(now)])) {
+      if (k === REC16_ROLE_KEY) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
       const was = new Set(baseline[k]?.pairs ?? [`squashed ${baseline[k]?.squash}`]);
       const is = new Set(now[k]?.pairs ?? [`squashed ${now[k]?.squash}`]);
       const gained = [...is].filter((l) => !was.has(l));

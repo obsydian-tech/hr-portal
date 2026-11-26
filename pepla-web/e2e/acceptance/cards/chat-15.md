@@ -77,3 +77,11 @@ PR 529 (NH-282, INT-01 R-9) removed three resources from `talent-flow-infra/tale
 `aws_lambda_permission.schedule_interview_eventbridge`. Iggie approved the deletes and they were applied on pepla-dev on 26 Nov. AC-12
 "Add only" now lets exactly those three addresses be missing from the frozen `ccc2beb-419` list. Any other missing resource still fails,
 and nothing else in this file moved.
+
+## Child lock chat-15.4 (REC-16, 26 Nov)
+
+REC-16 (NH-283) adds a Lambda in `infra/` whose resources are all labelled `notify_hiring_manager_on_hire`. AC-12 "Add only" now leaves
+out exactly those names (function, role, policy, log group, rule, target, permission, in `infra/` only) the way it already leaves out
+REC-02, REC-04, REC-14, REC-07 and REC-05; `rec-16.spec.ts` AC-8 and AC-10 judge them. Any other new resource in either stack still
+fails. The alarm test also lets `notifyHiringManagerOnHire` join `lambda_names` (REC-16 L-5), and nothing else. Without this child lock
+the REC-16 build fails AC-12 at "all of them in talent-flow-infra". Nothing else in this file moved.
