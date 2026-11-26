@@ -668,7 +668,8 @@ test.describe('MOD-02 The module-aware shell and guards', () => {
     expect(Object.keys(pkg.dependencies).sort(), 'dependencies').toEqual(BASELINE.dependencies);
     // child lock rec-14.1, REC-14 rule 15: the acceptance tests' schema checker (ajv) is a dev dependency; rec-14.spec.ts AC-1 pins it there.
     // child lock onb-06.2: rec-14.3 AC-7 makes the API types with openapi-typescript, a dev dependency.
-    expect(Object.keys(pkg.devDependencies).filter((d) => d !== 'ajv' && d !== 'openapi-typescript').sort(), 'devDependencies').toEqual(BASELINE.devDependencies);
+    // child lock mod-02.8: int-02.spec.ts reads the invite files with ical.js, a dev dependency of the tests only (INT-02, NH-268).
+    expect(Object.keys(pkg.devDependencies).filter((d) => d !== 'ajv' && d !== 'openapi-typescript' && d !== 'ical.js').sort(), 'devDependencies').toEqual(BASELINE.devDependencies);
 
     // The shells use design system parts only: every class they write starts with pp-, and they carry no styles of their own.
     for (const shell of ['features/hr/hr-shell.ts', 'features/start/employee-shell.ts']) {
