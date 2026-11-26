@@ -1,6 +1,7 @@
 {
  "source": "run 44286563568 (PR 397, 18 Nov 2026), summed test seconds per spec file, both projects, retries 1; used by pick-acceptance-specs.py to balance shards (refresh by hand from a full run)",
  "seconds": {
+  "rec-06.2.spec.ts": 70.0,
   "site-08.spec.ts": 1458.8,
   "site-04.spec.ts": 1295.1,
   "site-03.spec.ts": 1053.3,
