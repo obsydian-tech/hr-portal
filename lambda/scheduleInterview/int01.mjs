@@ -475,7 +475,13 @@ async function mailAfter(a) {
   try {
     if (a.action !== 'book' && a.action !== 'reschedule' && a.action !== 'cancel') return;
     const b = await mailBase(a.tenantId, a.saga, a.settings, a.action === 'cancel' ? a.before : row, late);
-    if (b.skip) { skip(b.skip); if (a.keptGuestSkip && a.keptGuestSkip !== b.skip) skip(a.keptGuestSkip); return; }
+    if (b.skip) {
+      skip(b.skip);
+      if (a.keptGuestSkip && a.keptGuestSkip !== b.skip) skip(a.keptGuestSkip);
+      // M-1: the old guest link is already stopped, so the new one must still go out.
+      if (a.keptGuestMessage) { if (await queue(a.keptGuestMessage, row.candidateId, late)) queued++; else skip('NOT_QUEUED'); }
+      return;
+    }
     const ctx = b.ctx;
     const ids = [...new Set([...(row.panelMemberIds ?? []), ...(a.removedPanel ?? [])])];
     const looked = await limited(ids, 5, late, (id) => contactOf(a.tenantId, id));
