@@ -101,3 +101,13 @@ variable "delete_leaver_chats_enabled" {
   type        = bool
   default     = false
 }
+
+variable "interview_email_mode" {
+  description = "INT-04: TEST_ADDRESS sends every interview email to the blackhole test address; REAL sends to the person. Iggie switches it at release (P-21)."
+  type        = string
+  default     = "TEST_ADDRESS"
+  validation {
+    condition     = contains(["TEST_ADDRESS", "REAL"], var.interview_email_mode)
+    error_message = "interview_email_mode must be TEST_ADDRESS or REAL."
+  }
+}

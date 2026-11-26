@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { attributes, blocks } from './support/infra-harness';
@@ -823,6 +824,7 @@ test.describe('REC-02 · A person decides: no automatic Not hired, and a Not hir
       if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): the roles Lambda's own role writes the roles table, judged in rec-04.spec.ts AC-8.
       if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): the department list's own role, judged in rec-14.spec.ts AC-3.
       if (isRec05Role(key, cur.role)) continue; // REC-05 (child lock rec-05.1): the offers Lambda's own role writes the state table, judged in rec-05.spec.ts AC-10.
+      if (isRec16Role(key, cur.role)) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
       const was = writesOf(baseline[key]);
       const gained = [...writesOf(cur)].filter((l) => !was.has(l) && !isRec15dGrant(l, key) && !isInt01Grant(l, key)); // && isInt01Grant: child lock int-01.1; // && isRec15dGrant: child lock rec-15d.1 (AdminGetUser is a read, matched by Admin\w*)
       expect.soft(gained, `${key}: no new write grant`).toEqual([]);

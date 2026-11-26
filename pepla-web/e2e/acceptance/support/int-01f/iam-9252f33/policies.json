@@ -1168,6 +1168,27 @@
       "Allow xray:PutTraceSegments * null"
     ]
   },
+  "infra/notify_hiring_manager_on_hire": {
+    "role": "notify_hiring_manager_on_hire",
+    "stack": "infra",
+    "pairs": [
+      "Allow cognito-idp:ListUsersInGroup aws_cognito_user_pool.naleko_dev.arn null",
+      "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state null",
+      "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state {\"ForAllValues:StringLike\":{\"dynamodb:LeadingKeys\":[\"NOTICE#HM_IT#*\"]}}",
+      "Allow dynamodb:Query aws_dynamodb_table.tenants.arn null",
+      "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/talent-flow-state {\"ForAllValues:StringLike\":{\"dynamodb:LeadingKeys\":[\"NOTICE#HM_IT#*\"]}}",
+      "Allow kms:Decrypt data.aws_kms_key.talent_flow.arn null",
+      "Allow kms:Decrypt module.kms_pii.key_arn {\"StringEquals\":{\"kms:ViaService\":\"dynamodb.af-south-1.amazonaws.com\"}}",
+      "Allow kms:DescribeKey data.aws_kms_key.talent_flow.arn null",
+      "Allow kms:DescribeKey module.kms_pii.key_arn {\"StringEquals\":{\"kms:ViaService\":\"dynamodb.af-south-1.amazonaws.com\"}}",
+      "Allow kms:GenerateDataKey data.aws_kms_key.talent_flow.arn null",
+      "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/notifyHiringManagerOnHire:* null",
+      "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/notifyHiringManagerOnHire:* null",
+      "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/notifyHiringManagerOnHire:* null",
+      "Allow xray:PutTelemetryRecords * null",
+      "Allow xray:PutTraceSegments * null"
+    ]
+  },
   "infra/send_document_reminders": {
     "role": "send_document_reminders",
     "stack": "infra",

@@ -39,6 +39,7 @@ const { DynamoDBClient, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 const { getConfig } = require('../shared/config-reader');
 const { eventTenant } = require('../shared/tf-tenant.js');
+const { sendInterviewEmail } = require('./interview-email.js');
 
 // BE-15: a setting that names one environment has no fallback value. A missing
 // one stops the Lambda when it starts, with one clear line in the log.
@@ -124,6 +125,11 @@ async function processRecord(record) {
   const { modulesOf } = await import('../shared/modules.mjs');
   if (!(await modulesOf(tenantId)).includes('recruitment')) {
     console.warn('Module off, skipped', { tenantId });
+    return;
+  }
+  // INT-04: interview emails take their own send-only path (rule 10).
+  if (type === 'INTERVIEW_EMAIL') {
+    await sendInterviewEmail(body, tenantId, { db: getDdbClient, postmark: getPostmarkClient });
     return;
   }
   if (!recipientEmail) throw new Error('Missing required field: recipientEmail');

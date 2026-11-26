@@ -120,6 +120,11 @@ NALEKO_PERSONAS = {
         "attrs": {"given_name": "Nandi", "family_name": "Demo-Guest"},
         "groups": ["guest"],
     },
+    # REC-16 AC-7 (d): the hiring manager of the REC-16 seeded candidate only (REC-01 AC-9 keeps "manager" at exactly one candidate).
+    "hm-it": {
+        "attrs": {"given_name": "Hana", "family_name": "Demo-HM-IT"},
+        "groups": ["manager"],
+    },
     # REC-01: a manager (hiring manager of one seeded candidate) and HR without the Recruitment tick.
     "manager": {
         "attrs": {"given_name": "Mpho", "family_name": "Demo-Manager"},
@@ -1222,6 +1227,26 @@ def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
     return 4
 
 
+def clear_hire_leftovers(ddb, tenant_id: str, cid: str, email: str) -> int:
+    """REC-06.1 rule 13: remove a seeded candidate's stage history rows (known key, Query on the table key) and the email lock row
+    of its address (EMAIL_LOCK#<company>#<sha256 of the address>), each on condition of the company."""
+    removed = 0
+    rows = []
+    for page in ddb.get_paginator("query").paginate(
+            TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :s)",
+            ExpressionAttributeValues={":pk": {"S": f"CANDIDATE#{cid}"}, ":s": {"S": "STAGE#"}}, ProjectionExpression="PK, SK"):
+        rows += page.get("Items", [])
+    lock = f"EMAIL_LOCK#{tenant_id}#{hashlib.sha256(email.strip().lower().encode('utf-8')).hexdigest()}"
+    for key in [{"PK": r["PK"], "SK": r["SK"]} for r in rows] + [{"PK": {"S": lock}, "SK": {"S": "EMAIL_LOCK"}}]:
+        try:
+            ddb.delete_item(TableName=STATE_TABLE, Key=key, ConditionExpression="tenant_id = :t", ExpressionAttributeValues={":t": {"S": tenant_id}})
+            removed += 1
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+    return removed
+
+
 def seed_rec06(ddb, tenant_id: str) -> int:
     """REC-06: put both conversion offers back to SENT each run and remove the employee the last run made (cards/rec-06.md, "Seed and clean-up").
 
@@ -1240,6 +1265,7 @@ def seed_rec06(ddb, tenant_id: str) -> int:
         except ClientError as e:
             if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
                 raise
+        clear_hire_leftovers(ddb, tenant_id, cid, email)
         ddb.put_item(TableName=STATE_TABLE, Item={
             "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
             "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": "Rec06"}, "lastName": {"S": f"Seed-{first}"}, "email": {"S": email},
@@ -1260,6 +1286,77 @@ def seed_rec06(ddb, tenant_id: str) -> int:
     # The rehire pair: the candidate's address belongs to an employee of the company already.
     ddb.put_item(TableName="employees", Item=employee_item(ids["rehireEmployee"], "Rec06", "Seed-Rehire-Employee", ids["rehireEmail"], "Operations", "Clerk", "ACTIVE", tenant_id=tenant_id))
     return written + 1
+
+
+def seed_rec16(ddb, tenant_id: str, hm_sub: str) -> int:
+    """REC-16 AC-7 (d): put the REC-16 offer back to SENT each run, with the hm-it login as the candidate's hiring manager, and remove the
+    employee and the guard row the last run made, so each run starts clean."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-16" / "dev-ids.json").read_text())
+    now = "2026-11-20T08:00:00.000Z"
+    cid, oid = ids["candidate"], ids["offer"]
+    eid = str(uuid.uuid5(uuid.UUID("6b7dcfde-d603-4673-9949-d5d39ac59e17"), f"{tenant_id}:{oid}"))
+    try:
+        ddb.delete_item(TableName="employees", Key={"employee_id": {"S": eid}}, ConditionExpression="tenant_id = :t",
+                        ExpressionAttributeValues={":t": {"S": tenant_id}})
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            raise
+    ddb.delete_item(TableName=STATE_TABLE, Key={"PK": {"S": f"NOTICE#HM_IT#{oid}"}, "SK": {"S": "NOTICE"}})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": ids["firstName"]}, "lastName": {"S": ids["lastName"]}, "email": {"S": ids["email"]},
+        "phone": {"S": "0800000000"}, "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+        "currentStage": {"S": "OFFER"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now},
+        "hiringManagerId": {"S": hm_sub}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"OFFER#{oid}"}, "SK": {"S": "OFFER"}, "offer_id": {"S": oid}, "tenant_id": {"S": tenant_id}, "candidate_id": {"S": cid},
+        "candidate_name": {"S": f"{ids['firstName']} {ids['lastName']}"}, "role_title": {"S": "Demo role"}, "department": {"S": "Operations"}, "state": {"S": "SENT"}, "version": {"N": "1"},
+        "salary": {"N": "350000"}, "currency": {"S": "ZAR"}, "start_date": {"S": ids["startDate"]}, "expiry_date": {"S": "2030-01-15"},
+        "drafted_by": {"S": "seed-drafter"}, "drafted_by_name": {"S": "Thandi Demo-HR"}, "created_at": {"S": now}, "updated_at": {"S": now}, "sent_at": {"S": now},
+        "approval_history": {"L": []}, "history": {"L": []}, "GSI2PK": {"S": f"TENANT#{tenant_id}#OFFER"}, "GSI2SK": {"S": f"{now}#{oid}"}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={"PK": {"S": f"TENANT#{tenant_id}#OFFER_LIVE#{cid}"}, "SK": {"S": "LOCK"},
+                                               "tenant_id": {"S": tenant_id}, "live_offer_id": {"S": oid}})
+    return 3
+
+
+def seed_rec06_1(ddb, tenant_id: str) -> int:
+    """REC-06.1: two candidates of the company with one shared robot address, one SENT offer each (cards/rec-06.1.md). The winner of
+    the dev test's two accepts is not known, so both possible employees (uuid5 of each offer) are deleted, the EMAIL_LOCK row of the
+    shared address (sha256) and both candidates' STAGE# history rows (begins_with on the table key), each on condition of the company.
+    Known keys only."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-06.1" / "dev-ids.json").read_text())
+    now = "2026-11-26T08:00:00.000Z"
+    namespace = uuid.UUID("6b7dcfde-d603-4673-9949-d5d39ac59e17")
+    written = 0
+    for n, cid, oid in ((1, ids["candidate1"], ids["offer1"]), (2, ids["candidate2"], ids["offer2"])):
+        eid = str(uuid.uuid5(namespace, f"{tenant_id}:{oid}"))
+        try:
+            ddb.delete_item(TableName="employees", Key={"employee_id": {"S": eid}}, ConditionExpression="tenant_id = :t",
+                            ExpressionAttributeValues={":t": {"S": tenant_id}})
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+        clear_hire_leftovers(ddb, tenant_id, cid, ids["email"])
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": "Rec061"}, "lastName": {"S": f"Seed-Twin{n}"}, "email": {"S": ids["email"]},
+            "phone": {"S": "0800000000"}, "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": "OFFER"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now},
+            "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+        })
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"OFFER#{oid}"}, "SK": {"S": "OFFER"}, "offer_id": {"S": oid}, "tenant_id": {"S": tenant_id}, "candidate_id": {"S": cid},
+            "candidate_name": {"S": f"Rec061 Seed-Twin{n}"}, "role_title": {"S": "Demo role"}, "department": {"S": "Operations"}, "state": {"S": "SENT"}, "version": {"N": "1"},
+            "salary": {"N": "350000"}, "currency": {"S": "ZAR"}, "start_date": {"S": ids["startDate"]}, "expiry_date": {"S": "2030-01-15"},
+            "drafted_by": {"S": "seed-drafter"}, "drafted_by_name": {"S": "Thandi Demo-HR"}, "created_at": {"S": now}, "updated_at": {"S": now}, "sent_at": {"S": now},
+            "approval_history": {"L": []}, "history": {"L": []}, "GSI2PK": {"S": f"TENANT#{tenant_id}#OFFER"}, "GSI2SK": {"S": f"{now}#{oid}"}, "seed": {"S": SEED_TAG},
+        })
+        ddb.put_item(TableName=STATE_TABLE, Item={"PK": {"S": f"TENANT#{tenant_id}#OFFER_LIVE#{cid}"}, "SK": {"S": "LOCK"},
+                                                   "tenant_id": {"S": tenant_id}, "live_offer_id": {"S": oid}})
+        written += 3
+    return written
 
 
 def seed_recui04(ddb, tenant_id: str) -> int:
@@ -1289,6 +1386,50 @@ def seed_recui04(ddb, tenant_id: str) -> int:
         "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
     })
     return 1 + len(old)
+
+
+def seed_int04(ddb, tenant_id: str) -> int:
+    """INT-04: turn company A's interview emails on and put the INT-04 dev candidate back every run (INT-04.md, "Dev seed").
+
+    Company A's active PANEL_CONFIG row gets interview_emails ON in place (same version); candidate emails stay unset, so OFF. When the
+    company has no PANEL_CONFIG row yet, version 1 is written with the defaults and the switch. The candidate's interview rows and
+    the guard rows of those interviews are removed first, so each run starts clean. The sender's mode stays TEST_ADDRESS. Idempotent.
+    """
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "int-04" / "dev-ids.json").read_text())
+    cid = ids["candidate"]
+    pk = f"CANDIDATE#{cid}"
+    now = "2026-11-26T08:00:00.000Z"
+    version = active_config_version(ddb, tenant_id, "PANEL_CONFIG")
+    key = {"PK": {"S": f"TENANT#{tenant_id}"}, "SK": {"S": f"CONFIG#PANEL_CONFIG#v{version}"}}
+    if ddb.get_item(TableName="talent-flow-config", Key=key).get("Item"):
+        ddb.update_item(TableName="talent-flow-config", Key=key, UpdateExpression="SET #d.#e = :on",
+                        ExpressionAttributeNames={"#d": "data", "#e": "interview_emails"}, ExpressionAttributeValues={":on": {"S": "ON"}})
+    else:
+        ddb.put_item(TableName="talent-flow-config", Item={**key,
+            "GSI1PK": {"S": f"TENANT#{tenant_id}#ACTIVE"}, "GSI1SK": {"S": "CONFIG#PANEL_CONFIG"}, "tenant_id": {"S": tenant_id},
+            "configType": {"S": "PANEL_CONFIG"}, "version": {"N": "1"}, "isActive": {"BOOL": True}, "createdAt": {"S": now},
+            "data": {"M": {"panelSize": {"M": {"JUNIOR": {"N": "2"}, "MID": {"N": "3"}, "SENIOR": {"N": "4"}}}, "guestAllowed": {"BOOL": True},
+                           "hrMayEnterForMember": {"BOOL": True}, "interview_emails": {"S": "ON"}}}})
+    old = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk", ExpressionAttributeValues={":pk": {"S": pk}}, ProjectionExpression="PK, SK")
+    removed = 0
+    for item in old.get("Items", []):
+        sk = item["SK"]["S"]
+        if sk.startswith("INTERVIEW#"):
+            iv_id = sk[len("INTERVIEW#"):]
+            for page in ddb.get_paginator("scan").paginate(TableName="talent-flow-notifications", FilterExpression="begins_with(PK, :p)",
+                                                            ExpressionAttributeValues={":p": {"S": f"INTERVIEW_EMAIL#{iv_id}#"}}, ProjectionExpression="PK, SK"):
+                for g in page.get("Items", []):
+                    ddb.delete_item(TableName="talent-flow-notifications", Key={"PK": g["PK"], "SK": g["SK"]})
+                    removed += 1
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": "Int04"}, "lastName": {"S": "Seed-Emails"},
+        "email": {"S": f"pepla-demo-int04.seed-emails@{MAIL_DOMAIN}"}, "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"},
+        "department": {"S": "Operations"}, "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+        "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+    })
+    return 1 + removed
 
 
 def seed_int03(ddb, tenant_id: str) -> int:
@@ -1372,6 +1513,9 @@ def main() -> None:
     manager_member_sub = user_sub(cognito, naleko, "manager")
     if manager_member_sub:
         founding_written += ensure_founding_member(ddb, manager_member_sub)
+    hm_it_sub = user_sub(cognito, naleko, "hm-it")
+    if hm_it_sub:
+        founding_written += ensure_founding_member(ddb, hm_it_sub)
     approver_member_sub = user_sub(cognito, naleko, "approver")
     if approver_member_sub:
         founding_written += ensure_founding_member(ddb, approver_member_sub)
@@ -1453,6 +1597,11 @@ def main() -> None:
         print("warning: the TalentFlow state table is not there; the INT-03 rows were not written")
 
     try:
+        seed_int04(ddb, tid)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: a TalentFlow table is not there; the INT-04 rows were not written")
+
+    try:
         rec05_written = seed_rec05(ddb, tid, user_sub(cognito, naleko, "hr"))
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-05 rows were not written")
@@ -1460,8 +1609,15 @@ def main() -> None:
 
     try:
         seed_rec06(ddb, tid)
+        seed_rec06_1(ddb, tid)
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-06 rows were not written")
+
+    try:
+        if hm_it_sub:
+            seed_rec16(ddb, tid, hm_it_sub)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-16 rows were not written")
 
     try:
         seed_recui04(ddb, tid)

@@ -129,3 +129,14 @@ variable "document_reminders_enabled" {
   type        = bool
   default     = false
 }
+
+variable "hm_it_email_mode" {
+  description = "REC-16 (AC-7): who gets the hiring manager IT-bundle email. TEST_ADDRESS (the default) sends only to the blackhole test address; HIRING_MANAGER emails the real hiring manager (prod, Iggie's choice at release, P-19)."
+  type        = string
+  default     = "TEST_ADDRESS"
+
+  validation {
+    condition     = contains(["TEST_ADDRESS", "HIRING_MANAGER"], var.hm_it_email_mode)
+    error_message = "hm_it_email_mode must be TEST_ADDRESS or HIRING_MANAGER."
+  }
+}

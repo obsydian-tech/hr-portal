@@ -52,6 +52,8 @@ LAMBDAS = {
     "sendTalentFlowNotification": ("lambda/sendTalentFlowNotification/index.js", ["POSTMARK_SENDER_EMAIL"]),
     "reviewDocumentVerification": ("lambda/reviewDocumentVerification/index.mjs", ["ENVIRONMENT"]),
     "talentFlowApproveAction": ("lambda/talentFlowApproveAction/index.mjs", ["ENVIRONMENT"]),
+    # REC-16: every setting it reads at load through requireSetting (rule 11).
+    "notifyHiringManagerOnHire": ("lambda/notifyHiringManagerOnHire/index.mjs", ["HM_IT_EMAIL_MODE", "HM_IT_TEST_EMAIL", "POSTMARK_API_TOKEN", "POSTMARK_SENDER_EMAIL", "STATE_TABLE", "TENANTS_TABLE", "HM_COGNITO_POOL_ID"]),
 }
 SETTINGS = sorted({s for _, names in LAMBDAS.values() for s in names})
 
@@ -70,6 +72,13 @@ ALLOWED_NEW = {
     ("createEmployee", "COGNITO_POOL_ID"): PROD_POOL_ID,
     ("reviewDocumentVerification", "ENVIRONMENT"): "prod",
     ("talentFlowApproveAction", "ENVIRONMENT"): "prod",
+    # INT-04: the interview emails. scheduleInterview reads these two only when it builds an email (a missing one logs SETTING_MISSING and
+    # the booking still answers), so they are not in LAMBDAS above, which holds only settings read through requireSetting.
+    ("scheduleInterview", "FRONTEND_URL"): f"https://{PROD_HOST}",
+    ("scheduleInterview", "INTERVIEW_ORGANISER_EMAIL"): "ignecious@obsydiantechnologies.com",
+    # The sender reads these two only on the interview path. Prod stays on the test address until Iggie flips the variable (P-21).
+    ("sendTalentFlowNotification", "INTERVIEW_EMAIL_MODE"): "TEST_ADDRESS",
+    ("sendTalentFlowNotification", "INTERVIEW_TEST_EMAIL"): "interviews@blackhole.postmarkapp.com",
 }
 
 # TEN-03: the only keys a prod plan may drop from a Lambda. The two TalentFlow

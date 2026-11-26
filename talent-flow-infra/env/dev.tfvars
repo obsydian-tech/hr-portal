@@ -16,3 +16,6 @@ delete_leaver_chats_enabled = true
 
 # REC-04: the founding company on pepla-dev, as in infra/env/dev.tfvars, so manageRoles counts the test manager as a hiring manager.
 roles_legacy_tenant_id = "ten_hyyt49drh9efwb79h2a0cjee0s"
+
+# INT-04 AC-9: interview emails on pepla-dev go only to the blackhole test address.
+interview_email_mode = "TEST_ADDRESS"

@@ -64,7 +64,9 @@ export function validate(type, d, ctx = {}) {
         && levels.every((l) => Array.isArray(d.requiredByLevel[l]) && d.requiredByLevel[l].every((k) => keys.includes(k)));
     }
     case 'PANEL_CONFIG':
-      return only(d, ['panelSize', 'guestAllowed', 'hrMayEnterForMember'])
+      return only(d, ['panelSize', 'guestAllowed', 'hrMayEnterForMember', 'interview_emails', 'candidate_interview_emails'])
+        && (d.interview_emails === undefined || d.interview_emails === 'ON' || d.interview_emails === 'OFF')
+        && (d.candidate_interview_emails === undefined || d.candidate_interview_emails === 'OFF')
         && (d.panelSize === undefined || (sameKeys(d.panelSize, levels) && levels.every((l) => Number.isInteger(d.panelSize[l]) && d.panelSize[l] >= 1 && d.panelSize[l] <= 20)))
         && (d.guestAllowed === undefined || typeof d.guestAllowed === 'boolean')
         && (d.hrMayEnterForMember === undefined || typeof d.hrMayEnterForMember === 'boolean');

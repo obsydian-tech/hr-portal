@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { REC16_ROLE_KEY } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { REPO } from './support/rec-14/lambda-harness';
@@ -629,6 +630,7 @@ test.describe('REC-15 step B · Add a candidate to an open role', () => {
     const roleRead = /^Allow dynamodb:GetItem \S*(talent-flow-roles|\$\{local\.tf_table_roles\}) null$/;
     expect.soft(is.has(`${fn!.stack}/${role_}`), 'createCandidate\'s role is found').toBe(true);
     for (const [k, lines] of is) {
+      if (k === REC16_ROLE_KEY) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
       const gained = [...lines].filter((l) => !(was.get(k) ?? new Set()).has(l));
       const lost = [...(was.get(k) ?? new Set())].filter((l) => !lines.has(l));
       if (k === `${fn!.stack}/${role_}`) {

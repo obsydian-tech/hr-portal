@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
@@ -726,6 +727,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
       if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): its own role, judged in rec-04.spec.ts AC-8.
       if (/leaver_chats|deleteLeaverChats/.test(key) || /leaver_chats|deleteLeaverChats/.test(cur.role)) continue; // CHAT-15 (re-lock mod-01.16): its own role, judged in chat-15.spec.ts AC-12.
       if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): company-wide, no module gate; its own role, judged in rec-14.spec.ts AC-3.
+      if (isRec16Role(key, cur.role)) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
       if (isRec05Role(key, cur.role)) { expect.soft((cur.pairs ?? []).filter((p) => !isRec05Grant(p, key)), `${key}: only the lines REC-05 allows`).toEqual([]); continue; } // REC-05 (child lock rec-05.1): its own role, judged in rec-05.spec.ts AC-10.
       if ((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => ten042(p, cur.stack, cur.role))) continue; // TEN-04.2: one of the three table Queries
       expect.soft(isGated(key, cur.role), `new role policy ${key} belongs to a gated Lambda's role`).toBe(true);
