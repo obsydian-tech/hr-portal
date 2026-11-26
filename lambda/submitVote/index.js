@@ -149,12 +149,9 @@ exports.handler = async (event) => {
     return serverError('Failed to read candidate record');
   }
 
-  // ── REC-01: a person must be on the panel of the interview they vote on ──────────────────────────────────────
-  // The interview must be named and must be this candidate's. Not on its panel (a Recruiter included) is 403, and
-  // nothing is written. The row is read before anything else is written.
-  if (byPerson) {
-    if (!interviewId) return RA.forbidden();
-    let interviewRow;
+  // The interview row is read once, before anything else is written.
+  let interviewRow = null;
+  if (interviewId) {
     try {
       const res = await dynamo.send(new GetItemCommand({
         TableName: STATE_TABLE,
@@ -165,7 +162,21 @@ exports.handler = async (event) => {
       console.error('Failed to read interview record', { candidateId, interviewId, error: err.name });
       return serverError('Failed to read interview record');
     }
+  }
+
+  // ── REC-01: a person must be on the panel of the interview they vote on ──────────────────────────────────────
+  // The interview must be named and must be this candidate's. Not on its panel (a Recruiter included) is 403, and
+  // nothing is written.
+  if (byPerson) {
+    if (!interviewId) return RA.forbidden();
     if (!interviewRow || !T.ownsRow(interviewRow, tenantId) || !RA.panelMemberOf(interviewRow, voterId)) return RA.forbidden();
+  }
+
+  // INT-01 (M-1, R-12, R-13): an interview booked the new way is scored on the new route only. Nothing is written.
+  if (interviewRow && T.ownsRow(interviewRow, tenantId) && interviewRow.sequence !== undefined && interviewRow.sequence !== null) {
+    if (byPerson) return { statusCode: 409, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Conflict', code: 'USE_NEW_ROUTE' }) };
+    console.warn('submitVote: event skipped', { error: 'USE_NEW_ROUTE' });
+    return { statusCode: 200, body: JSON.stringify({ skipped: true }) };
   }
 
   const configVersion = saga.configVersion;

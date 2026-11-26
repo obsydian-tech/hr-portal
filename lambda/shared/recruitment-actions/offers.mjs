@@ -10,14 +10,15 @@
  * One live offer per candidate: a lock row (PK TENANT#<id>#OFFER_LIVE#<candidate>, SK LOCK) holds the live offer's id.
  */
 import { randomBytes, randomUUID } from 'node:crypto';
-import { DynamoDBClient, GetItemCommand, PutItemCommand, QueryCommand, TransactWriteItemsCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, GetItemCommand, PutItemCommand, QueryCommand, TransactWriteItemsCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { CognitoIdentityProviderClient, ListUsersInGroupCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { json } from '../hr-group.mjs';
-import { ownsRow, stampTenant, tenantKey, notFound } from '../tenant.mjs';
+import { json, hrOnly } from '../hr-group.mjs';
+import { ownsRow, stampTenant, tenantKey, tenantFilter, bracket, notFound } from '../tenant.mjs';
+import { buildEmployeeRow } from '../employee-row.mjs';
 import { isApprover, isManager, isRecruiter, hiringManagerOf, forbidden } from '../recruitment-access.mjs';
 import { normaliseStage } from '../recruitment-stages.mjs';
 import { departmentsOf } from '../departments.mjs';
@@ -31,6 +32,7 @@ const bus = new EventBridgeClient({});
 const s3 = new S3Client({});
 const STATE = () => process.env.STATE_TABLE_NAME ?? 'talent-flow-state';
 const ROLES = () => process.env.ROLES_TABLE_NAME ?? 'talent-flow-roles';
+const EMPLOYEES = 'employees'; // the literal createEmployee uses
 const BUS = () => process.env.EVENTBRIDGE_BUS_NAME;
 const BUCKET = () => process.env.UPLOAD_BUCKET;
 
@@ -104,6 +106,7 @@ export function shape(row, ctx, { reveal = false } = {}) {
       from: h.from ?? null, to: h.to, by_kind: h.by_kind, by_name: h.by_kind === 'system' ? null : h.by_name ?? null, at: h.at,
       ...(h.note !== undefined ? { note: h.note } : {}), ...(h.kind ? { kind: h.kind, fields: h.fields ?? [] } : {}),
     })),
+    ...(state === 'ACCEPTED' && typeof row.employee_id === 'string' ? { employee_id: row.employee_id } : {}),
     drafted_by_me: typeof ctx.personId === 'string' && ctx.personId !== '' && row.drafted_by === ctx.personId,
     can_reveal_salary: canReveal(ctx.event),
   };
@@ -237,6 +240,23 @@ async function publish(type, detail) {
     await bus.send(new PutEventsCommand({ Entries: [{ EventBusName: BUS(), Source: 'talent-flow.workflow', DetailType: type, Detail: JSON.stringify(detail) }] }));
   } catch (e) {
     console.error('offers: event not sent', { type, error: e?.name ?? 'Error' });
+  }
+}
+
+/** Several events in one request. True only when every entry was taken; the log carries the offer id and an error name only. */
+async function publishAll(events, offerId) {
+  try {
+    const out = await bus.send(new PutEventsCommand({
+      Entries: events.map(([type, detail]) => ({ EventBusName: BUS(), Source: 'talent-flow.workflow', DetailType: type, Detail: JSON.stringify(detail) })),
+    }));
+    if (out?.FailedEntryCount) {
+      console.error('offers: events not sent', { offer_id: offerId, error: 'FailedEntry' });
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('offers: events not sent', { offer_id: offerId, error: e?.name ?? 'Error' });
+    return false;
   }
 }
 
@@ -389,8 +409,10 @@ export async function actOnOffer(ctx, action, offerId, rawBody) {
       return json(200, shape(after, ctx));
     }
     case 'answer': {
-      if (state !== 'SENT') return conflict('NOT_SENT');
       const answer = body.answer;
+      // REC-06 rule 2.2: the same accept again finishes what is missing and answers the stored offer; any other answer stays NOT_SENT.
+      if (answer === 'ACCEPTED' && state === 'ACCEPTED' && typeof row.employee_id === 'string' && row.employee_id !== '') return repeatAccepted(ctx, row);
+      if (state !== 'SENT') return conflict('NOT_SENT');
       if (!['ACCEPTED', 'DECLINED', 'WITHDRAWN'].includes(answer)) return badField('answer');
       const extra = {};
       if (answer === 'ACCEPTED') {
@@ -407,6 +429,8 @@ export async function actOnOffer(ctx, action, offerId, rawBody) {
           throw e;
         }
         Object.assign(extra, { signed_key: key, confirmed_start_date: body.confirmed_start_date });
+        const after = next(row, { state: answer, answered_at: at, answered_by: ctx.personId, answered_by_name: ctx.personName, updated_at: at, ...extra, history: [...row.history, entry(ctx, 'SENT', answer, at)] });
+        return convertOffer(ctx, row, after, at);
       }
       const after = next(row, { state: answer, answered_at: at, answered_by: ctx.personId, answered_by_name: ctx.personName, updated_at: at, ...extra, history: [...row.history, entry(ctx, 'SENT', answer, at)] });
       if (!(await save(ctx, row, after, { release: answer !== 'ACCEPTED' }))) return conflict('STALE');
@@ -438,6 +462,116 @@ export async function actOnOffer(ctx, action, offerId, rawBody) {
     default:
       return notFound();
   }
+}
+
+// ---------------------------------------------------------------- REC-06: an accepted offer makes the hire and the employee record
+
+/** The stored offer, with the follow-ups an earlier call could not finish done now (rule 5). */
+async function repeatAccepted(ctx, row) {
+  await finishFollowUps(ctx, row);
+  return json(200, shape(row, ctx));
+}
+
+/** CandidateHired and OfferAnswered once, then the marker. A failure leaves the marker off, so the next repeat tries again. */
+async function finishFollowUps(ctx, row) {
+  if (row.followups_done?.hired_event) return;
+  const sent = await publishAll([
+    ['CandidateHired', { tenant_id: ctx.tenantId, candidate_id: row.candidate_id, role_id: row.role_id ?? null, employee_id: row.employee_id, offer_id: row.offer_id, at: row.answered_at }],
+    ['OfferAnswered', { tenant_id: ctx.tenantId, offer_id: row.offer_id, candidate_id: row.candidate_id, answer: 'ACCEPTED' }],
+  ], row.offer_id);
+  if (!sent) return;
+  try {
+    await db.send(new UpdateItemCommand({
+      TableName: STATE(), Key: marshall(offerKey(row.offer_id)), UpdateExpression: 'SET #f.#h = :at',
+      ConditionExpression: 'tenant_id = :t', ExpressionAttributeNames: { '#f': 'followups_done', '#h': 'hired_event' },
+      ExpressionAttributeValues: marshall({ ':at': new Date().toISOString(), ':t': ctx.tenantId }),
+    }));
+  } catch (e) {
+    console.error('offers: marker not saved', { offer_id: row.offer_id, error: e?.name ?? 'Error' });
+  }
+}
+
+/** True when the company already has an employee with this email (the exact lower-case address, filtered to the company). */
+async function emailIsEmployee(tenantId, email) {
+  if (email === '') return false;
+  const f = tenantFilter(tenantId);
+  let start;
+  do {
+    const page = await db.send(new QueryCommand({
+      TableName: EMPLOYEES, IndexName: 'email-index', KeyConditionExpression: 'email = :email',
+      FilterExpression: f.FilterExpression, ExpressionAttributeNames: f.ExpressionAttributeNames,
+      ExpressionAttributeValues: marshall({ ...f.ExpressionAttributeValues, ':email': email }), ProjectionExpression: 'employee_id', ExclusiveStartKey: start,
+    }));
+    if ((page.Items ?? []).length > 0) return true;
+    start = page.LastEvaluatedKey;
+  } while (start);
+  return false;
+}
+
+/**
+ * ACCEPTED, once the caller, the signed copy and the date have passed (REC-06 rules 2.6 to 3). One transaction of four items, all or
+ * none: the employee, the offer, the candidate and the stage history row. `after` is the accepted offer without employee_id yet.
+ */
+async function convertOffer(ctx, row, after, at) {
+  const got = await db.send(new GetItemCommand({ TableName: STATE(), Key: marshall({ PK: `CANDIDATE#${row.candidate_id}`, SK: 'SAGA' }), ConsistentRead: true }));
+  const saga = got.Item ? unmarshall(got.Item) : null;
+  if (!saga || !ownsRow(saga, ctx.tenantId) || normaliseStage(saga) !== 'OFFER') return conflict('NOT_OPEN');
+
+  // The role gives the title and the current department name; a missing role does not refuse.
+  let role = null;
+  if (saga.role_id) {
+    const r = await db.send(new GetItemCommand({ TableName: ROLES(), Key: marshall({ pk: `TENANT#${ctx.tenantId}`, sk: `ROLE#${saga.role_id}` }) }));
+    role = r.Item ? unmarshall(r.Item) : null;
+    if (role && !ownsRow(role, ctx.tenantId)) role = null;
+  }
+  let department = role?.department ?? null;
+  if (role?.department_id) {
+    const { departments } = await departmentsOf(ctx.tenantId);
+    department = departments.find((d) => d.id === role.department_id)?.name ?? department;
+  }
+
+  const email = String(saga.email ?? '').trim().toLowerCase();
+  if (await emailIsEmployee(ctx.tenantId, email)) return conflict('EMAIL_IS_EMPLOYEE');
+
+  const claims = ctx.event?.requestContext?.authorizer?.jwt?.claims ?? {};
+  const employee = buildEmployeeRow({ tenantId: ctx.tenantId, offer: row, candidate: saga, role, department, claims, at, confirmedStartDate: after.confirmed_start_date });
+  const accepted = { ...after, employee_id: employee.employee_id, followups_done: {} };
+  const history = stampTenant({
+    PK: `CANDIDATE#${row.candidate_id}`, SK: `STAGE#${at}#${randomBytes(4).toString('hex')}`, recordType: 'STAGE_HISTORY', fromStage: 'OFFER', toStage: 'HIRED',
+    actor: ctx.personId, timestamp: at, createdAt: at, candidateId: row.candidate_id,
+  }, ctx.tenantId);
+  const mine = tenantFilter(ctx.tenantId);
+  try {
+    await db.send(new TransactWriteItemsCommand({
+      TransactItems: [
+        { Put: { TableName: EMPLOYEES, Item: marshall(employee, { removeUndefinedValues: true }), ConditionExpression: 'attribute_not_exists(employee_id)' } },
+        {
+          Put: {
+            TableName: STATE(), Item: marshall(accepted, { removeUndefinedValues: true }), ConditionExpression: '#v = :v AND #s = :s AND tenant_id = :t',
+            ExpressionAttributeNames: { '#v': 'version', '#s': 'state' }, ExpressionAttributeValues: marshall({ ':v': row.version, ':s': row.state, ':t': ctx.tenantId }),
+          },
+        },
+        {
+          Update: {
+            TableName: STATE(), Key: marshall({ PK: saga.PK, SK: 'SAGA' }),
+            UpdateExpression: 'SET currentStage = :hired, stageEnteredAt = :at, hired_at = :at, employee_id = :eid, offer_id = :oid, updatedBy = :person',
+            ConditionExpression: `${bracket(mine.FilterExpression)} AND currentStage = :was`, ExpressionAttributeNames: mine.ExpressionAttributeNames,
+            ExpressionAttributeValues: marshall({ ...mine.ExpressionAttributeValues, ':was': saga.currentStage, ':hired': 'HIRED', ':at': at, ':eid': employee.employee_id, ':oid': row.offer_id, ':person': ctx.personId }),
+          },
+        },
+        { Put: { TableName: STATE(), Item: marshall(history, { removeUndefinedValues: true }), ConditionExpression: 'attribute_not_exists(PK)' } },
+      ],
+    }));
+  } catch (e) {
+    if (e?.name !== 'TransactionCanceledException' && e?.name !== 'ConditionalCheckFailedException') throw e;
+    console.error('offers: accept cancelled', { offer_id: row.offer_id, error: e.name });
+    // Another call may have finished the same accept just before this one: then answer as a repeat.
+    const now = await loadOffer(ctx, row.offer_id);
+    if (now && mapState(now.state) === 'ACCEPTED' && typeof now.employee_id === 'string' && now.employee_id !== '') return repeatAccepted(ctx, now);
+    return conflict('STALE');
+  }
+  await finishFollowUps(ctx, accepted);
+  return json(200, shape(accepted, ctx));
 }
 
 const EDITABLE = ['salary', 'start_date', 'expiry_date', 'benefits'];

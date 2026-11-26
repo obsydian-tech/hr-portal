@@ -14,6 +14,8 @@ import { isRec15bGrant } from './support/rec-15b.1/grants';
 import { isRec15cGrant } from './support/rec-15c.1/grants'; // child lock rec-15c.1
 import { isRec05Grant, REC05_ROLE_KEY } from './support/rec-05.1/grants'; // child lock rec-05.1
 import { isRec15dGrant } from './support/rec-15d.1/grants'; // child lock rec-15d.1
+import { isInt01Grant } from './support/int-01.1/grants'; // child lock int-01.1
+import { bookInt01, bookedId, started } from './support/int-01.1/rec07'; // child lock int-01.1
 
 /**
  * REC-07 · Scoring per role: 1 to 5 per criterion, plain averages, one guest link (amber). Spec:
@@ -168,32 +170,34 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
     const t0 = world();
 
     // Scheduling copies R7's criteria, in order, and counts the whole panel as pending.
-    const body = { interviewId: 'iv-rec07-a-x1', interviewType: 'TECHNICAL', scheduledAt: '2026-11-30T09:00:00.000Z', panelMemberIds: [SUB.m1, SUB.m2] };
-    const s = schedule(C.recruiter, K.x, body, t0);
+    // child lock int-01.1: scheduling is INT-01's booking (rule 1, R-22, a server-made id); a vote waits for the start (rule 14), so
+    // the stored start is moved to before NOW ("time passes") before anyone votes.
+    const s = bookInt01(C.recruiter, K.x, [SUB.m1, SUB.m2], t0);
     expect(saved(s), `a Recruiter schedules an interview for a candidate of R7 (${describe(s)})`).toBe(true);
-    const row = interviewOf(s.tables, K.x, 'iv-rec07-a-x1') ?? {};
+    const x1 = bookedId(s);
+    const row = interviewOf(s.tables, K.x, x1) ?? {};
     expect.soft(row['criteria_snapshot'], 'the interview holds R7\'s criteria, keys and labels in order').toEqual(R7_CRITERIA);
     expect.soft(row['PANEL_FEEDBACK_PENDING_COUNT'], 'and both panel members are pending').toBe(2);
     expect.soft(row['tenant_id'], 'the row is company A\'s').toBe(A);
 
     // The role changes afterwards: the interview keeps what it was scheduled with, and scores follow the interview, not the role.
-    const changedRole = structuredClone(s.tables);
+    const changedRole = started(s.tables, TABLE.state, K.x, x1);
     changedRole[ROLES_TABLE] = (changedRole[ROLES_TABLE] ?? []).map((r) => (plain(r)['role_id'] === K.r7 ? { ...r, criteria: av({ c: [{ key: 'closing', label: 'Closing' }, { key: 'sales', label: 'Sales' }] })['c']! } : r));
-    const newKeys = vote(C.m1, 'iv-rec07-a-x1', { scores: { closing: 4, sales: 4 }, rating: 'YES' }, changedRole);
+    const newKeys = vote(C.m1, x1, { scores: { closing: 4, sales: 4 }, rating: 'YES' }, changedRole);
     expect.soft(answer(newKeys), 'scores on the role\'s new criteria are refused for the old interview').toEqual([400, BAD_SCORES]);
     expect.soft(writesOf(newKeys).length, 'and nothing is written').toBe(0);
-    const oldKeys = vote(C.m1, 'iv-rec07-a-x1', onI1([4, 4, 4], 'YES'), changedRole);
+    const oldKeys = vote(C.m1, x1, onI1([4, 4, 4], 'YES'), changedRole);
     expect.soft(saved(oldKeys), `scores on the interview's own criteria are saved (${describe(oldKeys)})`).toBe(true);
-    expect.soft(interviewOf(oldKeys.tables, K.x, 'iv-rec07-a-x1')?.['criteria_snapshot'], 'the interview\'s criteria did not move').toEqual(R7_CRITERIA);
+    expect.soft(interviewOf(oldKeys.tables, K.x, x1)?.['criteria_snapshot'], 'the interview\'s criteria did not move').toEqual(R7_CRITERIA);
 
     // A candidate with no role: the company's default criteria at that moment (the Standard pack's, then a company change).
-    const w = schedule(C.recruiter, K.w, { ...body, interviewId: 'iv-rec07-a-w1' }, t0);
+    const w = bookInt01(C.recruiter, K.w, [SUB.m1, SUB.m2], t0);
     expect(saved(w), `a Recruiter schedules for a candidate with no role (${describe(w)})`).toBe(true);
-    expect.soft(((interviewOf(w.tables, K.w, 'iv-rec07-a-w1')?.['criteria_snapshot'] ?? []) as any[]).map((c) => c.key), 'it takes the Standard pack\'s default criteria').toEqual(DEFAULT_KEYS);
+    expect.soft(((interviewOf(w.tables, K.w, bookedId(w))?.['criteria_snapshot'] ?? []) as any[]).map((c) => c.key), 'it takes the Standard pack\'s default criteria').toEqual(DEFAULT_KEYS);
     const own = [{ key: 'baking', label: 'Baking' }, { key: 'hygiene', label: 'Hygiene' }];
     const tw = withSetting(t0, 'SCORING_WEIGHTS', (d) => ({ ...d, defaultCriteria: own }));
-    const w2 = schedule(C.recruiter, K.w, { ...body, interviewId: 'iv-rec07-a-w2' }, tw);
-    expect.soft(interviewOf(w2.tables, K.w, 'iv-rec07-a-w2')?.['criteria_snapshot'], 'or the company\'s own default criteria').toEqual(own);
+    const w2 = bookInt01(C.recruiter, K.w, [SUB.m1, SUB.m2], tw);
+    expect.soft(interviewOf(w2.tables, K.w, bookedId(w2))?.['criteria_snapshot'], 'or the company\'s own default criteria').toEqual(own);
 
     // Scores must be exactly I1's keys, whole numbers from 1 to 5.
     const bad: [string, unknown][] = [
@@ -457,9 +461,10 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
     const tb = hrOnly(votes(world(), swapped));
     const ha = sheet(C.hm, K.v, ta);
     const hb = sheet(C.hm, K.v, tb);
-    expect(statusOf(ha), `the hiring manager who is not the decider reads the sheet (${describe(ha)})`).toBe(200);
-    expect.soft(bodyOf(ha)?.final_score, 'with the means').toBe(r1(FINAL));
-    expect.soft(JSON.stringify(bodyOf(hb)), 'and nothing that tells who gave which score or comment (the same answer when other members gave them)').toBe(JSON.stringify(bodyOf(ha)));
+    // child lock int-01.1 (INT-01 R-1, AC-19): the summary is for a Recruiter and the decider only; a hiring manager who does not decide
+    // (and sits on no panel) is refused 403 and sees nothing.
+    expect(statusOf(ha), `the hiring manager who is not the decider is refused the sheet (${describe(ha)})`).toBe(403);
+    expect.soft([statusOf(hb), bodyOf(hb)], 'the same answer when other members gave the votes').toEqual([403, { error: 'Forbidden' }]);
     const text = JSON.stringify(bodyOf(ha));
     for (const x of ['Knows the product', 'objections', 'Best of the week', 'Unsure about leading']) expect.soft(text, `the non-deciding hiring manager's answer does not hold "${x}"`).not.toContain(x);
     const ia = interviews(C.hm, K.v, ta);
@@ -535,7 +540,7 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
     const read = keep(readLink(token, made.tables));
     expect(statusOf(read), `the guest page reads the link (${describe(read)})`).toBe(200);
     const g = bodyOf(read) ?? {};
-    expect.soft(Object.keys(g).sort(), 'exactly the listed fields').toEqual(['candidate_first', 'candidate_last', 'criteria', 'expires_at', 'interview_at', 'interview_type', 'role_title']);
+    expect.soft(Object.keys(g).sort(), 'exactly the listed fields').toEqual(['candidate_first', 'candidate_last', 'criteria', 'expires_at', 'interview_at', 'interview_type', 'open', 'role_title']); // child lock int-01.1: `open` (INT-01 AC-24)
     expect.soft([g.candidate_first, g.candidate_last, g.role_title, g.interview_type, Date.parse(g.interview_at), g.criteria, Date.parse(g.expires_at)], 'the values').toEqual(['Thandi', 'Nkosi', 'Sales consultant', 'BEHAVIORAL', Date.parse(SCHEDULED_AT.i2), I2_CRITERIA, Date.parse(NOW) + 7 * DAY]);
     expect.soft(JSON.stringify(g), 'no email, company id or candidate id').not.toMatch(new RegExp(`@|ten_|${K.v}`));
     expect.soft(writesOf(read).length, 'reading writes nothing').toBe(0);
@@ -687,7 +692,7 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
     }
     for (const a of added) {
       const [k, line] = [a.slice(0, a.indexOf(': ')), a.slice(a.indexOf(': ') + 2)];
-      const ok = (FIVE.test(k) && READ.test(line) && !/\*/.test(line.replace(/\/index\/[\w-]+/, ''))) || isRec15bGrant(line, k) || isRec05Grant(line, k) || isRec15cGrant(line, k) || isRec15dGrant(line, k); // child locks rec-15b.1, rec-05.1, rec-15c.1 and rec-15d.1
+      const ok = (FIVE.test(k) && READ.test(line) && !/\*/.test(line.replace(/\/index\/[\w-]+/, ''))) || isRec15bGrant(line, k) || isRec05Grant(line, k) || isRec15cGrant(line, k) || isInt01Grant(line, k) /* child lock int-01.1 */ || isRec15dGrant(line, k); // child locks rec-15b.1, rec-05.1, rec-15c.1 and rec-15d.1
       expect.soft(ok, `a new policy line is a read of the state or roles table by one of the five handlers, with no wildcard: ${a.slice(0, 200)}`).toBe(true);
     }
     expect.soft(Object.keys(nowPolicies).filter((k) => !(k in oldPolicies) && k !== REC05_ROLE_KEY), 'no new policy').toEqual([]); // && REC05_ROLE_KEY: child lock rec-05.1

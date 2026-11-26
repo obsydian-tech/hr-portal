@@ -166,6 +166,9 @@ export function world(): Tables {
       av({ pk: `USER#${SUB.apprB}`, sk: `TENANT#${B}`, tenant_id: B }),
       av({ pk: `USER#${SUB.recD}`, sk: `TENANT#${D}`, tenant_id: D }),
     ];
+    // Child lock rec-05.2 (REC-06): an accepted offer now writes an employee, so the world has the employees table (empty; its email-index
+    // comes from Terraform through the harness), and every REC-05 accept can write.
+    w['employees'] = [];
     base = w;
   }
   return structuredClone(base);

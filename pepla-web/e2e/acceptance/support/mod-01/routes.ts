@@ -1,5 +1,6 @@
 import { A, ID, NAME, SUB, type Ask, type Caller } from './world';
 import { addBody } from '../rec-15b.1/roles';
+import { int01Booking, int01Close, int01Key } from '../int-01.1/fixtures'; // child lock int-01.1
 
 /**
  * MOD-01 rule 4: every Recruitment route a person or agent calls, after TEN-03 and TEN-05 (develop 6122df1), with one valid
@@ -19,15 +20,14 @@ export type Route = {
   own: Ask;
 };
 
-const ivBody = { tenantId: A, candidateId: ID.a1, interviewId: 'iv-new-0001', interviewType: 'HR_SCREEN', panelMemberIds: [SUB.panelA], scheduledAt: '2026-12-02T09:00:00.000Z' };
 
 export const ROUTES: Route[] = [
   { name: 'GET /v1/candidates/{id}', handler: 'getCandidate', own: { path: { id: ID.a1 } } },
   { name: 'PATCH /v1/candidates/{id}', handler: 'updateCandidate', own: { method: 'PATCH', path: { id: ID.a1 }, body: { firstName: 'Jon' } } },
   { name: 'PUT /v1/candidates/{id}/stage', handler: 'advanceCandidateStage', own: { method: 'PUT', path: { id: ID.a1 }, body: { to: 'SCREENING', reason: 'Moved on after the CV read', tenantId: A } } },
   { name: 'GET /v1/candidates/{id}/interviews', handler: 'scheduleInterview', own: { path: { id: ID.a1 } } },
-  { name: 'PATCH /v1/candidates/{id}/interviews/{interviewId}', handler: 'scheduleInterview', own: { method: 'PATCH', path: { id: ID.a1, interviewId: ID.ivA }, body: { action: 'complete', outcome: 'PASS' } } },
-  { name: 'POST /v1/candidates/{id}/interviews', handler: 'scheduleInterview', own: { method: 'POST', path: { id: ID.a2 }, body: { ...ivBody, candidateId: ID.a2 } } },
+  { name: 'PATCH /v1/candidates/{id}/interviews/{interviewId}', handler: 'scheduleInterview', own: { method: 'PATCH', path: { id: ID.a1, interviewId: ID.ivA }, body: int01Close(), headers: int01Key('mod-01-close') } /* child lock int-01.1 */ },
+  { name: 'POST /v1/candidates/{id}/interviews', handler: 'scheduleInterview', own: { method: 'POST', path: { id: ID.a2 }, body: int01Booking([SUB.panelA]), headers: int01Key('mod-01-book') } /* child lock int-01.1 */ },
   { name: 'POST /v1/candidates/{id}/votes', handler: 'submitVote', own: { method: 'POST', path: { id: ID.a1 }, body: { candidateId: ID.a1, tenantId: A, voterId: SUB.hmA, rating: 'YES', interviewId: ID.ivA, scores: { technical: 4, communication: 4, culturalFit: 4, problemSolving: 4 } } } },
   { name: 'POST /v1/candidates/{id}/sentiment', handler: 'captureSentiment', own: { method: 'POST', path: { id: ID.a1 }, body: { interviewSentiment: 'INTERESTED', tenantId: A } } },
   { name: 'POST /v1/candidates/{id}/scoring-links', handler: 'generateScoringLink', own: { method: 'POST', path: { id: ID.a1 }, body: { panelMemberId: SUB.panelA, panelMemberEmail: 'panel.a@example.test', panelMemberName: 'Panel A', panelMemberRole: 'Engineer', tenantId: A, interviewId: ID.ivA } } },

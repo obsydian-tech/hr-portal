@@ -55,6 +55,7 @@ const GENERIC = 'Your change could not be saved. Try again.';
           <div class="pp-inline pp-gap-100"><span [class]="'pp-lozenge' + (tone() ? ' pp-lozenge--' + tone() : '')">{{ word() }}</span></div>
           @if (state() === 'DRAFT') {
             @if (sentBack(); as sb) { <pp-section-message tone="warning" [heading]="sb.by + ' sent this back:'">{{ sb.note }}</pp-section-message> }
+            @if (isRecruiter()) {
             @if (o(); as x) { <dl ppDl><dt>Role</dt><dd>{{ x.role_title }}</dd><dt>Department</dt><dd>{{ x.department }}</dd></dl> }
             <form ppForm (submit)="$event.preventDefault()">
               <pp-field label="Salary" [error]="problems()['salary']">
@@ -64,6 +65,7 @@ const GENERIC = 'Your change could not be saved. Try again.';
               <pp-field label="Offer expires" [error]="problems()['expiry_date']"><input ppTextField id="of-expiry" type="date" [value]="form().expiry" (input)="set('expiry', $event)" /></pp-field>
               <pp-field label="Benefits" [optional]="true" [error]="problems()['benefits']"><textarea ppTextarea id="of-benefits" [value]="form().benefits" (input)="set('benefits', $event)"></textarea></pp-field>
             </form>
+            }
           } @else {
             <dl ppDl>
               @for (f of facts(); track f[0]) { <dt>{{ f[0] }}</dt><dd>{{ f[1] }}</dd> }
@@ -85,7 +87,7 @@ const GENERIC = 'Your change could not be saved. Try again.';
           }
         </pp-card>
         @if (o(); as x) {
-          @if (state() !== 'DRAFT') {
+          @if (state() !== 'DRAFT' || !isRecruiter()) {
             <pp-accordion>
               <details ppAccordionItem heading="Offer details" [meta]="x.role_title ?? ''" open>
                 <dl ppDl>
@@ -146,6 +148,7 @@ export class OfferPage implements OnInit {
   private readonly who = computed(() => rolesOf(this.auth.user()?.groups ?? []));
   private readonly recruiter = computed(() => this.who().roles.includes(ROLE.hrStaff) && this.who().perms.includes(PERM.recruitment));
   private readonly approver = computed(() => this.who().perms.includes(PERM.approveOffers));
+  protected readonly isRecruiter = this.recruiter;
   protected readonly state = computed(() => this.o()?.state ?? 'DRAFT');
   protected readonly word = computed(() => OFFER_WORD[this.state()] ?? '');
   protected readonly tone = computed(() => OFFER_TONE[this.state()] ?? '');
@@ -185,7 +188,7 @@ export class OfferPage implements OnInit {
     const id = this.route.snapshot.paramMap.get('offerId');
     if (!id) {
       this.candidate = this.route.snapshot.queryParamMap.get('candidate') ?? '';
-      this.status.set('ready');
+      this.status.set(this.candidate ? 'ready' : 'notfound');
       return;
     }
     await this.read(id);
@@ -217,11 +220,11 @@ export class OfferPage implements OnInit {
     return !Object.keys(p).length;
   }
   /** One answer: the new offer, or the line and one fresh read. */
-  private async handle(r: HireResponse<any> | null): Promise<boolean> {
+  private async handle(r: HireResponse<any> | null, decision = false): Promise<boolean> {
     this.line.set(null);
     if (r && (r.status === 200 || r.status === 201)) { this.take(r.body); return true; }
     const code = r?.body?.code as string | undefined;
-    if (r?.status === 403) { this.refused403.set(true); return false; }
+    if (r?.status === 403 && decision) { this.refused403.set(true); return false; }
     if (r?.status === 404) { this.status.set('notfound'); return false; }
     if (r?.status === 400 && code === 'INVALID_FIELD' && r.body?.field && FIELD_LINES[r.body.field]) { this.problems.set({ [r.body.field]: FIELD_LINES[r.body.field]! }); return false; }
     if ((r?.status === 409 || r?.status === 400) && code && LINES[code]) {
@@ -254,7 +257,7 @@ export class OfferPage implements OnInit {
   }
   private dirty(): boolean { const f = this.form(); return !this.o() || (f.salary.trim() !== '' && f.salary !== this.saved.salary) || f.start !== this.saved.start || f.expiry !== this.saved.expiry || f.benefits !== this.saved.benefits; }
   private async post(path: string, body: unknown = {}, key = false) {
-    return this.handle(await this.api.call('POST', `/v1/offers/${this.o()!.offer_id}/${path}`, body, key ? newKey() : undefined));
+    return this.handle(await this.api.call('POST', `/v1/offers/${this.o()!.offer_id}/${path}`, body, key ? newKey() : undefined), path === 'approve' || path === 'send-back');
   }
   protected async act(a: string) {
     if (this.busy()) return;

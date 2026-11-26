@@ -43,7 +43,9 @@ export function interviewNumbers(interview, criteria, allVotes) {
   const votes = allVotes.filter((v) => v.interviewId === interview.interviewId && isNew(v));
   const panel = Array.isArray(interview.panelMemberIds) ? interview.panelMemberIds : [];
   const voted = new Set(votes.map((v) => v.voterId));
-  const pending = panel.filter((p) => !voted.has(p)).length;
+  // INT-01 rule 13: this interview's guest counts too.
+  const guest = typeof interview.guest_link_hash === 'string' && interview.guest_link_hash ? `GUEST#${interview.guest_link_hash.slice(0, 16)}` : null;
+  const pending = panel.filter((p) => !voted.has(p)).length + (guest && !voted.has(guest) ? 1 : 0);
   const crit = criteria.map((c) => ({ key: c.key, label: c.label, mean: mean(votes.map((v) => v.scores?.[c.key]).filter((x) => Number.isFinite(x))) }));
   const means = crit.map((c) => c.mean).filter((x) => x !== null);
   const overall = votes.length ? mean(means) : null;
