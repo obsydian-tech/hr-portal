@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
@@ -415,6 +416,8 @@ test.describe('TEN-04 · every route is described, and a company B walk proves n
       const headers: Record<string, string> = { 'content-type': 'application/json' };
       if (req.login === 'agent') headers['x-api-key'] = env('E2E_AGENT_KEY');
       else if (req.login !== 'anon') headers['authorization'] = `Bearer ${tokens.get(req.login)!}`;
+      // ten-04.10: write routes that take a request key (INT-01 R-22) check it before the record, so every write carries a fresh one; B on A's id must still get 404.
+      if (req.method === 'POST' || req.method === 'PATCH') headers['idempotency-key'] = randomUUID();
       const r = await page.request.fetch(url, { method: req.method, headers, data: req.body === undefined ? undefined : JSON.stringify(req.body), failOnStatusCode: false });
       const t = await r.text();
       let body: unknown = t;
