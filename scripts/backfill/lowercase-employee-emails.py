@@ -39,12 +39,18 @@ def main() -> int:
         if email == lower:
             continue
         company = tenant or "(no company)"
+        if lower == "":
+            # An address of spaces only lowers to "": DynamoDB refuses an empty index key, so report it for HR instead of stopping the run.
+            skipped.append(eid)
+            counts[company]["skipped"] += 1
+            continue
         if lower in have[tenant]:
             skipped.append(eid)
             counts[company]["skipped"] += 1
             continue
         if not a.apply:
             counts[company]["would_change"] += 1
+            have[tenant].add(lower)  # so the dry run sees the same skips as --apply
             continue
         values = {":lower": {"S": lower}, ":old": {"S": email}}
         if tenant is None:
@@ -66,7 +72,7 @@ def main() -> int:
     for company in sorted(counts):
         print(company, dict(sorted(counts[company].items())))
     if skipped:
-        print("skipped (another row of the same company has the lower-case form):", " ".join(skipped))
+        print("skipped (another row of the same company has the lower-case form, or the address is empty):", " ".join(skipped))
     if left:
         print("left alone (changed since it was read):", " ".join(left))
     return 0
