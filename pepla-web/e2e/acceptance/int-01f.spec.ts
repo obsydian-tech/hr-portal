@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock int-01f.2 (REC-06.2)
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { REPO } from './support/rec-14/lambda-harness';
@@ -616,7 +617,7 @@ test.describe('INT-01.F · Interview server leftovers', () => {
     for (const k of new Set([...Object.keys(baseline), ...Object.keys(now)])) {
       const was = new Set(baseline[k]?.pairs ?? [`squashed ${baseline[k]?.squash}`]);
       const is = new Set(now[k]?.pairs ?? (now[k] ? [`squashed ${now[k]?.squash}`] : []));
-      expect.soft([...is].filter((l) => !was.has(l)), `${k}: no new grant`).toEqual([]);
+      expect.soft([...is].filter((l) => !was.has(l) && !isRec062Grant(l, k)), `${k}: no new grant`).toEqual([]);
     }
     expect.soft(Object.keys(now).filter((k) => !baseline[k]), 'no new policy').toEqual([]);
     const si = lambdaNamed('scheduleInterview')[0];
