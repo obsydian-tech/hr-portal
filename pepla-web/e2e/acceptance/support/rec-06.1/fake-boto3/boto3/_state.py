@@ -11,3 +11,5 @@ KEYS = {"employees": ["employee_id"], "talent-flow-state": ["PK", "SK"]}
 # The seed test (AC-10) lets put_item and delete_item run; the back-fill test (AC-8) never does.
 WRITES = bool(_WORLD.get("allowWrites", False))
 INDEXES = {"email-index": ["email"], "tenant-index": ["tenant_id"]}
+# rec-06.1.1: the account id sts.get_caller_identity answers.
+ACCOUNT = str(_WORLD.get("account", "000000000000"))

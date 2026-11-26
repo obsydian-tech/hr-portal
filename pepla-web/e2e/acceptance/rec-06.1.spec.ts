@@ -473,7 +473,7 @@ test.describe('REC-06.1 Conversion Point leftovers: one employee per email, even
 
   // ---------------------------------------------------------------- AC-8
 
-  test('AC-8 Back-fill script: capitals made lower case per company; a same-company duplicate skipped and reported; another company never counts; a row changed meanwhile left alone; dry run by default; a second run changes nothing; no address, name or phone in the output; sign-in then finds the person both ways', async ({}, testInfo) => {
+  test('AC-8 Back-fill script: capitals made lower case per company; a same-company duplicate skipped and reported; another company never counts; a row changed meanwhile left alone; dry run by default; a second run changes nothing; no address, name or phone in the output; sign-in then finds the person both ways; (rec-06.1.1) rows with no company skipped unless --legacy-tenant names their company; the AWS account printed first and --apply refused without the matching --account', async ({}, testInfo) => {
     once(testInfo.project.name);
     test.setTimeout(300_000);
     expect(existsSync(join(REPO, 'scripts', 'backfill', 'lowercase-employee-emails.py')), 'scripts/backfill/lowercase-employee-emails.py exists (D-T-6.1.4)').toBe(true);
@@ -483,8 +483,13 @@ test.describe('REC-06.1 Conversion Point leftovers: one employee per email, even
     });
     const ID = {
       thandi: 'bf-a-001', johnCaps: 'bf-a-002', john: 'bf-a-003', mary: 'bf-a-004', raced: 'bf-a-005', plain: 'bf-a-006', moved: 'bf-a-007',
-      sipho: 'bf-b-001', maryB: 'bf-b-002', legacy: 'bf-n-001', spaced: 'bf-n-002',
+      sipho: 'bf-b-001', maryB: 'bf-b-002', legacy: 'bf-n-001', spaced: 'bf-n-002', legacyDup: 'bf-n-003',
     };
+    // rec-06.1.1 (security review M-1, M-2): the account the fake credentials belong to, and the company the no-company rows belong to.
+    const ACCT = '111122223333';
+    const FOUNDING = A;
+    const apply = ['--apply', '--account', ACCT];
+    const noCompany = [ID.legacy, ID.spaced, ID.legacyDup];
     const rows = [
       emp(ID.thandi, 'Thandi', 'Mthembu', 'Thandi@X.co', A, { stage: 'INVITED' }),
       emp(ID.johnCaps, 'Johannes', 'Botha', 'John@Z.co', A), emp(ID.john, 'Jonathan', 'Bezuidenhout', 'john@z.co', A),
@@ -492,17 +497,18 @@ test.describe('REC-06.1 Conversion Point leftovers: one employee per email, even
       emp(ID.moved, 'Musa', 'Mabena', 'Musa@M.co', A),
       emp(ID.sipho, 'Sipho', 'Ngcobo', 'Sipho@Y.co', B), emp(ID.maryB, 'Maryanne', 'Pillay', 'Mary@Q.co', B),
       emp(ID.legacy, 'Lerato', 'Oosthuizen', 'Lerato@W.co', null), emp(ID.spaced, 'Sizwe', 'Vilakazi', ' Sizwe@V.co ', null),
+      emp(ID.legacyDup, 'Kagiso', 'Dlamini', 'Palesa@P.co', null),
     ];
     const before: Tables = { [EMPLOYEES]: rows };
     const race = [{ employee_id: ID.raced, set: { email: { S: 'refilwe.again@r.co' } } }, { employee_id: ID.moved, set: { tenant_id: { S: B } } }];
     const byId = (t: Tables) => Object.fromEntries(employeesOf(t).map((r) => [r['employee_id'], r]));
-    const writes = (r: { calls: any[] }) => r.calls.filter((c) => !/^(Scan|Query|GetItem|BatchGetItem|DescribeTable)$/.test(c.op));
+    const writes = (r: { calls: any[] }) => r.calls.filter((c) => !/^(Scan|Query|GetItem|BatchGetItem|DescribeTable|GetCallerIdentity)$/.test(c.op));
     const sensitive = rows.flatMap((x) => { const p = plain(x); return [p['email'], p['first_name'], p['last_name'], p['phone']]; })
       .concat(['refilwe.again@r.co']).filter((x): x is string => typeof x === 'string' && x.trim() !== '');
     const leaks = (out: string) => sensitive.filter((x) => out.toLowerCase().includes(x.trim().toLowerCase()) || out.includes(String(x).replace(/\D/g, '').slice(-7) || '\u0000'));
 
     // Dry run (no --apply): nothing written; the report names the rows it would change by id and counts per company.
-    const dry = runBackfill(before, [], { race });
+    const dry = runBackfill(before, [], { race, account: ACCT });
     expect.soft(dry.code, `the dry run ends with code 0 (${dry.stderr.slice(-400)})`).toBe(0);
     expect.soft(writes(dry).map((c) => c.op), 'the dry run writes nothing').toEqual([]);
     expect.soft(dry.tables, 'the dry run changes no row').toEqual(before);
@@ -512,16 +518,21 @@ test.describe('REC-06.1 Conversion Point leftovers: one employee per email, even
     expect.soft(scans.map(proj), 'every Scan reads only employee_id, email and tenant_id').toEqual(scans.map(() => ['email', 'employee_id', 'tenant_id']));
     expect.soft(scans.length, 'it reads every page (the fake answers 3 rows a page)').toBeGreaterThanOrEqual(4);
     expect.soft(dry.stdout.includes(ID.johnCaps), 'the dry run reports the skipped duplicate by id').toBe(true);
+    expect.soft(noCompany.filter((id) => !dry.stdout.includes(id)), 'the dry run reports every row with no company by id (skipped)').toEqual([]);
+    expect.soft(dry.calls.some((c) => c.op === 'GetCallerIdentity'), 'it asks AWS which account it is in').toBe(true);
+    expect.soft(dry.stdout.split('\n').find((l) => l.trim() !== '') ?? '', 'the first line of the output names the account').toContain(ACCT);
     expect.soft([A, B].every((c) => dry.stdout.includes(c)), 'the dry run counts per company id').toBe(true);
     expect.soft(leaks(dry.stdout + dry.stderr), 'no address, name or phone in the dry run\'s output').toEqual([]);
 
     // --apply.
-    const run1 = runBackfill(before, ['--apply'], { race });
+    const run1 = runBackfill(before, apply, { race, account: ACCT });
     expect.soft(run1.code, `--apply ends with code 0 (${run1.stderr.slice(-400)})`).toBe(0);
     const after = byId(run1.tables);
     const was = byId(before);
-    expect.soft([after[ID.thandi]?.['email'], after[ID.sipho]?.['email'], after[ID.maryB]?.['email'], after[ID.legacy]?.['email'], after[ID.spaced]?.['email']],
-      'A\'s Thandi@X.co, B\'s Sipho@Y.co, B\'s Mary@Q.co (A\'s mary@q.co does not count), a row with no company, and one with spaces become lower case').toEqual(['thandi@x.co', 'sipho@y.co', 'mary@q.co', 'lerato@w.co', 'sizwe@v.co']);
+    const was0 = (id: string) => was[id]?.['email'];
+    expect.soft([after[ID.thandi]?.['email'], after[ID.sipho]?.['email'], after[ID.maryB]?.['email']],
+      'A\'s Thandi@X.co, B\'s Sipho@Y.co, B\'s Mary@Q.co (A\'s mary@q.co does not count) become lower case').toEqual(['thandi@x.co', 'sipho@y.co', 'mary@q.co']);
+    expect.soft(noCompany.map((id) => after[id]?.['email']), 'without --legacy-tenant the rows with no company are left as they are').toEqual(noCompany.map((id) => was0(id)));
     expect.soft([after[ID.johnCaps]?.['email'], after[ID.john]?.['email']], 'A\'s John@Z.co beside A\'s john@z.co is skipped (never merged or deleted)').toEqual(['John@Z.co', 'john@z.co']);
     expect.soft([after[ID.raced]?.['email'], after[ID.moved]?.['email'], after[ID.moved]?.['tenant_id']], 'rows changed between read and write are left alone (another address; another company)').toEqual(['refilwe.again@r.co', 'Musa@M.co', B]);
     expect.soft(Object.keys(after).sort(), 'no row added or removed').toEqual(Object.keys(was).sort());
@@ -532,17 +543,54 @@ test.describe('REC-06.1 Conversion Point leftovers: one employee per email, even
       expect.soft(a, `${id}: nothing but the address changes`).toEqual(w);
     }
     const ups = run1.calls.filter((c) => c.op === 'UpdateItem');
-    expect.soft(run1.calls.filter((c) => !/^(Scan|Query|GetItem|UpdateItem)$/.test(c.op)).map((c) => c.op), 'only UpdateItem writes (no Put, Delete, batch or transaction)').toEqual([]);
-    expect.soft(ups.map((c) => plain(c.params.Key ?? {})['employee_id'] ?? c.params.Key?.employee_id).sort(), 'one update per row that needs it (the raced ones tried once)').toEqual([ID.thandi, ID.raced, ID.moved, ID.sipho, ID.maryB, ID.legacy, ID.spaced].sort());
-    for (const id of [ID.johnCaps, ID.raced, ID.moved]) expect.soft(run1.stdout.includes(id), `the report names ${id} (skipped or left alone)`).toBe(true);
+    expect.soft(run1.calls.filter((c) => !/^(Scan|Query|GetItem|UpdateItem|GetCallerIdentity)$/.test(c.op)).map((c) => c.op), 'only UpdateItem writes (no Put, Delete, batch or transaction)').toEqual([]);
+    expect.soft(ups.map((c) => plain(c.params.Key ?? {})['employee_id'] ?? c.params.Key?.employee_id).sort(), 'one update per row that needs it (the raced ones tried once), none for a row with no company').toEqual([ID.thandi, ID.raced, ID.moved, ID.sipho, ID.maryB].sort());
+    for (const id of [ID.johnCaps, ID.raced, ID.moved, ...noCompany]) expect.soft(run1.stdout.includes(id), `the report names ${id} (skipped or left alone)`).toBe(true);
     expect.soft([A, B].every((c) => run1.stdout.includes(c)), 'counts per company id').toBe(true);
     expect.soft(leaks(run1.stdout + run1.stderr), 'no address, name or phone in the output').toEqual([]);
     // Run again: after a clean --apply a second --apply finds nothing to change (the duplicate is reported again, never written).
-    const clean1 = runBackfill(before, ['--apply']);
-    const run2 = runBackfill(clean1.tables, ['--apply']);
+    const clean1 = runBackfill(before, apply, { account: ACCT });
+    const run2 = runBackfill(clean1.tables, apply, { account: ACCT });
     expect.soft([clean1.code, run2.code, run2.calls.filter((c) => c.op === 'UpdateItem').length], 'a second --apply: code 0, no update').toEqual([0, 0, 0]);
     expect.soft(run2.tables, 'nothing changes').toEqual(clean1.tables);
     expect.soft(run2.stdout.includes(ID.johnCaps), 'the duplicate is reported again').toBe(true);
+
+    // rec-06.1.1 M-1: with --legacy-tenant the rows with no company count as that company's. They are made lower case unless a row of
+    // that company already holds the lower-case form (Kagiso's Palesa@P.co beside A's palesa@p.co is skipped), and they get no company.
+    const leg = runBackfill(before, [...apply, '--legacy-tenant', FOUNDING], { account: ACCT });
+    const legAfter = byId(leg.tables);
+    expect.soft(leg.code, `--legacy-tenant: code 0 (${leg.stderr.slice(-400)})`).toBe(0);
+    expect.soft([legAfter[ID.legacy]?.['email'], legAfter[ID.spaced]?.['email'], legAfter[ID.legacyDup]?.['email']], 'with --legacy-tenant: Lerato and Sizwe lower case; Kagiso\'s address, which A already holds in lower case, left as it is').toEqual(['lerato@w.co', 'sizwe@v.co', 'Palesa@P.co']);
+    expect.soft(noCompany.map((id) => legAfter[id]?.['tenant_id'] ?? null), 'the rows with no company are not given one').toEqual([null, null, null]);
+    expect.soft(leg.stdout.includes(ID.legacyDup), 'the legacy duplicate is reported by id').toBe(true);
+    const legUps = leg.calls.filter((c) => c.op === 'UpdateItem');
+    const keyId = (c: any) => plain(c.params.Key ?? {})['employee_id'] ?? c.params.Key?.employee_id;
+    const legIds = legUps.map(keyId);
+    expect.soft(legIds.filter((id) => id === ID.legacyDup), 'no write for the legacy duplicate').toEqual([]);
+    expect.soft(legUps.filter((c) => noCompany.includes(keyId(c))).every((c) => /tenant_id/.test(String(c.params.ConditionExpression ?? ''))), 'each write to a row with no company is conditional on its company field').toBe(true);
+    const lowerByCompany = (t: Tables) => {
+      const seen = new Map<string, string[]>();
+      for (const r of employeesOf(t)) {
+        const key = `${r['tenant_id'] ?? FOUNDING}|${String(r['email'] ?? '').trim().toLowerCase()}`;
+        seen.set(key, [...(seen.get(key) ?? []), String(r['email'])]);
+      }
+      return [...seen.entries()].filter(([, v]) => v.filter((e) => e === e.trim().toLowerCase()).length > 1).map(([k]) => k);
+    };
+    expect.soft(lowerByCompany(leg.tables), 'no two rows of one company (no-company rows counted as the founding client) end with the same lower-case address').toEqual([]);
+    expect.soft(leaks(leg.stdout + leg.stderr), '--legacy-tenant: no address, name or phone in the output').toEqual([]);
+
+    // rec-06.1.1 M-2: --apply needs --account with the id of the account the credentials are in. Without it, or with another id, the run
+    // refuses: it ends with a code other than 0, writes nothing and changes no row. It still names the account it found.
+    for (const [what, args] of [['--apply with no --account', ['--apply']], ['--apply with another account', ['--apply', '--account', '999988887777']], ['--apply --legacy-tenant with another account', ['--apply', '--account', '999988887777', '--legacy-tenant', FOUNDING]]] as const) {
+      const r = runBackfill(before, [...args], { account: ACCT });
+      expect.soft(r.code, `${what}: refused (code not 0)`).not.toBe(0);
+      expect.soft(writes(r).map((c) => c.op), `${what}: nothing written`).toEqual([]);
+      expect.soft(r.tables, `${what}: no row changes`).toEqual(before);
+      expect.soft((r.stdout + r.stderr).includes(ACCT), `${what}: the output names the account it found`).toBe(true);
+    }
+    const right = runBackfill(before, apply, { account: '222233334444' });
+    expect.soft(right.code, 'the right --account but credentials in another account: refused (code not 0)').not.toBe(0);
+    expect.soft([writes(right).map((c) => c.op), right.tables], 'credentials in another account: nothing written, no row changes').toEqual([[], before]);
 
     // After the run, sign-in (cognitoPostAuth, BE-18's path) finds Thandi whether she types her address with capitals or lower case.
     const w = world();
