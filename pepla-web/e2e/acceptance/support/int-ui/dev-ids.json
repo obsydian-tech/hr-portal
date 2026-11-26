@@ -1,0 +1,12 @@
+{
+  "candidate": "CAND-INTUI01DEVAAAAAAAAAAAA1",
+  "firstName": "Ivy",
+  "lastName": "Seed-Tabs",
+  "interviews": {
+    "booked": "iv-intui01-dev-booked",
+    "waiting": "iv-intui01-dev-waiting",
+    "done": "iv-intui01-dev-done",
+    "cancelled": "iv-intui01-dev-cancelled"
+  },
+  "comment": "INT-UI-01 dev seed comment, never drawn"
+}

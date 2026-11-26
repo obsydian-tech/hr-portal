@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ApplicationRef, ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Location } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import {
   PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline,
@@ -8,6 +9,7 @@ import type { components } from '../../core/api/openapi';
 import { historyDays } from './candidate-history';
 import { stageTime } from './candidate-list';
 import { HireApi, newKey, optionsOf, type CandidateEventRow, type RoleOptions } from './hire-api';
+import { InterviewsTab, defaultInterview, type InterviewList } from './interviews/interviews-tab';
 import { shortDate } from './hire-format';
 import { INTERVIEWS_TAB_READY, NOTES_TAB_READY, OFFER_TAB_READY } from './hire-flags';
 import { NotHiredDialog, SAVE_FAIL } from './not-hired-dialog';
@@ -70,7 +72,7 @@ function viewOf(r: CandidateRecord): View {
  */
 @Component({
   selector: 'app-candidate-record-page',
-  imports: [NotHiredDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
+  imports: [InterviewsTab, NotHiredDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-200">
@@ -101,9 +103,13 @@ function viewOf(r: CandidateRecord): View {
             </pp-person-header>
             @if (saveFailed()) { <pp-section-message tone="danger" [heading]="saveFail" /> }
             <pp-progress-tracker label="Hiring stages" [steps]="steps()" [vertical]="true" />
-            <pp-tabs [label]="c.name" [tabs]="tabs()" [(selected)]="tab" [panel]="false" />
-            @if (tab() === 'notes') {
-              <div role="tabpanel" class="pp-stack pp-gap-200" [attr.aria-labelledby]="notesTabId()">
+            <pp-tabs [label]="c.name" [tabs]="tabs()" [selected]="tab()" (selectedChange)="chooseTab($event)" [panel]="false" />
+            @if (tab() === 'interviews') {
+              <div role="tabpanel" [attr.aria-labelledby]="tabId('interviews')">
+                <app-interviews-tab [state]="interviews()" [list]="interviewRows()" [required]="interviewsRequired()" [chosen]="chosenInterview()" (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" />
+              </div>
+            } @else if (tab() === 'notes') {
+              <div role="tabpanel" class="pp-stack pp-gap-200" [attr.aria-labelledby]="tabId('notes')">
                 @if (notes() === 'failed') {
                   <pp-section-message tone="danger" [heading]="historyFail">
                     <pp-section-message-actions><button ppButton type="button" (click)="tryNotesAgain()">Try again</button></pp-section-message-actions>
@@ -141,9 +147,14 @@ function viewOf(r: CandidateRecord): View {
 export class CandidateRecordPage {
   /** The candidate's id from the address. */
   readonly id = input.required<string>();
+  /** `tab` and `interview` from the address (INT-UI-01 M-6). The page writes them back with `replaceState`, so these only change when the address is opened. */
+  readonly tabInAddress = input<string | undefined>(undefined, { alias: 'tab' });
+  readonly interviewInAddress = input<string | undefined>(undefined, { alias: 'interview' });
 
   private readonly api = inject(HireApi);
   private readonly title = inject(Title);
+  private readonly location = inject(Location);
+  private readonly app = inject(ApplicationRef);
   protected readonly saveFail = SAVE_FAIL;
   protected readonly status = signal<'loading' | 'ready' | 'notfound' | 'failed'>('loading');
   protected readonly v = signal<View | null>(null);
@@ -154,6 +165,12 @@ export class CandidateRecordPage {
   protected readonly notes = signal<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   private readonly noteRows = signal<readonly CandidateEventRow[]>([]);
   protected readonly history = computed(() => historyDays(this.noteRows(), this.v()?.first ?? ''));
+  /** The Interviews tab (INT-UI-01): read once when the tab is first shown for this candidate, and only after the record has answered. */
+  protected readonly interviews = signal<'idle' | 'loading' | 'ready' | 'failed'>('idle');
+  protected readonly interviewRows = signal<InterviewList['interviews']>([]);
+  protected readonly interviewsRequired = signal<{ done: number; total: number } | null>(null);
+  protected readonly chosenInterview = signal<string | null>(null);
+  private interviewRun = 0;
   /** Each read of the history gets its own run: an answer that comes back after the candidate changed or the history was dropped is thrown away. */
   private noteRun = 0;
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
@@ -242,15 +259,72 @@ export class CandidateRecordPage {
   constructor() {
     effect(() => {
       const id = this.id();
-      untracked(() => void this.open(id));
+      const tab = this.tabInAddress();
+      const interview = this.interviewInAddress();
+      untracked(() => void this.open(id, tab, interview));
     });
     effect(() => {
       if (this.tab() === 'notes' && this.status() === 'ready' && this.notes() === 'idle') untracked(() => void this.readNotes());
     });
+    effect(() => {
+      if (this.tab() === 'interviews' && this.status() === 'ready' && this.interviews() === 'idle') untracked(() => void this.readInterviews());
+    });
   }
 
-  /** pp-tabs makes each tab's id itself; the history is labelled by the Notes tab's. */
-  protected notesTabId(): string | null { return this.host.querySelector('[role="tab"][id$="-notes"]')?.id ?? null; }
+  /** pp-tabs makes each tab's id itself; a tab's panel is labelled by it. */
+  protected tabId(name: string): string | null { return this.host.querySelector(`[role="tab"][id$="-${name}"]`)?.id ?? null; }
+
+  /** Choosing a tab writes `tab` into the address with no new history entry; `interview` stays only on the Interviews tab (INT-UI-01 M-6). */
+  protected chooseTab(id: string) {
+    this.tab.set(id);
+    this.writeAddress();
+  }
+
+  protected chooseInterview(id: string) {
+    this.chosenInterview.set(id);
+    this.writeAddress();
+  }
+
+  private writeAddress() {
+    const [path, query = ''] = this.location.path().split('?');
+    const q = new URLSearchParams(query);
+    q.set('tab', this.tab());
+    const chosen = this.chosenInterview();
+    if (this.tab() === 'interviews' && chosen) q.set('interview', chosen); else q.delete('interview');
+    this.location.replaceState(path, q.toString());
+  }
+
+  protected tryInterviewsAgain() {
+    const chosen = this.chosenInterview();
+    this.dropInterviews();
+    this.chosenInterview.set(chosen);
+    // The page is zoneless: draw the loading look now, so the failure line is gone the moment "Try again" is clicked.
+    this.app.tick();
+  }
+
+  private dropInterviews() {
+    this.interviewRun++;
+    this.interviewRows.set([]);
+    this.interviewsRequired.set(null);
+    this.chosenInterview.set(null);
+    this.interviews.set('idle');
+  }
+
+  /** The interviews read for the candidate on the page. An answer that comes back after the address changed is thrown away. */
+  private async readInterviews() {
+    const run = ++this.interviewRun;
+    const id = this.id();
+    const wanted = this.chosenInterview();
+    this.interviews.set('loading');
+    const list = await this.api.candidateInterviews(id);
+    if (run !== this.interviewRun) return;
+    if (!list) { this.interviews.set('failed'); return; }
+    this.interviewRows.set(list.interviews);
+    this.interviewsRequired.set(list.required && typeof list.required === 'object' ? { done: list.required.done, total: list.required.total } : null);
+    this.chosenInterview.set(defaultInterview(list.interviews, wanted));
+    this.interviews.set('ready');
+    if (this.tab() === 'interviews') this.writeAddress();
+  }
 
   protected tryNotesAgain() { this.dropNotes(); }
 
@@ -271,13 +345,15 @@ export class CandidateRecordPage {
     this.notes.set(rows ? 'ready' : 'failed');
   }
 
-  protected tryAgain() { void this.open(this.id()); }
+  protected tryAgain() { void this.open(this.id(), this.tab(), this.chosenInterview() ?? undefined); }
 
   /** Opens an address: nothing of the last candidate stays, the title goes back to "Candidate", and the record and the options are read. */
-  private async open(id: string) {
+  private async open(id: string, tab?: string, interview?: string) {
     const run = ++this.run;
-    this.tab.set('overview');
+    this.tab.set(tab && this.tabs().some((t) => t.id === tab) ? tab : 'overview');
     this.dropNotes();
+    this.dropInterviews();
+    this.chosenInterview.set(interview ?? null);
     this.v.set(null);
     this.status.set('loading');
     this.saveFailed.set(false);
