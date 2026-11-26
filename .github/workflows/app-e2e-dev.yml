@@ -314,7 +314,7 @@ jobs:
         # The company walk (TEN-04 AC-7) runs in its own step below: its "company B" caller is the walk company's HR login.
         # ONB-10 AC-8 runs in its own step after that: ONB-07 and ONB-08 upload and accept the test login's required
         # documents earlier in this run, and AC-8 needs one still to give.
-        run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev|AC-13 @pepla-dev The Recruiter sees Roles|ONB-10 Due dates and Overdue.*AC-8 pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev|REC-05 .* AC-11 The test logins on pepla-dev|REC-15 step C .* AC-17 on pepla-dev|REC-15 step D .* AC-17 on pepla-dev|MOD-01 .* AC-10 Today.s users unaffected|REC-12 .* AC-9 The test logins on pepla-dev"
+        run: npm run e2e:acceptance -- --grep-invert "company B walk on pepla-dev|AC-13 @pepla-dev The Recruiter sees Roles|ONB-10 Due dates and Overdue.*AC-8 pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev|REC-05 .* AC-11 The test logins on pepla-dev|REC-15 step C .* AC-17 on pepla-dev|REC-15 step D .* AC-17 on pepla-dev|INT-01 .* AC-18 on pepla-dev: company B|MOD-01 .* AC-10 Today.s users unaffected|REC-12 .* AC-9 The test logins on pepla-dev"
 
       # REC-01 AC-9 expects the manager login to be hiring manager for exactly one candidate. Read only: list which rows the manager has,
       # so a second one can be named (ids and dates only). Writes nothing.
@@ -380,7 +380,7 @@ jobs:
         run: |
           export E2E_HR_B_EMAIL="$E2E_HR_C_EMAIL" E2E_HR_B_PASSWORD="$E2E_HR_C_PASSWORD"
           # list reporter only: the JSON report of the main run above is the one the PR comment reads
-          npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "company B walk on pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev|REC-05 .* AC-11 The test logins on pepla-dev|REC-15 step C .* AC-17 on pepla-dev|REC-15 step D .* AC-17 on pepla-dev"
+          npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --grep "company B walk on pepla-dev|REC-02 .* AC-12 The test logins on pepla-dev|REC-03 .* AC-11 The test logins on pepla-dev|REC-04 .* AC-10 The test logins on pepla-dev|REC-05 .* AC-11 The test logins on pepla-dev|REC-15 step C .* AC-17 on pepla-dev|REC-15 step D .* AC-17 on pepla-dev|INT-01 .* AC-18 on pepla-dev: company B"
 
       # REC-05 AC-11 got 409 OFFER_EXISTS on the seeded candidate. Read only: print its lock, old-shape and offer rows (keys, state,
       # version, dates; no names, emails or salary), right after the company walk. Writes nothing.

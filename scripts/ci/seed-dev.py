@@ -686,10 +686,11 @@ def seed_rec02(ddb, tenant_id: str, manager_sub: str, employee_sub: str) -> int:
         print(f"cleared {removed} candidate(s) an earlier REC-02 or REC-03 dev test left behind")
     now = "2026-11-10T08:00:00.000Z"
     pk = f"CANDIDATE#{REC02_CANDIDATE}"
-    stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
-                      ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "VOTE#"}}, ProjectionExpression="PK, SK")
-    for item in stale.get("Items", []):
-        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    for prefix in ("VOTE#", "VOTED#"):  # INT-01: the scores and the one-vote guard row both go
+        stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                          ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": prefix}}, ProjectionExpression="PK, SK")
+        for item in stale.get("Items", []):
+            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
     ddb.put_item(TableName=STATE_TABLE, Item={
         "PK": {"S": pk}, "SK": {"S": "SAGA"},
         "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{REC02_CANDIDATE}"},
@@ -1027,10 +1028,12 @@ def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
     # The list is read oldest first, so the later date in GSI1SK puts these candidates last: REC-01 AC-9 takes the first candidate that is not the manager's.
     def candidate(cid: str, tid: str, first: str, last: str, iv_id: str, panel: list, hm: str) -> None:
         pk = f"CANDIDATE#{cid}"
-        stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
-                          ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "VOTE#"}}, ProjectionExpression="PK, SK")
-        for item in stale.get("Items", []):
-            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+        # INT-01: a vote leaves two rows, VOTE# (the scores) and VOTED# (the one-vote guard); both go, or the next run is told ALREADY_SCORED.
+        for prefix in ("VOTE#", "VOTED#"):
+            stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                              ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": prefix}}, ProjectionExpression="PK, SK")
+            for item in stale.get("Items", []):
+                ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
         ddb.put_item(TableName=STATE_TABLE, Item={
             "PK": {"S": pk}, "SK": {"S": "SAGA"},
             "GSI1PK": {"S": f"TENANT#{tid}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
@@ -1207,10 +1210,11 @@ def seed_int03(ddb, tenant_id: str) -> int:
     ttl = int(time.time()) + 7 * 86400
     expires = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(ttl))
     pk = f"CANDIDATE#{cid}"
-    stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
-                      ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "VOTE#"}}, ProjectionExpression="PK, SK")
-    for item in stale.get("Items", []):
-        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    for prefix in ("VOTE#", "VOTED#"):  # INT-01: the scores and the one-vote guard row both go
+        stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                          ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": prefix}}, ProjectionExpression="PK, SK")
+        for item in stale.get("Items", []):
+            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
     ddb.put_item(TableName=STATE_TABLE, Item={
         "PK": {"S": pk}, "SK": {"S": "SAGA"},
         "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
