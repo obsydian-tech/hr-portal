@@ -7,17 +7,11 @@ on:
   schedule:
     - cron: "30 0 * * *"
   workflow_dispatch:
+  # No paths filter on pull requests: every pull request reports "Acceptance tests (no backend)",
+  # so GitHub can require it. The screen build and journeys skip themselves when no screen file
+  # changed (job `changes`); the picker decides which specs run.
   pull_request:
     branches: [develop, main]
-    paths:
-      - "pepla-web/**"
-      - "api/openapi.yaml"
-      # Read or run by the infra acceptance checks (BE-16, OPS-05).
-      - "infra/**"
-      - "talent-flow-infra/**"
-      - "bootstrap/**"
-      - "scripts/ci/**"
-      - ".github/workflows/**"
   push:
     branches: [develop, main]
     paths:
@@ -38,9 +32,35 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    # Pull requests only: did a screen file change? Unsure (or this job failing) means build.
+    name: Did a screen file change?
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      screen: ${{ steps.screen.outputs.screen }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: screen
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # The screen is built from pepla-web/, the generated API types read api/openapi.yaml,
+          # and this file defines the jobs themselves.
+          if files=$(git diff --name-only "$BASE_SHA" HEAD); then
+            if echo "$files" | grep -Eq '^(pepla-web/|api/openapi\.yaml$|\.github/workflows/pepla-web\.yml$)'; then screen=true; else screen=false; fi
+          else
+            echo "Could not list the changed files; building the screen to be safe."; screen=true
+          fi
+          echo "screen=$screen" | tee -a "$GITHUB_OUTPUT"
+
   build:
     name: verify:design, tests, build
-    if: github.event_name != 'schedule'
+    needs: changes
+    if: ${{ !cancelled() && github.event_name != 'schedule' && needs.changes.outputs.screen != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,7 +83,8 @@ jobs:
 
   journeys:
     name: Journeys (no backend)
-    if: github.event_name != 'schedule'
+    needs: changes
+    if: ${{ !cancelled() && github.event_name != 'schedule' && needs.changes.outputs.screen != 'false' }}
     # Normal mode: checks the journeys, no help pictures. Help mode runs in
     # help-retake.yml after merges. Nothing here calls an AI service.
     runs-on: ubuntu-latest

@@ -430,6 +430,33 @@ class WorkflowTiming(unittest.TestCase):
         self.assertIn("--status completed", self.text)
         self.assertNotIn("--status success", self.text)
 
+class EveryPullRequestReportsTheCheck(unittest.TestCase):
+    """Step 2 of the 26 Nov pipeline plan, read as text: no paths filter on pull requests."""
+
+    @classmethod
+    def setUpClass(cls):
+        import yaml
+        from pathlib import Path
+
+        cls.doc = yaml.safe_load(Path(".github/workflows/pepla-web.yml").read_text())
+        cls.on = cls.doc.get("on", cls.doc.get(True))
+
+    def test_pull_requests_are_not_path_filtered(self):
+        self.assertNotIn("paths", self.on["pull_request"])
+        self.assertNotIn("paths-ignore", self.on["pull_request"])
+
+    def test_the_check_job_always_runs_on_a_pull_request(self):
+        jobs = self.doc["jobs"]
+        self.assertEqual(jobs["acceptance"]["if"], "always()")
+        self.assertEqual(jobs["plan"]["if"], "github.event_name != 'push'")
+
+    def test_screen_jobs_skip_only_when_the_screen_check_says_false(self):
+        for name in ("build", "journeys"):
+            cond = self.doc["jobs"][name]["if"]
+            self.assertIn("needs.changes.outputs.screen != 'false'", cond)
+            self.assertIn("!cancelled()", cond)
+
+
 NOW = datetime(2026, 11, 21, 12, 0, tzinfo=timezone.utc)
 
 
