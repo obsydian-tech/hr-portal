@@ -2391,7 +2391,7 @@ export interface components {
                 total: number;
             } | null;
         };
-        /** @description REC-15 step D rule 25, INT-01 R-2. One person or guest on an interview's panel. A guest's email and a person's vote only as R-2 says. */
+        /** @description REC-15 step D rule 25, INT-01 R-2. One person or guest on an interview's panel. A guest's email, and a person's or the guest's vote, only as R-2 and INT-01.F say. */
         PanelEntry: {
             /** @enum {string} */
             kind: "PERSON" | "GUEST";
