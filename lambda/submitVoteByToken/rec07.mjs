@@ -5,11 +5,12 @@ import * as T from '../shared/tenant.mjs';
 import { modulesOf } from '../shared/modules.mjs';
 import { activeSettings, DEFAULTS } from '../shared/recruitment-settings.mjs';
 import * as S from '../shared/scoring.mjs';
-import { recomputeInterview } from '../shared/interview-scoring.mjs';
+import { candidateRows, recomputeInterview, sequenceClause } from '../shared/interview-scoring.mjs';
 
 const db = new DynamoDBClient({});
 const STATE = () => process.env.STATE_TABLE_NAME || 'talent-flow-state';
-const get = async (PK, SK) => { const r = await db.send(new GetItemCommand({ TableName: STATE(), Key: marshall({ PK, SK }) })); return r.Item ? unmarshall(r.Item) : null; };
+// INT-01.F rule 2.3: every read open() makes is strong, so the retry's open() is strong too.
+const get = async (PK, SK) => { const r = await db.send(new GetItemCommand({ TableName: STATE(), Key: marshall({ PK, SK }), ConsistentRead: true })); return r.Item ? unmarshall(r.Item) : null; };
 
 /** The link and what it opens, or null (every reason gives the one expired answer). */
 async function open(token) {
@@ -66,26 +67,44 @@ export async function vote(event) {
   if (refusal) return refusal;
   const nowMs = Date.now();
   if (nowMs < Date.parse(o.iv.scheduledAt)) return S.json(409, { error: 'Conflict', code: 'NOT_STARTED' });
-  const now = new Date(nowMs).toISOString();
   const voter = `GUEST#${String(o.link.PK).slice(13, 29)}`;
-  const use = o.legacy
-    ? { TableName: STATE(), Key: marshall(o.key), UpdateExpression: 'SET #u = :t, usedAt = :at', ConditionExpression: '#u <> :t', ExpressionAttributeNames: { '#u': 'used' }, ExpressionAttributeValues: marshall({ ':t': true, ':at': now }) }
-    : { TableName: STATE(), Key: marshall(o.key), UpdateExpression: 'SET used_at = :at', ConditionExpression: 'attribute_not_exists(used_at) OR attribute_type(used_at, :n)', ExpressionAttributeValues: marshall({ ':at': now, ':n': 'NULL' }) };
-  try {
+  // Rule 2.2 and 2.3: the interview part holds the sequence of the copy open() read; the link's use also needs expires_at > now.
+  const send = async (c, atMs) => {
+    const now = new Date(atMs).toISOString();
+    const seq = sequenceClause(c.iv);
+    const use = c.legacy
+      ? { TableName: STATE(), Key: marshall(c.key), UpdateExpression: 'SET #u = :t, usedAt = :at', ConditionExpression: '#u <> :t', ExpressionAttributeNames: { '#u': 'used' }, ExpressionAttributeValues: marshall({ ':t': true, ':at': now }) }
+      : { TableName: STATE(), Key: marshall(c.key), UpdateExpression: 'SET used_at = :at', ConditionExpression: '(attribute_not_exists(used_at) OR attribute_type(used_at, :n)) AND expires_at > :at', ExpressionAttributeValues: marshall({ ':at': now, ':n': 'NULL' }) };
     // INT-01 (R-18): the link's use, the vote, its guard row and the counter in one transaction.
     await db.send(new TransactWriteItemsCommand({ TransactItems: [
       { Update: use },
       { Put: { TableName: STATE(), Item: marshall(T.stampTenant({
-        PK: `CANDIDATE#${o.iv.candidateId}`, SK: `VOTE#${voter}#${now}#${o.iv.interviewId}`, voterId: voter, candidateId: o.iv.candidateId, interviewId: o.iv.interviewId,
+        PK: `CANDIDATE#${c.iv.candidateId}`, SK: `VOTE#${voter}#${now}#${c.iv.interviewId}`, voterId: voter, candidateId: c.iv.candidateId, interviewId: c.iv.interviewId,
         scores: body.scores, rating: body.rating, ...(body.comment !== undefined ? { comment: body.comment } : {}), scale: S.SCALE, guest: true, on_behalf: false, createdAt: now,
-      }, o.tenantId), { removeUndefinedValues: true }) } },
-      { Put: { TableName: STATE(), Item: marshall(T.stampTenant({ PK: `CANDIDATE#${o.iv.candidateId}`, SK: `VOTED#${o.iv.interviewId}#${voter}`, createdAt: now }, o.tenantId)), ConditionExpression: 'attribute_not_exists(PK)' } },
-      { Update: { TableName: STATE(), Key: marshall({ PK: `CANDIDATE#${o.iv.candidateId}`, SK: `INTERVIEW#${o.iv.interviewId}` }), UpdateExpression: 'ADD votesSubmitted :one', ConditionExpression: 'tenant_id = :t AND #s = :sch AND scheduledAt <= :now', ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: marshall({ ':one': 1, ':t': o.tenantId, ':sch': 'SCHEDULED', ':now': now }) } },
+      }, c.tenantId), { removeUndefinedValues: true }) } },
+      { Put: { TableName: STATE(), Item: marshall(T.stampTenant({ PK: `CANDIDATE#${c.iv.candidateId}`, SK: `VOTED#${c.iv.interviewId}#${voter}`, createdAt: now }, c.tenantId)), ConditionExpression: 'attribute_not_exists(PK)' } },
+      { Update: { TableName: STATE(), Key: marshall({ PK: `CANDIDATE#${c.iv.candidateId}`, SK: `INTERVIEW#${c.iv.interviewId}` }), UpdateExpression: 'ADD votesSubmitted :one', ConditionExpression: `tenant_id = :t AND #s = :sch AND scheduledAt <= :now AND ${seq.expr}`, ExpressionAttributeNames: { '#s': 'status', '#q': 'sequence' }, ExpressionAttributeValues: marshall({ ':one': 1, ':t': c.tenantId, ':sch': 'SCHEDULED', ':now': now, ...seq.values }) } },
     ] }));
+  };
+  try {
+    await send(o, nowMs);
   } catch (err) {
-    if (err.name !== 'TransactionCanceledException') console.error('scoring link use failed', { error: err.name });
-    return S.EXPIRED();
+    if (err.name !== 'TransactionCanceledException') { console.error('scoring link use failed', { error: err.name }); return S.EXPIRED(); }
+    // Rule 2.4: one retry, judged as a fresh request would be (open() again, strongly). Nothing is written on any refusal.
+    try {
+      const o2 = await open(event.pathParameters?.token);
+      if (!o2) return S.EXPIRED();
+      const retryNowMs = Date.now();
+      if (retryNowMs < Date.parse(o2.iv.scheduledAt)) return S.json(409, { error: 'Conflict', code: 'NOT_STARTED' });
+      const rows2 = await candidateRows(o2.iv.candidateId);
+      if (rows2.some((r) => r.SK === `VOTED#${o2.iv.interviewId}#${voter}` || (String(r.SK).startsWith(`VOTE#${voter}#`) && r.interviewId === o2.iv.interviewId))) return S.EXPIRED();
+      await send(o2, retryNowMs);
+      o = o2;
+    } catch (err2) {
+      if (err2.name !== 'TransactionCanceledException') console.error('scoring link use failed', { error: err2.name });
+      return S.EXPIRED();
+    }
   }
-  await recomputeInterview(o.tenantId, o.iv, settings);
+  await recomputeInterview(o.tenantId, o.iv, settings); // o.iv is the copy the successful transaction was judged on
   return S.json(200, { saved: true });
 }

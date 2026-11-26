@@ -35,14 +35,16 @@ export function decorate(r, o) {
     sequence: L.isNewWay(r) ? r.sequence : null, closed_reason: r.closed_reason ?? null, closed_by_name: r.closed_by ? (names[r.closed_by] ?? null) : null, closed_at: r.closed_at ?? null, can,
   };
   if (recruiter) { if (r.candidate_note !== undefined) out.candidate_note = r.candidate_note; if (r.closed_note !== undefined) out.closed_note = r.closed_note; }
+  // One place works out a stored vote's numbers, for a panel person and for the guest (INT-01.F rule 4).
+  const voteShape = (v) => {
+    const crit = (r.criteria_snapshot ?? []).map((c) => c.key);
+    const sc = crit.length ? crit.map((k) => v.scores?.[k]).filter((n) => Number.isFinite(n)) : Object.values(v.scores ?? {}).filter((n) => Number.isFinite(n));
+    return { rating: v.rating ?? null, overall: oneDecimal(mean(sc)), on_behalf_by_name: v.on_behalf && v.entered_by ? (names[v.entered_by] ?? null) : null };
+  };
   const personExtra = (pid) => {
     const v = voteOf(pid);
     const x = {};
-    if (v && seesVotes && (relation !== 'panel' || pid === me)) {
-      const crit = (r.criteria_snapshot ?? []).map((c) => c.key);
-      const sc = crit.length ? crit.map((k) => v.scores?.[k]).filter((n) => Number.isFinite(n)) : Object.values(v.scores ?? {}).filter((n) => Number.isFinite(n));
-      x.vote = { rating: v.rating ?? null, overall: oneDecimal(mean(sc)), on_behalf_by_name: v.on_behalf && v.entered_by ? (names[v.entered_by] ?? null) : null };
-    }
+    if (v && seesVotes && (relation !== 'panel' || pid === me)) x.vote = voteShape(v);
     if (marked && !v) x.no_feedback = true;
     return x;
   };
@@ -50,7 +52,7 @@ export function decorate(r, o) {
   let guestEntry = null;
   if (guest && relation !== 'panel') {
     const gv = mine.find((v) => v.voterId === guest);
-    guestEntry = { kind: 'GUEST', name: null, feedback: gv ? 'GIVEN' : 'WAITING', due_at: null, ...(recruiter ? { email: links[r.guest_link_hash]?.guest_email ?? null } : {}), ...(marked && !gv ? { no_feedback: true } : {}) };
+    guestEntry = { kind: 'GUEST', name: null, feedback: gv ? 'GIVEN' : 'WAITING', due_at: null, ...(recruiter ? { email: links[r.guest_link_hash]?.guest_email ?? null } : {}), ...(gv && seesVotes ? { vote: voteShape(gv) } : {}), ...(marked && !gv ? { no_feedback: true } : {}) };
   }
   return { out, personExtra, guestEntry };
 }

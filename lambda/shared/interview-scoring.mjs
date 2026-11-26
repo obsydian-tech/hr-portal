@@ -6,7 +6,7 @@ import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import * as T from './tenant.mjs';
 import { DEFAULTS } from './recruitment-settings.mjs';
 import * as S from './scoring.mjs';
-import { everyoneVoted } from './interview-lifecycle.mjs';
+import { everyoneVoted, isNewWay } from './interview-lifecycle.mjs';
 
 const db = new DynamoDBClient({});
 const eb = new EventBridgeClient({});
@@ -23,6 +23,15 @@ export async function candidateRows(candidateId) {
   return out;
 }
 
+/**
+ * INT-01.F rule 2: the clause that ties a write to the interview copy it was judged on. Callers name '#q' as 'sequence'.
+ * A new-way copy needs the same sequence; an old-way copy (no sequence) needs the row to still have none.
+ */
+export function sequenceClause(iv) {
+  return isNewWay(iv) ? { expr: '#q = :seqRead', values: { ':seqRead': iv.sequence } } : { expr: 'attribute_not_exists(#q)', values: {} };
+}
+
+/** `interview` must be the strong copy the successful vote was conditioned on; the done write holds the same sequence clause. */
 export async function recomputeInterview(tenantId, interview, settings) {
   const rows = await candidateRows(interview.candidateId);
   const votes = rows.filter((r) => String(r.SK).startsWith('VOTE#') && T.ownsRow(r, tenantId));
@@ -34,11 +43,12 @@ export async function recomputeInterview(tenantId, interview, settings) {
   // R-19: done by itself when every panel person and the guest have a new-format vote (counted with the strong read above).
   if (interview.status === 'SCHEDULED' && everyoneVoted(interview, votes)) {
     const now = new Date().toISOString();
+    const seq = sequenceClause(interview);
     try {
       const r = await db.send(new UpdateItemCommand({
         TableName: STATE(), Key: marshall({ PK: `CANDIDATE#${interview.candidateId}`, SK: `INTERVIEW#${interview.interviewId}` }),
-        UpdateExpression: 'SET #s = :done, completed_by = :sys, completed_at = :now, completedAt = :now', ConditionExpression: 'tenant_id = :t AND #s = :sch',
-        ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: marshall({ ':done': 'COMPLETED', ':sys': 'SYSTEM', ':now': now, ':t': tenantId, ':sch': 'SCHEDULED' }), ReturnValues: 'ALL_NEW',
+        UpdateExpression: 'SET #s = :done, completed_by = :sys, completed_at = :now, completedAt = :now', ConditionExpression: `tenant_id = :t AND #s = :sch AND ${seq.expr}`,
+        ExpressionAttributeNames: { '#s': 'status', '#q': 'sequence' }, ExpressionAttributeValues: marshall({ ':done': 'COMPLETED', ':sys': 'SYSTEM', ':now': now, ':t': tenantId, ':sch': 'SCHEDULED', ...seq.values }), ReturnValues: 'ALL_NEW',
       }));
       const iv = unmarshall(r.Attributes ?? {});
       const entry = { EventBusName: process.env.EVENTBRIDGE_BUS_NAME, Source: 'talent-flow.interviews', DetailType: 'INTERVIEW_DONE', Detail: JSON.stringify({
