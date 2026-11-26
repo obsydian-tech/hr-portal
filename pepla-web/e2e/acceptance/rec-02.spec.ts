@@ -7,6 +7,7 @@ import { STACKS, filesOf, lambdaNamed, policyLines, resourcesOf, roleResourceOf,
 import { A, B, ID, SUB, TABLE, ask, bodyOf, describe, isModulesRead, runEvent, statusOf } from './support/rec-02/world';
 import { C } from './support/rec-02/callers';
 import { isRec05Role } from './support/rec-05.1/grants'; // child lock rec-05.1
+import { isRec15dGrant } from './support/rec-15d.1/grants'; // child lock rec-15d.1
 import {
   CANDIDATE_ROUTES, CLOSED, HANDLER, LIVE_OFFER, OLD_OPEN, OLD_ROWS, OPEN, OTHER_VOTERS, PANEL5, R, REASONS, ROLE_ID, ROUTE, TOKENS,
   anyWrite, awsOf, byLevel, call, candidate, changedRows, eventsOf, historyOf, logsOf, notHired, offerRow, sagaOf, stateWrites, votesOf, withRules, world,
@@ -822,7 +823,7 @@ test.describe('REC-02 · A person decides: no automatic Not hired, and a Not hir
       if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): the department list's own role, judged in rec-14.spec.ts AC-3.
       if (isRec05Role(key, cur.role)) continue; // REC-05 (child lock rec-05.1): the offers Lambda's own role writes the state table, judged in rec-05.spec.ts AC-10.
       const was = writesOf(baseline[key]);
-      const gained = [...writesOf(cur)].filter((l) => !was.has(l));
+      const gained = [...writesOf(cur)].filter((l) => !was.has(l) && !isRec15dGrant(l, key)); // && isRec15dGrant: child lock rec-15d.1 (AdminGetUser is a read, matched by Admin\w*)
       expect.soft(gained, `${key}: no new write grant`).toEqual([]);
       if (cur.squash && cur.squash !== baseline[key]?.squash) expect.soft(cur.squash, `${key}: an unreadable policy did not change`).toBe(baseline[key]?.squash);
     }

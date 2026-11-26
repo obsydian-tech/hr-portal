@@ -950,6 +950,249 @@ components:
           type: string
           enum:
           - Something went wrong
+    InterviewList:
+      type: object
+      description: REC-15 step D rule 25. The interviews of one candidate, an explicit list of fields. required is null before Interview and for a panel member.
+      additionalProperties: false
+      required:
+      - interviews
+      - required
+      properties:
+        interviews:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - id
+            - type
+            - at
+            - status
+            - panel
+            - votes
+            properties:
+              id:
+                type: string
+                nullable: true
+              type:
+                type: string
+                nullable: true
+              at:
+                type: string
+                nullable: true
+              status:
+                type: string
+                nullable: true
+                enum:
+                - SCHEDULED
+                - COMPLETED
+                - CANCELLED
+                - null
+              panel:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PanelEntry'
+              interviewId:
+                type: string
+              candidateId:
+                type: string
+              interviewType:
+                type: string
+              scheduledAt:
+                type: string
+              panelMemberIds:
+                type: array
+                items:
+                  type: string
+              adhocPanelMembers:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    name:
+                      type: string
+                      nullable: true
+                    email:
+                      type: string
+                      nullable: true
+                    role:
+                      type: string
+                      nullable: true
+              votesRequired:
+                type: number
+              votesSubmitted:
+                type: number
+              completedAt:
+                type: string
+              outcome:
+                type: string
+              createdAt:
+                type: string
+              criteria_snapshot:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                  - key
+                  - label
+                  properties:
+                    key:
+                      type: string
+                    label:
+                      type: string
+              PANEL_SPLIT_FLAG:
+                description: A stored signal, sent as stored (Recruiter and hiring manager only).
+              PANEL_CONSENSUS:
+                description: A stored signal, sent as stored (Recruiter and hiring manager only).
+              votes:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                  - voterId
+                  - rating
+                  - weightedScore
+                  - interviewId
+                  - submittedAt
+                  - submittedByTA
+                  - scores
+                  - comment
+                  properties:
+                    voterId:
+                      type: string
+                      nullable: true
+                    rating: {}
+                    weightedScore:
+                      type: number
+                      nullable: true
+                    interviewId:
+                      type: string
+                      nullable: true
+                    submittedAt:
+                      type: string
+                      nullable: true
+                    submittedByTA: {}
+                    scores: {}
+                    comment:
+                      type: string
+                      nullable: true
+        required:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required:
+          - done
+          - total
+          properties:
+            done:
+              type: integer
+              minimum: 0
+            total:
+              type: integer
+              minimum: 0
+    PanelEntry:
+      type: object
+      description: REC-15 step D rule 25. One person or guest on an interview's panel. No email, no score, no rating, no comment.
+      additionalProperties: false
+      required:
+      - kind
+      - name
+      - feedback
+      - due_at
+      properties:
+        kind:
+          type: string
+          enum:
+          - PERSON
+          - GUEST
+        person_id:
+          type: string
+        name:
+          type: string
+          nullable: true
+        feedback:
+          type: string
+          enum:
+          - GIVEN
+          - WAITING
+        due_at:
+          type: string
+          nullable: true
+    CandidateEvents:
+      type: object
+      description: REC-15 step D rule 27. One candidate's history. detail is the one open object (additionalProperties true), as stored.
+      additionalProperties: false
+      required:
+      - events
+      - total
+      properties:
+        events:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - eventId
+            - eventType
+            - candidateId
+            - actor
+            - timestamp
+            - at
+            - kind
+            - by_name
+            properties:
+              eventId:
+                type: string
+              eventType:
+                type: string
+              kind:
+                type: string
+              source:
+                type: string
+              candidateId:
+                type: string
+              tenant_id:
+                type: string
+              actor:
+                type: string
+              timestamp:
+                type: string
+                nullable: true
+              at:
+                type: string
+                nullable: true
+              by_name:
+                type: string
+                nullable: true
+              detail:
+                description: The stored detail, as stored (the one open object).
+                additionalProperties: true
+              from:
+                type: string
+                nullable: true
+              to:
+                type: string
+                nullable: true
+              by:
+                type: string
+                nullable: true
+              by_kind:
+                type: string
+                nullable: true
+              reason_code:
+                type: string
+                nullable: true
+              reason:
+                type: string
+                nullable: true
+        total:
+          type: integer
+          minimum: 0
+        nextToken:
+          type: string
     NewCandidate:
       type: object
       description: REC-15 step B. The body of POST /v1/candidates. The company, title, level, department and hiring manager come from the role, never from here.
@@ -4451,6 +4694,34 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateEvents'
+        '400':
+          description: A bad nextToken or a missing id
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - message
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: The read failed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - message
+                properties:
+                  message:
+                    type: string
         '403':
           description: Forbidden
           content:
@@ -4522,6 +4793,22 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewList'
+        '500':
+          description: The read failed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - error
+                properties:
+                  error:
+                    type: string
         '403':
           description: Forbidden
           content:

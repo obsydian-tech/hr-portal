@@ -221,6 +221,16 @@ exports.handler = async (event) => {
     if (relation === 'hiringManager') events = RA.forHiringManager(events);
     if (relation === 'panel') events = RA.forPanelMember(events.filter((e) => !RA.aboutOffer(e)));
 
+    // REC-15 step D rule 27: every event carries by_name (a sign-in sub's name, else null), at and kind.
+    const PN = await import('../shared/people-names.mjs');
+    const whoOf = (e) => (e.by !== undefined ? e.by : e.actor);
+    const people = events.map(whoOf).filter((x) => typeof x === 'string' && PN.SIGN_IN_ID.test(x));
+    const names = people.length ? await PN.namesOf(tenantId, people) : {};
+    events = events.map((e) => {
+      const who = whoOf(e);
+      return { ...e, at: e.timestamp ?? null, kind: e.eventType ?? null, by_name: typeof who === 'string' && PN.SIGN_IN_ID.test(who) ? names[who] ?? null : null };
+    });
+
     // Encode next page cursor
     let nextToken;
     if (result.LastEvaluatedKey) {

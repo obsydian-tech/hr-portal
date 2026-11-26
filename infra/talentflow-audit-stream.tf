@@ -279,6 +279,19 @@ resource "aws_iam_role_policy" "get_candidate_events" {
         ]
       },
       {
+        # REC-15 step D rule 24: names in the history, read only after the company check on the Member rows.
+        Sid      = "Rec15dPeopleNames"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminGetUser"]
+        Resource = aws_cognito_user_pool.naleko_dev.arn
+      },
+      {
+        Sid      = "Rec15dMemberRows"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = aws_dynamodb_table.tenants.arn
+      },
+      {
         Sid      = "KMS"
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:DescribeKey"]
@@ -304,6 +317,8 @@ resource "aws_lambda_function" "get_candidate_events" {
     variables = {
       TENANTS_TABLE     = aws_dynamodb_table.tenants.name
       EVENTS_TABLE_NAME = aws_dynamodb_table.talent_flow_events.name
+      COGNITO_POOL_ID   = aws_cognito_user_pool.naleko_dev.id
+      LEGACY_TENANT_ID  = var.legacy_tenant_id
     }
   }
 

@@ -243,16 +243,16 @@ exports.handler = async (event) => {
       const relation = await RA.relationOf(event, candidate, async () => rows);
       if (!relation) return T.notFound();
       const me = RA.callerId(event);
+      // REC-15 step D (D-5): the read never writes; the candidate's own settings, read without locking an older row.
+      const RS = await import('../shared/recruitment-settings.mjs');
+      const { settings } = await RS.settingsForRead(tenantId, candidate);
       // REC-07: a hiring manager who is not the decider sees no vote; a panel member nothing worked out from others' votes.
       let seesVotes = true;
       if (relation === 'hiringManager') {
-        const RS = await import('../shared/recruitment-settings.mjs');
-        const st = await RS.getRecruitmentSettings(tenantId, candidate);
-        seesVotes = RA.canDecide(event, candidate, (st.REJECTION_RULES ?? RS.DEFAULTS.REJECTION_RULES).decider?.[candidate.positionLevel]);
+        seesVotes = RA.canDecide(event, candidate, (settings.REJECTION_RULES ?? RS.DEFAULTS.REJECTION_RULES).decider?.[candidate.positionLevel]);
       }
-      const interviews = rows
+      const mineRows = rows
         .filter((r) => relation !== 'panel' || RA.panelMemberOf(r, me))
-        .map((r) => { const { PK, SK, ...rest } = r; if (relation === 'panel') { delete rest.PANEL_SPLIT_FLAG; delete rest.PANEL_CONSENSUS; } return rest; })
         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
       // Fetch all VOTE# records for this candidate and attach per interview
@@ -263,27 +263,60 @@ exports.handler = async (event) => {
         ProjectionExpression: 'voterId, rating, weightedScore, interviewId, createdAt, submittedByTA, scores, #c',
         ExpressionAttributeNames: { '#c': 'comment' },
       }));
-      const allVotes = (voteResult.Items || []).map((i) => {
-        const v = unmarshall(i);
+      const stored = (voteResult.Items || []).map((i) => unmarshall(i));
+      const allVotes = stored.map((v) => ({
+        voterId:       v.voterId      ?? null,
+        rating:        v.rating       ?? null,
+        weightedScore: v.weightedScore ?? null,
+        interviewId:   v.interviewId  ?? null,
+        submittedAt:   v.createdAt    ?? null,
+        submittedByTA: v.submittedByTA ?? null,
+        scores:        v.scores       ?? null,
+        comment:       v.comment      ?? null,
+      })).filter((v) => (relation !== 'panel' || v.voterId === me) && seesVotes);
+
+      const PN = await import('../shared/people-names.mjs');
+      const FD = await import('../shared/feedback-due.mjs');
+      const people = relation === 'panel' ? [me] : mineRows.flatMap((r) => (Array.isArray(r.panelMemberIds) ? r.panelMemberIds : []));
+      const names = await PN.namesOf(tenantId, people);
+      const KEPT = ['interviewId', 'candidateId', 'interviewType', 'scheduledAt', 'panelMemberIds', 'adhocPanelMembers', 'votesRequired', 'votesSubmitted',
+        'status', 'completedAt', 'outcome', 'createdAt', 'criteria_snapshot', 'PANEL_SPLIT_FLAG', 'PANEL_CONSENSUS'];
+      const interviewsWithVotes = mineRows.map((r) => {
+        const out = {};
+        for (const k of KEPT) if (r[k] !== undefined) out[k] = r[k];
+        const votesHere = stored.filter((v) => v.interviewId === r.interviewId);
+        const due = FD.feedbackDueAt(r.scheduledAt, settings.SLA_THRESHOLDS);
+        const entry = (base, given) => ({ ...base, feedback: given ? 'GIVEN' : 'WAITING', due_at: given ? null : due });
+        const persons = relation === 'panel' ? [me] : (Array.isArray(r.panelMemberIds) ? r.panelMemberIds : []);
+        const panel = persons.map((pid) => entry({ kind: 'PERSON', person_id: pid, name: names[pid] ?? null }, votesHere.some((v) => v.voterId === pid)));
+        if (relation !== 'panel') {
+          for (const g of Array.isArray(r.adhocPanelMembers) ? r.adhocPanelMembers : []) {
+            const email = typeof g?.email === 'string' ? g.email.toLowerCase() : null;
+            const nm = typeof g?.name === 'string' && g.name.trim() ? g.name.trim() : null;
+            panel.push(entry({ kind: 'GUEST', name: nm }, !!email && votesHere.some((v) => typeof v.voterId === 'string' && v.voterId.toLowerCase() === email)));
+          }
+        }
+        if (relation === 'panel') {
+          out.panelMemberIds = [me];
+          delete out.adhocPanelMembers; delete out.votesSubmitted; delete out.PANEL_SPLIT_FLAG; delete out.PANEL_CONSENSUS;
+        }
         return {
-          voterId:       v.voterId      ?? null,
-          rating:        v.rating       ?? null,
-          weightedScore: v.weightedScore ?? null,
-          interviewId:   v.interviewId  ?? null,
-          submittedAt:   v.createdAt    ?? null,
-          submittedByTA: v.submittedByTA ?? null,
-          scores:        v.scores       ?? null,
-          comment:       v.comment      ?? null,
+          ...out, id: r.interviewId ?? null, type: r.interviewType ?? null, at: r.scheduledAt ?? null, status: r.status ?? null, panel,
+          votes: allVotes.filter((v) => v.interviewId === r.interviewId),
         };
-      }).filter((v) => (relation !== 'panel' || v.voterId === me) && seesVotes);
+      });
 
-      // Attach votes array to each interview record
-      const interviewsWithVotes = interviews.map((iv) => ({
-        ...iv,
-        votes: allVotes.filter((v) => v.interviewId === iv.interviewId),
-      }));
-
-      return ok({ interviews: interviewsWithVotes });
+      let required = null;
+      if (relation !== 'panel') {
+        const S = await import('../shared/recruitment-stages.mjs');
+        const PROG = await import('../shared/recruitment-actions/candidate-progress.mjs');
+        const stage = S.normaliseStage(candidate) ?? 'APPLIED';
+        if (['INTERVIEW', 'OFFER', 'HIRED', 'NOT_HIRED'].includes(stage)) {
+          const req = PROG.requiredInterviews(settings, candidate, new Set(rows.filter((i) => i.status === 'COMPLETED').map((i) => i.interviewType)));
+          required = { done: req.done, total: req.total };
+        }
+      }
+      return ok({ interviews: interviewsWithVotes, required });
     } catch (err) {
       console.error('GET interviews: query failed', { candidateId, error: err.message });
       return serverError('Failed to fetch interviews');

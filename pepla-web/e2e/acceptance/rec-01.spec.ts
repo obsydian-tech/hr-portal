@@ -13,6 +13,7 @@ import { isCardGrant } from './support/ten-04.2/grants';
 import { isRec07Grant } from './support/rec-07.1/grants';
 import { isRec15bGrant } from './support/rec-15b.1/grants';
 import { isRec15cGrant } from './support/rec-15c.1/grants'; // child lock rec-15c.1
+import { isRec15dGrant } from './support/rec-15d.1/grants'; // child lock rec-15d.1
 
 /**
  * REC-01 · Recruitment role checks: every action says who may do it (Jira NH-235, epic NH-234). Red.
@@ -557,7 +558,7 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
         // REC-15 (child lock rec-04.3): getCandidates reads the company's stage hours for the list's clock (rec-15.spec.ts AC-17 pins it).
         if (/get_candidates$|getCandidates$/.test(key) && /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:[^:\s]+:table\/\$\{local\.tf_table_config\}\/index\/GSI1-active-configs null$/.test(p)) continue;
         // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
-        if (isRec07Grant(p, key) || isRec15bGrant(p, key) || isRec15cGrant(p, key)) continue; // child lock rec-15c.1
+        if (isRec07Grant(p, key) || isRec15bGrant(p, key) || isRec15cGrant(p, key) || isRec15dGrant(p, key)) continue; // child locks rec-15c.1 and rec-15d.1
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null'), `role policy ${key}: new grant "${p}" is not allowed (only GetItem on the tenants table, which TEN-03 and MOD-01 own)`).toBe(true);
       }
       expect.soft((was.pairs ?? []).filter((p) => !(cur.pairs ?? []).includes(p)), `role policy ${key}: nothing it had is taken away`).toEqual([]);
