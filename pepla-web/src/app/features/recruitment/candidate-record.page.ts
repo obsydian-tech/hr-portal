@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ApplicationRef, ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Location } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import {
@@ -154,6 +154,7 @@ export class CandidateRecordPage {
   private readonly api = inject(HireApi);
   private readonly title = inject(Title);
   private readonly location = inject(Location);
+  private readonly app = inject(ApplicationRef);
   protected readonly saveFail = SAVE_FAIL;
   protected readonly status = signal<'loading' | 'ready' | 'notfound' | 'failed'>('loading');
   protected readonly v = signal<View | null>(null);
@@ -297,6 +298,8 @@ export class CandidateRecordPage {
     const chosen = this.chosenInterview();
     this.dropInterviews();
     this.chosenInterview.set(chosen);
+    // The page is zoneless: draw the loading look now, so the failure line is gone the moment "Try again" is clicked.
+    this.app.tick();
   }
 
   private dropInterviews() {
