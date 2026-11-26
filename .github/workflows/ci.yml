@@ -53,6 +53,9 @@ jobs:
           fi
           echo "No plan or state files found"
 
+      - name: Interview words table has no empty row
+        run: node scripts/ci/check-interview-words.mjs
+
   frontend:
     name: Frontend — build & test
     runs-on: ubuntu-latest

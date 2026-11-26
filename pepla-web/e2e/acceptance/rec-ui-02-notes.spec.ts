@@ -63,7 +63,8 @@ test.describe('AC-N1 The tab', () => {
     await asRecruiter(fx);
     await openRecord(page, BONGANI);
     await quiet(page);
-    expect(await tabNames(page)).toEqual([NW.overview, NW.notes]);
+    // Child lock rec-ui-02.5 (INT-UI-01, NH-270): Interviews sits between Overview and Notes.
+    expect(await tabNames(page)).toEqual([NW.overview, 'Interviews', NW.notes]);
     await expect(main(page).locator('.pp-tabs__count'), 'no count on any tab').toHaveCount(0);
     await expect(tab(page, NW.overview)).toHaveAttribute('aria-selected', 'true');
     await expect(tab(page, NW.notes)).not.toHaveAttribute('aria-selected', 'true');

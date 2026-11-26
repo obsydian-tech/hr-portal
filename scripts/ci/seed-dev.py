@@ -1144,6 +1144,60 @@ def seed_int01(ddb, tenant_id: str, panel_subs: tuple) -> int:
     return 4
 
 
+def seed_int_ui01(ddb, tenant_id: str, panel_subs: tuple, hr_sub: str) -> int:
+    """INT-UI-01: the dev candidate the Interviews tab walk opens (cards/int-ui-01.md, "The dev seed"). Four interviews: booked (future,
+    two panel logins), waiting (past, exactly one panel login, no vote: "Waiting on 1 feedback"), done (one vote with the seed comment)
+    and cancelled. Stored fields are interviewType and scheduledAt (C-1). Every row under the candidate is removed first. Idempotent."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "int-ui" / "dev-ids.json").read_text())
+    if len(panel_subs) < 2 or not all(panel_subs) or not hr_sub:
+        print("warning: a panel or HR login has no sub; the INT-UI-01 rows were not written")
+        return 0
+    cid = ids["candidate"]
+    pk = f"CANDIDATE#{cid}"
+    now_s = time.time()
+    iso = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(t))
+    for page in ddb.get_paginator("query").paginate(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk",
+                                                     ExpressionAttributeValues={":pk": {"S": pk}}, ProjectionExpression="PK, SK"):
+        for item in page.get("Items", []):
+            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    stamp = iso(now_s - 20 * 86400)
+    criteria = {"L": [{"M": {"key": {"S": k}, "label": {"S": label}}} for k, label in REC04_CRITERIA]}
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": "SAGA"},
+        "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": ids["firstName"]}, "lastName": {"S": ids["lastName"]},
+        "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+        "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": stamp}, "status": {"S": "ACTIVE"},
+        "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": stamp}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+    })
+    iv = ids["interviews"]
+
+    def interview(iv_id: str, kind: str, at_s: float, status: str, panel: list, extra: dict) -> None:
+        item = {
+            "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"}, "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+            "interviewType": {"S": kind}, "status": {"S": status}, "scheduledAt": {"S": iso(at_s)}, "length_minutes": {"N": "60"},
+            "where": {"S": "ONLINE"}, "video_link": {"S": "https://meet.example.test/int-ui-01-seed"}, "sequence": {"N": "1"},
+            "booked_by": {"S": hr_sub}, "booked_at": {"S": stamp}, "votesSubmitted": {"N": "0"},
+            "panelMemberIds": {"L": [{"S": p} for p in panel]}, "criteria_snapshot": criteria, "createdAt": {"S": stamp}, "seed": {"S": SEED_TAG},
+        }
+        item.update(extra)
+        ddb.put_item(TableName=STATE_TABLE, Item=item)
+
+    interview(iv["booked"], "TECHNICAL", now_s + 7 * 86400, "SCHEDULED", list(panel_subs[:2]), {})
+    interview(iv["waiting"], "BEHAVIORAL", now_s - 2 * 86400, "SCHEDULED", [panel_subs[0]], {})
+    done_at = now_s - 10 * 86400
+    interview(iv["done"], "PHONE_SCREEN", done_at, "COMPLETED", [panel_subs[0]], {"votesSubmitted": {"N": "1"}})
+    interview(iv["cancelled"], "FINAL", now_s - 5 * 86400, "CANCELLED", [panel_subs[1]], {
+        "closed_reason": {"S": "CANDIDATE_ASKED"}, "closed_by": {"S": hr_sub}, "closed_at": {"S": iso(now_s - 6 * 86400)}})
+    voted = iso(done_at + 3600)
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": f"VOTE#{panel_subs[0]}#{voted}#{iv['done']}"}, "voterId": {"S": panel_subs[0]}, "candidateId": {"S": cid},
+        "interviewId": {"S": iv["done"]}, "tenant_id": {"S": tenant_id}, "rating": {"S": "YES"}, "createdAt": {"S": voted},
+        "scores": {"M": {k: {"N": "4"} for k, _ in REC04_CRITERIA}}, "comment": {"S": ids["comment"]}, "seed": {"S": SEED_TAG},
+    })
+    return 6
+
+
 def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
     """REC-05: put the offer rows back every run (cards/rec-05.md, "REC-05 dev seed"). Idempotent."""
     ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-05" / "dev-ids.json").read_text())
@@ -1531,6 +1585,11 @@ def main() -> None:
         seed_int01(ddb, tid, (employee_sub, user_sub(cognito, naleko, "it")))
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the INT-01 rows were not written")
+
+    try:
+        seed_int_ui01(ddb, tid, (employee_sub, user_sub(cognito, naleko, "it")), user_sub(cognito, naleko, "hr"))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the INT-UI-01 rows were not written")
 
     try:
         seed_int03(ddb, tid)

@@ -24,8 +24,9 @@ import { RECORD_KIT } from './support/rec-ui-02/record-kit';
  * The record answer is built from api/openapi.yaml `CandidateRecord` and checked against it (support/rec-ui-02/record.ts).
  * Where the spec is silent, cards/rec-ui-02.md ("Step 3, the record") says what these tests take (D-T-R1 to D-T-R6).
  *
- * Not in this lock (behind flags or waiting for their backend, F-2): the Interviews, Notes and Offer tabs, the hired block,
- * Reopen (U-8), the Batsi note, More actions, the hiring manager and panel views. AC-R8 asserts they are absent.
+ * Not in this lock (behind flags or waiting for their backend, F-2): the Offer tab, the hired block, Reopen (U-8), the Batsi
+ * note, More actions, the hiring manager and panel views. AC-R8 asserts they are absent. The Notes tab came with child lock
+ * rec-ui-02.4 (NH-280 step 4) and the Interviews tab with child lock rec-ui-02.5 (INT-UI-01, NH-270).
  *
  * Every test runs at 1280 and 390 wide unless it says why not. Page time is 19 Nov 2026 10:00 in Johannesburg.
  * AC-R15 runs on pepla-dev only. No test calls Bedrock or any paid AI.
@@ -620,7 +621,8 @@ test.describe('AC-R8 What waits', () => {
   test.beforeEach(noBackendOnly);
 
   // Child lock rec-ui-02.4 (NH-280 step 4): the tab strip now shows Notes after Overview; the Overview itself is unchanged.
-  test('AC-R8 The tab strip shows Overview and Notes only: no Interviews or Offer tab and no tab count; the Overview has no history, More actions, Reopen, Batsi note, Go to interviews or hired block', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r }) => {
+  // Child lock rec-ui-02.5 (INT-UI-01, NH-270): the tab strip now shows Interviews between them, in the kit's order (Offer still off).
+  test('AC-R8 The tab strip shows Overview, Interviews and Notes only: no Offer tab and no tab count; the Overview has no history, More actions, Reopen, Batsi note, Go to interviews or hired block', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r }) => {
     const fx = fxOf({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r });
     const { page, hire } = fx;
     addCand(hire!, { id: 'cand-hired-1', name: 'Sibusiso Khoza', stage: 'HIRED', stage_entered_at: iso(now(hire!) - 3 * DAY) });
@@ -628,7 +630,7 @@ test.describe('AC-R8 What waits', () => {
     for (const id of [BONGANI, 'cand-kagiso', 'cand-hired-1', 'cand-nomvula']) {
       await openRecord(page, id);
       await quiet(page);
-      expect(await tabNames(page), id).toEqual([RW.overview, 'Notes']);
+      expect(await tabNames(page), id).toEqual([RW.overview, 'Interviews', 'Notes']);
       await expect(main(page).locator('.pp-tabs__count'), `${id}: no tab count`).toHaveCount(0);
       await expect(main(page).getByRole('button', { name: /^More actions/ })).toHaveCount(0);
       await expect(main(page).getByRole('button', { name: /^Reopen/ })).toHaveCount(0);
@@ -636,7 +638,7 @@ test.describe('AC-R8 What waits', () => {
       await expect(pageButton(page, RW.goToInterviews)).toHaveCount(0);
       await expect(main(page).locator('pp-masked-field, .pp-masked-field, pp-timeline, .pp-timeline, pp-drawer')).toHaveCount(0);
       const text = await main(page).innerText();
-      expect(text, id).not.toMatch(/Batsi|Employee record created|Open in Onboarding|Interviews/);
+      expect(text, id).not.toMatch(/Batsi|Employee record created|Open in Onboarding/);
     }
   });
 });
