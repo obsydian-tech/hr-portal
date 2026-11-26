@@ -619,7 +619,8 @@ test.describe('AC-R7 Details', () => {
 test.describe('AC-R8 What waits', () => {
   test.beforeEach(noBackendOnly);
 
-  test('AC-R8 The tab strip shows Overview only: no Interviews, Notes or Offer tab and no tab count; no More actions, Reopen, Batsi note, Go to interviews or hired block', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r }) => {
+  // Child lock rec-ui-02.4 (NH-280 step 4): the tab strip now shows Notes after Overview; the Overview itself is unchanged.
+  test('AC-R8 The tab strip shows Overview and Notes only: no Interviews or Offer tab and no tab count; the Overview has no history, More actions, Reopen, Batsi note, Go to interviews or hired block', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r }) => {
     const fx = fxOf({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r });
     const { page, hire } = fx;
     addCand(hire!, { id: 'cand-hired-1', name: 'Sibusiso Khoza', stage: 'HIRED', stage_entered_at: iso(now(hire!) - 3 * DAY) });
@@ -627,7 +628,7 @@ test.describe('AC-R8 What waits', () => {
     for (const id of [BONGANI, 'cand-kagiso', 'cand-hired-1', 'cand-nomvula']) {
       await openRecord(page, id);
       await quiet(page);
-      expect(await tabNames(page), id).toEqual([RW.overview]);
+      expect(await tabNames(page), id).toEqual([RW.overview, 'Notes']);
       await expect(main(page).locator('.pp-tabs__count'), `${id}: no tab count`).toHaveCount(0);
       await expect(main(page).getByRole('button', { name: /^More actions/ })).toHaveCount(0);
       await expect(main(page).getByRole('button', { name: /^Reopen/ })).toHaveCount(0);
@@ -635,7 +636,7 @@ test.describe('AC-R8 What waits', () => {
       await expect(pageButton(page, RW.goToInterviews)).toHaveCount(0);
       await expect(main(page).locator('pp-masked-field, .pp-masked-field, pp-timeline, .pp-timeline, pp-drawer')).toHaveCount(0);
       const text = await main(page).innerText();
-      expect(text, id).not.toMatch(/Batsi|Employee record created|Open in Onboarding|Interviews|Notes/);
+      expect(text, id).not.toMatch(/Batsi|Employee record created|Open in Onboarding|Interviews/);
     }
   });
 });
