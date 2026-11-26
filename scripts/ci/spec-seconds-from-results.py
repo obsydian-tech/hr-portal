@@ -5,7 +5,7 @@
   spec-seconds-from-results.py merge <dir> <out.json>            join every shard's file in <dir>
 
 The nightly run uploads the joined file as the `acceptance-spec-seconds` artifact; pull
-request runs read it (pick-acceptance-specs.py, TIMING_FILE) to share specs between the six
+request runs read it (pick-acceptance-specs.py, TIMING_FILE) to share specs between the seven
 groups. It only decides how work is shared, never which specs run. Nothing is committed.
 Standard library only. Test: python3 -B scripts/ci/test_spec_seconds_from_results.py
 """
