@@ -548,7 +548,14 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
   test('AC-12 Add only: no resource removed or renamed, only the new ones added, no moved or removed block, no table data, adminDeactivateUser untouched byte for byte', () => {
     const base = JSON.parse(readFileSync(join(BASELINE, 'terraform.ccc2beb-419.json'), 'utf8')) as { resources: string[]; moved: string[]; adminDeactivateUser: { role: string; policy: string; lambda: string; files: Record<string, string> } };
     const now = allAddresses();
-    expect(base.resources.filter((x) => !now.includes(x)), 'every resource of develop is still there under its own name').toEqual([]);
+    // Child lock chat-15.5 (NH-282, PR 529): the old interview booking rule, its target and its permission were removed from
+    // talent-flow-infra on purpose (Iggie approved the deletes; applied on pepla-dev 26 Nov). Exactly these three may be gone. Any other missing resource still fails.
+    const REMOVED_NH282 = [
+      'talent-flow-infra/aws_cloudwatch_event_rule.interview_scheduled',
+      'talent-flow-infra/aws_cloudwatch_event_target.interview_scheduled',
+      'talent-flow-infra/aws_lambda_permission.schedule_interview_eventbridge',
+    ];
+    expect(base.resources.filter((x) => !now.includes(x) && !REMOVED_NH282.includes(x)), 'every resource of develop is still there under its own name').toEqual([]);
     // REC-02 (re-lock rec-02.1): the Not hired Lambda and its role, routes and permission are added later under the name record_not_hired*;
     // rec-02.spec.ts AC-11 judges them, so they are left out here.
     // REC-04 (re-lock rec-04.1): the roles Lambda (manage_roles*) and the roles table (talent_flow_roles) likewise, judged in rec-04.spec.ts AC-8.
