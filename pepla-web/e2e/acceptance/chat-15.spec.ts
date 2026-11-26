@@ -565,7 +565,10 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
       // REC-07 (child lock rec-07.2): the four scoring routes: talent-flow-infra only, routes only, only these names; judged in rec-07.spec.ts.
       && !/^talent-flow-infra\/aws_apigatewayv2_route\.(get_candidate_scores|get_scoring_link|post_interview_votes|post_scoring_link)$/.test(x)
       // REC-05 (child lock rec-05.1): manageOffers and its role, policy, log group, integration, routes and permission (manage_offers*), judged in rec-05.spec.ts AC-10 and AC-15.
-      && !isRec05Resource(x));
+      && !isRec05Resource(x)
+      // REC-16 (child lock chat-15.4): the hiring manager IT email Lambda and its role, policy, log group, rule, target and permission, all
+      // labelled notify_hiring_manager_on_hire in infra/; judged in rec-16.spec.ts AC-10 and AC-8. Any other new resource still fails here.
+      && !/^infra\/(aws_lambda_function|aws_iam_role|aws_iam_role_policy|aws_cloudwatch_log_group|aws_cloudwatch_event_rule|aws_cloudwatch_event_target|aws_lambda_permission)\.notify_hiring_manager_on_hire$/.test(x));
     expect(added.filter((x) => x.startsWith(`${TF}/aws_lambda_function.`)).length, 'the job\'s function is added (a branch that adds nothing is not add-only, it is missing)').toBe(1);
     expect(added.filter((x) => x.startsWith(`${TF}/aws_iam_role.`)).length, 'the job\'s role is added').toBe(1);
     const ALLOWED = ['aws_lambda_function', 'aws_iam_role', 'aws_iam_role_policy', 'aws_cloudwatch_event_rule', 'aws_cloudwatch_event_target', 'aws_lambda_permission', 'aws_cloudwatch_log_group'];
@@ -586,7 +589,8 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
     expect(names, 'alarms.tf lists deleteLeaverChats in lambda_names (as ONB-21 listed sendDocumentReminders)').toContain(FUNCTION_NAME);
     const before = JSON.parse(readFileSync(join(BASELINE, 'alarm-lambda-names.ccc2beb-419.json'), 'utf8')) as string[];
     // REC-14 (child lock rec-14.1): manageDepartments joins the same list; rec-14.spec.ts AC-3 judges it.
-    expect(names.filter((n) => !before.includes(n!) && n !== 'manageDepartments'), 'it is the only name added').toEqual([FUNCTION_NAME]);
+    // REC-16 (child lock chat-15.4): notifyHiringManagerOnHire may join the same list (REC-16 L-5); nothing else may.
+    expect(names.filter((n) => !before.includes(n!) && n !== 'manageDepartments' && n !== 'notifyHiringManagerOnHire'), 'it is the only name added').toEqual([FUNCTION_NAME]);
     expect(before.filter((n) => !names.includes(n)), 'and none is dropped').toEqual([]);
   });
 
