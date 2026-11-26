@@ -950,6 +950,20 @@ components:
           type: string
           enum:
           - Something went wrong
+    InterviewRefusal:
+      type: object
+      description: INT-01 S-8. A refused interview request.
+      additionalProperties: false
+      required:
+      - error
+      - code
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        field:
+          type: string
     InterviewList:
       type: object
       description: REC-15 step D rule 25. The interviews of one candidate, an explicit list of fields. required is null before Interview and for a panel member.
@@ -968,6 +982,15 @@ components:
             - type
             - at
             - status
+            - length_minutes
+            - where
+            - place
+            - video_link
+            - sequence
+            - closed_reason
+            - closed_by_name
+            - closed_at
+            - can
             - panel
             - votes
             properties:
@@ -987,7 +1010,67 @@ components:
                 - SCHEDULED
                 - COMPLETED
                 - CANCELLED
+                - DID_NOT_HAPPEN
                 - null
+              length_minutes:
+                type: integer
+                nullable: true
+                description: INT-01 rule 6. Null on an interview booked before INT-01.
+              where:
+                type: string
+                nullable: true
+                enum:
+                - IN_PERSON
+                - ONLINE
+                - null
+              place:
+                type: string
+                nullable: true
+              video_link:
+                type: string
+                nullable: true
+              sequence:
+                type: integer
+                nullable: true
+                description: INT-01. Raised by each reschedule and by a cancel. Null on an interview booked before INT-01.
+              closed_reason:
+                type: string
+                nullable: true
+              closed_note:
+                type: string
+                nullable: true
+                description: Recruiter only; left out for everyone else.
+              closed_by_name:
+                type: string
+                nullable: true
+              closed_at:
+                type: string
+                nullable: true
+              candidate_note:
+                type: string
+                nullable: true
+                description: Recruiter only; left out for everyone else.
+              can:
+                type: object
+                description: INT-01 rule 12. What this caller may do on this interview now, worked out by the server.
+                additionalProperties: false
+                required:
+                - reschedule
+                - cancel
+                - did_not_happen
+                - mark_done
+                - capture_feedback
+                properties:
+                  reschedule:
+                    type: boolean
+                  cancel:
+                    type: boolean
+                  did_not_happen:
+                    type: boolean
+                  mark_done:
+                    type: boolean
+                  capture_feedback:
+                    type: boolean
               panel:
                 type: array
                 items:
@@ -1024,8 +1107,6 @@ components:
               votesSubmitted:
                 type: number
               completedAt:
-                type: string
-              outcome:
                 type: string
               createdAt:
                 type: string
@@ -1095,7 +1176,7 @@ components:
               minimum: 0
     PanelEntry:
       type: object
-      description: REC-15 step D rule 25. One person or guest on an interview's panel. No email, no score, no rating, no comment.
+      description: REC-15 step D rule 25, INT-01 R-2. One person or guest on an interview's panel. A guest's email and a person's vote only as R-2 says.
       additionalProperties: false
       required:
       - kind
@@ -1121,6 +1202,31 @@ components:
         due_at:
           type: string
           nullable: true
+        vote:
+          type: object
+          description: INT-01 R-2. Shown to the voter, a Recruiter and the decider only; left out for everyone else.
+          additionalProperties: false
+          required:
+          - rating
+          - overall
+          - on_behalf_by_name
+          properties:
+            rating:
+              type: string
+              nullable: true
+            overall:
+              type: number
+              nullable: true
+            on_behalf_by_name:
+              type: string
+              nullable: true
+        no_feedback:
+          type: boolean
+          description: INT-01. True when the interview was marked as done without this person's feedback; left out otherwise.
+        email:
+          type: string
+          nullable: true
+          description: INT-01 R-2. A GUEST entry's email, for a Recruiter only.
     CandidateEvents:
       type: object
       description: REC-15 step D rule 27. One candidate's history. detail is the one open object (additionalProperties true), as stored.
@@ -4852,8 +4958,41 @@ paths:
     post:
       summary: POST /v1/candidates/{id}/interviews
       responses:
-        '200':
-          description: OK
+        '201':
+          description: Booked
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - interview_id
+                - status
+                - sequence
+                properties:
+                  interview_id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                    - SCHEDULED
+                    - COMPLETED
+                    - CANCELLED
+                    - DID_NOT_HAPPEN
+                  sequence:
+                    type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewRefusal'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewRefusal'
         '403':
           description: Forbidden
           content:
@@ -4885,6 +5024,14 @@ paths:
         required: true
         schema:
           type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: INT-01 R-22. 1 to 200 characters. The same key and body gives the first answer again.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
       servers:
       - url: https://talentflow-api.example.com
       security:
@@ -6003,7 +6150,40 @@ paths:
       summary: PATCH /v1/candidates/{id}/interviews/{interviewId}
       responses:
         '200':
-          description: OK
+          description: Done
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                - interview_id
+                - status
+                - sequence
+                properties:
+                  interview_id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                    - SCHEDULED
+                    - COMPLETED
+                    - CANCELLED
+                    - DID_NOT_HAPPEN
+                  sequence:
+                    type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewRefusal'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewRefusal'
         '403':
           description: Forbidden
           content:
@@ -6040,6 +6220,14 @@ paths:
         required: true
         schema:
           type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        description: INT-01 R-22. 1 to 200 characters. The same key and body gives the first answer again.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
       servers:
       - url: https://talentflow-api.example.com
       security:
@@ -6269,8 +6457,11 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [candidate_first, candidate_last, role_title, interview_type, interview_at, criteria, expires_at]
+                required: [candidate_first, candidate_last, role_title, interview_type, interview_at, criteria, expires_at, open]
                 properties:
+                  open:
+                    type: boolean
+                    description: INT-01 AC-24. False before the interview starts.
                   candidate_first:
                     type: string
                   candidate_last:
@@ -6354,6 +6545,12 @@ paths:
                     type: string
                   field:
                     type: string
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterviewRefusal'
       operationId: POST_v1_scoring_links_token
       parameters:
       - name: token

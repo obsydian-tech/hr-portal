@@ -2315,6 +2315,12 @@ export interface components {
             /** @enum {string} */
             error: "Something went wrong";
         };
+        /** @description INT-01 S-8. A refused interview request. */
+        InterviewRefusal: {
+            error: string;
+            code: string;
+            field?: string;
+        };
         /** @description REC-15 step D rule 25. The interviews of one candidate, an explicit list of fields. required is null before Interview and for a panel member. */
         InterviewList: {
             interviews: {
@@ -2322,7 +2328,30 @@ export interface components {
                 type: string | null;
                 at: string | null;
                 /** @enum {string|null} */
-                status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | null;
+                status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "DID_NOT_HAPPEN" | null;
+                /** @description INT-01 rule 6. Null on an interview booked before INT-01. */
+                length_minutes: number | null;
+                /** @enum {string|null} */
+                where: "IN_PERSON" | "ONLINE" | null;
+                place: string | null;
+                video_link: string | null;
+                /** @description INT-01. Raised by each reschedule and by a cancel. Null on an interview booked before INT-01. */
+                sequence: number | null;
+                closed_reason: string | null;
+                /** @description Recruiter only; left out for everyone else. */
+                closed_note?: string | null;
+                closed_by_name: string | null;
+                closed_at: string | null;
+                /** @description Recruiter only; left out for everyone else. */
+                candidate_note?: string | null;
+                /** @description INT-01 rule 12. What this caller may do on this interview now, worked out by the server. */
+                can: {
+                    reschedule: boolean;
+                    cancel: boolean;
+                    did_not_happen: boolean;
+                    mark_done: boolean;
+                    capture_feedback: boolean;
+                };
                 panel: components["schemas"]["PanelEntry"][];
                 interviewId?: string;
                 candidateId?: string;
@@ -2337,7 +2366,6 @@ export interface components {
                 votesRequired?: number;
                 votesSubmitted?: number;
                 completedAt?: string;
-                outcome?: string;
                 createdAt?: string;
                 criteria_snapshot?: {
                     key: string;
@@ -2363,7 +2391,7 @@ export interface components {
                 total: number;
             } | null;
         };
-        /** @description REC-15 step D rule 25. One person or guest on an interview's panel. No email, no score, no rating, no comment. */
+        /** @description REC-15 step D rule 25, INT-01 R-2. One person or guest on an interview's panel. A guest's email and a person's vote only as R-2 says. */
         PanelEntry: {
             /** @enum {string} */
             kind: "PERSON" | "GUEST";
@@ -2372,6 +2400,16 @@ export interface components {
             /** @enum {string} */
             feedback: "GIVEN" | "WAITING";
             due_at: string | null;
+            /** @description INT-01 R-2. Shown to the voter, a Recruiter and the decider only; left out for everyone else. */
+            vote?: {
+                rating: string | null;
+                overall: number | null;
+                on_behalf_by_name: string | null;
+            };
+            /** @description INT-01. True when the interview was marked as done without this person's feedback; left out otherwise. */
+            no_feedback?: boolean;
+            /** @description INT-01 R-2. A GUEST entry's email, for a Recruiter only. */
+            email?: string | null;
         };
         /** @description REC-15 step D rule 27. One candidate's history. detail is the one open object (additionalProperties true), as stored. */
         CandidateEvents: {
@@ -5947,7 +5985,10 @@ export interface operations {
     POST_v1_candidates_id_interviews: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description INT-01 R-22. 1 to 200 characters. The same key and body gives the first answer again. */
+                "Idempotency-Key": string;
+            };
             path: {
                 id: string;
             };
@@ -5955,12 +5996,28 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Booked */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        interview_id: string;
+                        /** @enum {string} */
+                        status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "DID_NOT_HAPPEN";
+                        sequence: number;
+                    };
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewRefusal"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -5994,6 +6051,15 @@ export interface operations {
                         /** @example Not found */
                         error?: string;
                     };
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewRefusal"];
                 };
             };
         };
@@ -7244,7 +7310,10 @@ export interface operations {
     PATCH_v1_candidates_id_interviews_interviewId: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description INT-01 R-22. 1 to 200 characters. The same key and body gives the first answer again. */
+                "Idempotency-Key": string;
+            };
             path: {
                 id: string;
                 interviewId: string;
@@ -7253,12 +7322,28 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description Done */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        interview_id: string;
+                        /** @enum {string} */
+                        status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "DID_NOT_HAPPEN";
+                        sequence: number;
+                    };
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewRefusal"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -7292,6 +7377,15 @@ export interface operations {
                         /** @example Not found */
                         error?: string;
                     };
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewRefusal"];
                 };
             };
         };
@@ -7508,6 +7602,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description INT-01 AC-24. False before the interview starts. */
+                        open: boolean;
                         candidate_first: string;
                         candidate_last: string;
                         role_title: string | null;
@@ -7567,6 +7663,15 @@ export interface operations {
                         code?: string;
                         field?: string;
                     };
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewRefusal"];
                 };
             };
             /** @description Gone */

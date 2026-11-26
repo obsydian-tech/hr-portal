@@ -214,6 +214,12 @@ resource "aws_iam_role_policy" "schedule_interview" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_state}"
       },
       {
+        Sid      = "Int01RequestKeys"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_idempotency}"
+      },
+      {
         Sid      = "Rec07RoleCriteria"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]

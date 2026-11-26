@@ -144,6 +144,15 @@ exports.handler = async (event) => {
     console.warn('Module off, skipped', { tenantId });
     return gone('Scoring link has expired');
   }
+  // INT-01 (R-14): an interview booked the new way gives the single expired answer here; nothing is marked used.
+  try {
+    const ivRes = await dynamo.send(new GetItemCommand({ TableName: STATE_TABLE, Key: marshall({ PK: `CANDIDATE#${tokenRecord.candidateId}`, SK: `INTERVIEW#${tokenRecord.interviewId}` }) }));
+    const ivRow = ivRes.Item ? unmarshall(ivRes.Item) : null;
+    if (ivRow && ivRow.sequence !== undefined && ivRow.sequence !== null) return gone('Scoring link has expired');
+  } catch (err) {
+    console.error('Failed to read interview record', { error: err.name });
+    return gone('Scoring link has expired');
+  }
   const { candidateId, panelMemberId, panelMemberEmail, panelMemberName } = tokenRecord;
   const voterId = panelMemberId; // identity derived from token record, not JWT
 
