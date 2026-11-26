@@ -35,6 +35,9 @@ export type CandidateEventRow = NonNullable<components['schemas']['CandidateEven
 /** The most history reads for one candidate: the server pages oldest first (REC-UI-02 step 4, D-RUI-02.25). */
 export const MAX_HISTORY_READS = 10;
 
+/** A candidate's interviews, as `api/openapi.yaml` describes them (INT-UI-01). */
+export type InterviewListAnswer = components['schemas']['InterviewList'];
+
 export interface HireCounts { all: number; mine: number; overdue: number; due_soon: number; not_hired: number; }
 
 export interface OldSystemRow { candidate_id: string; name: string; role_title: string; rejected_at: string; }
@@ -93,5 +96,11 @@ export class HireApi {
       if (!token) break;
     }
     return rows;
+  }
+
+  /** A candidate's interviews (`GET /v1/candidates/{id}/interviews`): `null` for no answer, a refusal, an error or an answer with no list. Nothing but the id goes in the request. */
+  async candidateInterviews(id: string): Promise<InterviewListAnswer | null> {
+    const r = await this.call<InterviewListAnswer>('GET', `/v1/candidates/${encodeURIComponent(id)}/interviews`);
+    return r?.status === 200 && r.body && Array.isArray(r.body.interviews) ? r.body : null;
   }
 }
