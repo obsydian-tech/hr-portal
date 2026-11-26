@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { REC16_LABEL } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -976,7 +977,9 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
         'get_document_presigned_url', 'get_document_verifications', 'get_employee', 'get_employee_by_email', 'get_employee_document_verifications', 'get_employees',
         'get_single_document_verification', 'lookup_employee_email', 'process_document_ocr', 'review_document_verification', 'send_notification_email',
         'summarise_verification', 'trigger_external_verification', 'upload_document_to_s3'];
-      expect.soft(kmsRead.includes(`aws_iam_role.${role}.arn`) || KMS_BEFORE.includes(role), `${role} reads the PII-encrypted tenants table: through kms_pii dynamodb_read_role_arns (or held the key before this card)`).toBe(true);
+      // REC-16 (child lock rec-16.1): notify_hiring_manager_on_hire reads the key through its own IAM statement with kms:ViaService DynamoDB
+      // (the key policy delegates to IAM; kms.tf stays unchanged), judged in rec-16.spec.ts AC-10. Every other check here still applies to it.
+      expect.soft(kmsRead.includes(`aws_iam_role.${role}.arn`) || KMS_BEFORE.includes(role) || role === REC16_LABEL, `${role} reads the PII-encrypted tenants table: through kms_pii dynamodb_read_role_arns (or held the key before this card)`).toBe(true);
       for (const s of statements) {
         expect.soft(list(s.Action).filter((a) => /\*/.test(a)), `${role}: no wildcard action`).toEqual([]);
         if (list(s.Resource).includes('*')) expect.soft(list(s.Action).every((a) => XRAY.has(a)), `${role}: Resource "*" only for X-Ray`).toBe(true);

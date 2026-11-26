@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { REC16_ROLE_KEY } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { REPO, runModule } from './support/rec-14/lambda-harness';
@@ -734,6 +735,7 @@ test.describe('REC-15 step A · The candidate lists, from one stage clock', () =
     const [was, is] = [byRole(baseline), byRole(now)];
     const configRead = /^Allow dynamodb:Query \S*(talent-flow-config|\$\{local\.tf_table_config\})\/index\/GSI1-active-configs null$/;
     for (const [k, lines] of is) {
+      if (k === REC16_ROLE_KEY) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
       const gained = [...lines].filter((l) => !(was.get(k) ?? new Set()).has(l));
       const lost = [...(was.get(k) ?? new Set())].filter((l) => !lines.has(l));
       if (k === `${fn!.stack}/${role_}`) {

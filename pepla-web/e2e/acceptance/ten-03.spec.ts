@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { LAMBDA, REPO, logLines, runHandler, runScript, type Row, type Run, type Tables } from './support/ten-03/lambda-harness';
@@ -706,6 +707,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       if (/manage_roles|manageRoles/.test(key) || /manage_roles|manageRoles/.test(cur.role)) continue; // REC-04 (re-lock rec-04.1): its own role, judged in rec-04.spec.ts AC-8.
       if (/leaver_chats|deleteLeaverChats/.test(key) || /leaver_chats|deleteLeaverChats/.test(cur.role)) continue; // CHAT-15 (re-lock ten-03.16): its own role, judged in chat-15.spec.ts AC-12.
       if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): its own role, judged in rec-14.spec.ts AC-3.
+      if (isRec16Role(key, cur.role)) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
       if (isRec05Role(key, cur.role)) { expect.soft((cur.pairs ?? []).filter((p) => !isRec05Grant(p, key)), `${key}: only the lines REC-05 allows`).toEqual([]); continue; } // REC-05 (child lock rec-05.1): its own role, judged in rec-05.spec.ts AC-10.
       // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.
       const mod01 = (cur.pairs ?? []).length > 0 && MOD01_ROLE(key, cur.role) && (cur.pairs ?? []).every((p) => MOD01_GET(p) || (key === 'infra/get_company_modules' && MOD01_OWN(p)));
