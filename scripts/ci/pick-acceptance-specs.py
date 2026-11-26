@@ -440,10 +440,10 @@ def main() -> None:
     touched: dict[str, set[str]] = {}
     if event == "pull_request":
         if has_two_parents():
-            changed = git("diff", "--name-only", "HEAD^1", "HEAD").splitlines()
+            changed = git("diff", "--name-only", "--no-renames", "HEAD^1", "HEAD").splitlines()
             subjects = git("log", "--no-merges", "--format=%s", "HEAD^1..HEAD^2")
         else:
-            changed = git("diff", "--name-only", os.environ["BASE_SHA"], "HEAD").splitlines()
+            changed = git("diff", "--name-only", "--no-renames", os.environ["BASE_SHA"], "HEAD").splitlines()
             subjects = git("log", "--no-merges", "--format=%s", f"{os.environ['BASE_SHA']}..HEAD")
         own = card_of(os.environ.get("PR_TITLE", "") + "\n" + os.environ.get("HEAD_REF", "") + "\n" + subjects)
         touched = history_map()
@@ -463,7 +463,8 @@ def main() -> None:
     n = 0 if mode == "none" else min(MAX_SHARDS, len(chosen))
     fresh = os.environ.get("TIMING_FILE")
     seconds, timing_note = load_timing(Path(fresh) if fresh else None)
-    groups = balance(chosen, specs, n, seconds)
+    # Nothing to run (a docs-only change): no groups, no matrix rows. balance() needs at least one group.
+    groups = balance(chosen, specs, n, seconds) if n else []
     matrix = {
         "include": [
             {
