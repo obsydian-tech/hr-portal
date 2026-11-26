@@ -157,6 +157,14 @@ const blank = (v: unknown) => v === undefined || v === null;
 
 // ---------------------------------------------------------------- tests
 
+/** Child lock int-01.2 (REC-06, NH-240): the two lines REC-06 gives manage_offers, matched exactly. */
+const REC06_GRANTS: Record<string, RegExp[]> = {
+  'talent-flow-infra/manage_offers': [
+    /^Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table\/employees null$/,
+    /^Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table\/employees\/index\/email-index null$/,
+  ],
+};
+
 test.describe('INT-01 · Interview lifecycle on the server', () => {
   // ---------------------------------------------------------------- control
 
@@ -988,7 +996,8 @@ test.describe('INT-01 · Interview lifecycle on the server', () => {
       const is = new Set(now[k]?.pairs ?? (now[k] ? [`squashed ${now[k]?.squash}`] : []));
       const gained = [...is].filter((l) => !was.has(l));
       if (isSI(k, now[k]?.role ?? baseline[k]?.role)) { gainedSI.push(...gained); continue; }
-      expect.soft(gained, `${k}: no new grant`).toEqual([]);
+      // Child lock int-01.2 (REC-06): REC-06's two manage_offers lines are its own (rec-06.spec.ts AC-9 pins them exactly), not INT-01's.
+      expect.soft(gained.filter((l) => !(REC06_GRANTS[k] ?? []).some((re) => re.test(l))), `${k}: no new grant`).toEqual([]);
     }
     expect.soft(gainedSI.filter((l) => !NEW.some((re) => re.test(l))), 'scheduleInterview gains only GetItem and PutItem on the request-key table (no index, no *)').toEqual([]);
     expect.soft(NEW.map((re) => gainedSI.filter((l) => re.test(l)).length), 'each once').toEqual([1, 1]);
