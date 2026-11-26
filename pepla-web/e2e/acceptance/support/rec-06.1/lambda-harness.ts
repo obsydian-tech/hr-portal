@@ -76,8 +76,8 @@ export const BACKFILL = join(REPO, 'scripts', 'backfill', 'lowercase-employee-em
  * conditional put_item and delete_item run, over `tables`. */
 export const SEED = join(REPO, 'scripts', 'ci', 'seed-dev.py');
 export const runSeed = (tables: Tables, fn: string, args: string[]): ScriptRun => runPython(SEED, tables, args, { allowWrites: true }, { REC061_CALL: fn });
-export function runBackfill(tables: Tables, args: string[], fake: { race?: { employee_id: string; set: Row }[]; pageSize?: number } = {}): ScriptRun {
-  return runPython(BACKFILL, tables, args, { race: fake.race ?? [], pageSize: fake.pageSize ?? 3 }, {});
+export function runBackfill(tables: Tables, args: string[], fake: { race?: { employee_id: string; set: Row }[]; pageSize?: number; account?: string } = {}): ScriptRun {
+  return runPython(BACKFILL, tables, args, { race: fake.race ?? [], pageSize: fake.pageSize ?? 3, account: fake.account ?? '000000000000' }, {});
 }
 function runPython(script: string, tables: Tables, args: string[], world: Record<string, unknown>, more: Record<string, string>): ScriptRun {
   const dir = mkdtempSync(join(tmpdir(), 'rec-06.1-py-'));

@@ -12,7 +12,7 @@ the real service does for the calls a careful back-fill makes:
   * put_item, delete_item, batch_write_item and transact_write_items are recorded and then refused: the back-fill must never write a
     whole row, merge or delete (REC-06.1 rule 9). Only when the world says allowWrites (the seed test, AC-10) do put_item and
     delete_item run, with their ConditionExpression; batch and transactions stay refused.
-  * Any other service is refused.
+  * client("sts").get_caller_identity() answers world.account (rec-06.1.1). Any other service is refused.
 
 world.race = [{employee_id, set}]: just before the first update_item on that employee's row, the row's attributes in `set` are changed,
 as if someone else wrote it between the script's read and its write. Every call is recorded (op, params, error) in _state.CALLS.
@@ -453,7 +453,22 @@ class _Resource:
         return _Table(self._c, name)
 
 
+class _Sts:
+    """rec-06.1.1: sts.get_caller_identity answers the world's account id (world.account), as the real call does with any credentials."""
+
+    def get_caller_identity(self, **p):
+        _state.CALLS.append({"op": "GetCallerIdentity", "params": p, "error": None})
+        return {"Account": _state.ACCOUNT, "Arn": f"arn:aws:sts::{_state.ACCOUNT}:assumed-role/rec061-fake/session", "UserId": "AROAREC061FAKE:session"}
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        raise RuntimeError(f"fake boto3: sts.{name} is not supported")
+
+
 def client(service_name, *args, region_name=None, **kwargs):
+    if service_name == "sts":
+        return _Sts()
     if service_name != "dynamodb":
         raise RuntimeError(f"fake boto3: no fake for {service_name}")
     return _Dynamo(region_name)
