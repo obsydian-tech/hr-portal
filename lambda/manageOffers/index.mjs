@@ -4,7 +4,7 @@ import { requireRecruiter, requireApprover, isRecruiter, isApprover, isManager, 
 import { requireTenant, notFound } from '../shared/tenant.mjs';
 import { requireModule } from '../shared/modules.mjs';
 import { withIdempotency } from '../shared/idempotency.mjs';
-import { json } from '../shared/hr-group.mjs';
+import { json, hrOnly } from '../shared/hr-group.mjs';
 import { listOffers, getOffer, createOffer, actOnOffer, nameOf } from '../shared/recruitment-actions/offers.mjs';
 
 const ACTIONS = {
@@ -37,6 +37,11 @@ export const handler = async (event) => {
   const route = event.routeKey ?? event.requestContext?.routeKey ?? '';
   const refusal = roleRefusal(route, event);
   if (refusal) return refusal;
+  // REC-06 (D-REC-6.8): recording an accepted offer makes an employee, so it needs hr_staff itself, checked before any AWS call.
+  if (route === 'POST /v1/offers/{id}/answer' && bodyOf(event)?.answer === 'ACCEPTED') {
+    const notHr = hrOnly(event, 'Forbidden');
+    if (notHr) return notHr;
+  }
   const { tenantId, refusal: noCompany } = requireTenant(event);
   if (noCompany) return noCompany;
   const moduleOff = await requireModule(event, 'recruitment');

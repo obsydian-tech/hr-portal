@@ -56,6 +56,18 @@ resource "aws_iam_role_policy" "manage_offers" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_roles}"
       },
       {
+        Sid      = "EmployeeWrite"
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/employees"
+      },
+      {
+        Sid      = "EmployeeEmailCheck"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/employees/index/email-index"
+      },
+      {
         Sid      = "IdempotencyTable"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
