@@ -462,10 +462,11 @@ test.describe('REC-05 Offer approval that finishes, and a send that needs it', (
     expect.soft([bodyOf(acc)?.state, bodyOf(acc)?.answered_at], 'ACCEPTED, answered_at recorded').toEqual(['ACCEPTED', at(705)]);
     expect.soft(JSON.stringify(offerRow(acc.tables, sent) ?? {}), 'the row keeps the signed copy\'s key').toContain(key);
     expect.soft(offerRow(acc.tables, sent)?.['answered_by'], 'and who recorded the answer').toBe(SUB.recA);
-    expect.soft(eventsOf(acc).map((e: any) => e.detail), 'OfferAnswered { tenant_id, offer_id, candidate_id, answer }').toEqual([{ tenant_id: A, offer_id: sent, candidate_id: l.cand.SENT, answer: 'ACCEPTED' }]);
-    expect.soft(eventsOf(acc).map((e: any) => e.detailType), 'the event is OfferAnswered').toEqual(['OfferAnswered']);
-    // Until REC-06 an accepted offer changes nothing on the candidate.
-    expect.soft(JSON.stringify(sagaOf(acc.tables, l.cand.SENT)), 'the candidate row is unchanged (still in Offer)').toBe(JSON.stringify(sagaOf(t1, l.cand.SENT)));
+    expect.soft(eventsOf(acc, 'OfferAnswered').map((e: any) => e.detail), 'OfferAnswered { tenant_id, offer_id, candidate_id, answer }').toEqual([{ tenant_id: A, offer_id: sent, candidate_id: l.cand.SENT, answer: 'ACCEPTED' }]);
+    // Child lock rec-05.2 (REC-06): an accept also hires the candidate, so the events are OfferAnswered and CandidateHired (in any order).
+    expect.soft(eventsOf(acc).map((e: any) => e.detailType).sort(), 'the events are CandidateHired and OfferAnswered').toEqual(['CandidateHired', 'OfferAnswered']);
+    // Child lock rec-05.2 (REC-06): the candidate is HIRED; the full conversion is judged in rec-06.spec.ts.
+    expect.soft(sagaOf(acc.tables, l.cand.SENT)['currentStage'], 'the candidate is HIRED').toBe('HIRED');
     expect.soft(acc.calls.filter((c: any) => c.service === 's3').map((c: any) => `${c.op} ${c.key}`), 'the only S3 call is the HEAD of the signed copy').toEqual([`HeadObject ${key}`]);
 
     // Decline and withdraw from SENT need no document.
