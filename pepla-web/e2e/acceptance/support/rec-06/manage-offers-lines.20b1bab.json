@@ -1,0 +1,22 @@
+[
+  "Allow cognito-idp:ListUsersInGroup arn:aws:cognito-idp:af-south-1:000000000000:userpool/${local.tf_naleko_pool_id} null",
+  "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_idempotency} null",
+  "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_roles} null",
+  "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+  "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null",
+  "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_idempotency} null",
+  "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+  "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/GSI2 null",
+  "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null",
+  "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+  "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+  "Allow kms:Decrypt aws_kms_key.talent_flow_state.arn null",
+  "Allow kms:DescribeKey aws_kms_key.talent_flow_state.arn null",
+  "Allow kms:GenerateDataKey aws_kms_key.talent_flow_state.arn null",
+  "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/manageOffers:* null",
+  "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/manageOffers:* null",
+  "Allow s3:GetObject arn:aws:s3:::${local.tf_offer_upload_bucket}/recruitment/* null",
+  "Allow s3:PutObject arn:aws:s3:::${local.tf_offer_upload_bucket}/recruitment/* null",
+  "Allow xray:PutTelemetryRecords * null",
+  "Allow xray:PutTraceSegments * null"
+]
