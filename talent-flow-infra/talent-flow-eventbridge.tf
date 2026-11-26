@@ -72,37 +72,6 @@ resource "aws_lambda_permission" "orchestrate_workflow_eventbridge" {
   source_arn    = aws_cloudwatch_event_rule.candidate_created.arn
 }
 
-# ── Rule 2: InterviewScheduled → scheduleInterview ────────────────────────────
-
-resource "aws_cloudwatch_event_rule" "interview_scheduled" {
-  name           = "talent-flow-interview-scheduled"
-  description    = "Route InterviewScheduled events to scheduleInterview"
-  event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
-  state          = "ENABLED"
-
-  event_pattern = jsonencode({
-    source      = ["talent-flow.workflow"]
-    detail-type = ["InterviewScheduled"]
-  })
-
-  tags = merge(local.tf_tags, { Ticket = "NH-110" })
-}
-
-resource "aws_cloudwatch_event_target" "interview_scheduled" {
-  rule           = aws_cloudwatch_event_rule.interview_scheduled.name
-  event_bus_name = aws_cloudwatch_event_bus.talent_flow.name
-  target_id      = "scheduleInterview"
-  arn            = "${local.tf_lambda_arn_prefix}:${local.tf_lambda_schedule_interview}"
-}
-
-resource "aws_lambda_permission" "schedule_interview_eventbridge" {
-  statement_id  = "AllowEventBridgeInvokeScheduleInterview"
-  action        = "lambda:InvokeFunction"
-  function_name = local.tf_lambda_schedule_interview
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.interview_scheduled.arn
-}
-
 # ── Rule 3: VoteSubmitted → submitVote ────────────────────────────────────────
 
 resource "aws_cloudwatch_event_rule" "vote_submitted" {
