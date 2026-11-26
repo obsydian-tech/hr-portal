@@ -1162,6 +1162,35 @@ def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
     return 4
 
 
+def seed_recui04(ddb, tenant_id: str) -> int:
+    """REC-UI-04.2: put back the candidate the offer screens' dev walk drafts an offer for (cards/rec-ui-04.2.md, "REC-UI-04.2 dev seed").
+
+    One company A candidate in Offer with no role (a REC-04 role would be cleared by reset-dev-rec04.py and add to REC-04 AC-10's count),
+    the other hiring manager, and the seed tag. Its live-offer lock and every offer row of this candidate are from earlier runs, so they
+    are deleted, and the Offers list does not grow by a row per run. The offer rows are found with a filtered Scan, not the GSI2 index:
+    the seed-run fakes of the locked rec-04 and rec-14 tests refuse any index read. Not on reset-dev-rec04.py's list. Idempotent.
+    """
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-ui-04" / "dev-ids.json").read_text())
+    cid = ids["candidate"]
+    now = "2026-11-26T08:00:00.000Z"
+    old = []
+    for page in ddb.get_paginator("scan").paginate(
+            TableName=STATE_TABLE, FilterExpression="begins_with(PK, :p) AND candidate_id = :c AND tenant_id = :t",
+            ExpressionAttributeValues={":p": {"S": "OFFER#"}, ":c": {"S": cid}, ":t": {"S": tenant_id}}, ProjectionExpression="PK, SK, candidate_id, tenant_id"):
+        old += [it for it in page.get("Items", []) if it.get("PK", {}).get("S", "").startswith("OFFER#")
+                and it.get("candidate_id", {}).get("S") == cid and it.get("tenant_id", {}).get("S") == tenant_id]
+    for it in old:
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": it["PK"], "SK": it["SK"]})
+    ddb.delete_item(TableName=STATE_TABLE, Key={"PK": {"S": f"TENANT#{tenant_id}#OFFER_LIVE#{cid}"}, "SK": {"S": "LOCK"}})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": ids["firstName"]}, "lastName": {"S": ids["lastName"]},
+        "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "currentStage": {"S": "OFFER"}, "stageEnteredAt": {"S": now},
+        "status": {"S": "ACTIVE"}, "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+    })
+    return 1 + len(old)
+
+
 def seed_int03(ddb, tenant_id: str) -> int:
     """INT-03: put the old-path scoring link the dev check votes through back every run (INT-03.md AC-4).
 
@@ -1322,6 +1351,11 @@ def main() -> None:
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-05 rows were not written")
         rec05_written = 0
+
+    try:
+        seed_recui04(ddb, tid)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-UI-04.2 candidate was not written")
 
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
