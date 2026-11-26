@@ -61,6 +61,7 @@ const appRoutes: Routes = [
       { path: 'pipeline', loadComponent: () => import('./features/recruitment/pipeline.page').then((m) => m.PipelinePage), title: 'Pipeline · Naleko People' },
       { path: 'candidates', loadComponent: () => import('./features/recruitment/candidates.page').then((m) => m.CandidatesPage), title: 'Candidates · Naleko People' },
       { path: 'candidates/old-system', loadComponent: () => import('./features/recruitment/old-system.page').then((m) => m.OldSystemPage), title: 'Not hired by the old system · Naleko People' },
+      { path: 'candidates/:id', loadComponent: () => import('./features/recruitment/candidate-record.page').then((m) => m.CandidateRecordPage), title: 'Candidate · Naleko People' },
       ] },
     ],
   },
