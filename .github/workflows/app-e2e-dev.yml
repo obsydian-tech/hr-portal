@@ -334,6 +334,20 @@ jobs:
           pip install --quiet boto3
           python3 scripts/ci/show-offer-rows.py
 
+      # MOD-01 AC-10 and REC-12 AC-9 switch company B's Recruitment on with set-modules.mjs and back off. The Lambdas cache a company's
+      # modules for up to 60 seconds, so a test that signs in as company B in the next minute still sees both modules (MOD-02 AC-9 and
+      # MOD-03 AC-8 failed that way once the main run gave them B's login). Run them straight after the main run: MOD-01 AC-10 expects company A to have exactly Onboarding and Recruitment, so it must come before the step that switches Ask Batsi on, and the company walk after it takes longer than the cache.
+      - name: Switch Recruitment on for company B and back (MOD-01 AC-10, REC-12 AC-9)
+        id: module-switch
+        if: ${{ !cancelled() }}
+        working-directory: pepla-web
+        env:
+          ACCEPTANCE_TARGET: pepla-dev
+          E2E_BASE_URL: ${{ inputs.on_web_address && env.WEB_ADDRESS || 'http://127.0.0.1:4300' }}
+          CI: "true"
+        # list reporter only, as the company walk: the JSON report of the main run is the one the PR comment reads
+        run: npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --project=desktop-1280 --grep "MOD-01 .* AC-10 Today.s users unaffected|REC-12 .* AC-9 The test logins on pepla-dev"
+
       # Ask Batsi is off for every company until an admin turns it on (CHAT-02), and the seed puts the dev companies back
       # to their modules on each run. The walk needs it on for company A and for the walk company (its "company B"):
       # with it off every chat route answers 403 to both, and the walk could prove nothing about them.
@@ -432,20 +446,6 @@ jobs:
 
       # BE-15 AC-6: a new employee gets a sign-in in the dev pool (the real
       # POST /v1/employees, then the pool is read). Cleanup below removes it.
-      # MOD-01 AC-10 and REC-12 AC-9 switch company B's Recruitment on with set-modules.mjs and back off. The Lambdas cache a company's
-      # modules for up to 60 seconds, so a test that signs in as company B in the next minute still sees both modules (MOD-02 AC-9 and
-      # MOD-03 AC-8 failed that way once the main run gave them B's login). Run them last, when no later test reads company B.
-      - name: Switch Recruitment on for company B and back (MOD-01 AC-10, REC-12 AC-9)
-        id: module-switch
-        if: ${{ !cancelled() }}
-        working-directory: pepla-web
-        env:
-          ACCEPTANCE_TARGET: pepla-dev
-          E2E_BASE_URL: ${{ inputs.on_web_address && env.WEB_ADDRESS || 'http://127.0.0.1:4300' }}
-          CI: "true"
-        # list reporter only, as the company walk: the JSON report of the main run is the one the PR comment reads
-        run: npx playwright test -c e2e/acceptance/playwright.config.ts --reporter=list --project=desktop-1280 --grep "MOD-01 .* AC-10 Today.s users unaffected|REC-12 .* AC-9 The test logins on pepla-dev"
-
       - name: New employee gets a dev sign-in
         if: ${{ !cancelled() }}
         run: |
