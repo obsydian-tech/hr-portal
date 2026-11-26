@@ -72,6 +72,9 @@ export async function vote(event) {
   const send = async (c, atMs) => {
     const now = new Date(atMs).toISOString();
     const seq = sequenceClause(c.iv);
+    // INT-04 (INT-01.F follow-up F-1): a guest link votes only on the interview whose current link it is, so a link a reschedule has replaced cannot.
+    const hash = c.legacy ? null : String(c.key.PK).slice('SCORING_LINK#'.length);
+    const guestOnly = hash === null ? '' : ' AND (attribute_not_exists(guest_link_hash) OR guest_link_hash = :h)';
     const use = c.legacy
       ? { TableName: STATE(), Key: marshall(c.key), UpdateExpression: 'SET #u = :t, usedAt = :at', ConditionExpression: '#u <> :t', ExpressionAttributeNames: { '#u': 'used' }, ExpressionAttributeValues: marshall({ ':t': true, ':at': now }) }
       : { TableName: STATE(), Key: marshall(c.key), UpdateExpression: 'SET used_at = :at', ConditionExpression: '(attribute_not_exists(used_at) OR attribute_type(used_at, :n)) AND expires_at > :at', ExpressionAttributeValues: marshall({ ':at': now, ':n': 'NULL' }) };
@@ -83,7 +86,7 @@ export async function vote(event) {
         scores: body.scores, rating: body.rating, ...(body.comment !== undefined ? { comment: body.comment } : {}), scale: S.SCALE, guest: true, on_behalf: false, createdAt: now,
       }, c.tenantId), { removeUndefinedValues: true }) } },
       { Put: { TableName: STATE(), Item: marshall(T.stampTenant({ PK: `CANDIDATE#${c.iv.candidateId}`, SK: `VOTED#${c.iv.interviewId}#${voter}`, createdAt: now }, c.tenantId)), ConditionExpression: 'attribute_not_exists(PK)' } },
-      { Update: { TableName: STATE(), Key: marshall({ PK: `CANDIDATE#${c.iv.candidateId}`, SK: `INTERVIEW#${c.iv.interviewId}` }), UpdateExpression: 'ADD votesSubmitted :one', ConditionExpression: `tenant_id = :t AND #s = :sch AND scheduledAt <= :now AND ${seq.expr}`, ExpressionAttributeNames: { '#s': 'status', '#q': 'sequence' }, ExpressionAttributeValues: marshall({ ':one': 1, ':t': c.tenantId, ':sch': 'SCHEDULED', ':now': now, ...seq.values }) } },
+      { Update: { TableName: STATE(), Key: marshall({ PK: `CANDIDATE#${c.iv.candidateId}`, SK: `INTERVIEW#${c.iv.interviewId}` }), UpdateExpression: 'ADD votesSubmitted :one', ConditionExpression: `tenant_id = :t AND #s = :sch AND scheduledAt <= :now AND ${seq.expr}${guestOnly}`, ExpressionAttributeNames: { '#s': 'status', '#q': 'sequence' }, ExpressionAttributeValues: marshall({ ':one': 1, ':t': c.tenantId, ':sch': 'SCHEDULED', ':now': now, ...seq.values, ...(hash === null ? {} : { ':h': hash }) }) } },
     ] }));
   };
   try {
