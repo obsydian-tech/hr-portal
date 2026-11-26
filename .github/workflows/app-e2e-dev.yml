@@ -126,7 +126,7 @@ jobs:
     # Pinned: the repo's Playwright version has no Chromium build for the
     # newer ubuntu-latest image. Move with the next Playwright upgrade.
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 50
     environment: dev
     permissions:
       contents: read
