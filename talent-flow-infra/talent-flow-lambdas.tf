@@ -123,6 +123,8 @@ resource "aws_lambda_function" "schedule_interview" {
       EVENTBRIDGE_BUS_NAME   = local.tf_event_bus_name
       AWS_ACCOUNT_ID         = var.aws_account_id
       ENVIRONMENT            = var.environment
+      COGNITO_POOL_ID        = local.tf_naleko_pool_id
+      LEGACY_TENANT_ID       = var.roles_legacy_tenant_id
     }
   }
 

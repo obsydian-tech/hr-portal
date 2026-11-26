@@ -1062,6 +1062,18 @@ def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
     candidate(ids["candidate"], tenant_id, "Rec", "Seed-Score", ids["interview"], list(panel_subs[:2]) + [manager_sub], OTHER_HIRING_MANAGER)
     link(ids["guestToken"], tenant_id, ids["candidate"], ids["interview"])
     written += 3
+    # REC-15 step D (lock check F-1): one history row by a company A login, so the dev check sees a name in the history. The row carries
+    # company A's tenant_id (the history read drops a row that does not), and `by` is the sub of a login with a Member row of company A.
+    stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                      ExpressionAttributeValues={":pk": {"S": f"CANDIDATE#{ids['candidate']}"}, ":p": {"S": "STAGE#"}}, ProjectionExpression="PK, SK")
+    for item in stale.get("Items", []):
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": f"CANDIDATE#{ids['candidate']}"}, "SK": {"S": f"STAGE#{now}#INTERVIEW"},
+        "candidateId": {"S": ids["candidate"]}, "tenant_id": {"S": tenant_id}, "from": {"S": "APPLIED"}, "to": {"S": "INTERVIEW"},
+        "by": {"S": panel_subs[1]}, "by_kind": {"S": "PERSON"}, "at": {"S": now}, "recordType": {"S": "STAGE_HISTORY"}, "seed": {"S": SEED_TAG},
+    })
+    written += 1
     # Company B's candidate and interview, and a link row that names company A for B's interview (the dev form of AC-7's forged row).
     b_candidate, b_interview = "CAND-REC07DEVBBBBBBBBBBBBBB1", "iv-rec07-dev-b-1"
     candidate(b_candidate, SECOND_TENANT_ID, "Rec", "Seed-ScoreB", b_interview, [OTHER_HIRING_MANAGER], OTHER_HIRING_MANAGER)

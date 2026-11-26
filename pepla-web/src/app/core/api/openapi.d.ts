@@ -2315,6 +2315,91 @@ export interface components {
             /** @enum {string} */
             error: "Something went wrong";
         };
+        /** @description REC-15 step D rule 25. The interviews of one candidate, an explicit list of fields. required is null before Interview and for a panel member. */
+        InterviewList: {
+            interviews: {
+                id: string | null;
+                type: string | null;
+                at: string | null;
+                /** @enum {string|null} */
+                status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | null;
+                panel: components["schemas"]["PanelEntry"][];
+                interviewId?: string;
+                candidateId?: string;
+                interviewType?: string;
+                scheduledAt?: string;
+                panelMemberIds?: string[];
+                adhocPanelMembers?: {
+                    name?: string | null;
+                    email?: string | null;
+                    role?: string | null;
+                }[];
+                votesRequired?: number;
+                votesSubmitted?: number;
+                completedAt?: string;
+                outcome?: string;
+                createdAt?: string;
+                criteria_snapshot?: {
+                    key: string;
+                    label: string;
+                }[];
+                /** @description A stored signal, sent as stored (Recruiter and hiring manager only). */
+                PANEL_SPLIT_FLAG?: unknown;
+                /** @description A stored signal, sent as stored (Recruiter and hiring manager only). */
+                PANEL_CONSENSUS?: unknown;
+                votes: {
+                    voterId: string | null;
+                    rating: unknown;
+                    weightedScore: number | null;
+                    interviewId: string | null;
+                    submittedAt: string | null;
+                    submittedByTA: unknown;
+                    scores: unknown;
+                    comment: string | null;
+                }[];
+            }[];
+            required: {
+                done: number;
+                total: number;
+            } | null;
+        };
+        /** @description REC-15 step D rule 25. One person or guest on an interview's panel. No email, no score, no rating, no comment. */
+        PanelEntry: {
+            /** @enum {string} */
+            kind: "PERSON" | "GUEST";
+            person_id?: string;
+            name: string | null;
+            /** @enum {string} */
+            feedback: "GIVEN" | "WAITING";
+            due_at: string | null;
+        };
+        /** @description REC-15 step D rule 27. One candidate's history. detail is the one open object (additionalProperties true), as stored. */
+        CandidateEvents: {
+            events: {
+                eventId: string;
+                eventType: string;
+                kind: string;
+                source?: string;
+                candidateId: string;
+                tenant_id?: string;
+                actor: string;
+                timestamp: string | null;
+                at: string | null;
+                by_name: string | null;
+                /** @description The stored detail, as stored (the one open object). */
+                detail?: {
+                    [key: string]: unknown;
+                };
+                from?: string | null;
+                to?: string | null;
+                by?: string | null;
+                by_kind?: string | null;
+                reason_code?: string | null;
+                reason?: string | null;
+            }[];
+            total: number;
+            nextToken?: string;
+        };
         /** @description REC-15 step B. The body of POST /v1/candidates. The company, title, level, department and hiring manager come from the role, never from here. */
         NewCandidate: {
             first_name: string;
@@ -5695,7 +5780,20 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CandidateEvents"];
+                };
+            };
+            /** @description A bad nextToken or a missing id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                    };
+                };
             };
             /** @description Forbidden */
             403: {
@@ -5728,6 +5826,17 @@ export interface operations {
                     "application/json": {
                         /** @example Not found */
                         error?: string;
+                    };
+                };
+            };
+            /** @description The read failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
                     };
                 };
             };
@@ -5784,7 +5893,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["InterviewList"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -5817,6 +5928,17 @@ export interface operations {
                     "application/json": {
                         /** @example Not found */
                         error?: string;
+                    };
+                };
+            };
+            /** @description The read failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
                     };
                 };
             };

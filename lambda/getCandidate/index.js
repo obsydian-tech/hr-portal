@@ -149,7 +149,7 @@ exports.handler = async (event) => {
     if (relation === 'panel') {
       out.can_move = false;
       out.can_decide = false;
-      return respond(200, out);
+      return respond(200, RA.withoutKeys(out, /offer|salary/i));
     }
     for (const k of ['strong_no_count', 'reason_code', 'decided_by', 'stage_before_not_hired', 'legacy_stage']) {
       if (row[k] !== undefined) out[k] = row[k];
@@ -180,7 +180,7 @@ exports.handler = async (event) => {
       if (row.added_by !== undefined) out.added_by = row.added_by;
       if (row.settingVersions !== undefined) out.settingVersions = row.settingVersions;
     }
-    return respond(200, out);
+    return respond(200, RA.withoutKeys(out, /offer|salary/i));
   } catch (err) {
     console.error('getCandidate error', { error: err.name });
     return respond(500, { error: 'Something went wrong' });

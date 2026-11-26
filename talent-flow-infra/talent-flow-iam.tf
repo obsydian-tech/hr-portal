@@ -234,6 +234,19 @@ resource "aws_iam_role_policy" "schedule_interview" {
         Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_table_config}/index/GSI1-active-configs"
       },
       {
+        # REC-15 step D rule 24: names of panel members, read only after the company check on their Member rows.
+        Sid      = "Rec15dPeopleNames"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminGetUser"]
+        Resource = "arn:aws:cognito-idp:af-south-1:${var.aws_account_id}:userpool/${local.tf_naleko_pool_id}"
+      },
+      {
+        Sid      = "Rec15dMemberRows"
+        Effect   = "Allow"
+        Action   = ["dynamodb:Query"]
+        Resource = "arn:aws:dynamodb:af-south-1:${var.aws_account_id}:table/${local.tf_tenants_table}"
+      },
+      {
         Sid      = "EventBridgePublish"
         Effect   = "Allow"
         Action   = ["events:PutEvents"]
