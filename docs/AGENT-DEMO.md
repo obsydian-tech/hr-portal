@@ -327,3 +327,4 @@ NALEKO_AGENT_KEY=<key> REST_API_BASE=https://api.naleko.co.za AGENT_API_BASE=htt
 ```
 
 The MCP Inspector opens at `http://localhost:5173` — you can invoke all 7 tools interactively.
+<!-- throwaway proof, do not merge -->
