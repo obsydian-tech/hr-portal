@@ -307,6 +307,10 @@ jobs:
           ACCEPTANCE_TARGET: pepla-dev
           E2E_BASE_URL: ${{ inputs.on_web_address && env.WEB_ADDRESS || 'http://127.0.0.1:4300' }}
           CI: "true"
+          # Company B's HR login (hr-b, loaded above as E2E_HR_B_*) under the names MOD-02, REC-UI-01 AC-13 and REC-UI-02 AC-15 read.
+          # Without these they skip on every run. Same secret values, nothing printed.
+          E2E_B_HR_EMAIL: ${{ env.E2E_HR_B_EMAIL }}
+          E2E_B_HR_PASSWORD: ${{ env.E2E_HR_B_PASSWORD }}
         # The company walk (TEN-04 AC-7) runs in its own step below: its "company B" caller is the walk company's HR login.
         # ONB-10 AC-8 runs in its own step after that: ONB-07 and ONB-08 upload and accept the test login's required
         # documents earlier in this run, and AC-8 needs one still to give.
