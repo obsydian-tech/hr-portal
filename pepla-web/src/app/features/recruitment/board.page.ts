@@ -1,27 +1,22 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
-  PpButton, PpButtonGroup, PpCell, PpDropdownMenu, PpEmptyState, PpField, PpLink, PpMenuItem, PpMenuSection, PpModalDialog, PpModalFooter, PpPageHeader, PpPageHeaderActions,
-  PpPipelineBoard, PpRadioGroup, PpSearch, PpSectionMessage, PpSectionMessageActions, PpTableDirective, PpTableWrap, PpTabs,
+  PpButton, PpButtonGroup, PpCell, PpDropdownMenu, PpEmptyState, PpLink, PpMenuItem, PpMenuSection, PpPageHeader, PpPageHeaderActions,
+  PpPipelineBoard, PpSearch, PpSectionMessage, PpSectionMessageActions, PpTableDirective, PpTableWrap, PpTabs,
   type PipelineCard, type PipelineCardAction, type PipelineMoveRequest, type PipelineStage, type Tab,
 } from '../../ds';
 import { HireApi, newKey, optionsOf, type HireCandidate, type HireCounts, type HireRole } from './hire-api';
 import { ADD_CANDIDATE_READY } from './hire-flags';
 import { AddCandidateDrawer } from './add-candidate.drawer';
+import { NotHiredDialog, SAVE_FAIL, type NotHiredFor } from './not-hired-dialog';
 
-const SAVE_FAIL = 'Your change could not be saved. Try again.';
 const STAGE_NAMES: Record<string, string> = { APPLIED: 'Applied', SCREENING: 'Screening', INTERVIEW: 'Interview', OFFER: 'Offer', HIRED: 'Hired' };
-/** The eight approved reasons, in the approved order (rule 7). */
-const REASONS: ReadonlyArray<readonly [string, string]> = [
-  ['NOT_RIGHT_SKILLS', 'Not the right skills'], ['NOT_RIGHT_EXPERIENCE', 'Not the right experience'], ['CHOSE_ANOTHER', 'Chose another candidate'], ['WITHDREW', 'Candidate withdrew'],
-  ['SALARY_MISMATCH', 'Salary did not match'], ['DID_NOT_ATTEND', 'Did not attend'], ['ROLE_CLOSED', 'Role closed'], ['OTHER', 'Other'],
-];
 const DAY = 86_400_000;
 
 /** The hiring board of one role (REC-UI-01): five stages, Move with a reason, Not hired, Close role. The List view is REC-UI-02's. */
 @Component({
   selector: 'app-board-page',
-  imports: [AddCandidateDrawer, RouterLink, PpButton, PpButtonGroup, PpCell, PpDropdownMenu, PpEmptyState, PpField, PpLink, PpMenuItem, PpMenuSection, PpModalDialog, PpModalFooter, PpPageHeader, PpPageHeaderActions, PpPipelineBoard, PpRadioGroup, PpSearch, PpSectionMessage, PpSectionMessageActions, PpTableDirective, PpTableWrap, PpTabs],
+  imports: [AddCandidateDrawer, NotHiredDialog, RouterLink, PpButton, PpButtonGroup, PpCell, PpDropdownMenu, PpEmptyState, PpLink, PpMenuItem, PpMenuSection, PpPageHeader, PpPageHeaderActions, PpPipelineBoard, PpSearch, PpSectionMessage, PpSectionMessageActions, PpTableDirective, PpTableWrap, PpTabs],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-250">
@@ -62,19 +57,7 @@ const DAY = 86_400_000;
       }
     </div>
     <app-add-candidate #adder [startRole]="roleId" (added)="reload()" />
-    <pp-modal-dialog [open]="!!nhFor()" [closable]="true" [heading]="first() + ' not hired'" (closed)="closeNh()">
-      <div class="pp-stack pp-gap-150">
-        <pp-field label="Why? (required)" group="radio" help="Not hired always carries a reason.">
-          <pp-radio-group [options]="reasons" [value]="reason()" (valueChange)="reason.set($event)" />
-        </pp-field>
-        @if (nhFor()?.pending?.awaiting?.name; as who) { <p class="pp-text--small">{{ who }} must confirm before this is final.</p> }
-        @if (nhFailed()) { <pp-section-message tone="danger" [heading]="saveFail" /> }
-      </div>
-      <pp-modal-footer>
-        <button ppButton type="button" (click)="closeNh()">Cancel</button>
-        <button ppButton appearance="primary" type="button" [disabled]="!canRecord()" (click)="record()">Record not hired</button>
-      </pp-modal-footer>
-    </pp-modal-dialog>`,
+    <app-not-hired-dialog [who]="nhWho()" [failed]="nhFailed()" (record)="record($event)" (dismissed)="closeNh()" />`,
 })
 export class BoardPage implements OnInit {
   private readonly api = inject(HireApi);
@@ -95,10 +78,12 @@ export class BoardPage implements OnInit {
   protected readonly oldRows = signal(false);
   protected readonly nhFor = signal<HireCandidate | null>(null);
   protected readonly nhFailed = signal(false);
-  protected readonly reason = signal<string | null>(null);
-  protected readonly reasons = REASONS.map(([value, label]) => ({ value, label }));
-  protected readonly first = computed(() => (this.nhFor()?.name ?? '').split(' ')[0]);
-  protected readonly canRecord = computed(() => !!this.nhFor()?.pending || !!this.reason());
+  protected readonly nhWho = computed<NotHiredFor | null>(() => {
+    const r = this.nhFor();
+    if (!r) return null;
+    const a = r.pending?.awaiting?.name;
+    return { name: r.name, waiting: !!r.pending, line: a ? `${a} must confirm before this is final.` : null };
+  });
   private screening = true;
   private rows: HireCandidate[] = [];
   protected roleId = '';
@@ -198,7 +183,6 @@ export class BoardPage implements OnInit {
     const row = this.rows.find((x) => x.id === e.card.id);
     if (!row) return;
     if (e.action === 'cancel') { void this.cancelPending(row); return; }
-    this.reason.set(null);
     this.nhFailed.set(false);
     this.nhFor.set(row);
   }
@@ -210,13 +194,13 @@ export class BoardPage implements OnInit {
     if (id) setTimeout(() => document.querySelector<HTMLElement>(`[data-more="${CSS.escape(id)}"]`)?.focus());
   }
 
-  protected async record() {
+  protected async record(reason: string | null) {
     const row = this.nhFor();
     if (!row) return;
     this.nhFailed.set(false);
     const r = row.pending
       ? await this.api.call<{ pending?: boolean; awaiting?: { kind?: string; personId?: string } }>('POST', `/v1/candidates/${row.id}/not-hired/confirm`, {})
-      : await this.api.call<{ pending?: boolean; awaiting?: { kind?: string; personId?: string } }>('POST', `/v1/candidates/${row.id}/not-hired`, { reason: this.reason() });
+      : await this.api.call<{ pending?: boolean; awaiting?: { kind?: string; personId?: string } }>('POST', `/v1/candidates/${row.id}/not-hired`, { reason });
     if (r?.status !== 200) { this.nhFailed.set(true); return; }
     if (r.body?.pending === true) {
       const a = r.body.awaiting;

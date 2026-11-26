@@ -33,7 +33,7 @@ import { PpApprovalChain, PpOffer, PpOfferApprovals } from './records/approvals'
 import { PpBrandPreview } from './records/branding';
 import { PpBundle } from './records/bundle';
 import { PpConsent, PpConsentRecord } from './records/consent';
-import { PpPipelineBoard } from './records/pipeline';
+import { PpMoveDialog, PpPipelineBoard } from './records/pipeline';
 import { PpPersonProgressDeadline, PpPersonProgress, PpPersonProgressList } from './records/progress';
 import { PpDeadline, PpDocumentStatus, PpRole, PpRoleGroup, PpRestricted, PpMaskedField, PpMaskedTextField, PpPersonHeader, PpPersonHeaderActions, PpDocumentChecklist, PpDocumentRow, PpChecklist, PpChecklistRow, PpAuditEvent, PpAuditLog, PpConfigVersion, PpConfigVersionActions, PpVerification, PpVerificationBy } from './records/records';
 import { PpScorecard, PpScorecardFooter } from './records/scorecard';
@@ -150,6 +150,7 @@ export const PP_ALL = [
   PpConsent,
   PpConsentRecord,
   PpPipelineBoard,
+  PpMoveDialog,
   PpPersonProgressDeadline,
   PpPersonProgress,
   PpPersonProgressList,

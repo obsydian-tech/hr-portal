@@ -39,6 +39,65 @@ export interface PipelineCardAction { card: PipelineCard; action: string; }
 export interface PipelineMove { card: PipelineCard; from: string; to: string; index: number; }
 export interface PipelineMoveRequest extends PipelineMove { reason: string; }
 
+/** What the Move dialog asks about: whose move it is, and the stage they are in and the stage first offered. */
+export interface MoveRequest { name: string; from: string; to: string; }
+
+/**
+ * "Move {first name}": the stage to move to and why (required, saved with the person's name and the time).
+ * One dialog for the pipeline board and for the candidate record. It runs nothing: it reports `confirmed` or `dismissed`.
+ */
+@Component({
+  selector: 'pp-move-dialog',
+  imports: [PpModalDialog, PpModalFooter, PpButton, PpField, PpTextarea, PpSelect],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <pp-modal-dialog [open]="!!request()" [closable]="true" [heading]="'Move ' + first()" (closed)="dismissed.emit()">
+      <div class="pp-stack pp-gap-150">
+        <pp-field label="Move to"><pp-select [options]="stageOptions()" [value]="to()" (valueChange)="setTo($event)" /></pp-field>
+        <pp-field label="Why? (required)" help="Saved with your name and the time.">
+          <textarea ppTextarea rows="3" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
+          @if (back()) { <p class="pp-text--small">Moving back a stage needs a reason too.</p> }
+        </pp-field>
+      </div>
+      <pp-modal-footer>
+        <button ppButton type="button" (click)="dismissed.emit()">Cancel</button>
+        <button ppButton appearance="primary" type="button" [disabled]="!canMove()" (click)="confirm()">Move</button>
+      </pp-modal-footer>
+    </pp-modal-dialog>
+  `,
+})
+export class PpMoveDialog {
+  readonly stages = input.required<ReadonlyArray<{ id: string; name: string }>>();
+  /** Open while there is a request; closed with `null`. Each new request starts with an empty reason. */
+  readonly request = input<MoveRequest | null>(null);
+  readonly confirmed = output<{ to: string; reason: string }>();
+  readonly dismissed = output<void>();
+  protected readonly to = signal<string | null>(null);
+  protected readonly reason = signal('');
+  protected readonly first = computed(() => (this.request()?.name ?? this.last).split(' ')[0]);
+  protected readonly stageOptions = computed(() => this.stages().map((s) => ({ value: s.id, label: s.name })));
+  protected readonly back = computed(() => {
+    const r = this.request(); const t = this.to(); if (!r || !t) return false;
+    const ids = this.stages().map((s) => s.id);
+    return ids.indexOf(t) < ids.indexOf(r.from);
+  });
+  protected readonly canMove = computed(() => { const r = this.request(); const t = this.to(); return !!r && !!t && t !== r.from && this.reason().trim() !== ''; });
+  /** The name stays in the heading while the dialog closes. */
+  private last = '';
+  constructor() {
+    effect(() => {
+      const r = this.request();
+      untracked(() => { this.to.set(r?.to ?? null); this.reason.set(''); if (r) this.last = r.name; });
+    });
+  }
+  protected setTo(to: string | null) { if (to) this.to.set(to); }
+  protected confirm() {
+    const to = this.to();
+    if (!this.canMove() || !to) return;
+    this.confirmed.emit({ to, reason: this.reason().trim() });
+  }
+}
+
 /**
  * A board of hiring stages for one role. Drag a card, or use its Move button (the keyboard and phone way).
  * On a phone it is a stage picker and one list. The board updates `stages` and emits `moved` to save (with Undo).
@@ -47,7 +106,7 @@ export interface PipelineMoveRequest extends PipelineMove { reason: string; }
  */
 @Component({
   selector: 'pp-pipeline-board',
-  imports: [PpIcon, PpPerson, PpLozenge, PpBadge, PpDeadline, PpDropdownMenu, PpMenuItem, PpMenuSection, PpField, PpSelect, PpTextarea, PpModalDialog, PpModalFooter, PpButton, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragPlaceholder],
+  imports: [PpIcon, PpPerson, PpLozenge, PpBadge, PpDeadline, PpDropdownMenu, PpMenuItem, PpMenuSection, PpField, PpSelect, PpMoveDialog, CdkDropListGroup, CdkDropList, CdkDrag, CdkDragPlaceholder],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-pipeline__picker">
@@ -110,19 +169,7 @@ export interface PipelineMoveRequest extends PipelineMove { reason: string; }
       }
     </ol>
     <div class="pp-visually-hidden" aria-live="polite">{{ said() }}</div>
-    <pp-modal-dialog [open]="!!asking()" [closable]="true" [heading]="'Move ' + first(asking()?.card?.name ?? '')" (closed)="cancel()">
-      <div class="pp-stack pp-gap-150">
-        <pp-field label="Move to"><pp-select [options]="stageOptions()" [value]="asking()?.to ?? null" (valueChange)="setTo($event)" /></pp-field>
-        <pp-field label="Why? (required)" help="Saved with your name and the time.">
-          <textarea ppTextarea rows="3" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
-          @if (back()) { <p class="pp-text--small">Moving back a stage needs a reason too.</p> }
-        </pp-field>
-      </div>
-      <pp-modal-footer>
-        <button ppButton type="button" (click)="cancel()">Cancel</button>
-        <button ppButton appearance="primary" type="button" [disabled]="!canMove()" (click)="confirm()">Move</button>
-      </pp-modal-footer>
-    </pp-modal-dialog>
+    <pp-move-dialog [stages]="stages()" [request]="request()" (confirmed)="confirm($event)" (dismissed)="cancel()" />
   `,
   host: { class: 'pp-pipeline' },
 })
@@ -153,16 +200,8 @@ export class PpPipelineBoard {
     this.cardAction.emit({ card, action });
   }
   protected readonly asking = signal<{ card: PipelineCard; from: string; to: string } | null>(null);
-  protected readonly reason = signal('');
+  protected readonly request = computed<MoveRequest | null>(() => { const a = this.asking(); return a ? { name: a.card.name, from: a.from, to: a.to } : null; });
   private pending: { id: string; from: string } | null = null;
-  protected readonly stageOptions = computed(() => this.stages().map((s) => ({ value: s.id, label: s.name })));
-  protected readonly back = computed(() => {
-    const a = this.asking(); if (!a) return false;
-    const ids = this.stages().map((s) => s.id);
-    return ids.indexOf(a.to) < ids.indexOf(a.from);
-  });
-  protected readonly canMove = computed(() => { const a = this.asking(); return !!a && a.to !== a.from && this.reason().trim() !== ''; });
-  protected first(name: string) { return name.split(' ')[0]; }
   constructor() {
     effect(() => {
       const all = this.stages();
@@ -174,22 +213,22 @@ export class PpPipelineBoard {
       });
     });
   }
-  protected ask(card: PipelineCard, from: string, to: string) { this.reason.set(''); this.asking.set({ card, from, to }); }
-  protected setTo(to: string | null) { const a = this.asking(); if (a && to) this.asking.set({ ...a, to }); }
+  protected ask(card: PipelineCard, from: string, to: string) { this.asking.set({ card, from, to }); }
   protected cancel() {
     const a = this.asking(); if (!a) return;
     this.asking.set(null);
     this.focusCard(a.card.id);
   }
-  protected confirm() {
-    const a = this.asking(); if (!a || !this.canMove()) return;
-    const index = this.stages().find((s) => s.id === a.to)!.cards.length;
+  protected confirm(e: { to: string; reason: string }) {
+    const a = this.asking(); if (!a) return;
+    const index = this.stages().find((s) => s.id === e.to)!.cards.length;
     this.asking.set(null);
     this.pending = { id: a.card.id, from: a.from };
-    this.moveRequested.emit({ card: a.card, from: a.from, to: a.to, index, reason: this.reason().trim() });
+    this.moveRequested.emit({ card: a.card, from: a.from, to: e.to, index, reason: e.reason });
     this.focusCard(a.card.id);
   }
   private focusCard(id: string) { setTimeout(() => this.host.querySelector<HTMLElement>(`[data-card="${id}"]`)?.focus()); }
+  protected first(name: string) { return name.split(' ')[0]; }
   protected readonly id = uid('pp-pipeline');
   protected readonly over = signal<string | null>(null);
   protected readonly menuFor = signal<string | null>(null);

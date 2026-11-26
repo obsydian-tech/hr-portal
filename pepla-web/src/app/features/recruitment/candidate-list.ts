@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, AfterViewInit, input, output, viewChild } from '@angular/core';
-import { PpCell, PpEmptyState, PpLozenge, PpPerson, PpTableDirective, PpTableWrap } from '../../ds';
+import { RouterLink } from '@angular/router';
+import { PpButton, PpCell, PpEmptyState, PpLozenge, PpPerson, PpTableDirective, PpTableWrap } from '../../ds';
 import type { components } from '../../core/api/openapi';
 import { shortDate } from './hire-format';
 
@@ -10,7 +11,7 @@ const sast = (ms: number) => { const d = new Date(ms + 2 * 3_600_000); return Da
 const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
 
 /** The stage-time words (REC-UI-02 rule 2 and the decisions in cards/rec-ui-02.md). */
-export function stageTime(r: CandidateRow, now = Date.now()): { words: string; tone: 'danger' | 'warning' | 'text' } | null {
+export function stageTime(r: Pick<CandidateRow, 'due_at' | 'sla_status'>, now = Date.now()): { words: string; tone: 'danger' | 'warning' | 'text' } | null {
   if (!r.due_at || !r.sla_status) return null;
   const n = Math.round((sast(Date.parse(r.due_at)) - sast(now)) / DAY);
   if (r.sla_status === 'OVERDUE') return { words: -n >= 1 ? `Overdue by ${days(-n)}` : 'Overdue', tone: 'danger' };
@@ -21,12 +22,12 @@ export function stageTime(r: CandidateRow, now = Date.now()): { words: string; t
 /** The one candidate table of Candidates and the Pipeline list (REC-UI-02 rule 2, AC-2). */
 @Component({
   selector: 'app-candidate-list',
-  imports: [PpCell, PpEmptyState, PpLozenge, PpPerson, PpTableDirective, PpTableWrap],
+  imports: [PpButton, PpCell, PpEmptyState, PpLozenge, PpPerson, PpTableDirective, PpTableWrap, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!rows().length) { <pp-empty-state [compact]="true" heading="No one yet" /> }
     <pp-table-wrap><table ppTable [stack]="true"><caption class="pp-visually-hidden">Candidates, most urgent first</caption>
-      <thead><tr><th scope="col">Candidate</th><th scope="col">Stage</th><th scope="col">Stage time</th><th scope="col">Applied</th></tr></thead>
+      <thead><tr><th scope="col">Candidate</th><th scope="col">Stage</th><th scope="col">Stage time</th><th scope="col">Applied</th><th scope="col"><span class="pp-visually-hidden">Open</span></th></tr></thead>
       <tbody>
         @for (r of rows(); track r.id) {
           <tr>
@@ -34,6 +35,7 @@ export function stageTime(r: CandidateRow, now = Date.now()): { words: string; t
             <td ppCell label="Stage">{{ stage(r) }}</td>
             <td ppCell label="Stage time">@if (time(r); as t) { @if (t.tone === 'text') { <span class="pp-text pp-text--small pp-text--subtle">{{ t.words }}</span> } @else { <pp-lozenge [status]="t.tone" [icon]="t.tone === 'danger' ? 'clock-alert' : 'clock'">{{ t.words }}</pp-lozenge> } }</td>
             <td ppCell label="Applied">{{ r.applied_at ? date(r.applied_at) : '' }}</td>
+            <td ppCell="actions"><a ppButton appearance="subtle" size="small" [iconOnly]="true" icon="chevron-right" [routerLink]="['/hire/candidates', r.id]" [attr.aria-label]="'Open ' + r.name"></a></td>
           </tr>
         }
       </tbody></table></pp-table-wrap>
