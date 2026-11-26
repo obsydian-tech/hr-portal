@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { PACK_SEED, REPO, runModule } from './support/rec-14/lambda-harness';
@@ -996,12 +997,13 @@ test.describe('INT-01 · Interview lifecycle on the server', () => {
       const is = new Set(now[k]?.pairs ?? (now[k] ? [`squashed ${now[k]?.squash}`] : []));
       const gained = [...is].filter((l) => !was.has(l));
       if (isSI(k, now[k]?.role ?? baseline[k]?.role)) { gainedSI.push(...gained); continue; }
+      if (isRec16Role(k, now[k]?.role)) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
       // Child lock int-01.2 (REC-06): REC-06's two manage_offers lines are its own (rec-06.spec.ts AC-9 pins them exactly), not INT-01's.
       expect.soft(gained.filter((l) => !(REC06_GRANTS[k] ?? []).some((re) => re.test(l))), `${k}: no new grant`).toEqual([]);
     }
     expect.soft(gainedSI.filter((l) => !NEW.some((re) => re.test(l))), 'scheduleInterview gains only GetItem and PutItem on the request-key table (no index, no *)').toEqual([]);
     expect.soft(NEW.map((re) => gainedSI.filter((l) => re.test(l)).length), 'each once').toEqual([1, 1]);
-    expect.soft(Object.keys(now).filter((k) => !baseline[k]), 'no new policy').toEqual([]);
+    expect.soft(Object.keys(now).filter((k) => !baseline[k] && !isRec16Role(k, now[k]?.role)), 'no new policy').toEqual([]);
     // The settings and CORS.
     const si = lambdaNamed('scheduleInterview')[0];
     expect(si, 'scheduleInterview is a Lambda in Terraform').toBeTruthy();
