@@ -1,0 +1,10 @@
+{
+  "note": "REC-06.1 AC-9: SHA-256 of files on hr-portal develop 55efe0f that this card must not change, and of the talent-flow-state table block (whitespace squashed to one space).",
+  "files": {
+    "talent-flow-infra/talent-flow-offers.tf": "34022230193dbbb3d20c9b0688c6f6e410c4ccc920430ca718398721ad622090",
+    "infra/kms.tf": "82e010a314d9037fdef871d74168d9aa991a9265fe51df95becf1c3a01146ebb"
+  },
+  "blocks": {
+    "talent-flow-infra/aws_dynamodb_table.talent_flow_state": "ce5d1d7fba88459f49e73abf1d5b1d4c93f84c620b0967071ca14df10f1df131"
+  }
+}
