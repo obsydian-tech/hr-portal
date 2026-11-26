@@ -7,6 +7,7 @@ import { ON_DEV, expect, test } from './support/fixtures';
 import { REPO } from './support/rec-14/lambda-harness';
 import { cases, type Case } from './support/int-03/cases';
 import { ERR_MARK, bodyOf, describe, effectsOf, formsOf, leaks, linesOf, normal, runsOf, statusOf } from './support/int-03/world';
+import { int01Actual, int01Expected } from './support/int-01.1/int03'; // child lock int-01.1
 
 /**
  * INT-03 · Stop logging raw guest tokens (Jira NH-267, amber). Spec: /mnt/project-files/specs/interview-journey/cards/INT-03.md, read
@@ -190,7 +191,8 @@ test.describe('INT-03 Stop logging raw guest tokens', () => {
     expect(existsSync(EXPECTED_FILE), 'develop 7048cb9\'s values are kept beside the tests').toBe(true);
     const expected = JSON.parse(readFileSync(EXPECTED_FILE, 'utf8')) as Record<string, unknown>;
     expect(Object.keys(expected).sort(), 'every run has a value recorded on develop 7048cb9').toEqual(all.map((c) => c.id).sort());
-    for (const c of all) expect.soft(sameAs(c), `${c.id} ${c.label}: the same status, answer, rows and events as develop 7048cb9`).toEqual(expected[c.id]);
+    // int01Actual / int01Expected: child lock int-01.1 (INT-01's `open` on the guest read and its one-vote guard row; nothing else moves).
+    for (const c of all) expect.soft(int01Actual(c.id, sameAs(c)), `${c.id} ${c.label}: the same status, answer, rows and events as develop 7048cb9`).toEqual(int01Expected(c.id, expected[c.id]));
     // Company B named in the body, headers and query: the same as the plain run.
     const byId = Object.fromEntries(all.map((c) => [c.id, c]));
     const strip = (c: Case) => normal({ status: statusOf(c.run), body: bodyOf(c.run), ...effectsOf(c.before, c.run) }, c.names.map(([s]) => [s, 'TOKEN'] as [string, string]));

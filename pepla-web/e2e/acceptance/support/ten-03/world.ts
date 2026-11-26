@@ -204,7 +204,7 @@ export function authorizerOf(caller: Caller): unknown {
 export function settings(extra: Record<string, string> = {}): Record<string, string> {
   return {
     STATE_TABLE_NAME: TABLE.state, CONFIG_TABLE_NAME: TABLE.config, DISMISSALS_TABLE_NAME: TABLE.dismissals, NOTIFICATIONS_TABLE_NAME: TABLE.notifications,
-    USERS_TABLE_NAME: TABLE.users, EVENTS_TABLE_NAME: TABLE.events, IDEMPOTENCY_TABLE_NAME: TABLE.idempotency, PENDING_ACTIONS_TABLE_NAME: TABLE.pending,
+    USERS_TABLE_NAME: TABLE.users, EVENTS_TABLE_NAME: TABLE.events, IDEMPOTENCY_TABLE_NAME: TABLE.idempotency, IDEMPOTENCY_TABLE: TABLE.idempotency, /* child lock int-01.1 (R-22) */ PENDING_ACTIONS_TABLE_NAME: TABLE.pending,
     IT_TASKS_TABLE: TABLE.itTasks, BUNDLES_TABLE: TABLE.bundles, EVENTBRIDGE_BUS_NAME: 'ten03-bus', EB_BUS_NAME: 'ten03-bus',
     NOTIFICATION_QUEUE_URL: 'https://sqs.ten03.example/queue', NOTIFICATION_LAMBDA_NAME: 'sendTalentFlowNotification', TENANTS_TABLE: TENANTS,
     AGENT_TENANT_ID: A, AGENT_API_KEY_SECRET_NAME: AGENT_SECRET, ENVIRONMENT: 'dev', HM_GROUP_NAME: 'HiringManager', POSTMARK_SENDER_EMAIL: 'noreply@ten03.example', POSTMARK_API_TOKEN: 'ten03-fake-token', COGNITO_POOL_ID: 'af-south-1_Ten03Fake', HM_COGNITO_POOL_ID: 'af-south-1_Ten03Fake', FRONTEND_URL: 'https://ten03.example',
