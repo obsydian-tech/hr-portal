@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
 import { REC16_ROLE_KEY } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
@@ -581,7 +582,7 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
       } else {
         // Child lock rec-15d.2 (REC-06): the two lines REC-06 gives manage_offers are REC-06's own (its AC-9 checks them exactly), not a step D change.
         const later = LATER_CARD_GRANTS[k] ?? [];
-        expect.soft(gained.filter((l) => !later.some((w) => w.test(l))), `${k}: no new grant`).toEqual([]);
+        expect.soft(gained.filter((l) => !later.some((w) => w.test(l)) && !isRec062Grant(l, k)), `${k}: no new grant`).toEqual([]);
       }
     }
     // The new lines name one pool and one table each (the older lines of these policies, such as the events table's index/*, are not step D's).

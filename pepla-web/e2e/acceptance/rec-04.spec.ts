@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
 import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -565,7 +566,7 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
         if (cur.squash !== undefined) expect.soft(cur.squash, `${k}: an unreadable policy did not change`).toBe(baseline[k]?.squash);
       } else {
         // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
-        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec15bGrant(l, k) && !isRec05Grant(l, k) && !isRec15cGrant(l, k) && !isRec15dGrant(l, k) && !isInt01Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec15dGrant: child lock rec-15d.1; // && isRec05Grant: child lock rec-05.1; && isRec15cGrant: // child lock rec-15c.1
+        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec15bGrant(l, k) && !isRec05Grant(l, k) && !isRec15cGrant(l, k) && !isRec15dGrant(l, k) && !isInt01Grant(l, k) && !isRec062Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec15dGrant: child lock rec-15d.1; // && isRec05Grant: child lock rec-05.1; && isRec15cGrant: // child lock rec-15c.1
         if (cur.squash !== undefined) expect.soft(cur.squash, `${k}: an unreadable policy did not change`).toBe(baseline[k]?.squash);
       }
     }
