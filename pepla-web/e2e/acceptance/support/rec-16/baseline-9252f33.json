@@ -1,0 +1,33 @@
+{
+  "blocks": {
+    "infra/aws_cloudwatch_event_rule.offer_accepted_notify_hm_provisioning": "b79d63528a8f7bc35137cf61df8aff4d41befae1c8614dbd3cd9905d26f9e4de",
+    "infra/aws_cloudwatch_event_target.offer_accepted_notify_hm_provisioning": "a2012a664d6d9315ffd30d45b5f8902061fd8f332116b688e3fd2be9c8c2546f",
+    "infra/aws_lambda_permission.send_notification_email_offer_accepted_provisioning": "b31e8a434bfe64a1e2291f4526be4e49925e4e04f215eccb92e017b61f373ad9",
+    "infra/aws_cloudwatch_event_rule.offer_accepted_notify_hm_tf_bus": "8bb53b7d29b2f75d02b6a225056c013074b04fadbf2b817c82fca1881736f4b6",
+    "infra/aws_cloudwatch_event_target.offer_accepted_notify_hm_tf_bus": "1a2a870834e6ed30d4857cbf9e7d87ae383da4fc29131d8858aff440a6ec801a",
+    "infra/aws_lambda_permission.send_notification_email_offer_accepted_tf_bus": "b3c2b967bf831e21ae535c43f81eeb3492f8136a23002d4bdfabf8ba1fb5955d",
+    "infra/aws_lambda_function.send_notification_email": "fac344a9fcea9bc1dbc14ef0b5848322eb3c03c130ebc0f83ac7ea78e0969964",
+    "infra/aws_iam_role.send_notification_email": "a0ae292ab8d2650b02a97adea29fc24a2393df5eaf230b412ed2289ddef55f46",
+    "infra/aws_iam_role_policy.send_notification_email": "82a7bd787305500eb92f4779bc98136753ed1f53fb54f4c48ca2d188b343c3fd"
+  },
+  "files": {
+    "lambda/manageOffers/index.mjs": "fb1ca7ad9258cc4d098584b8723e064c8762cc736d42395e2391a01be3f5b3f6",
+    "lambda/shared/recruitment-actions/offers.mjs": "407c622638f5faa1b6cba4992286ea828d90f8e1e28ac5ed05aa1af991411675",
+    "lambda/shared/employee-row.mjs": "2573b7d8aaa8fb96bf137f374dc604d8d3630e4937aede634e1ef211f694b6f4",
+    "infra/kms.tf": "82e010a314d9037fdef871d74168d9aa991a9265fe51df95becf1c3a01146ebb",
+    "lambda/shared/hiring-managers.mjs": "97190c237d24ec8d0f4bb4155c00b7dfdd0bf05f4811e0493202d23460273749",
+    "lambda/shared/tenant.mjs": "5c984ee6efaf31d67b2fd3a25be6d4dfdd1761fd468d757641061e5264246b2b",
+    "lambda/shared/ai-guard.mjs": "70b3795ea4e7a934e4d04e41812bca86893c9ca9b31f636894ef289f5168e3fb"
+  },
+  "dirs": {
+    "lambda/advanceOfferState": {
+      "lambda/advanceOfferState/index.js": "00fec3f2aa46dbca97346f5003acb7d384b9e679e736d150e51d2c3146f967a3"
+    },
+    "lambda/sendNotificationEmail": {
+      "lambda/sendNotificationEmail/index.mjs": "6717567b2a4a2dab400e33619c0ce7885007e06638c3c270b98846d5aafe0835",
+      "lambda/sendNotificationEmail/index.test.mjs": "0b31540bb95d4fc9a03f2256588a15851b609c176238449886fdfdf35efbfeef",
+      "lambda/sendNotificationEmail/package-lock.json": "4de0e4008a3f4a5379a3e31387efcb1241f00671a7a49f720158f725da22e422",
+      "lambda/sendNotificationEmail/package.json": "b80cb8bd5fc3c3292cd00b41cd20d6f5dbbbe9477881384b2e89f5ab9a7c3ede"
+    }
+  }
+}
