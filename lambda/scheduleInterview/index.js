@@ -120,7 +120,7 @@ exports.handler = async (event) => {
 
       const PN = await import('../shared/people-names.mjs');
       const FD = await import('../shared/feedback-due.mjs');
-      const I1 = await import('./int01.mjs');
+      const IV = await import('./interview-view.mjs');
       const people = relation === 'panel' ? [me] : mineRows.flatMap((r) => (Array.isArray(r.panelMemberIds) ? r.panelMemberIds : []));
       const extraPeople = mineRows.flatMap((r) => [r.closed_by]).concat(stored.filter((v) => v.on_behalf && v.entered_by).map((v) => v.entered_by)).filter((x) => typeof x === 'string');
       const names = await PN.namesOf(tenantId, [...people, ...extraPeople]);
@@ -141,7 +141,7 @@ exports.handler = async (event) => {
         const due = FD.feedbackDueAt(r.scheduledAt, settings.SLA_THRESHOLDS);
         const entry = (base, given) => ({ ...base, feedback: given ? 'GIVEN' : 'WAITING', due_at: given ? null : due });
         const persons = relation === 'panel' ? [me] : (Array.isArray(r.panelMemberIds) ? r.panelMemberIds : []);
-        const dec = I1.decorate(r, dctx);
+        const dec = IV.decorate(r, dctx);
         const panel = persons.map((pid) => ({ ...entry({ kind: 'PERSON', person_id: pid, name: names[pid] ?? null }, votesHere.some((v) => v.voterId === pid)), ...dec.personExtra(pid) }));
         if (dec.guestEntry) panel.push(dec.guestEntry);
         if (relation !== 'panel') {
