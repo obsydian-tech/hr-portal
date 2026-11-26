@@ -29,6 +29,12 @@ export interface HireCandidate {
   pending?: HirePending;
 }
 
+/** One row of a candidate's history, as `api/openapi.yaml` describes it (REC-15 step D). */
+export type CandidateEventRow = NonNullable<components['schemas']['CandidateEvents']['events']>[number];
+
+/** The most history reads for one candidate: the server pages oldest first (REC-UI-02 step 4, D-RUI-02.25). */
+export const MAX_HISTORY_READS = 10;
+
 export interface HireCounts { all: number; mine: number; overdue: number; due_soon: number; not_hired: number; }
 
 export interface OldSystemRow { candidate_id: string; name: string; role_title: string; rejected_at: string; }
@@ -68,5 +74,24 @@ export class HireApi {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * A candidate's whole history (`GET /v1/candidates/{id}/events?limit=200`), page after page with the `nextToken` the last page gave,
+   * encoded because it is base64 (it holds `+`, `/` and `=`), up to `MAX_HISTORY_READS` reads. `null` when any page fails: nothing
+   * is kept from the pages that did load. The rows come back in the order they were read.
+   */
+  async candidateEvents(id: string): Promise<CandidateEventRow[] | null> {
+    const rows: CandidateEventRow[] = [];
+    let token: string | undefined;
+    for (let read = 0; read < MAX_HISTORY_READS; read++) {
+      const query = `limit=200${token ? `&nextToken=${encodeURIComponent(token)}` : ''}`;
+      const r = await this.call<components['schemas']['CandidateEvents']>('GET', `/v1/candidates/${encodeURIComponent(id)}/events?${query}`);
+      if (r?.status !== 200 || !r.body || !Array.isArray(r.body.events)) return null;
+      rows.push(...r.body.events);
+      token = typeof r.body.nextToken === 'string' && r.body.nextToken !== '' ? r.body.nextToken : undefined;
+      if (!token) break;
+    }
+    return rows;
   }
 }

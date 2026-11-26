@@ -1,12 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import {
-  PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs,
+  PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline,
   type Crumb, type IconName, type PersonFact, type Status, type Step, type Tab,
 } from '../../ds';
 import type { components } from '../../core/api/openapi';
+import { historyDays } from './candidate-history';
 import { stageTime } from './candidate-list';
-import { HireApi, newKey, optionsOf, type RoleOptions } from './hire-api';
+import { HireApi, newKey, optionsOf, type CandidateEventRow, type RoleOptions } from './hire-api';
 import { shortDate } from './hire-format';
 import { INTERVIEWS_TAB_READY, NOTES_TAB_READY, OFFER_TAB_READY } from './hire-flags';
 import { NotHiredDialog, SAVE_FAIL } from './not-hired-dialog';
@@ -15,6 +16,7 @@ type CandidateRecord = components['schemas']['CandidateRecord'];
 type Stage = CandidateRecord['stage'];
 
 const TITLE = 'Naleko People';
+const HISTORY_FAIL = 'The history could not be loaded.';
 const DAY = 86_400_000;
 const STAGES = [['APPLIED', 'Applied'], ['SCREENING', 'Screening'], ['INTERVIEW', 'Interview'], ['OFFER', 'Offer'], ['HIRED', 'Hired']] as const;
 const STAGE_NAME: Record<string, string> = Object.fromEntries(STAGES);
@@ -68,7 +70,7 @@ function viewOf(r: CandidateRecord): View {
  */
 @Component({
   selector: 'app-candidate-record-page',
-  imports: [NotHiredDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs],
+  imports: [NotHiredDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-200">
@@ -100,6 +102,17 @@ function viewOf(r: CandidateRecord): View {
             @if (saveFailed()) { <pp-section-message tone="danger" [heading]="saveFail" /> }
             <pp-progress-tracker label="Hiring stages" [steps]="steps()" [vertical]="true" />
             <pp-tabs [label]="c.name" [tabs]="tabs()" [(selected)]="tab" [panel]="false" />
+            @if (tab() === 'notes') {
+              <div role="tabpanel" class="pp-stack pp-gap-200" [attr.aria-labelledby]="notesTabId()">
+                @if (notes() === 'failed') {
+                  <pp-section-message tone="danger" [heading]="historyFail">
+                    <pp-section-message-actions><button ppButton type="button" (click)="tryNotesAgain()">Try again</button></pp-section-message-actions>
+                  </pp-section-message>
+                } @else {
+                  <pp-timeline [label]="'History for ' + c.name" [days]="history().days" [events]="history().loose" [loading]="notes() !== 'ready'" empty="No history yet." />
+                }
+              </div>
+            } @else {
             <div class="pp-columns pp-columns--wide-aside pp-gap-200">
               <div class="pp-stack pp-gap-200">
                 @if (c.next; as n) {
@@ -117,6 +130,7 @@ function viewOf(r: CandidateRecord): View {
               </div>
               <div class="pp-stack pp-gap-200"></div>
             </div>
+            }
           }
         }
       }
@@ -135,6 +149,14 @@ export class CandidateRecordPage {
   protected readonly v = signal<View | null>(null);
   private readonly options = signal<RoleOptions | null>(null);
   protected readonly tab = signal('overview');
+  protected readonly historyFail = HISTORY_FAIL;
+  /** The Notes tab's history (REC-UI-02 step 4): `idle` until Notes is chosen, then read once and kept until the candidate changes or a Move or Not hired is saved. */
+  protected readonly notes = signal<'idle' | 'loading' | 'ready' | 'failed'>('idle');
+  private readonly noteRows = signal<readonly CandidateEventRow[]>([]);
+  protected readonly history = computed(() => historyDays(this.noteRows(), this.v()?.first ?? ''));
+  /** Each read of the history gets its own run: an answer that comes back after the candidate changed or the history was dropped is thrown away. */
+  private noteRun = 0;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   protected readonly saveFailed = signal(false);
   protected readonly moving = signal<{ name: string; from: string; to: string } | null>(null);
   protected readonly notHiredOpen = signal(false);
@@ -222,6 +244,31 @@ export class CandidateRecordPage {
       const id = this.id();
       untracked(() => void this.open(id));
     });
+    effect(() => {
+      if (this.tab() === 'notes' && this.status() === 'ready' && this.notes() === 'idle') untracked(() => void this.readNotes());
+    });
+  }
+
+  /** pp-tabs makes each tab's id itself; the history is labelled by the Notes tab's. */
+  protected notesTabId(): string | null { return this.host.querySelector('[role="tab"][id$="-notes"]')?.id ?? null; }
+
+  protected tryNotesAgain() { this.dropNotes(); }
+
+  /** Forgets the kept history and any answer still on its way; if Notes is showing, the effect above reads it again at once. */
+  private dropNotes() {
+    this.noteRun++;
+    this.noteRows.set([]);
+    this.notes.set('idle');
+  }
+
+  private async readNotes() {
+    const run = ++this.noteRun;
+    const id = this.id();
+    this.notes.set('loading');
+    const rows = await this.api.candidateEvents(id);
+    if (run !== this.noteRun) return;
+    this.noteRows.set(rows ?? []);
+    this.notes.set(rows ? 'ready' : 'failed');
   }
 
   protected tryAgain() { void this.open(this.id()); }
@@ -229,6 +276,8 @@ export class CandidateRecordPage {
   /** Opens an address: nothing of the last candidate stays, the title goes back to "Candidate", and the record and the options are read. */
   private async open(id: string) {
     const run = ++this.run;
+    this.tab.set('overview');
+    this.dropNotes();
     this.v.set(null);
     this.status.set('loading');
     this.saveFailed.set(false);
@@ -277,6 +326,7 @@ export class CandidateRecordPage {
     const r = await this.api.call('PUT', `/v1/candidates/${encodeURIComponent(c.id)}/stage`, { to: e.to, reason: e.reason }, newKey());
     if (run !== this.run) return;
     if (r?.status !== 200) { this.saveFailed.set(true); return; }
+    this.dropNotes();
     await this.reread();
   }
 
@@ -296,6 +346,7 @@ export class CandidateRecordPage {
     if (run !== this.run) return;
     if (r?.status !== 200) { this.notHiredFailed.set(true); return; }
     this.notHiredOpen.set(false);
+    this.dropNotes();
     await this.reread();
   }
 }
