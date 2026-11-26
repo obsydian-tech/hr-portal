@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""
+REC-06.1 AC-8: runs the real back-fill script (scripts/backfill/lowercase-employee-emails.py) once against an in-memory DynamoDB, with
+no AWS.
+
+  python3 run-script.py <script> [script args...]
+  REC061_CALL=<function> python3 run-script.py <script> [function args...]   (AC-10: calls one function of the script, e.g. the seed's)
+
+The world is the JSON file named by REC061_WORLD: {"tables": {name: [item, ...]}, "race": [{"employee_id", "set": {attr: AttributeValue}}],
+"pageSize": n}. Items are in DynamoDB's AttributeValue form. This folder's boto3 and botocore are put in front of everything else, so
+`import boto3` lands here (see boto3/__init__.py for what is answered). The script's own output goes to stdout and stderr unchanged.
+When the script ends (return, sys.exit or an error), {"tables", "calls"} is written to the file named by REC061_OUT.
+"""
+import json
+import os
+import runpy
+import sys
+import traceback
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+for name in list(sys.modules):
+    if name == "boto3" or name.startswith("boto3.") or name == "botocore" or name.startswith("botocore."):
+        del sys.modules[name]
+
+import boto3  # noqa: E402  (this folder's)
+from boto3 import _state  # noqa: E402
+
+script, args = sys.argv[1], sys.argv[2:]
+code = 0
+try:
+    if not os.path.exists(script):
+        print(f"run-script: no script at {script}", file=sys.stderr)
+        code = 2
+    else:
+        call = os.environ.get("REC061_CALL")
+        if call:
+            # AC-10: load the script without running its main(), then call one of its functions with a DynamoDB client and the args.
+            sys.argv = [script]
+            fns = runpy.run_path(script, run_name="rec061_loaded")
+            fns[call](boto3.client("dynamodb"), *args)
+        else:
+            sys.argv = [script, *args]
+            runpy.run_path(script, run_name="__main__")
+except SystemExit as e:
+    code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+except BaseException:  # noqa: BLE001  (the run must always write its result)
+    traceback.print_exc()
+    code = 1
+finally:
+    with open(os.environ["REC061_OUT"], "w") as f:
+        json.dump({"tables": _state.TABLES, "calls": _state.CALLS}, f, default=str)
+sys.exit(code)
