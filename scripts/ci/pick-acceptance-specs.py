@@ -46,7 +46,7 @@ from typing import Callable
 
 ACC = "pepla-web/e2e/acceptance/"
 SPEC_DIR = "e2e/acceptance/"  # relative to pepla-web/
-MAX_SHARDS = 6
+MAX_SHARDS = 7
 # Measured seconds per spec file (both widths). Fallback copy, refreshed by hand; a fresh
 # one comes from the nightly run (TIMING_FILE). A spec missing from both gets a guess (below).
 SECONDS_FILE = Path(__file__).with_name("acceptance-spec-seconds.json")

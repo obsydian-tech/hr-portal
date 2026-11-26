@@ -103,17 +103,18 @@ class Balance(unittest.TestCase):
         self.assertEqual(m.weight("new-1", "x", {}), m.DEFAULT_SECONDS)
         self.assertEqual(m.weight("new-2", "runJourney", {}), m.DEFAULT_JOURNEY_SECONDS)
 
-    def test_real_file_covers_every_spec_and_six_shards_stay_under_40_minutes(self):
+    def test_real_file_covers_every_spec_and_seven_shards_stay_under_36_minutes(self):
         import pathlib
         specs = {p.name[: -len(".spec.ts")]: p.read_text()
                  for p in pathlib.Path("pepla-web/e2e/acceptance").glob("*.spec.ts")}
         seconds = m.load_seconds()
         self.assertTrue(seconds, "acceptance-spec-seconds.json did not load")
         groups = m.balance(sorted(specs), specs, m.MAX_SHARDS, seconds)
-        self.assertEqual(len(groups), 6)
+        self.assertEqual(len(groups), 7)
         self.assertEqual(sorted(c for g in groups for c in g), sorted(specs))
-        # 40, not 30: a spec missing from the list now counts 3 minutes (was 1), which is closer to real
-        self.assertLess(max(sum(m.weight(c, specs[c], seconds) for c in g) for g in groups), 40 * 60)
+        # The total passed 6 x 40 minutes on 26 Nov (INT-01 and the REC-UI specs), so a better split could not help: a seventh
+        # shard. 36 minutes leaves room for the interview screens and INT-01.F; a spec missing from the list counts 3 minutes.
+        self.assertLess(max(sum(m.weight(c, specs[c], seconds) for c in g) for g in groups), 36 * 60)
 
 # ---------------------------------------------------------------- step 5: rule A (public site)
 
