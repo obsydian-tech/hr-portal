@@ -9,14 +9,14 @@
  * Row (state table): PK OFFER#<offer_id>, SK OFFER; GSI2PK TENANT#<id>#OFFER, GSI2SK <created_at>#<offer_id> (the company's list).
  * One live offer per candidate: a lock row (PK TENANT#<id>#OFFER_LIVE#<candidate>, SK LOCK) holds the live offer's id.
  */
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DynamoDBClient, GetItemCommand, PutItemCommand, QueryCommand, TransactWriteItemsCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { CognitoIdentityProviderClient, ListUsersInGroupCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { json, hrOnly } from '../hr-group.mjs';
+import { json } from '../hr-group.mjs';
 import { ownsRow, stampTenant, tenantKey, tenantFilter, bracket, notFound } from '../tenant.mjs';
 import { buildEmployeeRow } from '../employee-row.mjs';
 import { isApprover, isManager, isRecruiter, hiringManagerOf, forbidden } from '../recruitment-access.mjs';
@@ -472,22 +472,52 @@ async function repeatAccepted(ctx, row) {
   return json(200, shape(row, ctx));
 }
 
-/** CandidateHired and OfferAnswered once, then the marker. A failure leaves the marker off, so the next repeat tries again. */
+/**
+ * CandidateHired and OfferAnswered once, then the marker (REC-06.1 rule 6). Only the call that holds the claim sends; a claim older than
+ * five minutes may be taken over. A failed send releases the claim so the next repeat tries again; the marker write is tried twice.
+ */
+const STALE_CLAIM_MS = 5 * 60_000;
 async function finishFollowUps(ctx, row) {
   if (row.followups_done?.hired_event) return;
+  const now = new Date();
+  const names = { '#f': 'followups_done', '#h': 'hired_event', '#c': 'claimed_at' };
+  try {
+    await db.send(new UpdateItemCommand({
+      TableName: STATE(), Key: marshall(offerKey(row.offer_id)), UpdateExpression: 'SET #f.#c = :at',
+      ConditionExpression: 'tenant_id = :t AND attribute_not_exists(#f.#h) AND (attribute_not_exists(#f.#c) OR #f.#c < :stale)',
+      ExpressionAttributeNames: names,
+      ExpressionAttributeValues: marshall({ ':at': now.toISOString(), ':t': ctx.tenantId, ':stale': new Date(now.getTime() - STALE_CLAIM_MS).toISOString() }),
+    }));
+  } catch (e) {
+    if (e?.name !== 'ConditionalCheckFailedException') console.error('offers: claim not saved', { offer_id: row.offer_id, error: e?.name ?? 'Error' });
+    return;
+  }
   const sent = await publishAll([
     ['CandidateHired', { tenant_id: ctx.tenantId, candidate_id: row.candidate_id, role_id: row.role_id ?? null, employee_id: row.employee_id, offer_id: row.offer_id, at: row.answered_at }],
     ['OfferAnswered', { tenant_id: ctx.tenantId, offer_id: row.offer_id, candidate_id: row.candidate_id, answer: 'ACCEPTED' }],
   ], row.offer_id);
-  if (!sent) return;
-  try {
-    await db.send(new UpdateItemCommand({
-      TableName: STATE(), Key: marshall(offerKey(row.offer_id)), UpdateExpression: 'SET #f.#h = :at',
-      ConditionExpression: 'tenant_id = :t', ExpressionAttributeNames: { '#f': 'followups_done', '#h': 'hired_event' },
-      ExpressionAttributeValues: marshall({ ':at': new Date().toISOString(), ':t': ctx.tenantId }),
-    }));
-  } catch (e) {
-    console.error('offers: marker not saved', { offer_id: row.offer_id, error: e?.name ?? 'Error' });
+  if (!sent) {
+    try {
+      await db.send(new UpdateItemCommand({
+        TableName: STATE(), Key: marshall(offerKey(row.offer_id)), UpdateExpression: 'REMOVE #f.#c', ConditionExpression: 'tenant_id = :t',
+        ExpressionAttributeNames: { '#f': 'followups_done', '#c': 'claimed_at' }, ExpressionAttributeValues: marshall({ ':t': ctx.tenantId }),
+      }));
+    } catch (e) {
+      console.error('offers: claim not released', { offer_id: row.offer_id, error: e?.name ?? 'Error' });
+    }
+    return;
+  }
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await db.send(new UpdateItemCommand({
+        TableName: STATE(), Key: marshall(offerKey(row.offer_id)), UpdateExpression: 'SET #f.#h = :at',
+        ConditionExpression: 'tenant_id = :t', ExpressionAttributeNames: { '#f': 'followups_done', '#h': 'hired_event' },
+        ExpressionAttributeValues: marshall({ ':at': new Date().toISOString(), ':t': ctx.tenantId }),
+      }));
+      return;
+    } catch (e) {
+      if (attempt === 2) console.error('offers: marker not saved', { offer_id: row.offer_id, error: e?.name ?? 'Error' });
+    }
   }
 }
 
@@ -531,6 +561,7 @@ async function convertOffer(ctx, row, after, at) {
   }
 
   const email = String(saga.email ?? '').trim().toLowerCase();
+  if (email === '') return conflict('NOT_OPEN');
   if (await emailIsEmployee(ctx.tenantId, email)) return conflict('EMAIL_IS_EMPLOYEE');
 
   const claims = ctx.event?.requestContext?.authorizer?.jwt?.claims ?? {};
@@ -541,6 +572,11 @@ async function convertOffer(ctx, row, after, at) {
     actor: ctx.personId, timestamp: at, createdAt: at, candidateId: row.candidate_id,
   }, ctx.tenantId);
   const mine = tenantFilter(ctx.tenantId);
+  // REC-06.1 rule 1: one employee per address per company. The lock row holds a SHA-256 of the address, never the address.
+  const lock = stampTenant({
+    PK: `EMAIL_LOCK#${ctx.tenantId}#${createHash('sha256').update(email, 'utf8').digest('hex')}`, SK: 'EMAIL_LOCK', employee_id: employee.employee_id,
+    offer_id: row.offer_id, locked_at: at, expires_at: new Date(Date.parse(at) + 15 * 60_000).toISOString(),
+  }, ctx.tenantId);
   try {
     await db.send(new TransactWriteItemsCommand({
       TransactItems: [
@@ -560,6 +596,12 @@ async function convertOffer(ctx, row, after, at) {
           },
         },
         { Put: { TableName: STATE(), Item: marshall(history, { removeUndefinedValues: true }), ConditionExpression: 'attribute_not_exists(PK)' } },
+        {
+          Put: {
+            TableName: STATE(), Item: marshall(lock), ConditionExpression: 'attribute_not_exists(PK) OR expires_at < :at OR offer_id = :oid',
+            ExpressionAttributeValues: marshall({ ':at': at, ':oid': row.offer_id }),
+          },
+        },
       ],
     }));
   } catch (e) {
@@ -568,6 +610,8 @@ async function convertOffer(ctx, row, after, at) {
     // Another call may have finished the same accept just before this one: then answer as a repeat.
     const now = await loadOffer(ctx, row.offer_id);
     if (now && mapState(now.state) === 'ACCEPTED' && typeof now.employee_id === 'string' && now.employee_id !== '') return repeatAccepted(ctx, now);
+    const reasons = e?.CancellationReasons;
+    if (Array.isArray(reasons) && reasons.length === 5 && reasons[4]?.Code === 'ConditionalCheckFailed') return conflict('EMAIL_IS_EMPLOYEE');
     return conflict('STALE');
   }
   await finishFollowUps(ctx, accepted);

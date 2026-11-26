@@ -12,7 +12,7 @@
   },
   "files": {
     "lambda/manageOffers/index.mjs": "fb1ca7ad9258cc4d098584b8723e064c8762cc736d42395e2391a01be3f5b3f6",
-    "lambda/shared/recruitment-actions/offers.mjs": "407c622638f5faa1b6cba4992286ea828d90f8e1e28ac5ed05aa1af991411675",
+    "lambda/shared/recruitment-actions/offers.mjs": "b14c5ce41ff3fa580de61a993e4f37ab29ccb4512ada7811da742bca4cbadbcb",
     "lambda/shared/employee-row.mjs": "2573b7d8aaa8fb96bf137f374dc604d8d3630e4937aede634e1ef211f694b6f4",
     "infra/kms.tf": "82e010a314d9037fdef871d74168d9aa991a9265fe51df95becf1c3a01146ebb",
     "lambda/shared/hiring-managers.mjs": "97190c237d24ec8d0f4bb4155c00b7dfdd0bf05f4811e0493202d23460273749",

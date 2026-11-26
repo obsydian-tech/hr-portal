@@ -287,7 +287,7 @@ test.describe('REC-06 Conversion Point: an accepted offer makes the hire and the
     expect.soft(sagaOf(c2.tables, KC.p[2]!)['employee_id'], 'the candidate holds that employee').toBe(eid2);
   });
 
-  test('AC-2 All or none: the write is one transaction of four items (an employee, the offer, the candidate, a history row); a failure at any item leaves nothing written and no event; a retry then completes with one employee', async ({}, testInfo) => {
+  test('AC-2 All or none: the write is one transaction of five items (an employee, the offer, the candidate, a history row, the email lock of REC-06.1); a failure at any item leaves nothing written and no event; a retry then completes with one employee', async ({}, testInfo) => {
     once(testInfo.project.name);
     test.setTimeout(400_000);
     const t0 = world();
@@ -297,9 +297,9 @@ test.describe('REC-06 Conversion Point: an accepted offer makes the hire and the
     const tx = transactionOf(okRun);
     expect(tx.length, 'exactly one TransactWriteItems').toBe(1);
     const items = tx[0]!.map((i: any) => { const kind = Object.keys(i)[0]!; return { kind, table: i[kind].TableName, cond: i[kind].ConditionExpression ?? '' }; });
-    expect.soft(items.length, 'four items').toBe(4);
+    expect.soft(items.length, 'five items (REC-06.1 adds the email lock)').toBe(5);
     expect.soft(items.filter((i) => i.table === EMPLOYEES).map((i) => [i.kind, /attribute_not_exists\(\s*employee_id\s*\)/.test(i.cond)]), 'one Put on employees with attribute_not_exists(employee_id)').toEqual([['Put', true]]);
-    expect.soft(items.filter((i) => i.table === TABLE.state).length, 'three items on the state table').toBe(3);
+    expect.soft(items.filter((i) => i.table === TABLE.state).length, 'four items on the state table (REC-06.1: the lock row is there too)').toBe(4);
     expect.soft(items.every((i) => i.cond !== ''), 'every item has a condition').toBe(true);
     expect.soft(awsOf(okRun).filter((c: any) => c.service === 'dynamodb' && /^(PutItem|UpdateItem|DeleteItem|BatchWriteItem)$/.test(c.op) && (c.table === EMPLOYEES || JSON.stringify(c.input?.Key ?? c.input?.Item ?? {}).includes('CANDIDATE#'))).map((c: any) => `${c.op} ${c.table}`), 'no employee, candidate or history write outside the transaction').toEqual([]);
 
@@ -566,7 +566,7 @@ test.describe('REC-06 Conversion Point: an accepted offer makes the hire and the
 
   // ---------------------------------------------------------------- AC-8
 
-  test('AC-8 Follow-ups finish: with the bus down the accept still answers 200 and leaves no marker; a repeat sends CandidateHired and OfferAnswered once and sets the marker; a third sends nothing; logs carry ids and error names only', async ({}, testInfo) => {
+  test('AC-8 Follow-ups finish: with the bus down the accept still answers 200 and leaves no marker; a repeat claims, sends CandidateHired and OfferAnswered once, then sets the marker; a third sends nothing; logs carry ids and error names only', async ({}, testInfo) => {
     once(testInfo.project.name);
     test.setTimeout(300_000);
     const s = sentOffer(world(), KC.p[3]!, 0);
@@ -582,8 +582,9 @@ test.describe('REC-06 Conversion Point: an accepted offer makes the hire and the
     expect.soft(Boolean(marker(r2.tables, s.id)), 'the marker is set').toBe(true);
     expect.soft([employeeById(r2.tables, eid).length, newHistory(s.t, r2.tables, KC.p[3]!).length, transactionOf(r2).length], 'no second employee, history row or transaction').toEqual([1, 1, 0]);
     const markerWrite = writesOf(r2).filter((w: any) => w.service === 'dynamodb');
-    expect.soft(markerWrite.map((w: any) => `${w.op} ${w.table}`), 'the only write is the marker on the offer').toEqual([`UpdateItem ${TABLE.state}`]);
-    expect.soft(String(markerWrite[0]?.input?.ConditionExpression ?? ''), 'the marker write is held to the company (condition on tenant_id)').toMatch(/tenant_id/);
+    expect.soft(markerWrite.map((w: any) => `${w.op} ${w.table}`), 'the only writes are the claim, then the marker, on the offer (REC-06.1 rule 6)').toEqual([`UpdateItem ${TABLE.state}`, `UpdateItem ${TABLE.state}`]);
+    expect.soft(String(markerWrite[0]?.input?.ConditionExpression ?? ''), 'the claim write is held to the company (condition on tenant_id)').toMatch(/tenant_id/);
+    expect.soft(String(markerWrite[1]?.input?.ConditionExpression ?? ''), 'the marker write is held to the company (condition on tenant_id)').toMatch(/tenant_id/);
     const r3 = keep('third call', accept(C.recA, s, r2.tables, 30));
     expect.soft([statusOf(r3), eventsOf(r3).length], 'a third call: 200 and no event').toEqual([200, 0]);
     nothingDone('third call', r2.tables, r3);
