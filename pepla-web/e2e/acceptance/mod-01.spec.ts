@@ -21,6 +21,7 @@ import { isRec07Grant } from './support/rec-07.1/grants';
 import { OLD_ROUTE, isOldOfferWrite, isRec05Grant, isRec05Role } from './support/rec-05.1/grants'; // child lock rec-05.1
 import { isRec15bGrant } from './support/rec-15b.1/grants';
 import { isRec15cGrant } from './support/rec-15c.1/grants'; // child lock rec-15c.1
+import { isRec15dGrant } from './support/rec-15d.1/grants'; // child lock rec-15d.1
 
 /**
  * MOD-01 · A company has modules switched on, and the server refuses a module that is off (epic Modules).
@@ -703,7 +704,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
         // ONB-11 (re-lock mod-01.13): createEmployee links the new person's sign-in to their employees row (one UpdateItem; onb-11.spec.ts AC-11 needs it).
         { const [e, a, r, ...c] = p.split(' '); if (e === 'Allow' && ownerLinkGrant(a!, r!, cur.role, c.join(' '))) continue; }
         // REC-07 (child lock rec-07.1): scheduleInterview reads the role's criteria, submitVote finds an interview by id (support/rec-07.1/grants.ts).
-        if (isRec07Grant(p, key) || isRec15bGrant(p, key) || isRec15cGrant(p, key)) continue; // child lock rec-15c.1
+        if (isRec07Grant(p, key) || isRec15bGrant(p, key) || isRec15cGrant(p, key) || isRec15dGrant(p, key)) continue; // child locks rec-15c.1 and rec-15d.1
         // REC-05 (child lock rec-05.1): monitorTalentFlowSLAs reads the company's modules before an offer expires (support/rec-05.1/grants.ts).
         if (isRec05Grant(p, key)) continue;
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null') && isGated(key, cur.role), `role policy ${key}: new grant "${p}" is only GetItem on the tenants table, on a gated Lambda's role`).toBe(true);

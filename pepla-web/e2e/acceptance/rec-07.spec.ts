@@ -13,6 +13,7 @@ import {
 import { isRec15bGrant } from './support/rec-15b.1/grants';
 import { isRec15cGrant } from './support/rec-15c.1/grants'; // child lock rec-15c.1
 import { isRec05Grant, REC05_ROLE_KEY } from './support/rec-05.1/grants'; // child lock rec-05.1
+import { isRec15dGrant } from './support/rec-15d.1/grants'; // child lock rec-15d.1
 
 /**
  * REC-07 · Scoring per role: 1 to 5 per criterion, plain averages, one guest link (amber). Spec:
@@ -686,7 +687,7 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
     }
     for (const a of added) {
       const [k, line] = [a.slice(0, a.indexOf(': ')), a.slice(a.indexOf(': ') + 2)];
-      const ok = (FIVE.test(k) && READ.test(line) && !/\*/.test(line.replace(/\/index\/[\w-]+/, ''))) || isRec15bGrant(line, k) || isRec05Grant(line, k) || isRec15cGrant(line, k); // child locks rec-15b.1, rec-05.1 and rec-15c.1
+      const ok = (FIVE.test(k) && READ.test(line) && !/\*/.test(line.replace(/\/index\/[\w-]+/, ''))) || isRec15bGrant(line, k) || isRec05Grant(line, k) || isRec15cGrant(line, k) || isRec15dGrant(line, k); // child locks rec-15b.1, rec-05.1, rec-15c.1 and rec-15d.1
       expect.soft(ok, `a new policy line is a read of the state or roles table by one of the five handlers, with no wildcard: ${a.slice(0, 200)}`).toBe(true);
     }
     expect.soft(Object.keys(nowPolicies).filter((k) => !(k in oldPolicies) && k !== REC05_ROLE_KEY), 'no new policy').toEqual([]); // && REC05_ROLE_KEY: child lock rec-05.1
