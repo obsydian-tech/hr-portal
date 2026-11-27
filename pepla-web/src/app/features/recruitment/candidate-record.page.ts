@@ -1,4 +1,4 @@
-import { ApplicationRef, ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ApplicationRef, ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { Location } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import {
@@ -10,6 +10,7 @@ import { historyDays } from './candidate-history';
 import { stageTime } from './candidate-list';
 import { HireApi, newKey, optionsOf, type CandidateEventRow, type RoleOptions } from './hire-api';
 import { InterviewsTab, defaultInterview, type InterviewList } from './interviews/interviews-tab';
+import { ScheduleDrawer } from './interviews/schedule.drawer';
 import { shortDate } from './hire-format';
 import { INTERVIEWS_TAB_READY, NOTES_TAB_READY, OFFER_TAB_READY } from './hire-flags';
 import { NotHiredDialog, SAVE_FAIL } from './not-hired-dialog';
@@ -72,7 +73,7 @@ function viewOf(r: CandidateRecord): View {
  */
 @Component({
   selector: 'app-candidate-record-page',
-  imports: [InterviewsTab, NotHiredDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
+  imports: [InterviewsTab, NotHiredDialog, ScheduleDrawer, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-200">
@@ -106,7 +107,8 @@ function viewOf(r: CandidateRecord): View {
             <pp-tabs [label]="c.name" [tabs]="tabs()" [selected]="tab()" (selectedChange)="chooseTab($event)" [panel]="false" />
             @if (tab() === 'interviews') {
               <div role="tabpanel" [attr.aria-labelledby]="tabId('interviews')">
-                <app-interviews-tab [state]="interviews()" [list]="interviewRows()" [required]="interviewsRequired()" [chosen]="chosenInterview()" (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" />
+                <app-interviews-tab [state]="interviews()" [list]="interviewRows()" [required]="interviewsRequired()" [chosen]="chosenInterview()" [atInterview]="c.stage === 'INTERVIEW'"
+                  (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" (schedule)="openSchedule($event)" (reschedule)="openReschedule($event)" />
               </div>
             } @else if (tab() === 'notes') {
               <div role="tabpanel" class="pp-stack pp-gap-200" [attr.aria-labelledby]="tabId('notes')">
@@ -141,6 +143,9 @@ function viewOf(r: CandidateRecord): View {
         }
       }
     </div>
+    <app-schedule-drawer [candidateId]="id()" [name]="v()?.name ?? ''" [first]="v()?.first ?? ''" [roleTitle]="v()?.roleTitle ?? null" [panelSize]="panelSize()"
+      [optionsFailed]="!options()" [interviews]="interviewRows()" [retryOptions]="retryOptions" [reread]="rereadInterviews" [rereadRecord]="rereadRecord"
+      (saved)="scheduled($event)" (dismissed)="drawerClosed()" />
     <pp-move-dialog [stages]="stageList()" [request]="moving()" (confirmed)="move($event)" (dismissed)="moving.set(null)" />
     <app-not-hired-dialog [who]="notHiredFor()" [failed]="notHiredFailed()" (record)="recordNotHired($event)" (dismissed)="notHiredOpen.set(false)" />`,
 })
@@ -150,6 +155,12 @@ export class CandidateRecordPage {
   /** `tab` and `interview` from the address (INT-UI-01 M-6). The page writes them back with `replaceState`, so these only change when the address is opened. */
   readonly tabInAddress = input<string | undefined>(undefined, { alias: 'tab' });
   readonly interviewInAddress = input<string | undefined>(undefined, { alias: 'interview' });
+  /** `schedule=new` opens the Schedule drawer (INT-UI-02 rule 2c). */
+  readonly scheduleInAddress = input<string | undefined>(undefined, { alias: 'schedule' });
+  private readonly drawer = viewChild.required(ScheduleDrawer);
+  /** The address asked for the drawer and it is open: `schedule=new` stays in the address until it closes. */
+  private scheduleByAddress = false;
+  private scheduleWanted: string | null = null;
 
   private readonly api = inject(HireApi);
   private readonly title = inject(Title);
@@ -158,7 +169,9 @@ export class CandidateRecordPage {
   protected readonly saveFail = SAVE_FAIL;
   protected readonly status = signal<'loading' | 'ready' | 'notfound' | 'failed'>('loading');
   protected readonly v = signal<View | null>(null);
-  private readonly options = signal<RoleOptions | null>(null);
+  protected readonly options = signal<RoleOptions | null>(null);
+  /** The panel size for the candidate's level (fact 8): 3 when the level is missing or unknown. */
+  protected readonly panelSize = computed(() => { const l = this.v()?.level; const n = l ? this.options()?.panel_size_by_level?.[l] : undefined; return typeof n === 'number' && n > 0 ? n : 3; });
   protected readonly tab = signal('overview');
   protected readonly historyFail = HISTORY_FAIL;
   /** The Notes tab's history (REC-UI-02 step 4): `idle` until Notes is chosen, then read once and kept until the candidate changes or a Move or Not hired is saved. */
@@ -261,7 +274,8 @@ export class CandidateRecordPage {
       const id = this.id();
       const tab = this.tabInAddress();
       const interview = this.interviewInAddress();
-      untracked(() => void this.open(id, tab, interview));
+      const schedule = this.scheduleInAddress();
+      untracked(() => { this.scheduleWanted = schedule ?? null; void this.open(id, tab, interview); });
     });
     effect(() => {
       if (this.tab() === 'notes' && this.status() === 'ready' && this.notes() === 'idle') untracked(() => void this.readNotes());
@@ -291,6 +305,7 @@ export class CandidateRecordPage {
     q.set('tab', this.tab());
     const chosen = this.chosenInterview();
     if (this.tab() === 'interviews' && chosen) q.set('interview', chosen); else q.delete('interview');
+    if (this.scheduleByAddress) q.set('schedule', 'new'); else q.delete('schedule');
     this.location.replaceState(path, q.toString());
   }
 
@@ -318,12 +333,62 @@ export class CandidateRecordPage {
     this.interviews.set('loading');
     const list = await this.api.candidateInterviews(id);
     if (run !== this.interviewRun) return;
-    if (!list) { this.interviews.set('failed'); return; }
+    if (!list) { this.interviews.set('failed'); this.scheduleFromAddress(); return; }
     this.interviewRows.set(list.interviews);
     this.interviewsRequired.set(list.required && typeof list.required === 'object' ? { done: list.required.done, total: list.required.total } : null);
     this.chosenInterview.set(defaultInterview(list.interviews, wanted));
     this.interviews.set('ready');
     if (this.tab() === 'interviews') this.writeAddress();
+    this.scheduleFromAddress();
+  }
+
+  /** `schedule=new` opens the drawer once the tab has drawn its answer at the Interview stage; anything else is removed from the address. */
+  private scheduleFromAddress() {
+    const wanted = this.scheduleWanted;
+    if (wanted === null) return;
+    this.scheduleWanted = null;
+    if (wanted === 'new' && this.tab() === 'interviews' && this.interviews() === 'ready' && this.v()?.stage === 'INTERVIEW') {
+      this.scheduleByAddress = true;
+      this.writeAddress();
+      this.drawer().openSchedule(null);
+    } else this.dropSchedule();
+  }
+  private dropSchedule() {
+    this.scheduleWanted = null;
+    this.scheduleByAddress = false;
+    const [path, query = ''] = this.location.path().split('?');
+    const q = new URLSearchParams(query);
+    if (!q.has('schedule')) return;
+    q.delete('schedule');
+    this.location.replaceState(path, q.toString());
+  }
+
+  protected openSchedule(type: string | null) { this.drawer().openSchedule(type); }
+  protected openReschedule(id: string) {
+    const x = this.interviewRows().find((i) => i.id === id);
+    if (x) this.drawer().openReschedule(x);
+  }
+  protected readonly retryOptions = async (): Promise<boolean> => {
+    const o = optionsOf(await this.api.call('GET', '/v1/roles/options'));
+    if (o) this.options.set(o);
+    return !!o;
+  };
+  protected readonly rereadInterviews = async () => {
+    await this.readInterviews();
+    return this.interviews() === 'ready' ? this.interviewRows() : null;
+  };
+  protected readonly rereadRecord = () => this.reread();
+  protected async scheduled(e: { id: string; fresh: boolean }) {
+    this.scheduleByAddress = false;
+    this.chosenInterview.set(e.id);
+    if (e.fresh) { this.chosenInterview.set(defaultInterview(this.interviewRows(), e.id)); this.writeAddress(); return; }
+    await this.readInterviews();
+  }
+  protected drawerClosed() {
+    const byAddress = this.scheduleByAddress;
+    this.dropSchedule();
+    this.writeAddress();
+    if (byAddress) setTimeout(() => (this.host.querySelector('[role="tab"][id$="-interviews"]') as HTMLElement | null)?.focus());
   }
 
   protected tryNotesAgain() { this.dropNotes(); }
@@ -364,6 +429,7 @@ export class CandidateRecordPage {
     if (run !== this.run) return;
     this.options.set(opts);
     this.show(rec);
+    if (this.scheduleWanted !== null && (this.status() !== 'ready' || this.tab() !== 'interviews')) this.dropSchedule();
   }
 
   private read(id: string) { return this.api.call<CandidateRecord>('GET', `/v1/candidates/${encodeURIComponent(id)}`); }

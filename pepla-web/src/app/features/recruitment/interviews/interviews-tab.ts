@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { PpAvatarGroup, PpButton, PpCard, PpDeadline, PpEmptyState, PpLozenge, PpPerson, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, type IconName, type Status } from '../../../ds';
 import type { components } from '../../../core/api/openapi';
 import { shortDate } from '../hire-format';
-import { INTERVIEW_WORDS as W, typeWords } from './interview-words';
+import { DRAWER_LINES, INTERVIEW_WORDS as W, typeWords } from './interview-words';
+import { RESCHEDULE_READY, SCHEDULE_READY } from '../hire-flags';
 
 export type InterviewList = components['schemas']['InterviewList'];
 type Item = InterviewList['interviews'][number];
@@ -83,7 +84,9 @@ export function viewOf(x: Item, now: number): View {
       }
       @case ('ready') {
         @if (!views().length) {
-          <pp-card><pp-empty-state heading="No interviews yet." [compact]="true" /></pp-card>
+          <pp-card><pp-empty-state heading="No interviews yet." [compact]="true" />
+            @if (canSchedule()) { <button ppButton appearance="primary" icon="calendar-plus" type="button" (click)="schedule.emit(null)">{{ ctl['schedule'] }}</button> }
+          </pp-card>
         } @else {
           <div class="pp-columns pp-columns--even pp-gap-200">
             <div class="pp-stack pp-gap-150">
@@ -106,6 +109,7 @@ export function viewOf(x: Item, now: number): View {
                   </li>
                 }
               </ul>
+              @if (canSchedule()) { <span><button ppButton appearance="primary" icon="calendar-plus" type="button" (click)="schedule.emit(null)">{{ ctl['schedule'] }}</button></span> }
             </div>
             @if (current(); as c) {
               <pp-card [heading]="c.type ?? undefined" [subheading]="c.when ?? undefined" [level]="2">
@@ -119,6 +123,8 @@ export function viewOf(x: Item, now: number): View {
                   }
                   @if (c.note) { <span class="pp-text pp-text--small pp-text--strong">Note for the candidate</span><span class="pp-text pp-text--small">{{ c.note }}</span> }
                 </div>
+                @if (canReschedule()) { <span><button ppButton icon="calendar-days" type="button" (click)="reschedule.emit(c.id)">{{ ctl['reschedule'] }}</button></span> }
+                @if (closedType(); as t) { <span><button ppButton icon="calendar-plus" type="button" [attr.aria-label]="closedName(t)" (click)="schedule.emit(t)">{{ ctl['schedule'] }}</button></span> }
                 <ul class="pp-stack pp-gap-150">
                   @for (l of c.lines; track $index) {
                     <li class="pp-inline pp-gap-150 pp-inline--between">
@@ -146,6 +152,20 @@ export class InterviewsTab {
   readonly chosen = input<string | null>(null);
   readonly choose = output<string>();
   readonly retry = output<void>();
+  /** INT-UI-02: the record is at the Interview stage (the page knows the stage). */
+  readonly atInterview = input(false);
+  /** Schedule an interview: null from the tab button, the type key from a closed interview (way b). */
+  readonly schedule = output<string | null>();
+  readonly reschedule = output<string>();
+  protected readonly ctl = W.controls;
+  protected readonly canSchedule = computed(() => SCHEDULE_READY && this.atInterview() && this.state() === 'ready');
+  private readonly chosenItem = computed(() => this.list().find((x) => x.id === this.chosen()) ?? null);
+  protected readonly canReschedule = computed(() => RESCHEDULE_READY && this.chosenItem()?.status === 'SCHEDULED' && this.chosenItem()?.can?.reschedule === true);
+  protected readonly closedType = computed(() => {
+    const x = this.chosenItem();
+    return this.canSchedule() && x && (x.status === 'CANCELLED' || x.status === 'DID_NOT_HAPPEN') && x.type ? x.type : null;
+  });
+  protected closedName(t: string) { return DRAWER_LINES.closedButton(typeWords(t) ?? t); }
   protected readonly views = computed(() => this.list().map((x) => viewOf(x, Date.now())));
   protected readonly current = computed(() => this.views().find((v) => v.id === this.chosen()) ?? null);
 }

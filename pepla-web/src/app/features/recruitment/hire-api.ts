@@ -59,6 +59,43 @@ export const optionsOf = (r: HireResponse | null): RoleOptions | null => (r?.sta
 
 export const newKey = (): string => crypto.randomUUID();
 
+/** One interview type of the company's settings (INT-UI-02). Only `key` and `default_length_minutes` are used: the page shows its own words. */
+export interface InterviewTypeSetting { key: string; default_length_minutes?: number; }
+/** The company's panel settings the Schedule drawer uses (INT-UI-02 rule 3). */
+export interface PanelSettings { guestAllowed?: boolean; interview_emails?: string; candidate_interview_emails?: string; }
+/** A person who can sit on a panel, as `GET /v1/panel-members` lists them (S-2): only `id` and `name` are kept. */
+export interface PanelPerson { id: string; name: string; }
+/** The five types the server uses when the company has none set (recruitment-settings.mjs, fact 7). */
+export const DEFAULT_INTERVIEW_TYPES: readonly string[] = ['PHONE_SCREEN', 'TECHNICAL', 'BEHAVIORAL', 'CULTURE_FIT', 'FINAL'];
+
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** The types out of a settings answer: `null` for no answer, a refusal or a wrong shape; the defaults when the company has none set. */
+export function typesOf(r: HireResponse | null): InterviewTypeSetting[] | null {
+  if (r?.status !== 200 || !isObj(r.body) || !isObj(r.body['data'])) return null;
+  const list = r.body['data']['types'];
+  if (list === undefined) return DEFAULT_INTERVIEW_TYPES.map((key) => ({ key }));
+  if (!Array.isArray(list)) return null;
+  return list.filter((t): t is Record<string, unknown> => isObj(t) && typeof t['key'] === 'string' && !!t['key'])
+    .map((t) => ({ key: t['key'] as string, ...(typeof t['default_length_minutes'] === 'number' ? { default_length_minutes: t['default_length_minutes'] } : {}) }));
+}
+/** The panel settings out of a settings answer: `null` for no answer, a refusal or a wrong shape. */
+export function panelSettingsOf(r: HireResponse | null): PanelSettings | null {
+  if (r?.status !== 200 || !isObj(r.body) || !isObj(r.body['data'])) return null;
+  const d = r.body['data'];
+  return {
+    ...(typeof d['guestAllowed'] === 'boolean' ? { guestAllowed: d['guestAllowed'] } : {}),
+    ...(typeof d['interview_emails'] === 'string' ? { interview_emails: d['interview_emails'] } : {}),
+    ...(typeof d['candidate_interview_emails'] === 'string' ? { candidate_interview_emails: d['candidate_interview_emails'] } : {}),
+  };
+}
+/** The people out of a people answer (S-2): `null` for no answer, a refusal or no list; a member without a string id or name is left out. */
+export function peopleOf(r: HireResponse | null): PanelPerson[] | null {
+  if (r?.status !== 200 || !isObj(r.body) || !Array.isArray(r.body['members'])) return null;
+  return (r.body['members'] as unknown[]).filter((m): m is Record<string, unknown> => isObj(m) && typeof m['id'] === 'string' && typeof m['name'] === 'string')
+    .map((m) => ({ id: m['id'] as string, name: m['name'] as string }));
+}
+
 /** The recruitment calls (REC-UI-01). The company is never sent: the token carries it. */
 @Injectable({ providedIn: 'root' })
 export class HireApi {

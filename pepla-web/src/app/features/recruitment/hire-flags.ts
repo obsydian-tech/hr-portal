@@ -13,8 +13,8 @@ export const NOTES_TAB_READY: boolean = true;
 export const OFFER_TAB_READY: boolean = false;
 
 /** Schedule an interview and Reschedule: owner INT-UI-02. */
-export const SCHEDULE_READY: boolean = false;
-export const RESCHEDULE_READY: boolean = false;
+export const SCHEDULE_READY: boolean = true;
+export const RESCHEDULE_READY: boolean = true;
 /** Cancel interview, Did not happen and Mark as done: owner INT-UI-03. */
 export const CLOSE_ACTIONS_READY: boolean = false;
 /** Capture feedback: owner REC-UI-03's panel feedback slice and INT-UI-04. */
