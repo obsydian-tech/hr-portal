@@ -79,11 +79,11 @@ async function controls(page: Page): Promise<string[]> {
   return main(page).evaluate((m) => [...m.querySelectorAll('button, a, [role="button"], [role="menuitem"], [role="link"]')]
     .map((el) => `${el.getAttribute('aria-label') ?? ''} ${el.textContent ?? ''}`.replace(/\s+/g, ' ').trim()));
 }
-/** M-4: no action of a later card shows anywhere on the page: no button, link or menu item with its words, and no More actions. */
+/** M-4: no action of a later card shows anywhere on the page: no button, link or menu item with its words. (More actions and its menu
+ *  are INT-UI-03's since child lock int-ui-01.2.) */
 async function noActions(page: Page, where: string): Promise<void> {
-  const found = (await controls(page)).filter((c) => ACTION_WORDS.some((w) => c.includes(w)) || /More actions/i.test(c));
+  const found = (await controls(page)).filter((c) => ACTION_WORDS.some((w) => c.includes(w)));
   expect(found, `${where}: no action control`).toEqual([]);
-  await expect(main(page).locator('.pp-dropdown-menu, [role="menu"]'), `${where}: no menu`).toHaveCount(0);
 }
 
 // The kit's data, as the server would send it for Bongani (company A, Interview stage): seven interviews, oldest first, one of each kind.
@@ -365,7 +365,7 @@ test.describe('AC-2 Chosen interview', () => {
 test.describe('AC-3 No actions', () => {
   test.beforeEach(noBackendOnly);
 
-  test('AC-3 With the four flags off, for every `can` mix the fake sends (all true, all false, each key alone true) on interviews in every status, no "Schedule an interview", "Reschedule", "Capture feedback", "Cancel interview", "Did not happen" (as a control), "Mark as done", "Add panel member" or More actions shows anywhere: tab header, list or chosen interview', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r, events: _e, interviews: _i }) => {
+  test('AC-3 With the four flags off, for every `can` mix the fake sends (all true, all false, each key alone true) on interviews in every status, no "Schedule an interview", "Reschedule", "Capture feedback" or "Add panel member" shows anywhere: tab header, list or chosen interview', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r, events: _e, interviews: _i }) => {
     const fx = fxOf({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r, events: _e, interviews: _i });
     const { page, interviews } = fx;
     const mixes = [canOf('all'), canOf('none'), ...CAN_KEYS.map((k) => canOf({ [k]: true }))];
@@ -387,8 +387,6 @@ test.describe('AC-3 No actions', () => {
       await choose(page, i);
       await noActions(page, `${list[i]!.id} (${list[i]!.status}, ${JSON.stringify(list[i]!.can)})`);
     }
-    // "Did not happen" may show only as a status word.
-    await expect(main(page).getByRole('button', { name: /Did not happen/ }).or(main(page).getByRole('menuitem', { name: /Did not happen/ }))).toHaveCount(0);
   });
 
   test('AC-3 No action shows in the empty state or the failure state either', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r, events: _e, interviews: _i }) => {
@@ -404,7 +402,7 @@ test.describe('AC-3 No actions', () => {
     await openAt(page, BONGANI);
     await chooseInterviews(page);
     await expect(main(page).getByText(IW.failed, { exact: true })).toBeVisible();
-    const found = (await controls(page)).filter((c) => ACTION_WORDS.some((w) => c.includes(w)) || /More actions/i.test(c));
+    const found = (await controls(page)).filter((c) => ACTION_WORDS.some((w) => c.includes(w)));
     expect(found, 'the failure state: only "Try again"').toEqual([]);
   });
 });
