@@ -9,6 +9,7 @@ import {
   RESEND_ENV, STATE_MACHINE_ARN, existingUser, resendOnce, type Run62, type SfnMode, type Who, type World62,
 } from './support/rec-06.2/lambda-harness';
 import { runSeed } from './support/rec-06.2/seed';
+import { forgetSignIn } from './support/sign-in-again';
 import {
   A, B, EMPLOYEE_A, HR_A, HR_B, IDS, PEOPLE, ROBOT_HR_A, handAdded, person, recruitmentHire, worldWith, type Person,
 } from './support/rec-06.2/world';
@@ -692,7 +693,9 @@ test.describe('REC-06.2 Start the onboarding workflow for recruitment hires', ()
     expect(last['risk_reason'], 'and the guard\'s test-data label ("AI skipped")').toBe(AI_SKIPPED_LABEL);
 
     // Company B does not list the person, and cannot send their invite.
-    await page.context().clearCookies();
+    // Child lock rec-06.2.3: HR of A's session is kept in local storage, so clearing cookies alone leaves A signed in and /sign-in shows no Email
+    // field (dev run after PR 557: "getByLabel('Email', { exact: true })" not found). forgetSignIn clears the browser as ONB-23.1 does.
+    await forgetSignIn(page);
     const bHeaders = { Authorization: `Bearer ${await signInForToken(logB)}` };
     expect((await everyone(bHeaders)).some((e) => e.employee_id === employeeId || e.email === ids['email']), 'B\'s list does not have the person').toBe(false);
     const cross = await page.request.post(`${employeesApi}/v1/employees/${encodeURIComponent(employeeId)}/invite`, { headers: bHeaders });
