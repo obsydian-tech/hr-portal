@@ -12,6 +12,10 @@ import { HireApi, newKey, optionsOf, type CandidateEventRow, type RoleOptions } 
 import { InterviewsTab, defaultInterview, type InterviewList } from './interviews/interviews-tab';
 import { ScheduleDrawer } from './interviews/schedule.drawer';
 import { CloseInterviewDialog, type CloseAction } from './interviews/close-interview.dialog';
+import { FeedbackSheet } from './interviews/feedback.sheet';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 import { shortDate } from './hire-format';
 import { INTERVIEWS_TAB_READY, NOTES_TAB_READY, OFFER_TAB_READY } from './hire-flags';
 import { NotHiredDialog, SAVE_FAIL } from './not-hired-dialog';
@@ -74,9 +78,12 @@ function viewOf(r: CandidateRecord): View {
  */
 @Component({
   selector: 'app-candidate-record-page',
-  imports: [InterviewsTab, NotHiredDialog, ScheduleDrawer, CloseInterviewDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
+  imports: [FeedbackSheet, InterviewsTab, NotHiredDialog, ScheduleDrawer, CloseInterviewDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    @if (capturing() && phone()) {
+      <app-feedback-sheet [item]="capturing()" [first]="v()?.first ?? ''" [last]="lastName()" [roleTitle]="v()?.roleTitle ?? null" [phone]="true" (closed)="captureClosed(false)" (saved)="captureClosed(true)" />
+    } @else {
     <div class="pp-stack pp-gap-200">
       <pp-breadcrumbs [items]="crumbs()" />
       @switch (status()) {
@@ -109,7 +116,7 @@ function viewOf(r: CandidateRecord): View {
             @if (tab() === 'interviews') {
               <div role="tabpanel" [attr.aria-labelledby]="tabId('interviews')">
                 <app-interviews-tab [state]="interviews()" [list]="interviewRows()" [required]="interviewsRequired()" [chosen]="chosenInterview()" [atInterview]="c.stage === 'INTERVIEW'"
-                  (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" (schedule)="openSchedule($event)" (reschedule)="openReschedule($event)" (act)="openClose($event)" />
+                  (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" (schedule)="openSchedule($event)" (reschedule)="openReschedule($event)" (act)="openClose($event)" (capture)="openCapture($event)" />
               </div>
             } @else if (tab() === 'notes') {
               <div role="tabpanel" class="pp-stack pp-gap-200" [attr.aria-labelledby]="tabId('notes')">
@@ -144,6 +151,10 @@ function viewOf(r: CandidateRecord): View {
         }
       }
     </div>
+    }
+    @if (capturing() && !phone()) {
+      <app-feedback-sheet [item]="capturing()" [first]="v()?.first ?? ''" [last]="lastName()" [roleTitle]="v()?.roleTitle ?? null" (closed)="captureClosed(false)" (saved)="captureClosed(true)" />
+    }
     <app-schedule-drawer [candidateId]="id()" [name]="v()?.name ?? ''" [first]="v()?.first ?? ''" [roleTitle]="v()?.roleTitle ?? null" [panelSize]="panelSize()"
       [optionsFailed]="!options()" [interviews]="interviewRows()" [retryOptions]="retryOptions" [reread]="rereadInterviews" [rereadRecord]="rereadRecord"
       (saved)="scheduled($event)" (dismissed)="drawerClosed()" />
@@ -164,6 +175,18 @@ export class CandidateRecordPage {
   protected openClose(e: { action: CloseAction; id: string }) {
     const x = this.interviewRows().find((i) => i.id === e.id);
     if (x) this.closeDialog().open(e.action, x);
+  }
+  protected readonly phone = toSignal(inject(BreakpointObserver).observe('(max-width: 767px)').pipe(map((r) => r.matches)), { initialValue: false });
+  protected readonly capturing = signal<InterviewList['interviews'][number] | null>(null);
+  protected readonly lastName = computed(() => { const n = this.v()?.name ?? ''; const f = this.v()?.first ?? ''; return n.startsWith(f) ? n.slice(f.length).trim() : n; });
+  protected openCapture(id: string) { const x = this.interviewRows().find((i) => i.id === id); if (x) this.capturing.set(x); }
+  protected async captureClosed(saved: boolean) {
+    this.capturing.set(null);
+    if (saved) await this.readInterviews();
+    setTimeout(() => {
+      const b = [...this.host.querySelectorAll('button')].find((e) => (e.textContent ?? '').trim() === 'Capture feedback') as HTMLElement | undefined;
+      (b ?? (this.host.querySelector('ul[aria-label="Interviews"] > li[aria-current="true"]') as HTMLElement | null))?.focus();
+    }, 50);
   }
   protected closeSaved(id: string) {
     this.chosenInterview.set(id);

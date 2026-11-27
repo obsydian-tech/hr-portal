@@ -18,4 +18,4 @@ export const RESCHEDULE_READY: boolean = true;
 /** Cancel interview, Did not happen and Mark as done: owner INT-UI-03. */
 export const CLOSE_ACTIONS_READY: boolean = true;
 /** Capture feedback: owner REC-UI-03's panel feedback slice and INT-UI-04. */
-export const CAPTURE_FEEDBACK_READY: boolean = false;
+export const CAPTURE_FEEDBACK_READY: boolean = true;
