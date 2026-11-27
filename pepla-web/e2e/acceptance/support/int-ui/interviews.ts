@@ -83,8 +83,9 @@ export function feedbackWords(rating: string | null | undefined, overall: number
   return r ?? o;
 }
 
-/** Every action word of M-4: none of them may show as a control in this card. */
-export const ACTION_WORDS = ['Schedule an interview', 'Reschedule', 'Capture feedback', 'Cancel interview', 'Did not happen', 'Mark as done', 'Add panel member'] as const;
+/** The action words of M-4 that no card has built yet: none of them may show as a control. INT-UI-02 builds "Schedule an interview" and
+ *  "Reschedule", so they left this list in child lock int-ui-01.1 (cards/int-ui-02.md, T-S10). */
+export const ACTION_WORDS = ['Capture feedback', 'Cancel interview', 'Did not happen', 'Mark as done', 'Add panel member'] as const;
 
 // ---------------------------------------------------------------- time (S-5, SAST)
 const SAST = 2 * 3_600_000;
