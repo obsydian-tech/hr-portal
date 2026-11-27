@@ -85,8 +85,9 @@ export function feedbackWords(rating: string | null | undefined, overall: number
 
 /** The action words of M-4 that no card has built yet: none of them may show as a control. INT-UI-02 builds "Schedule an interview" and
  *  "Reschedule", so they left this list in child lock int-ui-01.1 (cards/int-ui-02.md, T-S10). INT-UI-03 builds "Cancel interview",
- *  "Did not happen" and "Mark as done" (and the More actions menu), so they left it in child lock int-ui-01.2 (cards/int-ui-03.md). */
-export const ACTION_WORDS = ['Capture feedback', 'Add panel member'] as const;
+ *  "Did not happen" and "Mark as done" (and the More actions menu), so they left it in child lock int-ui-01.2 (cards/int-ui-03.md).
+ *  REC-UI-03 step 2 builds "Capture feedback", so it left it in child lock int-ui-01.3 (cards/rec-ui-03.2.md). */
+export const ACTION_WORDS = ['Add panel member'] as const;
 
 // ---------------------------------------------------------------- time (S-5, SAST)
 const SAST = 2 * 3_600_000;

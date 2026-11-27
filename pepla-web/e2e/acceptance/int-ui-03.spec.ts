@@ -95,9 +95,9 @@ async function noCloseActions(page: Page, where: string): Promise<void> {
   await expect(main(page).getByRole('button', { name: /Did not happen/ }), `${where}: "Did not happen" is no button`).toHaveCount(0);
   await expect(page.locator('.pp-dropdown-menu, [role="menu"]'), `${where}: no menu`).toHaveCount(0);
 }
-/** "Capture feedback" and "Add panel member" are later cards'. */
+/** "Add panel member" is a later card's ("Capture feedback" is REC-UI-03 step 2's since child lock int-ui-03.1, cards/rec-ui-03.2.md). */
 async function noLaterActions(page: Page, where: string): Promise<void> {
-  expect((await controls(page)).filter((c) => /Capture feedback|Add panel member/.test(c)), where).toEqual([]);
+  expect((await controls(page)).filter((c) => /Add panel member/.test(c)), where).toEqual([]);
 }
 /** Chooses a reason by its words and waits until it is checked. */
 async function choose(d: Locator, words: string): Promise<void> {
@@ -114,7 +114,7 @@ const bodyOf = (c: { body: unknown }) => c.body as Record<string, unknown>;
 test.describe('AC-1 Which actions show', () => {
   test.beforeEach(noBackendOnly);
 
-  test('AC-1 For every `can` mix on the chosen booked interview (all false, all true, each of the three alone, cancel with reschedule, did_not_happen with mark_done) each of "Cancel interview", "Did not happen", "Mark as done" shows exactly when its flag is true, in that order; More actions (desktop) exactly when one does; buttons and no menu on a phone, a menu and no such buttons at 1280; an interview not chosen shows none; "Capture feedback" and "Add panel member" show nowhere', async ({ page, signIn, cognito, modules, hire, record, events, interviews, sched, closer }) => {
+  test('AC-1 For every `can` mix on the chosen booked interview (all false, all true, each of the three alone, cancel with reschedule, did_not_happen with mark_done) each of "Cancel interview", "Did not happen", "Mark as done" shows exactly when its flag is true, in that order; More actions (desktop) exactly when one does; buttons and no menu on a phone, a menu and no such buttons at 1280; an interview not chosen shows none; "Add panel member" shows nowhere', async ({ page, signIn, cognito, modules, hire, record, events, interviews, sched, closer }) => {
     const fx: Fx = { page, signIn, cognito, modules, hire, record, events, interviews, sched, closer };
     const errors = watchErrors(page);
     const mixes: Array<Partial<Can> | 'all' | 'none'> = ['none', 'all', { cancel: true }, { did_not_happen: true }, { mark_done: true }, { cancel: true, reschedule: true }, { did_not_happen: true, mark_done: true }];

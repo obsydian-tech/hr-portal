@@ -6,7 +6,7 @@ import { PpAvatarGroup, PpButton, PpCard, PpDropdownMenu, PpMenuItem, PpDeadline
 import type { components } from '../../../core/api/openapi';
 import { shortDate } from '../hire-format';
 import { DRAWER_LINES, INTERVIEW_WORDS as W, typeWords } from './interview-words';
-import { CLOSE_ACTIONS_READY, RESCHEDULE_READY, SCHEDULE_READY } from '../hire-flags';
+import { CAPTURE_FEEDBACK_READY, CLOSE_ACTIONS_READY, RESCHEDULE_READY, SCHEDULE_READY } from '../hire-flags';
 import type { CloseAction } from './close-interview.dialog';
 
 export type InterviewList = components['schemas']['InterviewList'];
@@ -148,6 +148,7 @@ export function viewOf(x: Item, now: number): View {
                     </li>
                   }
                 </ul>
+                @if (canCapture()) { <span><button ppButton icon="message-square" type="button" [block]="phone()" (click)="capture.emit(c.id)">{{ ctl['capture'] }}</button></span> }
               </pp-card>
             }
           </div>
@@ -179,6 +180,12 @@ export class InterviewsTab {
     return this.canSchedule() && x && (x.status === 'CANCELLED' || x.status === 'DID_NOT_HAPPEN') && x.type ? x.type : null;
   });
   readonly act = output<{ action: CloseAction; id: string }>();
+  /** REC-UI-03 step 2: Capture feedback on the chosen interview. */
+  readonly capture = output<string>();
+  protected readonly canCapture = computed(() => {
+    const x = this.chosenItem();
+    return CAPTURE_FEEDBACK_READY && this.state() === 'ready' && !!x && x.can?.capture_feedback === true && Array.isArray(x.criteria_snapshot) && x.criteria_snapshot.length > 0;
+  });
   protected readonly phone = toSignal(inject(BreakpointObserver).observe('(max-width: 767px)').pipe(map((r) => r.matches)), { initialValue: false });
   protected readonly closeActions = computed(() => {
     const x = this.chosenItem();
