@@ -6283,6 +6283,104 @@ paths:
       - admin
       - manager
       - perm-recruitment
+  /v1/interviews/{id}:
+    get:
+      summary: GET /v1/interviews/{id}
+      description: One interview for its panel member (REC-UI-03 step 3). Anyone else gets 404.
+      responses:
+        '200':
+          description: The interview, as its panel member sees it
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, candidate_first, candidate_last, role_title, type, at, status, criteria, my_feedback, my_vote, can]
+                properties:
+                  id:
+                    type: string
+                  candidate_first:
+                    type: string
+                  candidate_last:
+                    type: string
+                  role_title:
+                    type: string
+                    nullable: true
+                  type:
+                    type: string
+                  at:
+                    type: string
+                  status:
+                    type: string
+                  criteria:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                        label:
+                          type: string
+                  my_feedback:
+                    type: string
+                    enum: [GIVEN, WAITING]
+                  my_vote:
+                    type: object
+                    nullable: true
+                    properties:
+                      rating:
+                        type: string
+                      overall:
+                        type: number
+                        nullable: true
+                  can:
+                    type: object
+                    properties:
+                      capture_feedback:
+                        type: boolean
+                  why:
+                    type: string
+                    enum: [GIVEN, NOT_STARTED, CLOSED]
+        '403':
+          description: Forbidden (no company, or Recruitment is off for the company)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+      operationId: GET_v1_interviews_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - hr_staff
+      - manager
+      - employee
   /v1/interviews/{id}/votes:
     post:
       summary: POST /v1/interviews/{id}/votes

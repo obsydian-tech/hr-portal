@@ -1,0 +1,26 @@
+{
+  "develop": "25bd0e1",
+  "role": "aws_iam_role.submit_vote.arn",
+  "integration": "0e70e2f153cc099967194d35de53509b0f1d841a3cfa8b7e74129428437f11c1",
+  "policies": {
+    "talent-flow-infra/submit_vote": [
+      "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config} null",
+      "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+      "Allow dynamodb:PutItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+      "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_config}/index/GSI1-active-configs null",
+      "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+      "Allow dynamodb:Query arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state}/index/interview-id-index null",
+      "Allow dynamodb:UpdateItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_table_state} null",
+      "Allow events:PutEvents aws_cloudwatch_event_bus.talent_flow.arn null",
+      "Allow local.tf_kms_actions aws_kms_key.talent_flow_state.arn null",
+      "Allow logs:CreateLogGroup arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_submit_vote}:* null",
+      "Allow logs:CreateLogStream arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_submit_vote}:* null",
+      "Allow logs:PutLogEvents arn:aws:logs:af-south-1:000000000000:log-group:/aws/lambda/${local.tf_lambda_submit_vote}:* null",
+      "Allow xray:PutTelemetryRecords * null",
+      "Allow xray:PutTraceSegments * null"
+    ],
+    "talent-flow-infra/submit_vote_modules_read": [
+      "Allow dynamodb:GetItem arn:aws:dynamodb:af-south-1:000000000000:table/${local.tf_tenants_table} null"
+    ]
+  }
+}

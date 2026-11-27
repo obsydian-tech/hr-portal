@@ -52,3 +52,28 @@ AC-14 runs on pepla-dev only (`ACCEPTANCE_TARGET=pepla-dev`, `@pepla-dev`), once
 - The server sends no `Cache-Control: no-store` on the scoring answers (REC-07). The page adds no caching; the test checks that.
 - The hosting `Referrer-Policy` header is not set for the site (infra); the meta tag covers the page. The dev site already sends `X-Robots-Tag: noindex`.
 - The old `generateScoringLink` path still builds `{FRONTEND_URL}/score?token=…` for UUID tokens that the REC-07 routes never accept. Those links show the refusal state.
+
+## Step 3 · Server read GET /v1/interviews/{id} (child lock rec-ui-03.1, with chat-15.6)
+
+Spec: `onboarding-cards/specs/REC-UI-03-next-slices.md`, step 3 (rules 1 to 7, AC-3.1 to AC-3.8) and its notes. Tests: `rec-ui-03-read.spec.ts`, helpers and data in `support/rec-ui-03-read/` (world on top of REC-07's, unchanged). The no-backend tests run the real submitVote handler against REC-14's fake AWS once, at 1280. Child lock `chat-15.6` adds only `get_interview` to the REC-07 line of `chat-15.spec.ts` AC-12.
+
+Pinned where the spec is silent (the builder follows these):
+- D-T-3.1 Every refusal is `notFound()`'s whole answer, the same bytes and headers for every reason. No company: requireTenant's 403 before any AWS call. Recruitment off: requireModule's 403, only the module read.
+- D-T-3.2 "Has a vote" is REC-07's test (a `VOTE#<caller>#` row on the candidate with this interviewId), old 0 to 10 votes too; their `overall` is worked out the same way.
+- D-T-3.3 `why` is a key only when `can.capture_feedback` is false.
+- D-T-3.4 The 200 answer passes the schema `api/openapi.yaml` gives the route and lists exactly rule 3's keys (and `why`).
+- D-T-3.5 `support/rec-ui-03-read/iam-25bd0e1.json` is submitVote's role and policy lines and its integration on develop 25bd0e1. AC-3.6 compares against it.
+- D-T-3.6 The caller is always the signed-in person. A person id sent in a header, the query or the body never changes who is reading.
+- D-T-3.7 Any of the four roles who sits on the panel reads it (an HR person and an admin are tested).
+- D-T-3.8 `my_vote.overall` counts only the scores whose keys are in `criteria`; if none are, it is null.
+- D-T-3.9 `role_title` is the candidate's job title even when the candidate has no role; no job title gives null.
+
+### REC-UI-03 step 3 dev seed
+
+`scripts/ci/seed-dev.py` puts the interview "REC-UI-03.3 read" back on every dev run (like `seed_rec07`, not in `reset-dev-rec04.py`), under the ids in `support/rec-ui-03-read/dev-ids.json`: company A, its own candidate (hiring manager not the manager login), status `SCHEDULED`, started a day before the run, a non-empty `criteria_snapshot`, panel = the E2E_EMP login only, `votesSubmitted` 0, `PANEL_FEEDBACK_PENDING_COUNT` 1. It first deletes the candidate's `VOTE#` and `VOTED#` rows. Nothing for company B, no guest. No test votes on it, so both widths read the same interview. The company B part of AC-3.8 has "company B walk on pepla-dev" in its title, so the dev workflow runs it in the company walk step (E2E_HR_B = the walk company, Recruitment on) and leaves it out of the main run; no workflow change is needed.
+
+### Things the builder must know
+- The spec's notes 1 to 4 apply (old votes, one shared mean: exporting `mean` from `lambda/shared/scoring.mjs` is enough).
+- `pick-acceptance-specs.py` guesses 180 s for a spec with no timing entry; this one takes about 40 s here. Add a line to `scripts/ci/acceptance-spec-seconds.json` if the shard limit check complains (INT-UI-02 hit this).
+- Older locks this route moves (found by running them on the throwaway): `ten-04.spec.ts` AC-2 needs the OpenAPI `get` to document a `403` `{"error":"Forbidden"}` answer, and `rec-14.3.spec.ts` AC-7 needs `pepla-web/src/app/core/api/openapi.d.ts` regenerated (`npm run api:types` in pepla-web) after the OpenAPI edit. `chat-15.spec.ts` AC-12 needs child lock chat-15.6 (merged with this lock).
+- Terraform: one route on the existing `submit_vote` integration, named `get_interview`. No second push while its plan runs (LESSONS REC-04).

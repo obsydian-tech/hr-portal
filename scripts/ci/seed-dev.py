@@ -1093,6 +1093,48 @@ def seed_rec07(ddb, tenant_id: str, panel_subs: tuple, manager_sub: str) -> int:
     return written + 3
 
 
+def seed_rec_ui_03(ddb, tenant_id: str, panel_sub: str) -> int:
+    """REC-UI-03 step 3: the read-only interview "REC-UI-03.3 read" (cards/rec-ui-03.md, "REC-UI-03 step 3 dev seed"), put back every run.
+
+    No test votes on it, but both row kinds a vote leaves (VOTE# and VOTED#) are removed anyway, and the counters are put back. Idempotent.
+    """
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-ui-03-read" / "dev-ids.json").read_text())
+    if not panel_sub:
+        print("warning: the panel login has no sub; the REC-UI-03 rows were not written")
+        return 0
+    now = "2026-11-10T08:00:00.000Z"
+    started = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(time.time() - 86400))
+    cid, iv_id = ids["candidate"], ids["interview"]
+    pk = f"CANDIDATE#{cid}"
+    for prefix in ("VOTE#", "VOTED#"):
+        stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                          ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": prefix}}, ProjectionExpression="PK, SK")
+        for item in stale.get("Items", []):
+            ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": "SAGA"},
+        "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+        "firstName": {"S": "Rec"}, "lastName": {"S": "Seed-Read"},
+        "email": {"S": f"pepla-demo-rec.seed-read@{MAIL_DOMAIN}"},
+        "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+        "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+        "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now},
+        "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+    })
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"},
+        "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+        "interviewType": {"S": "TECHNICAL"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": started},
+        "votesRequired": {"N": "1"}, "votesSubmitted": {"N": "0"},
+        "panelMemberIds": {"L": [{"S": panel_sub}]},
+        "criteria_snapshot": {"L": [{"M": {"key": {"S": k}, "label": {"S": label}}} for k, label in REC04_CRITERIA]},
+        "PANEL_FEEDBACK_PENDING_COUNT": {"N": "1"}, "PANEL_SPLIT_FLAG": {"BOOL": False},
+        "createdAt": {"S": now}, "seed": {"S": SEED_TAG},
+    })
+    return 2
+
+
 def seed_int01(ddb, tenant_id: str, panel_subs: tuple) -> int:
     """INT-01: the dev candidate, a past interview booked the new way (two panel logins and a guest link in the R-21 format) and a
     future one. Everything the last run left on the candidate is removed first, so each run starts the same. Idempotent."""
@@ -1759,6 +1801,11 @@ def main() -> None:
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-07 rows were not written")
         rec07_written = 0
+
+    try:
+        seed_rec_ui_03(ddb, tid, employee_sub)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-UI-03 rows were not written")
 
     try:
         seed_int01(ddb, tid, (employee_sub, user_sub(cognito, naleko, "it")))
