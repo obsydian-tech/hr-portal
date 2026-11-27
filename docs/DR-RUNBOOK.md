@@ -239,3 +239,5 @@ Run these checks on the first Monday of each month.
 ---
 
 *Document maintained under version control. For changes, open a PR and request review from Engineering Lead.*
+
+<!-- throwaway auto-merge test, 27 Nov -->
