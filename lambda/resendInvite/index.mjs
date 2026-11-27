@@ -1,4 +1,5 @@
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
+import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
 import { Logger } from '@aws-lambda-powertools/logger';
 import postmark from 'postmark';
 import { hrOnly, json } from '../shared/hr-group.mjs';
@@ -9,6 +10,7 @@ import { isRobotCaller, isRobotEmail } from '../shared/ai-guard.mjs';
 
 const logger = new Logger({ serviceName: 'resendInvite' });
 const ddb = new DynamoDBClient();
+const sfn = new SFNClient({ region: process.env.AWS_REGION || 'af-south-1' });
 let mail;
 
 /** POST /v1/employees/{id}/invite  HR only, no body. */
@@ -50,6 +52,22 @@ export const handler = async (event) => {
       sent = true;
     } catch (e) {
       logger.error('Invite failed', { employeeId: id, step: 'email', error: e?.name ?? 'Error' });
+    }
+  }
+  if (item.from_recruitment?.M) {
+    // Recruitment hires only. Never fails the invite: no retry, error names only in the log.
+    const machine = process.env.SFN_STATE_MACHINE_ARN;
+    if (!machine) logger.info('Onboarding workflow not started: SFN_STATE_MACHINE_ARN is not set', { employeeId: id });
+    else {
+      try {
+        await sfn.send(
+          new StartExecutionCommand({ stateMachineArn: machine, name: `onboarding-${id}`, input: JSON.stringify({ employeeId: id }) }),
+          { abortSignal: AbortSignal.timeout(3000) },
+        );
+      } catch (e) {
+        if (e?.name === 'ExecutionAlreadyExists') logger.info('Onboarding workflow already started', { employeeId: id });
+        else logger.warn('Onboarding workflow not started', { employeeId: id, error: e?.name ?? 'Error' });
+      }
     }
   }
   const showLink = process.env.INVITE_TEST_LINK === 'true' && isRobotEmail(employee.email) && isRobotCaller(claims);

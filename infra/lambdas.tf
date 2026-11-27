@@ -1314,6 +1314,7 @@ resource "aws_lambda_function" "resend_invite" {
       APP_URL               = var.app_url
       INVITES_TABLE         = aws_dynamodb_table.employee_invites.name
       INVITE_TEST_LINK      = var.environment == "dev" ? "true" : "false"
+      SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.onboarding.arn
     }
   }
 

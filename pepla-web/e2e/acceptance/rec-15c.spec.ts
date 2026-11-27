@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
 import { REC16_ROLE_KEY } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
@@ -704,7 +705,7 @@ test.describe('REC-15 step C · The candidate record', () => {
       const lost = [...was].filter((l) => !is.has(l));
       if (!baseline[k]) {
         expect.soft(now[k]?.role, `${k}: a new policy is not on getCandidate's role (D-T-C11: the lines go in aws_iam_role_policy.get_candidate)`).not.toBe('get_candidate');
-        if (now[k]?.role !== 'get_candidate') expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec05Grant(l, k) && !isRec15dGrant(l, k) && !isInt01Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec15dGrant: child lock rec-15d.1
+        if (now[k]?.role !== 'get_candidate') expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec05Grant(l, k) && !isRec15dGrant(l, k) && !isInt01Grant(l, k) && !isRec062Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec15dGrant: child lock rec-15d.1
         continue;
       }
       if (k === KEY) {
@@ -712,7 +713,7 @@ test.describe('REC-15 step C · The candidate record', () => {
         expect.soft(WANT.map((w) => gained.filter((l) => w.test(l)).length), 'each of the three, once').toEqual([1, 1, 1]);
         expect.soft(lost, 'getCandidate loses nothing').toEqual([]);
       } else {
-        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec05Grant(l, k) && !isRec15dGrant(l, k) && !isInt01Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec15dGrant: child lock rec-15d.1
+        expect.soft(gained.filter((l) => !isRec07Grant(l, k) && !isRec05Grant(l, k) && !isRec15dGrant(l, k) && !isInt01Grant(l, k) && !isRec062Grant(l, k)), `${k}: no new grant`).toEqual([]); // && isRec15dGrant: child lock rec-15d.1
       }
     }
     const mine = Object.entries(now).filter(([, v]) => v.role === 'get_candidate').flatMap(([, v]) => v.pairs ?? []);

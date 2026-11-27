@@ -5,5 +5,8 @@
   "dependencies": {
     "@aws-lambda-powertools/logger": "^2.18.0",
     "postmark": "^4.0.5"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-sfn": "^3.0.0"
   }
 }
