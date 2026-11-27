@@ -1,0 +1,9 @@
+{
+  "develop": "47cdf6d",
+  "dir": "lambda/notifyHiringManagerOnHire",
+  "files": {
+    "lambda/notifyHiringManagerOnHire/index.mjs": "6ca62c4bb0ed122fb505934bd11fd2a665b95ad1e218e999f5feb89b24098bff",
+    "lambda/notifyHiringManagerOnHire/package-lock.json": "3f562a8012806a4b8e7bca2f1b28251d81736f88004253004bdf04180c73cfcb",
+    "lambda/notifyHiringManagerOnHire/package.json": "ffa394935aff6180dc4f96b5cc2588b4403e3a80a3ebd1db4c0799fc59d780c7"
+  }
+}

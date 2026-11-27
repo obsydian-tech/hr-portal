@@ -7,10 +7,12 @@ import {
   A, B, BAD_ADDRESS, HM_A2_EMAIL, HM_A_EMAIL, HM_B_EMAIL, OUTCOMES, POOL_ADDRESSES, SENDER, STATE, SUB, TEST_EMAIL, accepted, bodyFor, changedOutsideGuard, dbWrites,
   deliver, guardKey, guardOf, guardRows, hiredEvent, htmlEscape, load, logLines, logObjects, mayHaveSent, offerRow, otherWrites, outcomesOf, plain,
   postmarkOf, putState, guardRow, runText, sagaOf, settings, subjectFor, withCandidate, withOffer, type Mode, type Opts, type Run, type Tables,
+  clientsOf,
 } from './support/rec-16/world';
+import type { PostmarkMode } from './support/rec-16/lambda-harness';
 import {
   FROZEN_DIRS, FROZEN_FILES, FUNCTION_NAME, LABEL, NEW_FILE, OLD_PATH, RULE_NAME, attr, baseline, dirHashes, fileHash, filesOf, read, rec16, rec16Blocks,
-  resourcesOf, settingsOf, snapshot, squash,
+  resourcesOf, settingsOf, snapshot, squash, sha,
 } from './support/rec-16/terraform';
 import { policyLines } from './support/rec-02/iam';
 import { blocks } from './support/infra-harness';
@@ -28,9 +30,12 @@ import { blocks } from './support/infra-harness';
  * chat-15 AC-12 under child lock chat-15.4.
  *
  * Pinned by the test writer where the spec leaves a choice (each is in cards/rec-16.md):
- *  - D-T-16.1 "Postmark answered" means the error the client throws carries a numeric statusCode above 0 (the real client's HttpError
- *    family: 401, 422, 429, 500 ...). "No answer" is the client's PostmarkError with statusCode 0 (a timeout or a dropped connection).
- *    The tests use 422/300 and 401/10 for answered, a timeout and a dropped connection for no answer.
+ *  - D-T-16.1 (rewritten by REC-16.2, NH-286, child lock rec-16.5) "Postmark answered" (refused: nothing went, so the claim is released
+ *    and the Lambda retries) means the error the client throws carries a statusCode that is a whole number from 400 to 499 (401, 404,
+ *    408, 422, 429 ...). Everything else is "no answer" (the email may have gone): a 5xx (500, 502, 503, 504), any other status, a
+ *    statusCode that is not a whole number, none at all, and the client's PostmarkError with statusCode 0 (a timeout or a dropped
+ *    connection). The tests use 422/300 and 401/10 for answered, a timeout and a dropped connection for no answer; the REC-16.2 block at
+ *    the end of this file adds the rest.
  *  - D-T-16.2 The Postmark call is sendEmail with exactly From, To, Subject, TextBody, HtmlBody and MessageStream 'outbound' (rule 7).
  *    HtmlBody escapes & < > " and ' (as &amp; &lt; &gt; &quot; and &#39; or &#x27;).
  *  - D-T-16.3 A run that stops with an outcome other than SEND_FAILED returns normally (no throw). SEND_FAILED throws after the row
@@ -787,3 +792,197 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function avRow(row: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, typeof v === 'number' ? { N: String(v) } : { S: String(v) }]));
 }
+
+// ================================================================ REC-16.2
+
+/**
+ * REC-16.2 · Count only Postmark answers 400 to 499 as refused in the hiring manager email (red). Jira NH-286. Child lock rec-16.5.
+ * Spec: /mnt/project-files/onboarding-cards/specs/REC-16.2.md (rules 1 to 7, AC-1 to AC-7, passed spec check round 2). Notes:
+ * cards/rec-16.md (REC-16.2 section). AC-5 is the whole REC-16 block above, unchanged.
+ *
+ * Same harness as REC-16: the real handler in a fresh Node process per delivery, fake AWS, a fake Postmark that throws what the real
+ * 4.0.7 client throws for each status (support/rec-16/fake-aws/postmark.mjs). Every new fake error's message names an address
+ * (MARKER_162), so a line or a row that carries the message is seen. Each test runs once, at 1280.
+ */
+const MARKER_162 = 'proxy page for hm.a@naleko.example';
+const ERROR_NAME = /^[A-Za-z0-9_.$]+$/;
+/** AC-1: the 4xx answers (refused), with the class name the real client gives each. */
+const REFUSED_162: [PostmarkMode, number, string][] = [
+  ['http400', 400, 'UnknownError'], ['http404', 404, 'PostmarkError'], ['http408', 408, 'UnknownError'],
+  ['answered', 422, 'InvalidEmailRequestError'], ['http429', 429, 'RateLimitExceededError'], ['http499', 499, 'UnknownError'],
+];
+/** AC-2: 5xx and other statuses (no answer). */
+const OTHER_STATUS_162: [PostmarkMode, string, string][] = [
+  ['http500', '500', 'InternalServerError'], ['http502', '502', 'UnknownError'], ['http503', '503', 'ServiceUnavailablerError'],
+  ['http504', '504', 'UnknownError'], ['http399', '399', 'UnknownError'], ['http600', '600', 'UnknownError'],
+];
+/** AC-3: a status that is not a whole number, or none (no answer). */
+const NOT_A_NUMBER_162: [PostmarkMode, string, string][] = [
+  ['statusString', "'422' (a string)", 'UnknownError'], ['statusFraction', '422.5', 'UnknownError'], ['statusNaN', 'NaN', 'UnknownError'],
+  ['statusMissing', 'no statusCode', 'TypeError'], ['timeout', '0 (a timeout)', 'PostmarkError'], ['dropped', '0 (a dropped connection)', 'PostmarkError'],
+];
+const CLAIM_KEYS_162 = ['PK', 'SK', 'status', 'claimed_at', 'offer_id', 'candidate_id', 'tenant_id'].sort();
+
+/** The one log line of a run is exactly { outcome, offer_id, candidate_id, error } with these values (rule 6, D-T-16.4). */
+function logIs162(what: string, r: Run, a: { offer: string; candidate: string }, outcome: string, error: string) {
+  const objs = logObjects(r);
+  expect.soft(objs, `${what}: one log line, exactly { outcome: ${outcome}, offer_id, candidate_id, error: ${error} } (${runText(r)})`)
+    .toEqual([{ outcome, offer_id: a.offer, candidate_id: a.candidate, error }]);
+}
+/** No log line and no guard row value holds the error's message, a status number or an address (AC-6). */
+function noMessage162(what: string, r: Run, a: { offer: string; candidate: string }) {
+  for (const l of logLines(r)) {
+    expect.soft(l.includes(MARKER_162) || l.includes('hm.a@naleko.example') || l.includes('proxy page'), `${what}: the error's message is in no log line: ${l.slice(0, 200)}`).toBe(false);
+    expect.soft(l.includes('@'), `${what}: no address in a log line: ${l.slice(0, 200)}`).toBe(false);
+    const rest = l.split(a.offer).join('').split(a.candidate).join('');
+    expect.soft(/\d/.test(rest), `${what}: no status number in a log line (outside the ids): ${l.slice(0, 200)}`).toBe(false);
+    for (const o of logObjects(r)) {
+      expect.soft(Object.keys(o).filter((k) => !ALLOWED_LOG_KEYS.includes(k)), `${what}: only outcome, offer_id, candidate_id and error`).toEqual([]);
+      if (o['error'] !== undefined) expect.soft(ERROR_NAME.test(String(o['error'])), `${what}: error is a name (${String(o['error']).slice(0, 80)})`).toBe(true);
+    }
+  }
+  const g = guardOf(r.tables, a.offer);
+  if (g) {
+    const text = JSON.stringify(g);
+    expect.soft(text.includes(MARKER_162) || text.includes('proxy page') || text.includes('@'), `${what}: the error's message and no address in the guard row`).toBe(false);
+    expect.soft(Object.keys(g).filter((k) => !GUARD_KEYS.includes(k)), `${what}: the guard row has only its own fields`).toEqual([]);
+    if (g['error'] !== undefined) expect.soft(ERROR_NAME.test(String(g['error'])) && !/\d/.test(String(g['error'])), `${what}: the row's error is a name, no status (${String(g['error'])})`).toBe(true);
+  }
+}
+/** AC-2 and AC-3: one call, no throw, the row stays as the claim wrote it (SENDING), SEND_UNKNOWN, a repeat sends nothing. */
+function noAnswer162(what: string, t: Tables, a: { offer: string; candidate: string; detail: Record<string, unknown> }, mode: PostmarkMode, name: string) {
+  const ev = hiredEvent(a.detail);
+  const r1 = deliver(ev, t, { extra: { postmark: [mode] } });
+  expect.soft(r1.error, `${what}: the handler does not throw, so Lambda does not retry (${runText(r1)})`).toBeUndefined();
+  expect.soft(postmarkOf(r1).map((c: any) => c.outcome), `${what}: exactly one Postmark call`).toEqual([mode]);
+  expect.soft(mayHaveSent(r1).length, `${what}: counted as "the email may have gone" (exactly one)`).toBe(1);
+  const g = guardOf(r1.tables, a.offer);
+  expect.soft(g?.['status'], `${what}: the row stays SENDING (never FAILED, never SENT)`).toBe('SENDING');
+  expect.soft(Object.keys(g ?? {}).sort(), `${what}: the row is exactly as the claim wrote it (no failed_at, no error)`).toEqual(CLAIM_KEYS_162);
+  expect.soft(dbWrites(r1).map((c: any) => c.op), `${what}: the claim is the only write`).toEqual(['PutItem']);
+  logIs162(what, r1, a, 'SEND_UNKNOWN', name);
+  expect.soft(changedOutsideGuard(t, r1.tables), `${what}: offer, candidate and employee rows as they were`).toEqual([]);
+  expect.soft(otherWrites(r1).map((c: any) => `${c.service} ${c.op}`), `${what}: no event, queue or other call`).toEqual([]);
+  noMessage162(what, r1, a);
+  const r2 = deliver(ev, r1.tables);
+  nothingSent(`${what} repeat`, r1.tables, r2, 'ALREADY_SENT', a.offer);
+  expect.soft(mayHaveSent(r2).length, `${what}: the repeat sends nothing`).toBe(0);
+  return [r1, r2];
+}
+
+test.describe('REC-16.2 Only a Postmark answer from 400 to 499 counts as refused', () => {
+  test('REC-16.2 AC-1 A 4xx answer (400, 404, 408, 422, 429, 499) is refused: the row goes FAILED with the error name, SEND_FAILED, the handler throws; the retry sends one email, a third run none', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    test.setTimeout(300_000);
+    const { t, a } = the();
+    const ev = hiredEvent(a.detail);
+    for (const [mode, status, name] of REFUSED_162) {
+      const what = `REC-16.2 AC-1 ${status} (${mode})`;
+      const r1 = deliver(ev, t, { extra: { postmark: [mode] } });
+      expect.soft(r1.error, `${what}: the handler throws, so Lambda retries (${runText(r1)})`).toBeTruthy();
+      expect.soft(postmarkOf(r1).map((c: any) => c.outcome), `${what}: one attempt, refused`).toEqual([mode]);
+      expect.soft(mayHaveSent(r1).length, `${what}: refused, so nothing went`).toBe(0);
+      const g = guardOf(r1.tables, a.offer);
+      expect.soft([g?.['status'], g?.['error']], `${what}: the row is FAILED with the error name ${name}`).toEqual(['FAILED', name]);
+      expect.soft(typeof g?.['failed_at'], `${what}: failed_at is set`).toBe('string');
+      logIs162(what, r1, a, 'SEND_FAILED', name);
+      expect.soft(changedOutsideGuard(t, r1.tables), `${what}: rows as they were`).toEqual([]);
+      noMessage162(what, r1, a);
+      const r2 = deliver(ev, r1.tables);
+      sentOnce(`${what} retry`, r1.tables, r2, a.offer);
+      expect.soft(guardOf(r2.tables, a.offer)?.['status'], `${what}: the retry ends SENT`).toBe('SENT');
+      const r3 = deliver(ev, r2.tables);
+      nothingSent(`${what} third`, r2.tables, r3, 'ALREADY_SENT', a.offer);
+      expect.soft(mayHaveSent(r1).length + mayHaveSent(r2).length + mayHaveSent(r3).length, `${what}: one email in all`).toBe(1);
+    }
+  });
+
+  test('REC-16.2 AC-2 A 5xx or any status outside 400 to 499 (500, 502, 503, 504, 399, 600) is no answer: the row stays SENDING, SEND_UNKNOWN, no throw, and a repeat sends nothing', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    test.setTimeout(300_000);
+    const { t, a } = the();
+    for (const [mode, status, name] of OTHER_STATUS_162) noAnswer162(`REC-16.2 AC-2 ${status} (${mode})`, t, a, mode, name);
+  });
+
+  test('REC-16.2 AC-3 A status that is not a whole number, or none (\'422\' as text, 422.5, NaN, missing, 0 from a timeout or a dropped connection) is no answer', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    test.setTimeout(300_000);
+    const { t, a } = the();
+    for (const [mode, status, name] of NOT_A_NUMBER_162) noAnswer162(`REC-16.2 AC-3 ${status} (${mode})`, t, a, mode, name);
+  });
+
+  test('REC-16.2 AC-4 The Postmark client is made once per Lambda load with exactly { timeout: 20 } (seconds), and no other option', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    test.setTimeout(120_000);
+    const { t, a } = the();
+    const loaded = load(t, settings('HIRING_MANAGER'));
+    expect.soft(loaded.error, `the Lambda loads (${loaded.error?.message?.slice(0, 200)})`).toBeUndefined();
+    const sentRun = deliver(hiredEvent(a.detail), t);
+    const refusedRun = deliver(hiredEvent(a.detail), t, { extra: { postmark: ['http502'] } });
+    for (const [what, calls] of [['a load', loaded.calls], ['a run that sends', sentRun.calls], ['a run that gets a 502', refusedRun.calls]] as const) {
+      const made = clientsOf({ calls: calls as any[] });
+      expect.soft(made.length, `${what}: exactly one Postmark client`).toBe(1);
+      const c = made[0] ?? {};
+      expect.soft(c.argCount, `${what}: made with a token and one options object`).toBe(2);
+      expect.soft(c.options, `${what}: the options are exactly { timeout: 20 }`).toEqual({ timeout: 20 });
+      expect.soft(Object.keys(c.options ?? {}), `${what}: no option but timeout (no useHttps, requestHost ...)`).toEqual(['timeout']);
+      expect.soft(typeof c.options?.timeout === 'number' && c.options.timeout === 20, `${what}: timeout is the number 20 (seconds; the client multiplies by 1000)`).toBe(true);
+    }
+    sentOnce('REC-16.2 AC-4 run that sends', t, sentRun, a.offer);
+  });
+
+  test('REC-16.2 AC-6 Logs: across every new answer, each run logs one JSON line with only outcome, offer_id, candidate_id and an error name; no line and no guard row holds the error\'s message, a status number or an address', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    test.setTimeout(300_000);
+    const { t, a } = the();
+    const fake = readFileSync(join(__dirname, 'support', 'rec-16', 'fake-aws', 'postmark.mjs'), 'utf8');
+    expect(fake.includes(`MARKER = '${MARKER_162}'`), 'control: every new fake error carries the marker in its message').toBe(true);
+    const ev = hiredEvent(a.detail);
+    const modes: [PostmarkMode, string][] = [...REFUSED_162.map(([m, , n]) => [m, n] as [PostmarkMode, string]), ...OTHER_STATUS_162.map(([m, , n]) => [m, n] as [PostmarkMode, string]), ...NOT_A_NUMBER_162.map(([m, , n]) => [m, n] as [PostmarkMode, string])];
+    for (const [mode, name] of modes) {
+      const what = `REC-16.2 AC-6 ${mode}`;
+      const r = deliver(ev, t, { extra: { postmark: [mode] } });
+      const refused = REFUSED_162.some(([m]) => m === mode);
+      logIs162(what, r, a, refused ? 'SEND_FAILED' : 'SEND_UNKNOWN', name);
+      noMessage162(what, r, a);
+      guardIsClean(what, guardOf(r.tables, a.offer), ['Thandeka', 'Mahlaba', 'IT provisioning', MARKER_162]);
+    }
+  });
+
+  test('REC-16.2 AC-7 In the Lambda folder only two lines of index.mjs changed from develop 47cdf6d (the client line and the refused test, each with at most one added comment line above); every other file is as it was, none added or removed', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    const here = join(__dirname, 'support', 'rec-16.5');
+    const base = JSON.parse(readFileSync(join(here, 'baseline-47cdf6d.json'), 'utf8')) as { dir: string; files: Record<string, string> };
+    const copy = readFileSync(join(here, 'index-47cdf6d.mjs.txt'), 'utf8');
+    const INDEX = `${base.dir}/index.mjs`;
+    expect(sha(copy), 'control: the stored copy is develop 47cdf6d\'s index.mjs').toBe(base.files[INDEX]);
+    const now = dirHashes(base.dir);
+    expect.soft(Object.keys(now).sort(), 'no file added to or removed from the Lambda folder').toEqual(Object.keys(base.files).sort());
+    for (const [f, h] of Object.entries(base.files)) if (f !== INDEX) expect.soft(now[f], `${f} is byte for byte as on develop 47cdf6d`).toBe(h);
+    const B = copy.split('\n');
+    const N = readFileSync(join(REPO, INDEX), 'utf8').split('\n');
+    const CLIENT = 31, REFUSED = 51; // 0-based: lines 32 and 52
+    expect(B[CLIENT], 'control: line 32 of the copy is the client line').toBe('const mail = new postmark.ServerClient(TOKEN);');
+    expect(B[REFUSED], 'control: line 52 of the copy is the refused test').toBe("const answeredByPostmark = (e) => typeof e?.statusCode === 'number' && e.statusCode > 0;");
+    const comment = /^\s*(\/\/.*|\/\*.*\*\/)\s*$/;
+    const problems: string[] = [];
+    let i = 0;
+    const same = (from: number, to: number, label: string) => {
+      for (let k = from; k < to; k += 1, i += 1) if (N[i] !== B[k]) { problems.push(`${label}: line ${k + 1} of 47cdf6d (${JSON.stringify(B[k]).slice(0, 120)}) is now ${JSON.stringify(N[i] ?? '<end of file>').slice(0, 120)}`); return false; }
+      return true;
+    };
+    const changed = (k: number, must: RegExp, label: string) => {
+      if (comment.test(N[i] ?? '') && !comment.test(B[k] ?? '')) i += 1;
+      if (!must.test(N[i] ?? '')) problems.push(`${label}: expected one line matching ${must} where line ${k + 1} was, got ${JSON.stringify(N[i] ?? '<end of file>').slice(0, 160)}`);
+      i += 1;
+    };
+    if (same(0, CLIENT, 'before the client line')) {
+      changed(CLIENT, /^const mail = new postmark\.ServerClient\(TOKEN\b.*\);\s*$/, 'the client line');
+      if (same(CLIENT + 1, REFUSED, 'between the two lines')) {
+        changed(REFUSED, /^const answeredByPostmark = \(e\) => .*;\s*$/, 'the refused test (one line, the name kept)');
+        if (same(REFUSED + 1, B.length, 'after the refused test') && i !== N.length) problems.push(`${N.length - i} line(s) added at the end`);
+      }
+    }
+    expect.soft(problems, 'index.mjs is 47cdf6d\'s but for the two lines').toEqual([]);
+  });
+});

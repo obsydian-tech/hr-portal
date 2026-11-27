@@ -29,7 +29,7 @@ requireSetting('TENANTS_TABLE');
 requireSetting('HM_COGNITO_POOL_ID');
 
 const db = new DynamoDBClient({});
-const mail = new postmark.ServerClient(TOKEN);
+const mail = new postmark.ServerClient(TOKEN, { timeout: 20 });
 
 const SUBJECT = (name) => `Action required: Set up IT provisioning for ${name}`;
 const BODY = (name) => `The offer for ${name} has been accepted. Please create their IT provisioning bundle at your earliest convenience.`;
@@ -49,7 +49,7 @@ const getRow = async (pk, sk) => {
   const out = await db.send(new GetItemCommand({ TableName: STATE, Key: marshall({ PK: pk, SK: sk }), ConsistentRead: true }));
   return out.Item ? unmarshall(out.Item) : undefined;
 };
-const answeredByPostmark = (e) => typeof e?.statusCode === 'number' && e.statusCode > 0;
+const answeredByPostmark = (e) => Number.isInteger(e?.statusCode) && e.statusCode >= 400 && e.statusCode <= 499;
 
 export const handler = async (event) => {
   const d = event?.detail ?? {};
