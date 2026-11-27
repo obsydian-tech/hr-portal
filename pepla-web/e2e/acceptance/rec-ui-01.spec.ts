@@ -32,6 +32,11 @@ import { DEPT, REASONS, WHO, companyIdIn, depId, drawsIcon, enter, expect, quiet
  * Child lock rec-ui-01.4 (24 Nov 2026, Iggie's words): when the Not hired answer waits on any HR person (`awaiting.kind` HR,
  * no one named), the card says "An HR person must confirm before this is final." Only the U-3 test changes.
  *
+ * Child lock rec-ui-01.6 (REC-UI-01.6, NH-291, 27 Nov 2026): the fake list now says when a Not hired decision is waiting
+ * (`not_hired_pending`, support/rec-ui/harness.ts), so the parked "another Recruiter confirms" test (F-RUI-02.1) runs again as AC-15.
+ * Its only other change: the second Recruiter's dialog sends the confirm and no new Not hired. The rest of REC-UI-01.6 is in
+ * rec-ui-01.6.spec.ts.
+ *
  * AC-13 is the pepla-dev check: it cannot run until REC-02, REC-03 and REC-04 are on dev. It is tagged @pepla-dev and stays
  * red there until they are; it does not run in the no-backend run, and it does not hold the lock or the board's merge.
  */
@@ -961,9 +966,8 @@ test.describe('AC-6 Not hired', () => {
   });
 
   test('AC-6 Another Recruiter sees the waiting decision on the board and confirms it; the card leaves (judged when the list says a decision is waiting, follow-up F-RUI-02.1)', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {
-    // The real list (REC-15 CandidateRow) does not say a Not hired decision is waiting, so after a reload or for another person
-    // the board cannot show it. This half of the old test is judged when a backend card adds that to the list (rec-ui-01.3).
-    test.fixme(true, 'F-RUI-02.1: the candidate list does not carry a waiting Not hired decision yet');
+    // REC-UI-01.6 AC-15 (child lock rec-ui-01.6): the list now says a Not hired decision is waiting (not_hired_pending), so this half of
+    // the old test runs again. The parked fixme of rec-ui-01.3 is gone; the steps are the parked ones.
     const fx: Fx = { page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h };
     const { page, hire } = fx;
     const c = hire!.world.cands.find((x) => x.id === 'cand-bongani')!;
@@ -979,6 +983,8 @@ test.describe('AC-6 Not hired', () => {
     await record(second).click();
     await expect.poll(() => hire!.to('POST', /\/not-hired\/confirm$/).length).toBe(1);
     await expect.poll(async () => (await boardNow(scope2))['Interview']).toEqual(['Tendai Ncube']);
+    // rec-ui-01.6: the confirm, and nothing else: no second Not hired is recorded on top of the waiting one.
+    expect(notHiredCalls(hire!).map((x) => `${x.path.replace(/^.*\/v1\//, '/v1/')} ${x.status}`), 'exactly one confirm, answered 200').toEqual(['/v1/candidates/cand-bongani/not-hired/confirm 200']);
   });
 
   test('AC-6 A pending decision can be cancelled with the word Cancel on the card\'s More actions: it stays in its column and the line goes', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h }) => {

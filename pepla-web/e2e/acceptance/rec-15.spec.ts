@@ -77,7 +77,8 @@ const FORBIDDEN = { error: 'Forbidden' };
 const invalid = (field: string) => ({ error: 'Bad request', code: 'INVALID_FIELD', field });
 const answer = (r: Run) => [statusOf(r), bodyOf(r)];
 const ROUTE = 'GET /v1/candidates';
-const ROW_KEYS = ['applied_at', 'due_at', 'hiring_manager_id', 'id', 'level', 'mine', 'name', 'role_id', 'role_title', 'sla_status', 'stage', 'stage_entered_at'];
+// not_hired_pending: child lock rec-15.1 (REC-UI-01.6, NH-291 rule 1): always present, null when nothing waits.
+const ROW_KEYS = ['applied_at', 'due_at', 'hiring_manager_id', 'id', 'level', 'mine', 'name', 'not_hired_pending', 'role_id', 'role_title', 'sla_status', 'stage', 'stage_entered_at'];
 const ZERO = { all: 0, mine: 0, overdue: 0, due_soon: 0, not_hired: 0 };
 const EMPTY = { candidates: [], counts: ZERO };
 const rowsIn = (r: Run): any[] => (bodyOf(r)?.candidates ?? []) as any[];
@@ -689,7 +690,7 @@ test.describe('REC-15 step A · The candidate lists, from one stage clock', () =
     const list_ = d.components?.schemas?.['CandidateList'];
     const row = d.components?.schemas?.['CandidateRow'];
     expect.soft(!!list_ && !!row, 'CandidateList and CandidateRow are components').toBe(true);
-    expect.soft(looseObjects(d, { $ref: '#/components/schemas/CandidateList' }, 'CandidateList', new Set(), ['nextToken', 'source']), 'every object closed and every field required (but nextToken and source)').toEqual([]);
+    expect.soft(looseObjects(d, { $ref: '#/components/schemas/CandidateList' }, 'CandidateList', new Set(), ['nextToken', 'source', 'personId']), 'every object closed and every field required (but nextToken, source and not_hired_pending.awaiting.personId: child lock rec-15.1)').toEqual([]);
     expect.soft(Object.keys(row?.properties ?? {}).sort(), 'CandidateRow has exactly the rule 4 fields').toEqual(sorted([...ROW_KEYS, 'source']));
     expect.soft(Object.keys(list_?.properties ?? {}).sort(), 'CandidateList has candidates, counts and nextToken').toEqual(['candidates', 'counts', 'nextToken']);
     for (const s of [400, 403, 500]) expect.soft(!!answerSchema(d, ROUTE, s), `the ${s} answer is described`).toBe(true);
@@ -702,7 +703,7 @@ test.describe('REC-15 step A · The candidate lists, from one stage clock', () =
     expect.soft(named('search').maxLength, 'search at most 100').toBe(100);
     expect.soft(params.every((p) => !p.required), 'no query name is required').toBe(true);
     // The checker itself must fail wrong answers.
-    const good = { candidates: [{ id: 'c', name: 'A B', stage: 'APPLIED', stage_entered_at: NOW, due_at: NOW, sla_status: 'ON_TRACK', role_id: null, role_title: 'T', level: 'MID', applied_at: NOW, hiring_manager_id: 'h', mine: false }], counts: ZERO };
+    const good = { candidates: [{ id: 'c', name: 'A B', stage: 'APPLIED', stage_entered_at: NOW, due_at: NOW, sla_status: 'ON_TRACK', role_id: null, role_title: 'T', level: 'MID', applied_at: NOW, hiring_manager_id: 'h', mine: false, not_hired_pending: null }], counts: ZERO }; // not_hired_pending: child lock rec-15.1
     const ck = checker(d);
     expect.soft(ck.check(ok, good), 'a right answer passes').toEqual([]);
     expect.soft(ck.check(ok, { ...good, candidates: [{ ...good.candidates[0], email: 'x@y.z' }] }).length > 0, 'a row with an email fails').toBe(true);
@@ -765,5 +766,168 @@ function readsNothingButCandidates(label: string, r: Run) {
   expect.soft(other.map((c: any) => `${c.service} ${c.op} ${c.table ?? ''}`), `${label}: no role read and no write`).toEqual([]);
   expect.soft(anyWrite(r).length, `${label}: nothing written`).toBe(0);
 }
+
+// ---------------------------------------------------------------- child lock rec-15.1 (REC-UI-01.6, NH-291, AC-14)
+/**
+ * REC-UI-01.6 rule 1 (spec onboarding-cards/specs/REC-UI-01.6.md, decisions D-RUI-01.6a and D-RUI-01.6g): every row of the list carries
+ * `not_hired_pending`, always present: null when the stored row has none, `{ awaiting: { kind: 'HIRING_MANAGER', personId } }` or
+ * `{ awaiting: { kind: 'HR' } }` when a Not hired decision waits. Nothing else of the stored decision (by, reason_code, at, note) is sent.
+ * A stored decision the list cannot read cleanly is sent as kind HR, never as a guessed person. The counts do not change: a waiting decision
+ * is not final. The list makes no extra read for it. Review page: onboarding-cards/specs/REC-UI-01.6-tests-for-review.md.
+ */
+const NH_NOTE = 'zz-rec15-1-note Thabo said 8001015009087 and +27 82 555 7788';
+const NH_BY = 'zz-rec15-1-recorder-sub';
+const NH_AT = '2026-11-22T07:13:29.517Z';
+const NH_REASON = 'SALARY_MISMATCH';
+const stored = (awaiting: unknown, extra: Record<string, unknown> = {}) => ({ by: NH_BY, reason_code: NH_REASON, at: NH_AT, ...(awaiting === undefined ? {} : { awaiting }), note: NH_NOTE, ...extra });
+const HM_WAIT = (personId: string) => ({ awaiting: { kind: 'HIRING_MANAGER', personId } });
+const HR_WAIT = { awaiting: { kind: 'HR' } };
+/** None of the stored decision's own values is anywhere in the answer (text check on the whole answer). */
+function noStoredDecision(label: string, r: Run) {
+  const text = JSON.stringify(bodyOf(r) ?? null);
+  for (const v of [NH_NOTE, 'zz-rec15-1-note', '8001015009087', '555 7788', NH_BY, NH_AT, NH_REASON]) expect.soft(text.includes(v), `${label}: "${v}" is not in the answer`).toBe(false);
+  expect.soft(/"(by|reason_code|reason|at|note|recorded_by|decided_by)"\s*:/.test(text), `${label}: no by, reason_code, at or note key`).toBe(false);
+}
+/** A plain description of every AWS call of a run, in order (the call checks of rec-15: the same reads with and without a waiting decision). */
+const callsOf = (r: Run) => awsOf(r).map((c: any) => `${c.service} ${c.op} ${c.table ?? ''} ${c.input?.IndexName ?? ''}`);
+
+test.describe('REC-UI-01.6 AC-14 · The list carries a waiting Not hired decision (child lock rec-15.1)', () => {
+  test('AC-14 A row waiting for a hiring manager answers the stored person id, one waiting for HR answers kind HR, every other row answers null; nothing else of the decision is sent', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    // i1 is hmA's candidate; the stored decision waits for hm2A, so a list that sends the role's or the row's manager instead is caught.
+    let t = withCandidate(world(), K.i1, { not_hired_pending: stored({ kind: 'HIRING_MANAGER', personId: SUB.hm2A }) });
+    t = withCandidate(t, K.s1, { not_hired_pending: stored({ kind: 'HR' }) });
+    const r = list(C.recruiter, {}, t);
+    expect(statusOf(r), `a Recruiter lists all roles (${describe(r)})`).toBe(200);
+    for (const x of rowsIn(r)) rowIsRight('waiting decisions', x, SUB.recA);
+    expect.soft(byId(r, K.i1)?.not_hired_pending, 'i1: waits for the stored person (hm2A), exactly').toEqual(HM_WAIT(SUB.hm2A));
+    expect.soft(byId(r, K.s1)?.not_hired_pending, 's1: waits for any HR person, exactly (no personId)').toEqual(HR_WAIT);
+    for (const x of rowsIn(r).filter((y) => ![K.i1, K.s1].includes(y.id))) {
+      expect.soft('not_hired_pending' in x, `${x.id}: the field is present`).toBe(true);
+      expect.soft(x.not_hired_pending, `${x.id}: null, nothing waits`).toBeNull();
+    }
+    noStoredDecision('all roles', r);
+    // The same on the role's list, a stage filter, a search and the page after a token: one row shape everywhere.
+    const fleet = list(C.recruiter, { role_id: R.fleet }, t);
+    expect.soft([byId(fleet, K.i1)?.not_hired_pending, byId(fleet, K.s1)?.not_hired_pending, byId(fleet, K.a1)?.not_hired_pending], 'the role list: the same three answers').toEqual([HM_WAIT(SUB.hm2A), HR_WAIT, null]);
+    const inInterview = list(C.recruiter, { stage: 'INTERVIEW' }, t);
+    expect.soft(byId(inInterview, K.i1)?.not_hired_pending, 'stage INTERVIEW: i1 is still there, waiting').toEqual(HM_WAIT(SUB.hm2A));
+    const found = list(C.recruiter, { search: 'tendai' }, t);
+    expect.soft(byId(found, K.s1)?.not_hired_pending, 'a search finds s1 with the same answer').toEqual(HR_WAIT);
+    const paged = walk(C.recruiter, {}, t, 4);
+    expect.soft(paged.rows.find((x) => x.id === K.i1)?.not_hired_pending, 'walked page by page: the same answer').toEqual(HM_WAIT(SUB.hm2A));
+    for (const [label, run] of [['role list', fleet], ['stage', inInterview], ['search', found], ...paged.runs.map((x, i) => [`page ${i + 1}`, x] as const)] as const) noStoredDecision(label, run);
+    // The stored decision itself is left as it is (the list only reads).
+    noWrite('the list', t, r);
+    fits('AC-14 waiting', r, fleet, inInterview, found, ...paged.runs);
+  });
+
+  test('AC-14 A stored decision the list cannot read cleanly answers kind HR, never a guessed or copied person; extra stored keys never travel', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    const cases: Array<[string, string, unknown, unknown]> = [
+      ['awaiting missing', K.a1, stored(undefined), HR_WAIT],
+      ['awaiting is an empty map', K.a2, stored({}), HR_WAIT],
+      ['an unknown kind', K.s1, stored({ kind: 'PANEL', personId: SUB.hmA }), HR_WAIT],
+      ['HIRING_MANAGER with no personId', K.i1, stored({ kind: 'HIRING_MANAGER' }), HR_WAIT],
+      ['HIRING_MANAGER with an empty personId', K.i2, stored({ kind: 'HIRING_MANAGER', personId: '' }), HR_WAIT],
+      ['HIRING_MANAGER with a number for personId', K.o1, stored({ kind: 'HIRING_MANAGER', personId: 42 }), HR_WAIT],
+      ['HR that also names a person', K.o2, stored({ kind: 'HR', personId: SUB.hm2A }), HR_WAIT],
+      ['HIRING_MANAGER with a name and an email stored next to it', K.rc, stored({ kind: 'HIRING_MANAGER', personId: SUB.hmA, name: 'zz-stored-name Sipho', email: 'zz-stored@example.test' }), HM_WAIT(SUB.hmA)],
+      ['a lower-case kind', K.ad, stored({ kind: 'hiring_manager', personId: SUB.hmA }), HR_WAIT],
+      ['a decision with extra keys of its own', K.g1, stored({ kind: 'HR' }, { decided_by_kind: 'zz-kind', confirmed_by: 'zz-confirmer', settingVersions: { x: 1 } }), HR_WAIT],
+    ];
+    let t = world();
+    for (const [, id, value] of cases) t = withCandidate(t, id, { not_hired_pending: value });
+    const r = list(C.recruiter, {}, t);
+    expect(statusOf(r), `the list answers (${describe(r)})`).toBe(200);
+    for (const [label, id, , want] of cases) expect.soft(byId(r, id)?.not_hired_pending, `${label} (${id})`).toEqual(want);
+    const text = JSON.stringify(bodyOf(r));
+    for (const v of ['zz-stored-name', 'zz-stored@', 'zz-kind', 'zz-confirmer', 'settingVersions', 'PANEL', 'hiring_manager"']) expect.soft(text.includes(v), `"${v}" is not in the answer`).toBe(false);
+    expect.soft(text.includes(`"personId":${42}`) || text.includes('"personId":""'), 'no number and no empty text as a personId').toBe(false);
+    noStoredDecision('odd decisions', r);
+    for (const x of rowsIn(r)) rowIsRight('odd decisions', x, SUB.recA);
+    fits('AC-14 odd decisions', r);
+  });
+
+  test('AC-14 Company B never sees A\'s row or its decision; a hiring manager sees the field only on rows they could already see, even when the decision names them; counts and reads do not change', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    const plainWorld = world();
+    // i1 (hmA's) waits for hm2A; s2 (hm2A's) waits for hmA; b1 is B's own waiting decision.
+    let t = withCandidate(plainWorld, K.i1, { not_hired_pending: stored({ kind: 'HIRING_MANAGER', personId: SUB.hm2A }) });
+    t = withCandidate(t, K.s2, { not_hired_pending: stored({ kind: 'HIRING_MANAGER', personId: SUB.hmA }) });
+    t = withCandidate(t, K.b1, { not_hired_pending: stored({ kind: 'HR' }, { note: 'zz-b-note' }) });
+    // The stray row x1 (A's partition, B's stamp) also waits: a waiting decision never lets a row past the company check.
+    t = withCandidate(t, K.x1, { not_hired_pending: stored({ kind: 'HR' }) });
+    // Company B: only B's rows, B's own decision, nothing of A (not by a role id of A, a stage filter or a search either).
+    for (const q of [{}, { role_id: R.fleet }, { stage: 'INTERVIEW' }, { search: 'kagiso' }, { mine: 'true' }] as Array<Record<string, string>>) {
+      const b = list(C.recruiterB, q, t);
+      expect.soft(statusOf(b), `B ${JSON.stringify(q)}: 200`).toBe(200);
+      const text = JSON.stringify(bodyOf(b));
+      for (const v of [K.i1, K.s2, SUB.hm2A, SUB.hmA, 'Kagiso', 'Lwazi']) expect.soft(text.includes(v), `B ${JSON.stringify(q)}: "${v}" of A is not in the answer`).toBe(false);
+      expect.soft(rowsIn(b).every((x) => [K.b1, K.bA].includes(x.id)), `B ${JSON.stringify(q)}: only B's rows`).toBe(true);
+      noStoredDecision(`B ${JSON.stringify(q)}`, b);
+      fits(`AC-14 B ${JSON.stringify(q)}`, b);
+    }
+    const b = list(C.recruiterB, {}, t);
+    expect.soft(byId(b, K.b1)?.not_hired_pending, 'B sees its own waiting decision').toEqual(HR_WAIT);
+    expect.soft(JSON.stringify(bodyOf(b)).includes('zz-b-note'), 'and not its note').toBe(false);
+    // A's Recruiter does not see B's decision.
+    expect.soft(JSON.stringify(bodyOf(list(C.recruiter, {}, t))).includes(K.b1), 'A does not see b1').toBe(false);
+    // The stray row stays out of every list, waiting decision or not.
+    for (const [who, q] of [[C.recruiter, {}], [C.recruiter, { role_id: R.fleet }], [C.recruiter, { stage: 'APPLIED' }], [C.recruiter, { search: 'Stray' }], [C.hmC1, {}], [C.recruiterB, {}], [C.recruiterB, { role_id: R.fleet }]] as Array<[any, Record<string, string>]>) {
+      expect.soft(JSON.stringify(bodyOf(list(who, q, t))).includes(K.x1), `${who.name} ${JSON.stringify(q)}: the stray row x1 is not listed, though it waits`).toBe(false);
+    }
+    // Hiring managers: hmA sees only hmA's rows (i1 with its field; never s2, whose decision names hmA); hm2A the other way round.
+    const hm = list(C.hmC1, {}, t);
+    expect.soft(sorted(idsIn(hm)), 'hmA sees exactly the rows it saw before').toEqual(sorted(idsIn(list(C.hmC1, {}, plainWorld))));
+    expect.soft(byId(hm, K.i1)?.not_hired_pending, 'hmA: i1 with its field').toEqual(HM_WAIT(SUB.hm2A));
+    expect.soft(idsIn(hm).includes(K.s2), 'hmA does not see s2, though s2\'s decision names hmA').toBe(false);
+    const hm2 = list(C.hmOther, {}, t);
+    expect.soft(sorted(idsIn(hm2)), 'hm2A sees exactly the rows it saw before').toEqual(sorted(idsIn(list(C.hmOther, {}, plainWorld))));
+    expect.soft(byId(hm2, K.s2)?.not_hired_pending, 'hm2A: s2 with its field').toEqual(HM_WAIT(SUB.hmA));
+    expect.soft(idsIn(hm2).includes(K.i1), 'hm2A does not see i1, though i1\'s decision names hm2A').toBe(false);
+    for (const [label, run] of [['hmA', hm], ['hm2A', hm2]] as const) { noStoredDecision(label, run); fits(`AC-14 ${label}`, run); }
+    // Counts: a waiting decision is not final. Same counts as without it, for every caller and filter; Not hired lists only the final ones.
+    for (const [who, q] of [[C.recruiter, {}], [C.recruiter, { role_id: R.fleet }], [C.recruiter, { role_id: R.warehouse }], [C.hmC1, {}], [C.hmOther, {}], [C.recruiterB, {}]] as Array<[any, Record<string, string>]>) {
+      expect.soft(bodyOf(list(who, q, t))?.counts, `${who.name} ${JSON.stringify(q)}: counts unchanged`).toEqual(bodyOf(list(who, q, plainWorld))?.counts);
+    }
+    expect.soft(idsIn(list(C.recruiter, { stage: 'NOT_HIRED' }, t)).some((id) => [K.i1, K.s2].includes(id)), 'a waiting candidate is not in the Not hired list').toBe(false);
+    expect.soft(byId(list(C.recruiter, {}, t), K.i1)?.stage, 'i1 stays in Interview').toBe('INTERVIEW');
+    // No extra read: the AWS calls of a page are the same with and without waiting decisions.
+    for (const [who, q] of [[C.recruiter, {}], [C.recruiter, { role_id: R.fleet }], [C.hmC1, {}], [C.recruiterB, {}]] as Array<[any, Record<string, string>]>) {
+      expect.soft(callsOf(list(who, q, t)), `${who.name} ${JSON.stringify(q)}: the same AWS calls as without a waiting decision`).toEqual(callsOf(list(who, q, plainWorld)));
+    }
+  });
+
+  test('AC-14 api/openapi.yaml: not_hired_pending is a required, nullable, closed object inline under CandidateRow; awaiting is closed with kind HIRING_MANAGER or HR and an optional personId; the checker fails a copied decision', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    const d = doc();
+    const row = d.components?.schemas?.['CandidateRow'];
+    const f = row?.properties?.['not_hired_pending'];
+    expect(f, 'CandidateRow has not_hired_pending').toBeTruthy();
+    expect.soft((row?.required ?? []).includes('not_hired_pending'), 'it is required (always present)').toBe(true);
+    expect.soft([f?.$ref, f?.type, f?.nullable, f?.additionalProperties, [...(f?.required ?? [])]], 'inline, an object, nullable, closed, awaiting required').toEqual([undefined, 'object', true, false, ['awaiting']]);
+    expect.soft(Object.keys(f?.properties ?? {}), 'its one property is awaiting').toEqual(['awaiting']);
+    const a = f?.properties?.awaiting;
+    expect.soft([a?.$ref, a?.type, a?.additionalProperties, [...(a?.required ?? [])]], 'awaiting: inline, an object, closed, kind required').toEqual([undefined, 'object', false, ['kind']]);
+    expect.soft(Object.keys(a?.properties ?? {}).sort(), 'awaiting has kind and personId only').toEqual(['kind', 'personId']);
+    expect.soft([a?.properties?.kind?.type, [...(a?.properties?.kind?.enum ?? [])].sort()], 'kind is HIRING_MANAGER or HR').toEqual(['string', ['HIRING_MANAGER', 'HR']]);
+    expect.soft([a?.properties?.personId?.type, (a?.required ?? []).includes('personId')], 'personId is text and optional').toEqual(['string', false]);
+    const ck = checker(d);
+    const ok = answerSchema(d, ROUTE, 200);
+    const base = { id: 'c', name: 'A B', stage: 'INTERVIEW', stage_entered_at: NOW, due_at: NOW, sla_status: 'ON_TRACK', role_id: null, role_title: 'T', level: 'MID', applied_at: NOW, hiring_manager_id: 'h', mine: false };
+    const page = (p: unknown) => ({ candidates: [{ ...base, not_hired_pending: p }], counts: ZERO });
+    for (const p of [null, HR_WAIT, HM_WAIT('sub-x')]) expect.soft(ck.check(ok, page(p)), `${JSON.stringify(p)} passes`).toEqual([]);
+    const bad: Array<[string, unknown]> = [
+      ['the field left out', undefined], ['the whole stored decision', stored({ kind: 'HR' })], ['a note next to awaiting', { ...HR_WAIT, note: 'x' }],
+      ['by inside awaiting', { awaiting: { kind: 'HR', by: 'x' } }], ['a name inside awaiting', { awaiting: { kind: 'HIRING_MANAGER', personId: 'p', name: 'Sipho' } }],
+      ['an unknown kind', { awaiting: { kind: 'PANEL' } }], ['no kind', { awaiting: {} }], ['no awaiting', {}], ['true', true],
+    ];
+    for (const [label, p] of bad) {
+      const c = p === undefined ? { candidates: [base], counts: ZERO } : page(p);
+      expect.soft(ck.check(ok, c).length > 0, `${label} fails`).toBe(true);
+    }
+  });
+});
 
 void [av, TABLE, ROLES_TABLE];
