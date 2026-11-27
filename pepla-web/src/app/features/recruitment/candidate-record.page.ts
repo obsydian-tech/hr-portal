@@ -11,6 +11,7 @@ import { stageTime } from './candidate-list';
 import { HireApi, newKey, optionsOf, type CandidateEventRow, type RoleOptions } from './hire-api';
 import { InterviewsTab, defaultInterview, type InterviewList } from './interviews/interviews-tab';
 import { ScheduleDrawer } from './interviews/schedule.drawer';
+import { CloseInterviewDialog, type CloseAction } from './interviews/close-interview.dialog';
 import { shortDate } from './hire-format';
 import { INTERVIEWS_TAB_READY, NOTES_TAB_READY, OFFER_TAB_READY } from './hire-flags';
 import { NotHiredDialog, SAVE_FAIL } from './not-hired-dialog';
@@ -73,7 +74,7 @@ function viewOf(r: CandidateRecord): View {
  */
 @Component({
   selector: 'app-candidate-record-page',
-  imports: [InterviewsTab, NotHiredDialog, ScheduleDrawer, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
+  imports: [InterviewsTab, NotHiredDialog, ScheduleDrawer, CloseInterviewDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="pp-stack pp-gap-200">
@@ -108,7 +109,7 @@ function viewOf(r: CandidateRecord): View {
             @if (tab() === 'interviews') {
               <div role="tabpanel" [attr.aria-labelledby]="tabId('interviews')">
                 <app-interviews-tab [state]="interviews()" [list]="interviewRows()" [required]="interviewsRequired()" [chosen]="chosenInterview()" [atInterview]="c.stage === 'INTERVIEW'"
-                  (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" (schedule)="openSchedule($event)" (reschedule)="openReschedule($event)" />
+                  (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" (schedule)="openSchedule($event)" (reschedule)="openReschedule($event)" (act)="openClose($event)" />
               </div>
             } @else if (tab() === 'notes') {
               <div role="tabpanel" class="pp-stack pp-gap-200" [attr.aria-labelledby]="tabId('notes')">
@@ -146,6 +147,7 @@ function viewOf(r: CandidateRecord): View {
     <app-schedule-drawer [candidateId]="id()" [name]="v()?.name ?? ''" [first]="v()?.first ?? ''" [roleTitle]="v()?.roleTitle ?? null" [panelSize]="panelSize()"
       [optionsFailed]="!options()" [interviews]="interviewRows()" [retryOptions]="retryOptions" [reread]="rereadInterviews" [rereadRecord]="rereadRecord"
       (saved)="scheduled($event)" (dismissed)="drawerClosed()" />
+    <app-close-interview-dialog [candidateId]="id()" [reread]="rereadInterviews" (saved)="closeSaved($event)" />
     <pp-move-dialog [stages]="stageList()" [request]="moving()" (confirmed)="move($event)" (dismissed)="moving.set(null)" />
     <app-not-hired-dialog [who]="notHiredFor()" [failed]="notHiredFailed()" (record)="recordNotHired($event)" (dismissed)="notHiredOpen.set(false)" />`,
 })
@@ -158,6 +160,16 @@ export class CandidateRecordPage {
   /** `schedule=new` opens the Schedule drawer (INT-UI-02 rule 2c). */
   readonly scheduleInAddress = input<string | undefined>(undefined, { alias: 'schedule' });
   private readonly drawer = viewChild.required(ScheduleDrawer);
+  private readonly closeDialog = viewChild.required(CloseInterviewDialog);
+  protected openClose(e: { action: CloseAction; id: string }) {
+    const x = this.interviewRows().find((i) => i.id === e.id);
+    if (x) this.closeDialog().open(e.action, x);
+  }
+  protected closeSaved(id: string) {
+    this.chosenInterview.set(id);
+    this.writeAddress();
+    setTimeout(() => (this.host.querySelector('ul[aria-label="Interviews"] > li[aria-current="true"]') as HTMLElement | null)?.focus());
+  }
   /** The address asked for the drawer and it is open: `schedule=new` stays in the address until it closes. */
   private scheduleByAddress = false;
   private scheduleWanted: string | null = null;

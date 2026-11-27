@@ -1,9 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { PpAvatarGroup, PpButton, PpCard, PpDeadline, PpEmptyState, PpLozenge, PpPerson, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, type IconName, type Status } from '../../../ds';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
+import { PpAvatarGroup, PpButton, PpCard, PpDropdownMenu, PpMenuItem, PpDeadline, PpEmptyState, PpLozenge, PpPerson, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, type IconName, type Status } from '../../../ds';
 import type { components } from '../../../core/api/openapi';
 import { shortDate } from '../hire-format';
 import { DRAWER_LINES, INTERVIEW_WORDS as W, typeWords } from './interview-words';
-import { RESCHEDULE_READY, SCHEDULE_READY } from '../hire-flags';
+import { CLOSE_ACTIONS_READY, RESCHEDULE_READY, SCHEDULE_READY } from '../hire-flags';
+import type { CloseAction } from './close-interview.dialog';
 
 export type InterviewList = components['schemas']['InterviewList'];
 type Item = InterviewList['interviews'][number];
@@ -73,7 +77,7 @@ export function viewOf(x: Item, now: number): View {
 
 @Component({
   selector: 'app-interviews-tab',
-  imports: [PpAvatarGroup, PpButton, PpCard, PpDeadline, PpEmptyState, PpLozenge, PpPerson, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup],
+  imports: [PpAvatarGroup, PpButton, PpCard, PpDropdownMenu, PpMenuItem, PpDeadline, PpEmptyState, PpLozenge, PpPerson, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @switch (state()) {
@@ -124,6 +128,15 @@ export function viewOf(x: Item, now: number): View {
                   @if (c.note) { <span class="pp-text pp-text--small pp-text--strong">Note for the candidate</span><span class="pp-text pp-text--small">{{ c.note }}</span> }
                 </div>
                 @if (canReschedule()) { <span><button ppButton icon="calendar-days" type="button" (click)="reschedule.emit(c.id)">{{ ctl['reschedule'] }}</button></span> }
+                @if (closeActions().length) {
+                  @if (phone()) {
+                    @for (a of closeActions(); track a.action) { <button ppButton [icon]="a.icon" type="button" [block]="true" (click)="act.emit({ action: a.action, id: c.id })">{{ a.words }}</button> }
+                  } @else {
+                    <pp-dropdown-menu [label]="menuName()">
+                      @for (a of closeActions(); track a.action) { <button ppMenuItem [icon]="a.icon" (click)="act.emit({ action: a.action, id: c.id })">{{ a.words }}</button> }
+                    </pp-dropdown-menu>
+                  }
+                }
                 @if (closedType(); as t) { <span><button ppButton icon="calendar-plus" type="button" [attr.aria-label]="closedName(t)" (click)="schedule.emit(t)">{{ ctl['schedule'] }}</button></span> }
                 <ul class="pp-stack pp-gap-150">
                   @for (l of c.lines; track $index) {
@@ -165,6 +178,19 @@ export class InterviewsTab {
     const x = this.chosenItem();
     return this.canSchedule() && x && (x.status === 'CANCELLED' || x.status === 'DID_NOT_HAPPEN') && x.type ? x.type : null;
   });
+  readonly act = output<{ action: CloseAction; id: string }>();
+  protected readonly phone = toSignal(inject(BreakpointObserver).observe('(max-width: 767px)').pipe(map((r) => r.matches)), { initialValue: false });
+  protected readonly closeActions = computed(() => {
+    const x = this.chosenItem();
+    if (!CLOSE_ACTIONS_READY || this.state() !== 'ready' || !x || x.status !== 'SCHEDULED' || !typeWords(x.type)) return [];
+    const all: Array<{ action: CloseAction; on: boolean; icon: IconName; words: string }> = [
+      { action: 'cancel', on: x.can?.cancel === true, icon: 'calendar-x' as IconName, words: this.ctl['cancel']! },
+      { action: 'did_not_happen', on: x.can?.did_not_happen === true, icon: 'circle-slash' as IconName, words: this.ctl['didNotHappen']! },
+      { action: 'complete', on: x.can?.mark_done === true, icon: 'circle-check' as IconName, words: this.ctl['markDone']! },
+    ];
+    return all.filter((a) => a.on);
+  });
+  protected readonly menuName = computed(() => (W.close['menu'] ?? '').replace('{type}', (typeWords(this.chosenItem()?.type) ?? '').toLowerCase()));
   protected closedName(t: string) { return DRAWER_LINES.closedButton(typeWords(t) ?? t); }
   protected readonly views = computed(() => this.list().map((x) => viewOf(x, Date.now())));
   protected readonly current = computed(() => this.views().find((v) => v.id === this.chosen()) ?? null);
