@@ -2222,6 +2222,15 @@ export interface components {
             applied_at: string | null;
             hiring_manager_id: string | null;
             mine: boolean;
+            /** @description REC-UI-01.6. Who a waiting Not hired decision waits on; null when nothing waits. Never the reason, the note, who recorded it or when. */
+            not_hired_pending: {
+                awaiting: {
+                    /** @enum {string} */
+                    kind: "HIRING_MANAGER" | "HR";
+                    /** @description Only when kind is HIRING_MANAGER */
+                    personId?: string;
+                };
+            } | null;
         };
         /** @description REC-15. A page of the candidate list and the counts over all of the caller's rows. */
         CandidateList: {

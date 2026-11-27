@@ -87,6 +87,14 @@ function readQuery(q) {
   return out;
 }
 
+/** REC-UI-01.6 rule 1: who a waiting Not hired decision waits on, and nothing else of it (never by, reason_code, at or note). */
+function pendingOf(p) {
+  if (p === undefined || p === null) return null;
+  const a = p && typeof p === 'object' ? p.awaiting : undefined;
+  if (a && typeof a === 'object' && a.kind === 'HIRING_MANAGER' && typeof a.personId === 'string' && a.personId) return { awaiting: { kind: 'HIRING_MANAGER', personId: a.personId } };
+  return { awaiting: { kind: 'HR' } };
+}
+
 /** GET /v1/candidates */
 export async function listCandidates(ctx, query = {}) {
   const q = readQuery(query);
@@ -114,6 +122,7 @@ export async function listCandidates(ctx, query = {}) {
       stage_entered_at: enteredAt(r, stage), due_at, sla_status, role_id: r.role_id ?? null,
       role_title: (r.role_id && titles.get(r.role_id)) || r.positionTitle || null, level: r.positionLevel ?? null, ...(r.source !== undefined ? { source: r.source } : {}),
       applied_at: r.appliedDate ?? r.createdAt ?? null, hiring_manager_id: r.hiringManagerId ?? null, mine: r.hiringManagerId === ctx.personId || r.added_by === ctx.personId,
+      not_hired_pending: pendingOf(r.not_hired_pending),
     };
     const pos = sla_status === null ? [2, -(Date.parse(c.stage_entered_at) || 0), c.id] : due_at === null ? [1, 0, c.id] : [0, Date.parse(due_at), c.id];
     return { c, pos, email: String(r.email ?? '').toLowerCase() };

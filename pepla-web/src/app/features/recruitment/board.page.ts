@@ -129,7 +129,7 @@ export class BoardPage implements OnInit {
     if (s) q.set('search', s);
     const r = await this.api.call<{ candidates: HireCandidate[]; counts: HireCounts }>('GET', `/v1/candidates?${q}`);
     if (!r || r.status !== 200) return this.status.set('failed');
-    this.rows = r.body.candidates;
+    this.rows = r.body.candidates.map((c) => (c.not_hired_pending ? { ...c, pending: this.pendingFrom(c.not_hired_pending.awaiting) } : c));
     this.counts.set(r.body.counts);
     this.stages.set(this.build(this.rows));
     this.status.set('ready');
@@ -203,16 +203,20 @@ export class BoardPage implements OnInit {
       : await this.api.call<{ pending?: boolean; awaiting?: { kind?: string; personId?: string } }>('POST', `/v1/candidates/${row.id}/not-hired`, { reason });
     if (r?.status !== 200) { this.nhFailed.set(true); return; }
     if (r.body?.pending === true) {
-      const a = r.body.awaiting;
-      const id = a?.kind === 'HIRING_MANAGER' ? a.personId : undefined;
-      const name = !id ? undefined : this.roleBody?.hiring_manager_id === id && this.roleBody.hiring_manager_name ? this.roleBody.hiring_manager_name : this.managers.find((m) => m.id === id)?.name;
-      row.pending = { awaiting: name ? { name } : a?.kind === 'HR' ? { hr: true } : {} };
+      row.pending = this.pendingFrom(r.body.awaiting);
       this.stages.set(this.build(this.rows));
       this.nhFor.set({ ...row });
       return;
     }
     this.nhFor.set(null);
     await this.reload();
+  }
+
+  /** Who a waiting decision waits on, as the card says it: the hiring manager's name when known, any HR person, or nobody named. */
+  private pendingFrom(a: { kind?: string; personId?: string } | undefined) {
+    const id = a?.kind === 'HIRING_MANAGER' ? a.personId : undefined;
+    const name = !id ? undefined : this.roleBody?.hiring_manager_id === id && this.roleBody.hiring_manager_name ? this.roleBody.hiring_manager_name : this.managers.find((m) => m.id === id)?.name;
+    return { awaiting: name ? { name } : a?.kind === 'HR' ? { hr: true } : {} };
   }
 
   private async cancelPending(row: HireCandidate) {

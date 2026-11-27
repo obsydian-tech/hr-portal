@@ -77,7 +77,7 @@ export async function addCandidate(ctx, { body, headerKey }) {
   const candidate = {
     id: candidateId, name: `${row.firstName} ${row.lastName}`, stage: 'APPLIED', stage_entered_at: now, due_at, sla_status, role_id: role.role_id,
     role_title: role.job_title, level: role.level ?? null, ...(row.source !== undefined ? { source: row.source } : {}), applied_at: now,
-    hiring_manager_id: role.hiring_manager_id ?? null, mine: true,
+    hiring_manager_id: role.hiring_manager_id ?? null, mine: true, not_hired_pending: null,
   };
   const answer = { candidateId, candidate };
   try {
