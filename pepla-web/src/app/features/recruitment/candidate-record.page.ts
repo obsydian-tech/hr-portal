@@ -9,7 +9,8 @@ import type { components } from '../../core/api/openapi';
 import { historyDays } from './candidate-history';
 import { stageTime } from './candidate-list';
 import { HireApi, newKey, optionsOf, type CandidateEventRow, type RoleOptions } from './hire-api';
-import { InterviewsTab, defaultInterview, type InterviewList } from './interviews/interviews-tab';
+import { InterviewsTab, defaultInterview, type InterviewList, type SummaryState } from './interviews/interviews-tab';
+import { summaryOf } from './interviews/panel-summary';
 import { ScheduleDrawer } from './interviews/schedule.drawer';
 import { CloseInterviewDialog, type CloseAction } from './interviews/close-interview.dialog';
 import { FeedbackSheet } from './interviews/feedback.sheet';
@@ -116,7 +117,8 @@ function viewOf(r: CandidateRecord): View {
             @if (tab() === 'interviews') {
               <div role="tabpanel" [attr.aria-labelledby]="tabId('interviews')">
                 <app-interviews-tab [state]="interviews()" [list]="interviewRows()" [required]="interviewsRequired()" [chosen]="chosenInterview()" [atInterview]="c.stage === 'INTERVIEW'"
-                  (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" (schedule)="openSchedule($event)" (reschedule)="openReschedule($event)" (act)="openClose($event)" (capture)="openCapture($event)" />
+                  (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" (schedule)="openSchedule($event)" (reschedule)="openReschedule($event)" (act)="openClose($event)" (capture)="openCapture($event)"
+                  [summary]="summaryState()" (retryScores)="readScores()" />
               </div>
             } @else if (tab() === 'notes') {
               <div role="tabpanel" class="pp-stack pp-gap-200" [attr.aria-labelledby]="tabId('notes')">
@@ -219,6 +221,33 @@ export class CandidateRecordPage {
   protected readonly interviewsRequired = signal<{ done: number; total: number } | null>(null);
   protected readonly chosenInterview = signal<string | null>(null);
   private interviewRun = 0;
+  /** INT-UI-05: the scores read, at most once per interviews read (rule 4); a failure or a refusal is kept like an answer (D11). */
+  private readonly scores = signal<'idle' | 'loading' | 'failed' | 'done'>('idle');
+  private readonly scoreEntries = signal<unknown>(null);
+  private scoresRun = 0;
+  private dropScores() { this.scoresRun++; this.scores.set('idle'); this.scoreEntries.set(null); }
+  protected async readScores() {
+    const run = ++this.scoresRun;
+    this.scores.set('loading');
+    const r = await this.api.call<{ interviews?: unknown }>('GET', `/v1/candidates/${encodeURIComponent(this.id())}/scores`);
+    if (run !== this.scoresRun) return;
+    if (r && r.status === 200) { this.scoreEntries.set(r.body && typeof r.body === 'object' ? r.body.interviews : null); this.scores.set('done'); }
+    else if (r && (r.status === 403 || r.status === 404)) { this.scoreEntries.set(null); this.scores.set('done'); }
+    else this.scores.set('failed');
+  }
+  protected readonly summaryState = computed<SummaryState>(() => {
+    const st = this.scores();
+    if (st === 'loading' || st === 'idle') return st === 'loading' ? { kind: 'loading' } : { kind: 'none' };
+    if (st === 'failed') return { kind: 'failed' };
+    const id = this.chosenInterview();
+    const s = id ? summaryOf(this.scoreEntries(), id) : null;
+    return s ? { kind: 'ready', summary: s } : { kind: 'none' };
+  });
+  private readonly scoresWhenDone = effect(() => {
+    if (this.interviews() !== 'ready' || this.scores() !== 'idle') return;
+    const id = this.chosenInterview();
+    if (this.interviewRows().some((x) => x.id === id && x.status === 'COMPLETED')) untracked(() => void this.readScores());
+  });
   /** Each read of the history gets its own run: an answer that comes back after the candidate changed or the history was dropped is thrown away. */
   private noteRun = 0;
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
@@ -353,6 +382,7 @@ export class CandidateRecordPage {
   }
 
   private dropInterviews() {
+    this.dropScores();
     this.interviewRun++;
     this.interviewRows.set([]);
     this.interviewsRequired.set(null);
@@ -363,6 +393,7 @@ export class CandidateRecordPage {
   /** The interviews read for the candidate on the page. An answer that comes back after the address changed is thrown away. */
   private async readInterviews() {
     const run = ++this.interviewRun;
+    this.dropScores();
     const id = this.id();
     const wanted = this.chosenInterview();
     this.interviews.set('loading');
