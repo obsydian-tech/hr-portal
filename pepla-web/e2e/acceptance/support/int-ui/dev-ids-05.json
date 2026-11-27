@@ -1,0 +1,17 @@
+{
+  "candidate": "CAND-INTUI05DEVAAAAAAAAAAAA1",
+  "firstName": "Ines",
+  "lastName": "Seed-Scores",
+  "done": { "id": "iv-intui05-dev-done", "type": "Technical" },
+  "empty": { "id": "iv-intui05-dev-empty", "type": "Phone screen" },
+  "votes": [
+    { "rating": "YES", "scores": { "technical": 4, "communication": 4, "culturalFit": 4, "problemSolving": 4 } },
+    { "rating": "NO", "scores": { "technical": 2, "communication": 3, "culturalFit": 3, "problemSolving": 3 } }
+  ],
+  "expected": {
+    "overall": "3.4",
+    "criteria": [["Technical", "3.0"], ["Communication", "3.5"], ["Cultural fit", "3.5"], ["Problem solving", "3.5"]],
+    "decisions": "1 Yes · 1 No",
+    "split": true
+  }
+}

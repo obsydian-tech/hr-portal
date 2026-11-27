@@ -330,8 +330,10 @@ export async function interviewsRegion(page: Page): Promise<Locator> {
 /** T-I2: the list of interviews is the kit's list labelled "Interviews"; each of its items is one interview. */
 export const LIST = 'ul[aria-label="Interviews"], ol[aria-label="Interviews"]';
 export const rowsOf = (page: Page): Locator => main(page).locator(`:is(${LIST}) > li`);
-/** T-I3: the chosen interview is the one `.pp-card` in the tab that is neither inside the list nor holds it. */
-export const CHOSEN = `.pp-card:not(:is(${LIST}) *):not(:has(:is(${LIST}))):not(:has(.pp-empty-state))`;
+/** T-I3: the chosen interview is the one `.pp-card` in the tab that is neither inside the list nor holds it. Child lock int-ui-01.4
+ *  (INT-UI-05, cards/int-ui-05.md T-P1): the panel summary is the kit's sunken card inside the chosen one, so a card inside another card
+ *  and a sunken card are parts of the chosen interview, never a second one. */
+export const CHOSEN = `.pp-card:not(:is(${LIST}) *):not(:has(:is(${LIST}))):not(:has(.pp-empty-state)):not(.pp-card .pp-card):not(.pp-card--sunken)`;
 export const chosenOf = (page: Page): Locator => main(page).locator(CHOSEN);
 
 /** The tab has drawn: rows, the empty line or the failure line. */

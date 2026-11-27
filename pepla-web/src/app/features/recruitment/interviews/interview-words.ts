@@ -31,6 +31,11 @@ export const INTERVIEW_WORDS = {
     whereEmpty: 'Choose in person or online', placeEmpty: 'Enter the place', panelEmpty: 'Choose at least one person',
     emailWrong: 'Enter an email address, like name@company.co.za', saveFail: 'Your change could not be saved. Try again.',
   } as Record<string, string | null>,
+  /** INT-UI-05: the panel summary (W-8, S-7, kit words, W-N1 and W-N2 under rule 7a). */
+  summary: {
+    heading: 'Panel scores', split: 'Split panel', outOf: 'out of 5', criteria: 'Scores by criterion',
+    failed: 'Panel scores could not be loaded.', loading: 'Loading the panel scores', tryAgain: 'Try again',
+  } as Record<string, string | null>,
   /** INT-UI-03: the close dialogs and the menu ({type} is filled in by the page, lower-cased). */
   close: {
     cancelTitle: 'Cancel the {type} interview?', dnhTitle: 'Record that the {type} interview did not happen', doneTitle: 'Mark the {type} interview as done?',
