@@ -1667,6 +1667,44 @@ def seed_recui04(ddb, tenant_id: str) -> int:
     return 1 + len(old)
 
 
+def seed_recui01_6(ddb, tenant_id: str) -> int:
+    """REC-UI-01.6 AC-19: one role of its own and one candidate on it, in Interview, with a Not hired decision waiting for any HR person,
+    recorded by a seed id that is no test login. Written whole with PutItem every run (the HR login's confirm on the last run removed
+    the decision and wrote history and settingVersions), and the candidate's STAGE# history rows are deleted. The role is not a REC-04
+    role, so reset-dev-rec04.py leaves it alone. Company A's settings are not touched. Ids in support/rec-ui-01.6/dev-ids.json. Idempotent.
+    """
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-ui-01.6" / "dev-ids.json").read_text())
+    now = "2026-11-27T08:00:00.000Z"
+    cid, rid = ids["candidate"], ids["role"]
+    ddb.put_item(TableName=ROLES_TABLE, Item={
+        "pk": {"S": f"TENANT#{tenant_id}"}, "sk": {"S": f"ROLE#{rid}"}, "tenant_id": {"S": tenant_id}, "role_id": {"S": rid},
+        "job_title": {"S": ids["roleTitle"]}, "department": {"S": "Operations"}, "level": {"S": "MID"},
+        "hiring_manager_id": {"S": OTHER_HIRING_MANAGER},
+        "criteria": {"L": [{"M": {"key": {"S": k}, "label": {"S": l}}} for k, l in REC04_CRITERIA]},
+        "panel_size": {"N": str(REC04_PANEL["MID"])}, "status": {"S": "OPEN"}, "opened_at": {"S": now},
+        "opened_by": {"S": "seed-dev"}, "legacy": {"BOOL": False}, "seed": {"S": SEED_TAG},
+    })
+    pk = f"CANDIDATE#{cid}"
+    stale = ddb.query(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                      ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": "STAGE#"}}, ProjectionExpression="PK, SK")
+    for item in stale.get("Items", []):
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+    ddb.put_item(TableName=STATE_TABLE, Item={
+        "PK": {"S": pk}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+        "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "role_id": {"S": rid},
+        "firstName": {"S": ids["firstName"]}, "lastName": {"S": ids["lastName"]},
+        "email": {"S": f"pepla-demo-recui016.waiting@{MAIL_DOMAIN}"},
+        "positionTitle": {"S": ids["roleTitle"]}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+        "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+        "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now}, "seed": {"S": SEED_TAG},
+        "not_hired_pending": {"M": {
+            "by": {"S": ids["recorder"]}, "reason_code": {"S": ids["reasonCode"]}, "at": {"S": now},
+            "awaiting": {"M": {"kind": {"S": "HR"}}}, "note": {"S": ids["note"]},
+        }},
+    })
+    return 2 + len(stale.get("Items", []))
+
+
 def seed_int04(ddb, tenant_id: str) -> int:
     """INT-04: turn company A's interview emails on and put the INT-04 dev candidate back every run (INT-04.md, "Dev seed").
 
@@ -1913,6 +1951,11 @@ def main() -> None:
         seed_recui04(ddb, tid)
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-UI-04.2 candidate was not written")
+
+    try:
+        seed_recui01_6(ddb, tid)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: a TalentFlow table is not there; the REC-UI-01.6 rows were not written")
 
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 

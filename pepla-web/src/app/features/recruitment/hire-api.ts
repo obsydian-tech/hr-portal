@@ -27,6 +27,8 @@ export interface HireCandidate {
   interviews_required?: number;
   offer_state?: string;
   pending?: HirePending;
+  /** REC-UI-01.6: who a waiting Not hired decision waits on, as the list sends it (null when nothing waits). */
+  not_hired_pending?: components['schemas']['CandidateRow']['not_hired_pending'];
 }
 
 /** One row of a candidate's history, as `api/openapi.yaml` describes it (REC-15 step D). */

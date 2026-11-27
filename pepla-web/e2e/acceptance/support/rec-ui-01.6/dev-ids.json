@@ -1,0 +1,10 @@
+{
+  "role": "role-seed-recui016-waiting",
+  "roleTitle": "Waiting decision check",
+  "candidate": "CAND-RECUI016WAITING0000000001",
+  "firstName": "Rec",
+  "lastName": "Seed-Waiting",
+  "recorder": "seed-recui016-recorder-not-a-login",
+  "note": "zz-recui016-seed-note do not show",
+  "reasonCode": "NOT_RIGHT_SKILLS"
+}

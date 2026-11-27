@@ -26,6 +26,11 @@ import { answerSchema, checker, operation, readDoc, type Doc } from '../rec-14/s
  * as the real REC-02 does: `{ candidateId, pending: true, awaiting: { kind, personId? } }`, with no name in it.
  * A failure a test sets up with `refuse()` stands for a gateway or network failure and is not checked against the file.
  *
+ * Child lock rec-ui-01.6 (REC-UI-01.6, NH-291 rule 1, D-RUI-01.6a and g): every row also carries `not_hired_pending`, as the real list
+ * sends it: null when nothing waits, else `{ awaiting: { kind: 'HIRING_MANAGER', personId } }` or `{ awaiting: { kind: 'HR' } }`, and
+ * nothing more (never who recorded it, the reason, when, the note or a name). A waiting HIRING_MANAGER decision with no person id is
+ * sent as kind HR, as the real list does. So after a reload, or for another person, the board knows a decision is waiting.
+ *
  * REC-14 rule 17 (child lock rec-ui-01.2): the fake cannot drift from api/openapi.yaml.
  *   - every request to a method and path the file does not have, or without a `required` query parameter, is refused
  *     and written to `contractErrors` (so today's `GET /v1/config` with no `configType` fails here as it fails for real);
@@ -574,15 +579,24 @@ export class HireFake {
     };
   }
   /** One row exactly as api/openapi.yaml CandidateRow has it (REC-15 rule 4): no other key, no email, phone or ID number. */
-  candRow(c: Cand): { id: string; name: string; stage: Stage; stage_entered_at: string; due_at: string | null; sla_status: Sla | null; role_id: string | null; role_title: string | null; level: string | null; source?: string; applied_at: string | null; hiring_manager_id: string | null; mine: boolean } {
+  candRow(c: Cand): { id: string; name: string; stage: Stage; stage_entered_at: string; due_at: string | null; sla_status: Sla | null; role_id: string | null; role_title: string | null; level: string | null; source?: string; applied_at: string | null; hiring_manager_id: string | null; mine: boolean; not_hired_pending: NotHiredPending | null } {
     const open = this.slaOf(c) !== null;
     const role = this.world.roles.find((r) => r.role_id === c.role_id);
     return {
       id: c.id, name: c.name, stage: c.stage, stage_entered_at: c.stage_entered_at, due_at: open ? c.due_at : null, sla_status: this.slaOf(c),
       role_id: c.role_id || null, role_title: role?.job_title ?? c.role_title ?? null, level: c.level || null, ...(c.source ? { source: c.source } : {}),
       applied_at: c.applied_at ?? c.stage_entered_at, hiring_manager_id: role?.hiring_manager_id ?? null, mine: !!c.mine,
+      not_hired_pending: pendingOf(c.pending), // child lock rec-ui-01.6
     };
   }
+}
+
+/** Child lock rec-ui-01.6: what the real list sends of a waiting decision (REC-UI-01.6 rule 1): who it waits on, nothing else. */
+export type NotHiredPending = { awaiting: { kind: 'HIRING_MANAGER'; personId: string } | { kind: 'HR' } };
+function pendingOf(p: Pending | undefined): NotHiredPending | null {
+  if (!p) return null;
+  const a = p.awaiting;
+  return a?.kind === 'HIRING_MANAGER' && typeof a.personId === 'string' && a.personId ? { awaiting: { kind: 'HIRING_MANAGER', personId: a.personId } } : { awaiting: { kind: 'HR' } };
 }
 
 // The list's place of a row (REC-15 rule 9): open with a due date by due date, then open without one, then Hired and

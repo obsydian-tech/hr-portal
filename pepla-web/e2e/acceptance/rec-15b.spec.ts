@@ -67,7 +67,8 @@ const ROLE_CLOSED = { error: 'Conflict', code: 'ROLE_CLOSED' };
 const SERVER_ERROR = { error: 'Something went wrong' };
 const answer = (r: Run) => [statusOf(r), bodyOf(r)];
 const sorted = (a: string[]) => [...a].sort();
-const ROW_KEYS = ['applied_at', 'due_at', 'hiring_manager_id', 'id', 'level', 'mine', 'name', 'role_id', 'role_title', 'sla_status', 'stage', 'stage_entered_at'];
+// not_hired_pending: child lock rec-15b.4 (REC-UI-01.6, NH-291 rule 1): a new candidate's row carries it as null.
+const ROW_KEYS = ['applied_at', 'due_at', 'hiring_manager_id', 'id', 'level', 'mine', 'name', 'not_hired_pending', 'role_id', 'role_title', 'sla_status', 'stage', 'stage_entered_at'];
 const CRITERIA = [{ key: 'technical', label: 'Technical' }, { key: 'communication', label: 'Communication' }, { key: 'culturalFit', label: 'Cultural fit' }, { key: 'problemSolving', label: 'Problem solving' }];
 
 /** A good body (rule 19), with any field changed or removed (`undefined` removes it). */
@@ -584,7 +585,7 @@ test.describe('REC-15 step B · Add a candidate to an open role', () => {
     expect.soft(nc?.additionalProperties, 'NewCandidate is closed').toBe(false);
     expect.soft([nc?.properties?.first_name?.maxLength, nc?.properties?.last_name?.maxLength, nc?.properties?.email?.maxLength, nc?.properties?.phone?.maxLength, nc?.properties?.source?.maxLength], 'the lengths of rule 19').toEqual([80, 80, 254, 30, 80]);
     for (const s of [201, 200]) expect.soft(refName(answerSchema(d, ROUTE, s)), `its ${s} is NewCandidateAnswer`).toBe('NewCandidateAnswer');
-    expect.soft(looseObjects(d, { $ref: '#/components/schemas/NewCandidateAnswer' }, 'NewCandidateAnswer', new Set(), ['source']), 'every object closed and every field required (but source)').toEqual([]);
+    expect.soft(looseObjects(d, { $ref: '#/components/schemas/NewCandidateAnswer' }, 'NewCandidateAnswer', new Set(), ['source', 'personId']), 'every object closed and every field required (but source and not_hired_pending.awaiting.personId: child lock rec-15b.4)').toEqual([]);
     const ans = d.components?.schemas?.['NewCandidateAnswer'];
     expect.soft(Object.keys(ans?.properties ?? {}).sort(), 'NewCandidateAnswer has candidateId and candidate, no notice (REC-08 adds it)').toEqual(['candidate', 'candidateId']);
     expect.soft(ans?.properties?.candidate?.$ref, 'candidate is a CandidateRow').toBe('#/components/schemas/CandidateRow');
@@ -592,7 +593,7 @@ test.describe('REC-15 step B · Add a candidate to an open role', () => {
     const header = ((op?.parameters ?? []) as any[]).find((p) => p.in === 'header' && String(p.name).toLowerCase() === 'idempotency-key');
     expect.soft(!!header, 'the Idempotency-Key header is described').toBe(true);
     const ck = checker(d);
-    const row = { id: 'c', name: 'A B', stage: 'APPLIED', stage_entered_at: NOW, due_at: NOW, sla_status: 'ON_TRACK', role_id: 'r', role_title: 'T', level: 'MID', applied_at: NOW, hiring_manager_id: 'h', mine: true };
+    const row = { id: 'c', name: 'A B', stage: 'APPLIED', stage_entered_at: NOW, due_at: NOW, sla_status: 'ON_TRACK', role_id: 'r', role_title: 'T', level: 'MID', applied_at: NOW, hiring_manager_id: 'h', mine: true, not_hired_pending: null }; // not_hired_pending: child lock rec-15b.4
     const good = { candidateId: 'c', candidate: row };
     const ok = answerSchema(d, ROUTE, 201);
     expect.soft(ck.check(ok, good), 'a right answer passes').toEqual([]);
@@ -656,5 +657,27 @@ test.describe('REC-15 step B · Add a candidate to an open role', () => {
     const cors = squash(/cors_configuration\s*\{([\s\S]*?)\n\s*\}/.exec(api?.body ?? '')?.[1] ?? '');
     expect.soft((/allow_headers=\[([^\]]*)\]/.exec(cors)?.[1] ?? '').toLowerCase(), 'the TalentFlow API allows the idempotency-key header').toMatch(/"idempotency-key"/);
     expect.soft(blocks([join(REPO, 'talent-flow-infra', 'talent-flow-apigateway.tf')], 'resource').some((b) => b.labels[0] === 'aws_apigatewayv2_route' && /"POST \/v1\/candidates"/.test(b.body) && /aws_apigatewayv2_integration\.create_candidate\.id/.test(b.body)), 'the route stays on createCandidate').toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------- child lock rec-15b.4 (REC-UI-01.6, NH-291, AC-14, spec check round 2 N-1)
+// POST /v1/candidates answers NewCandidateAnswer.candidate, which is a CandidateRow: it gains not_hired_pending, null (a new candidate never
+// has a waiting Not hired decision), and still equals the row the list then gives (D-T-B5).
+test.describe('REC-UI-01.6 AC-14 · The add answer carries not_hired_pending null (child lock rec-15b.4)', () => {
+  test('AC-14 The new candidate in the add answer carries not_hired_pending null, has exactly the CandidateRow fields and equals the list row; a replay answers the same', async ({}, testInfo) => {
+    once(testInfo.project.name);
+    const t = world();
+    const key = newKey();
+    const r = add(C.recruiter, body(), t, { key });
+    expect(statusOf(r), `201 (${describe(r)})`).toBe(201);
+    const a = bodyOf(r);
+    expect.soft('not_hired_pending' in (a?.candidate ?? {}), 'the field is present').toBe(true);
+    expect.soft(a?.candidate?.not_hired_pending, 'and null').toBeNull();
+    expect.soft(Object.keys(a?.candidate ?? {}).sort(), 'exactly the CandidateRow fields (no source sent)').toEqual(sorted(ROW_KEYS));
+    const listed = rowsIn(list(C.recruiter, {}, r.tables)).find((x) => x?.id === a?.candidateId);
+    expect.soft(a?.candidate, 'the answer\'s candidate equals the list row').toEqual(listed);
+    const again = add(C.recruiter, body(), r.tables, { key });
+    expect.soft([statusOf(again), bodyOf(again)], 'the replay answers the first answer, the field with it').toEqual([200, a]);
+    fits('AC-14 add', r, again);
   });
 });

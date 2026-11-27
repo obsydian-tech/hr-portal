@@ -575,6 +575,7 @@ components:
       - applied_at
       - hiring_manager_id
       - mine
+      - not_hired_pending
       properties:
         id:
           type: string
@@ -623,6 +624,28 @@ components:
           nullable: true
         mine:
           type: boolean
+        not_hired_pending:
+          type: object
+          nullable: true
+          description: REC-UI-01.6. Who a waiting Not hired decision waits on; null when nothing waits. Never the reason, the note, who recorded it or when.
+          additionalProperties: false
+          required:
+          - awaiting
+          properties:
+            awaiting:
+              type: object
+              additionalProperties: false
+              required:
+              - kind
+              properties:
+                kind:
+                  type: string
+                  enum:
+                  - HIRING_MANAGER
+                  - HR
+                personId:
+                  type: string
+                  description: Only when kind is HIRING_MANAGER
     CandidateList:
       type: object
       description: REC-15. A page of the candidate list and the counts over all of the caller's rows.
