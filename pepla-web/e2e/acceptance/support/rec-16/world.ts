@@ -177,7 +177,12 @@ export const load = (t: Tables, env: Record<string, string | undefined>) => load
 
 export const postmarkOf = (r: { calls: any[] }) => r.calls.filter((c: any) => c.service === 'postmark');
 /** A Postmark attempt that sent, or may have sent (a timeout or a dropped connection), an email. */
-export const mayHaveSent = (r: { calls: any[] }) => postmarkOf(r).filter((c: any) => ['ok', 'timeout', 'dropped', 'noMessageId'].includes(c.outcome));
+export const mayHaveSent = (r: { calls: any[] }) => postmarkOf(r).filter((c: any) => [...['ok', 'timeout', 'dropped', 'noMessageId'], ...NO_ANSWER_162].includes(c.outcome));
+/** REC-16.2 (NH-286, lock rec-16.5): Postmark's answers that are not a numeric 400 to 499, so the email may have gone. The 4xx modes
+ *  (http400, http404, http408, http429, http499) are refused: nothing went, so they are not counted. */
+export const NO_ANSWER_162 = ['http500', 'http502', 'http503', 'http504', 'http399', 'http600', 'statusString', 'statusFraction', 'statusNaN', 'statusMissing'];
+/** REC-16.2: every `new ServerClient(token, options)` the run made (fake-aws/postmark.mjs records it as its own service). */
+export const clientsOf = (r: { calls: any[] }) => r.calls.filter((c: any) => c.service === 'postmark-client');
 export const guardKey = (offer: string) => ({ PK: `NOTICE#HM_IT#${offer}`, SK: 'NOTICE' });
 export const guardOf = (t: Tables, offer: string) => rowsOf(t).find((r) => r['PK'] === `NOTICE#HM_IT#${offer}` && r['SK'] === 'NOTICE');
 export const guardRows = (t: Tables) => rowsOf(t).filter((r) => String(r['PK']).startsWith('NOTICE#'));
@@ -196,8 +201,9 @@ export const outcomesOf = (r: { calls: any[] }) => logObjects(r).map((o) => o['o
 export const runText = (r: Run) => `${r.error ? `threw ${r.error.name}: ${r.error.message.slice(0, 300)}; ` : ''}outcomes ${JSON.stringify(outcomesOf(r))}; postmark ${JSON.stringify(postmarkOf(r).map((c: any) => c.outcome))}; logs ${JSON.stringify(logLines(r)).slice(0, 600)}`;
 /** Every DynamoDB write of the run, as "op key". */
 export const dbWrites = (r: { calls: any[] }) => r.calls.filter((c: any) => c.service === 'dynamodb' && /PutItem|UpdateItem|DeleteItem|BatchWriteItem|TransactWriteItems/.test(c.op));
-/** Every call that is not a read, a log or a Postmark send: events, queues, other services, Cognito writes. */
-export const otherWrites = (r: { calls: any[] }) => r.calls.filter((c: any) => !['log', 'dynamodb', 'postmark'].includes(c.service) && !(c.service === 'cognito' && /^(ListUsersInGroup|ListUsers|AdminGetUser|AdminListGroupsForUser)$/.test(c.op)));
+/** Every call that is not a read, a log or a Postmark send: events, queues, other services, Cognito writes. (REC-16.2: making the
+ *  Postmark client at load is not a write; AC-4 of REC-16.2 judges it with clientsOf.) */
+export const otherWrites = (r: { calls: any[] }) => r.calls.filter((c: any) => !['log', 'dynamodb', 'postmark', 'postmark-client'].includes(c.service) && !(c.service === 'cognito' && /^(ListUsersInGroup|ListUsers|AdminGetUser|AdminListGroupsForUser)$/.test(c.op)));
 /** The rows of every table that differ from `before`, except the guard rows (NOTICE#HM_IT#...). */
 export function changedOutsideGuard(before: Tables, after: Tables): string[] {
   const out: string[] = [];

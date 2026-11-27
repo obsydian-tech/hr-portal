@@ -7,7 +7,7 @@ import { REPO } from '../rec-05/lambda-harness';
 
 /**
  * REC-16: runs the new Lambda (lambda/notifyHiringManagerOnHire) in a fresh Node process per call (a cold Lambda) against this card's
- * fake AWS (./fake-aws, copied from ../rec-06/fake-aws with code added only: Postmark answers the way the real postmark 4.0.5 client
+ * fake AWS (./fake-aws, copied from ../rec-06/fake-aws with code added only: Postmark answers the way the real postmark 4.0.7 client
  * does on a sent email, a refused one, a timeout, a dropped connection and an answer with no MessageID (world.postmark), another run's
  * guard row can land just before this run's first write (world.landBeforeWrite), and load.mjs loads a handler without calling it).
  * Nothing reaches AWS, Postmark or any AI.
@@ -21,7 +21,10 @@ export function handlerFile(): string {
   return join(LAMBDA_DIR, 'index.mjs');
 }
 
-export type PostmarkMode = 'ok' | 'answered' | 'answered401' | 'timeout' | 'dropped' | 'noMessageId';
+export type PostmarkMode = 'ok' | 'answered' | 'answered401' | 'timeout' | 'dropped' | 'noMessageId'
+  // REC-16.2 (lock rec-16.5): more answers, see fake-aws/postmark.mjs.
+  | 'http400' | 'http404' | 'http408' | 'http429' | 'http499' | 'http500' | 'http502' | 'http503' | 'http504' | 'http399' | 'http600'
+  | 'statusString' | 'statusFraction' | 'statusNaN' | 'statusMissing';
 export type Fail = { service: 'dynamodb' | 'cognito'; ops?: string[]; message: string; name?: string; nth?: number };
 export type Extra = {
   /** Postmark's answer to the 1st, 2nd ... send ('ok' after the list). */
