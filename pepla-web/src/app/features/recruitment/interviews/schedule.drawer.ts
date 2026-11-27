@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import {
-  PpButton, PpDatePicker, PpDrawer, PpDrawerFooter, PpErrorSummary, PpField, PpForm, PpFormRow, PpMultiSelect, PpRadioGroup, PpSectionMessage, PpSectionMessageActions,
+  PpButton, PpDatePicker, PpDrawer, PpDrawerFooter, PpErrorSummary, PpField, PpForm, PpFormNote, PpFormRow, PpFormSection, PpMultiSelect, PpRadioGroup, PpSectionMessage, PpSectionMessageActions,
   PpSelect, PpSkeleton, PpTextField, PpTextarea, type FormError,
 } from '../../../ds';
 import {
@@ -41,7 +41,7 @@ interface Base { id: string; type: string; sequence: number; date: Date | null; 
 @Component({
   selector: 'app-schedule-drawer',
   imports: [
-    PpButton, PpDatePicker, PpDrawer, PpDrawerFooter, PpErrorSummary, PpField, PpForm, PpFormRow, PpMultiSelect, PpRadioGroup, PpSectionMessage, PpSectionMessageActions,
+    PpButton, PpDatePicker, PpDrawer, PpDrawerFooter, PpErrorSummary, PpField, PpForm, PpFormNote, PpFormRow, PpFormSection, PpMultiSelect, PpRadioGroup, PpSectionMessage, PpSectionMessageActions,
     PpSelect, PpSkeleton, PpTextField, PpTextarea,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -67,8 +67,7 @@ interface Base { id: string; type: string; sequence: number; date: Date | null; 
           } @else {
             <pp-field [label]="w['type']"><input ppTextField readonly [value]="baseTypeWords()" /></pp-field>
           }
-          <fieldset role="group" [attr.aria-labelledby]="ids + '-dt'" style="border:0;padding:0;margin:0;min-width:0" class="pp-stack pp-gap-050">
-            <span class="pp-field__label" [id]="ids + '-dt'">{{ w['dateTime'] }}</span>
+          <fieldset ppFormSection [heading]="w['dateTime']">
             <pp-form-row>
               <pp-field #fDate [label]="w['date']" [error]="problems().date">
                 <pp-date-picker [value]="date()" [min]="min()" (valueChange)="chooseDate($event)" (problem)="pickerSaid($event)" />
@@ -77,7 +76,7 @@ interface Base { id: string; type: string; sequence: number; date: Date | null; 
                 <pp-select [options]="timeChoices()" placeholder=" " [value]="time()" (valueChange)="time.set($event); clearDateTime()" />
               </pp-field>
             </pp-form-row>
-            <div class="pp-field__help">{{ w['sast'] }}</div>
+            <pp-form-note>{{ w['sast'] }}</pp-form-note>
           </fieldset>
           <pp-field #fLength [label]="w['length']" [error]="problems().length">
             <pp-select [options]="lengthChoices" placeholder=" " [value]="length()" (valueChange)="length.set($event); lengthChosen = true; clear('length')" />
