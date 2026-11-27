@@ -12,6 +12,7 @@ import { normaliseStage } from '../shared/recruitment-stages.mjs';
 import { companyOfSignIn } from '../shared/membership.mjs';
 import * as L from '../shared/interview-lifecycle.mjs';
 import * as K from './request-key.mjs';
+import * as FD from '../shared/feedback-due-rows.mjs';
 import { settingsForRead } from '../shared/recruitment-settings.mjs';
 import * as E from '../shared/interview-emails.mjs';
 import { contactOf, limited } from '../shared/people-contacts.mjs';
@@ -190,6 +191,7 @@ export function book(event) {
       items.push({ Put: { TableName: STATE(), Item: marshall(l.item), ConditionExpression: 'attribute_not_exists(PK)' } });
     }
     items.push({ Put: { TableName: STATE(), Item: marshall(iv, { removeUndefinedValues: true }), ConditionExpression: 'attribute_not_exists(PK)' } });
+    for (const p of body.panel) items.push(FD.openItem(STATE(), tenantId, p, candidateId, interviewId, now));
     try {
       await db.send(new TransactWriteItemsCommand({ TransactItems: items }));
     } catch (err) {
@@ -296,6 +298,10 @@ export function act(event) {
       if (removedPanel.length) set('removed_panel_ids', removedPanel); else removes.push('removed_panel_ids');
       let removedGuest = false;
       if (body.panel !== undefined) { set('panelMemberIds', body.panel); set('votesRequired', body.panel.length); set('PANEL_FEEDBACK_PENDING_COUNT', body.panel.length); }
+      if (changes.includes('panel')) {
+        for (const p of body.panel) items.push(FD.openItem(STATE(), tenantId, p, candidateId, iv.interviewId, now));
+        for (const p of removedPanel) items.push(FD.doneItem(STATE(), tenantId, p, candidateId, iv.interviewId, 'REMOVED', now));
+      }
       if (body.reason_note !== undefined) set('reschedule_note', body.reason_note);
       if (changes.includes('guest')) {
         if (iv.guest_link_hash) { items.push(linkSet(iv.guest_link_hash, now)); set('removed_guest_link_hash', iv.guest_link_hash); removedGuest = true; }
@@ -344,6 +350,7 @@ export function act(event) {
       const guest = L.guestVoterOf(iv);
       const guestScored = guest && votes.some((v) => v.voterId === guest && v.interviewId === iv.interviewId);
       if (iv.guest_link_hash && !(action === 'complete' && guestScored)) items.push(linkSet(iv.guest_link_hash, now));
+      for (const p of iv.panelMemberIds ?? []) items.push(FD.doneItem(STATE(), tenantId, p, candidateId, iv.interviewId, CLOSED[action], now));
       if (action === 'cancel') {
         const link = iv.guest_link_hash ? await getRow(`SCORING_LINK#${iv.guest_link_hash}`, 'META') : null;
         mailCtx = { cancelGuest: link && T.ownsRow(link, tenantId) ? link : null, reason: body.reason, reasonNote: body.reason_note };

@@ -191,6 +191,9 @@
       "op": "GET /v1/company/departments"
     }
   },
+  "GET /v1/feedback-due": {
+    "kind": "list"
+  },
   "GET /v1/interviews/{id}": {
     "kind": "byId",
     "ids": {

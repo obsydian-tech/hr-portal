@@ -6306,6 +6306,87 @@ paths:
       - admin
       - manager
       - perm-recruitment
+  /v1/feedback-due:
+    get:
+      summary: GET /v1/feedback-due
+      description: The interviews the signed-in person owes feedback on (REC-UI-03 server, NH-293). Always and only the caller's own.
+      responses:
+        '200':
+          description: The caller's owed feedback, earliest due first
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, more]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [kind, interview_id, candidate_first, candidate_last, role_title, type, at, due_at]
+                      properties:
+                        kind:
+                          type: string
+                          enum: [INTERVIEW_FEEDBACK]
+                        interview_id:
+                          type: string
+                        candidate_first:
+                          type: string
+                          nullable: true
+                        candidate_last:
+                          type: string
+                          nullable: true
+                        role_title:
+                          type: string
+                          nullable: true
+                        type:
+                          type: string
+                          nullable: true
+                        at:
+                          type: string
+                          nullable: true
+                        due_at:
+                          type: string
+                          nullable: true
+                  more:
+                    type: boolean
+        '403':
+          description: Forbidden (no company, Recruitment is off for the company, or no person id in the sign-in)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Internal error
+              example:
+                error: Internal error
+      operationId: GET_v1_feedback_due
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - hr_staff
+      - manager
+      - employee
   /v1/interviews/{id}:
     get:
       summary: GET /v1/interviews/{id}

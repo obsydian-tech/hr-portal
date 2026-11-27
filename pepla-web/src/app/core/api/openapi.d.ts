@@ -1474,6 +1474,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/feedback-due": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /v1/feedback-due
+         * @description The interviews the signed-in person owes feedback on (REC-UI-03 server, NH-293). Always and only the caller's own.
+         */
+        get: operations["GET_v1_feedback_due"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/interviews/{id}": {
         parameters: {
             query?: never;
@@ -7467,6 +7487,73 @@ export interface operations {
                      */
                     "application/json": {
                         /** @example Not found */
+                        error?: string;
+                    };
+                };
+            };
+        };
+    };
+    GET_v1_feedback_due: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's owed feedback, earliest due first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @enum {string} */
+                            kind: "INTERVIEW_FEEDBACK";
+                            interview_id: string;
+                            candidate_first: string | null;
+                            candidate_last: string | null;
+                            role_title: string | null;
+                            type: string | null;
+                            at: string | null;
+                            due_at: string | null;
+                        }[];
+                        more: boolean;
+                    };
+                };
+            };
+            /** @description Forbidden (no company, Recruitment is off for the company, or no person id in the sign-in) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Forbidden"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Forbidden */
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Internal error"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Internal error */
                         error?: string;
                     };
                 };

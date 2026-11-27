@@ -990,6 +990,15 @@ resource "aws_apigatewayv2_route" "get_interview" {
   authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
 }
 
+# REC-UI-03 server (NH-293): the list of feedback a person owes, on submitVote.
+resource "aws_apigatewayv2_route" "get_feedback_due" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/feedback-due"
+  target             = "integrations/${aws_apigatewayv2_integration.submit_vote.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
 resource "aws_apigatewayv2_route" "get_scoring_link" {
   api_id             = aws_apigatewayv2_api.talent_flow_api.id
   route_key          = "GET /v1/scoring-links/{token}"
