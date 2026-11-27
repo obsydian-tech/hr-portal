@@ -1,0 +1,22 @@
+{
+  "desktop-1280": {
+    "candidate": "CAND-INTUI02DEVAAAAAAAAAAAD1",
+    "firstName": "Ivo",
+    "lastName": "Seed-Schedule-Desk",
+    "booked": {
+      "id": "iv-intui02-dev-booked-desk",
+      "type": "Phone screen"
+    },
+    "freeType": "Technical"
+  },
+  "phone-390": {
+    "candidate": "CAND-INTUI02DEVAAAAAAAAAAAP1",
+    "firstName": "Ivo",
+    "lastName": "Seed-Schedule-Phone",
+    "booked": {
+      "id": "iv-intui02-dev-booked-phone",
+      "type": "Phone screen"
+    },
+    "freeType": "Technical"
+  }
+}
