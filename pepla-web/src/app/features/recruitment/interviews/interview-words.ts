@@ -31,6 +31,15 @@ export const INTERVIEW_WORDS = {
     whereEmpty: 'Choose in person or online', placeEmpty: 'Enter the place', panelEmpty: 'Choose at least one person',
     emailWrong: 'Enter an email address, like name@company.co.za', saveFail: 'Your change could not be saved. Try again.',
   } as Record<string, string | null>,
+  /** INT-UI-03: the close dialogs and the menu ({type} is filled in by the page, lower-cased). */
+  close: {
+    cancelTitle: 'Cancel the {type} interview?', dnhTitle: 'Record that the {type} interview did not happen', doneTitle: 'Mark the {type} interview as done?',
+    dnhLine: 'Nobody is emailed. You can book a {type} interview again afterwards.', cancelGuest: 'The guest\'s link stops working.',
+    doneGuest: 'Anyone who has not given feedback will show "No feedback", and the guest\'s link stops working. This cannot be undone.',
+    doneNoGuest: 'Anyone who has not given feedback will show "No feedback". This cannot be undone.',
+    changed: 'This interview has changed, so this can\'t be saved.', reason: 'Reason', describe: 'Describe the reason', keep: 'Keep interview',
+    save: 'Save', cancel: 'Cancel', menu: 'More actions for the {type} interview',
+  } as Record<string, string | null>,
 };
 export const typeWords = (key: string | null | undefined): string | null => {
   if (typeof key !== 'string' || !key.trim()) return null;
