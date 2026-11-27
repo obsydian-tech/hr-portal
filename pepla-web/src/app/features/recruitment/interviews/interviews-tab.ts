@@ -8,6 +8,10 @@ import { shortDate } from '../hire-format';
 import { DRAWER_LINES, INTERVIEW_WORDS as W, typeWords } from './interview-words';
 import { CAPTURE_FEEDBACK_READY, CLOSE_ACTIONS_READY, RESCHEDULE_READY, SCHEDULE_READY } from '../hire-flags';
 import type { CloseAction } from './close-interview.dialog';
+import { PanelSummary, type Summary } from './panel-summary';
+
+/** INT-UI-05: what the page knows of the panel scores for the chosen interview. */
+export type SummaryState = { kind: 'none' } | { kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; summary: Summary };
 
 export type InterviewList = components['schemas']['InterviewList'];
 type Item = InterviewList['interviews'][number];
@@ -77,7 +81,7 @@ export function viewOf(x: Item, now: number): View {
 
 @Component({
   selector: 'app-interviews-tab',
-  imports: [PpAvatarGroup, PpButton, PpCard, PpDropdownMenu, PpMenuItem, PpDeadline, PpEmptyState, PpLozenge, PpPerson, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup],
+  imports: [PanelSummary, PpAvatarGroup, PpButton, PpCard, PpDropdownMenu, PpMenuItem, PpDeadline, PpEmptyState, PpLozenge, PpPerson, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @switch (state()) {
@@ -117,6 +121,17 @@ export function viewOf(x: Item, now: number): View {
             </div>
             @if (current(); as c) {
               <pp-card [heading]="c.type ?? undefined" [subheading]="c.when ?? undefined" [level]="2">
+                @if (chosenDone()) {
+                  @switch (summary().kind) {
+                    @case ('loading') { <pp-skeleton-group [label]="sw['loading']!"><pp-skeleton shape="card" /></pp-skeleton-group> }
+                    @case ('failed') {
+                      <pp-section-message tone="danger" [heading]="sw['failed']!">
+                        <pp-section-message-actions><button ppButton type="button" (click)="retryScores.emit()">{{ sw['tryAgain'] }}</button></pp-section-message-actions>
+                      </pp-section-message>
+                    }
+                    @case ('ready') { @if (summary(); as s) { @if (s.kind === 'ready') { <app-panel-summary [summary]="s.summary" /> } } }
+                  }
+                }
                 <div class="pp-stack pp-gap-050">
                   @if (c.status; as s) { <span><pp-lozenge [status]="s.tone" [icon]="s.icon">{{ s.words }}</pp-lozenge></span> }
                   @if (c.reason) { <span class="pp-text pp-text--small">{{ c.reason }}</span> }
@@ -180,6 +195,11 @@ export class InterviewsTab {
     return this.canSchedule() && x && (x.status === 'CANCELLED' || x.status === 'DID_NOT_HAPPEN') && x.type ? x.type : null;
   });
   readonly act = output<{ action: CloseAction; id: string }>();
+  /** INT-UI-05: the panel scores state, drawn only on a chosen Done interview; "Try again" asks the page to read them once more. */
+  readonly summary = input<SummaryState>({ kind: 'none' });
+  readonly retryScores = output<void>();
+  protected readonly sw = W.summary;
+  protected readonly chosenDone = computed(() => this.state() === 'ready' && this.chosenItem()?.status === 'COMPLETED');
   /** REC-UI-03 step 2: Capture feedback on the chosen interview. */
   readonly capture = output<string>();
   protected readonly canCapture = computed(() => {
