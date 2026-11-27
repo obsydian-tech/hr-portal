@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
 import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -709,6 +710,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
         if (isRec07Grant(p, key) || isRec15bGrant(p, key) || isRec15cGrant(p, key) || isRec15dGrant(p, key) || isInt01Grant(p, key)) continue; // child locks rec-15c.1, rec-15d.1 and int-01.1
         // REC-05 (child lock rec-05.1): monitorTalentFlowSLAs reads the company's modules before an offer expires (support/rec-05.1/grants.ts).
         if (isRec05Grant(p, key)) continue;
+        if (isRec062Grant(p, key)) continue; // child lock rec-06.2.1: resendInvite may start the onboarding workflow, pinned in rec-06.2.spec.ts AC-8.
         expect.soft(/^Allow dynamodb:GetItem /.test(p) && TENANTS_RESOURCE.test(p.split(' ')[2]!) && p.endsWith(' null') && isGated(key, cur.role), `role policy ${key}: new grant "${p}" is only GetItem on the tenants table, on a gated Lambda's role`).toBe(true);
       }
     }

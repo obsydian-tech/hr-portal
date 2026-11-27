@@ -2446,6 +2446,12 @@ resource "aws_iam_role_policy" "resend_invite" {
         Effect   = "Allow"
         Action   = ["cognito-idp:AdminCreateUser", "cognito-idp:AdminAddUserToGroup", "cognito-idp:AdminGetUser", "cognito-idp:AdminListGroupsForUser"]
         Resource = "arn:aws:cognito-idp:${var.aws_region}:${var.aws_account_id}:userpool/${aws_cognito_user_pool.naleko_dev.id}"
+      },
+      {
+        Sid      = "StartOnboardingWorkflow"
+        Effect   = "Allow"
+        Action   = ["states:StartExecution"]
+        Resource = aws_sfn_state_machine.onboarding.arn
       }
     ]
   })

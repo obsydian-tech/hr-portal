@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { isRec062Row } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Locator, Page, TestInfo } from '@playwright/test';
@@ -959,7 +960,7 @@ test.describe('ONB-18 Resend the link', () => {
       const reaches = tablesIn(rows.filter((r) => !/tenant-index/.test(r.resource)).map((r) => r.resource));
       const extra = rows.filter((r) => ordinary(r.action) && !tenancyGrant(r.action, r.resource, reaches, n.fn === 'resendInvite'));
       for (const [action, on] of n.want) expect(extra.some((r) => r.action === action && on(r.resource)), `${n.fn}: may ${action} on the right resource`).toBe(true);
-      expect(extra.filter((r) => !n.want.some(([action, on]) => r.action === action && on(r.resource))).map((r) => `${r.action} ${r.resource}`), `${n.fn}: nothing else (no AdminSetUserPassword)`).toEqual([]);
+      expect(extra.filter((r) => !n.want.some(([action, on]) => r.action === action && on(r.resource)) && !isRec062Row(n.fn, r.action, r.resource)).map((r) => `${r.action} ${r.resource}`), `${n.fn}: nothing else (no AdminSetUserPassword)`).toEqual([]);
 
       const route = res('aws_apigatewayv2_route').find((b) => attr(b, 'route_key') === `"${n.route}"`.replace(/\s+/g, ''));
       expect(route, `a route ${n.route}`).toBeTruthy();

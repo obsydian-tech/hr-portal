@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
 import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
@@ -688,6 +689,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
         if (isRec07Grant(p, key) || isRec15bGrant(p, key) || isRec15cGrant(p, key) || isRec15dGrant(p, key) || isInt01Grant(p, key)) continue; // child locks rec-15c.1, rec-15d.1 and int-01.1
         // REC-05 (child lock rec-05.1): monitorTalentFlowSLAs reads the company's modules before an offer expires (support/rec-05.1/grants.ts).
         if (isRec05Grant(p, key)) continue;
+        if (isRec062Grant(p, key)) continue; // child lock rec-06.2.1: resendInvite may start the onboarding workflow, pinned in rec-06.2.spec.ts AC-8.
         expect.soft((effect === 'Allow' && action === 'dynamodb:Query' && cond === 'null' && (tenants || indexOfTalent)) || (MOD01_GET(p) && MOD01_ROLE(key, cur.role)) || TEN042_QUERY(p, key, cur.role), `role policy ${key}: new grant "${p}" is only a Query on the tenants table (TalentFlow trigger) or on an index of a TalentFlow, IT or bundle table, or one of the TEN-04.2 table grants`).toBe(true);
       }
     }

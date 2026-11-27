@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
 import { REC16_LABEL } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -1008,6 +1009,8 @@ test.describe('TEN-02 Onboarding records carry their company', () => {
       }
       // child lock rec-15d.1, REC-15 step D: getCandidateEvents asks the sign-in pool for names (AdminGetUser on the Naleko pool), pinned in rec-15d.spec.ts AC-17.
       wrong = wrong.filter((w) => !isRec15dGrant(w.replace(/^added beyond TEN-02: /, ''), `infra/${name}`));
+      // child lock rec-06.2.1, REC-06.2: resendInvite may start the onboarding workflow (one statement), pinned in rec-06.2.spec.ts AC-8.
+      wrong = wrong.filter((w) => !isRec062Grant(w.replace(/^added beyond TEN-02: /, ''), `infra/${name}`));
       expect.soft(wrong, `role policy ${name}: only TEN-02's grants added`).toEqual([]);
     }
     // The PII key's role lists stay lists of roles (nothing else joins them).

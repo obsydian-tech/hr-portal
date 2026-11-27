@@ -33,6 +33,7 @@ Output is role names and counts only: the repo and its Actions logs are public.
 """
 import hashlib
 import json
+import os
 import pathlib
 import re
 import secrets
@@ -1405,6 +1406,43 @@ def seed_rec06_1(ddb, tenant_id: str) -> int:
     return written
 
 
+def seed_rec06_2(ddb, tenant_id: str) -> int:
+    """REC-06.2: one INVITED recruitment hire (a from_recruitment map, no user_sub) for the dev test of resendInvite (cards/rec-06.2.md).
+    A closed Step Functions run keeps its name for 90 days, so the id is new on every workflow run and every attempt (uuid5 of the company, the
+    run id and the attempt). The earlier runs' rows of the address are found with a Query on email-index (no scan) and deleted on condition
+    of the company."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-06.2" / "dev-ids.json").read_text())
+    namespace = uuid.UUID(ids["namespace"])
+    run = f"{os.environ.get('GITHUB_RUN_ID', 'local')}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+    eid = str(uuid.uuid5(namespace, f"{tenant_id}:{run}"))
+    old: list[str] = []
+    start_key = None
+    while True:
+        args = {"TableName": "employees", "IndexName": "email-index", "KeyConditionExpression": "email = :e",
+                "ExpressionAttributeValues": {":e": {"S": ids["email"]}}}
+        if start_key:
+            args["ExclusiveStartKey"] = start_key
+        page = ddb.query(**args)
+        old += [i["employee_id"]["S"] for i in page.get("Items", []) if i.get("tenant_id", {}).get("S") == tenant_id]
+        start_key = page.get("LastEvaluatedKey")
+        if not start_key:
+            break
+    for old_id in old:
+        try:
+            ddb.delete_item(TableName="employees", Key={"employee_id": {"S": old_id}}, ConditionExpression="tenant_id = :t",
+                            ExpressionAttributeValues={":t": {"S": tenant_id}})
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise
+    ddb.put_item(TableName="employees", Item={
+        "employee_id": {"S": eid}, "tenant_id": {"S": tenant_id}, "first_name": {"S": ids["firstName"]}, "last_name": {"S": ids["lastName"]},
+        "email": {"S": ids["email"]}, "phone": {"S": "0800000000"}, "department": {"S": "Operations"}, "job_title": {"S": "New Starter"},
+        "stage": {"S": "INVITED"}, "created_at": {"S": "2026-11-26T08:00:00.000Z"}, "created_by": {"S": "seed"},
+        "from_recruitment": {"M": {"candidate_id": {"S": ids["candidate"]}, "offer_id": {"S": ids["offer"]}}},
+    })
+    return 1
+
+
 def seed_recui04(ddb, tenant_id: str) -> int:
     """REC-UI-04.2: put back the candidate the offer screens' dev walk drafts an offer for (cards/rec-ui-04.2.md, "REC-UI-04.2 dev seed").
 
@@ -1659,6 +1697,8 @@ def main() -> None:
         seed_rec06_1(ddb, tid)
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the REC-06 rows were not written")
+
+    seed_rec06_2(ddb, tid)
 
     try:
         if hm_it_sub:
