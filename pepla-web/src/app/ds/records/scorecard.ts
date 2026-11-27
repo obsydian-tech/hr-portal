@@ -5,8 +5,10 @@ export interface Criterion {
   /** "Counts for 30%". Left out on a panel summary. */
   weight?: string;
   score: number;
-  /** In words: strong, excellent, fair. */
-  word: string;
+  /** In words: strong, excellent, fair. Left out on a panel summary, whose row reads "{score} out of 5". */
+  word?: string;
+  /** The score as drawn, when it is not the bare number ("3.0"). The bar still uses `score`. */
+  scoreText?: string;
 }
 
 /**
@@ -29,7 +31,11 @@ export interface Criterion {
         <li class="pp-scorecard__criterion">
           <span class="pp-scorecard__label"><span class="pp-scorecard__name">{{ c.name }}</span>@if (c.weight) {<span class="pp-scorecard__weight">{{ c.weight }}</span>}</span>
           <span class="pp-scorecard__bar" aria-hidden="true"><span class="pp-scorecard__fill" [style.--_pct]="(c.score / max()) * 100 + '%'"></span></span>
-          <span class="pp-scorecard__score"><strong>{{ c.score }}</strong> of {{ max() }}, {{ c.word }}</span>
+          @if (c.word) {
+            <span class="pp-scorecard__score"><strong>{{ c.scoreText ?? c.score }}</strong> of {{ max() }}, {{ c.word }}</span>
+          } @else {
+            <span class="pp-scorecard__score"><strong>{{ c.scoreText ?? c.score }}</strong> out of {{ max() }}</span>
+          }
         </li>
       }
     </ul>
