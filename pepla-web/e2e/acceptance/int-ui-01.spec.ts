@@ -365,7 +365,7 @@ test.describe('AC-2 Chosen interview', () => {
 test.describe('AC-3 No actions', () => {
   test.beforeEach(noBackendOnly);
 
-  test('AC-3 With the four flags off, for every `can` mix the fake sends (all true, all false, each key alone true) on interviews in every status, no "Schedule an interview", "Reschedule", "Capture feedback" or "Add panel member" shows anywhere: tab header, list or chosen interview', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r, events: _e, interviews: _i }) => {
+  test('AC-3 With the four flags off, for every `can` mix the fake sends (all true, all false, each key alone true) on interviews in every status, no "Schedule an interview", "Reschedule" or "Add panel member" shows anywhere: tab header, list or chosen interview', async ({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r, events: _e, interviews: _i }) => {
     const fx = fxOf({ page: _p, signIn: _s, cognito: _c, modules: _m, hire: _h, record: _r, events: _e, interviews: _i });
     const { page, interviews } = fx;
     const mixes = [canOf('all'), canOf('none'), ...CAN_KEYS.map((k) => canOf({ [k]: true }))];
