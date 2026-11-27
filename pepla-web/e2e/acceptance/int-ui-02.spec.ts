@@ -53,8 +53,9 @@ const LINE = 'Bongani Mthembu · Fleet controller';
 const sast = (day: number, hh: number, mm = 0) => iso(Date.UTC(2026, 10, day, hh - 2, mm));
 const BAD_WORDS = /\b(null|undefined|NaN)\b|Invalid Date|\[object Object\]|⟦/;
 /** The actions of cards not built yet. INT-UI-03 builds "Cancel interview", "Did not happen", "Mark as done" and More actions, so they
- *  left this check in child lock int-ui-02.1 (cards/int-ui-03.md). */
-const OTHER_ACTIONS = ['Capture feedback', 'Add panel member'];
+ *  left this check in child lock int-ui-02.1 (cards/int-ui-03.md); REC-UI-03 step 2 builds "Capture feedback", so it left in child
+ *  lock int-ui-02.2 (cards/rec-ui-03.2.md). */
+const OTHER_ACTIONS = ['Add panel member'];
 
 async function asRecruiter(fx: Fx, who: Who = WHO.recruiterA): Promise<void> {
   await enter(fx.page, fx.signIn, fx.cognito, fx.modules, fx.hire, who);
@@ -76,7 +77,7 @@ async function controls(page: Page): Promise<string[]> {
   return main(page).evaluate((m) => [...m.querySelectorAll('button, a, [role="button"], [role="menuitem"], [role="link"]')]
     .map((el) => `${el.getAttribute('aria-label') ?? ''} ${el.textContent ?? ''}`.replace(/\s+/g, ' ').trim()));
 }
-/** CAPTURE_FEEDBACK_READY stays off: none of the controls of a card not built yet. */
+/** None of the controls of a card not built yet ("Add panel member"). */
 async function noOtherActions(page: Page, where: string): Promise<void> {
   const found = (await controls(page)).filter((c) => OTHER_ACTIONS.some((w) => c.includes(w)));
   expect(found, `${where}: no action of a later card`).toEqual([]);
