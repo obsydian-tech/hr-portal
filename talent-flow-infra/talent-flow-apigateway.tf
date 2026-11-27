@@ -981,6 +981,15 @@ resource "aws_apigatewayv2_route" "get_candidate_scores" {
   authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
 }
 
+# REC-UI-03 step 3: one interview for its panel member.
+resource "aws_apigatewayv2_route" "get_interview" {
+  api_id             = aws_apigatewayv2_api.talent_flow_api.id
+  route_key          = "GET /v1/interviews/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.submit_vote.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.talent_flow_api_cognito.id
+}
+
 resource "aws_apigatewayv2_route" "get_scoring_link" {
   api_id             = aws_apigatewayv2_api.talent_flow_api.id
   route_key          = "GET /v1/scoring-links/{token}"

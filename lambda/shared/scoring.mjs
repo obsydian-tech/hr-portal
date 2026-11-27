@@ -35,7 +35,7 @@ export function checkBody(body, criteria) {
   return null;
 }
 
-const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+export const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 export const oneDecimal = (x) => (x === null || x === undefined ? null : Math.round(x * 10) / 10);
 
 /** The numbers of one interview from its votes (new ones only), unrounded. */
