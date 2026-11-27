@@ -35,6 +35,13 @@ function once(testInfo: TestInfo): void {
   test.skip(testInfo.project.name !== 'desktop-1280', 'Runs once: nothing here has a screen width.');
 }
 
+/**
+ * Child lock rec-06.2.2: AC-8, AC-9 and the last line of AC-10 judge THIS CHANGE's diff, so they only mean something on a change that builds REC-06.2
+ * (one that touches lambda/resendInvite/). On any later change (another card's pull request, this lock's own fix) the diff holds none of it and AC-8 would
+ * fail "exactly one statement is added" for good. Same rule as SITE-04 and SITE-07 to SITE-11: skip when the change touches none of the card's files.
+ */
+const buildsThisCard = (changed: string[]): boolean => changed.some((f) => /^lambda\/resendInvite\//.test(f));
+
 const hire = person('hireA', IDS.hireA);
 const hand = person('handA', IDS.handA);
 const hireB = person('hireB', IDS.hireB);
@@ -358,6 +365,7 @@ test.describe('REC-06.2 Start the onboarding workflow for recruitment hires', ()
   test('AC-8 Terraform and the package, as text, judged on this change: resend_invite\'s policy is today\'s plus exactly one statement (states:StartExecution on the onboarding state machine), its setting is today\'s plus SFN_STATE_MACHINE_ARN, timeout still 15, nothing else in infra/ changes, and the package lists the Step Functions client under devDependencies only', async ({}, testInfo) => {
     once(testInfo);
     const base = baseCommit();
+    test.skip(!buildsThisCard(changedFiles(base)), 'this change touches nothing in lambda/resendInvite/, so it is not REC-06.2\'s build (child lock rec-06.2.2)');
     const before = baseInfra(base);
     const after = nowInfra();
 
@@ -441,6 +449,7 @@ test.describe('REC-06.2 Start the onboarding workflow for recruitment hires', ()
     once(testInfo);
     const base = baseCommit();
     const changed = changedFiles(base);
+    test.skip(!buildsThisCard(changed), 'this change touches nothing in lambda/resendInvite/, so it is not REC-06.2\'s build (child lock rec-06.2.2)');
     const PINNED = ['lambda/shared/offers.mjs', 'lambda/manageOffers/index.mjs', 'lambda/shared/employee-row.mjs', 'lambda/shared/tenant.mjs', 'lambda/shared/ai-guard.mjs', 'lambda/shared/hiring-managers.mjs', 'infra/kms.tf'];
     expect(changed.filter((f) => PINNED.includes(f)), 'none of the seven pinned files is changed by this card').toEqual([]);
     expect(changed.filter((f) => /^lambda\/classifyOnboardingRisk\//.test(f) || /^infra\/step-functions\//.test(f) || f === 'infra/stepfunctions.tf'), 'no file under lambda/classifyOnboardingRisk/ or infra/step-functions/ changes (AC-10)').toEqual([]);
@@ -494,8 +503,9 @@ test.describe('REC-06.2 Start the onboarding workflow for recruitment hires', ()
     const off = flow(world(shaped(OB11_A, 'real.person@private-mail.example')), IDS.hireA, { AI_CALLS_ENABLED: 'false' });
     calm(off, 'AI switched off (a real address)');
     expect((off.response as Record<string, unknown>)?.['riskBand'], 'AI off: UNKNOWN').toBe('UNKNOWN');
-    // Nothing of the risk step or the workflow definition is edited by this card.
-    expect(changedFiles().filter((f) => /^lambda\/classifyOnboardingRisk\//.test(f) || /^infra\/step-functions\//.test(f)), 'no file under lambda/classifyOnboardingRisk/ or infra/step-functions/ changes').toEqual([]);
+    // Nothing of the risk step or the workflow definition is edited by this card (judged only on REC-06.2's build, child lock rec-06.2.2).
+    const changedHere = changedFiles();
+    if (buildsThisCard(changedHere)) expect(changedHere.filter((f) => /^lambda\/classifyOnboardingRisk\//.test(f) || /^infra\/step-functions\//.test(f)), 'no file under lambda/classifyOnboardingRisk/ or infra/step-functions/ changes').toEqual([]);
   });
 
   // -------------------------------------------------------------- AC-11 (the seed and the dev test)
@@ -640,6 +650,12 @@ test.describe('REC-06.2 Start the onboarding workflow for recruitment hires', ()
     expect(sentBody.status, 'ok').toBe('ok');
     expect(sentBody.invite?.link, 'invite.link is present on dev for a test address and a test login').toMatch(/\/set-password#token=[\w-]{43}$/);
 
+    // A second send while the person is still INVITED: 200 (child lock rec-06.2.2). The run the first send started is waiting, so the same name and input is
+    // a harmless repeat (rule 7). It must come before the uploads: the first document moves the person off INVITED (processDocumentOCR, NH-80), and from
+    // then on the invite answers 409 not-invited, as it always has and as AC-3 holds it.
+    const again = await page.request.post(`${employeesApi}/v1/employees/${encodeURIComponent(employeeId)}/invite`, { headers: asHr });
+    expect([again.status(), ((await again.json()) as { status?: string }).status], 'a second send, before any upload, is 200 ok').toEqual([200, 'ok']);
+
     // HR uploads the person's required documents, as ONB-11 AC-11 does but with HR's own token (HR may act on anyone), and the check runs.
     const upload = async (type: string, fileName: string) => {
       const link = await page.request.post(`${documentsApi}/v1/employees/${encodeURIComponent(employeeId)}/documents/upload-url`, {
@@ -674,10 +690,6 @@ test.describe('REC-06.2 Start the onboarding workflow for recruitment hires', ()
     expect(last['step'], 'the person is In review').toBe('IN_REVIEW');
     expect(last['risk_band'], 'a test address gets the stand-in band').toBe('UNKNOWN');
     expect(last['risk_reason'], 'and the guard\'s test-data label ("AI skipped")').toBe(AI_SKIPPED_LABEL);
-
-    // A second send afterwards: 200 (the run is already waiting or finished; either way the invite works).
-    const again = await page.request.post(`${employeesApi}/v1/employees/${encodeURIComponent(employeeId)}/invite`, { headers: asHr });
-    expect([again.status(), ((await again.json()) as { status?: string }).status], 'a second send is 200 ok').toEqual([200, 'ok']);
 
     // Company B does not list the person, and cannot send their invite.
     await page.context().clearCookies();
