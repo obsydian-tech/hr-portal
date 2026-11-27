@@ -1474,6 +1474,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/interviews/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /v1/interviews/{id}
+         * @description One interview for its panel member (REC-UI-03 step 3). Anyone else gets 404.
+         */
+        get: operations["GET_v1_interviews_id"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/interviews/{id}/votes": {
         parameters: {
             query?: never;
@@ -7409,6 +7429,85 @@ export interface operations {
                 content?: never;
             };
             /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Forbidden"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Forbidden */
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Not found"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Not found */
+                        error?: string;
+                    };
+                };
+            };
+        };
+    };
+    GET_v1_interviews_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The interview, as its panel member sees it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        candidate_first: string;
+                        candidate_last: string;
+                        role_title: string | null;
+                        type: string;
+                        at: string;
+                        status: string;
+                        criteria: {
+                            key?: string;
+                            label?: string;
+                        }[];
+                        /** @enum {string} */
+                        my_feedback: "GIVEN" | "WAITING";
+                        my_vote: {
+                            rating?: string;
+                            overall?: number | null;
+                        } | null;
+                        can: {
+                            capture_feedback?: boolean;
+                        };
+                        /** @enum {string} */
+                        why?: "GIVEN" | "NOT_STARTED" | "CLOSED";
+                    };
+                };
+            };
+            /** @description Forbidden (no company, or Recruitment is off for the company) */
             403: {
                 headers: {
                     [name: string]: unknown;

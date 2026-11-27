@@ -4,10 +4,7 @@ import * as RA from '../shared/recruitment-access.mjs';
 import { DEFAULTS } from '../shared/recruitment-settings.mjs';
 import { normaliseStage } from '../shared/recruitment-stages.mjs';
 import * as L from '../shared/interview-lifecycle.mjs';
-
-
-const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
-const oneDecimal = (x) => (x === null ? null : Math.round(x * 10) / 10);
+import { mean, oneDecimal } from '../shared/scoring.mjs';
 
 /** What INT-01 adds to one interview of the read, for this caller. */
 export function decorate(r, o) {

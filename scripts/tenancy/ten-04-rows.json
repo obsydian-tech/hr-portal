@@ -191,6 +191,12 @@
       "op": "GET /v1/company/departments"
     }
   },
+  "GET /v1/interviews/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "interview"
+    }
+  },
   "POST /v1/interviews/{id}/votes": {
     "kind": "byId",
     "ids": {
