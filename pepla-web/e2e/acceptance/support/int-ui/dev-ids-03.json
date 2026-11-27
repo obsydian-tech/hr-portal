@@ -1,0 +1,16 @@
+{
+  "desktop-1280": {
+    "candidate": "CAND-INTUI03DEVAAAAAAAAAAAD1",
+    "firstName": "Ivo",
+    "lastName": "Seed-Close-Desk",
+    "cancel": { "id": "iv-intui03-dev-cancel-desk", "type": "Final" },
+    "done": { "id": "iv-intui03-dev-done-desk", "type": "Technical" }
+  },
+  "phone-390": {
+    "candidate": "CAND-INTUI03DEVAAAAAAAAAAAP1",
+    "firstName": "Ivo",
+    "lastName": "Seed-Close-Phone",
+    "cancel": { "id": "iv-intui03-dev-cancel-phone", "type": "Final" },
+    "done": { "id": "iv-intui03-dev-done-phone", "type": "Technical" }
+  }
+}
