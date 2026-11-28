@@ -1999,19 +1999,60 @@ class JsFile:
             return None
         return self.text[sp[0]:sp[1]].strip(), sp[0]
 
-    def getter_shadowed(self, name, off):
-        """True when a name might be something else than the file's one constant at this place: it is also an
-        input of a function around the call, it is declared more than once (an inner name), it is a let or var,
-        or it is assigned again. Such a getter is never read (spec 4b, item 1): it stays could not judge."""
+    def input_spans(self):
+        """[(inputs text, start, end)] for every function with a body: named or inline, arrow, function or method.
+        An arrow without braces runs to the next semicolon. Cached."""
+        if hasattr(self, "_input_spans"):
+            return self._input_spans
         t = self.text
-        for f in self.funcs:
-            if f[2] <= off <= f[3] and name in f[1]:
-                return True
-        decls = re.findall(r"\b(const|let|var)\s+%s\b" % re.escape(name), t)
+        out = []
+        inner = r"[^()]*(?:\([^()]*\)[^()]*)*"
+        heads = (
+            r"\(" + "(" + inner + ")" + r"\)\s*=>\s*",
+            r"(?<![\w$.])([\w$]+)\s*=>\s*",
+            r"\bfunction\b[^(){}]*\(" + "(" + inner + ")" + r"\)\s*(?=\{)",
+            r"(?<![\w$.])(?!(?:if|for|while|switch|catch|function|return)\b)[\w$]+\s*\(" + "(" + inner + ")" + r"\)\s*(?=\{)",
+        )
+        for h in heads:
+            for m in re.finditer(h, t):
+                j = m.end()
+                if j < len(t) and t[j] == "{":
+                    e = scan_balanced(t, j)
+                    if e < 0:
+                        e = len(t)
+                else:
+                    e = t.find(";", j)
+                    e = len(t) if e < 0 else e
+                out.append((m.group(1), m.start(), e))
+        self._input_spans = out
+        return out
+
+    def name_is_plain(self, name, off):
+        """The one strict test before a name is read (spec 4b item 1, review of PR 569). The name must be declared exactly
+        once in the file, as a const (not a let, var, function, class, an import, a catch or loop name or a name taken
+        out of an object or list), never be an input (plain or destructured, named or inline function) of a function
+        around the place it is used, and never be assigned again. Otherwise it may mean something else there, and the
+        caller keeps could not judge."""
+        t = self.text
+        n = re.escape(name)
+        for params, start, end in self.input_spans():
+            if start <= off <= end and re.search(r"(?<![\w$.])%s\b" % n, params):
+                return False
+        decls = re.findall(r"\b(const|let|var)\s+%s\b" % n, t)
         if len(decls) != 1 or decls[0] != "const":
-            return True
-        assigns = re.findall(r"(?<![\w$.])%s\s*(?:[-+*/%%&|^]|\?\?|\|\||&&|\*\*|<<|>>>?)?=(?![=>])" % re.escape(name), t)
-        return len(assigns) > 1
+            return False
+        other_binders = (
+            r"\bfunction\s*\*?\s*%s\b" % n,
+            r"\bclass\s+%s\b" % n,
+            r"\b(?:const|let|var)\s*[\[{][^=;()]*\b%s\b[^=;()]*[\]}]\s*=" % n,
+            r"\bcatch\s*\(\s*%s\b" % n,
+            r"\bfor\s*\(\s*(?:const|let|var)\s+[\[{][^)]*\b%s\b" % n,
+            r"(?<![\w$.])%s\s*(?:[-+*/%%&|^]|\?\?|\|\||&&|\*\*|<<|>>>?)=(?!=)" % n,
+            r"\bimport\b[^;]*\b%s\b[^;]*\bfrom\b" % n,
+        )
+        if any(re.search(pat, t) for pat in other_binders):
+            return False
+        return len(re.findall(r"(?<![\w$.])%s\s*=(?![=>])" % n, t)) <= 1
 
     def const_span(self, name):
         if name not in self.consts:
@@ -2366,7 +2407,7 @@ class FunctionCode:
             return ("unk", "setting %s not in Terraform" % nm)
         mg = re.fullmatch(r"([A-Za-z_$][\w$]*)\(\s*\)", t)
         if mg and depth < 6 and not (binding and mg.group(1) in binding):
-            ce = None if jf.getter_shadowed(mg.group(1), off) else jf.const_expr(mg.group(1))
+            ce = jf.const_expr(mg.group(1)) if jf.name_is_plain(mg.group(1), off) else None
             if ce:
                 mb = re.fullmatch(r"(?:async\s*)?\(\s*\)\s*=>\s*(.+)", ce[0], re.S)
                 if mb:
@@ -2383,9 +2424,8 @@ class FunctionCode:
             return self.value(jf, "process.env." + mr.group(2), off, None, depth + 1)
         mp = re.fullmatch(r"([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)", t)
         if mp and depth < 6 and not (binding and mp.group(1) in binding):
-            fn = jf.enclosing(off)
-            ce = jf.const_expr(mp.group(1))
-            if not (fn and mp.group(1) in fn[1]) and ce and ce[0].lstrip().startswith("{"):
+            ce = jf.const_expr(mp.group(1)) if jf.name_is_plain(mp.group(1), off) else None
+            if ce and ce[0].lstrip().startswith("{"):
                 props, _w = self.obj_props(jf, ce[0], ce[1], None, 3)
                 if mp.group(2) in props:
                     return self.value(jf, props[mp.group(2)][0], props[mp.group(2)][1], None, depth + 1)
@@ -2396,7 +2436,7 @@ class FunctionCode:
             fn = jf.enclosing(off)
             if fn and t in fn[1]:
                 return ("param", t, fn, jf)
-            ce = jf.const_expr(t)
+            ce = jf.const_expr(t) if jf.name_is_plain(t, off) else None
             if ce and depth < 6:
                 return self.value(jf, ce[0], ce[1], binding, depth + 1)
             if t in jf.imports:
@@ -2407,7 +2447,7 @@ class FunctionCode:
                     target = self.resolve_spec(jf.rel, pkg)
                     if target and target in self.files:
                         f2 = self.files[target]
-                        ce2 = f2.const_expr(nm)
+                        ce2 = f2.const_expr(nm) if f2.consts.get(nm) is not None and f2.name_is_plain(nm, f2.consts[nm]) else None
                         if ce2:
                             return self.value(f2, ce2[0], ce2[1], None, depth + 1)
             return ("unk", "name not readable (%s)" % t)
