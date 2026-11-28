@@ -104,7 +104,8 @@ export const handler = async (event) => {
     }
     await sqs.send(new SendMessageCommand({
       QueueUrl: process.env.NOTIFICATION_QUEUE_URL,
-      MessageBody: JSON.stringify({ type: 'DRAFT_EMAIL', tenant_id: tenantId, recipientId: personId, recipientEmail: draft.to_email, candidateId: draft.candidate_id, subject: draft.kind === 'offer_follow_up' ? 'Your offer' : 'Checking in', body: draft.body, draftId: draft.draft_id }),
+      // No approved subject wording exists yet (owed by Iggie), so none is invented: the subject goes empty.
+      MessageBody: JSON.stringify({ type: 'DRAFT_EMAIL', tenant_id: tenantId, recipientId: personId, recipientEmail: draft.to_email, candidateId: draft.candidate_id, subject: '', body: draft.body, draftId: draft.draft_id }),
       MessageGroupId: tenantId, MessageDeduplicationId: `draft#${draft.draft_id}`,
     }));
     const response = json(200, view({ ...draft, status: 'SENT' }));
