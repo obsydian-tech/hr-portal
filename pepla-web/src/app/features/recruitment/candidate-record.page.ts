@@ -18,6 +18,8 @@ import { DecideDrawer, type DecideChoice } from './interviews/decide.drawer';
 import { INTERVIEW_WORDS } from './interviews/interview-words';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
+import { ModulesService } from '../../core/modules.service';
 import { map } from 'rxjs';
 import { shortDate } from './hire-format';
 import { INTERVIEWS_TAB_READY, NOTES_TAB_READY, OFFER_TAB_READY } from './hire-flags';
@@ -57,6 +59,7 @@ interface View {
   next: { from: string; to: string; blocked: boolean } | null;
   canMove: boolean;
   canDecide: boolean;
+  employeeId: string | null;
 }
 
 const text = (v: string | null | undefined): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
@@ -71,6 +74,7 @@ function viewOf(r: CandidateRecord): View {
     email: text(r.email), phone: text(r.phone), stage: r.stage, stageEnteredAt: text(r.stage_entered_at), dueAt: text(r.due_at), slaStatus: r.sla_status ?? null,
     next: n ? { from: n.from, to: n.to, blocked: n.blocker?.code === 'INTERVIEWS_INCOMPLETE' } : null,
     canMove: r.can_move === true, canDecide: r.can_decide === true,
+    employeeId: typeof r.employee_id === 'string' && r.employee_id !== '' ? r.employee_id : null,
   };
 }
 
@@ -81,7 +85,7 @@ function viewOf(r: CandidateRecord): View {
  */
 @Component({
   selector: 'app-candidate-record-page',
-  imports: [DecideDrawer, FeedbackSheet, InterviewsTab, NotHiredDialog, ScheduleDrawer, CloseInterviewDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
+  imports: [RouterLink, DecideDrawer, FeedbackSheet, InterviewsTab, NotHiredDialog, ScheduleDrawer, CloseInterviewDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (capturing() && phone()) {
@@ -140,6 +144,11 @@ function viewOf(r: CandidateRecord): View {
             } @else {
             <div class="pp-columns pp-columns--wide-aside pp-gap-200">
               <div class="pp-stack pp-gap-200">
+                @if (hired(); as h) {
+                  <pp-section-message tone="success" heading="Employee record created">{{ h.line }}
+                    <pp-section-message-actions><a ppButton size="small" icon="arrow-right" [routerLink]="['/hr/employees', h.id]">Open in Onboarding</a></pp-section-message-actions>
+                  </pp-section-message>
+                }
                 @if (c.next; as n) {
                   <pp-card heading="Next step" [level]="2" [subheading]="stageName(n.from) + ' to ' + stageName(n.to)">
                     @if (n.blocked && c.first) {
@@ -257,6 +266,12 @@ export class CandidateRecordPage {
   private scheduleByAddress = false;
   private scheduleWanted: string | null = null;
 
+  private readonly modulesSvc = inject(ModulesService);
+  protected readonly hired = computed(() => {
+    const c = this.v();
+    if (!c || c.stage !== 'HIRED' || !c.employeeId || !this.modulesSvc.modules().has('onboarding')) return null;
+    return { id: c.employeeId, line: c.name ? `Onboarding opened for ${c.name}.` : '' };
+  });
   private readonly api = inject(HireApi);
   private readonly title = inject(Title);
   private readonly location = inject(Location);

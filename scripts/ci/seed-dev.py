@@ -1896,6 +1896,30 @@ def seed_recui01_6(ddb, tenant_id: str) -> int:
     return 2 + len(stale.get("Items", []))
 
 
+def seed_rec_ui_02_6(ddb, tenant_id: str) -> int:
+    """REC-UI-02 step 5 (rec-ui-02.6) AC-H9: one hired candidate per width (the dev run opens each at 1280 and 390), each with an
+    employee_id, and that employee row, in company A. Written whole with PutItem every run; nothing the tests do changes them (the test
+    only reads). The employee rows use robot addresses (blackhole.postmarkapp.com) and stage INVITED, so nothing is ever sent. Ids in
+    support/rec-ui-02/hired-dev-ids.json. No role row: role_id stays empty, as an old candidate's. Idempotent."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-ui-02" / "hired-dev-ids.json").read_text())
+    now = "2026-11-25T08:00:00.000Z"
+    written = 0
+    for width in ("desk", "phone"):
+        x = ids[width]
+        cid, eid = x["candidate"], x["employee"]
+        email = f"pepla-demo-recui026.hired-{width}@{MAIL_DOMAIN}"
+        ddb.put_item(TableName="employees", Item=employee_item(eid, x["firstName"], x["lastName"], email, "Operations", "Demo role", "INVITED", tenant_id=tenant_id))
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": f"CANDIDATE#{cid}"}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": x["firstName"]}, "lastName": {"S": x["lastName"]},
+            "email": {"S": email}, "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": "HIRED"}, "stageEnteredAt": {"S": now}, "hired_at": {"S": now}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now}, "employee_id": {"S": eid}, "seed": {"S": SEED_TAG},
+        })
+        written += 2
+    return written
+
+
 def seed_int04(ddb, tenant_id: str) -> int:
     """INT-04: turn company A's interview emails on and put the INT-04 dev candidate back every run (INT-04.md, "Dev seed").
 
@@ -2155,6 +2179,11 @@ def main() -> None:
         seed_recui01_6(ddb, tid)
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: a TalentFlow table is not there; the REC-UI-01.6 rows were not written")
+
+    try:
+        seed_rec_ui_02_6(ddb, tid)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: a TalentFlow table is not there; the REC-UI-02.6 hired candidates were not written")
 
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 
