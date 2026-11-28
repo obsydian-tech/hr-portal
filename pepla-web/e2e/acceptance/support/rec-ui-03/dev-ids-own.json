@@ -1,0 +1,14 @@
+{
+  "desktop-1280": {
+    "candidate": "CAND-RECUI034OWNAAAAAAAAAAD1",
+    "firstName": "Ivo",
+    "lastName": "Seed-Own-Desk",
+    "interview": "iv-rec-ui-03-4-own-desk"
+  },
+  "phone-390": {
+    "candidate": "CAND-RECUI034OWNAAAAAAAAAAP1",
+    "firstName": "Ivo",
+    "lastName": "Seed-Own-Phone",
+    "interview": "iv-rec-ui-03-4-own-phone"
+  }
+}
