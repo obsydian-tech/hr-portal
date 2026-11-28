@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, signal } from '
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PpButton, PpField, PpForm, PpLink, PpPassword, PpSectionMessage, PpSignInActions, PpSignInPage, PpTextField } from '../../ds';
-import { isEmail, landingFor } from '../../core/auth/auth.errors';
+import { feedbackReturn, isEmail, landingFor } from '../../core/auth/auth.errors';
 import { RESET_MESSAGES, SIGN_IN_MESSAGES, SignInProblem } from '../../core/auth/auth.messages';
 import { AuthService } from '../../core/auth/auth.service';
 import { landingFor as firstPage } from '../../core/nav';
@@ -82,7 +82,8 @@ export class SignInPage {
       // An admin who is not HR (and not an employee) has no HR or employee page: they go to their own first page (CHAT-03).
       const { roles, perms } = rolesOf(result.user.groups);
       const adminOnly = roles.includes(ROLE.admin) && !roles.includes(ROLE.hrStaff);
-      const to = adminOnly ? firstPage(roles, perms, []) : landingFor(this.auth.isHr(), this.route.snapshot.queryParamMap.get('returnUrl'));
+      const back = this.route.snapshot.queryParamMap.get('returnUrl');
+      const to = adminOnly && !feedbackReturn(back) ? firstPage(roles, perms, []) : landingFor(this.auth.isHr(), this.route.snapshot.queryParamMap.get('returnUrl'));
       await this.router.navigateByUrl(to);
       return;
     }

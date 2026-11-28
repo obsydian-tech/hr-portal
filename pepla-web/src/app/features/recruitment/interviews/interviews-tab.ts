@@ -5,7 +5,7 @@ import { map } from 'rxjs';
 import { PpAvatarGroup, PpButton, PpCard, PpDropdownMenu, PpMenuItem, PpDeadline, PpEmptyState, PpLozenge, PpPerson, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, type IconName, type Status } from '../../../ds';
 import type { components } from '../../../core/api/openapi';
 import { shortDate } from '../hire-format';
-import { DRAWER_LINES, INTERVIEW_WORDS as W, typeWords } from './interview-words';
+import { DRAWER_LINES, INTERVIEW_WORDS as W, feedbackLine, typeWords } from './interview-words';
 import { CAPTURE_FEEDBACK_READY, CLOSE_ACTIONS_READY, RESCHEDULE_READY, SCHEDULE_READY } from '../hire-flags';
 import type { CloseAction } from './close-interview.dialog';
 import { PanelSummary, type Summary } from './panel-summary';
@@ -59,11 +59,7 @@ export function viewOf(x: Item, now: number): View {
     const meta = guest && e.name ? W.lines['guest']! : e.vote?.on_behalf_by_name ? `Captured by ${e.vote.on_behalf_by_name} for ${(e.name ?? '').split(' ')[0]}` : null;
     let words: string | null = null;
     if (e.no_feedback) words = W.lines['noFeedback']!;
-    else if (e.vote) {
-      const r = e.vote.rating ? W.ratings[e.vote.rating] ?? null : null;
-      const o = typeof e.vote.overall === 'number' ? `${e.vote.overall} out of 5` : null;
-      words = r && o ? `${r} · ${o}` : r ?? o;
-    }
+    else if (e.vote) words = feedbackLine(e.vote);
     let overdue: Line['overdue'] = null;
     if (started && e.feedback === 'WAITING' && !e.no_feedback && valid(e.due_at) && Date.parse(e.due_at) < now) {
       const n = Math.round((sastMid(now) - sastMid(Date.parse(e.due_at))) / DAY);
