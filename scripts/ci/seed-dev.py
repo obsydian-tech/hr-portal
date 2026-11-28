@@ -1920,6 +1920,47 @@ def seed_rec_ui_02_6(ddb, tenant_id: str) -> int:
     return written
 
 
+def seed_rec_ui_02_9(ddb, tenant_id: str) -> int:
+    """REC-UI-02 step 9 (rec-ui-02.9) AC-RO11: one candidate per test width (reopen-dev-ids.json is keyed by Playwright project; the
+    dev step runs each width once and this seed once). The dev test records Not hired on it and reopens it, so every row under each
+    candidate is removed first and the SAGA row is written back at the file's open stage: a half-failed run never leaves one Not hired.
+    The level is the first of JUNIOR, MID, SENIOR whose second confirmation is off in the company's ACTIVE REJECTION_RULES (read, never
+    changed; the defaults have it off everywhere), so the HR login decides alone. No role, no offer row, no hiring manager. Idempotent."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-ui-02" / "reopen-dev-ids.json").read_text())
+    stages = {"Applied": "APPLIED", "Screening": "SCREENING", "Interview": "INTERVIEW", "Offer": "OFFER"}
+    try:
+        r = ddb.query(TableName="talent-flow-config", IndexName="GSI1-active-configs", KeyConditionExpression="GSI1PK = :pk AND GSI1SK = :sk",
+                      ExpressionAttributeValues={":pk": {"S": f"TENANT#{tenant_id}#ACTIVE"}, ":sk": {"S": "CONFIG#REJECTION_RULES"}}, Limit=1)
+        items = r.get("Items", [])
+    except ddb.exceptions.ResourceNotFoundException:
+        items = []
+    second = items[0].get("data", {}).get("M", {}).get("secondConfirmation", {}).get("M", {}) if items else {}
+    level = next((name for name in ("JUNIOR", "MID", "SENIOR") if not second.get(name, {}).get("BOOL", False)), None)
+    if level is None:
+        print("warning: every level needs a second confirmation; the REC-UI-02.9 candidates were not written")
+        return 0
+    now = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(time.time() - 86400))
+    written = 0
+    for key, x in ids.items():
+        if not isinstance(x, dict):
+            continue
+        cid = x["candidate"]
+        pk = f"CANDIDATE#{cid}"
+        for page in ddb.get_paginator("query").paginate(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk",
+                                                         ExpressionAttributeValues={":pk": {"S": pk}}, ProjectionExpression="PK, SK"):
+            for item in page.get("Items", []):
+                ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": pk}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{now}#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": x["firstName"]}, "lastName": {"S": x["lastName"]},
+            "email": {"S": f"pepla-demo-recui029.reopen-{key}@{MAIL_DOMAIN}"}, "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": level},
+            "department": {"S": "Operations"}, "currentStage": {"S": stages[x["stage"]]}, "stageEnteredAt": {"S": now}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": now}, "appliedDate": {"S": now}, "seed": {"S": SEED_TAG},
+        })
+        written += 1
+    return written
+
+
 def seed_int04(ddb, tenant_id: str) -> int:
     """INT-04: turn company A's interview emails on and put the INT-04 dev candidate back every run (INT-04.md, "Dev seed").
 
@@ -2184,6 +2225,11 @@ def main() -> None:
         seed_rec_ui_02_6(ddb, tid)
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: a TalentFlow table is not there; the REC-UI-02.6 hired candidates were not written")
+
+    try:
+        seed_rec_ui_02_9(ddb, tid)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: a TalentFlow table is not there; the REC-UI-02.9 candidates were not written")
 
     docs_removed, consents_removed = reset_persona(ddb, tid, employee_sub)
 

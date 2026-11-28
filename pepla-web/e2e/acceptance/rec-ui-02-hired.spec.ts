@@ -560,10 +560,16 @@ test.describe('AC-H9 pepla-dev', () => {
     const recruitmentOn = (await navLabels(page)).includes('Candidates');
     await page.goto(`/hire/candidates/${s.candidate}`);
     await quiet(page);
+    // rec-ui-02.6.1: in the main dev run company B has only Onboarding (the step that switches its Recruitment on runs after it), so B is
+    // sent to /hr, whose own people list links to B's employees. The record-only link check runs only when B is on the record.
+    const branch = recruitmentOn ? 'Recruitment on: "This candidate could not be found."' : 'Recruitment off: sent to /hr';
+    test.info().annotations.push({ type: 'company B', description: branch });
+    console.log(`AC-H9 company B (${test.info().project.name}): ${branch}`);
     if (recruitmentOn) await expect(main(page).getByText(RW.notFound, { exact: true })).toBeVisible();
     else await expect(page).toHaveURL('/hr');
-    await noBlock(page, 'company B');
+    await noBlock(page, 'company B', recruitmentOn);
+    await expect(page.locator(`a[href*="${s.employee}"]`), 'company B: no link to A\'s employee').toHaveCount(0);
     const html = await page.content();
-    for (const n of [s.lastName, s.employee]) expect(html).not.toContain(n);
+    for (const n of [s.lastName, s.employee]) expect(html, `company B: nothing of A (${n})`).not.toContain(n);
   });
 });

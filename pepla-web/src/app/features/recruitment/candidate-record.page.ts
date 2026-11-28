@@ -24,6 +24,7 @@ import { map } from 'rxjs';
 import { shortDate } from './hire-format';
 import { INTERVIEWS_TAB_READY, NOTES_TAB_READY, OFFER_TAB_READY } from './hire-flags';
 import { NotHiredDialog, SAVE_FAIL } from './not-hired-dialog';
+import { ReopenDialog } from './reopen-dialog';
 
 type CandidateRecord = components['schemas']['CandidateRecord'];
 type Stage = CandidateRecord['stage'];
@@ -60,6 +61,7 @@ interface View {
   canMove: boolean;
   canDecide: boolean;
   employeeId: string | null;
+  before: string | null;
 }
 
 const text = (v: string | null | undefined): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
@@ -75,6 +77,7 @@ function viewOf(r: CandidateRecord): View {
     next: n ? { from: n.from, to: n.to, blocked: n.blocker?.code === 'INTERVIEWS_INCOMPLETE' } : null,
     canMove: r.can_move === true, canDecide: r.can_decide === true,
     employeeId: typeof r.employee_id === 'string' && r.employee_id !== '' ? r.employee_id : null,
+    before: typeof r.stage_before_not_hired === 'string' ? r.stage_before_not_hired : null,
   };
 }
 
@@ -85,7 +88,7 @@ function viewOf(r: CandidateRecord): View {
  */
 @Component({
   selector: 'app-candidate-record-page',
-  imports: [RouterLink, DecideDrawer, FeedbackSheet, InterviewsTab, NotHiredDialog, ScheduleDrawer, CloseInterviewDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
+  imports: [RouterLink, ReopenDialog, DecideDrawer, FeedbackSheet, InterviewsTab, NotHiredDialog, ScheduleDrawer, CloseInterviewDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (capturing() && phone()) {
@@ -117,6 +120,7 @@ function viewOf(r: CandidateRecord): View {
               @if (lozenge(); as l) { <pp-lozenge [status]="l.status" [icon]="l.icon">{{ l.words }}</pp-lozenge> }
               <pp-person-header-actions>
                 @if (showNotHired()) { <button ppButton type="button" (click)="askNotHired()">Not hired</button> }
+                @if (showReopen()) { <button ppButton type="button" (click)="askReopen()">Reopen</button> }
                 @if (c.canMove) { <button ppButton [appearance]="showDecide() ? 'default' : 'primary'" icon="arrow-right-left" type="button" (click)="askMove()">Move</button> }
                 @if (showDecide()) { <button ppButton appearance="primary" type="button" (click)="pressDecide()">{{ decideWord }}</button> }
               </pp-person-header-actions>
@@ -182,7 +186,8 @@ function viewOf(r: CandidateRecord): View {
       (saved)="scheduled($event)" (dismissed)="drawerClosed()" />
     <app-close-interview-dialog [candidateId]="id()" [reread]="rereadInterviews" (saved)="closeSaved($event)" />
     <pp-move-dialog [stages]="stageList()" [request]="moving()" (confirmed)="move($event)" (dismissed)="moving.set(null); moveFromDecide = false" />
-    <app-not-hired-dialog [who]="notHiredFor()" [failed]="notHiredFailed()" (record)="recordNotHired($event)" (dismissed)="notHiredOpen.set(false)" />`,
+    <app-not-hired-dialog [who]="notHiredFor()" [failed]="notHiredFailed()" (record)="recordNotHired($event)" (dismissed)="notHiredOpen.set(false)" />
+    <app-reopen-dialog [open]="reopenOpen()" [failed]="reopenFailed()" [busy]="reopenBusy()" (confirmed)="reopen($event)" (dismissed)="closeReopen()" />`,
 })
 export class CandidateRecordPage {
   /** The candidate's id from the address. */
@@ -404,6 +409,28 @@ export class CandidateRecordPage {
 
   /** Not hired is for open stages only: `can_decide` is also true on a Not hired record, where it means "may reopen". */
   protected readonly showNotHired = computed(() => { const c = this.v(); return !!c && c.canDecide && OPEN_STAGES.includes(c.stage); });
+  protected readonly showReopen = computed(() => { const c = this.v(); return !!c && c.canDecide && c.stage === 'NOT_HIRED' && !!c.before && OPEN_STAGES.includes(c.before); });
+  protected readonly reopenOpen = signal(false);
+  protected readonly reopenFailed = signal(false);
+  protected readonly reopenBusy = signal(false);
+  protected askReopen() { this.saveFailed.set(false); this.reopenFailed.set(false); this.reopenOpen.set(true); }
+  protected closeReopen() { this.reopenOpen.set(false); this.reopenFailed.set(false); }
+  /** POST /v1/candidates/{id}/reopen with { reason } only (spec step 9 rule 3). */
+  protected async reopen(reason: string) {
+    const c = this.v();
+    if (!c || this.reopenBusy()) return;
+    const run = this.run;
+    this.reopenBusy.set(true);
+    this.reopenFailed.set(false);
+    const r = await this.api.call('POST', `/v1/candidates/${encodeURIComponent(c.id)}/reopen`, { reason });
+    this.reopenBusy.set(false);
+    if (run !== this.run) return;
+    if (r?.status !== 200) { this.reopenFailed.set(true); if (r?.status === 409) await this.reread(); return; }
+    this.reopenOpen.set(false);
+    this.dropNotes();
+    await this.reread();
+    setTimeout(() => (this.host.querySelector('.pp-person-header button') as HTMLElement | null)?.focus(), 30);
+  }
   protected readonly notHiredFor = computed(() => { const c = this.v(); return this.notHiredOpen() && c ? { name: c.name, waiting: false, line: null } : null; });
 
   constructor() {
@@ -569,6 +596,8 @@ export class CandidateRecordPage {
     this.moveFromDecide = false;
     this.moving.set(null);
     this.notHiredOpen.set(false);
+    this.reopenOpen.set(false);
+    this.reopenFailed.set(false);
     this.title.setTitle(`Candidate · ${TITLE}`);
     const [rec, opts] = await Promise.all([this.read(id), this.api.call('GET', '/v1/roles/options').then(optionsOf)]);
     if (run !== this.run) return;
