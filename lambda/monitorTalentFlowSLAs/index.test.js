@@ -25,6 +25,9 @@ jest.mock('@aws-sdk/client-dynamodb', () => {
     DynamoDBClient:    jest.fn().mockImplementation(() => ({ send: mockDynSend })),
     ScanCommand:       jest.fn((p) => p),
     UpdateItemCommand: jest.fn((p) => p),
+    GetItemCommand:    jest.fn((p) => p),
+    QueryCommand:      jest.fn((p) => p),
+    PutItemCommand:    jest.fn((p) => p),
   };
 });
 
@@ -40,6 +43,11 @@ jest.mock('../shared/config-reader', () => {
   mockGetConfig = jest.fn();
   return { getConfig: mockGetConfig };
 });
+
+// REC-09 rule 10: every company is checked for the Recruitment module before its candidates are judged. That read is an ES module the
+// handler loads with import(), so it is mocked the ES module way: these tests are about the SLA work, not the module read (the
+// Module-off case is judged by acceptance test REC-09 AC-9).
+jest.unstable_mockModule('../shared/modules.mjs', () => ({ modulesOf: async () => ['onboarding', 'recruitment'] }));
 
 // ---------------------------------------------------------------------------
 // Load handler after mocks are registered
@@ -103,7 +111,7 @@ describe('monitorTalentFlowSLAs', () => {
     await handler();
 
     // Scan + UpdateItem = 2 dynamo calls
-    expect(mockDynSend).toHaveBeenCalledTimes(2);
+    expect(mockDynSend).toHaveBeenCalledTimes(3); // Scan + UpdateItem + the interview scan of REC-09 (its recruitment jobs run after the SLA work)
 
     // Verify UpdateItem has idempotency guard
     const updateArgs = mockDynSend.mock.calls[1][0];
@@ -131,7 +139,7 @@ describe('monitorTalentFlowSLAs', () => {
 
     await handler();
 
-    expect(mockDynSend).toHaveBeenCalledTimes(1);
+    expect(mockDynSend).toHaveBeenCalledTimes(2);
     expect(mockGetConfig).not.toHaveBeenCalled();
     expect(mockEbSend).not.toHaveBeenCalled();
   });
@@ -145,7 +153,7 @@ describe('monitorTalentFlowSLAs', () => {
 
     await handler();
 
-    expect(mockDynSend).toHaveBeenCalledTimes(1); // Scan only — skip branch hit
+    expect(mockDynSend).toHaveBeenCalledTimes(2); // Scan + the interview scan — skip branch hit
     expect(mockEbSend).not.toHaveBeenCalled();
   });
 
@@ -159,7 +167,7 @@ describe('monitorTalentFlowSLAs', () => {
 
     await handler();
 
-    expect(mockDynSend).toHaveBeenCalledTimes(1); // Scan only
+    expect(mockDynSend).toHaveBeenCalledTimes(2); // Scan + the interview scan
     expect(mockEbSend).not.toHaveBeenCalled();
   });
 
@@ -212,7 +220,7 @@ describe('monitorTalentFlowSLAs', () => {
 
     await handler(); // must not throw
 
-    expect(mockDynSend).toHaveBeenCalledTimes(2); // Scan + UpdateItem (which failed conditionally)
+    expect(mockDynSend).toHaveBeenCalledTimes(3); // Scan + UpdateItem + the interview scan (which failed conditionally)
     expect(mockEbSend).not.toHaveBeenCalled(); // PutEvents skipped on conditional failure
   });
 });

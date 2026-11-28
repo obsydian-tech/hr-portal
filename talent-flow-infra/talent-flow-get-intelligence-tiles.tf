@@ -31,6 +31,7 @@ resource "aws_lambda_function" "get_intelligence_tiles" {
       STATE_TABLE_NAME      = aws_dynamodb_table.talent_flow_state.name
       DISMISSALS_TABLE_NAME = aws_dynamodb_table.intelligence_dismissals.name
       CONFIG_TABLE_NAME     = aws_dynamodb_table.talent_flow_config.name
+      COGNITO_POOL_ID       = local.tf_naleko_pool_id
     }
   }
 

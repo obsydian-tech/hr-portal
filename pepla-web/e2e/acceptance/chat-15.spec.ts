@@ -568,6 +568,12 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
       && !/^talent-flow-infra\/aws_apigatewayv2_route\.(get_candidate_scores|get_scoring_link|post_interview_votes|post_scoring_link|get_interview|get_feedback_due)$/.test(x)
       // REC-05 (child lock rec-05.1): manageOffers and its role, policy, log group, integration, routes and permission (manage_offers*), judged in rec-05.spec.ts AC-10 and AC-15.
       && !isRec05Resource(x)
+      // REC-09 (child lock rec-09.1): the drafts Lambda, by exact type and label (log group, role, role policy, function and integration `manage_drafts`;
+      // routes `manage_drafts_list|patch|send|dismiss`; permission `manage_drafts_api`) and the three `*_rec09` policies as aws_iam_role_policy only; judged in rec-09.spec.ts AC-10.
+      && !/^talent-flow-infra\/(aws_cloudwatch_log_group|aws_iam_role|aws_iam_role_policy|aws_lambda_function|aws_apigatewayv2_integration)\.manage_drafts$/.test(x)
+      && !/^talent-flow-infra\/aws_apigatewayv2_route\.manage_drafts_(list|patch|send|dismiss)$/.test(x)
+      && !/^talent-flow-infra\/aws_lambda_permission\.manage_drafts_api$/.test(x)
+      && !/^talent-flow-infra\/aws_iam_role_policy\.(evaluate_intelligence_rules|monitor_slas|get_intelligence_tiles)_rec09$/.test(x)
       // REC-16 (child lock chat-15.4): the hiring manager IT email Lambda and its role, policy, log group, rule, target and permission, all
       // labelled notify_hiring_manager_on_hire in infra/; judged in rec-16.spec.ts AC-10 and AC-8. Any other new resource still fails here.
       && !/^infra\/(aws_lambda_function|aws_iam_role|aws_iam_role_policy|aws_cloudwatch_log_group|aws_cloudwatch_event_rule|aws_cloudwatch_event_target|aws_lambda_permission)\.notify_hiring_manager_on_hire$/.test(x));

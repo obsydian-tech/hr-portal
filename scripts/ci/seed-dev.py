@@ -1961,6 +1961,73 @@ def seed_rec_ui_02_9(ddb, tenant_id: str) -> int:
     return written
 
 
+def seed_rec09(ddb, tenant_id: str, panel_sub: str, hr_sub: str) -> int:
+    """REC-09 dev seed (cards/rec-09.md): four candidates of company A, put back every run (support/rec-09/dev-ids.json). `overdue` entered
+    Applied 30 days ago (Over time flag); `missed` has an interview 26 hours past with no vote (Missed interview); `strongNo` has a Strong
+    no count of 1 at Interview (Strong no flag); `draftOffer` is at Offer with a SENT offer that expires tomorrow. Rows under each
+    candidate and the flag, draft and reminder guard rows of earlier runs are removed first, by key (nothing is scanned). The candidate
+    rows carry no role_id, so reset-dev-rec04.py leaves them alone. The overdue candidate is written as BREACHED (slaStatus and slaBreachedAt), so
+    the rule engine fires on the write and does not wait for the hourly job. The HR test login's flag rows for these four candidates are removed
+    first (a query on that person's own key, no scan), so a flag the check finds is today's firing, not a row inside the 24 hour cooldown. Idempotent."""
+    ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-09" / "dev-ids.json").read_text())
+    now_s = time.time()
+    iso = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(t))
+    written = 0
+    if hr_sub:
+        for page in ddb.get_paginator("query").paginate(TableName="talent-flow-notifications", KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                                                         ExpressionAttributeValues={":pk": {"S": f"USER#{hr_sub}"}, ":p": {"S": "NOTIF#"}}, ProjectionExpression="PK, SK, candidateId"):
+            for item in page.get("Items", []):
+                if item.get("candidateId", {}).get("S") in ids.values():
+                    ddb.delete_item(TableName="talent-flow-notifications", Key={"PK": item["PK"], "SK": item["SK"]})
+                    written += 1
+    for name, cid in ids.items():
+        pk = f"CANDIDATE#{cid}"
+        for page in ddb.get_paginator("query").paginate(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk",
+                                                         ExpressionAttributeValues={":pk": {"S": pk}}, ProjectionExpression="PK, SK"):
+            for item in page.get("Items", []):
+                ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+        # Drafts of earlier runs sit under the company's DRAFT# index; they are found by the candidate's own draft key.
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": {"S": pk}, "SK": {"S": "DRAFT#offer-expiry"}})
+        ddb.delete_item(TableName=STATE_TABLE, Key={"PK": {"S": f"OFFER#offer-{cid.lower()}"}, "SK": {"S": "OFFER"}})
+        stage = {"overdue": "APPLIED", "missed": "INTERVIEW", "strongNo": "INTERVIEW", "draftOffer": "OFFER"}[name]
+        entered = iso(now_s - (30 * 86400 if name == "overdue" else 2 * 86400))
+        item = {
+            "PK": {"S": pk}, "SK": {"S": "SAGA"}, "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#{entered}#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": "Rec09"}, "lastName": {"S": f"Seed-{name}"},
+            "email": {"S": f"pepla-demo-rec09.{name.lower()}@{MAIL_DOMAIN}"}, "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"},
+            "department": {"S": "Operations"}, "currentStage": {"S": stage}, "stageEnteredAt": {"S": entered}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": entered}, "appliedDate": {"S": entered}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+        }
+        if name == "overdue":
+            item["slaStatus"] = {"S": "BREACHED"}
+            item["slaBreachedAt"] = {"S": iso(now_s - 86400)}
+        if name == "strongNo":
+            item["strong_no_count"] = {"N": "1"}
+        ddb.put_item(TableName=STATE_TABLE, Item=item)
+        written += 1
+        if name == "missed":
+            iv_id = f"iv-rec09dev-{cid[-6:].lower()}"
+            ddb.put_item(TableName=STATE_TABLE, Item={
+                "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"}, "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+                "interviewType": {"S": "TECHNICAL"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": iso(now_s - 26 * 3600)}, "length_minutes": {"N": "60"},
+                "where": {"S": "IN_PERSON"}, "place": {"S": "Durban depot"}, "sequence": {"N": "1"}, "votesSubmitted": {"N": "0"},
+                "panelMemberIds": {"L": [{"S": panel_sub}]}, "createdAt": {"S": entered}, "seed": {"S": SEED_TAG},
+            })
+            for day_back in (0, 1):
+                day = time.strftime("%Y-%m-%d", time.gmtime(now_s + 7200 - day_back * 86400))
+                ddb.delete_item(TableName="talent-flow-notifications", Key={"PK": {"S": f"INTERVIEWER_REMINDER#{iv_id}#{panel_sub}#{day}"}, "SK": {"S": "REMINDER"}})
+            written += 1
+        if name == "draftOffer":
+            offer_id = f"offer-{cid.lower()}"
+            ddb.put_item(TableName=STATE_TABLE, Item={
+                "PK": {"S": f"OFFER#{offer_id}"}, "SK": {"S": "OFFER"}, "offer_id": {"S": offer_id}, "candidate_id": {"S": cid}, "tenant_id": {"S": tenant_id},
+                "state": {"S": "SENT"}, "expiry_date": {"S": time.strftime("%Y-%m-%d", time.gmtime(now_s + 86400 + 7200))}, "start_date": {"S": "2027-02-01"},
+                "salary": {"N": "100000"}, "currency": {"S": "ZAR"}, "version": {"N": "3"}, "seed": {"S": SEED_TAG},
+            })
+            written += 1
+    return written
+
+
 def seed_int04(ddb, tenant_id: str) -> int:
     """INT-04: turn company A's interview emails on and put the INT-04 dev candidate back every run (INT-04.md, "Dev seed").
 
@@ -2190,6 +2257,11 @@ def main() -> None:
         seed_int04(ddb, tid)
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: a TalentFlow table is not there; the INT-04 rows were not written")
+
+    try:
+        seed_rec09(ddb, tid, user_sub(cognito, naleko, "it"), user_sub(cognito, naleko, "hr"))
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: a TalentFlow table is not there; the REC-09 rows were not written")
 
     try:
         rec05_written = seed_rec05(ddb, tid, user_sub(cognito, naleko, "hr"))

@@ -19,14 +19,17 @@
  *       SLABreached → sendTalentFlowNotification automatically (no duplicate send).
  */
 
-const { DynamoDBClient, ScanCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, ScanCommand, UpdateItemCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { EventBridgeClient, PutEventsCommand } = require('@aws-sdk/client-eventbridge');
+const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { QueryCommand, PutItemCommand } = require('@aws-sdk/client-dynamodb');
 const { getConfig } = require('../shared/config-reader');
 const { tenantHelper, scopeWrite, eventTenant } = require('../shared/tf-tenant.js');
 
 const dynamo = new DynamoDBClient({});
 const eventbridge = new EventBridgeClient({});
+const sqs = new SQSClient({});
 
 exports.handler = async () => {
   const STATE_TABLE = process.env.STATE_TABLE_NAME;
@@ -69,6 +72,11 @@ exports.handler = async () => {
       const tenantId = await eventTenant({ tenant_id: saga.tenant_id });
       if (!tenantId) {
         console.warn(JSON.stringify({ event: 'sla_no_company', pk: saga.PK }));
+        continue;
+      }
+      // REC-09 rule 10: a company with Recruitment off is skipped.
+      if (!(await (await import('../shared/modules.mjs')).modulesOf(tenantId)).includes('recruitment')) {
+        console.warn('Module off, skipped', { tenantId });
         continue;
       }
       const slaThresholds = await thresholdsFor(tenantId);
@@ -153,6 +161,13 @@ exports.handler = async () => {
     }
   }
 
+  // REC-09: the time-based work of rules 2, 6 and 7. A failure here is logged by error name only and never hides the work above.
+  try {
+    await recruitmentJobs(thresholdsFor);
+  } catch (err) {
+    console.error(JSON.stringify({ event: 'RECRUITMENT_JOBS_FAILED', error: err?.name ?? 'Error' }));
+  }
+
   // REC-05 rule 8: SENT offers past their expiry date become EXPIRED (companies with Recruitment off are skipped).
   // A failure here must not hide the SLA work above, so it is logged by error name only and the next hourly run tries again.
   let expired = 0;
@@ -211,4 +226,150 @@ async function scanSentOffers(dynamo, tableName) {
     lastKey = resp.LastEvaluatedKey;
   } while (lastKey);
   return items;
+}
+
+
+// ---------------------------------------------------------------- REC-09
+
+const dayOf = (iso) => new Date(iso).toISOString().slice(0, 10);
+
+async function scanAll(params) {
+  const items = [];
+  let lastKey;
+  do {
+    const resp = await dynamo.send(new ScanCommand({ ...params, ...(lastKey ? { ExclusiveStartKey: lastKey } : {}) }));
+    for (const i of resp.Items ?? []) items.push(unmarshall(i));
+    lastKey = resp.LastEvaluatedKey;
+  } while (lastKey);
+  return items;
+}
+
+async function recruitmentJobs(thresholdsFor) {
+  const STATE_TABLE = process.env.STATE_TABLE_NAME;
+  const { modulesOf } = await import('../shared/modules.mjs');
+  const S = await import('../shared/recruitment-settings.mjs');
+  const { feedbackDueAt } = await import('../shared/feedback-due.mjs');
+  const sagas = new Map();
+  const sagaOf = async (id) => {
+    if (!sagas.has(id)) {
+      // A Query on the one key, not GetItem: this role is granted Query on the state table, not GetItem.
+      const r = await dynamo.send(new QueryCommand({
+        TableName: STATE_TABLE, KeyConditionExpression: 'PK = :pk AND SK = :sk', ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${id}`, ':sk': 'SAGA' }), Limit: 1,
+      }));
+      sagas.set(id, r.Items?.[0] ? unmarshall(r.Items[0]) : null);
+    }
+    return sagas.get(id);
+  };
+  const on = new Map();
+  const moduleOn = async (tid) => {
+    if (!on.has(tid)) on.set(tid, (await modulesOf(tid)).includes('recruitment'));
+    if (!on.get(tid)) console.warn('Module off, skipped', { tenantId: tid });
+    return on.get(tid);
+  };
+  const now = Date.now();
+
+  const interviews = await scanAll({
+    TableName: STATE_TABLE, FilterExpression: 'begins_with(SK, :p)', ExpressionAttributeValues: marshall({ ':p': 'INTERVIEW#' }),
+  });
+  for (const iv of interviews) {
+    try {
+      const tenantId = await eventTenant({ tenant_id: iv.tenant_id });
+      if (!tenantId || !(await moduleOn(tenantId))) continue;
+      const saga = await sagaOf(iv.candidateId);
+      if (!saga || saga.tenant_id !== tenantId) continue;
+      const stage = (await import('../shared/recruitment-stages.mjs')).normaliseStage(saga);
+      if (stage === 'HIRED' || stage === 'NOT_HIRED') continue;
+      const sla = await thresholdsFor(tenantId);
+      const votes = (await dynamo.send(new QueryCommand({
+        TableName: STATE_TABLE, KeyConditionExpression: 'PK = :pk AND begins_with(SK, :p)', ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${iv.candidateId}`, ':p': 'VOTE#' }),
+      }))).Items.map((i) => unmarshall(i)).filter((v) => v.interviewId === iv.interviewId);
+
+      // Rule 2: a missed interview.
+      const missedHours = typeof sla.interviewMissedAfterHours === 'number' ? sla.interviewMissedAfterHours : 24;
+      if (iv.status === 'SCHEDULED' && votes.length === 0 && now >= Date.parse(iv.scheduledAt) + missedHours * 3_600_000 && !saga.interviewMissedAt) {
+        const at = new Date().toISOString();
+        try {
+          await dynamo.send(new UpdateItemCommand(scopeWrite({
+            TableName: STATE_TABLE, Key: marshall({ PK: saga.PK, SK: 'SAGA' }), UpdateExpression: 'SET interviewMissedAt = :at, interviewMissedId = :iv',
+            ConditionExpression: 'attribute_not_exists(interviewMissedAt)', ExpressionAttributeValues: marshall({ ':at': at, ':iv': iv.interviewId }),
+          }, tenantId)));
+          saga.interviewMissedAt = at;
+        } catch (err) {
+          if (err.name !== 'ConditionalCheckFailedException') throw err;
+        }
+      }
+
+      // Rule 6: reminders to panel members who have not voted, once a day.
+      if (!['SCHEDULED', 'COMPLETED'].includes(iv.status)) continue;
+      const due = feedbackDueAt(iv.scheduledAt, sla);
+      if (!due || now < Date.parse(due)) continue;
+      const settings = (await S.settingsForRead(tenantId, saga)).settings;
+      const template = settings.EMAIL_TEMPLATES?.interviewer_reminder;
+      if (!template) continue;
+      const { renderTemplate } = S;
+      const { saDate } = await import('../shared/invite-email.mjs');
+      const { contactOf } = await import('../shared/people-contacts.mjs');
+      let role = saga.positionTitle ?? '';
+      if (saga.role_id && process.env.ROLES_TABLE_NAME) {
+        const r = await dynamo.send(new GetItemCommand({ TableName: process.env.ROLES_TABLE_NAME, Key: marshall({ pk: `TENANT#${tenantId}`, sk: `ROLE#${saga.role_id}` }) }));
+        if (r.Item) role = unmarshall(r.Item).job_title ?? role;
+      }
+      const voted = new Set(votes.map((v) => v.voterId));
+      for (const member of iv.panelMemberIds ?? []) {
+        if (voted.has(member)) continue;
+        const contact = await contactOf(tenantId, member);
+        if (!contact) continue;
+        const guardKey = marshall({ PK: `INTERVIEWER_REMINDER#${iv.interviewId}#${member}#${dayOf(new Date(now).toISOString())}`, SK: 'REMINDER' });
+        try {
+          await dynamo.send(new PutItemCommand({
+            TableName: process.env.NOTIFICATIONS_TABLE_NAME,
+            Item: { ...guardKey, tenant_id: { S: tenantId }, sent_at: { S: new Date(now).toISOString() }, expiresAt: { N: String(Math.floor(now / 1000) + 3 * 86400) } },
+            ConditionExpression: 'attribute_not_exists(PK)',
+          }));
+        } catch (err) {
+          if (err.name === 'ConditionalCheckFailedException') continue;
+          throw err;
+        }
+        const mail = renderTemplate(template, {
+          candidate: [saga.firstName, saga.lastName].filter(Boolean).join(' '), role, date: saDate(iv.scheduledAt), due: saDate(due),
+          link: `${process.env.FRONTEND_URL}/hire/feedback/${iv.interviewId}`,
+        });
+        await sqs.send(new SendMessageCommand({
+          QueueUrl: process.env.NOTIFICATION_QUEUE_URL,
+          MessageBody: JSON.stringify({ type: 'INTERVIEWER_REMINDER', tenant_id: tenantId, recipientId: member, recipientEmail: contact.email, candidateId: iv.candidateId, interviewId: iv.interviewId, subject: mail.subject, body: mail.body }),
+          MessageGroupId: tenantId, MessageDeduplicationId: `reminder#${iv.interviewId}#${member}#${dayOf(new Date(now).toISOString())}`,
+        }));
+      }
+    } catch (err) {
+      console.error(JSON.stringify({ event: 'recruitment_job_error', pk: iv.PK, error: err?.name ?? 'Error' }));
+    }
+  }
+
+  // Rule 7: an offer waiting for approval, or close to expiry, is copied onto its candidate so the stream job judges it.
+  const offers = await scanAll({
+    TableName: STATE_TABLE, FilterExpression: 'SK = :o AND begins_with(PK, :p) AND (#s = :sent OR #s = :wait)', ExpressionAttributeNames: { '#s': 'state' },
+    ExpressionAttributeValues: marshall({ ':o': 'OFFER', ':p': 'OFFER#', ':sent': 'SENT', ':wait': 'WAITING_APPROVAL' }),
+  });
+  for (const o of offers) {
+    try {
+      const tenantId = await eventTenant({ tenant_id: o.tenant_id });
+      if (!tenantId || !(await moduleOn(tenantId))) continue;
+      const sla = await thresholdsFor(tenantId);
+      const set = o.state === 'SENT'
+        ? (o.expiry_date && Date.parse(`${o.expiry_date}T12:00:00Z`) - now <= (typeof sla.offerExpiryWarningDays === 'number' ? sla.offerExpiryWarningDays : 3) * 86_400_000
+          ? { expiryDate: o.expiry_date, offerStatus: 'SENT' } : null)
+        : { offerStatus: 'WAITING_APPROVAL', currentApprovalStep: 'APPROVER', approvalStartedAt: o.submitted_at };
+      if (!set) continue;
+      const names = Object.keys(set);
+      await dynamo.send(new UpdateItemCommand(scopeWrite({
+        TableName: STATE_TABLE, Key: marshall({ PK: `CANDIDATE#${o.candidate_id}`, SK: 'SAGA' }),
+        UpdateExpression: `SET ${names.map((k, n) => `#k${n} = :v${n}`).join(', ')}`,
+        ConditionExpression: names.map((k, n) => `(attribute_not_exists(#k${n}) OR #k${n} <> :v${n})`).join(' OR '),
+        ExpressionAttributeNames: Object.fromEntries(names.map((k, n) => [`#k${n}`, k])),
+        ExpressionAttributeValues: marshall(Object.fromEntries(names.map((k, n) => [`:v${n}`, set[k]]))),
+      }, tenantId)));
+    } catch (err) {
+      if (err.name !== 'ConditionalCheckFailedException') console.error(JSON.stringify({ event: 'recruitment_offer_mirror_error', error: err?.name ?? 'Error' }));
+    }
+  }
 }

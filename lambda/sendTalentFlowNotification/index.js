@@ -132,6 +132,23 @@ async function processRecord(record) {
     await sendInterviewEmail(body, tenantId, { db: getDdbClient, postmark: getPostmarkClient });
     return;
   }
+  // REC-09: interviewer reminders and approved drafts carry their own words; no template, no in-app row.
+  if (type === 'INTERVIEWER_REMINDER' || type === 'DRAFT_EMAIL') {
+    if (!recipientEmail) throw new Error('Missing required field: recipientEmail');
+    const to = MVP1_RECIPIENT || recipientEmail;
+    const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const text = String(body.body ?? '');
+    const mail = { From: SENDER_EMAIL, To: to, Subject: String(body.subject ?? ''), HtmlBody: text.split('\n').map((l) => `<p>${esc(l)}</p>`).join(''), TextBody: text };
+    if (type === 'DRAFT_EMAIL' && body.replyTo) mail.ReplyTo = String(body.replyTo);
+    try {
+      await getPostmarkClient().sendEmail(mail);
+    } catch (err) {
+      // A mail provider's message can carry the address it refused: only the error's name leaves this function.
+      throw new Error(err?.name ?? 'SendFailed');
+    }
+    console.info('Notification sent', { type, candidateId: candidateId || null, tenant_id: tenantId });
+    return;
+  }
   if (!recipientEmail) throw new Error('Missing required field: recipientEmail');
   if (!type) throw new Error('Missing required field: type');
 

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
+import { isRec062Grant, isRec09Policy } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09), on top of rec-06.2.1
 import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
@@ -826,6 +826,7 @@ test.describe('REC-02 · A person decides: no automatic Not hired, and a Not hir
       if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): the department list's own role, judged in rec-14.spec.ts AC-3.
       if (isRec05Role(key, cur.role)) continue; // REC-05 (child lock rec-05.1): the offers Lambda's own role writes the state table, judged in rec-05.spec.ts AC-10.
       if (isRec16Role(key, cur.role)) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
+      if (isRec09Policy(key, cur.pairs)) continue; // REC-09 (child lock rec-09.1): REC-09's four policies, each exactly its pinned lines (support/rec-09/policy-lines.json), judged in rec-09.spec.ts AC-10.
       const was = writesOf(baseline[key]);
       const gained = [...writesOf(cur)].filter((l) => !was.has(l) && !isRec15dGrant(l, key) && !isInt01Grant(l, key) && !isRec062Grant(l, key)); // && isInt01Grant: child lock int-01.1; // && isRec15dGrant: child lock rec-15d.1 (AdminGetUser is a read, matched by Admin\w*)
       expect.soft(gained, `${key}: no new write grant`).toEqual([]);

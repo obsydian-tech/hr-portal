@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
+import { isRec062Grant, isRec09Policy } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09), on top of rec-06.2.1
 import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
@@ -1004,7 +1004,7 @@ test.describe('INT-01 · Interview lifecycle on the server', () => {
     }
     expect.soft(gainedSI.filter((l) => !NEW.some((re) => re.test(l))), 'scheduleInterview gains only GetItem and PutItem on the request-key table (no index, no *)').toEqual([]);
     expect.soft(NEW.map((re) => gainedSI.filter((l) => re.test(l)).length), 'each once').toEqual([1, 1]);
-    expect.soft(Object.keys(now).filter((k) => !baseline[k] && !isRec16Role(k, now[k]?.role)), 'no new policy').toEqual([]);
+    expect.soft(Object.keys(now).filter((k) => !baseline[k] && !isRec16Role(k, now[k]?.role) && !isRec09Policy(k, now[k]?.pairs)), 'no new policy').toEqual([]);
     // The settings and CORS.
     const si = lambdaNamed('scheduleInterview')[0];
     expect(si, 'scheduleInterview is a Lambda in Terraform').toBeTruthy();

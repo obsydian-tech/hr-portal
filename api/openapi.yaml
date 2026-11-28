@@ -6306,6 +6306,345 @@ paths:
       - admin
       - manager
       - perm-recruitment
+  /v1/drafts:
+    get:
+      summary: "GET /v1/drafts: the company's open drafts (REC-09)"
+      description: Drafts the rules wrote for a Recruiter to edit and send. Only the signed-in person's company.
+      responses:
+        '200':
+          description: Open drafts, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [drafts]
+                properties:
+                  drafts:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [id, candidateId, candidateName, toEmail, kind, body, status, createdAt]
+                      properties:
+                        id:
+                          type: string
+                        candidateId:
+                          type: string
+                        candidateName:
+                          type: string
+                        toEmail:
+                          type: string
+                        kind:
+                          type: string
+                        body:
+                          type: string
+                        status:
+                          type: string
+                          enum: [DRAFT, SENT, DISMISSED]
+                        createdAt:
+                          type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+      operationId: GET_v1_drafts
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - hr_staff
+      - perm-recruitment
+  /v1/drafts/{id}:
+    patch:
+      summary: "PATCH /v1/drafts/{id}: edit the words (REC-09)"
+      description: Plain text, 1 to 5000 characters.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 5000
+      responses:
+        '200':
+          description: The draft after the edit
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [id, candidateId, candidateName, toEmail, kind, body, status, createdAt]
+                properties:
+                  id:
+                    type: string
+                  candidateId:
+                    type: string
+                  candidateName:
+                    type: string
+                  toEmail:
+                    type: string
+                  kind:
+                    type: string
+                  body:
+                    type: string
+                  status:
+                    type: string
+                    enum: [DRAFT, SENT, DISMISSED]
+                  createdAt:
+                    type: string
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Bad request
+              example:
+                error: Bad request
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: PATCH_v1_drafts_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - hr_staff
+      - perm-recruitment
+  /v1/drafts/{id}/send:
+    post:
+      summary: "POST /v1/drafts/{id}/send: send one email to the candidate (REC-09)"
+      description: Queues one email, records who sent it. A second send is refused.
+      responses:
+        '200':
+          description: The draft, now SENT
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [id, candidateId, candidateName, toEmail, kind, body, status, createdAt]
+                properties:
+                  id:
+                    type: string
+                  candidateId:
+                    type: string
+                  candidateName:
+                    type: string
+                  toEmail:
+                    type: string
+                  kind:
+                    type: string
+                  body:
+                    type: string
+                  status:
+                    type: string
+                    enum: [DRAFT, SENT, DISMISSED]
+                  createdAt:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_drafts_id_send
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - hr_staff
+      - perm-recruitment
+  /v1/drafts/{id}/dismiss:
+    post:
+      summary: "POST /v1/drafts/{id}/dismiss: let a draft go (REC-09)"
+      description: The draft is closed; nothing is sent.
+      responses:
+        '200':
+          description: The draft, now DISMISSED
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [id, candidateId, candidateName, toEmail, kind, body, status, createdAt]
+                properties:
+                  id:
+                    type: string
+                  candidateId:
+                    type: string
+                  candidateName:
+                    type: string
+                  toEmail:
+                    type: string
+                  kind:
+                    type: string
+                  body:
+                    type: string
+                  status:
+                    type: string
+                    enum: [DRAFT, SENT, DISMISSED]
+                  createdAt:
+                    type: string
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Forbidden
+              example:
+                error: Forbidden
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Not found
+              example:
+                error: Not found
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Conflict
+              example:
+                error: Conflict
+      operationId: POST_v1_drafts_id_dismiss
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      servers:
+      - url: https://talentflow-api.example.com
+      security:
+      - CognitoJWT: []
+      x-tenant: token
+      x-roles:
+      - admin
+      - hr_staff
+      - perm-recruitment
   /v1/feedback-due:
     get:
       summary: GET /v1/feedback-due

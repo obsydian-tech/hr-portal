@@ -14,6 +14,7 @@ export async function contactOf(tenantId, id) {
   if (!company || company !== tenantId) return null;
   try {
     const got = await cognito.send(new AdminGetUserCommand({ UserPoolId: process.env.COGNITO_POOL_ID, Username: id }));
+    if (got.Enabled === false) return null; // REC-09: a person whose sign-in is switched off is not mailed
     const a = Object.fromEntries((got.UserAttributes ?? []).map((x) => [x.Name, x.Value]));
     if (a.sub !== id) return null;
     const email = typeof a.email === 'string' ? a.email.trim() : '';

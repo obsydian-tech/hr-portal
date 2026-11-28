@@ -45,6 +45,8 @@ resource "aws_lambda_function" "evaluate_intelligence_rules" {
       NOTIFICATIONS_TABLE_NAME = aws_dynamodb_table.talent_flow_notifications.name
       EVENTS_TABLE_NAME        = aws_dynamodb_table.intelligence_events.name
       NOTIFICATION_LAMBDA_NAME = "sendTalentFlowNotification"
+      COGNITO_POOL_ID          = local.tf_naleko_pool_id
+      ROLES_TABLE_NAME         = local.tf_table_roles
     }
   }
 

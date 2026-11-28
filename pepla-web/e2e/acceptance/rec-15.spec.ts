@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
+import { isRec062Grant } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09), on top of rec-06.2.1
 import { REC16_ROLE_KEY } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
