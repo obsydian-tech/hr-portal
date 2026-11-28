@@ -69,3 +69,11 @@ export const DRAWER_LINES = {
   /** W-17. */
   length: (m: number) => { const h = Math.floor(m / 60), r = m % 60; if (!h) return `${r} minutes`; const hs = `${h} hour${h > 1 ? 's' : ''}`; return r ? `${hs} ${r} minutes` : hs; },
 };
+
+/** INT-UI-01 S-3: a person's own feedback line ("Yes · 4 out of 5"), used by the Interviews tab and the feedback page. */
+export function feedbackLine(vote: { rating?: string | null; overall?: number | null } | null | undefined): string | null {
+  if (!vote) return null;
+  const r = vote.rating ? INTERVIEW_WORDS.ratings[vote.rating] ?? null : null;
+  const o = typeof vote.overall === 'number' ? `${vote.overall} out of 5` : null;
+  return r && o ? `${r} · ${o}` : r ?? o;
+}

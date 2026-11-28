@@ -45,6 +45,7 @@ const appRoutes: Routes = [
       { path: 'employees/:id', loadComponent: () => import('./features/hr/employee-detail.page').then((m) => m.EmployeeDetailPage), title: 'Employee · Naleko People' },
     ],
   },
+  { path: 'hire/feedback/:interviewId', canActivate: [accessGuard({ module: 'recruitment' })], loadComponent: () => import('./features/recruitment/feedback.page').then((m) => m.FeedbackPage), title: 'Interview feedback · Naleko People' },
   {
     path: 'hire',
     canActivate: [accessGuard(OFFERS_ACCESS)],

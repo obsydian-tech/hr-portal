@@ -38,7 +38,13 @@ export function safeReturnUrl(value: string | null | undefined, fallback: string
  * only to an HR page; an employee always lands on /start.
  */
 export function landingFor(isHr: boolean, returnUrl: string | null | undefined): string {
+  if (feedbackReturn(returnUrl)) return returnUrl!;
   if (!isHr) return '/start';
   const url = safeReturnUrl(returnUrl, '/hr');
   return /^\/hr(?:[/?#]|$)/.test(url) && !/[\\\t]|%2f|%5c|\/\.\.?(\/|$)/i.test(url) ? url : '/hr';
+}
+
+/** REC-UI-03 step 4: the panel member's own feedback page is the one address every login comes back to after sign-in. */
+export function feedbackReturn(returnUrl: string | null | undefined): boolean {
+  return typeof returnUrl === 'string' && /^\/hire\/feedback\/[A-Za-z0-9_-]{1,100}$/.test(returnUrl);
 }
