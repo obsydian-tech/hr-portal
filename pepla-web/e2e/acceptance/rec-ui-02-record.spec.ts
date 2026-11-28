@@ -26,7 +26,8 @@ import { RECORD_KIT } from './support/rec-ui-02/record-kit';
  *
  * Not in this lock (behind flags or waiting for their backend, F-2): the Offer tab, the hired block, Reopen (U-8), the Batsi
  * note, More actions, the hiring manager and panel views. AC-R8 asserts they are absent. The Notes tab came with child lock
- * rec-ui-02.4 (NH-280 step 4) and the Interviews tab with child lock rec-ui-02.5 (INT-UI-01, NH-270).
+ * rec-ui-02.4 (NH-280 step 4) and the Interviews tab with child lock rec-ui-02.5 (INT-UI-01, NH-270). The hired block came with
+ * child lock rec-ui-02.6 (NH-280 step 5), which moved one line each of AC-R8 and AC-R9.
  *
  * Every test runs at 1280 and 390 wide unless it says why not. Page time is 19 Nov 2026 10:00 in Johannesburg.
  * AC-R15 runs on pepla-dev only. No test calls Bedrock or any paid AI.
@@ -638,7 +639,9 @@ test.describe('AC-R8 What waits', () => {
       await expect(pageButton(page, RW.goToInterviews)).toHaveCount(0);
       await expect(main(page).locator('pp-masked-field, .pp-masked-field, pp-timeline, .pp-timeline, pp-drawer')).toHaveCount(0);
       const text = await main(page).innerText();
-      expect(text, id).not.toMatch(/Batsi|Employee record created|Open in Onboarding/);
+      // Child lock rec-ui-02.6 (NH-280 step 5): cand-hired-1 is Hired and its answer carries an employee_id, so it now shows the
+      // Hired block (rec-ui-02-hired.spec.ts); the "no hired block" half holds for the rows that are not Hired.
+      expect(text, id).not.toMatch(id === 'cand-hired-1' ? /Batsi/ : /Batsi|Employee record created|Open in Onboarding/);
     }
   });
 });
@@ -657,7 +660,14 @@ test.describe('AC-R9 Never drawn', () => {
       await openRecord(page, id);
       await quiet(page);
       const html = await page.content();
-      for (const [field, v] of Object.entries(NEVER)) expect(html, `${id}: ${field}`).not.toContain(v);
+      // Child lock rec-ui-02.6 (NH-280 step 5, rule 3): on a Hired record the employee_id is in exactly one place, the href of the
+      // "Open in Onboarding" link; never as text, in the tab title or in any other attribute. Every other field stays never drawn.
+      const hiredHref = `/hr/employees/${encodeURIComponent(NEVER.employee_id)}`;
+      for (const [field, v] of Object.entries(NEVER)) {
+        if (field !== 'employee_id' || id !== 'cand-hired-1') { expect(html, `${id}: ${field}`).not.toContain(v); continue; }
+        expect(html.split(v).length - 1, `${id}: employee_id once in the page`).toBe(1);
+        expect(await main(page).getByRole('link', { name: 'Open in Onboarding', exact: true }).getAttribute('href'), `${id}: in the link's href only`).toBe(hiredHref);
+      }
       const text = `${await page.locator('body').innerText()} ${await page.title()}`;
       for (const n of numbers) expect(text, `${id}: a number from finalScore, engagementScore or settingVersions`).not.toContain(n);
       // Lock check F-2: nor in any attribute (a tooltip is seen too). The numbers appear nowhere else, so whole-number matches only.
