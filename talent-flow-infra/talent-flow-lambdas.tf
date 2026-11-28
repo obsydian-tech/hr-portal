@@ -331,12 +331,17 @@ resource "aws_lambda_function" "monitor_slas" {
 
   environment {
     variables = {
-      STATE_TABLE_NAME     = local.tf_table_state
-      CONFIG_TABLE_NAME    = local.tf_table_config
-      EVENTBRIDGE_BUS_NAME = local.tf_event_bus_name
-      AWS_ACCOUNT_ID       = var.aws_account_id
-      TENANTS_TABLE        = local.tf_tenants_table
-      ENVIRONMENT          = var.environment
+      STATE_TABLE_NAME         = local.tf_table_state
+      CONFIG_TABLE_NAME        = local.tf_table_config
+      EVENTBRIDGE_BUS_NAME     = local.tf_event_bus_name
+      AWS_ACCOUNT_ID           = var.aws_account_id
+      TENANTS_TABLE            = local.tf_tenants_table
+      ENVIRONMENT              = var.environment
+      COGNITO_POOL_ID          = local.tf_naleko_pool_id
+      ROLES_TABLE_NAME         = local.tf_table_roles
+      NOTIFICATIONS_TABLE_NAME = local.tf_table_notifications
+      NOTIFICATION_QUEUE_URL   = aws_sqs_queue.talent_flow_notification.url
+      FRONTEND_URL             = var.frontend_url
     }
   }
 

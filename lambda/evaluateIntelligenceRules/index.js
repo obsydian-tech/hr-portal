@@ -18,6 +18,8 @@ const { logRuleFired } = require('./event-logger');
 const { writeSignalSnapshot } = require('./snapshot-writer');
 
 const dynamoDB = new DynamoDBClient({});
+// REC-09: the settings this record is judged with (the versions locked to the candidate), set once per record.
+let CURRENT = { settings: {}, versions: {}, tenantId: null };
 const lambda = new LambdaClient({});
 
 const STATE_TABLE = process.env.STATE_TABLE_NAME || 'talent-flow-state';
@@ -127,19 +129,24 @@ async function processRecord(item, eventName) {
     return { status: 'skipped', reason: 'module_off' };
   }
 
-  // Step 1: Load INTELLIGENCE_RULES config for tenant
+  // Step 1: the company's rules, from the settings versions locked to this candidate (REC-09 rule 1). Nothing is hard-coded.
   let intelligenceConfig;
   try {
-    intelligenceConfig = await loadIntelligenceConfig(tenantId);
+    const S = await import('../shared/recruitment-settings.mjs');
+    const { settings } = await S.settingsForRead(tenantId, item); // a read: the engine never writes a candidate's lock
+    const versions = await S.lockedVersions(tenantId, item);
+    CURRENT = { settings, versions, tenantId };
+    intelligenceConfig = settings.INTELLIGENCE_RULES ?? { rules: [] };
   } catch (err) {
     console.warn('[evaluateIntelligenceRules] Config read failed — skipping rule evaluation', {
       tenantId,
-      error: err.message
+      error: err.name
     });
     return { status: 'skipped', reason: 'config_read_failed' };
   }
 
-  const rules = intelligenceConfig.rules || [];
+  const { RETIRED } = await import('../shared/intelligence-rules.mjs');
+  const rules = (intelligenceConfig.rules || []).filter((r) => !RETIRED.includes(r.id));
 
   // If no rules configured, skip processing
   if (rules.length === 0) {
@@ -198,7 +205,7 @@ async function processRecord(item, eventName) {
     }
 
     // Evaluate rule conditions
-    const { matched, reason } = evaluateRule(rule, signals);
+    const { matched, reason, seen } = await judgeRule(rule, signals);
 
     if (matched) {
       matchedRules++;
@@ -210,7 +217,7 @@ async function processRecord(item, eventName) {
 
       // Process action
       try {
-        await processAction(rule, item, signals);
+        await processAction(rule, item, signals, seen);
       } catch (err) {
         console.error('[evaluateIntelligenceRules] Action processing failed', {
           candidateId: item.candidateId || item.offerId,
@@ -309,6 +316,9 @@ const SIGNAL_CALCULATORS = {
   FINAL_SCORE: calculateFinalScore,                                 // 🟢
   EVALUATION_RESULT: calculateEvaluationResult,                     // 🟢
   PANEL_FEEDBACK_PENDING_COUNT: calculatePanelFeedbackPendingCount, // 🟢 (EPIC 4 TASK 4.1)
+  STRONG_NO_COUNT: (item) => (typeof item.strong_no_count === 'number' ? item.strong_no_count : 0),
+  INTERVIEW_MISSED: (item) => (item.interviewMissedAt ? true : null),
+  DECISION_READY: calculateDecisionReady,
   PANEL_CONSENSUS: calculatePanelConsensus,                         // 🟢 (EPIC 4 TASK 4.1)
   PANEL_SPLIT_FLAG: calculatePanelSplitFlag,                        // 🟢 (EPIC 4 TASK 4.1)
 
@@ -619,49 +629,24 @@ function calculateEvaluationResult(item) {
  * Queries INTERVIEW# records to count how many have votesSubmitted < votesRequired
  */
 async function calculatePanelFeedbackPendingCount(item) {
-  const candidateId = item.candidateId;
-  if (!candidateId) return null;
-
+  if (!item.candidateId) return null;
   try {
-    // Query all INTERVIEW# records for this candidate
-    const result = await dynamoDB.send(new QueryCommand({
-      TableName: STATE_TABLE,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
-      ExpressionAttributeValues: marshall({
-        ':pk': `CANDIDATE#${candidateId}`,
-        ':prefix': 'INTERVIEW#',
-      }),
-      ProjectionExpression: 'votesRequired, votesSubmitted, #s',
-      ExpressionAttributeNames: { '#s': 'status' }
-    }));
-
-    if (!result.Items || result.Items.length === 0) {
-      return 0; // No interviews scheduled
-    }
-
-    const interviews = result.Items.map(i => unmarshall(i));
-
-    // Count completed interviews with pending votes
-    let pendingCount = 0;
-    for (const interview of interviews) {
-      if (interview.status === 'COMPLETED') {
-        const required = interview.votesRequired || 0;
-        const submitted = interview.votesSubmitted || 0;
-        if (submitted < required) {
-          pendingCount += (required - submitted);
-        }
-      }
-    }
-
-    return pendingCount;
-
+    // REC-09: only feedback that is past its due time counts, and only from panel members who have not voted.
+    return (await dueFeedback(item, await contextOf(item))).pendingPeople.length;
   } catch (err) {
-    console.warn('[evaluateIntelligenceRules] Failed to calculate PANEL_FEEDBACK_PENDING_COUNT', {
-      candidateId,
-      error: err.message
-    });
+    console.warn('[evaluateIntelligenceRules] Failed to calculate PANEL_FEEDBACK_PENDING_COUNT', { error: err.name });
     return null;
   }
+}
+
+/** REC-09 rule 2: the required interviews are done and every vote is in. */
+async function calculateDecisionReady(item) {
+  if (!item.candidateId || normaliseStage(item) !== 'INTERVIEW') return false;
+  const ctx = await contextOf(item);
+  const required = CURRENT.settings.INTERVIEW_TYPES?.requiredByLevel?.[item.positionLevel] ?? [];
+  const done = ctx.interviews.filter((i) => i.status === 'COMPLETED');
+  if (!required.every((t) => done.some((i) => i.interviewType === t))) return false;
+  return done.every((iv) => (iv.panelMemberIds ?? []).every((m) => ctx.votes.some((v) => v.interviewId === iv.interviewId && v.voterId === m)));
 }
 
 /**
@@ -1307,273 +1292,147 @@ function evaluateCondition(signalValue, operator, expectedValue) {
   }
 }
 
-/**
- * Map action type to notification type
- * Determines which type of notification to send based on rule action
- *
- * @param {string} actionType - Action type from rule
- * @returns {string} Notification type
- */
-function getNotificationType(actionType) {
-  const ACTION_TYPE_TO_NOTIFICATION_TYPE = {
-    // Generic/Fallback
-    'INTELLIGENCE_ALERT': 'INTELLIGENCE_RULE_MATCHED',
-    'CUSTOM_NOTIFICATION': 'INTELLIGENCE_RULE_MATCHED',
 
-    // Urgent Attention
-    'ALERT_TA_URGENT': 'CANDIDATE_ATTENTION_REQUIRED',
-    'ALERT_HM_URGENT': 'CANDIDATE_ATTENTION_REQUIRED',
-    'ESCALATE_TO_ADMIN': 'CANDIDATE_ATTENTION_REQUIRED',
+async function judgeRule(rule, signals) {
+  const { judge } = await import('../shared/intelligence-rules.mjs');
+  const r = judge(rule, signals);
+  return { ...r, reason: r.matched ? 'all_conditions_met' : 'condition_not_met' };
+}
 
-    // Offer Expiry
-    'NOTIFY_HM_OFFER_EXPIRY': 'OFFER_EXPIRING_SOON',
-    'NOTIFY_TA_OFFER_EXPIRY': 'OFFER_EXPIRING_SOON',
-    'ALERT_OFFER_DEADLINE': 'OFFER_EXPIRING_SOON',
-    'NOTIFY_HM_REVIEW_OFFER': 'OFFER_EXPIRING_SOON',
+const query = async (params) => (await dynamoDB.send(new QueryCommand(params))).Items?.map((i) => unmarshall(i)) ?? [];
+const oneRow = async (table, key) => {
+  const r = await dynamoDB.send(new GetItemCommand({ TableName: table, Key: marshall(key) }));
+  return r.Item ? unmarshall(r.Item) : null;
+};
 
-    // HM Inactivity
-    'NOTIFY_HM_LOGIN_REQUIRED': 'HM_INACTIVE_ALERT',
-    'ALERT_TA_HM_INACTIVE': 'HM_INACTIVE_ALERT',
-    'ESCALATE_HM_INACTIVITY': 'HM_INACTIVE_ALERT',
-
-    // TA Follow-up
-    'NOTIFY_TA_FOLLOWUP': 'TA_FOLLOWUP_NEEDED',
-    'ALERT_TA_STALE_CANDIDATE': 'TA_FOLLOWUP_NEEDED',
-    'REMIND_TA_ACTION_NEEDED': 'TA_FOLLOWUP_NEEDED',
-    'NOTIFY_TA_REVIEW_CANDIDATE': 'TA_FOLLOWUP_NEEDED',
+/** The rows a flag's people and title are worked out from. */
+async function contextOf(item) {
+  const rows = await query({ TableName: STATE_TABLE, KeyConditionExpression: 'PK = :pk', ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${item.candidateId}` }) });
+  return {
+    candidate: item,
+    interviews: rows.filter((r) => String(r.SK).startsWith('INTERVIEW#')),
+    votes: rows.filter((r) => String(r.SK).startsWith('VOTE#')),
   };
+}
 
-  return ACTION_TYPE_TO_NOTIFICATION_TYPE[actionType] || 'INTELLIGENCE_RULE_MATCHED';
+/** The values the approved titles are filled with. */
+async function titleValues(item, ctx, rule) {
+  const { STAGE_LABELS, dayName } = await import('../shared/flag-titles.mjs');
+  const { flagPersonName } = await import('../shared/flag-people.mjs');
+  const candidateName = [item.firstName, item.lastName].filter(Boolean).join(' ');
+  const values = { stage: STAGE_LABELS[normaliseStage(item)] ?? '', name: candidateName, day: dayName(String(item.expiryDate ?? '').slice(0, 10)) };
+  const person = await flagPersonName(CURRENT.tenantId, rule.id, { interviews: ctx.interviews, votes: ctx.votes, slaThresholds: CURRENT.settings.SLA_THRESHOLDS });
+  if (person !== null) values.name = person;
+  return values;
+}
+
+async function dueFeedback(item, ctx) {
+  const { pendingFeedback } = await import('../shared/flag-people.mjs');
+  return { pendingPeople: pendingFeedback(ctx.interviews, ctx.votes, CURRENT.settings.SLA_THRESHOLDS) };
 }
 
 /**
- * Determine recipient role based on action type
- *
- * @param {string} actionType - Action type from rule
- * @returns {string} Recipient role (TA, HM, ADMIN)
+ * Process the action of a rule that matched (REC-09 rules 3 to 7): who gets it, the in-app notification with the approved title, the
+ * "why" row, and for a draft rule the draft. No email, no Lambda call.
  */
-function getRecipientRole(actionType) {
-  const ACTION_TYPE_TO_RECIPIENT_ROLE = {
-    // TA Recipients
-    'ALERT_TA_URGENT': 'TA',
-    'NOTIFY_TA_FOLLOWUP': 'TA',
-    'ALERT_TA_STALE_CANDIDATE': 'TA',
-    'REMIND_TA_ACTION_NEEDED': 'TA',
-    'NOTIFY_TA_REVIEW_CANDIDATE': 'TA',
-    'NOTIFY_TA_OFFER_EXPIRY': 'TA',
-    'ALERT_TA_HM_INACTIVE': 'TA',
-
-    // HM Recipients
-    'ALERT_HM_URGENT': 'HM',
-    'NOTIFY_HM_OFFER_EXPIRY': 'HM',
-    'NOTIFY_HM_LOGIN_REQUIRED': 'HM',
-    'NOTIFY_HM_REVIEW_OFFER': 'HM',
-
-    // Admin Recipients
-    'ESCALATE_TO_ADMIN': 'ADMIN',
-    'ESCALATE_HM_INACTIVITY': 'ADMIN',
-
-    // Generic
-    'INTELLIGENCE_ALERT': 'TA',
-    'CUSTOM_NOTIFICATION': 'TA',
-  };
-
-  return ACTION_TYPE_TO_RECIPIENT_ROLE[actionType] || 'TA';
-}
-
-/**
- * Determine recipient ID based on recipient role and candidate data
- *
- * @param {string} actionType - Action type from rule
- * @param {Object} candidateData - Candidate SAGA record
- * @returns {string} User ID of recipient
- */
-function determineRecipientId(actionType, candidateData) {
-  const role = getRecipientRole(actionType);
-
-  switch (role) {
-    case 'HM':
-      // Hiring Manager - from candidate record
-      return candidateData.hiringManagerId || candidateData.updatedBy;
-
-    case 'TA':
-      // Talent Acquisition - candidate creator
-      return candidateData.updatedBy || candidateData.createdBy;
-
-    case 'ADMIN':
-      // System admin - placeholder for now
-      return 'SYSTEM_ADMIN';
-
-    default:
-      return candidateData.updatedBy || 'SYSTEM';
+async function processAction(rule, item, signals, seen) {
+  const tenantId = CURRENT.tenantId;
+  const entityId = item.candidateId;
+  if (!entityId) return { status: 'skipped', reason: 'no_candidate' };
+  const R = await import('../shared/recipients.mjs');
+  const ctx = await contextOf(item);
+  const rejectionRules = CURRENT.settings.REJECTION_RULES;
+  const offer = await liveOffer(item);
+  const people = new Set();
+  for (const target of rule.targetRoles ?? []) {
+    const interviews = target === 'PANEL_MEMBER' ? ctx.interviews : [undefined];
+    for (const interview of interviews) {
+      for (const sub of await R.resolveRecipients(tenantId, target, { candidate: item, interview, votes: ctx.votes, offer, rejectionRules })) people.add(sub);
+    }
   }
-}
-
-/**
- * Process action when rule matches
- * Directly invokes sendTalentFlowNotification Lambda for notification delivery
- *
- * @param {Object} rule - Matched intelligence rule
- * @param {Object} item - DynamoDB item (candidate or offer)
- * @param {Object} signals - Calculated signal values
- */
-async function processAction(rule, item, signals) {
-  const entityId = item.candidateId || item.offerId;
-  const entityType = item.candidateId ? 'CANDIDATE' : 'OFFER';
-
-  console.info('[evaluateIntelligenceRules] Processing action', {
-    entityId,
-    ruleId: rule.id,
-    actionType: rule.action.type
-  });
-
-  // Determine recipient
-  const recipientId = determineRecipientId(rule.action.type, item);
-
-  // Check cooldown to prevent notification spam
-  const cooldownHours = rule.action.cooldown || 24;
-  const withinCooldown = await checkCooldown(recipientId, rule.id, cooldownHours);
-
-  if (withinCooldown) {
-    console.info('[evaluateIntelligenceRules] Action skipped - within cooldown', {
-      entityId,
-      ruleId: rule.id,
-      recipientId,
-      cooldownHours
-    });
+  if (people.size === 0) {
+    console.warn('No recipient', { ruleId: rule.id, tenantId });
+    return { status: 'skipped', reason: 'no_recipient' };
+  }
+  const cooldownHours = rule.action?.cooldown ?? 24;
+  const fresh = [];
+  for (const sub of [...people].sort()) if (!(await checkCooldown(sub, rule.id, entityId, cooldownHours))) fresh.push(sub);
+  if (fresh.length === 0) {
+    console.info('[evaluateIntelligenceRules] Action skipped - within cooldown', { ruleId: rule.id, tenantId });
     return { status: 'skipped', reason: 'cooldown' };
   }
-
-  // Determine notification type
-  const notificationType = getNotificationType(rule.action.type);
-
-  // Build notification payload for sendTalentFlowNotification Lambda
-  const notificationPayload = {
-    type: notificationType,
-    recipientEmail: 'system@talentflow.internal', // Placeholder for MVP1
-    recipientId,
-    candidateId: item.candidateId || null,
-    offerId: item.offerId || null,
-    tenant_id: item.tenant_id,
-    ruleId: rule.id,
-    ruleName: rule.name,
-    priority: rule.action.priority || 'MEDIUM',
-    actionType: rule.action.type,
-    signals: signals,
-    candidateName: item.firstName && item.lastName ? `${item.firstName} ${item.lastName}` : null,
-    positionTitle: item.positionTitle || null,
-    currentStage: normaliseStage(item) || null,
-  };
-
-  // Add type-specific fields
-  if (signals.OFFER_DAYS_TO_EXPIRY !== undefined) {
-    notificationPayload.daysToExpiry = signals.OFFER_DAYS_TO_EXPIRY;
-  }
-  if (signals.HM_DAYS_SINCE_LOGIN !== undefined) {
-    notificationPayload.daysSinceHMLogin = signals.HM_DAYS_SINCE_LOGIN;
-  }
-  if (signals.TA_DAYS_SINCE_CANDIDATE_ACTION !== undefined) {
-    notificationPayload.daysSinceLastAction = signals.TA_DAYS_SINCE_CANDIDATE_ACTION;
-  }
-
-  try {
-    // Directly invoke sendTalentFlowNotification Lambda (async)
-    await lambda.send(new InvokeCommand({
-      FunctionName: NOTIFICATION_LAMBDA,
-      InvocationType: 'Event', // Async invocation - don't wait for response
-      Payload: JSON.stringify({
-        Records: [{
-          body: JSON.stringify(notificationPayload)
-        }]
-      })
+  const { flagTitle } = await import('../shared/flag-titles.mjs');
+  const title = flagTitle(rule.id, await titleValues(item, ctx, rule)) ?? rule.name;
+  const at = new Date().toISOString();
+  const version = CURRENT.versions.INTELLIGENCE_RULES ?? null;
+  for (const sub of fresh) {
+    await dynamoDB.send(new PutItemCommand({
+      TableName: NOTIFICATIONS_TABLE,
+      Item: marshall({
+        PK: `USER#${sub}`, SK: `NOTIF#${at}#${rule.id}#${entityId}`, notifId: `${rule.id}#${entityId}#${at}`, type: 'FLAG', title, candidateId: entityId,
+        ruleId: rule.id, settingsVersion: version, severity: rule.severity ?? 'MEDIUM', tenant_id: tenantId, read: false, createdAt: at,
+        expiresAt: Math.floor(Date.now() / 1000) + 30 * 86400, GSI1PK: `USER#${sub}#UNREAD`, GSI1SK: `NOTIF#${at}#${rule.id}#${entityId}`,
+      }),
     }));
-
-    console.info('[evaluateIntelligenceRules] Notification Lambda invoked', {
-      entityId,
-      ruleId: rule.id,
-      actionType: rule.action.type,
-      notificationType,
-      recipientId,
-      lambdaFunction: NOTIFICATION_LAMBDA
-    });
-
-    // Log intelligence event for effectiveness metrics (§7.5)
-    await logRuleFired(dynamoDB, {
-      tenantId: item.tenant_id,
-      ruleId: rule.id,
-      ruleName: rule.name,
-      ruleSeverity: rule.action?.priority || 'MEDIUM',
-      entityType,
-      entityId,
-      entityName: item.firstName && item.lastName ? `${item.firstName} ${item.lastName}` : null,
-      currentStage: normaliseStage(item),
-      recipientId,
-      recipientRole: getRecipientRole(rule.action.type),
-      signalsSnapshot: signals,
-      notificationId: `NOTIF#${new Date().toISOString()}`
-    });
-
-    return { status: 'invoked', notificationType, recipientId };
-  } catch (err) {
-    console.error('[evaluateIntelligenceRules] Failed to invoke notification Lambda', {
-      entityId,
-      ruleId: rule.id,
-      error: err.message
-    });
-    // Fail-open: log error but don't crash
-    return { status: 'failed', error: err.message };
   }
+  await logFlag({ tenantId, rule, version, candidateId: entityId, seen, recipients: fresh.length, at });
+  if (rule.action?.type === 'DRAFT_CANDIDATE_MESSAGE') await makeDraft(rule, item, tenantId, at);
+  return { status: 'flagged', recipients: fresh.length };
 }
 
-/**
- * Check if we're within cooldown period for this rule
- * Queries talent-flow-notifications table to prevent spam
- *
- * @param {string} recipientId - User ID of recipient
- * @param {string} ruleId - Rule ID
- * @param {number} cooldownHours - Hours to wait before re-triggering
- * @returns {Promise<boolean>} True if within cooldown period
- */
-async function checkCooldown(recipientId, ruleId, cooldownHours) {
-  const cooldownMs = cooldownHours * 60 * 60 * 1000;
-  const cooldownThreshold = new Date(Date.now() - cooldownMs).toISOString();
-
+async function liveOffer(item) {
   try {
-    // Query talent-flow-notifications table for recent notifications
-    // PK: USER#{userId}, SK: NOTIFICATION#{notificationId}
-    const result = await dynamoDB.send(new QueryCommand({
-      TableName: NOTIFICATIONS_TABLE,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      FilterExpression: 'ruleId = :ruleId AND createdAt > :threshold',
-      ExpressionAttributeValues: marshall({
-        ':pk': `USER#${recipientId}`,
-        ':sk': 'NOTIFICATION#',
-        ':ruleId': ruleId,
-        ':threshold': cooldownThreshold
-      }),
-      Limit: 1
-    }));
+    const lock = await oneRow(STATE_TABLE, { PK: `TENANT#${CURRENT.tenantId}#OFFER_LIVE#${item.candidateId}`, SK: 'LOCK' });
+    return lock?.live_offer_id ? await oneRow(STATE_TABLE, { PK: `OFFER#${lock.live_offer_id}`, SK: 'OFFER' }) : null;
+  } catch { return null; }
+}
 
-    // If we found a recent notification, we're within cooldown
-    if (result.Items && result.Items.length > 0) {
-      const notification = unmarshall(result.Items[0]);
-      console.info('[evaluateIntelligenceRules] Within cooldown period', {
-        recipientId,
-        ruleId,
-        lastNotificationAt: notification.createdAt,
-        cooldownHours
-      });
-      return true;
-    }
+/** REC-09 rule 5: one row per firing, ids and numbers only. */
+async function logFlag({ tenantId, rule, version, candidateId, seen, recipients, at }) {
+  const id = `evt-${Math.random().toString(36).slice(2, 12).toUpperCase()}`;
+  await dynamoDB.send(new PutItemCommand({
+    TableName: process.env.EVENTS_TABLE_NAME || 'talent-flow-intelligence-events',
+    Item: marshall({
+      PK: `TENANT#${tenantId}`, SK: `INTEL#${at}#${id}`, GSI1PK: `RULE#${rule.id}`, GSI1SK: at, tenant_id: tenantId, rule_id: rule.id, rule_version: version,
+      candidate_id: candidateId, signals_seen: seen, severity: rule.severity ?? 'MEDIUM', recipients_count: recipients, at, expiresAt: Math.floor(Date.now() / 1000) + 90 * 86400,
+    }, { removeUndefinedValues: true }),
+  }));
+}
 
-    return false;
-  } catch (err) {
-    console.warn('[evaluateIntelligenceRules] Cooldown check failed - allowing action', {
-      recipientId,
-      ruleId,
-      error: err.message
-    });
-    // Fail-open: if cooldown check fails, allow the action
-    return false;
-  }
+/** REC-09 rule 7: a draft for HR to edit and send. At most one open draft of a kind per candidate. */
+async function makeDraft(rule, item, tenantId, at) {
+  const kind = rule.action.template;
+  const template = CURRENT.settings.EMAIL_TEMPLATES?.[kind];
+  if (!template?.body || !item.email) return;
+  const open = await query({
+    TableName: STATE_TABLE, KeyConditionExpression: 'PK = :pk AND begins_with(SK, :p)', FilterExpression: '#s = :d AND kind = :k',
+    ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: marshall({ ':pk': `CANDIDATE#${item.candidateId}`, ':p': 'DRAFT#', ':d': 'DRAFT', ':k': kind }),
+  });
+  if (open.length) return;
+  const company = (await oneRow(process.env.TENANTS_TABLE, { pk: `TENANT#${tenantId}`, sk: 'PROFILE' }))?.name ?? '';
+  let role = item.positionTitle ?? '';
+  if (item.role_id && process.env.ROLES_TABLE_NAME) role = (await oneRow(process.env.ROLES_TABLE_NAME, { pk: `TENANT#${tenantId}`, sk: `ROLE#${item.role_id}` }))?.job_title ?? role;
+  const { saDate } = await import('../shared/invite-email.mjs');
+  const values = { first_name: item.firstName ?? '', role, company, date: item.expiryDate ? saDate(`${String(item.expiryDate).slice(0, 10)}T12:00:00Z`) : '' };
+  const body = template.body.replace(/\{([a-z_]+)\}/g, (_m, k) => values[k] ?? '');
+  const { randomBytes } = require('crypto');
+  const draftId = `drf_${randomBytes(13).toString('hex').slice(0, 26)}`;
+  await dynamoDB.send(new PutItemCommand({
+    TableName: STATE_TABLE,
+    Item: marshall({
+      PK: `CANDIDATE#${item.candidateId}`, SK: `DRAFT#${draftId}`, GSI1PK: `TENANT#${tenantId}`, GSI1SK: `DRAFT#${at}#${draftId}`, draft_id: draftId, tenant_id: tenantId,
+      candidate_id: item.candidateId, candidate_name: [item.firstName, item.lastName].filter(Boolean).join(' '), to_email: item.email, kind, rule_id: rule.id, body, status: 'DRAFT', created_at: at,
+    }),
+    ConditionExpression: 'attribute_not_exists(PK)',
+  }));
+}
+
+/** Within the cooldown of this rule for this candidate and person (REC-09 rule 5): their own notification rows say. */
+async function checkCooldown(recipientId, ruleId, candidateId, cooldownHours) {
+  const threshold = new Date(Date.now() - cooldownHours * 3600_000).toISOString();
+  const rows = await query({
+    TableName: NOTIFICATIONS_TABLE, KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)', FilterExpression: 'ruleId = :r AND candidateId = :c AND createdAt > :t',
+    ExpressionAttributeValues: marshall({ ':pk': `USER#${recipientId}`, ':sk': 'NOTIF#', ':r': ruleId, ':c': candidateId, ':t': threshold }),
+  });
+  return rows.length > 0;
 }

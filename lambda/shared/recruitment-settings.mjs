@@ -2,6 +2,7 @@
 // a candidate the versions it is locked to, and the template renderer. Pure data in, plain objects out; no company ever
 // comes from a request here, only from the caller's own sign-in (TEN-03).
 import { STAGE_CODES, normaliseStage } from './recruitment-stages.mjs';
+import { TARGETS, ACTIONS } from './intelligence-rules.mjs';
 
 export const TYPES = ['STAGE_CONFIG', 'SENIORITY_PROFILES', 'INTERVIEW_TYPES', 'PANEL_CONFIG', 'SCORING_WEIGHTS', 'REJECTION_RULES', 'APPROVAL_RULES', 'SLA_THRESHOLDS', 'SENTIMENT_SCALE', 'EMAIL_TEMPLATES', 'INTELLIGENCE_RULES', 'RETENTION'];
 export const LOCK_TYPES = TYPES.filter((t) => t !== 'RETENTION');
@@ -20,6 +21,9 @@ const LEVELS = ['JUNIOR', 'MID', 'SENIOR'];
 const [S_FIRST, S_SECOND, S_THIRD, S_FOURTH] = STAGE_CODES;
 const LEGACY_SLA = { [S_FIRST]: 24, [S_SECOND]: 48, [S_THIRD]: 96, [S_FOURTH]: 72 };
 const byLevel = (v) => Object.fromEntries(LEVELS.map((l) => [l, v]));
+function rule(id, name, severity, targetRoles, conditions, cooldown, action = { type: 'NOTIFY' }) {
+  return { id, name, enabled: true, severity, targetRoles, conditions: conditions.map(([signal, operator, value]) => ({ signal, operator, value })), action: { ...action, cooldown } };
+}
 export const DEFAULTS = {
   STAGE_CONFIG: { screening: true },
   SENIORITY_PROFILES: { levels: LEVELS.map((key, i) => ({ key, label: key[0] + key.slice(1).toLowerCase(), order: i + 1 })) },
@@ -36,7 +40,17 @@ export const DEFAULTS = {
   SLA_THRESHOLDS: { ...LEGACY_SLA, stageLimitHours: byLevel(72), riskPoints: [50, 75, 100], engagementLimitDays: 7, feedbackDueHours: 48, interviewMissedAfterHours: 24, offerExpiryWarningDays: 3 },
   SENTIMENT_SCALE: { moods: [['VERY_INTERESTED', 'Very interested', false], ['INTERESTED', 'Interested', false], ['NEUTRAL', 'Neutral', false], ['HESITANT', 'Hesitant', true], ['DISENGAGED', 'Disengaged', true]].map(([key, label, atRisk]) => ({ key, label, atRisk })) },
   EMAIL_TEMPLATES: TEMPLATE_TEXTS,
-  INTELLIGENCE_RULES: { rules: [] },
+  INTELLIGENCE_RULES: { rules: [
+    rule('RULE-SLA-001', 'Over the time limit', 'HIGH', ['HR_RECRUITMENT', 'HIRING_MANAGER'], [['SLA_STATUS', 'equals', 'BREACHED']], 24),
+    rule('RULE-SLA-002', 'Close to the time limit', 'MEDIUM', ['HR_RECRUITMENT'], [['SLA_STATUS', 'equals', 'AT_RISK']], 24),
+    rule('RULE-FEEDBACK-001', 'Feedback overdue', 'MEDIUM', ['HR_RECRUITMENT'], [['PANEL_FEEDBACK_PENDING_COUNT', 'greaterThan', 0]], 24),
+    rule('RULE-PANEL-001', 'Panel split', 'HIGH', ['DECIDER'], [['PANEL_SPLIT_FLAG', 'equals', true]], 72),
+    rule('RULE-DECISION-001', 'Decision needed', 'HIGH', ['DECIDER'], [['DECISION_READY', 'equals', true]], 48),
+    rule('RULE-APPROVAL-001', 'Offer approval waiting', 'MEDIUM', ['APPROVER'], [['APPROVAL_STEP_AGE', 'greaterThanOrEqual', 2]], 24),
+    rule('RULE-OFFER-001', 'Offer close to expiry', 'HIGH', ['HR_RECRUITMENT'], [['OFFER_DAYS_TO_EXPIRY', 'lessThanOrEqual', 3], ['OFFER_DAYS_TO_EXPIRY', 'greaterThanOrEqual', 0]], 24, { type: 'DRAFT_CANDIDATE_MESSAGE', template: 'offer_follow_up' }),
+    rule('RULE-MISSED-001', 'Missed interview', 'HIGH', ['HR_RECRUITMENT'], [['INTERVIEW_MISSED', 'equals', true]], 24),
+    rule('RULE-STRONGNO-001', 'Strong no to read', 'HIGH', ['DECIDER'], [['STRONG_NO_COUNT', 'greaterThan', 0]], 72),
+  ] },
   RETENTION: { notHiredMonths: 6 },
 };
 
@@ -94,7 +108,12 @@ export function validate(type, d, ctx = {}) {
     case 'EMAIL_TEMPLATES':
       return isObj(d) && Object.entries(d).every(([k, t]) => ['interviewer_reminder', 'candidate_notice', 'candidate_check_in', 'offer_follow_up', 'offer_letter'].includes(k)
         && only(t, ['subject', 'body']) && placeholdersOk(t.body) && (t.subject === undefined || placeholdersOk(t.subject)));
-    case 'INTELLIGENCE_RULES': return only(d, ['rules']) && Array.isArray(d.rules);
+    case 'INTELLIGENCE_RULES':
+      return only(d, ['rules']) && Array.isArray(d.rules) && d.rules.every((r) => only(r, ['id', 'name', 'enabled', 'severity', 'targetRoles', 'description', 'category', 'conditions', 'action'])
+        && typeof r.id === 'string' && /^RULE-[A-Z0-9-]{2,40}$/.test(r.id) && typeof r.name === 'string' && typeof r.enabled === 'boolean'
+        && Array.isArray(r.targetRoles) && r.targetRoles.length > 0 && r.targetRoles.every((t) => TARGETS.includes(t))
+        && Array.isArray(r.conditions) && r.conditions.every((c) => isObj(c) && typeof c.signal === 'string' && typeof c.operator === 'string')
+        && only(r.action, ['type', 'cooldown', 'template', 'priority']) && ACTIONS.includes(r.action.type) && (r.action.cooldown === undefined || (num(r.action.cooldown) && r.action.cooldown >= 0)));
     case 'RETENTION': return sameKeys(d, ['notHiredMonths']) && Number.isInteger(d.notHiredMonths) && d.notHiredMonths >= 1 && d.notHiredMonths <= 60;
     default: return true;
   }
@@ -190,6 +209,13 @@ export async function getRecruitmentSettings(tenantId, candidate) {
     out[t] = (await versionItem(tenantId, t, lock[t]))?.data ?? active[t].data;
   }
   return out;
+}
+
+/** REC-09: the version of each setting a candidate is held to (the lock where there is one, else the active version). */
+export async function lockedVersions(tenantId, candidate) {
+  const active = await activeItems(tenantId);
+  const lock = candidate?.settingVersions ?? {};
+  return Object.fromEntries(Object.keys(active).map((t) => [t, lock[t] ?? active[t].version]));
 }
 
 /**

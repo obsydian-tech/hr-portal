@@ -1474,6 +1474,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /v1/drafts: the company's open drafts (REC-09)
+         * @description Drafts the rules wrote for a Recruiter to edit and send. Only the signed-in person's company.
+         */
+        get: operations["GET_v1_drafts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/drafts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * PATCH /v1/drafts/{id}: edit the words (REC-09)
+         * @description Plain text, 1 to 5000 characters.
+         */
+        patch: operations["PATCH_v1_drafts_id"];
+        trace?: never;
+    };
+    "/v1/drafts/{id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * POST /v1/drafts/{id}/send: send one email to the candidate (REC-09)
+         * @description Queues one email, records who sent it. A second send is refused.
+         */
+        post: operations["POST_v1_drafts_id_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/drafts/{id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * POST /v1/drafts/{id}/dismiss: let a draft go (REC-09)
+         * @description The draft is closed; nothing is sent.
+         */
+        post: operations["POST_v1_drafts_id_dismiss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/feedback-due": {
         parameters: {
             query?: never;
@@ -7487,6 +7567,329 @@ export interface operations {
                      */
                     "application/json": {
                         /** @example Not found */
+                        error?: string;
+                    };
+                };
+            };
+        };
+    };
+    GET_v1_drafts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Open drafts, oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        drafts: {
+                            id: string;
+                            candidateId: string;
+                            candidateName: string;
+                            toEmail: string;
+                            kind: string;
+                            body: string;
+                            /** @enum {string} */
+                            status: "DRAFT" | "SENT" | "DISMISSED";
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Forbidden"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Forbidden */
+                        error?: string;
+                    };
+                };
+            };
+        };
+    };
+    PATCH_v1_drafts_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    body: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The draft after the edit */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        candidateId: string;
+                        candidateName: string;
+                        toEmail: string;
+                        kind: string;
+                        body: string;
+                        /** @enum {string} */
+                        status: "DRAFT" | "SENT" | "DISMISSED";
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Bad request"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Bad request */
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Forbidden"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Forbidden */
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Not found"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Not found */
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Conflict"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Conflict */
+                        error?: string;
+                    };
+                };
+            };
+        };
+    };
+    POST_v1_drafts_id_send: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The draft, now SENT */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        candidateId: string;
+                        candidateName: string;
+                        toEmail: string;
+                        kind: string;
+                        body: string;
+                        /** @enum {string} */
+                        status: "DRAFT" | "SENT" | "DISMISSED";
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Forbidden"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Forbidden */
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Not found"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Not found */
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Conflict"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Conflict */
+                        error?: string;
+                    };
+                };
+            };
+        };
+    };
+    POST_v1_drafts_id_dismiss: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The draft, now DISMISSED */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        candidateId: string;
+                        candidateName: string;
+                        toEmail: string;
+                        kind: string;
+                        body: string;
+                        /** @enum {string} */
+                        status: "DRAFT" | "SENT" | "DISMISSED";
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Forbidden"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Forbidden */
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Not found"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Not found */
+                        error?: string;
+                    };
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "Conflict"
+                     *     }
+                     */
+                    "application/json": {
+                        /** @example Conflict */
                         error?: string;
                     };
                 };

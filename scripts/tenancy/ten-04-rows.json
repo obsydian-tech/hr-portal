@@ -337,5 +337,38 @@
     "read": {
       "op": "GET /v1/offers"
     }
+  },
+  "GET /v1/drafts": {
+    "kind": "list"
+  },
+  "PATCH /v1/drafts/{id}": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/drafts"
+    },
+    "body": {
+      "body": "ten04 made-up words"
+    }
+  },
+  "POST /v1/drafts/{id}/send": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/drafts"
+    }
+  },
+  "POST /v1/drafts/{id}/dismiss": {
+    "kind": "byId",
+    "ids": {
+      "id": "candidate"
+    },
+    "read": {
+      "op": "GET /v1/drafts"
+    }
   }
 }
