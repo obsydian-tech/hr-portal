@@ -1,0 +1,142 @@
+import type { Locator, Page } from '@playwright/test';
+import type { Cand } from '../rec-ui/harness';
+import { main, type RecordFake } from './record';
+
+/**
+ * REC-UI-02 step 5 · The Hired block on the candidate record (Jira NH-280 part "Hired block (AC-10, F-18)", epic NH-223, amber).
+ * Lock acceptance-lock/rec-ui-02.6, a child of rec-ui-02.5. Spec: onboarding-cards/specs/REC-UI-02-later-steps.md section 2
+ * (rules 1 to 5, AC-H1 to AC-H9), its checks REC-UI-02-later-steps-spec-check-r1.md and -r2.md; decision D-RUI-02.31.
+ *
+ * The record fake (record.ts, rec-ui-02.3) puts the marker `MARK-employee-id` in `employee_id` on every answer and never sends
+ * `legacy_hired`. `hiredRecords` lets one test give one candidate another `employee_id`, none at all, or `legacy_hired`, as the real
+ * `GET /v1/candidates/{id}` does (lambda/getCandidate/index.js:177-179 at 4ac3b23: `legacy_hired` always, `employee_id` for the
+ * Recruiter only when the row has one). The answer is still checked against api/openapi.yaml by record.ts before it is sent.
+ * Nothing here calls Bedrock or any paid AI.
+ */
+
+// ---------------------------------------------------------------- the words (kit "Candidate: hired" at 6f59033, trimmed: D-RUI-02.31)
+export const HW = {
+  title: 'Employee record created',
+  line: (first: string, last: string) => `Onboarding opened for ${[first, last].filter(Boolean).join(' ')}.`,
+  open: 'Open in Onboarding',
+} as const;
+/** The kit's words this step leaves out (D-RUI-02.31, Q-H1, Q-H2), and the kit's sample HR person. */
+export const DROPPED = [/notified/i, /Laptop/i, /access now sit with/i, /Thandeka/i, /Dlamini notified/i] as const;
+/** The words of the block; none may show where the block must not. */
+export const BLOCK_WORDS = /Employee record created|Onboarding opened|Open in Onboarding/;
+export const employeePath = (id: string) => `/hr/employees/${encodeURIComponent(id)}`;
+
+// ---------------------------------------------------------------- the record answer: employee_id and legacy_hired per candidate
+export type HiredExtra = { employee_id?: string | null; legacy_hired?: boolean };
+/**
+ * Lets a test set `employee_id` (a string, or null to leave the key out of the answer) and `legacy_hired` on one candidate's
+ * record answer. Every other candidate keeps the record fake's answer (with the marker id).
+ */
+export function hiredRecords(record: RecordFake): { set: (id: string, x: HiredExtra) => void } {
+  const over = new Map<string, HiredExtra>();
+  const base = record.recordOf.bind(record);
+  record.recordOf = (c: Cand) => {
+    const out = base(c);
+    const x = over.get(c.id);
+    if (x && 'employee_id' in x) { if (x.employee_id === null) delete out['employee_id']; else out['employee_id'] = x.employee_id; }
+    if (x && 'legacy_hired' in x) out['legacy_hired'] = x.legacy_hired;
+    return out;
+  };
+  return { set: (id, x) => over.set(id, { ...(over.get(id) ?? {}), ...x }) };
+}
+
+// ---------------------------------------------------------------- page helpers
+/** The block: the success section message whose title is "Employee record created" (kit: div.pp-section-message--success). */
+export const hiredBlock = (page: Page): Locator =>
+  main(page).locator('.pp-section-message').filter({ has: page.locator('.pp-section-message__title').getByText(HW.title, { exact: true }) });
+export const openLink = (page: Page): Locator => main(page).getByRole('link', { name: HW.open, exact: true });
+
+export type Block = { title: string; body: string; links: Array<{ text: string; href: string | null }>; buttons: string[]; classes: string[]; role: string | null; labelledBy: string | null };
+/** The block as a person reads it: title, body (without the actions), its links and buttons, every pp-* class in it. */
+export async function readBlock(page: Page): Promise<Block> {
+  return hiredBlock(page).first().evaluate((el) => {
+    const t = (n: Element | null | undefined) => (n?.textContent ?? '').replace(/[\s\u00a0]+/g, ' ').trim();
+    const titleEl = el.querySelector('.pp-section-message__title');
+    return {
+      title: t(titleEl), body: t(el.querySelector('.pp-section-message__body')),
+      links: [...el.querySelectorAll('a')].map((a) => ({ text: t(a), href: a.getAttribute('href') })),
+      buttons: [...el.querySelectorAll('button')].map((b) => t(b)),
+      classes: [...new Set([el, ...el.querySelectorAll('*')].flatMap((e) => [...e.classList]).filter((c) => c.startsWith('pp-')))].sort(),
+      role: el.getAttribute('role'), labelledBy: el.getAttribute('aria-labelledby') === (titleEl?.id || '-') ? 'title' : el.getAttribute('aria-labelledby'),
+    };
+  });
+}
+
+// ---------------------------------------------------------------- the kit (generated, nothing typed by hand)
+/**
+ * The Hired block of kit screens "Candidate: hired" and "Candidate: hired (phone)" (project/ui_kits/recruitment.html at `ref`):
+ * every pp-* class, the text nodes and the tags in order. Generated by the test writer with
+ * onboarding-cards/rec-ui-02-later/gen-hired-kit.py. A design system bump is a child lock.
+ */
+export const HIRED_KIT = {
+ "ref": "6f590331e17787484c7a3ed96b6043f6ac92d55f",
+ "screens": {
+  "Candidate: hired": {
+   "classes": [
+    "pp-button",
+    "pp-button--default",
+    "pp-button--small",
+    "pp-section-message",
+    "pp-section-message--success",
+    "pp-section-message__actions",
+    "pp-section-message__body",
+    "pp-section-message__content",
+    "pp-section-message__title"
+   ],
+   "words": [
+    "Employee record created",
+    "Onboarding opened for Kagiso Molefe. Thandeka Dlamini notified.",
+    "Laptop and access now sit with Kagiso in Onboarding.",
+    "Open in Onboarding"
+   ],
+   "tags": [
+    "div.pp-section-message.pp-section-message--success",
+    "i",
+    "div.pp-section-message__content",
+    "h3.pp-section-message__title",
+    "div.pp-section-message__body",
+    "p",
+    "div.pp-section-message__actions",
+    "button.pp-button.pp-button--default.pp-button--small",
+    "i",
+    "span"
+   ]
+  },
+  "Candidate: hired (phone)": {
+   "classes": [
+    "pp-button",
+    "pp-button--default",
+    "pp-button--small",
+    "pp-section-message",
+    "pp-section-message--success",
+    "pp-section-message__actions",
+    "pp-section-message__body",
+    "pp-section-message__content",
+    "pp-section-message__title"
+   ],
+   "words": [
+    "Employee record created",
+    "Onboarding opened for Kagiso Molefe. Thandeka Dlamini notified.",
+    "Laptop and access now sit with Kagiso in Onboarding.",
+    "Open in Onboarding"
+   ],
+   "tags": [
+    "div.pp-section-message.pp-section-message--success",
+    "i",
+    "div.pp-section-message__content",
+    "h3.pp-section-message__title",
+    "div.pp-section-message__body",
+    "p",
+    "div.pp-section-message__actions",
+    "button.pp-button.pp-button--default.pp-button--small",
+    "i",
+    "span"
+   ]
+  }
+ }
+} as const;
