@@ -14,6 +14,8 @@ import { summaryOf } from './interviews/panel-summary';
 import { ScheduleDrawer } from './interviews/schedule.drawer';
 import { CloseInterviewDialog, type CloseAction } from './interviews/close-interview.dialog';
 import { FeedbackSheet } from './interviews/feedback.sheet';
+import { DecideDrawer, type DecideChoice } from './interviews/decide.drawer';
+import { INTERVIEW_WORDS } from './interviews/interview-words';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
@@ -79,11 +81,14 @@ function viewOf(r: CandidateRecord): View {
  */
 @Component({
   selector: 'app-candidate-record-page',
-  imports: [FeedbackSheet, InterviewsTab, NotHiredDialog, ScheduleDrawer, CloseInterviewDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
+  imports: [DecideDrawer, FeedbackSheet, InterviewsTab, NotHiredDialog, ScheduleDrawer, CloseInterviewDialog, PpBreadcrumbs, PpButton, PpCard, PpDl, PpLozenge, PpMoveDialog, PpPersonHeader, PpPersonHeaderActions, PpProgressTracker, PpSectionMessage, PpSectionMessageActions, PpSkeleton, PpSkeletonGroup, PpTabs, PpTimeline],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (capturing() && phone()) {
       <app-feedback-sheet [item]="capturing()" [first]="v()?.first ?? ''" [last]="lastName()" [roleTitle]="v()?.roleTitle ?? null" [phone]="true" (closed)="captureClosed(false)" (saved)="captureClosed(true)" />
+    } @else if (deciding() && phone()) {
+      <app-decide [phone]="true" [name]="v()?.name ?? ''" [roleTitle]="v()?.roleTitle ?? null" [summary]="summaryState()" [required]="interviewsRequired()" [canOffer]="canOffer()" [blocked]="!!v()?.next?.blocked"
+        [book]="bookState()" [canNotHire]="showNotHired()" (confirmed)="decided($event)" (dismissed)="closeDecide()" />
     } @else {
     <div class="pp-stack pp-gap-200">
       <pp-breadcrumbs [items]="crumbs()" />
@@ -108,17 +113,19 @@ function viewOf(r: CandidateRecord): View {
               @if (lozenge(); as l) { <pp-lozenge [status]="l.status" [icon]="l.icon">{{ l.words }}</pp-lozenge> }
               <pp-person-header-actions>
                 @if (showNotHired()) { <button ppButton type="button" (click)="askNotHired()">Not hired</button> }
-                @if (c.canMove) { <button ppButton appearance="primary" icon="arrow-right-left" type="button" (click)="askMove()">Move</button> }
+                @if (c.canMove) { <button ppButton [appearance]="showDecide() ? 'default' : 'primary'" icon="arrow-right-left" type="button" (click)="askMove()">Move</button> }
+                @if (showDecide()) { <button ppButton appearance="primary" type="button" (click)="pressDecide()">{{ decideWord }}</button> }
               </pp-person-header-actions>
             </pp-person-header>
             @if (saveFailed()) { <pp-section-message tone="danger" [heading]="saveFail" /> }
+            @if (decideRefused()) { <pp-section-message tone="danger" [heading]="blockedWords" /> }
             <pp-progress-tracker label="Hiring stages" [steps]="steps()" [vertical]="true" />
             <pp-tabs [label]="c.name" [tabs]="tabs()" [selected]="tab()" (selectedChange)="chooseTab($event)" [panel]="false" />
             @if (tab() === 'interviews') {
               <div role="tabpanel" [attr.aria-labelledby]="tabId('interviews')">
                 <app-interviews-tab [state]="interviews()" [list]="interviewRows()" [required]="interviewsRequired()" [chosen]="chosenInterview()" [atInterview]="c.stage === 'INTERVIEW'"
                   (choose)="chooseInterview($event)" (retry)="tryInterviewsAgain()" (schedule)="openSchedule($event)" (reschedule)="openReschedule($event)" (act)="openClose($event)" (capture)="openCapture($event)"
-                  [summary]="summaryState()" (retryScores)="readScores()" />
+                  [summary]="summaryState()" (retryScores)="readScores()" [canDecide]="showDecide()" (decide)="pressDecide()" />
               </div>
             } @else if (tab() === 'notes') {
               <div role="tabpanel" class="pp-stack pp-gap-200" [attr.aria-labelledby]="tabId('notes')">
@@ -154,6 +161,10 @@ function viewOf(r: CandidateRecord): View {
       }
     </div>
     }
+    @if (deciding() && !phone()) {
+      <app-decide [name]="v()?.name ?? ''" [roleTitle]="v()?.roleTitle ?? null" [summary]="summaryState()" [required]="interviewsRequired()" [canOffer]="canOffer()" [blocked]="!!v()?.next?.blocked"
+        [book]="bookState()" [canNotHire]="showNotHired()" (confirmed)="decided($event)" (dismissed)="closeDecide()" />
+    }
     @if (capturing() && !phone()) {
       <app-feedback-sheet [item]="capturing()" [first]="v()?.first ?? ''" [last]="lastName()" [roleTitle]="v()?.roleTitle ?? null" (closed)="captureClosed(false)" (saved)="captureClosed(true)" />
     }
@@ -161,7 +172,7 @@ function viewOf(r: CandidateRecord): View {
       [optionsFailed]="!options()" [interviews]="interviewRows()" [retryOptions]="retryOptions" [reread]="rereadInterviews" [rereadRecord]="rereadRecord"
       (saved)="scheduled($event)" (dismissed)="drawerClosed()" />
     <app-close-interview-dialog [candidateId]="id()" [reread]="rereadInterviews" (saved)="closeSaved($event)" />
-    <pp-move-dialog [stages]="stageList()" [request]="moving()" (confirmed)="move($event)" (dismissed)="moving.set(null)" />
+    <pp-move-dialog [stages]="stageList()" [request]="moving()" (confirmed)="move($event)" (dismissed)="moving.set(null); moveFromDecide = false" />
     <app-not-hired-dialog [who]="notHiredFor()" [failed]="notHiredFailed()" (record)="recordNotHired($event)" (dismissed)="notHiredOpen.set(false)" />`,
 })
 export class CandidateRecordPage {
@@ -172,6 +183,53 @@ export class CandidateRecordPage {
   readonly interviewInAddress = input<string | undefined>(undefined, { alias: 'interview' });
   /** `schedule=new` opens the Schedule drawer (INT-UI-02 rule 2c). */
   readonly scheduleInAddress = input<string | undefined>(undefined, { alias: 'schedule' });
+  /** INT-UI-06: `decide=1` opens Decide once the record and the interviews read are both ready. */
+  readonly decideInAddress = input<string | undefined>(undefined, { alias: 'decide' });
+  protected readonly deciding = signal(false);
+  protected readonly decideRefused = signal(false);
+  protected moveFromDecide = false;
+  private decideWanted: string | null = null;
+  protected readonly decideWord = INTERVIEW_WORDS.decide['button']!;
+  protected readonly blockedWords = INTERVIEW_WORDS.decide['blocked']!;
+  protected readonly showDecide = computed(() => { const c = this.v(); return !!c && c.canDecide && c.stage === 'INTERVIEW'; });
+  protected readonly canOffer = computed(() => { const c = this.v(); return !!c && c.canMove && c.next?.to === 'OFFER'; });
+  protected readonly bookState = computed<'wait' | 'ready' | 'none'>(() => (this.interviews() === 'ready' ? 'ready' : this.interviews() === 'failed' ? 'none' : 'wait'));
+  protected pressDecide() {
+    if (!this.showDecide()) return;
+    this.saveFailed.set(false);
+    this.decideRefused.set(false);
+    if (this.tab() !== 'interviews') this.tab.set('interviews');
+    this.deciding.set(true);
+    this.writeAddress();
+  }
+  protected closeDecide() {
+    this.deciding.set(false);
+    this.writeAddress();
+    setTimeout(() => ([...this.host.querySelectorAll('.pp-person-header button')].find((b) => (b.textContent ?? '').trim() === this.decideWord) as HTMLElement | undefined)?.focus(), 30);
+  }
+  protected decided(choice: DecideChoice) {
+    const c = this.v();
+    this.deciding.set(false);
+    this.writeAddress();
+    if (!c) return;
+    if (choice === 'move') { this.moveFromDecide = true; this.moving.set({ name: c.name, from: c.stage, to: 'OFFER' }); }
+    else if (choice === 'book') { this.scheduleByAddress = true; this.writeAddress(); this.drawer().openSchedule(null); }
+    else this.askNotHired();
+  }
+  /** decide=1 opens Decide when the record says so and the tab's read answered; anything else is removed from the address. */
+  private decideFromAddress(final: boolean) {
+    const wanted = this.decideWanted;
+    if (wanted === null) return;
+    const ok = wanted === '1' && this.status() === 'ready' && this.tab() === 'interviews' && this.showDecide();
+    if (ok && !final && this.interviews() !== 'ready') return;
+    this.decideWanted = null;
+    if (ok && this.interviews() === 'ready') { this.deciding.set(true); this.writeAddress(); return; }
+    const [path, query = ''] = this.location.path().split('?');
+    const q = new URLSearchParams(query);
+    if (!q.has('decide')) return;
+    q.delete('decide');
+    this.location.replaceState(path, q.toString());
+  }
   private readonly drawer = viewChild.required(ScheduleDrawer);
   private readonly closeDialog = viewChild.required(CloseInterviewDialog);
   protected openClose(e: { action: CloseAction; id: string }) {
@@ -339,7 +397,8 @@ export class CandidateRecordPage {
       const tab = this.tabInAddress();
       const interview = this.interviewInAddress();
       const schedule = this.scheduleInAddress();
-      untracked(() => { this.scheduleWanted = schedule ?? null; void this.open(id, tab, interview); });
+      const decide = this.decideInAddress();
+      untracked(() => { this.scheduleWanted = schedule ?? null; this.decideWanted = decide ?? null; void this.open(id, tab, interview); });
     });
     effect(() => {
       if (this.tab() === 'notes' && this.status() === 'ready' && this.notes() === 'idle') untracked(() => void this.readNotes());
@@ -370,6 +429,7 @@ export class CandidateRecordPage {
     const chosen = this.chosenInterview();
     if (this.tab() === 'interviews' && chosen) q.set('interview', chosen); else q.delete('interview');
     if (this.scheduleByAddress) q.set('schedule', 'new'); else q.delete('schedule');
+    if (this.deciding()) q.set('decide', '1'); else q.delete('decide');
     this.location.replaceState(path, q.toString());
   }
 
@@ -399,13 +459,14 @@ export class CandidateRecordPage {
     this.interviews.set('loading');
     const list = await this.api.candidateInterviews(id);
     if (run !== this.interviewRun) return;
-    if (!list) { this.interviews.set('failed'); this.scheduleFromAddress(); return; }
+    if (!list) { this.interviews.set('failed'); this.scheduleFromAddress(); this.decideFromAddress(true); return; }
     this.interviewRows.set(list.interviews);
     this.interviewsRequired.set(list.required && typeof list.required === 'object' ? { done: list.required.done, total: list.required.total } : null);
     this.chosenInterview.set(defaultInterview(list.interviews, wanted));
     this.interviews.set('ready');
     if (this.tab() === 'interviews') this.writeAddress();
     this.scheduleFromAddress();
+    this.decideFromAddress(true);
   }
 
   /** `schedule=new` opens the drawer once the tab has drawn its answer at the Interview stage; anything else is removed from the address. */
@@ -488,6 +549,9 @@ export class CandidateRecordPage {
     this.v.set(null);
     this.status.set('loading');
     this.saveFailed.set(false);
+    this.decideRefused.set(false);
+    this.deciding.set(false);
+    this.moveFromDecide = false;
     this.moving.set(null);
     this.notHiredOpen.set(false);
     this.title.setTitle(`Candidate · ${TITLE}`);
@@ -496,6 +560,7 @@ export class CandidateRecordPage {
     this.options.set(opts);
     this.show(rec);
     if (this.scheduleWanted !== null && (this.status() !== 'ready' || this.tab() !== 'interviews')) this.dropSchedule();
+    this.decideFromAddress(false);
   }
 
   private read(id: string) { return this.api.call<CandidateRecord>('GET', `/v1/candidates/${encodeURIComponent(id)}`); }
@@ -522,6 +587,8 @@ export class CandidateRecordPage {
     const c = this.v();
     if (!c) return;
     this.saveFailed.set(false);
+    this.decideRefused.set(false);
+    this.moveFromDecide = false;
     this.moving.set({ name: c.name, from: c.stage, to: c.stage });
   }
 
@@ -533,13 +600,22 @@ export class CandidateRecordPage {
     const run = this.run;
     const r = await this.api.call('PUT', `/v1/candidates/${encodeURIComponent(c.id)}/stage`, { to: e.to, reason: e.reason }, newKey());
     if (run !== this.run) return;
-    if (r?.status !== 200) { this.saveFailed.set(true); return; }
+    const fromDecide = this.moveFromDecide;
+    this.moveFromDecide = false;
+    if (r?.status !== 200) {
+      const code = r && r.body && typeof r.body === 'object' ? (r.body as { code?: unknown }).code : null;
+      if (fromDecide && r?.status === 409 && code === 'INTERVIEWS_INCOMPLETE') { this.decideRefused.set(true); await this.reread(); return; }
+      this.saveFailed.set(true);
+      if (fromDecide && r?.status === 403) await this.reread();
+      return;
+    }
     this.dropNotes();
     await this.reread();
   }
 
   protected askNotHired() {
     this.saveFailed.set(false);
+    this.decideRefused.set(false);
     this.notHiredFailed.set(false);
     this.notHiredOpen.set(true);
   }

@@ -1394,6 +1394,90 @@ def seed_int_ui05(ddb, tenant_id: str, panel_subs: tuple, hr_sub: str) -> int:
     return written
 
 
+def seed_int_ui06(ddb, tenant_id: str, panel_subs: tuple, hr_sub: str) -> int:
+    """INT-UI-06: two candidates per test width (dev-ids-06.json is keyed by Playwright project; the dev step runs each width once and
+    this seed once). The level is the first of JUNIOR, MID, SENIOR whose required interview types in the company's ACTIVE
+    INTERVIEW_TYPES setting are not empty (read, never changed). Ready has every required type COMPLETED, the last with two new-format
+    votes; Missing has every required type but the last COMPLETED, and is written only when the level has a required type. SAGA rows
+    have no role_id and no settingVersions (the candidate locks to the active versions on its first read). Every row under each
+    candidate is removed first, because the dev run moves Ready to Offer. Idempotent."""
+    all_ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "int-ui" / "dev-ids-06.json").read_text())
+    if len(panel_subs) < 2 or not all(panel_subs) or not hr_sub:
+        print("warning: a panel or HR login has no sub; the INT-UI-06 rows were not written")
+        return 0
+    try:
+        r = ddb.query(TableName="talent-flow-config", IndexName="GSI1-active-configs", KeyConditionExpression="GSI1PK = :pk AND GSI1SK = :sk",
+                      ExpressionAttributeValues={":pk": {"S": f"TENANT#{tenant_id}#ACTIVE"}, ":sk": {"S": "CONFIG#INTERVIEW_TYPES"}}, Limit=1)
+        items = r.get("Items", [])
+    except ddb.exceptions.ResourceNotFoundException:
+        items = []
+    by_level = items[0].get("data", {}).get("M", {}).get("requiredByLevel", {}).get("M", {}) if items else {}
+    level, required = "MID", []
+    for name in ("JUNIOR", "MID", "SENIOR"):
+        types = [t.get("S") for t in by_level.get(name, {}).get("L", []) if t.get("S")]
+        if types:
+            level, required = name, list(dict.fromkeys(types))
+            break
+    print(f"INT-UI-06 seed: level {level}, required {required or 'none'}")
+    now_s = time.time()
+    iso = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(t))
+    stamp = iso(now_s - 20 * 86400)
+    criteria = {"L": [{"M": {"key": {"S": k}, "label": {"S": label}}} for k, label in REC04_CRITERIA]}
+    written = 0
+    for ids in all_ids.values():
+        for part in ("ready", "missing"):
+            c = ids[part]
+            cid = c["candidate"]
+            pk = f"CANDIDATE#{cid}"
+            for page in ddb.get_paginator("query").paginate(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk",
+                                                             ExpressionAttributeValues={":pk": {"S": pk}}, ProjectionExpression="PK, SK"):
+                for item in page.get("Items", []):
+                    ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+            if part == "missing" and not required:
+                print("warning: no level has a required interview type; the INT-UI-06 Missing candidate was not written")
+                continue
+            ddb.put_item(TableName=STATE_TABLE, Item={
+                "PK": {"S": pk}, "SK": {"S": "SAGA"},
+                "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+                "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": c["firstName"]}, "lastName": {"S": c["lastName"]},
+                "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": level}, "department": {"S": "Operations"},
+                "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": stamp}, "status": {"S": "ACTIVE"},
+                "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": stamp}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+            })
+            written += 1
+            done_types = required if part == "ready" else required[:-1]
+            for n, kind in enumerate(done_types):
+                iv_id = f"iv-intui06-{part}-{kind.lower().replace('_', '-')}-{cid[-2:].lower()}"
+                at_s = now_s - (10 - n) * 86400
+                last = part == "ready" and n == len(done_types) - 1
+                ddb.put_item(TableName=STATE_TABLE, Item={
+                    "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"}, "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+                    "interviewType": {"S": kind}, "status": {"S": "COMPLETED"}, "scheduledAt": {"S": iso(at_s)}, "length_minutes": {"N": "60"},
+                    "where": {"S": "IN_PERSON"}, "place": {"S": "Durban depot"}, "sequence": {"N": "1"},
+                    "booked_by": {"S": hr_sub}, "booked_at": {"S": stamp}, "completed_at": {"S": iso(at_s + 2 * 3600)},
+                    "votesSubmitted": {"N": "2" if last else "0"}, "panelMemberIds": {"L": [{"S": p} for p in panel_subs[:2]]},
+                    "criteria_snapshot": criteria, "createdAt": {"S": stamp}, "seed": {"S": SEED_TAG},
+                    **({} if last else {"completed_by": {"S": hr_sub}, "closed_reason": {"S": "OTHER"}, "closed_note": {"S": "Seed"}}),
+                })
+                ddb.put_item(TableName=STATE_TABLE, Item={
+                    "PK": {"S": pk}, "SK": {"S": f"IVTYPE#{kind}"}, "interviewId": {"S": iv_id}, "v": {"N": "1"}, "tenant_id": {"S": tenant_id}, "seed": {"S": SEED_TAG},
+                })
+                written += 2
+                if not last:
+                    continue
+                for m, (voter, rating, score) in enumerate(zip(panel_subs[:2], ("YES", "NO"), (4, 3))):
+                    vat = iso(at_s + 3600 * (m + 1))
+                    ddb.put_item(TableName=STATE_TABLE, Item={
+                        "PK": {"S": pk}, "SK": {"S": f"VOTE#{voter}#{iv_id}"}, "voterId": {"S": voter}, "interviewId": {"S": iv_id}, "candidateId": {"S": cid},
+                        "tenant_id": {"S": tenant_id}, "scores": {"M": {k: {"N": str(score)} for k, _ in REC04_CRITERIA}}, "rating": {"S": rating},
+                        "scale": {"M": {"min": {"N": "1"}, "max": {"N": "5"}}}, "on_behalf": {"BOOL": False}, "createdAt": {"S": vat}, "seed": {"S": SEED_TAG},
+                    })
+                    ddb.put_item(TableName=STATE_TABLE, Item={
+                        "PK": {"S": pk}, "SK": {"S": f"VOTED#{iv_id}#{voter}"}, "createdAt": {"S": vat}, "tenant_id": {"S": tenant_id}, "seed": {"S": SEED_TAG},
+                    })
+                    written += 2
+    return written
+
 def seed_rec_ui_03_2(ddb, tenant_id: str, panel_sub: str, hr_sub: str) -> int:
     """REC-UI-03 step 2: one candidate per test width (dev-ids-capture.json is keyed by Playwright project; the dev step runs each width
     once and this seed once), each at the Interview stage with one TECHNICAL interview that started yesterday, still SCHEDULED, the dev
@@ -2022,6 +2106,7 @@ def main() -> None:
         seed_rec_ui_03_2(ddb, tid, employee_sub, user_sub(cognito, naleko, "hr"))
         seed_rec_ui_03_4(ddb, tid, employee_sub, user_sub(cognito, naleko, "hr"))
         seed_int_ui05(ddb, tid, (employee_sub, user_sub(cognito, naleko, "it")), user_sub(cognito, naleko, "hr"))
+        seed_int_ui06(ddb, tid, (employee_sub, user_sub(cognito, naleko, "it")), user_sub(cognito, naleko, "hr"))
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the INT-UI-01 rows were not written")
 

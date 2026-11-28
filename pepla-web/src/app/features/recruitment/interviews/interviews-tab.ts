@@ -125,7 +125,8 @@ export function viewOf(x: Item, now: number): View {
                         <pp-section-message-actions><button ppButton type="button" (click)="retryScores.emit()">{{ sw['tryAgain'] }}</button></pp-section-message-actions>
                       </pp-section-message>
                     }
-                    @case ('ready') { @if (summary(); as s) { @if (s.kind === 'ready') { <app-panel-summary [summary]="s.summary" /> } } }
+                    @case ('ready') { @if (summary(); as s) { @if (s.kind === 'ready') { <app-panel-summary [summary]="s.summary" />
+                      @if (canDecide()) { <span><button ppButton appearance="link" type="button" (click)="decide.emit()">{{ decideWord }}</button></span> } } } }
                   }
                 }
                 <div class="pp-stack pp-gap-050">
@@ -194,6 +195,10 @@ export class InterviewsTab {
   /** INT-UI-05: the panel scores state, drawn only on a chosen Done interview; "Try again" asks the page to read them once more. */
   readonly summary = input<SummaryState>({ kind: 'none' });
   readonly retryScores = output<void>();
+  /** INT-UI-06: the Decide link under the summary (rule 8). */
+  readonly canDecide = input(false);
+  readonly decide = output<void>();
+  protected readonly decideWord = W.decide['button']!;
   protected readonly sw = W.summary;
   protected readonly chosenDone = computed(() => this.state() === 'ready' && this.chosenItem()?.status === 'COMPLETED');
   /** REC-UI-03 step 2: Capture feedback on the chosen interview. */
