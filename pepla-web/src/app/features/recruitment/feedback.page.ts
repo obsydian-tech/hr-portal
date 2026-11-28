@@ -98,7 +98,7 @@ export class FeedbackPage {
   protected async load(): Promise<void> {
     const run = ++this.run;
     this.state.set('loading');
-    this.answer.set(null); this.scores.set({}); this.rating.set(null); this.comment.set(''); this.failure.set(null);
+    this.answer.set(null); this.scores.set({}); this.rating.set(null); this.comment.set(''); this.failure.set(null); this.sending.set(false);
     const r = await this.api.call<Answer>('GET', `/v1/interviews/${encodeURIComponent(this.id)}`);
     if (run !== this.run) return;
     if (r?.status === 404 || r?.status === 403) { this.state.set('notFound'); return; }
