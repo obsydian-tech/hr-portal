@@ -140,7 +140,12 @@ async function processRecord(record) {
     const text = String(body.body ?? '');
     const mail = { From: SENDER_EMAIL, To: to, Subject: String(body.subject ?? ''), HtmlBody: text.split('\n').map((l) => `<p>${esc(l)}</p>`).join(''), TextBody: text };
     if (type === 'DRAFT_EMAIL' && body.replyTo) mail.ReplyTo = String(body.replyTo);
-    await getPostmarkClient().sendEmail(mail);
+    try {
+      await getPostmarkClient().sendEmail(mail);
+    } catch (err) {
+      // A mail provider's message can carry the address it refused: only the error's name leaves this function.
+      throw new Error(err?.name ?? 'SendFailed');
+    }
     console.info('Notification sent', { type, candidateId: candidateId || null, tenant_id: tenantId });
     return;
   }

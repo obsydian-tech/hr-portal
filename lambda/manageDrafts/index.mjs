@@ -102,12 +102,21 @@ export const handler = async (event) => {
       if (err?.name === 'ConditionalCheckFailedException') return json(409, { error: 'Conflict', code: 'NOT_OPEN' });
       throw err;
     }
-    await sqs.send(new SendMessageCommand({
-      QueueUrl: process.env.NOTIFICATION_QUEUE_URL,
-      // No approved subject wording exists yet (owed by Iggie), so none is invented: the subject goes empty.
-      MessageBody: JSON.stringify({ type: 'DRAFT_EMAIL', tenant_id: tenantId, recipientId: personId, recipientEmail: draft.to_email, candidateId: draft.candidate_id, subject: '', body: draft.body, draftId: draft.draft_id }),
-      MessageGroupId: tenantId, MessageDeduplicationId: `draft#${draft.draft_id}`,
-    }));
+    try {
+      await sqs.send(new SendMessageCommand({
+        QueueUrl: process.env.NOTIFICATION_QUEUE_URL,
+        // No approved subject wording exists yet (owed by Iggie), so none is invented: the subject goes empty.
+        MessageBody: JSON.stringify({ type: 'DRAFT_EMAIL', tenant_id: tenantId, recipientId: personId, recipientEmail: draft.to_email, candidateId: draft.candidate_id, subject: '', body: draft.body, draftId: draft.draft_id }),
+        MessageGroupId: tenantId, MessageDeduplicationId: `draft#${draft.draft_id}`,
+      }));
+    } catch (err) {
+      // The email was not queued, so the draft goes back to open and a retry can work. Only this person's own claim is undone.
+      await db.send(new UpdateItemCommand({
+        TableName: STATE(), Key: marshall(keyOfDraft), UpdateExpression: 'SET #s = :d REMOVE sent_by, sent_at', ConditionExpression: '#s = :x AND sent_by = :p AND sent_at = :n AND tenant_id = :t',
+        ExpressionAttributeNames: { '#s': 'status' }, ExpressionAttributeValues: marshall({ ':d': 'DRAFT', ':x': 'SENT', ':p': personId, ':n': now, ':t': tenantId }),
+      }));
+      throw err;
+    }
     const response = json(200, view({ ...draft, status: 'SENT' }));
     if (key) await db.send(new PutItemCommand({ TableName: IDEMPOTENCY(), Item: marshall({ idempotencyKey: key, response: JSON.stringify(response), expiresAt: Math.floor(Date.now() / 1000) + 48 * 3600 }) }));
     return response;
