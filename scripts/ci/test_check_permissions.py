@@ -1350,5 +1350,57 @@ class Replays(unittest.TestCase):
         self.assertEqual([f for f in res.findings if f.action == "s3:HeadObject"], [])
 
 
+class ShadowedNames(unittest.TestCase):
+    """Child lock .1 (review of PR 569, R1): a name reused for something else is never read. The role allows the table the
+    wrong guess would give, so a guess shows as allowed. Each case must stay could not judge, with nothing allowed."""
+    tree, one, git_repo, cli = Made.tree, Made.one, Made.git_repo, Made.cli
+    ftree, check, lines = Cure.ftree, Cure.check, Cure.lines
+    GETTER = "const T = () => process.env.T_OTHER;\n"
+    SEND = "db.send(new GetItemCommand({ TableName: %s, Key: {} }))"
+
+    def never_allowed(self, body, shared=None):
+        res = self.check(self.ftree(body, resource="aws_dynamodb_table.other.arn", shared=shared))
+        mine = [f for f in res.findings if f.subject == "f"]
+        self.assertEqual(res.allowed, 0, self.lines(res))
+        self.assertEqual([f.kind for f in mine], ["could not judge"], self.lines(res))
+
+    def test_s1b_getter_name_is_a_destructured_input_of_the_handler(self):
+        self.never_allowed(self.GETTER + "export const handler = async ({ T }) => " + self.SEND % "T()" + ";\n")
+
+    def test_s2b_inner_function_with_the_getters_name(self):
+        self.never_allowed(self.GETTER + "export const handler = async (event) => { function T() { return event.t; } return "
+                           + self.SEND % "T()" + "; };\n")
+
+    def test_s4_imported_let_that_the_shared_file_reassigns(self):
+        self.never_allowed("import { TBL } from '../shared/s.mjs';\nexport const handler = async (event) => " + self.SEND % "TBL" + ";\n",
+                           shared={"lambda/shared/s.mjs": "export let TBL = process.env.T_OTHER;\nexport function setT(x) { TBL = x; }\n"})
+
+    def test_s6_let_object_that_is_reassigned(self):
+        self.never_allowed("let cfg = { t: process.env.T_OTHER };\nexport const handler = async (event) => { cfg = { t: event.t }; return "
+                           + self.SEND % "cfg.t" + "; };\n")
+
+    def test_s7_outer_input_hides_a_const_object_of_the_same_name(self):
+        self.never_allowed("const config = { t: process.env.T_OTHER };\nexport const handler = async (config) => { const inner = async () => "
+                           + self.SEND % "config.t" + "; return inner(); };\n")
+
+    def test_s8_two_callers_each_with_a_local_of_the_same_name(self):
+        self.never_allowed("async function helper(tbl) { return " + self.SEND % "tbl" + "; }\n"
+                           "async function a() { const tbl = process.env.T_OTHER; return helper(tbl); }\n"
+                           "async function b(event) { const tbl = event.t; return helper(tbl); }\n"
+                           "export const handler = async (event) => { await a(); return b(event); };\n")
+
+    def test_s1_s2_s3_stay_could_not_judge(self):
+        self.never_allowed(self.GETTER + "export const handler = async (T) => " + self.SEND % "T()" + ";\n")
+        self.never_allowed(self.GETTER + "export const handler = async (event) => { const T = () => event.t; return " + self.SEND % "T()" + "; };\n")
+        self.never_allowed("let T = () => process.env.T_OTHER;\nexport const setT = (e) => { T = () => e; };\n"
+                           "export const handler = async (event) => { setT(event.t); return " + self.SEND % "T()" + "; };\n")
+
+    def test_a_plain_getter_is_still_read(self):
+        res = self.check(self.ftree(self.GETTER + "export const handler = async () => " + self.SEND % "T()" + ";\n",
+                                    resource="aws_dynamodb_table.other.arn"))
+        self.assertEqual([f for f in res.findings if f.subject == "f"], [], self.lines(res))
+        self.assertEqual(res.allowed, 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
