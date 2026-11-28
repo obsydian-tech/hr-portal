@@ -105,7 +105,7 @@ class Balance(unittest.TestCase):
         self.assertEqual(m.weight("new-1", "x", {}), m.DEFAULT_SECONDS)
         self.assertEqual(m.weight("new-2", "runJourney", {}), m.DEFAULT_JOURNEY_SECONDS)
 
-    def test_real_file_covers_every_spec_and_seven_shards_stay_under_43_minutes(self):
+    def test_real_file_covers_every_spec_and_seven_shards_stay_under_58_minutes(self):
         import pathlib
         specs = {p.name[: -len(".spec.ts")]: p.read_text()
                  for p in pathlib.Path("pepla-web/e2e/acceptance").glob("*.spec.ts")}
@@ -114,9 +114,11 @@ class Balance(unittest.TestCase):
         groups = m.balance(sorted(specs), specs, m.MAX_SHARDS, seconds)
         self.assertEqual(len(groups), 7)
         self.assertEqual(sorted(c for g in groups for c in g), sorted(specs))
-        # The total passed 6 x 40 minutes on 26 Nov (INT-01 and the REC-UI specs), so a better split could not help: a seventh
-        # shard. 43 minutes (28 Nov REC-UI-02 step 5 adds a spec of about 1 minute, 2525.1s a shard, so 42 no longer holds; was 42; 28 Nov REC-UI-03 step 4 adds a spec of about 7 minutes, 2471.0s a shard, so 41 no longer holds; was 41; 27 Nov REC-UI-03 tasks adds a spec of about 7 minutes, 2414.7s a shard, so 40 no longer holds; was 40; 27 Nov INT-UI-05 adds a spec of about 3 minutes, 2362.6s a shard, so 39 no longer holds; was 39, was 38, was 37, was 36; 27 Nov REC-UI-03 step 2 adds a spec of about 8 minutes, 2325.7s a shard): the split is already even (every shard within 3 seconds), but 30 newer specs (INT, REC-06, REC-16, REC-UI) are not in the committed list and count 3 or 10 minutes each, so the total reached 2196s a shard on 26 Nov and 2222.5s on 27 Nov (PR 555). A spec missing from the list counts 3 minutes.
-        self.assertLess(max(sum(m.weight(c, specs[c], seconds) for c in g) for g in groups), 43 * 60)
+        # 28 Nov (NH-296): the list now holds real seconds from nightly run 46124670851 for all 119 specs. Real work is
+        # 3367s a shard (56 minutes), split evenly over seven shards. The old list guessed 3 or 10 minutes for about 30 specs
+        # and undercounted site-08, so the limit kept being raised (36 to 42) while the real longest shard was 77 minutes.
+        # 58 minutes leaves about two minutes for new specs; when it trips, refresh the list from a full run first.
+        self.assertLess(max(sum(m.weight(c, specs[c], seconds) for c in g) for g in groups), 58 * 60)
 
 # ---------------------------------------------------------------- step 5: rule A (public site)
 
