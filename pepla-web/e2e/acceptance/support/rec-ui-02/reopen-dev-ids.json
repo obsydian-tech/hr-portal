@@ -1,0 +1,5 @@
+{
+  "note": "REC-UI-02 step 9 (rec-ui-02.9), AC-RO11: one candidate per test width (keyed by Playwright project), written by seed_rec_ui_02_9 in scripts/ci/seed-dev.py (company A) and put back at this open stage every run. Read only by the tests and the seed.",
+  "desktop-1280": { "candidate": "CAND-SEEDRECUI029REOPEN0DESK", "firstName": "Rec", "lastName": "Seed-Reopen-Desk", "stage": "Screening" },
+  "phone-390": { "candidate": "CAND-SEEDRECUI029REOPEN0PHON", "firstName": "Rec", "lastName": "Seed-Reopen-Phone", "stage": "Screening" }
+}
