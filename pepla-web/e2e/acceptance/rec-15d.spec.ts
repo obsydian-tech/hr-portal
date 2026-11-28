@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
+import { isRec062Grant, isRec09Policy } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09), on top of rec-06.2.1
 import { REC16_ROLE_KEY } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
@@ -568,6 +568,7 @@ test.describe('REC-15 step D · Interviews with names, and history names', () =>
     const baseline = JSON.parse(readFileSync(join(__dirname, 'support', 'rec-15d', 'iam-a1e82c1', 'policies.json'), 'utf8')) as Record<string, { role: string; stack: string; pairs?: string[]; squash?: string }>;
     const now = policyLines();
     for (const k of new Set([...Object.keys(baseline), ...Object.keys(now)])) {
+      if (isRec09Policy(k, now[k]?.pairs)) continue; // REC-09 (child lock rec-09.1): judged in rec-09.spec.ts AC-10.
       if (k === REC16_ROLE_KEY) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
       const was = new Set(baseline[k]?.pairs ?? [`squashed ${baseline[k]?.squash}`]);
       const is = new Set(now[k]?.pairs ?? [`squashed ${now[k]?.squash}`]);

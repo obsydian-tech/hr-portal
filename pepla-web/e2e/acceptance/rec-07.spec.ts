@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
+import { isRec062Grant, isRec09Policy } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09), on top of rec-06.2.1
 import { REC16_ROLE_KEY } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
@@ -681,7 +681,7 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
     const oldRoles = JSON.parse(readFileSync(join(baseDir, 'roles.json'), 'utf8')) as string[];
     const nowRoles = STACKS.flatMap((s) => resourcesOf(s, 'aws_iam_role').map((b) => `${s}/${b.labels[1]}`)).sort();
     // Child lock rec-05.1: REC-05's manageOffers has its own role, judged in rec-05.spec.ts AC-10.
-    expect.soft(nowRoles.filter((x) => !oldRoles.includes(x) && x !== REC05_ROLE_KEY && x !== REC16_ROLE_KEY), 'no new IAM role').toEqual([]);
+    expect.soft(nowRoles.filter((x) => !oldRoles.includes(x) && x !== REC05_ROLE_KEY && x !== REC16_ROLE_KEY && x !== 'talent-flow-infra/manage_drafts'), 'no new IAM role').toEqual([]); // && manage_drafts: child lock rec-09.1 (REC-09's drafts role, judged in rec-09.spec.ts AC-10)
     const oldPolicies = JSON.parse(readFileSync(join(baseDir, 'policies.json'), 'utf8')) as Record<string, { pairs?: string[]; squash?: string }>;
     const nowPolicies = policyLines() as Record<string, { pairs?: string[]; squash?: string }>;
     const FIVE = /(submit_vote|submit_vote_by_token|generate_scoring_link|schedule_interview|complete_evaluation)$/;
@@ -691,6 +691,7 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
       const was = new Set(oldPolicies[k]?.pairs ?? []);
       const lines = p.pairs ?? (p.squash && p.squash !== oldPolicies[k]?.squash ? [`(unreadable policy) ${p.squash.slice(0, 80)}`] : []);
       if (k === REC16_ROLE_KEY) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
+      if (isRec09Policy(k, p.pairs)) continue; // REC-09 (child lock rec-09.1): REC-09's four policies, each exactly its pinned lines (support/rec-09/policy-lines.json), judged in rec-09.spec.ts AC-10.
       for (const l of lines) if (!was.has(l)) added.push(`${k}: ${l}`);
     }
     for (const a of added) {
@@ -698,7 +699,7 @@ test.describe('REC-07 Scoring per role: 1 to 5 per criterion, plain averages, on
       const ok = (FIVE.test(k) && READ.test(line) && !/\*/.test(line.replace(/\/index\/[\w-]+/, ''))) || isRec15bGrant(line, k) || isRec05Grant(line, k) || isRec15cGrant(line, k) || isInt01Grant(line, k) /* child lock int-01.1 */ || isRec15dGrant(line, k) || isRec062Grant(line, k); // child lock rec-06.2.1; child locks rec-15b.1, rec-05.1, rec-15c.1 and rec-15d.1
       expect.soft(ok, `a new policy line is a read of the state or roles table by one of the five handlers, with no wildcard: ${a.slice(0, 200)}`).toBe(true);
     }
-    expect.soft(Object.keys(nowPolicies).filter((k) => !(k in oldPolicies) && k !== REC05_ROLE_KEY && k !== REC16_ROLE_KEY), 'no new policy').toEqual([]); // && REC05_ROLE_KEY: child lock rec-05.1
+    expect.soft(Object.keys(nowPolicies).filter((k) => !(k in oldPolicies) && k !== REC05_ROLE_KEY && k !== REC16_ROLE_KEY && !isRec09Policy(k, nowPolicies[k]?.pairs)), 'no new policy').toEqual([]); // && REC05_ROLE_KEY: child lock rec-05.1
     // Table rows are never written from Terraform (standing line 12).
     expect.soft(STACKS.flatMap((s) => resourcesOf(s, 'aws_dynamodb_table_item').map((b) => b.labels[1])), 'no table rows in Terraform').toEqual([]);
     // The API file describes the four routes and their refusals.

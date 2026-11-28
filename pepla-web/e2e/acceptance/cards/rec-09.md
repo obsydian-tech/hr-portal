@@ -31,3 +31,23 @@ drafts Lambda's error codes.
 - New role for the drafts Lambda: its KMS decrypt goes into `infra/kms.tf` `dynamodb_read_role_arns` in the next merge (as REC-02 did).
 - The older exact-grant and route suites move when a role and four routes are added; see child lock `acceptance-lock/rec-09.1`.
 - The engine reads settings with `settingsForRead` (its role has no write on the state table).
+
+## Child lock rec-09.1 (older checks that REC-09's new role, policies and routes move)
+
+`support/rec-09.1/grants.ts` leaves out REC-09's four policies by their exact lines (`support/rec-09/policy-lines.json`: manage_drafts, and
+one `_rec09` policy on evaluate_intelligence_rules, monitor_slas and get_intelligence_tiles), and only when a policy of that label holds
+exactly those lines. The checks that refuse any new grant leave out exactly these: int-01 AC-16, int-01f AC-8, mod-01 AC-8, rec-01 AC-8,
+rec-02 AC-11, rec-04 AC-8, rec-07 AC-9 (its "no new IAM role" line is whole again), rec-15 / 15b / 15c / 15d AC-17, ten-03 AC-10, and
+chat-15 AC-12 (the new resources, by exact type and label). rec-01 AC-3 gives its fixture one rule in company A's settings so its tiles exist. ten-03 AC-3: A's tile list is empty in that world (a tile
+needs a rule in the company's locked settings), so `mine` is empty there; rec-09 AC-1 and AC-4 judge A's and B's tiles with real settings.
+ten-02 AC-12 needs `npm ci` in `lambda/shared` (as the acceptance job does); with it, it passes on develop and on the build.
+
+## For the builder: how the policies must be written
+Write each of the four policies in full in Terraform: literal `Statement = [ { Sid, Effect, Action, Resource }, ... ]`, no `locals` and no
+`concat`, so the IAM readers of the older locks can read every line. rec-09.spec.ts AC-10 fails a policy the reader cannot read, and any
+line that is not in `support/rec-09/policy-lines.json`. The route labels and the permission label that chat-15 AC-12 names are
+`manage_drafts_list|patch|send|dismiss` and `manage_drafts_api`.
+
+## Company B in the tests
+Company B has rules of its own in the test world (RULE-SLA-001 is LOW and repeats after 6 hours for B; A's is HIGH and 24), and
+the tests send each company's calls naming the other company in headers and query. A request key is tied to the company and the person.

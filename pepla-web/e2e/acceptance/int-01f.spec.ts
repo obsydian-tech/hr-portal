@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock int-01f.2 (REC-06.2)
+import { isRec062Grant, isRec09Policy } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09), on top of int-01f.2 (REC-06.2)
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
 import { REPO } from './support/rec-14/lambda-harness';
@@ -619,7 +619,7 @@ test.describe('INT-01.F · Interview server leftovers', () => {
       const is = new Set(now[k]?.pairs ?? (now[k] ? [`squashed ${now[k]?.squash}`] : []));
       expect.soft([...is].filter((l) => !was.has(l) && !isRec062Grant(l, k)), `${k}: no new grant`).toEqual([]);
     }
-    expect.soft(Object.keys(now).filter((k) => !baseline[k]), 'no new policy').toEqual([]);
+    expect.soft(Object.keys(now).filter((k) => !baseline[k] && !isRec09Policy(k, now[k]?.pairs)), 'no new policy').toEqual([]);
     const si = lambdaNamed('scheduleInterview')[0];
     expect(si, 'scheduleInterview is a Lambda in Terraform').toBeTruthy();
     const timeout = Number(/\btimeout\s*=\s*(\d+)/.exec(si!.block.body)?.[1] ?? 'NaN');

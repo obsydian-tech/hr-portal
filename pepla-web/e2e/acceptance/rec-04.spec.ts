@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
+import { isRec062Grant, isRec09Policy } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09), on top of rec-06.2.1
 import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -559,6 +559,7 @@ test.describe('REC-04 · Open roles: a role record, and the candidates of a role
       if (cur.stack === stack && cur.role === role) continue;
       if (/manage_departments|manageDepartments/.test(k) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): the department list's own role, judged in rec-14.spec.ts AC-3.
       if (isRec16Role(k, cur.role)) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
+      if (isRec09Policy(k, cur.pairs)) continue; // REC-09 (child lock rec-09.1): REC-09's four policies, each exactly its pinned lines (support/rec-09/policy-lines.json), judged in rec-09.spec.ts AC-10.
       const was = new Set(baseline[k]?.pairs ?? []);
       const gained = (cur.pairs ?? []).filter((l) => !was.has(l));
       if (cur.role === getCandRole) {
