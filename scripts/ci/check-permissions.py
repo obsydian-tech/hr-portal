@@ -22,11 +22,13 @@ scripts/ci/test_check_permissions.py and scripts/ci/permission-fixtures/.
 """
 import argparse
 import fnmatch
+import io
 import json
 import os
 import re
 import subprocess
 import sys
+import tarfile
 import tempfile
 from pathlib import Path
 
@@ -1598,7 +1600,7 @@ class World:
         return None
 
     # ---- role rights
-    def role_allows(self, role, action, arn):
+    def role_allows(self, role, action, arn, ctx=None):
         """allowed | missing | ("cnj", why). arn None: the action alone is judged."""
         maybe = None
         for st in role.stmts:
@@ -1607,8 +1609,27 @@ class World:
                 continue
             if not action_match(st.actions, action):
                 continue
-            if st.cond_unknown or any(c[1] not in ("kms:ViaService", "kms:EncryptionContext:aws:s3:arn") for c in st.conditions):
+            if st.cond_unknown:
                 maybe = maybe or "a condition on the statement is not understood"
+                continue
+            applies = True
+            for test, var, vals in st.conditions:
+                if var in ("kms:ViaService", "kms:EncryptionContext:aws:s3:arn"):
+                    continue
+                if var == "cloudwatch:namespace" and ctx is not None and "cloudwatch:namespace" in ctx and test in ("StringEquals", "StringLike"):
+                    v = ctx["cloudwatch:namespace"]
+                    if v is None:
+                        maybe = maybe or "namespace not readable"
+                        applies = None
+                        break
+                    if (test == "StringEquals" and v in vals) or (test == "StringLike" and any(fnmatch.fnmatchcase(v, x) for x in vals)):
+                        continue
+                    applies = False
+                    break
+                maybe = maybe or "a condition on the statement is not understood"
+                applies = None
+                break
+            if applies is not True:
                 continue
             if arn is None:
                 return "allowed"
@@ -1826,6 +1847,9 @@ ACTION_RENAME = {"ConverseCommand": "InvokeModel", "ConverseStreamCommand": "Inv
                  "InvokeCommand": "InvokeFunction"}
 MODEL_ACTIONS = ("bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream")
 # Helpers known to return their input with extra condition fields (the proof lines are in the spec, section 2.3, shape 6).
+# S3 calls judged under another permission name (AWS has no s3:HeadObject permission).
+S3_AS = {"s3:HeadObject": ["s3:GetObject"], "s3:ListObjectsV2": ["s3:ListBucket"], "s3:ListObjects": ["s3:ListBucket"],
+         "s3:HeadBucket": ["s3:ListBucket"], "s3:CopyObject": ["s3:GetObject@source", "s3:PutObject"]}
 PASS_THROUGH = {"scopeWrite": ("tf-tenant", "lambda/shared/tf-tenant.js"), "onlyOurs": (None, "lambda/reviewDocumentVerification/index.mjs")}
 EXTS = (".js", ".mjs", ".cjs")
 
@@ -1910,12 +1934,19 @@ class JsFile:
             r"""(?:async\s+)?function\s*\*?\s*([\w$]+)?\s*\(""",
             r"""\b(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s*)?\(""",
             r"""\b(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s+)?([\w$]+)\s*=>\s*\{""",
+            r"""\b(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s+)?([\w$]+)\s*=>\s*(?!\{)""",
         ]
+        self.decl_offsets = set()
         for pi, p in enumerate(pats):
             for m in re.finditer(p, t):
+                brace_less = False
                 if pi == 2:
                     name, params = m.group(1), [m.group(2)]
                     j = m.end() - 1
+                elif pi == 3:
+                    name, params = m.group(1), [m.group(2)]
+                    j = m.end()
+                    brace_less = True
                 else:
                     open_i = m.end() - 1
                     close_i = scan_balanced(t, open_i)
@@ -1936,11 +1967,23 @@ class JsFile:
                     else:
                         mm = re.match(r"\s*=>\s*\{", rest)
                         if not mm:
-                            continue
-                        j = k + mm.end() - 1
-                end = scan_balanced(t, j)
+                            mm = re.match(r"\s*=>\s*", rest)
+                            if not mm or not name:
+                                continue
+                            j = k + mm.end()
+                            brace_less = True
+                        else:
+                            j = k + mm.end() - 1
+                if brace_less:
+                    sp = self.const_span(name)
+                    if sp is None or not (sp[0] <= j <= sp[1]):
+                        continue
+                    end = sp[1]
+                else:
+                    end = scan_balanced(t, j)
                 if end < 0 or not name:
                     continue
+                self.decl_offsets.add(m.start(1))
                 self.funcs.append((name, params, j, end))
 
     def enclosing(self, off):
@@ -1951,6 +1994,26 @@ class JsFile:
         return best
 
     def const_expr(self, name):
+        sp = self.const_span(name)
+        if sp is None:
+            return None
+        return self.text[sp[0]:sp[1]].strip(), sp[0]
+
+    def getter_shadowed(self, name, off):
+        """True when a name might be something else than the file's one constant at this place: it is also an
+        input of a function around the call, it is declared more than once (an inner name), it is a let or var,
+        or it is assigned again. Such a getter is never read (spec 4b, item 1): it stays could not judge."""
+        t = self.text
+        for f in self.funcs:
+            if f[2] <= off <= f[3] and name in f[1]:
+                return True
+        decls = re.findall(r"\b(const|let|var)\s+%s\b" % re.escape(name), t)
+        if len(decls) != 1 or decls[0] != "const":
+            return True
+        assigns = re.findall(r"(?<![\w$.])%s\s*(?:[-+*/%%&|^]|\?\?|\|\||&&|\*\*|<<|>>>?)?=(?![=>])" % re.escape(name), t)
+        return len(assigns) > 1
+
+    def const_span(self, name):
         if name not in self.consts:
             return None
         t, i = self.text, self.consts[name]
@@ -1979,11 +2042,129 @@ class JsFile:
                         or t[i:j].rstrip().endswith(("??", "||", "?", ":", "+"))):
                     break
             j += 1
-        return t[i:j].strip(), i
+        return i, j
+
+    def outer_funcs(self):
+        out = []
+        for f in self.funcs:
+            if not any(g is not f and g[2] <= f[2] and f[3] <= g[3] and (g[2], g[3]) != (f[2], f[3]) for g in self.funcs):
+                if not any((g[2], g[3]) == (f[2], f[3]) for g in out):
+                    out.append(f)
+        return out
+
+    def outermost(self, off):
+        for f in self.outer_funcs_cache():
+            if f[2] < off < f[3] or (f[2] == off and False):
+                return f
+        return None
+
+    def outer_funcs_cache(self):
+        if not hasattr(self, "_outer"):
+            self._outer = self.outer_funcs()
+        return self._outer
+
+    def import_records(self):
+        """(start, end, spec, kind, data): kind named {local: imported}, ns local, all None."""
+        if hasattr(self, "_records"):
+            return self._records
+        t = self.text
+        recs, used = [], set()
+        for m in re.finditer(r"""\bimport\s+(?:([\w$]+)\s*,?\s*)?(?:\{([^}]*)\}|\*\s+as\s+([\w$]+))?\s*from\s*(['"])([^'"]+)\4""", t):
+            spec = m.group(5)
+            if m.group(3):
+                recs.append((m.start(), m.end(), spec, "ns", m.group(3)))
+            named = {}
+            if m.group(1):
+                named[m.group(1)] = "default"
+            for part in (m.group(2) or "").split(","):
+                mm = re.match(r"\s*([\w$]+)(?:\s+as\s+([\w$]+))?\s*$", part)
+                if mm:
+                    named[mm.group(2) or mm.group(1)] = mm.group(1)
+            if named or not m.group(3):
+                recs.append((m.start(), m.end(), spec, "named", named))
+        for m in re.finditer(r"""\bimport\s*(['"])([^'"]+)\1""", t):
+            recs.append((m.start(), m.end(), m.group(2), "all", None))
+        for m in re.finditer(r"""\bexport\s+(?:\*(?:\s+as\s+[\w$]+)?|\{[^}]*\})\s*from\s*(['"])([^'"]+)\1""", t):
+            recs.append((m.start(), m.end(), m.group(2), "all", None))
+        for m in re.finditer(r"""(?:const|let|var)\s+(?:\{([^}]*)\}|([\w$]+))\s*=\s*(?:await\s+)?(?:require|import)\(\s*(['"])([^'"]+)\3\s*\)""", t):
+            used.add(t.rfind("(", m.start(), m.start(4)))
+            if m.group(2):
+                recs.append((m.start(), m.end(), m.group(4), "ns", m.group(2)))
+            else:
+                named = {}
+                for part in m.group(1).split(","):
+                    mm = re.match(r"\s*([\w$]+)(?:\s*:\s*([\w$]+))?(?:\s*=.*)?\s*$", part, re.S)
+                    if mm:
+                        named[mm.group(2) or mm.group(1)] = mm.group(1)
+                recs.append((m.start(), m.end(), m.group(4), "named", named))
+        for m in re.finditer(r"""(?:const|let|var)\s*\[""", t):
+            lo = m.end() - 1
+            lc = scan_balanced(t, lo)
+            if lc < 0:
+                continue
+            mm = re.match(r"""\s*=\s*await\s+Promise\.all\(\s*\[""", t[lc + 1:])
+            if not mm:
+                continue
+            ao = lc + 1 + mm.end() - 1
+            ac = scan_balanced(t, ao)
+            if ac < 0:
+                continue
+            lefts = split_top(t[lo + 1:lc])
+            rights = split_top(t[ao + 1:ac])
+            for k, r in enumerate(rights):
+                mr = re.match(r"""\s*import\(\s*(['"])([^'"]+)\1\s*\)\s*$""", r)
+                if not mr:
+                    continue
+                spec = mr.group(2)
+                pos = ao + 1 + sum(len(x) + 1 for x in rights[:k]) + r.index("import(") + len("import")
+                left = lefts[k].strip() if k < len(lefts) else ""
+                if left.startswith("{") and left.endswith("}"):
+                    named = {}
+                    for part in left[1:-1].split(","):
+                        pm = re.match(r"\s*([\w$]+)(?:\s*:\s*([\w$]+))?(?:\s*=.*)?\s*$", part, re.S)
+                        if pm:
+                            named[pm.group(2) or pm.group(1)] = pm.group(1)
+                    used.add(pos)
+                    recs.append((m.start(), ac + 1, spec, "named", named))
+                elif re.fullmatch(r"[\w$]+", left):
+                    used.add(pos)
+                    recs.append((m.start(), ac + 1, spec, "ns", left))
+        for m in re.finditer(r"""(?<![.\w$])(?:import|require)(\()\s*(['"])([^'"]+)\2\s*\)""", t):
+            if m.start(1) in used:
+                continue
+            recs.append((m.start(), m.start(), m.group(3), "all", None))
+        # export lists and module.exports objects: names for aliases, not mentions
+        self.export_alias = {}
+        self.export_spans = []
+        for m in re.finditer(r"""\bexport\s*\{([^}]*)\}(?!\s*from)""", t):
+            self.export_spans.append((m.start(), m.end()))
+            for part in m.group(1).split(","):
+                mm = re.match(r"\s*([\w$]+)(?:\s+as\s+([\w$]+))?\s*$", part)
+                if mm:
+                    self.export_alias[mm.group(2) or mm.group(1)] = mm.group(1)
+        for m in re.finditer(r"""\bmodule\.exports\s*=\s*\{""", t):
+            cl = scan_balanced(t, m.end() - 1)
+            if cl < 0:
+                continue
+            ents = split_top(t[m.end():cl])
+            pairs = {}
+            ok = True
+            for e in ents:
+                mm = re.match(r"\s*([\w$]+)\s*(?::\s*([\w$]+))?\s*$", e)
+                if not mm:
+                    ok = False
+                    break
+                pairs[mm.group(1)] = mm.group(2) or mm.group(1)
+            if ok:
+                self.export_spans.append((m.start(), cl + 1))
+                self.export_alias.update(pairs)
+        self._records = recs
+        return recs
 
 
 class Op:
-    def __init__(self, action, svc, resource, res_why, where, params=None, note=""):
+    def __init__(self, action, svc, resource, res_why, where, params=None, note="", codefn=""):
+        self.codefn = codefn
         self.action = action
         self.svc = svc
         self.resource = resource    # dict(kind=..., name=..., index=..., key=...) or None
@@ -2005,8 +2186,10 @@ class FunctionCode:
         self.order = []
         self.shared_names = {}   # shared file -> names imported by those that load it ("*" for all)
         self.notes = []
+        self.unreached = []
         for rel in entry_files:
             self.load(rel, 0, None)
+        self.compute_reach()
 
     def load(self, rel, depth, names):
         if rel in self.files:
@@ -2026,7 +2209,8 @@ class FunctionCode:
             self.notes.append(("could not judge: dynamic import", rel, jf.line(off)))
         if depth >= 3:
             return
-        for spec in jf.follow:
+        specs = list(jf.follow) + [r[2] for r in jf.import_records() if r[2] not in jf.follow]
+        for spec in specs:
             if not spec.startswith("."):
                 continue
             target = self.resolve_spec(rel, spec)
@@ -2036,6 +2220,113 @@ class FunctionCode:
                     if sp == spec:
                         wanted.add(imported)
                 self.load(target, depth + 1, wanted or {"*"})
+
+    # ---- reach (W1): a shared file's function counts only when counted code names it
+    def compute_reach(self):
+        self.all_files = set(r for r in self.files if not r.startswith("lambda/shared/"))
+        self.counted = {r: set() for r in self.files}
+        todo = []
+        for rel in self.files:
+            todo.append((rel, None))
+        for rel in list(self.all_files):
+            for f in self.files[rel].outer_funcs_cache():
+                self.counted[rel].add((f[2], f[3]))
+                todo.append((rel, f))
+        while todo:
+            rel, f = todo.pop()
+            for rel2, name in self.region_targets(rel, f):
+                jf2 = self.files[rel2]
+                if name is None:
+                    if rel2 not in self.all_files:
+                        self.all_files.add(rel2)
+                        for g in jf2.outer_funcs_cache():
+                            if (g[2], g[3]) not in self.counted[rel2]:
+                                self.counted[rel2].add((g[2], g[3]))
+                                todo.append((rel2, g))
+                    continue
+                for g in self.funcs_named(jf2, name):
+                    o = jf2.outermost(g[2] + 1) or g
+                    if (o[2], o[3]) not in self.counted[rel2]:
+                        self.counted[rel2].add((o[2], o[3]))
+                        todo.append((rel2, o))
+
+    def funcs_named(self, jf, name):
+        return [g for g in jf.funcs if g[0] == name]
+
+    def tie(self, rel, spec, imported):
+        """[(target, name or None for all)] for one imported name."""
+        target = self.resolve_spec(rel, spec) if spec.startswith(".") else None
+        if not target or target not in self.files:
+            return []
+        if imported in ("default", "*") or imported is None:
+            return [(target, None)]
+        jf2 = self.files[target]
+        jf2.import_records()
+        name = jf2.export_alias.get(imported, imported)
+        if self.funcs_named(jf2, name):
+            return [(target, name)]
+        if name in jf2.consts or re.search(r"\bclass\s+%s\b" % re.escape(name), jf2.text):
+            return []
+        return [(target, None)]
+
+    def region_targets(self, rel, f):
+        jf = self.files[rel]
+        t = jf.text
+        recs = jf.import_records()
+        if f is None:
+            chars = list(t)
+            for g in jf.outer_funcs_cache():
+                for k in range(g[2], min(g[3], len(chars))):
+                    if chars[k] != "\n":
+                        chars[k] = " "
+            lo, hi = 0, len(t)
+        else:
+            chars = list(t[:f[3]])
+            lo, hi = f[2], f[3]
+        for (a, b, _spec, kind, _d) in recs:
+            if kind != "all":
+                for k in range(a, min(b, len(chars))):
+                    if chars[k] != "\n":
+                        chars[k] = " "
+        for (a, b) in jf.export_spans:
+            for k in range(a, min(b, len(chars))):
+                if chars[k] != "\n":
+                    chars[k] = " "
+        region = "".join(chars)
+        out = []
+        for (a, b, spec, kind, _d) in recs:
+            if kind == "all" and lo <= a < hi and (f is not None or jf.outermost(a) is None):
+                out.extend(self.tie(rel, spec, None))
+        named, ns = {}, {}
+        for (_a, _b, spec, kind, d) in recs:
+            if kind == "named":
+                for local, imp in d.items():
+                    named.setdefault(local, []).append((spec, imp))
+            elif kind == "ns":
+                ns.setdefault(d, []).append(spec)
+        local_funcs = {g[0] for g in jf.funcs}
+        for m in re.finditer(r"(?<![\w$.])([A-Za-z_$][\w$]*)(?:\s*\.\s*([A-Za-z_$][\w$]*))?", region[lo:hi]):
+            off = lo + m.start(1)
+            n = m.group(1)
+            if off in jf.decl_offsets:
+                continue
+            if n in ns:
+                for spec in ns[n]:
+                    out.extend(self.tie(rel, spec, m.group(2) if m.group(2) else None))
+            elif n in named:
+                for spec, imp in named[n]:
+                    out.extend(self.tie(rel, spec, imp))
+            elif n in local_funcs:
+                out.append((rel, n))
+        return out
+
+    def is_counted(self, jf, off):
+        if jf.rel in self.all_files:
+            return True
+        o = jf.outermost(off)
+        if o is None:
+            return True
+        return (o[2], o[3]) in self.counted[jf.rel]
 
     def resolve_spec(self, rel, spec):
         base = os.path.normpath(os.path.join(os.path.dirname(rel), spec)).replace(os.sep, "/")
@@ -2073,6 +2364,32 @@ class FunctionCode:
             if isinstance(v, str):
                 return ("lit", v)
             return ("unk", "setting %s not in Terraform" % nm)
+        mg = re.fullmatch(r"([A-Za-z_$][\w$]*)\(\s*\)", t)
+        if mg and depth < 6 and not (binding and mg.group(1) in binding):
+            ce = None if jf.getter_shadowed(mg.group(1), off) else jf.const_expr(mg.group(1))
+            if ce:
+                mb = re.fullmatch(r"(?:async\s*)?\(\s*\)\s*=>\s*(.+)", ce[0], re.S)
+                if mb:
+                    inner = mb.group(1).strip()
+                    if not inner.startswith("{"):
+                        return self.value(jf, inner, ce[1], None, depth + 1)
+                    g = re.fullmatch(r"\{\s*const\s+([A-Za-z_$][\w$]*)\s*=\s*process\.env\.([A-Za-z_]\w*)\s*;?\s*"
+                                     r"(?:if\s*\(\s*!\s*\1\s*\)\s*throw\s+[^;{}]*;?\s*)?return\s+\1\s*;?\s*\}", inner, re.S)
+                    if g:
+                        return self.value(jf, "process.env." + g.group(2), ce[1], None, depth + 1)
+            return ("unk", "name not readable (%s)" % t)
+        mr = re.fullmatch(r"requireSetting\(\s*(['\"])([A-Za-z_]\w*)\1\s*\)", t)
+        if mr and any(f[0] == "requireSetting" for f in jf.funcs):
+            return self.value(jf, "process.env." + mr.group(2), off, None, depth + 1)
+        mp = re.fullmatch(r"([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)", t)
+        if mp and depth < 6 and not (binding and mp.group(1) in binding):
+            fn = jf.enclosing(off)
+            ce = jf.const_expr(mp.group(1))
+            if not (fn and mp.group(1) in fn[1]) and ce and ce[0].lstrip().startswith("{"):
+                props, _w = self.obj_props(jf, ce[0], ce[1], None, 3)
+                if mp.group(2) in props:
+                    return self.value(jf, props[mp.group(2)][0], props[mp.group(2)][1], None, depth + 1)
+            return ("unk", "name not readable (%s)" % t)
         if re.fullmatch(r"[A-Za-z_$][\w$]*", t):
             if binding is not None and t in binding:
                 return binding[t]
@@ -2086,6 +2403,13 @@ class FunctionCode:
                 pkg, nm = jf.imports[t]
                 if pkg.startswith("@aws-sdk/"):
                     return ("cls", pkg, nm)
+                if pkg.startswith(".") and nm not in ("*", "default") and depth < 6:
+                    target = self.resolve_spec(jf.rel, pkg)
+                    if target and target in self.files:
+                        f2 = self.files[target]
+                        ce2 = f2.const_expr(nm)
+                        if ce2:
+                            return self.value(f2, ce2[0], ce2[1], None, depth + 1)
             return ("unk", "name not readable (%s)" % t)
         return ("unk", "name not readable")
 
@@ -2159,13 +2483,19 @@ class FunctionCode:
                 if close_i < 0:
                     continue
                 arg = jf.text[open_i + 1:close_i]
-                if shared and not self.shared_call_counts(jf, m.start()):
-                    continue
                 pkg = None
                 if ns and ns in jf.imports and jf.imports[ns][0].startswith("@aws-sdk/"):
                     pkg, cmd = jf.imports[ns][0], cls
                 elif not ns and cls in jf.imports and jf.imports[cls][0].startswith("@aws-sdk/"):
                     pkg, cmd = jf.imports[cls][0], jf.imports[cls][1]
+                if shared and not self.is_counted(jf, m.start()):
+                    if pkg and cmd.endswith("Command"):
+                        sa = sdk_action(pkg, cmd)
+                        if sa:
+                            efn = jf.enclosing(m.start())
+                            for a in S3_AS.get(sa[0], [sa[0]]):
+                                self.unreached.append((a.split("@")[0], "%s:%d" % (jf.rel, jf.line(m.start())), efn[0] if efn else "-"))
+                    continue
                 if pkg:
                     if not cmd.endswith("Command"):
                         continue
@@ -2216,6 +2546,8 @@ class FunctionCode:
                     continue
                 if rel == jf.rel and fn[2] < mm.start() < fn[3] and f2.enclosing(mm.start()) is fn:
                     continue
+                if not self.is_counted(f2, mm.start()):
+                    continue
                 sites.append((f2, mm.start(), split_top(f2.text[oi + 1:ci])))
         if not sites:
             return [Op(None, None, None, "helper %s is not called in this function's code" % name, "%s:%d" % (jf.rel, jf.line(off)), note="could not judge")]
@@ -2242,11 +2574,103 @@ class FunctionCode:
             out.extend(self.make_ops(jf, pkgcmd[1], pkgcmd[2], arg, off, binding, shared))
         return out
 
-    def make_ops(self, jf, pkg, cmd, arg, off, binding, shared):
+    def call_sites(self, def_jf, fn):
+        """Reached places that call function fn of def_jf: ([(file, offset, args)], unreadable)."""
+        fname = fn[0]
+        sites, odd = [], False
+        for rel in self.order:
+            f2 = self.files[rel]
+            local, nss = set(), set()
+            if rel == def_jf.rel:
+                local.add(fname)
+            for (_a, _b, spec, kind, d) in f2.import_records():
+                tgt = self.resolve_spec(rel, spec) if spec.startswith(".") else None
+                if tgt != def_jf.rel:
+                    continue
+                if kind == "named":
+                    for lname, imp in d.items():
+                        if def_jf.export_alias.get(imp, imp) == fname:
+                            local.add(lname)
+                elif kind == "ns":
+                    nss.add(d)
+                else:
+                    odd = True
+            if not local and not nss:
+                continue
+            spans = [(a, b) for (a, b, _s, k, _d) in f2.import_records() if k != "all"] + list(f2.export_spans)
+            for mm in re.finditer(r"(?<![\w$.])(?:([\w$]+)\s*\.\s*)?([\w$]+)\b(\s*\()?", f2.text):
+                nsn, nm = mm.group(1), mm.group(2)
+                hit = (nsn is None and nm in local) or (nsn in nss and nm == fname)
+                if not hit:
+                    continue
+                st = mm.start(2) if nsn is None else mm.start(1)
+                if st in f2.decl_offsets or any(a <= st < b for a, b in spans):
+                    continue
+                if rel == def_jf.rel and fn[2] < st < fn[3]:
+                    continue
+                if not self.is_counted(f2, st):
+                    continue
+                if not mm.group(3):
+                    odd = True
+                    continue
+                oi = mm.end() - 1
+                ci = scan_balanced(f2.text, oi)
+                if ci < 0:
+                    odd = True
+                    continue
+                sites.append((f2, st, split_top(f2.text[oi + 1:ci])))
+        return sites, odd
+
+    def make_ops(self, jf, pkg, cmd, arg, off, binding, shared, expand=True):
         sa = sdk_action(pkg, cmd)
         where = "%s:%d" % (jf.rel, jf.line(off))
         if sa is None:
             return []
+        efn = jf.enclosing(off)
+        codefn = efn[0] if efn else "-"
+        if expand and binding is None:
+            props0, _w0 = self.obj_props(jf, arg, off, None)
+            handed = {}
+            for pn in ("TableName", "Bucket", "QueueUrl", "SecretId", "IndexName", "Key", "Namespace"):
+                if pn in props0:
+                    v0 = self.value(jf, props0[pn][0], props0[pn][1] if props0[pn][1] else off, None)
+                    if v0[0] == "param":
+                        handed[v0[1]] = v0
+            if handed:
+                fn = next(iter(handed.values()))[2]
+                sites, odd = self.call_sites(jf, fn)
+                why = None
+                if odd or not sites:
+                    why = "name handed in by the caller; not every place that calls %s can be read" % fn[0]
+                bindings = []
+                for f2, soff, args in sites if not why else []:
+                    b = {}
+                    for pname in handed:
+                        idx = fn[1].index(pname) if pname in fn[1] else -1
+                        sv = self.value(f2, args[idx], soff, None, 1) if 0 <= idx < len(args) else ("unk", "argument missing")
+                        if sv[0] != "lit":
+                            why = "name handed in by the caller in %s (%s) is not readable" % (f2.rel, (f2.enclosing(soff) or ("-",))[0])
+                            break
+                        b[pname] = sv
+                    if why:
+                        break
+                    bindings.append((b, "%s:%d" % (f2.rel, f2.line(soff))))
+                act = S3_AS.get(sa[0], [sa[0]])[0].split("@")[0]
+                if why:
+                    return [Op(act, sa[1], None, why, where, note="could not judge", codefn=codefn)]
+                out = []
+                for b, at in bindings:
+                    for op in self.make_ops(jf, pkg, cmd, arg, off, b, shared, expand=False):
+                        if op.note != "could not judge" and not op.note.startswith("could not judge:"):
+                            op.note = (op.note + "; " if op.note else "") + "name from the caller at " + at
+                        out.append(op)
+                return out
+        ops = self.make_ops_inner(jf, pkg, cmd, arg, off, binding, shared, sa, where)
+        for op in ops:
+            op.codefn = codefn
+        return ops
+
+    def make_ops_inner(self, jf, pkg, cmd, arg, off, binding, shared, sa, where):
         action, svc = sa
         pfx = action.split(":")[0]
         props, why = self.obj_props(jf, arg, off, binding)
@@ -2288,9 +2712,26 @@ class FunctionCode:
         if pfx == "s3":
             b = prop("Bucket") or ("unk", why or "bucket not readable")
             k = prop("Key")
-            if b[0] != "lit":
-                return [Op(action, svc, None, b[1] if b[0] == "unk" else "bucket not readable", where, note="could not judge")]
-            return [Op(action, svc, {"kind": "bucket", "name": b[1], "key": k[1] if k and k[0] == "lit" else None}, None, where, note=note)]
+            out = []
+            for act in S3_AS.get(action, [action]):
+                if act.endswith("@source"):
+                    act = act.split("@")[0]
+                    src = prop("CopySource")
+                    if src and src[0] == "lit" and "/" in src[1].lstrip("/"):
+                        sb, sk = src[1].lstrip("/").split("/", 1)
+                        out.append(Op(act, svc, {"kind": "bucket", "name": sb, "key": sk}, None, where, note=note))
+                    else:
+                        out.append(Op(act, svc, None, "copy source not readable", where, note="could not judge"))
+                    continue
+                if b[0] != "lit":
+                    out.append(Op(act, svc, None, b[1] if b[0] == "unk" else "bucket not readable", where, note="could not judge"))
+                    continue
+                key = k[1] if k and k[0] == "lit" and act != "s3:ListBucket" else None
+                out.append(Op(act, svc, {"kind": "bucket", "name": b[1], "key": key}, None, where, note=note))
+            return out
+        if action == "cloudwatch:PutMetricData":
+            nsv = prop("Namespace")
+            return [Op(action, svc, None, None, where, params={"cloudwatch:namespace": nsv[1] if nsv and nsv[0] == "lit" else None}, note=note)]
         if pfx == "sqs":
             q = prop("QueueUrl")
             if q is None:
@@ -2398,7 +2839,9 @@ def workflow_ops(world, wf):
 # Judging and reporting
 # ----------------------------------------------------------------------------
 class Finding:
-    def __init__(self, kind, subject, action, resource, where, detail=""):
+    def __init__(self, kind, subject, action, resource, where, detail="", codefn=""):
+        self.codefn = codefn or "-"
+        self.new = False
         self.kind = kind
         self.subject = subject
         self.action = action
@@ -2409,6 +2852,16 @@ class Finding:
     @property
     def key(self):
         return (self.subject, self.action or "", self.resource or "", self.kind)
+
+    @property
+    def file(self):
+        m = re.match(r"(.*?):\d+$", self.where or "")
+        return m.group(1) if m else (self.where or "")
+
+    @property
+    def cnj_key(self):
+        """Who a could-not-judge line is: function, action, file, code function and reason (spec 4b item 10)."""
+        return (self.subject, self.action or "", self.file, self.codefn, self.detail)
 
     def line(self):
         head = {"missing": "MISSING", "key missing": "KEY MISSING", "could not judge": "could not judge", "warning": "warning",
@@ -2425,6 +2878,8 @@ class Result:
         self.allowed = 0
         self.skipped = []
         self.notes = []
+        self.unreached = []
+        self.new_cnj = None
 
     def count(self, kind):
         return sum(1 for f in self.findings if f.kind == kind)
@@ -2467,7 +2922,21 @@ def key_needs(op, locked):
 
 
 def judge_ops(world, subject, role, ops, result, extra_where=""):
+    n0 = len(result.findings)
+    _judge_ops(world, subject, role, ops, result, extra_where)
+    return n0
+
+
+def _judge_ops(world, subject, role, ops, result, extra_where=""):
     for op in ops:
+        n_before = len(result.findings)
+        _judge_one(world, subject, role, op, result)
+        for f in result.findings[n_before:]:
+            f.codefn = op.codefn or "-"
+
+
+def _judge_one(world, subject, role, op, result):
+    for op in [op]:
         result.calls += 1
         if op.action is None or op.res_why and op.resource is None:
             result.findings.append(Finding("could not judge", subject, op.action, "", op.where, op.res_why or "not readable"))
@@ -2515,7 +2984,7 @@ def judge_ops(world, subject, role, ops, result, extra_where=""):
             else:
                 result.allowed += 1
             continue
-        r1 = role_allows_wild(world, role, op.action, arn)
+        r1 = role_allows_wild(world, role, op.action, arn, op.params)
         if r1 == "missing":
             result.findings.append(Finding("missing", subject, op.action, display(res), op.where, "the role has no right for this call" + ((" (" + op.note + ")") if op.note else "")))
         elif isinstance(r1, tuple):
@@ -2552,9 +3021,9 @@ def judge_ops(world, subject, role, ops, result, extra_where=""):
             result.findings.append(Finding("could not judge", subject, op.action, "", op.where, op.note.split(": ", 1)[1]))
 
 
-def role_allows_wild(world, role, action, arn):
+def role_allows_wild(world, role, action, arn, ctx=None):
     if arn is None:
-        return world.role_allows(role, action, None)
+        return world.role_allows(role, action, None, ctx)
     if isinstance(arn, tuple) and arn[0] == "secret":
         # Secrets Manager accepts the ARN with or without the six-letter suffix
         r = world.role_allows(role, action, arn[1])
@@ -2624,6 +3093,10 @@ def analyze(root, known_keys=None):
             continue
         ops = fc.ops()
         judge_ops(world, name, role, ops, result)
+        for action, where_, codefn in fc.unreached:
+            row = (name, action, where_, codefn)
+            if row not in result.unreached:
+                result.unreached.append(row)
     for name in code_dirs:
         if name not in world.lambdas:
             result.skipped.append(name)
@@ -2654,6 +3127,7 @@ class Exceptions:
     def __init__(self, text=""):
         self.known_keys = {}
         self.entries = []
+        self.reviewed = []
         self.errors = []
         sec = None
         for n, raw in enumerate(text.splitlines(), 1):
@@ -2677,6 +3151,30 @@ class Exceptions:
                     continue
                 self.entries.append({"subject": parts[0], "action": parts[1], "resource": parts[2], "reason": parts[3],
                                      "fix": parts[4], "date": parts[5], "line": n, "used": False})
+            elif sec == "cannot be judged":
+                # function | action | file | code function | how many | why | who checked and what they found | date
+                if len(parts) < 8 or not all(parts[i] for i in (0, 1, 2, 3, 5, 6, 7)) or not parts[4].isdigit() or int(parts[4]) < 1:
+                    self.errors.append("reviewed line without its function, file, code function, count, reason, checker or date (line %d)" % n)
+                    continue
+                self.reviewed.append({"subject": parts[0], "action": parts[1], "file": parts[2], "codefn": parts[3], "count": int(parts[4]),
+                                      "reason": parts[5], "checked": parts[6], "date": parts[7], "line": n, "used": 0, "on_blocking": False})
+
+    def apply_reviewed(self, findings):
+        for e in self.reviewed:
+            ident = (e["subject"], e["action"], e["file"], e["codefn"])
+            for f in findings:
+                if (f.subject, f.action or "", f.file, f.codefn) != ident:
+                    continue
+                if f.kind in BLOCKING:
+                    if not e["on_blocking"]:
+                        e["on_blocking"] = True
+                        self.errors.append("a [cannot be judged] line matches a %s finding: %s | %s | %s | %s (line %d)"
+                                           % (f.kind.upper(), e["subject"], e["action"], e["file"], e["codefn"], e["line"]))
+                    continue
+                if f.kind == "could not judge" and e["used"] < e["count"]:
+                    e["used"] += 1
+                    f.kind = "accepted"
+                    f.detail = "%s (reviewed: %s)" % (e["reason"], e["checked"])
 
     def apply(self, findings):
         for f in findings:
@@ -2706,8 +3204,19 @@ def base_tree(root, ref):
         p = subprocess.run(["git", "-C", str(root), "archive", ref] + paths[:-1], capture_output=True)
         if p.returncode != 0:
             raise RuntimeError("cannot read %s: %s" % (ref, p.stderr.decode("utf-8", "replace").strip()[:200]))
-    t = subprocess.run(["tar", "-x", "-C", tmp], input=p.stdout, capture_output=True)
-    if t.returncode != 0:
+    # unpacked with the standard library: git is the only program this script runs
+    try:
+        with tarfile.open(fileobj=io.BytesIO(p.stdout)) as tf:
+            base = os.path.realpath(tmp)
+            for member in tf.getmembers():
+                dest = os.path.realpath(os.path.join(tmp, member.name))
+                if not (dest == base or dest.startswith(base + os.sep)) or not (member.isfile() or member.isdir()):
+                    continue
+                if hasattr(tarfile, "data_filter"):
+                    tf.extract(member, tmp, filter="data")
+                else:
+                    tf.extract(member, tmp)
+    except (tarfile.TarError, OSError):
         raise RuntimeError("cannot unpack %s" % ref)
     return tmp
 
@@ -2722,7 +3231,14 @@ def render(result, exc, base_keys, blocking, mode_note):
         out.append("## %s (%d)" % (kind, len(rows)))
         for f in rows:
             tag = " [already on the base branch]" if f.kind in BLOCKING and base_keys is not None and f.key in base_keys else ""
+            if f.kind == "could not judge" and f.new:
+                tag = " [new on this change]"
             out.append(f.line() + tag)
+        out.append("")
+    if result.unreached:
+        out.append("not reached, not judged:")
+        for subj, action, where, codefn in result.unreached:
+            out.append("  %s  %s  in %s  (%s)" % (subj, action, codefn, where))
         out.append("")
     import datetime
     today = datetime.date.today()
@@ -2733,6 +3249,9 @@ def render(result, exc, base_keys, blocking, mode_note):
             continue
         if age > 14 and not e["fix"].lower().startswith("never"):
             out.append("stale known gap (%d days, fix: %s): %s | %s | %s" % (age, e["fix"], e["subject"], e["action"], e["resource"]))
+    for e in exc.reviewed:
+        if not e["used"] and not e["on_blocking"]:
+            out.append("stale reviewed line (no such call any more): %s | %s | %s | %s (line %d)" % (e["subject"], e["action"], e["file"], e["codefn"], e["line"]))
     stale = [e for e in exc.entries if not e["used"]]
     for e in stale:
         out.append("stale exception (no such finding any more): %s | %s | %s (line %d)" % (e["subject"], e["action"], e["resource"], e["line"]))
@@ -2743,9 +3262,9 @@ def render(result, exc, base_keys, blocking, mode_note):
         out.extend("  " + n for n in result.notes[:20])
     out.append("Not deployed, skipped: %d folders" % len(result.skipped))
     out.append(mode_note)
-    out.append("functions read: %d, workflows read: %d, calls found: %d, allowed: %d, missing: %d, key missing: %d, could not judge: %d, warnings: %d, accepted: %d"
+    out.append("functions read: %d, workflows read: %d, calls found: %d, allowed: %d, missing: %d, key missing: %d, could not judge: %d, warnings: %d, accepted: %d, new could not judge: %d"
                % (result.functions, result.workflows, result.calls, result.allowed, result.count("missing"), result.count("key missing"),
-                  result.count("could not judge"), result.count("warning"), result.count("accepted")))
+                  result.count("could not judge"), result.count("warning"), result.count("accepted"), len(result.new_cnj or [])))
     out.append("Judged on the dev setup. For services other than DynamoDB, S3, KMS, SQS and Secrets Manager only the action is judged.")
     if blocking:
         out.append("Findings new on this change: %d" % len(blocking))
@@ -2763,12 +3282,18 @@ def main(argv=None):
     effective = "enforce" if args.mode == "enforce" and args.base_ref else "report"
     try:
         exc_text = ""
-        ex_path = Path(args.exceptions) if args.exceptions else Path(args.root) / "scripts/ci/permission-check-exceptions.txt"
-        if ex_path.is_file():
-            exc_text = ex_path.read_text(encoding="utf-8")
+        if args.base_ref:
+            # the reviewed and exceptions lists always come from the target branch, never from the change
+            g = subprocess.run(["git", "-C", str(args.root), "show", "%s:scripts/ci/permission-check-exceptions.txt" % args.base_ref], capture_output=True)
+            exc_text = g.stdout.decode("utf-8", "replace") if g.returncode == 0 else ""
+        else:
+            ex_path = Path(args.exceptions) if args.exceptions else Path(args.root) / "scripts/ci/permission-check-exceptions.txt"
+            if ex_path.is_file():
+                exc_text = ex_path.read_text(encoding="utf-8")
         exc = Exceptions(exc_text)
         result = analyze(args.root, exc.known_keys)
         exc.apply(result.findings)
+        exc.apply_reviewed(result.findings)
         base_keys = None
         notes = ["Mode: %s." % effective]
         if args.mode == "enforce" and not args.base_ref:
@@ -2776,12 +3301,27 @@ def main(argv=None):
         if args.base_ref:
             btmp = base_tree(args.root, args.base_ref)
             base_result = analyze(btmp, exc.known_keys)
+            bexc = Exceptions(exc_text)
+            bexc.apply(base_result.findings)
+            bexc.apply_reviewed(base_result.findings)
             base_keys = {f.key for f in base_result.findings if f.kind in BLOCKING}
-            if args.exceptions and Path(args.root, "scripts/ci/permission-check-exceptions.txt").is_file():
+            if Path(args.root, "scripts/ci/permission-check-exceptions.txt").is_file():
                 mine = Path(args.root, "scripts/ci/permission-check-exceptions.txt").read_text(encoding="utf-8")
                 if mine != exc_text:
                     notes.append("Note: this change edits the exceptions file; the base branch's copy was used.")
+            from collections import Counter
+            have = Counter(f.cnj_key for f in base_result.findings if f.kind == "could not judge")
+            result.new_cnj = []
+            for f in result.findings:
+                if f.kind != "could not judge":
+                    continue
+                if have[f.cnj_key] > 0:
+                    have[f.cnj_key] -= 1
+                else:
+                    f.new = True
+                    result.new_cnj.append(f)
         blocking = [f for f in result.findings if f.kind in BLOCKING and (base_keys is None or f.key not in base_keys)]
+        blocking += list(result.new_cnj or [])
         text = render(result, exc, base_keys, blocking if effective == "enforce" else [], " ".join(notes))
         print(text)
         if args.summary:
