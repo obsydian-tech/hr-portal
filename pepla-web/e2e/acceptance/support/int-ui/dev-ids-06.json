@@ -1,0 +1,10 @@
+{
+  "desktop-1280": {
+    "ready": { "candidate": "CAND-INTUI06DEVREADYAAAAAAD1", "firstName": "Ivo", "lastName": "Seed-Decide-Ready-Desk" },
+    "missing": { "candidate": "CAND-INTUI06DEVMISSAAAAAAAD1", "firstName": "Ivo", "lastName": "Seed-Decide-Missing-Desk" }
+  },
+  "phone-390": {
+    "ready": { "candidate": "CAND-INTUI06DEVREADYAAAAAAP1", "firstName": "Ivo", "lastName": "Seed-Decide-Ready-Phone" },
+    "missing": { "candidate": "CAND-INTUI06DEVMISSAAAAAAAP1", "firstName": "Ivo", "lastName": "Seed-Decide-Missing-Phone" }
+  }
+}
