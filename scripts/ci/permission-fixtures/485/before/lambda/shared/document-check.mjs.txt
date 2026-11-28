@@ -1,0 +1,125 @@
+/**
+ * What a document check is, shared by the Lambdas that list documents (ONB-12, ONB-13).
+ * ONB-07 changed the rules here.
+ */
+// hr-group.mjs imports groupsOf from here; the cycle is safe because both sides only call each other inside functions.
+import { isIdToken } from './hr-group.mjs';
+
+/** The caller's groups, split into exact names (TEN-05: lambda/shared/roles.mjs). */
+export { groupsOf } from './roles.mjs';
+import { groupsOf } from './roles.mjs';
+
+const STORED_CHECKS = ['MATCHES', 'NEEDS_A_LOOK', 'DOESNT_MATCH'];
+
+/**
+ * What the check on a document is, from what is stored (ONB-12 and ONB-07 specs).
+ * 1. The verification's stored `check`, when it is one of the three.
+ * 2. A verification without one (rows written before ONB-07): 90% or more matches, under 90 needs a look.
+ * 3. No verification: still being read is reading; everything else, PASSED included, needs a look.
+ *    A document without a check is never Matches.
+ */
+export function checkOf(doc, verification) {
+  if (verification) {
+    if (STORED_CHECKS.includes(verification.check)) return verification.check;
+    return Number(verification.confidence) >= 90 ? 'MATCHES' : 'NEEDS_A_LOOK';
+  }
+  if (doc.ocr_status === 'PENDING' || doc.ocr_status === 'PROCESSING') return 'READING';
+  return 'NEEDS_A_LOOK';
+}
+
+/** Lower case, accents removed, then only letters and digits: "van Wyk" equals "VAN WYK", "D'Almeida" equals "DALMEIDA". */
+export function normaliseName(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/** A field the model could not read: missing, empty or NOT_FOUND. */
+function notRead(value) {
+  if (value === null || value === undefined) return true;
+  const t = String(value).trim();
+  return t === '' || t.toUpperCase() === 'NOT_FOUND';
+}
+
+/**
+ * Batsi's check on a document just read (ONB-07 spec), worked out here and never by the model.
+ * `read` holds documentType, skipped (AI skipped or switched off, or no result), confidence and the
+ * fields the model read (idNumber, surname, accountHolder). `record` is the employee: last_name and,
+ * when HR typed it, id_number_last4. It only labels the document; HR still decides every one.
+ */
+export function checkFromRead(read, record = {}) {
+  if (!read || read.skipped) return 'NEEDS_A_LOOK';
+  const confident = Number(read.confidence) >= 90;
+  const lastName = normaliseName(record?.last_name);
+  const last4 = String(record?.id_number_last4 ?? '').trim();
+
+  if (read.documentType === 'NATIONAL_ID') {
+    const idRead = !notRead(read.idNumber);
+    const surnameRead = !notRead(read.surname);
+    if (last4 && idRead && String(read.idNumber).replace(/\D/g, '').slice(-4) !== last4) return 'DOESNT_MATCH';
+    if (lastName && surnameRead && normaliseName(read.surname) !== lastName) return 'DOESNT_MATCH';
+    const agrees = lastName && surnameRead && (!last4 || idRead);
+    return confident && agrees ? 'MATCHES' : 'NEEDS_A_LOOK';
+  }
+
+  if (read.documentType === 'BANK_CONFIRMATION') {
+    const holderRead = !notRead(read.accountHolder);
+    if (lastName && holderRead && !normaliseName(read.accountHolder).includes(lastName)) return 'DOESNT_MATCH';
+    return confident && lastName && holderRead ? 'MATCHES' : 'NEEDS_A_LOOK';
+  }
+
+  // Matric and tertiary: nothing on the record to compare.
+  return confident ? 'MATCHES' : 'NEEDS_A_LOOK';
+}
+
+/** HR's decision overwrites ocr_status with PASSED or FAILED, so only hr_reviewed_at tells it apart. */
+export function hrDecisionOf(doc) {
+  if (!doc.hr_reviewed_at) return null;
+  if (doc.ocr_status === 'PASSED') return 'ACCEPTED';
+  if (doc.ocr_status === 'FAILED') return 'NEW_ONE_ASKED';
+  return null;
+}
+
+/**
+ * ONB-15: only HR may open, link or decide a document. Returns null for HR, else the 403 answer.
+ * The check runs before any DynamoDB, S3 or KMS call. Missing claims are refused, and a group named
+ * like "not_hr_staff" is not HR because the groups are split into names.
+ */
+export function requireHr(event, headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }) {
+  const claims = event?.requestContext?.authorizer?.jwt?.claims;
+  if (claims && isIdToken(claims) && groupsOf(claims).includes('hr_staff')) return null;
+  return { statusCode: 403, headers, body: JSON.stringify({ error: 'Only HR can open documents' }) };
+}
+
+/**
+ * How what Batsi read compares with the employee's record (ONB-15 spec), worked out beside
+ * checkFromRead with the same name normaliser and "not read" rule, so the lines HR reads and the
+ * check never disagree. `read` holds the fields the model read (idNumber, idLast4, surname,
+ * accountHolder) and `record` the employee (last_name, id_number_last4). Returns
+ * [{ field, result }] with result AGREES, DIFFERS, NOT_READ or NOT_ON_RECORD.
+ */
+export function comparisonsOf(documentType, read, record = {}) {
+  const lastName = normaliseName(record?.last_name);
+  const last4 = String(record?.id_number_last4 ?? '').trim();
+  const compare = (value, onRecord, agrees) => {
+    if (!read || read.skipped || notRead(value)) return 'NOT_READ';
+    if (!onRecord) return 'NOT_ON_RECORD';
+    return agrees() ? 'AGREES' : 'DIFFERS';
+  };
+
+  if (documentType === 'NATIONAL_ID') {
+    const idValue = !notRead(read?.idNumber) ? read.idNumber : read?.idLast4;
+    return [
+      { field: 'SURNAME', result: compare(read?.surname, lastName, () => normaliseName(read.surname) === lastName) },
+      { field: 'ID_NUMBER', result: compare(idValue, last4, () => String(idValue).replace(/\D/g, '').slice(-4) === last4) },
+    ];
+  }
+  if (documentType === 'BANK_CONFIRMATION') {
+    return [
+      { field: 'ACCOUNT_HOLDER', result: compare(read?.accountHolder, lastName, () => normaliseName(read.accountHolder).includes(lastName)) },
+    ];
+  }
+  return [];
+}
