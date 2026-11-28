@@ -36,6 +36,11 @@ export const INTERVIEW_WORDS = {
     heading: 'Panel scores', split: 'Split panel', outOf: 'out of 5', criteria: 'Scores by criterion',
     failed: 'Panel scores could not be loaded.', loading: 'Loading the panel scores', tryAgain: 'Try again',
   } as Record<string, string | null>,
+  /** INT-UI-06: Decide (W-14, W-9d; approved 25 Nov; placements W-N6a and W-N6b under rule 7a). */
+  decide: {
+    button: 'Decide', title: 'Decide on {candidate}', move: 'Move to Offer', book: 'Book another interview', notHired: 'Not hired', cancel: 'Cancel',
+    blocked: 'Every required interview must be done first.',
+  } as Record<string, string | null>,
   /** INT-UI-03: the close dialogs and the menu ({type} is filled in by the page, lower-cased). */
   close: {
     cancelTitle: 'Cancel the {type} interview?', dnhTitle: 'Record that the {type} interview did not happen', doneTitle: 'Mark the {type} interview as done?',
