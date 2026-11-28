@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
+import { isRec062Grant, isRec09Policy } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09), on top of rec-06.2.1
 import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { join } from 'node:path';
 import { ON_DEV, expect, test } from './support/fixtures';
@@ -465,7 +465,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       // no company, and narrow them by the Member rows of the tenants table (ten-04.2.spec.ts judges the detail). Here: A's person listed, B's not.
       { name: 'GET /v1/panel-members', handler: 'getPanelMembers', caller: 'staffA', own: {}, mine: ['panel.a@example.test'], theirs: ['panel.b@example.test', 'Paul', 'sub-panel-b'] },
       { name: 'GET /v1/hiring-managers', handler: 'getHiringManagers', caller: 'staffA', own: {}, mine: ['hm.a@example.test'], theirs: ['hm.b@example.test', 'Hugo', 'sub-hm-b'] },
-      { name: 'GET /v1/intelligence/tiles', handler: 'getIntelligenceTiles', caller: 'staffA', own: { query: { role: 'TA' } }, mine: [ID.a1], theirs: [ID.b1, NAME.b1] },
+      { name: 'GET /v1/intelligence/tiles', handler: 'getIntelligenceTiles', caller: 'staffA', own: { query: { role: 'TA' } }, mine: [], theirs: [ID.b1, NAME.b1] }, // child lock rec-09.1 (REC-09): a tile now exists only for a rule in the company's locked settings, and this world has none, so A's list is empty; that A's tiles are A's own and B's are never in them is judged with real settings in rec-09.spec.ts AC-1 and AC-4.
     ];
     for (const l of lists) {
       const a = ask(l.handler, l.caller, l.own);
@@ -710,6 +710,7 @@ test.describe('TEN-03 · TalentFlow and IT routes take the company only from the
       if (/leaver_chats|deleteLeaverChats/.test(key) || /leaver_chats|deleteLeaverChats/.test(cur.role)) continue; // CHAT-15 (re-lock ten-03.16): its own role, judged in chat-15.spec.ts AC-12.
       if (/manage_departments|manageDepartments/.test(key) || /manage_departments|manageDepartments/.test(cur.role)) continue; // REC-14 (child lock rec-14.1): its own role, judged in rec-14.spec.ts AC-3.
       if (isRec16Role(key, cur.role)) continue; // REC-16 (child lock rec-16.1): its own role, judged in rec-16.spec.ts AC-10.
+      if (isRec09Policy(key, cur.pairs)) continue; // REC-09 (child lock rec-09.1): REC-09's four policies, each exactly its pinned lines (support/rec-09/policy-lines.json), judged in rec-09.spec.ts AC-10.
       if (isRec05Role(key, cur.role)) { expect.soft((cur.pairs ?? []).filter((p) => !isRec05Grant(p, key)), `${key}: only the lines REC-05 allows`).toEqual([]); continue; } // REC-05 (child lock rec-05.1): its own role, judged in rec-05.spec.ts AC-10.
       // MOD-01 rule 8: a new policy may also be the modules read (GetItem on the tenants table only), or getCompanyModules' own.
       const mod01 = (cur.pairs ?? []).length > 0 && MOD01_ROLE(key, cur.role) && (cur.pairs ?? []).every((p) => MOD01_GET(p) || (key === 'infra/get_company_modules' && MOD01_OWN(p)));

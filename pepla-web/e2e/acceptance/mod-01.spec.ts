@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { isRec062Grant } from './support/rec-06.2.1/grants'; // child lock rec-06.2.1
+import { isRec062Grant, isRec09Policy } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09), on top of rec-06.2.1
 import { isRec16Role } from './support/rec-16.1/grants'; // child lock rec-16.1
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -717,6 +717,7 @@ test.describe('MOD-01 · A company has modules switched on, and the server refus
     for (const [key, cur] of Object.entries(all)) {
       if (baseline[key]) continue;
       if (cur.stack === 'infra' && cur.role === role) continue; // getCompanyModules' own, judged above
+      if (isRec09Policy(key, cur.pairs)) continue; // REC-09 (child lock rec-09.1): REC-09's four policies, each exactly its pinned lines (support/rec-09/policy-lines.json), judged in rec-09.spec.ts AC-10.
       if (/send_document_reminders/.test(key) || /send_document_reminders/.test(cur.role)) continue; // ONB-21 (re-lock mod-01.4): its own role, locked in onb-21.spec.ts AC-8.
       // Ask Batsi dev Marketplace grant (re-lock mod-01.9): judged before the ask_batsi skip below, and it must be exactly this.
       if (key === MARKETPLACE_DEV_KEY || cur.role === 'naleko_ai_chat') { expect.soft(marketplaceDev(key, cur.role, cur.pairs), `${key}: only on the chat role, dev only, exactly the two Marketplace actions on *`).toBe(true); continue; }

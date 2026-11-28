@@ -6,10 +6,11 @@ import { ON_DEV, expect, test } from './support/fixtures';
 import { devEnv } from './support/ten-02/dev';
 import { LAMBDA, REPO, httpEvent, runModule } from './support/rec-01/lambda-harness';
 import { policyLines, lambdaNamed, roleResourceOf, roleInfo, valueOf, TENANTS_RESOURCE, type Stack } from './support/rec-01/iam';
-import { A, B, D, ID, SUB, TABLE, TENANTS, ask, authorizerOf, bodyOf, calls, describe, findRow, rowsOf, runEvent, statusOf, tables, writes, type Caller } from './support/rec-01/world';
+import { A, B, D, av, ID, SUB, TABLE, TENANTS, ask, authorizerOf, bodyOf, calls, describe, findRow, rowsOf, runEvent, statusOf, tables, writes, type Caller } from './support/rec-01/world';
 import { ADMINS, C, MANAGERS, NOT_RECRUITERS, RECRUITERS, RECRUITER_FORMS } from './support/rec-01/callers';
 import { LIST_LAMBDAS, ROUTES, type Route } from './support/rec-01/routes';
 import { isCardGrant } from './support/ten-04.2/grants';
+import { isRec09Policy } from './support/rec-09.1/grants'; // child lock rec-09.1 (REC-09)
 import { isRec07Grant } from './support/rec-07.1/grants';
 import { isRec15bGrant } from './support/rec-15b.1/grants';
 import { isRec15cGrant } from './support/rec-15c.1/grants'; // child lock rec-15c.1
@@ -286,7 +287,16 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
 
     // Tiles: the manager's tiles are their candidates' only.
     const tiles = routeOf('getIntelligenceTiles');
-    const tilesOf = (c: Caller) => JSON.stringify(bodyOf(run(tiles, c)));
+    // Child lock rec-09.1 (REC-09): a tile now exists only for a rule in the company's settings, so this fixture gives company A one rule
+    // that holds for the fixture's two candidates (their saved snapshots say AT_RISK, as the old tiles did), aimed at the Recruiter and the hiring manager. Company B has none.
+    const tilesTables = tables();
+    (tilesTables[TABLE.config] ??= []).push(av({
+      PK: `TENANT#${A}`, SK: 'CONFIG#INTELLIGENCE_RULES#v1', GSI1PK: `TENANT#${A}#ACTIVE`, GSI1SK: 'CONFIG#INTELLIGENCE_RULES', tenant_id: A, tenantId: A,
+      configType: 'INTELLIGENCE_RULES', version: 1, isActive: true, createdAt: '2026-11-01T08:00:00.000Z',
+      data: { rules: [{ id: 'RULE-SLA-002', name: 'Close to the time limit', enabled: true, severity: 'MEDIUM', targetRoles: ['HR_RECRUITMENT', 'HIRING_MANAGER'],
+        conditions: [{ signal: 'SLA_STATUS', operator: 'equals', value: 'AT_RISK' }], action: { type: 'NOTIFY', cooldown: 24 } }] },
+    }));
+    const tilesOf = (c: Caller) => JSON.stringify(bodyOf(run(tiles, c, {}, { tables: tilesTables })));
     if (!tilesOf(C.recruiter).includes(ID.c1) || !tilesOf(C.recruiter).includes(ID.c2)) wrong.push('the Recruiter\'s tiles name both candidates (the fixture holds a tile for each)');
     if (!tilesOf(C.hmC1).includes(ID.c1)) wrong.push('the hiring manager of C1 gets C1\'s tile');
     if (tilesOf(C.hmC1).includes(ID.c2)) wrong.push('the hiring manager of C1 gets no tile of C2');
@@ -551,6 +561,7 @@ test.describe('REC-01 · Recruitment role checks: every action says who may do i
       if (!isGated(key, cur.role)) continue;
       const was = baseline[key];
       // TEN-04.2 (re-locked by acceptance-lock/ten-03.3): PR 407's dev read grants (a table-level GetItem or Query on the state or notifications table) are applied on dev already.
+      if (!was && isRec09Policy(key, cur.pairs)) continue; // child lock rec-09.1: REC-09's policy on getIntelligenceTiles's role, exactly its pinned lines, judged in rec-09.spec.ts AC-10.
       if (!was) { expect.soft((cur.pairs ?? []).length > 0 && (cur.pairs ?? []).every((p) => isCardGrant(p, cur.stack, cur.role)), `new role policy ${key} on a Recruitment Lambda's role: REC-01 adds no IAM`).toBe(true); continue; }
       if (was.squash !== undefined || cur.squash !== undefined) { expect.soft(cur.squash, `role policy ${key}: unchanged`).toBe(was.squash); continue; }
       const added = (cur.pairs ?? []).filter((p) => !(was.pairs ?? []).includes(p));
