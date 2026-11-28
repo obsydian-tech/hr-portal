@@ -1,0 +1,38 @@
+# Byte for byte copies of files of obsydian-tech/hr-portal at commit c84aec9 (the tree the step 4b replay reads).
+# Each copy carries an extra .txt suffix so repo-wide tests that read code files do not see it.
+# The sha256 is of the original bytes (the suffix does not change them).
+# commit | original path | sha256
+c84aec9 | infra/ask_batsi_chats.tf | 06ac57548bc94406844b1bfcf76910a91f0f5b94a3572741ee4dde494ca0ca9b
+c84aec9 | infra/env/dev.tfvars | 73cde85a5d311354b922ce9f08c6c7941987684c43d0bd558a13e07bb1692c89
+c84aec9 | infra/iam_per_lambda.tf | f07c2a9fa81b9bb12ba0e988216d9adf836c76fdc89afebc37fab7afb1b8406f
+c84aec9 | infra/kms.tf | baf2df90aca6c70ff3991f106b32a78f7b6945fe5a4dccc04c1f7f68c8308f61
+c84aec9 | infra/modules/kms/main.tf | 08c94fb9f51cb2e5a4ca394411c4ef516ba062ec29fe99211c8195d898acf797
+c84aec9 | infra/modules/kms/outputs.tf | c2b905415fa51c1839159fa55cddc8487798e3a9b1f12e3263c7f3dcef0f7c4f
+c84aec9 | infra/modules/kms/variables.tf | 7c3473165bf4c34d9da109d0a719515856342b147ff86028c5dd63db0a563386
+c84aec9 | infra/reminders.tf | dbc1eb3b0e3cfb9602ace607c672652cc14474852039bd87b66ab3aa7ff7cf1f
+c84aec9 | infra/stepfunctions.tf | d3d460fbef5b193d24610bf3f77d9f290d944c2ce1082093ead35a02665fd5a0
+c84aec9 | infra/talentflow-audit-stream.tf | a67f6237d792f661acf61e6293fe10d287cc0bfd223343ad1e6b53c2f3709680
+c84aec9 | infra/talentflow-hiring-managers.tf | d594671542a5653c565882930fdadf8f3c34b86e22e8ca1439a7f34156f08513
+c84aec9 | infra/tenancy.tf | 207b2e4b1513056f14770ce7730f8591b847b15c329319fb9c09dccd673f251a
+c84aec9 | infra/variables.tf | 00683b90029673af160c61391ccdeee347560eebf0c7086ca5a89605ab4781d9
+c84aec9 | lambda/getCandidates/index.js | 6cf2f5f8abe024640fe6cefde35d6f2d998da7b199e3100f62d4ba737281f260
+c84aec9 | lambda/manageRoles/index.mjs | 448d0856e3febda38474ade91c49ed37606c9f716fad794dd98ee97e668d99a2
+c84aec9 | lambda/shared/document-check.mjs | 55b9fbe50fed0608ea97e60dbbd0535cf7a891635f556b237d9cd27ea38e546f
+c84aec9 | lambda/shared/hr-group.mjs | 0a3b089f35251b27cf07dababb5814abeb261fc7ba987bee3d421a4340217b2b
+c84aec9 | lambda/shared/membership.mjs | cf9ab3a5e184e69a81956d701209d87ee5e78ef76446b087d48aef691cb2c7e9
+c84aec9 | lambda/shared/modules.mjs | e0bd9aae3f646225bb7328a7ef5c8879a84ee039edb1adbda59f97bc62d0724c
+c84aec9 | lambda/shared/recruitment-access.mjs | f8fcd8830a32317d80722107d6a48b130effe16a4f0cf54cb41a78ca89ba3549
+c84aec9 | lambda/shared/recruitment-actions/roles.mjs | 8483feba38f5cba23a3262e838cdbaee6dd1d299389e2f13299f9cd0b8abb1f9
+c84aec9 | lambda/shared/recruitment-settings.mjs | 4365068f087137aba693c0ed767d1efb843c06556708c409ea406db5ab2427d0
+c84aec9 | lambda/shared/recruitment-stages.mjs | 38c0128159dfb66a26ccfd71820280ada3d814ed9641c84fde911fca68329701
+c84aec9 | lambda/shared/roles.mjs | 81d71d59bf94be7b81414181cc888619caa2532e3687da2f85d143a2363aa864
+c84aec9 | lambda/shared/tenant.mjs | 5c984ee6efaf31d67b2fd3a25be6d4dfdd1761fd468d757641061e5264246b2b
+c84aec9 | lambda/shared/tf-tenant.js | bc7af8fa40c590ad9fb9548d2f443880f0a8a173b66ecf4ac4bab7b3a9b6dbf6
+c84aec9 | scripts/ci/build-lambdas.py | e28ebb1cd7350dc98db07ceca0857ede6f2572c0c0fa159ea8f6f91485f25b6a
+c84aec9 | talent-flow-infra/env/dev.tfvars | 5bf5d6ed02832e3400ff246926b355542059ddbeefcac170fe96dd22c73dbfd3
+c84aec9 | talent-flow-infra/locals.tf | d505d99a2f99c807e5b686cca73ef9aa296ef0853a2aada72b7a9d97b5781e59
+c84aec9 | talent-flow-infra/talent-flow-dynamodb.tf | 56681a986f43eef6202ca24d4d13427db422dca15147741589e5c4cfeb7cb3bf
+c84aec9 | talent-flow-infra/talent-flow-iam.tf | 3f3d1d757e66c8fc2f9f8ab20c4bcf58eb2d7d31e0f58b1b650f02202382d9c3
+c84aec9 | talent-flow-infra/talent-flow-kms.tf | ea897ecb5cc3ad8db68752e233ffcf2515e9a328a16811d15d053d8c191999b5
+c84aec9 | talent-flow-infra/talent-flow-lambdas.tf | 9b9292140e75f635e56ce4dabe3da9c8f109b2dbbde6ffcb78039e5e07f7d9e0
+c84aec9 | talent-flow-infra/talent-flow-roles.tf | 0ea329531a961764290bcb647e114f72d8368705a1ffebd8b58a0d850f809379
