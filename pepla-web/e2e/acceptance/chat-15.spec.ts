@@ -564,7 +564,8 @@ test.describe('CHAT-15 · An hourly job deletes a leaver\'s Ask Batsi chats', ()
       && !/\.(manage_departments(_[a-z_]+)?|list_departments|add_department|change_department)$/.test(x)
       // REC-07 (child lock rec-07.2): the four scoring routes: talent-flow-infra only, routes only, only these names; judged in rec-07.spec.ts.
       // REC-UI-03 step 3 (child lock chat-15.6): one more route on the same Lambda, get_interview; judged in rec-ui-03-read.spec.ts AC-3.6.
-      && !/^talent-flow-infra\/aws_apigatewayv2_route\.(get_candidate_scores|get_scoring_link|post_interview_votes|post_scoring_link|get_interview)$/.test(x)
+      // REC-UI-03 tasks (child lock chat-15.7): one more route on the same Lambda, get_feedback_due; judged in rec-ui-03-tasks.spec.ts AC-11.
+      && !/^talent-flow-infra\/aws_apigatewayv2_route\.(get_candidate_scores|get_scoring_link|post_interview_votes|post_scoring_link|get_interview|get_feedback_due)$/.test(x)
       // REC-05 (child lock rec-05.1): manageOffers and its role, policy, log group, integration, routes and permission (manage_offers*), judged in rec-05.spec.ts AC-10 and AC-15.
       && !isRec05Resource(x)
       // REC-16 (child lock chat-15.4): the hiring manager IT email Lambda and its role, policy, log group, rule, target and permission, all

@@ -81,6 +81,7 @@ exports.handler = async (event) => {
   if (rk === 'POST /v1/interviews/{id}/votes') return (await import('./rec07.mjs')).vote(event);
   if (rk === 'GET /v1/candidates/{id}/scores') return (await import('./rec07.mjs')).sheet(event);
   if (rk === 'GET /v1/interviews/{id}') return (await import('./read.mjs')).read(event);
+  if (rk === 'GET /v1/feedback-due') return (await import('./feedback-due.mjs')).feedbackDue(event);
   // TEN-03: a person calling the API gets the company from the sign-in. The VoteSubmitted event has none: it names
   // its company in tenant_id. The company is never read from the body, query, path or headers.
   const T = await tenantHelper();

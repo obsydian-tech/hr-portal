@@ -1,0 +1,20 @@
+{
+  "desktop-1280": {
+    "candidate": "CAND-RECUI03TSKAAAAAAAAAAAD1",
+    "firstName": "Ivo",
+    "lastName": "Seed-Tasks-Desk",
+    "interview": "iv-rec-ui-03-tasks-desk"
+  },
+  "phone-390": {
+    "candidate": "CAND-RECUI03TSKAAAAAAAAAAAP1",
+    "firstName": "Ivo",
+    "lastName": "Seed-Tasks-Phone",
+    "interview": "iv-rec-ui-03-tasks-phone"
+  },
+  "future": {
+    "candidate": "CAND-RECUI03TSKAAAAAAAAAAAF1",
+    "firstName": "Ivo",
+    "lastName": "Seed-Tasks-Later",
+    "interview": "iv-rec-ui-03-tasks-later"
+  }
+}

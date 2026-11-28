@@ -1440,6 +1440,68 @@ def seed_rec_ui_03_2(ddb, tenant_id: str, panel_sub: str, hr_sub: str) -> int:
     return written
 
 
+def seed_feedback_due(ddb, tenant_id: str, panel_sub: str, hr_sub: str) -> int:
+    """REC-UI-03 tasks dev seed (NH-293, cards/rec-ui-03-tasks.md): one candidate per test width (support/rec-ui-03-tasks/dev-ids.json,
+    keyed by Playwright project) with one SCHEDULED interview that started an hour ago, the panel login and the HR login on its panel, and
+    their two OPEN feedback-due rows; plus one shared interview that starts in 7 days with the panel login on it and an OPEN row (it must
+    not be listed). Every run removes the VOTE# and VOTED# rows of each candidate and puts every field back. Company A only, no guest.
+    Idempotent."""
+    all_ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-ui-03-tasks" / "dev-ids.json").read_text())
+    if not panel_sub or not hr_sub:
+        print("warning: a panel or HR login has no sub; the REC-UI-03 tasks rows were not written")
+        return 0
+    now_s = time.time()
+    iso = lambda t: time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(t))
+    stamp = iso(now_s - 10 * 86400)
+    criteria = {"L": [{"M": {"key": {"S": k}, "label": {"S": label}}} for k, label in REC04_CRITERIA]}
+    written = 0
+    for key, ids in all_ids.items():
+        cid, iv_id = ids["candidate"], ids["interview"]
+        pk = f"CANDIDATE#{cid}"
+        later = key == "future"
+        panel = [panel_sub] if later else [panel_sub, hr_sub]
+        for prefix in ("VOTE#", "VOTED#"):
+            for page in ddb.get_paginator("query").paginate(TableName=STATE_TABLE, KeyConditionExpression="PK = :pk AND begins_with(SK, :p)",
+                                                             ExpressionAttributeValues={":pk": {"S": pk}, ":p": {"S": prefix}}, ProjectionExpression="PK, SK"):
+                for item in page.get("Items", []):
+                    ddb.delete_item(TableName=STATE_TABLE, Key={"PK": item["PK"], "SK": item["SK"]})
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": pk}, "SK": {"S": "SAGA"},
+            "GSI1PK": {"S": f"TENANT#{tenant_id}"}, "GSI1SK": {"S": f"SAGA#2026-12-31T00:00:00.000Z#{cid}"},
+            "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id}, "firstName": {"S": ids["firstName"]}, "lastName": {"S": ids["lastName"]},
+            "positionTitle": {"S": "Demo role"}, "positionLevel": {"S": "MID"}, "department": {"S": "Operations"},
+            "currentStage": {"S": "INTERVIEW"}, "stageEnteredAt": {"S": stamp}, "status": {"S": "ACTIVE"},
+            "slaStatus": {"S": "ON_TRACK"}, "createdAt": {"S": stamp}, "hiringManagerId": {"S": OTHER_HIRING_MANAGER}, "seed": {"S": SEED_TAG},
+        })
+        ddb.put_item(TableName=STATE_TABLE, Item={
+            "PK": {"S": pk}, "SK": {"S": f"INTERVIEW#{iv_id}"}, "interviewId": {"S": iv_id}, "candidateId": {"S": cid}, "tenant_id": {"S": tenant_id},
+            "interviewType": {"S": "TECHNICAL"}, "status": {"S": "SCHEDULED"}, "scheduledAt": {"S": iso(now_s + 7 * 86400 if later else now_s - 3600)},
+            "length_minutes": {"N": "60"}, "where": {"S": "IN_PERSON"}, "place": {"S": "Durban depot"}, "sequence": {"N": "1"},
+            "booked_by": {"S": hr_sub}, "booked_at": {"S": stamp}, "votesRequired": {"N": str(len(panel))}, "votesSubmitted": {"N": "0"},
+            "PANEL_FEEDBACK_PENDING_COUNT": {"N": str(len(panel))}, "PANEL_SPLIT_FLAG": {"BOOL": False},
+            "panelMemberIds": {"L": [{"S": p} for p in panel]}, "criteria_snapshot": criteria, "createdAt": {"S": stamp}, "seed": {"S": SEED_TAG},
+        })
+        for person in panel:
+            ddb.put_item(TableName=STATE_TABLE, Item={
+                "PK": {"S": f"FEEDBACK_DUE#{tenant_id}#{person}"}, "SK": {"S": f"CANDIDATE#{cid}#INTERVIEW#{iv_id}"}, "tenant_id": {"S": tenant_id},
+                "person_id": {"S": person}, "interview_id": {"S": iv_id}, "candidate_id": {"S": cid}, "state": {"S": "OPEN"}, "updated_at": {"S": iso(now_s)},
+            })
+        written += 2 + len(panel)
+    return written
+
+
+def run_feedback_due_backfill(ddb) -> None:
+    """REC-UI-03 tasks (NH-293) rule 6: runs scripts/tenancy/backfill-feedback-due.py with --apply on the dev state table. The file is
+    loaded only here (importlib: its name has hyphens), so a run that never gets this far never loads it."""
+    import importlib.util
+    path = pathlib.Path(__file__).resolve().parents[1] / "tenancy" / "backfill-feedback-due.py"
+    spec = importlib.util.spec_from_file_location("backfill_feedback_due", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    c = mod.run(ddb, STATE_TABLE, True)
+    print(f"feedback-due backfill: interviews read {c['interviews']}, rows written {c['written']}, rows already there {c['there']}")
+
+
 def seed_rec05(ddb, tenant_id: str, hr_sub: str) -> int:
     """REC-05: put the offer rows back every run (cards/rec-05.md, "REC-05 dev seed"). Idempotent."""
     ids = json.loads((pathlib.Path(__file__).resolve().parents[2] / "pepla-web" / "e2e" / "acceptance" / "support" / "rec-05" / "dev-ids.json").read_text())
@@ -1916,6 +1978,12 @@ def main() -> None:
         seed_int_ui05(ddb, tid, (employee_sub, user_sub(cognito, naleko, "it")), user_sub(cognito, naleko, "hr"))
     except ddb.exceptions.ResourceNotFoundException:
         print("warning: the TalentFlow state table is not there; the INT-UI-01 rows were not written")
+
+    try:
+        seed_feedback_due(ddb, tid, employee_sub, user_sub(cognito, naleko, "hr"))
+        run_feedback_due_backfill(ddb)
+    except ddb.exceptions.ResourceNotFoundException:
+        print("warning: the TalentFlow state table is not there; the REC-UI-03 tasks rows were not written")
 
     try:
         seed_int03(ddb, tid)

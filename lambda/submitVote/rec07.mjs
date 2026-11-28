@@ -9,6 +9,7 @@ import { requireModule } from '../shared/modules.mjs';
 import { getRecruitmentSettings, activeSettings, DEFAULTS } from '../shared/recruitment-settings.mjs';
 import * as S from '../shared/scoring.mjs';
 import { candidateRows, recomputeInterview, sequenceClause } from '../shared/interview-scoring.mjs';
+import * as FD from '../shared/feedback-due-rows.mjs';
 
 const db = new DynamoDBClient({});
 const eb = new EventBridgeClient({});
@@ -81,6 +82,7 @@ export async function vote(event) {
       { Put: { TableName: STATE(), Item: marshall(item, { removeUndefinedValues: true }), ConditionExpression: 'attribute_not_exists(SK)' } },
       { Put: { TableName: STATE(), Item: marshall(T.stampTenant({ PK: `CANDIDATE#${iv.candidateId}`, SK: `VOTED#${iv.interviewId}#${voter}`, createdAt: at }, tenantId)), ConditionExpression: 'attribute_not_exists(PK)' } },
       { Update: { TableName: STATE(), Key: marshall(ivKey), UpdateExpression: 'ADD votesSubmitted :one', ConditionExpression: `tenant_id = :t AND #s = :sch AND scheduledAt <= :now AND ${seq.expr}`, ExpressionAttributeNames: { '#s': 'status', '#q': 'sequence' }, ExpressionAttributeValues: marshall({ ':one': 1, ':t': tenantId, ':sch': 'SCHEDULED', ':now': at, ...seq.values }) } },
+      FD.doneItem(STATE(), tenantId, voter, iv.candidateId, iv.interviewId, 'VOTED', at),
     ] }));
     return at;
   };
